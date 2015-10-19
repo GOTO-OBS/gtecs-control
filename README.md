@@ -1,2 +1,2 @@
-# g-tecs
+# G-TeCS
 GOTO Telescope Control System
