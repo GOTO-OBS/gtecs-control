@@ -30,9 +30,11 @@ def get_info():
         info = filt.report_to_UI('info')
         
         print '#### FILTER WHEEL INFO ####'
+        print 'Status: %s' %info['status']
         print 'Current filter:     %s' %info['current_filter']
-        print '####################'
-        #print info
+        print 'Current filter pos: %s' %info['current_filter_pos']
+        print 'Current motor pos:  %s' %info['current_pos']
+        print '###########################'
     except:
         print 'No response from filter wheel daemon'
     
@@ -76,6 +78,8 @@ def query(command):
         get_info()
     elif command[0]=='set':
         set_filter(command[1])
+    elif command[0]=='list':
+        print params.FILTER_LIST
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -92,6 +96,7 @@ def printInstructions():
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       filt info               - reports current filter wheel data'
     print '       filt set [filter]       - sets the currently active filter'
+    print '       filt list               - lists the possible filters'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       filt i                  - enter interactive (command line) usage'
     print '       filt q                  - quit interactive (command line) usage'

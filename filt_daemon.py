@@ -46,8 +46,8 @@ class Filt_Daemon:
         
         ### filters
         self.flist=params.FILTER_LIST
-        self.current_filter=0
-        self.new_filter=0
+        self.current_filter='V'
+        self.new_filter='V'
         
         ### status
         self.info='None yet'
@@ -63,28 +63,39 @@ class Filt_Daemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control function
     def filt_control(self):
+        
+        ### connect to filter
+        filt=FakeFilterWheel('device','serial')
+        
         while(self.running):
             self.time_check = time.time()   #used for "ping"
-            
-            ### connect to filter
-            filt=FakeFilterWheel('device','serial')
-            
+
             ### control functions
             if(self.get_info_flag): # Request info
-                try:
-                    new_info = SiTech.get_info()
-                    self.info = new_info
-                except:
-                    print 'No response from SiTech daemon'
+                info = {}
+                steps_remaining=filt.get_steps_remaining()
+                if steps_remaining > 0:
+                    info['status']='Moving (%i)' %(steps_remaining)
+                    info['current_filter']='N/A'
+                else:
+                    info['status']='Ready'
+                    current_filter = filt.get_filter_pos()
+                    info['current_filter']=params.FILTER_LIST[filt.get_filter_pos()]
+                info['current_filter_pos']=filt.get_filter_pos()
+                info['current_pos']=filt.stepper_position
+                self.info = info
+                self.current_filter = info['current_filter']
                 self.get_info_flag=0
             
             if(self.set_filter_flag): # Choose the active filter
                 if filt.get_steps_remaining() > 0:
                     return 'Motor is still moving'
+                new_filter_number=params.FILTER_LIST.index(self.new_filter)
                 try:
-                    e = filt.set_filter_pos(self.new_filter)
-                except:
-                    print e
+                    filt.set_filter_pos(new_filter_number)
+                except ValueError:
+                    return 'Illegal filter wheel position:', new_filter_number
+
                 self.set_filter_flag=0
             
             if(self.get_filter_flag): # Report the current filter
@@ -98,8 +109,8 @@ class Filt_Daemon:
     # Mount control functions
     def get_info(self):
         self.get_info_flag=1
-    def set_filter(self,new_filt):
-        self.new_filt=new_filt
+    def set_filter(self,new_filter):
+        self.new_filter=new_filter
         self.set_filter_flag=1
     def get_filter(self):
         self.get_filter_flag=1

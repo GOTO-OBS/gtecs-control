@@ -16,8 +16,8 @@ import numpy
 # General parameters
 
 # File locations
-LOG_PATH='/local/mjd/logs/'
-SCRIPT_PATH='/local/mjd/backed_up_on_astro3/main_edits/'
+LOG_PATH='/home/martin/Documents/g-tecs/logs/'
+SCRIPT_PATH='/home/martin/Documents/g-tecs/'
 
 # Log form
 LOGGING=1
@@ -31,7 +31,7 @@ SITE_LONGITUDE=-17.8793802
 DAEMONS={
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
-        'HOST':     'janus',
+        'HOST':     'Aspire-VN7-791',
         'PORT':     9001,
         'PYROID':   'mnt_daemon',
         'PINGLIFE': 10.
@@ -45,7 +45,7 @@ DAEMONS={
         },
     'filt':{ # filter wheel daemon
         'PROCESS':  'filt_daemon.py',
-        'HOST':     'janus', # MJD's laptop
+        'HOST':     'Aspire-VN7-791', # MJD's laptop
         'PORT':     9002, # No real reason
         'PYROID':   'filt_daemon',
         'PINGLIFE': 10.
@@ -61,4 +61,4 @@ MIN_ELEVATION=20. #degrees
 DEFAULT_OFFSET_STEP=10. #arcsec
 
 # Filter wheel parameters
-FILTER_LIST=('H','B','V','R','I')
+FILTER_LIST=['L','R','B','G','C']
