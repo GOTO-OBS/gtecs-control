@@ -73,7 +73,7 @@ def query(command):
         print 'Already in interactive mode'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Mount control functions
+    # Filter wheel control functions
     elif command[0]=='info':
         get_info()
     elif command[0]=='set':
@@ -89,10 +89,10 @@ def query(command):
         print 'filt> Command not recognized:',command[0]
 
 def printInstructions():
-    print 'Usage: filt start              - starts the mount daemon'
-    print '       filt shutdown           - shuts down the mount daemon cleanly'
-    print '       filt kill               - kills the mount daemon (emergency use only!)'
-    print '       filt ping               - pings the mount daemon'
+    print 'Usage: filt start              - starts the filter wheel daemon'
+    print '       filt shutdown           - shuts down the filter wheel daemon cleanly'
+    print '       filt kill               - kills the filter wheel daemon (emergency use only!)'
+    print '       filt ping               - pings the filter wheel daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       filt info               - reports current filter wheel data'
     print '       filt set [filter]       - sets the currently active filter'
