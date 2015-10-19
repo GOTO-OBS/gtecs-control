@@ -45,9 +45,16 @@ DAEMONS={
         },
     'filt':{ # filter wheel daemon
         'PROCESS':  'filt_daemon.py',
-        'HOST':     'Aspire-VN7-791', # MJD's laptop
-        'PORT':     9002, # No real reason
+        'HOST':     'Aspire-VN7-791',
+        'PORT':     9002,
         'PYROID':   'filt_daemon',
+        'PINGLIFE': 10.
+        },
+    'foc':{ # focuser
+        'PROCESS':  'foc_daemon.py',
+        'HOST':     'Aspire-VN7-791', # MJD's laptop
+        'PORT':     9003,
+        'PYROID':   'foc_daemon',
         'PINGLIFE': 10.
         }
 }
