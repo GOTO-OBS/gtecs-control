@@ -106,7 +106,7 @@ class Filt_Daemon:
         return
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Mount control functions
+    # Filter wheel control functions
     def get_info(self):
         self.get_info_flag=1
     def set_filter(self,new_filter):
@@ -120,8 +120,8 @@ class Filt_Daemon:
     def ping(self):
         #print '  pinged'
         dt_control = abs(time.time()-self.time_check)
-        if dt_control > params.DAEMONS['mnt']['PINGLIFE']:
-            return 'Last mount daemon control thread time check: %.1f seconds ago' % dt_control
+        if dt_control > params.DAEMONS['filt']['PINGLIFE']:
+            return 'Last filter wheel daemon control thread time check: %.1f seconds ago' % dt_control
         else:
             return 'ping'
     
