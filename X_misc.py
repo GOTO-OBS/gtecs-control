@@ -41,7 +41,7 @@ def getProcessID(process_name, node):
     for line in lines:
         entries=line.split()
         for entry in entries:
-            if entry == 'python2': #'python'
+            if entry == 'python2' or entry == 'python':
                 pyflag = 2
             else:
                 pyflag -= 1
@@ -61,7 +61,10 @@ def startDaemon(daemonProcess,daemonHost,stdout='/dev/null'):
         if localHost == daemonHost:
             os.system('python2 '+params.SCRIPT_PATH+daemonProcess+' >'+stdout+' 2>&1 &')
             processIDn = getProcessID(daemonProcess,daemonHost)
-            print 'Daemon running: process', processIDn[0]
+            if len(processIDn) == 0:
+                'Error starting daemon, check logs'
+            else:
+                print 'Daemon running: process', processIDn[0]
         else:
             os.system('ssh '+daemonHost+' python /home/slodar/scripts/'+daemonProcess+' >'+stdout+' 2>&1 &')
     else:
