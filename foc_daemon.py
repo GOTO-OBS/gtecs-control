@@ -48,7 +48,9 @@ class Filt_Daemon:
         
         ### position variables
         self.steps=0
+        self.new_pos=0
         self.remaining=0
+        self.limit=1000
         
         ### status
         self.info='None yet'
@@ -67,10 +69,11 @@ class Filt_Daemon:
         
         ### connect to focuser
         foc=FakeFocuser('device','serial')
-        
+        self.limit = foc.max_extent
+
         while(self.running):
             self.time_check = time.time()   #used for "ping"
-
+            
             ### control functions
             if(self.get_info_flag): # Request info
                 info = {}
@@ -98,6 +101,7 @@ class Filt_Daemon:
                 self.set_flag=0
             
             if(self.move_flag): # Change the focuser position
+                self.new_pos=foc.stepper_position+self.steps
                 try:
                     foc.step_motor(self.steps,blocking=False)
                 except:
@@ -123,6 +127,8 @@ class Filt_Daemon:
         time.sleep(0.1)
         if self.remaining>0:
             return 'Motor is still moving'
+        elif pos > self.limit:
+            return 'End position past limits'
         else:
             self.new_pos=pos
             self.set_flag=1
@@ -131,6 +137,8 @@ class Filt_Daemon:
         time.sleep(0.1)
         if self.remaining>0:
             return 'Motor is still moving'
+        elif (self.new_pos+steps) > self.limit:
+            return 'End position past limits'
         else:
             self.steps=steps
             self.move_flag=1
