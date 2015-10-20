@@ -16,8 +16,9 @@ import numpy
 # General parameters
 
 # File locations
-LOG_PATH='/home/martin/Documents/g-tecs/logs/'
-SCRIPT_PATH='/home/martin/Documents/g-tecs/'
+LOG_PATH='/home/mdyer/'
+WIN_PATH='/cygdrive/c/goto_mount/'
+SCRIPT_PATH='/home/mdyer/'
 
 # Log form
 LOGGING=1
@@ -31,14 +32,14 @@ SITE_LONGITUDE=-17.8793802
 DAEMONS={
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
-        'HOST':     'Aspire-VN7-791',
+        'HOST':     'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9001,
         'PYROID':   'mnt_daemon',
         'PINGLIFE': 10.
         },
     'sitech':{ # sitech daemon
         'PROCESS':  'sitech_daemon.py',
-        'HOST':     '143.167.113.234', # MJD's laptop
+        'HOST':     '137.205.160.1',
         'PORT':     7766, # No real reason
         'PYROID':   'sitech_daemon',
         'PINGLIFE': 10.
