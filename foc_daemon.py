@@ -41,12 +41,14 @@ class Filt_Daemon:
         
         ### initiate flags
         self.get_info_flag=0
+        self.remaining_flag=0
         self.set_flag=0
         self.move_flag=0
         self.home_flag=0
         
         ### position variables
         self.steps=0
+        self.remaining=0
         
         ### status
         self.info='None yet'
@@ -83,9 +85,11 @@ class Filt_Daemon:
                 self.info = info
                 self.get_info_flag=0
             
+            if(self.remaining_flag): # Check steps remaining
+                self.remaining = foc.get_steps_remaining()
+                self.remaining_flag=0
+            
             if(self.set_flag): # Change the focuser position
-                if foc.get_steps_remaining() > 0:
-                    return 'Motor is still moving'
                 new_steps=self.new_pos-foc.stepper_position
                 try:
                     foc.step_motor(new_steps,blocking=False)
@@ -94,8 +98,6 @@ class Filt_Daemon:
                 self.set_flag=0
             
             if(self.move_flag): # Change the focuser position
-                if foc.get_steps_remaining() > 0:
-                    return 'Motor is still moving'
                 try:
                     foc.step_motor(self.steps,blocking=False)
                 except:
@@ -103,8 +105,6 @@ class Filt_Daemon:
                 self.move_flag=0
             
             if(self.home_flag): # Home the focuser
-                if foc.get_steps_remaining() > 0:
-                    return 'Motor is still moving'
                 try:
                     foc.home_focuser()
                 except FLIError:
@@ -119,13 +119,28 @@ class Filt_Daemon:
     def get_info(self):
         self.get_info_flag=1
     def set_focuser(self,pos):
-        self.new_pos=pos
-        self.set_flag=1
+        self.remaining_flag=1
+        time.sleep(0.1)
+        if self.remaining>0:
+            return 'Motor is still moving'
+        else:
+            self.new_pos=pos
+            self.set_flag=1
     def move_focuser(self,steps):
-        self.steps=steps
-        self.move_flag=1
+        self.remaining_flag=1
+        time.sleep(0.1)
+        if self.remaining>0:
+            return 'Motor is still moving'
+        else:
+            self.steps=steps
+            self.move_flag=1
     def home_focuser(self):
-        self.home_flag=1
+        self.remaining_flag=1
+        time.sleep(0.1)
+        if self.remaining>0:
+            return 'Motor is still moving'
+        else:
+            self.home_flag=1
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon pinger

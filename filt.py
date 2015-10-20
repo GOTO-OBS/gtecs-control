@@ -41,7 +41,8 @@ def get_info():
 def set_filter(new_filt):
     filt=Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     try:
-        filt.set_filter(new_filt)
+        f=filt.set_filter(new_filt)
+        if f: print f
     except:
         print 'No response from filter wheel daemon'
 

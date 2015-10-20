@@ -41,21 +41,24 @@ def get_info():
 def set_focuser(position):
     foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        foc.set_focuser(position)
+        f=foc.set_focuser(position)
+        if f: print f
     except:
         print 'No response from focuser daemon'
     
 def move_focuser(steps):
     foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        foc.move_focuser(steps)
+        f=foc.move_focuser(steps)
+        if f: print f
     except:
         print 'No response from focuser daemon'
     
 def home_focuser():
     foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        foc.home_focuser()
+        f=foc.home_focuser()
+        if f: print f
     except:
         print 'No response from focuser daemon'
 

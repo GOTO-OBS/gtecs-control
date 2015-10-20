@@ -41,6 +41,7 @@ class Filt_Daemon:
         
         ### initiate flags
         self.get_info_flag=0
+        self.remaining_flag=0
         self.set_filter_flag=0
         self.get_filter_flag=0
         
@@ -48,6 +49,7 @@ class Filt_Daemon:
         self.flist=params.FILTER_LIST
         self.current_filter='V'
         self.new_filter='V'
+        self.remaining=0
         
         ### status
         self.info='None yet'
@@ -86,10 +88,12 @@ class Filt_Daemon:
                 self.info = info
                 self.current_filter = info['current_filter']
                 self.get_info_flag=0
+                
+            if(self.remaining_flag): # Check steps remaining
+                self.remaining = filt.get_steps_remaining()
+                self.remaining_flag=0
             
             if(self.set_filter_flag): # Choose the active filter
-                if filt.get_steps_remaining() > 0:
-                    return 'Motor is still moving'
                 new_filter_number=params.FILTER_LIST.index(self.new_filter)
                 try:
                     filt.set_filter_pos(new_filter_number)
@@ -110,8 +114,13 @@ class Filt_Daemon:
     def get_info(self):
         self.get_info_flag=1
     def set_filter(self,new_filter):
-        self.new_filter=new_filter
-        self.set_filter_flag=1
+        self.remaining_flag=1
+        time.sleep(0.1)
+        if self.remaining>0:
+            return 'Motor is still moving'
+        else:
+            self.new_filter=new_filter
+            self.set_filter_flag=1
     def get_filter(self):
         self.get_filter_flag=1
         
