@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 ########################################################################
 #                                mnt.py                                #
@@ -42,11 +42,11 @@ def get_info():
         print '~~~~~~~'
         print 'Telescope RA:  %.4f' %info['tel_ra']
         print 'Telescope Dec: %.4f' %info['tel_dec']
-        if info['targ_ra']:
+        if info['targ_ra'] != None:
             print 'Target RA:     %.4f' %info['targ_ra']
         else:
             print 'Target RA:     NONE'
-        if info['targ_dec']:
+        if info['targ_dec'] != None:
             print 'Target Dec:    %.4f' %info['targ_dec']
         else:
             print 'Target Dec:    NONE'
@@ -54,25 +54,23 @@ def get_info():
             print 'Target dist:   %.4f' %targ_dist
         print 'Telescope Alt: %.2f' %info['tel_alt']
         print 'Telescope Az:  %.2f' %info['tel_az']
+        print 'Step size: %.2f arcsec' %info['step']
         print '~~~~~~~'
         print 'LST: %.2f' %info['lst']
+        print 'Hour Angle: %.2f' %info['ha']
         print 'Tel Time: %s' %info['teltime']
+        #print 'UTC: %s' %info['ut']
         print '~~~~~~~'
-        print 'Site Long: %.2f' %info['long']
-        print 'Site Lat: %.2f' %info['lat']
-        print 'Site Eliv: %.2f' %info['eliv']
+        print 'Uptime: %.1fs' %info['uptime']
+        print 'Ping: %.3fs' %info['ping']
+        #print 'Site Long: %.2f' %info['long']
+        #print 'Site Lat: %.2f' %info['lat']
+        #print 'Site Eliv: %.2f' %info['eliv']
         print '####################'
         #print info
     except:
         print 'No response from mount daemon'
-    
-def pingS():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        mnt.pingS()
-    except:
-        print 'No response from mount daemon'
-    
+
 def start_tracking():
     mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
@@ -178,6 +176,9 @@ def set_step(offset):
     except:
         print 'No response from mount daemon'
 
+def startDaemonWin(daemonProcess,daemonHost,stdout='/dev/null'):
+    os.system('ssh goto@'+daemonHost+' /cygdrive/c/Python27/python.exe "C:/goto_mount/sitech_daemon.py >/cygdrive/c/goto_mount/sitech.log 2>&1 &"')
+
 ########################################################################
 # Define interactive mode
 def interactive():
@@ -194,12 +195,18 @@ def query(command):
     # Primary control functions
     if command[0]=='start':
         misc.startDaemon(MNT_DAEMON_PROCESS,MNT_DAEMON_HOST,stdout=MNT_DAEMON_OUTPUT)
-    elif command[0]=='pingD': #'ping':
+    elif command[0]=='pingM': #'ping':
         misc.pingDaemon(MNT_DAEMON_ADDRESS)
     elif command[0]=='shutdown':
         misc.shutdownDaemon(MNT_DAEMON_ADDRESS)
     elif command[0]=='kill':
         misc.killDaemon(MNT_DAEMON_PROCESS,MNT_DAEMON_HOST)
+    elif command[0]=='startS':
+        startDaemonWin(SITECH_DAEMON_PROCESS,SITECH_DAEMON_HOST,SITECH_DAEMON_OUTPUT)
+    elif command[0]=='pingS':
+        misc.pingDaemon(SITECH_DAEMON_ADDRESS)
+    elif command[0]=='shutdownS':
+        misc.shutdownDaemon(SITECH_DAEMON_ADDRESS)
     elif command[0]=='help':
         printInstructions()
     elif command[0]=='i':
@@ -209,8 +216,6 @@ def query(command):
     # Mount control functions
     elif command[0]=='info':
         get_info()
-    elif command[0]=='pingS':
-        pingS()
     elif command[0]=='track':
         start_tracking()
     elif command[0]=='stop':
@@ -250,7 +255,7 @@ def query(command):
     elif command[0]=='exit':
         print 'mnt> Use "shutdown" to close the daemon or "q" to quit interactive mode'
     elif command[0]=='ping':
-        print 'mnt> [pingD] to ping mnt daemon, [pingS] to ping SiTech server'
+        print 'mnt> [pingM] to ping the mount daemon, [pingS] to ping the SiTech daemon'
     else:
         print 'mnt> Command not recognized:',command[0]
 
@@ -258,10 +263,13 @@ def printInstructions():
     print 'Usage: mnt start              - starts the mount daemon'
     print '       mnt shutdown           - shuts down the mount daemon cleanly'
     print '       mnt kill               - kills the mount daemon (emergency use only!)'
-    print '       mnt pingD              - pings the mount daemon'
+    print '       mnt pingM              - pings the mount daemon'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       mnt startS             - starts the SiTech daemon'
+    print '       mnt shutdownS          - shuts down the SiTech daemon cleanly'
+    print '       mnt pingS              - pings the SiTech daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       mnt info               - reports current mount data'
-    print '       mnt pingS              - pings the SiTech daemon'
     print '       mnt ra [h m s]         - set target ra'
     print '       mnt dec [sign d m s]   - set target dec'
     print '       mnt slew               - slew to target ra/dec'
@@ -293,7 +301,12 @@ else:
     MNT_DAEMON_HOST=params.DAEMONS['mnt']['HOST']
     MNT_DAEMON_ADDRESS=params.DAEMONS['mnt']['ADDRESS']
     MNT_DAEMON_OUTPUT=params.LOG_PATH+'mnt_daemon-stdout.log'
-    
+
+    SITECH_DAEMON_PROCESS=params.DAEMONS['sitech']['PROCESS']
+    SITECH_DAEMON_HOST=params.DAEMONS['sitech']['HOST']
+    SITECH_DAEMON_ADDRESS=params.DAEMONS['sitech']['ADDRESS']
+    SITECH_DAEMON_OUTPUT=params.WIN_PATH+'sitech_daemon-stdout.log'
+
     command=sys.argv[1:]    
 
     if command[0]=='i':

@@ -41,7 +41,7 @@ def getProcessID(process_name, node):
     for line in lines:
         entries=line.split()
         for entry in entries:
-            if entry == 'python':
+            if entry == 'python2': #'python'
                 pyflag = 2
             else:
                 pyflag -= 1
@@ -53,21 +53,31 @@ def getProcessID(process_name, node):
 
 ########################################################################
 # Core Daemon functions 
-def startDaemon(daemonProcess,daemonHost,stdout='/dev/null',HostOS='Linux'):
+def startDaemon(daemonProcess,daemonHost,stdout='/dev/null'):
     '''Start a daemon (unless it is running already)'''
     localHost = getHostname()
     processID = getProcessID(daemonProcess,daemonHost)
     if len(processID) == 0:
         if localHost == daemonHost:
-            os.system('python '+params.SCRIPT_PATH+daemonProcess+' >'+stdout+' 2>&1 &')
+            os.system('python2 '+params.SCRIPT_PATH+daemonProcess+' >'+stdout+' 2>&1 &')
             processIDn = getProcessID(daemonProcess,daemonHost)
             print 'Daemon running: process', processIDn[0]
-        elif HostOS == 'Windows':
-            os.system('ssh'+daemonHost+' python "/cygdrive/d/School & University/Sheffield/Work/ASCOM/Pyro server"'+daemonProcess+' > "'+stdout+'" 2>&1 &')
         else:
             os.system('ssh '+daemonHost+' python /home/slodar/scripts/'+daemonProcess+' >'+stdout+' 2>&1 &')
     else:
         print 'Aborted. Daemon is already running: process', processID[0]
+
+def pingDaemon(daemonAddress):
+    '''Ping a daemon'''
+    daemon = Pyro4.Proxy(daemonAddress)
+    try:
+        ping = daemon.ping()
+        if ping == 'ping':
+            print 'Daemon is alive at', daemonAddress 
+        else:
+            print ping
+    except:
+        print 'No response from daemon'
 
 def shutdownDaemon(daemonAddress):
     '''Shut a daemon down nicely'''
@@ -75,12 +85,12 @@ def shutdownDaemon(daemonAddress):
     try:
         daemon.shutdown()
         print 'Daemon is shutting down'
+        # Have to request status again to close loop
+        daemon = Pyro4.Proxy(daemonAddress)
+        daemon.prod()
+        daemon._pyroRelease()
     except:
         print 'No response from daemon'
-    # Have to request status again to close loop
-    daemon = Pyro4.Proxy(daemonAddress)
-    daemon.prod()
-    daemon._pyroRelease()
 
 def killDaemon(daemonProcess,daemonHost):
     '''Kill a specified daemon (should be used as a last resort)'''
@@ -114,20 +124,6 @@ def killDaemon(daemonProcess,daemonHost):
     else:
         for processID in processID_list:
             os.system('ssh '+daemonHost+' kill -9 '+processID)
-
-
-def pingDaemon(daemonAddress):
-    '''Ping a daemon'''
-    daemon = Pyro4.Proxy(daemonAddress)
-    try:
-        ping = daemon.ping()
-        if ping == 'ping':
-            print 'Daemon is alive'
-        else:
-            print ping
-    except:
-        print 'No response from daemon'
-
 
 ########################################################################
 # Astronomy functions

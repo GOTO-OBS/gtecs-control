@@ -53,13 +53,18 @@ def get_info():
         print 'Target dist:   N/A'
     print 'Telescope Alt: %.2f' %info['tel_alt']
     print 'Telescope Az:  %.2f' %info['tel_az']
+    print 'Step size: %.2f arcsec' %info['step']
     print '~~~~~~~'
     print 'LST: %.2f' %info['lst']
+    print 'Hour Angle: %.2f' %info['ha']
     print 'Tel Time: %s' %info['teltime']
+    #print 'UTC: %s' %info['ut']
     print '~~~~~~~'
-    print 'Site Long: %.2f' %info['long']
-    print 'Site Lat: %.2f' %info['lat']
-    print 'Site Eliv: %.2f' %info['eliv']
+    print 'Uptime: %.1fs' %info['uptime']
+    print 'Ping: %.3fs' %info['ping']
+    #print 'Site Long: %.2f' %info['long']
+    #print 'Site Lat: %.2f' %info['lat']
+    #print 'Site Eliv: %.2f' %info['eliv']
     print '####################'
     #except:
         #print 'No response from daemon'

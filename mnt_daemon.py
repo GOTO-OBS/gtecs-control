@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 ########################################################################
 #                            mnt_daemon.py                             #
@@ -38,8 +38,7 @@ class Mnt_Daemon:
         self.logfile.log('Daemon started')
         
         ### initiate flags
-        self.get_info_flag=0
-        self.ping_flag=0
+        self.get_info_flag=1 # get info when started
         self.start_tracking_flag=0
         self.full_stop_flag=0
         self.park_flag=0
@@ -53,6 +52,7 @@ class Mnt_Daemon:
         self.target_dec=0
         
         ### status
+        self.status='None yet'
         self.info='None yet'
         self.step = params.DEFAULT_OFFSET_STEP
         
@@ -71,32 +71,31 @@ class Mnt_Daemon:
             self.time_check = time.time()   #used for "ping"
                     
             ### Connect to SiTech daemon
-            SITECH_ADDRESS = 'PYRO:sitech_daemon@137.205.160.30:7766'
-            SiTech = Pyro4.Proxy(SITECH_ADDRESS)
-            
-            ### Time stuff
-            teltime_str = SiTech.get_info()['teltime']
-            teltime = time.strptime(teltime_str, '%Y-%m-%d %H:%M:%S')
-            telsec = time.mktime(teltime)
-            self.ut = time.gmtime(telsec)
-            #self.lst = misc.find_lst(params.SITE_LONGITUDE,telsec)
-            self.lst = SiTech.get_info()['lst']
-            
+            SITECH_DAEMON_ADDRESS = params.DAEMONS['sitech']['ADDRESS']
+            SiTech = Pyro4.Proxy(SITECH_DAEMON_ADDRESS)
+
             ### control functions
             if(self.get_info_flag): # Request info
                 try:
                     new_info = SiTech.get_info()
                     self.info = new_info
+                    teltime = time.strptime(self.info['teltime'], '%Y-%m-%d %H:%M:%S')
+                    telsec = time.mktime(teltime)
+                    self.ut = time.gmtime(telsec)
+                    #self.utstr = time.strptime(self.ut, '%Y-%m-%d %H:%M:%S')
+                    self.lst = self.info['lst']
+
+                    self.info['ha']=misc.find_ha(self.info['tel_ra'],self.info['lst'])
+                    #print self.ut
+                    #print self.utstr
+                    #self.info['ut']=time.strptime(self.ut, '%Y-%m-%d %H:%M:%S')
+                    self.info['step']=self.step
+                    self.info['uptime']=time.time()-self.start_time
+                    self.info['ping']=time.time()-self.time_check
+                    print self.info
                 except:
                     print 'No response from SiTech daemon'
                 self.get_info_flag=0
-            
-            if(self.ping_flag): # Ping the SiTech daemon
-                try:
-                    ping = SiTech.ping()
-                except:
-                    print 'No response from SiTech daemon'
-                self.ping_flag=0
                 
             if(self.start_tracking_flag): # Start tracking
                 try:
@@ -154,8 +153,6 @@ class Mnt_Daemon:
     # Mount control functions
     def get_info(self):
         self.get_info_flag=1
-    def pingS(self):
-        self.ping_flag=1
     def start_tracking(self):
         self.start_tracking_flag=1
     def full_stop(self):
@@ -190,7 +187,8 @@ class Mnt_Daemon:
             self.target_dec=dec
             self.dec_flag=1
             time.sleep(0.1) # time to set target
-        
+        self.get_info_flag=1
+        time.sleep(0.1)
         if misc.check_alt_limit(self.target_ra,self.target_dec,self.lst):
             print 'Asked to slew to target below horizon'
             return 'Target too low, cannot slew'
@@ -204,6 +202,8 @@ class Mnt_Daemon:
         elif direction=='south':
             self.target_dec+=-step_deg
         self.dec_flag=1
+        time.sleep(0.1)
+        self.get_info_flag=1 #Need to update lst
         time.sleep(0.1)
         if misc.check_alt_limit(self.target_ra,self.target_dec,self.lst):
             print 'Asked to slew to target below horizon'
@@ -219,6 +219,8 @@ class Mnt_Daemon:
         elif direction=='west':
             self.target_ra+=-step_hrs
         self.ra_flag=1
+        time.sleep(0.1)
+        self.get_info_flag=1 #Need to update lst
         time.sleep(0.1)
         if misc.check_alt_limit(self.target_ra,self.target_dec,self.lst):
             print 'Asked to slew to target below horizon'
