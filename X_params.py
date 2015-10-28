@@ -16,9 +16,9 @@ import numpy
 # General parameters
 
 # File locations
-LOG_PATH='/home/mdyer/'
-WIN_PATH='/cygdrive/c/goto_mount/'
-SCRIPT_PATH='/home/mdyer/'
+SCRIPT_PATH='/home/martin/Dropbox/Sheffield/g-tecs/'
+LOG_PATH='/home/martin/Dropbox/Sheffield/g-tecs/logs/'
+IMAGE_PATH='/home/martin/Dropbox/Sheffield/g-tecs/images/'
 
 # Log form
 LOGGING=1
@@ -46,16 +46,23 @@ DAEMONS={
         },
     'filt':{ # filter wheel daemon
         'PROCESS':  'filt_daemon.py',
-        'HOST':     'Aspire-VN7-791',
+        'HOST':     'eddie', # MJD's laptop
         'PORT':     9002,
         'PYROID':   'filt_daemon',
         'PINGLIFE': 10.
         },
-    'foc':{ # focuser
+    'foc':{ # focuser daemon
         'PROCESS':  'foc_daemon.py',
-        'HOST':     'Aspire-VN7-791', # MJD's laptop
+        'HOST':     'eddie',
         'PORT':     9003,
         'PYROID':   'foc_daemon',
+        'PINGLIFE': 10.
+        },
+    'cam':{ # camera daemon
+        'PROCESS':  'cam_daemon.py',
+        'HOST':     'eddie',
+        'PORT':     9004,
+        'PYROID':   'cam_daemon',
         'PINGLIFE': 10.
         }
 }
