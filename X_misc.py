@@ -62,7 +62,7 @@ def startDaemon(daemonProcess,daemonHost,stdout='/dev/null'):
             os.system('python2 '+params.SCRIPT_PATH+daemonProcess+' >'+stdout+' 2>&1 &')
             processIDn = getProcessID(daemonProcess,daemonHost)
             if len(processIDn) == 0:
-                'Error starting daemon, check logs'
+                print 'Error starting daemon, check logs'
             else:
                 print 'Daemon running: process', processIDn[0]
         else:
