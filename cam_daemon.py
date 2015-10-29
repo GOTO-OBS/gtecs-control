@@ -43,7 +43,6 @@ class Cam_Daemon:
         
         ### initiate flags
         self.get_info_flag=0
-        self.set_exposure_flag=0
         self.start_exposure_flag=0
         self.get_timeleft_flag=0
         self.abort_exposure_flag=0
@@ -56,7 +55,6 @@ class Cam_Daemon:
         ### camera
         self.exptime = 1
         self.frametype = 'normal'
-        self.timeleft = 0
         self.image = 'None yet'
         self.target_temp = 10 #no idea
         self.target_flushes = 1 #don't know if we're using this
@@ -65,7 +63,12 @@ class Cam_Daemon:
         self.ul_x = 0
         self.ul_y = 0
         self.lr_x = 0
-        self.lr_y = 0        
+        self.lr_y = 0
+        
+        ### exposure
+        self.exposing = 0
+        self.timeleft = 0
+        self.abort = 0
         
         ### status
         self.info='None yet'
@@ -92,28 +95,28 @@ class Cam_Daemon:
             if(self.get_info_flag): # Request info
                 info=cam.get_info()
                 self.info = info
+                if(self.exposing):
+                    self.info['status']='Exposing'
+                    self.info['timeleft']=cam.get_exposure_timeleft()
+                else:
+                    self.info['status']='Ready'
+                
                 self.info['frametype']=self.frametype
                 self.info['exptime']=self.exptime
                 self.info['bins']=(self.hbin,self.vbin)
                 self.get_info_flag=0
-                
-            if(self.set_exposure_flag):
+            
+            if(self.start_exposure_flag):
                 exptime=self.exptime
                 frametype=self.frametype
                 cam.set_exposure(exptime,frametype)
-                self.set_exposure_flag=0
-            
-            if(self.start_exposure_flag):
                 cam.start_exposure()
                 self.start_exposure_flag=0
+                self.exposing=1
             
             if(self.get_timeleft_flag):
-                self.timeleft=cam.get_exposure_timeleft()
+                self.timeleft = cam.get_exposure_timeleft()
                 self.get_timeleft_flag=0
-            
-            if(self.abort_exposure_flag):
-                cam.cancel_exposure()
-                self.abort_exposure_flag=0
             
             if(self.get_image_flag):
                 self.image = cam.fetch_image()
@@ -143,6 +146,19 @@ class Cam_Daemon:
                 cam.set_image_size(ul_x, ul_y, lr_x, lr_y)
                 self.set_area_flag=0
             
+            if(self.exposing):
+                if(self.abort):
+                    cam.cancel_exposure()
+                    print 'Exposure aborted!'
+                    self.exposing=0
+                    self.abort=0
+                self.timeleft=cam.get_exposure_timeleft()
+                if self.timeleft == 0:
+                    self.image = cam.fetch_image()
+                    print 'Exposure finished!'
+                    self.exposing=0
+                    self.write_fits(self.image,'image.fits')
+            
         self.logfile.log('Camera control thread stopped')
         return
     
@@ -153,21 +169,10 @@ class Cam_Daemon:
         time.sleep(0.1)
         return self.info
     
-    def set_exposure(self,exptime,frametype):
-        self.exptime=exptime
-        self.frametype=frametype
-        self.set_exposure_flag=1
-    
-    def start_exposure(self):
-        self.start_exposure_flag=1
-    
     def get_timeleft(self):
         self.get_timeleft_flag=1
         time.sleep(0.1)
         return self.timeleft
-    
-    def abort_exposure(self):
-        self.abort_exposure_flag=1
     
     def get_image(self):
         self.get_image_flag=1
@@ -195,18 +200,11 @@ class Cam_Daemon:
     def take_image(self,exptime,frametype):
         self.exptime=exptime
         self.frametype=frametype
-        self.set_exposure_flag=1
-        time.sleep(0.1)
         self.start_exposure_flag=1
-        timeleft=exptime
-        while timeleft>0:
-            self.get_timeleft_flag=1
-            time.sleep(0.1)
-            timeleft=self.timeleft
-        time.sleep(0.1)
-        self.get_image_flag=1
-        time.sleep(1)
-        self.write_fits(self.image,'image.fits')
+    
+    def abort_exposure(self):
+        if(self.exposing):
+            self.abort=1
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Image data functions

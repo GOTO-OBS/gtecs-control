@@ -28,7 +28,11 @@ def get_info():
         info = cam.get_info()
         
         print '####### CAMERA INFO #######'
-        #print 'Status: %s' %info['status']
+        if info['status'] != 'Exposing':
+            print 'Status: %s' %info['status']
+        else:
+            print 'Status: %s (%i ms)' %(info['status'],info['timeleft'])
+        print '~~~~~~~'
         print 'Array area:         %s' %str(info['array_area'])
         print 'Active area:        %s' %str(info['active_area'])
         print 'Pixel size:         %s' %str(info['pixel_size'])
