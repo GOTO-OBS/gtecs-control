@@ -19,6 +19,7 @@ import numpy
 SCRIPT_PATH='/home/martin/Dropbox/Sheffield/g-tecs/'
 LOG_PATH='/home/martin/Dropbox/Sheffield/g-tecs/logs/'
 IMAGE_PATH='/home/martin/Dropbox/Sheffield/g-tecs/images/'
+QUEUE_PATH='/home/martin/Dropbox/Sheffield/g-tecs/'
 
 # Log form
 LOGGING=1
@@ -63,6 +64,13 @@ DAEMONS={
         'HOST':     'eddie',
         'PORT':     9004,
         'PYROID':   'cam_daemon',
+        'PINGLIFE': 10.
+        },
+    'queue':{ # exposure queue daemon
+        'PROCESS':  'queue_daemon.py',
+        'HOST':     'eddie',
+        'PORT':     9005,
+        'PYROID':   'queue_daemon',
         'PINGLIFE': 10.
         }
 }
