@@ -26,7 +26,7 @@ import X_logger as logger
 
 ########################################################################
 # Focuser Daemon functions
-class Filt_Daemon:
+class Foc_Daemon:
     def __init__(self):
         
         ### activate
@@ -59,13 +59,13 @@ class Filt_Daemon:
         self.start_time=time.time()   #used for uptime
         
         ### start control thread
-        t=threading.Thread(target=self.filt_control)
+        t=threading.Thread(target=self.foc_control)
         t.daemon = True
         t.start()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control function
-    def filt_control(self):
+    def foc_control(self):
         
         ### connect to focuser
         foc=FakeFocuser('device','serial')
@@ -114,6 +114,8 @@ class Filt_Daemon:
                 except FLIError:
                     print 'Error moving focuser'
                 self.home_flag=0
+            
+            time.sleep(0.0001) # To save 100% CPU usage
             
         self.logfile.log('Focuser control thread stopped')
         return
@@ -183,13 +185,13 @@ class Filt_Daemon:
 # Create Pyro control server 
 
 pyro_daemon=Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
-filt_daemon=Filt_Daemon()
+foc_daemon=Foc_Daemon()
 
-uri=pyro_daemon.register(filt_daemon,objectId = params.DAEMONS['foc']['PYROID'])
+uri=pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
 
 print 'Starting focuser daemon, with Pyro URI:',uri
 
 Pyro4.config.COMMTIMEOUT=5.
-pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
+pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
 print 'Exiting focuser daemon'
 time.sleep(1.)
