@@ -14,7 +14,7 @@
 import os, sys, commands
 from math import *
 from string import split,find
-import time
+import time, datetime
 import Pyro4
 import threading
 import numpy
@@ -147,17 +147,20 @@ class Cam_Daemon:
                 self.set_area_flag=0
             
             if(self.exposing):
-                if(self.abort):
-                    cam.cancel_exposure()
-                    print 'Exposure aborted!'
-                    self.exposing=0
-                    self.abort=0
                 self.timeleft=cam.get_exposure_timeleft()
                 if self.timeleft == 0:
                     self.image = cam.fetch_image()
                     print 'Exposure finished!'
                     self.exposing=0
-                    self.write_fits(self.image,'image.fits')
+                    filename = self.image_location()
+                    self.write_fits(self.image,filename)
+                if(self.abort):
+                    cam.cancel_exposure()
+                    print 'Exposure aborted!'
+                    self.exposing=0
+                    self.abort=0
+            
+            time.sleep(0.0001) # To save 100% CPU usage
             
         self.logfile.log('Camera control thread stopped')
         return
@@ -213,7 +216,21 @@ class Cam_Daemon:
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
         hdulist.writeto(filename)
-    
+
+    def image_location(self):
+        # Find the date the observing night began, for the directory
+        now = datetime.datetime.utcnow()
+        if now.hour < 12: #if after midnight go with previous day
+            now = now - datetime.timedelta(days=1)
+        night = now.strftime("%Y-%m-%d")
+        direc = params.IMAGE_PATH + night
+        if not os.path.exists(direc): os.mkdir(direc)
+        # Find the run number, for the file name
+        n = 0
+        while os.path.exists(direc + '/%05i'%n + '.fits'):
+            n += 1
+        return direc + '/%05i'%n + '.fits'
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon pinger
     def ping(self):

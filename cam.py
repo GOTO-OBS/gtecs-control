@@ -53,7 +53,14 @@ def get_info():
 def take_image(exptime,frametype='normal'):
     cam=Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     try:
-        cam.take_image(exptime,frametype)
+        cam.take_image(exptime,frametype.strip())
+    except:
+        print 'No response from camera daemon'
+    
+def abort_exposure():
+    cam=Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    try:
+        cam.abort_exposure()
     except:
         print 'No response from camera daemon'
     
@@ -118,6 +125,8 @@ def query(command):
                 take_image(int(command[1]),command[2])
             else:
                 print 'ERROR: [type] must be normal, dark or rbi_flush'
+    elif command[0]=='abort':
+        abort_exposure()
     elif command[0]=='temp':
         if (-55 <= float(command[1]) <= 45):
             set_temp(float(command[1]))
@@ -150,9 +159,10 @@ def printInstructions():
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       cam info                    - reports current camera data'
     print '       cam image [exptime] [type]  - takes an image'
+    print '       cam abort                   - aborts current exposure'
+    print '       cam bin [b] OR [hb] [vb]    - sets binning factor(s)'
     print '       cam temp [temp]             - sets camera temperature'
     print '       cam flush [number]          - sets number of CCD flushes before exposing'
-    print '       cam bin [b] OR [hb] [vb]    - sets binning factor(s)'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       cam i                       - enter interactive (command line) usage'
     print '       cam q                       - quit interactive (command line) usage'
