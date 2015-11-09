@@ -49,6 +49,7 @@ class Filt_Daemon:
         self.flist=params.FILTER_LIST
         self.current_filter='V'
         self.new_filter='V'
+        self.moving=0
         self.remaining=0
         
         ### status
@@ -75,9 +76,9 @@ class Filt_Daemon:
             ### control functions
             if(self.get_info_flag): # Request info
                 info = {}
-                steps_remaining=filt.get_steps_remaining()
-                if steps_remaining > 0:
-                    info['status']='Moving (%i)' %(steps_remaining)
+                if filt.get_steps_remaining() > 0:
+                    info['status']='Moving'
+                    info['remaining']=filt.get_steps_remaining()
                     info['current_filter']='N/A'
                 else:
                     info['status']='Ready'
@@ -99,12 +100,20 @@ class Filt_Daemon:
                     filt.set_filter_pos(new_filter_number)
                 except ValueError:
                     return 'Illegal filter wheel position:', new_filter_number
-
+                self.moving=1
                 self.set_filter_flag=0
             
             if(self.get_filter_flag): # Report the current filter
                 self.current_filter  = filt.get_filter_pos()
                 self.get_filter_flag=0
+            
+            if(self.moving):
+                self.remaining = filt.get_steps_remaining()
+                if self.remaining == 0:
+                    print 'Moved to position'
+                    self.moving=0
+            
+            time.sleep(0.0001) # To save 100% CPU usage
             
         self.logfile.log('Filter wheel control thread stopped')
         return
@@ -113,6 +122,9 @@ class Filt_Daemon:
     # Filter wheel control functions
     def get_info(self):
         self.get_info_flag=1
+        time.sleep(0.1)
+        return self.info
+    
     def set_filter(self,new_filter):
         self.remaining_flag=1
         time.sleep(0.1)
@@ -133,12 +145,6 @@ class Filt_Daemon:
             return 'Last filter wheel daemon control thread time check: %.1f seconds ago' % dt_control
         else:
             return 'ping'
-    
-    def report_to_UI(self,data):
-        if data == 'info':
-            return self.info
-        else:
-            return 'Invalid data request'
     
     def prod(self):
         return

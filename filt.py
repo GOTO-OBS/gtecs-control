@@ -25,12 +25,13 @@ import X_misc as misc
 def get_info():
     filt=Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     try:
-        filt.get_info()
-        time.sleep(0.1) # Wait for it to update
-        info = filt.report_to_UI('info')
+        info = filt.get_info()
         
         print '#### FILTER WHEEL INFO ####'
-        print 'Status: %s' %info['status']
+        if info['status'] != 'Moving':
+            print 'Status: %s' %info['status']
+        else:
+            print 'Status: %s (%i)' %(info['status'],info['remaining'])
         print 'Current filter:     %s' %info['current_filter']
         print 'Current filter pos: %s' %info['current_filter_pos']
         print 'Current motor pos:  %s' %info['current_pos']
@@ -78,7 +79,7 @@ def query(command):
     elif command[0]=='info':
         get_info()
     elif command[0]=='set':
-        set_filter(command[1])
+        set_filter(command[1].strip())
     elif command[0]=='list':
         print params.FILTER_LIST
 
