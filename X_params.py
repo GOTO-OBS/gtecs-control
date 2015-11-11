@@ -9,7 +9,8 @@
 
 ### Import ###
 # Python modules
-import sys
+import os,sys
+import socket
 import numpy
 
 ########################################################################
