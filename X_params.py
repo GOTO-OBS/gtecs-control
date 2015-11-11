@@ -16,10 +16,17 @@ import numpy
 # General parameters
 
 # File locations
-SCRIPT_PATH='/home/martin/Dropbox/Sheffield/g-tecs/'
-LOG_PATH='/home/martin/Dropbox/Sheffield/g-tecs/logs/'
-IMAGE_PATH='/home/martin/Dropbox/Sheffield/g-tecs/images/'
-QUEUE_PATH='/home/martin/Dropbox/Sheffield/g-tecs/'
+HOST = socket.gethostname() # Need to alter depending on system
+if HOST == 'eddie': # MJD's laptop
+    TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
+elif HOST == 'host-137-205-160-42.warwick.ac.uk': # Warwick test NUC
+    TECS_PATH = '/home/mdyer/g-tecs/'
+
+SCRIPT_PATH = TECS_PATH
+LOG_PATH = TECS_PATH + 'logs/'
+IMAGE_PATH = TECS_PATH + 'images/'
+QUEUE_PATH = TECS_PATH
+WIN_PATH = '/cygdrive/c/goto_mount'
 
 # Log form
 LOGGING=1
