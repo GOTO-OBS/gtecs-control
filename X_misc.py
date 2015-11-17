@@ -18,120 +18,104 @@ import X_params as params
 
 ########################################################################
 ## Command functions
-def getHostname():
-    '''Get the hostname of this machine - should work from within a cron job'''
+def get_hostname():
+    '''Get the hostname of this machine'''
     if os.environ.has_key('HOSTNAME'):
         return os.environ['HOSTNAME']
     else:
         tmp = commands.getoutput('hostname')
         return tmp.strip()
 
-def getProcessID(process_name, node):
+def get_process_ID(process_name, host):
     '''Retrieve ID numbers of python processes with specified name'''
-    processID=[]
-    username = os.environ["LOGNAME"]  #is this reliable if caled from within a cron job?
+    process_ID = []
+    username = os.environ["LOGNAME"]
 
-    if node == getHostname():
-        all_processes = commands.getoutput('ps j -w -u '+username)
+    if host == get_hostname():
+        all_processes = commands.getoutput('ps j -w -u ' + username)
     else:
-        all_processes = commands.getoutput('ssh '+node+' ps j -w -u '+username)
-    #print all_processes
+        all_processes = commands.getoutput('ssh ' + host + ' ps j -w -u ' + username)
+
     lines = all_processes.split('\n')
     pyflag = 0
     for line in lines:
-        entries=line.split()
+        entries = line.split()
         for entry in entries:
-            if entry == 'python2' or entry == 'python':
+            if entry == 'python' or entry == 'python2':
                 pyflag = 2
             else:
                 pyflag -= 1
             if pyflag == 1:
                 n = len(process_name)
                 if entry[-n:] == process_name:
-                    processID.append(entries[1])
-    return processID
+                    process_ID.append(entries[1])
+    return process_ID
 
 ########################################################################
 # Core Daemon functions 
-def startDaemon(daemonProcess,daemonHost,stdout='/dev/null'):
-    '''Start a daemon (unless it is running already)'''
-    localHost = getHostname()
-    processID = getProcessID(daemonProcess,daemonHost)
-    if len(processID) == 0:
-        if localHost == daemonHost:
-            os.system('python2 '+params.SCRIPT_PATH+daemonProcess+' >'+stdout+' 2>&1 &')
-            processIDn = getProcessID(daemonProcess,daemonHost)
-            if len(processIDn) == 0:
-                print 'Error starting daemon, check logs'
+def start_daemon(process, host, stdout='/dev/null'):
+    '''Start a daemon (unless it is already running)'''
+    local_host = get_hostname()
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 0:
+        if local_host == host:
+            os.system('python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
+            process_ID_n = get_process_ID(process, host)
+            if len(process_ID_n) == 0:
+                print 'ERROR: Daemon did not start, check logs'
             else:
-                print 'Daemon running: process', processIDn[0]
+                print 'Daemon running as process', process_ID_n[0]
         else:
-            os.system('ssh '+daemonHost+' python /home/slodar/scripts/'+daemonProcess+' >'+stdout+' 2>&1 &')
+            os.system('ssh ' + host + ' python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
     else:
-        print 'Aborted. Daemon is already running: process', processID[0]
+        print 'ERROR: Daemon is already running as process', process_ID[0]
 
-def pingDaemon(daemonAddress):
+def ping_daemon(address):
     '''Ping a daemon'''
-    daemon = Pyro4.Proxy(daemonAddress)
+    daemon = Pyro4.Proxy(address)
     try:
         ping = daemon.ping()
         if ping == 'ping':
-            print 'Daemon is alive at', daemonAddress 
+            print 'Daemon is alive at', address 
         else:
             print ping
     except:
-        print 'No response from daemon'
+        print 'ERROR: No response from daemon'
 
-def shutdownDaemon(daemonAddress):
+def shutdown_daemon(address):
     '''Shut a daemon down nicely'''
-    daemon = Pyro4.Proxy(daemonAddress)
+    daemon = Pyro4.Proxy(address)
     try:
         daemon.shutdown()
         print 'Daemon is shutting down'
         # Have to request status again to close loop
-        daemon = Pyro4.Proxy(daemonAddress)
+        daemon = Pyro4.Proxy(address)
         daemon.prod()
         daemon._pyroRelease()
     except:
-        print 'No response from daemon'
+        print 'ERROR: No response from daemon'
 
-def killDaemon(daemonProcess,daemonHost):
-    '''Kill a specified daemon (should be used as a last resort)'''
-    localHost = getHostname()
+def kill_daemon(process, host):
+    '''Kill a daemon (should be used as a last resort)'''
+    local_host = get_hostname()
     username = os.environ["LOGNAME"]
-    processID_list=[]
+    process_ID_list = get_process_ID(process, host)
 
-    if localHost == daemonHost:
-        processes = commands.getoutput('ps j -w -u '+username)
+    if local_host == host:
+        for process_ID in process_ID_list:
+            os.system('kill -9 ' + process_ID)
+            print 'Killed daemon at process', process_ID
     else:
-        processes = commands.getoutput('ssh '+daemHostname+' ps j -w -u '+username)
+        for process_ID in process_ID_list:
+            os.system('ssh ' + host + ' kill -9 ' + process_ID)
+
+def start_win(process, host, stdout='/dev/null'):
+    os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
     
-    lines = processes.split('\n')
-    pyflag = 0
-    for line in lines:
-        entries = line.split()
-        for entry in entries:
-            if entry == 'python':
-                pyflag = 2
-            else:
-                pyflag -= 1
-            if pyflag == 1:
-                n = len(daemonProcess)
-                if entry[-n:] == daemonProcess:
-                    processID_list.append(entries[1])
-
-    if localHost == daemonHost:
-        for processID in processID_list:
-            os.system('kill -9 '+processID)
-            print 'Daemon killed: process', processID
-    else:
-        for processID in processID_list:
-            os.system('ssh '+daemonHost+' kill -9 '+processID)
-
 ########################################################################
 # Astronomy functions
-def eq_to_hor(ha_hrs,dec_deg,lat_deg):    # from starlink slalib  sla_DE2H
-
+def eq_to_hor(ha_hrs,dec_deg,lat_deg):
+    # from starlink slalib  sla_DE2H
     ha = ha_hrs*15.*2.*pi/360.
     dec= dec_deg*2.*pi/360.
     phi= lat_deg*2.*pi/360.
