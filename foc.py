@@ -23,52 +23,57 @@ import X_misc as misc
 ########################################################################
 # Focuser control functions
 def get_info():
-    foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        foc.get_info()
-        time.sleep(0.1) # Wait for it to update
-        info = foc.report_to_UI('info')
-        
-        print '#### FOCUSER INFO ####'
-        print 'Status: %s' %info['status']
-        print 'Current motor pos:  %s' %info['current_pos']
+        info = foc.get_info()
+        print '###### FOCUSER INFO #######'
+        if info['status'] != 'Moving':
+            print 'Status: %s' %info['status']
+        else:
+            print 'Status: %s (%i)' %(info['status'],info['remaining'])
+        print '~~~~~~~'
+        print 'Current motor pos:    %s' %info['current_pos']
+        print 'Maximum motor limit:  %s' %info['limit']
         print 'Internal temperature: %s' %info['int_temp']
-        print 'External temperature:  %s' %info['ext_temp']
-        print '#######################'
+        print 'External temperature: %s' %info['ext_temp']
+        print '~~~~~~~'
+        print 'Uptime: %.1fs' %info['uptime']
+        print 'Ping: %.5fs' %info['ping']
+        print '###########################'
     except:
-        print 'No response from focuser daemon'
+        print 'ERROR: No response from focuser daemon'
     
-def set_focuser(position):
-    foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+def set_focuser(pos):
+    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        f=foc.set_focuser(position)
-        if f: print f
+        c = foc.set_focuser(pos)
+        if c: print c
     except:
-        print 'No response from focuser daemon'
+        print 'ERROR: No response from focuser daemon'
     
 def move_focuser(steps):
-    foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        f=foc.move_focuser(steps)
-        if f: print f
+        c = foc.move_focuser(steps)
+        if c: print c
     except:
-        print 'No response from focuser daemon'
+        print 'ERROR: No response from focuser daemon'
     
 def home_focuser():
-    foc=Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     try:
-        f=foc.home_focuser()
-        if f: print f
+        c = foc.home_focuser()
+        if c: print c
     except:
-        print 'No response from focuser daemon'
+        print 'ERROR: No response from focuser daemon'
 
 ########################################################################
-# Define interactive mode
+# Interactive mode
 def interactive():
-    while 1:
-        command=split(raw_input('foc> '))
-        if(len(command)>0):
-            if command[0]=='q':
+    while True:
+        command = split(raw_input('foc> '))
+        if len(command) > 0:
+            if command[0] == 'q':
                 return
             else:
                 query(command)
@@ -76,18 +81,18 @@ def interactive():
 def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0]=='start':
-        misc.startDaemon(FOC_DAEMON_PROCESS,FOC_DAEMON_HOST,stdout=FOC_DAEMON_OUTPUT)
-    elif command[0]=='ping':
-        misc.pingDaemon(FOC_DAEMON_ADDRESS)
-    elif command[0]=='shutdown':
-        misc.shutdownDaemon(FOC_DAEMON_ADDRESS)
-    elif command[0]=='kill':
-        misc.killDaemon(FOC_DAEMON_PROCESS,FOC_DAEMON_HOST)
-    elif command[0]=='help':
-        printInstructions()
-    elif command[0]=='i':
-        print 'Already in interactive mode'
+    if command[0] == 'start':
+        misc.start_daemon(FOC_DAEMON_PROCESS, FOC_DAEMON_HOST, stdout=FOC_DAEMON_OUTPUT)
+    elif command[0] == 'shutdown':
+        misc.shutdown_daemon(FOC_DAEMON_ADDRESS)
+    elif command[0] == 'kill':
+        misc.kill_daemon(FOC_DAEMON_PROCESS, FOC_DAEMON_HOST)
+    elif command[0] == 'ping':
+        misc.ping_daemon(FOC_DAEMON_ADDRESS)
+    elif command[0] == 'help':
+        print_instructions()
+    elif command[0] == 'i':
+        print 'ERROR: Already in interactive mode'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
@@ -99,16 +104,13 @@ def query(command):
         move_focuser(int(command[1]))
     elif command[0]=='home':
         home_focuser()
-
-
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
-    elif command[0]=='exit':
-        print 'foc> Use "shutdown" to close the daemon or "q" to quit interactive mode'
     else:
         print 'foc> Command not recognized:',command[0]
 
-def printInstructions():
+def print_instructions():
     print 'Usage: foc start              - starts the focuser daemon'
     print '       foc shutdown           - shuts down the focuser daemon cleanly'
     print '       foc kill               - kills the focuser daemon (emergency use only!)'
@@ -125,19 +127,18 @@ def printInstructions():
     print '       foc help               - prints these instructions'
 
 ########################################################################
-# Control System
+# Control system
 
-if len(sys.argv)==1:
-    printInstructions()
+if len(sys.argv) == 1:
+    print_instructions()
 else:
-    FOC_DAEMON_PROCESS=params.DAEMONS['foc']['PROCESS']
-    FOC_DAEMON_HOST=params.DAEMONS['foc']['HOST']
-    FOC_DAEMON_ADDRESS=params.DAEMONS['foc']['ADDRESS']
-    FOC_DAEMON_OUTPUT=params.LOG_PATH+'foc_daemon-stdout.log'
+    FOC_DAEMON_PROCESS = params.DAEMONS['foc']['PROCESS']
+    FOC_DAEMON_HOST = params.DAEMONS['foc']['HOST']
+    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
+    FOC_DAEMON_OUTPUT = params.LOG_PATH + 'foc_daemon-stdout.log'
     
-    command=sys.argv[1:]    
-
-    if command[0]=='i':
+    command = sys.argv[1:]
+    if command[0] == 'i':
         interactive()
     else:
         query(command)

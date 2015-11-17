@@ -11,9 +11,7 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
 from math import *
-from string import split,find
 import time
 import Pyro4
 import threading
@@ -25,173 +23,184 @@ import X_misc as misc
 import X_logger as logger
 
 ########################################################################
-# Focuser Daemon functions
-class Foc_Daemon:
+# Focuser daemon functions
+class FocDaemon:
+    """
+    Focuser daemon class
+    
+    Contains 4 functions:
+    - get_info()
+    - set_focuser(pos)
+    - move_focuser(steps)
+    - home_focuser()
+    """
     def __init__(self):
+        self.running = True
+        self.start_time = time.time()
         
-        ### activate
-        self.running=True
-        
-        ### find current username
-        self.username=os.environ["LOGNAME"]
-
         ### set up logfile
         self.logfile = logger.Logfile('foc',params.LOGGING)
         self.logfile.log('Daemon started')
         
-        ### initiate flags
-        self.get_info_flag=0
-        self.remaining_flag=0
-        self.set_flag=0
-        self.move_flag=0
-        self.home_flag=0
+        ### function flags
+        self.get_info_flag = 1
+        self.set_focuser_flag = 0
+        self.move_focuser_flag = 0
+        self.home_focuser_flag = 0
         
-        ### position variables
-        self.steps=0
-        self.new_pos=0
-        self.remaining=0
-        self.limit=1000
-        
-        ### status
-        self.info='None yet'
-        
-        ### timing
-        self.start_time=time.time()   #used for uptime
+        ### focuser variables
+        self.info = {}
+        self.limit = 2000
+        self.current_pos = 0
+        self.new_pos = 0
+        self.move_steps = 0
+        self.remaining = 0
         
         ### start control thread
-        t=threading.Thread(target=self.foc_control)
+        t = threading.Thread(target=self.foc_control)
         t.daemon = True
         t.start()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control function
+    # Primary control thread
     def foc_control(self):
         
-        ### connect to focuser
-        foc=FakeFocuser('device','serial')
-        self.limit = foc.max_extent
-
+        ### connect to (fake) focuser
+        foc = FakeFocuser('device','serial')
+        
         while(self.running):
-            self.time_check = time.time()   #used for "ping"
+            self.time_check = time.time()
             
             ### control functions
-            if(self.get_info_flag): # Request info
-                info = {}
-                steps_remaining=foc.get_steps_remaining()
-                if steps_remaining > 0:
-                    info['status']='Moving (%i)' %(steps_remaining)
-                else:
-                    info['status']='Ready'
-                info['current_pos']=foc.stepper_position
-                info['int_temp']=foc.read_temperature('internal')
-                info['ext_temp']=foc.read_temperature('external')
-                self.info = info
-                self.get_info_flag=0
-            
-            if(self.remaining_flag): # Check steps remaining
+            # request info
+            if(self.get_info_flag):
+                # update variables
+                self.limit = foc.max_extent
                 self.remaining = foc.get_steps_remaining()
-                self.remaining_flag=0
+                self.current_pos = foc.stepper_position
+                self.int_temp = foc.read_temperature('internal')
+                self.ext_temp = foc.read_temperature('external')
+                # save info
+                info = {}
+                if self.remaining > 0:
+                    info['status'] = 'Moving'
+                    info['remaining'] = self.remaining
+                else:
+                    info['status'] = 'Ready'
+                info['current_pos'] = self.current_pos
+                info['limit'] = self.limit
+                info['int_temp'] = self.int_temp
+                info['ext_temp'] = self.ext_temp
+                info['uptime'] = time.time()-self.start_time
+                info['ping'] = time.time()-self.time_check
+                self.info = info
+                self.get_info_flag = 0
             
-            if(self.set_flag): # Change the focuser position
-                new_steps=self.new_pos-foc.stepper_position
-                try:
-                    foc.step_motor(new_steps,blocking=False)
-                except:
-                    print 'Error moving focuser'
-                self.set_flag=0
+            # move the focuser to position
+            if(self.set_focuser_flag):
+                self.current_pos = foc.stepper_position
+                self.move_steps = self.new_pos - self.current_pos
+                self.logfile.log('Moving focuser by %i to %i'\
+                    %(self.move_steps,self.new_pos))
+                c = foc.step_motor(self.move_steps, blocking=False)
+                if c: print c
+                self.set_focuser_flag = 0
             
-            if(self.move_flag): # Change the focuser position
-                self.new_pos=foc.stepper_position+self.steps
-                try:
-                    foc.step_motor(self.steps,blocking=False)
-                except:
-                    print 'Error moving focuser'
-                self.move_flag=0
+            # move the focuser by steps
+            if(self.move_focuser_flag):
+                self.current_pos = foc.stepper_position
+                self.new_pos = self.current_pos + self.move_steps
+                self.logfile.log('Moving focuser by %i to %i'\
+                    %(self.move_steps,self.new_pos))
+                c = foc.step_motor(self.move_steps, blocking=False)
+                if c: print c
+                self.move_focuser_flag = 0
             
-            if(self.home_flag): # Home the focuser
-                try:
-                    foc.home_focuser()
-                except FLIError:
-                    print 'Error moving focuser'
-                self.home_flag=0
+            # home the focuser
+            if(self.home_focuser_flag):
+                self.logfile.log('Homing focuser')
+                c = foc.home_focuser()
+                if c: print c
+                self.home_focuser_flag = 0
             
             time.sleep(0.0001) # To save 100% CPU usage
-            
+        
         self.logfile.log('Focuser control thread stopped')
         return
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     def get_info(self):
-        self.get_info_flag=1
-    def set_focuser(self,pos):
-        self.remaining_flag=1
+        """Return focuser status info"""
+        self.get_info_flag = 1
         time.sleep(0.1)
-        if self.remaining>0:
-            return 'Motor is still moving'
-        elif pos > self.limit:
-            return 'End position past limits'
-        else:
-            self.new_pos=pos
-            self.set_flag=1
-    def move_focuser(self,steps):
-        self.remaining_flag=1
+        return self.info
+    
+    def set_focuser(self,new_pos):
+        """Move focuser motor to given position"""
+        self.get_info_flag = 1
         time.sleep(0.1)
-        if self.remaining>0:
-            return 'Motor is still moving'
-        elif (self.new_pos+steps) > self.limit:
-            return 'End position past limits'
+        if self.remaining > 0:
+            return 'ERROR: Motor is still moving'
+        elif new_pos > self.limit:
+            return 'ERROR: End position past limits'
         else:
-            self.steps=steps
-            self.move_flag=1
+            self.new_pos = new_pos
+            self.set_focuser_flag = 1
+            return 'Moving focuser'
+    
+    def move_focuser(self,move_steps):
+        """Move focuser motor by given number of steps"""
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.remaining > 0:
+            return 'ERROR: Motor is still moving'
+        elif (self.current_pos + move_steps) > self.limit:
+            return 'ERROR: End position past limits'
+        else:
+            self.move_steps = move_steps
+            self.move_focuser_flag = 1
+            return 'Moving focuser'
+    
     def home_focuser(self):
-        self.remaining_flag=1
+        """Move the focuser to the home position"""
+        self.get_info_flag = 1
         time.sleep(0.1)
-        if self.remaining>0:
-            return 'Motor is still moving'
+        if self.remaining > 0:
+            return 'ERROR: Motor is still moving'
         else:
-            self.home_flag=1
+            self.home_focuser_flag = 1
+            return 'Homing focuser'
+    
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Daemon pinger
+    # Other daemon functions
     def ping(self):
-        #print '  pinged'
-        dt_control = abs(time.time()-self.time_check)
+        dt_control = abs(time.time() - self.time_check)
         if dt_control > params.DAEMONS['foc']['PINGLIFE']:
-            return 'Last focuser daemon control thread time check: %.1f seconds ago' % dt_control
+            return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
     
-    def report_to_UI(self,data):
-        if data == 'info':
-            return self.info
-        else:
-            return 'Invalid data request'
-    
     def prod(self):
         return
-        
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Status and shutdown
+
     def status_function(self):
-        #print 'status query:', self.running
         return self.running
     
     def shutdown(self):
-        self.running=False
-        #print '  set status to', self.running
+        self.running = False
 
 ########################################################################
 # Create Pyro control server 
+pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
+foc_daemon = FocDaemon()
 
-pyro_daemon=Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
-foc_daemon=Foc_Daemon()
+uri = pyro_daemon.register(foc_daemon,objectId=params.DAEMONS['foc']['PYROID'])
+print 'Starting focuser daemon at',uri
 
-uri=pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-
-print 'Starting focuser daemon, with Pyro URI:',uri
-
-Pyro4.config.COMMTIMEOUT=5.
+Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
+
 print 'Exiting focuser daemon'
 time.sleep(1.)
