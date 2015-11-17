@@ -23,7 +23,7 @@ import X_misc as misc
 ########################################################################
 # Queue control functions
 def get_info():
-    queue=Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     try:
         info = queue.get_info()
         print '####### QUEUE INFO #######'
@@ -40,41 +40,43 @@ def get_info():
         print 'Ping: %.3fs' %info['ping']
         print '###########################'
     except:
-        print 'No response from queue daemon'
+        print 'ERROR: No response from queue daemon'
         
 def take_image(exptime,filt,bins,frametype='normal',obj='None',imgtype='SCIENCE',dbID='manual'):
-    queue=Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     if filt.upper() not in params.FILTER_LIST:
         print 'Filter needs to be one of', params.FILTER_LIST
         return
     try:
-        queue.add(exptime,filt,bins,frametype,obj,imgtype,dbID,False)
-        print 'Added exposure to queue'
+        c = queue.add(exptime,filt,bins,frametype,obj,imgtype,dbID,False)
+        if c: print c
     except:
-        print 'No response from queue daemon'
+        print 'ERROR: No response from queue daemon'
 
 def pause():
-    queue=Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     try:
-        queue.pause()
+        c = queue.pause()
+        if c: print c
     except:
-        print 'No response from queue daemon'
+        print 'ERROR: No response from queue daemon'
     
 def resume():
-    queue=Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     try:
-        queue.resume()
+        c = queue.resume()
+        if c: print c
     except:
-        print 'No response from queue daemon'
+        print 'ERROR: No response from queue daemon'
 
 
 ########################################################################
-# Define interactive mode
+# Interactive mode
 def interactive():
-    while 1:
-        command=split(raw_input('queue> '))
-        if(len(command)>0):
-            if command[0]=='q':
+    while True:
+        command = split(raw_input('queue> '))
+        if(len(command) > 0):
+            if command[0] == 'q':
                 return
             else:
                 query(command)
@@ -82,24 +84,24 @@ def interactive():
 def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0]=='start':
-        misc.startDaemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST,stdout=QUEUE_DAEMON_OUTPUT)
-    elif command[0]=='ping':
-        misc.pingDaemon(QUEUE_DAEMON_ADDRESS)
-    elif command[0]=='shutdown':
-        misc.shutdownDaemon(QUEUE_DAEMON_ADDRESS)
-    elif command[0]=='kill':
-        misc.killDaemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST)
-    elif command[0]=='help':
-        printInstructions()
-    elif command[0]=='i':
-        print 'Already in interactive mode'
+    if command[0] == 'start':
+        misc.start_daemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST,stdout=QUEUE_DAEMON_OUTPUT)
+    elif command[0] == 'shutdown':
+        misc.shutdown_daemon(QUEUE_DAEMON_ADDRESS)
+    elif command[0] == 'kill':
+        misc.kill_daemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST)
+    elif command[0] == 'ping':
+        misc.ping_daemon(QUEUE_DAEMON_ADDRESS)
+    elif command[0] == 'help':
+        print_instructions()
+    elif command[0] == 'i':
+        print 'ERROR: Already in interactive mode'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    elif command[0]=='info':
+    elif command[0] == 'info':
         get_info()
-    elif command[0]=='image':
+    elif command[0] == 'image':
         if len(command) < 4:
             print 'ERROR: need at least exptime, filter and bins'
         else:
@@ -112,19 +114,17 @@ def query(command):
                 take_image(int(command[1]),command[2],int(command[3]),command[4],command[5])
             elif len(command) == 7:
                 take_image(int(command[1]),command[2],int(command[3]),command[4],command[5],command[6])
-    elif command[0]=='pause':
+    elif command[0] == 'pause':
         pause()
-    elif command[0]=='resume':
+    elif command[0] == 'resume':
         resume()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
-    elif command[0]=='exit':
-        print 'queue> Use "shutdown" to close the daemon or "q" to quit interactive mode'
     else:
         print 'queue> Command not recognized:',command[0]
 
-def printInstructions():
+def print_instructions():
     print 'Usage: queue start                   - starts the queue daemon'
     print '       queue shutdown                - shuts down the queue daemon cleanly'
     print '       queue kill                    - kills the queue daemon (emergency use only!)'
@@ -132,7 +132,6 @@ def printInstructions():
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       queue info                    - reports current queue data'
     print '       queue image [exptime] [filter] [bins] <[object] [imgtype] [databaseID]>'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       queue pause                   - pauses taking exposures'
     print '       queue resume                  - resumes taking exposures'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
@@ -144,17 +143,16 @@ def printInstructions():
 ########################################################################
 # Control System
 
-if len(sys.argv)==1:
-    printInstructions()
+if len(sys.argv) == 1:
+    print_instructions()
 else:
-    QUEUE_DAEMON_PROCESS=params.DAEMONS['queue']['PROCESS']
-    QUEUE_DAEMON_HOST=params.DAEMONS['queue']['HOST']
-    QUEUE_DAEMON_ADDRESS=params.DAEMONS['queue']['ADDRESS']
-    QUEUE_DAEMON_OUTPUT=params.LOG_PATH+'queue_daemon-stdout.log'
+    QUEUE_DAEMON_PROCESS = params.DAEMONS['queue']['PROCESS']
+    QUEUE_DAEMON_HOST = params.DAEMONS['queue']['HOST']
+    QUEUE_DAEMON_ADDRESS = params.DAEMONS['queue']['ADDRESS']
+    QUEUE_DAEMON_OUTPUT = params.LOG_PATH + 'queue_daemon-stdout.log'
     
-    command=sys.argv[1:]    
-
-    if command[0]=='i':
+    command = sys.argv[1:]
+    if command[0] == 'i':
         interactive()
     else:
         query(command)

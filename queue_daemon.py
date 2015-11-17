@@ -11,13 +11,12 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
 from math import *
-from string import split,find
 import time
 import Pyro4
 import threading
-import numpy
+import os, sys, commands
+from string import split,find
 from collections import MutableSequence
 # TeCS modules
 import X_params as params
@@ -25,16 +24,32 @@ import X_misc as misc
 import X_logger as logger
 
 ########################################################################
-# Queue Daemon functions
+# Queue daemon functions
 class ExposureSpec:
+    """
+    Exposure specification class
+    
+    Contains 3 functions:
+    - from_line(line)
+    - to_line()
+    - info()
+    
+    Exposures contain the folowing infomation:
+    - exptime     [int]
+    - filter      [str]
+    - bin factor  [int]
+    - frametype   [str] <deafult = 'normal'>
+    - object name [str] <deafult = ''>
+    - image type  [str] <deafult = 'SCIENCE'>
+    - database ID [str] <deafult = 'manual'>
+    - glance      [T/F] <deafult = False>    
+    """
     def __init__(self,exptime,filt,bins,frametype='normal',obj='',imgtype='SCIENCE',dbID='manual',glance=False):
         self.creation_time = time.gmtime()
-        # Camera details
         self.exptime = exptime
         self.filt = filt
         self.bins = bins
         self.frametype = frametype
-        # Image details
         self.obj = obj
         self.imgtype = imgtype
         self.dbID = dbID
@@ -43,15 +58,18 @@ class ExposureSpec:
     
     @classmethod
     def from_line(cls,line):
+        """Convert a line of data to expsoure spec object"""
         exptime,filt,bins,frametype,obj,imgtype,dbID,glance = line.split(',')
         glance = (glance == 'True') #Converts from string 'True'/'False' to boolean, safer than eval()
         exp = cls(float(exptime),filt,int(bins),frametype,obj,imgtype,dbID,glance)
         return exp
     
     def to_line(self):
+        """Convert exposure spec object to a line of data"""
         return '%i, %s, %i, %s, %s, %s, %s, %s\n' %(self.exptime,self.filt,self.bins,self.frametype,self.obj,self.imgtype,self.dbID,str(self.glance))
     
     def info(self):
+        """Return a readable string of summary infomation about the exposure"""
         s = time.strftime('%Y-%m-%d %H:%M:%S UT',self.creation_time)+'\n'
         s += '  Exposure time: %i s\n' % self.exptime
         s += '  Filter: %s\n' % self.filt
@@ -60,6 +78,15 @@ class ExposureSpec:
         return s
     
 class Queue(MutableSequence):
+    """
+    Queue sequence to hold exposures
+    
+    Contains x functions:
+    - write_to_file()
+    - insert(index,value)
+    - clear()
+    - get()
+    """
     def __init__(self):
         self.data = []
         self.queue_file = params.QUEUE_PATH + 'queue'
@@ -76,6 +103,7 @@ class Queue(MutableSequence):
                     self.data.append(ExposureSpec.from_line(line))
     
     def write_to_file(self):
+        """Write the current queue to the queue file"""
         with open(self.queue_file,'w') as f:
             for exp in self.data:
                 f.write(exp.to_line())
@@ -95,132 +123,142 @@ class Queue(MutableSequence):
         return len(self.data)
     
     def insert(self,index,value):
+        """Add an item to the queue at a specified position"""
         self.data.insert(index,value)
         self.write_to_file()
 
     def clear(self):
-        self.data=[]
+        """Empty the current queue and queue file"""
+        self.data = []
         self.write_to_file()
 
     def get(self):
+        """Return info() for all exposures in the queue"""
         n = len(self.data)
         s ='%i items in queue\n' %n
         for x in self.data:
             s += '\n' + x.info()
         return s
 
-class Queue_Daemon:
+class QueueDaemon:
+    """
+    Queue daemon class
+    
+    Contains x functions:
+    - get_info()
+    - add(exptime,filt,bins,frametype,obj,imgtype,dbID,glance)
+    - clear()
+    - get()
+    - pause()
+    - resume()
+
+    """
     def __init__(self):
-        
-        ### activate
-        self.running=True
-        
-        ### find current username
-        self.username=os.environ["LOGNAME"]
+        self.running = True
+        self.start_time = time.time()
 
         ### set up logfile
         self.logfile = logger.Logfile('queue',params.LOGGING)
         self.logfile.log('Daemon started')
         
-        ### initiate flags
-        self.get_info_flag = 0
+        ### function flags
+        self.get_info_flag = 1
         self.set_filter_flag = 0
         self.take_image_flag = 0
 
-        ### queue
+        ### queue variables
+        self.info = {}
         self.exp_queue = Queue()
-        self.exp_spec = 'None yet'
+        self.exp_spec = None
         self.current_ID = None
-        self.working = 1
         self.current_filter = None
+        self.working = 1
         self.abort = 0
-        self.paused = 1
-        
-        ### status
-        self.info='None yet'
-        
-        ### timing
-        self.start_time=time.time()   #used for uptime
+        self.paused = 1 # start paused
         
         ### start control thread
-        t=threading.Thread(target=self.queue_thread)
+        t = threading.Thread(target=self.queue_thread)
         t.daemon = True
         t.start()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary queue thread
     def queue_thread(self):
+        
         while(self.running):
-            print '~~~~~~~~'
-            self.time_check = time.time()   #used for "ping"
+            self.time_check = time.time()
             
-            ### Connect to daemons
+            ### queue processes
+            print '~~~~~~~~'
+            # connect to daemons
             CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
             cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
             
             FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
             filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
 
-            ### Check daemon statuses
+            # check daemon statuses
             try:
                 cam_status = cam.get_info()['status']
             except:
-                print 'No responce from camera daemon'
+                print 'ERROR: No responce from camera daemon'
                 self.running = False
                 break
             try:
                 filt_status = filt.get_info()['status']
             except:
-                print 'No responce from filter wheel daemon'
+                print 'ERROR: No responce from filter wheel daemon'
                 self.running = False
                 break
             
+            # set working flag
             if cam_status == 'Exposing' or filt_status == 'Moving':
                 self.working = 1
             else:
                 self.working = 0
             print '   Cam: %s | Filt: %s | Working: %i' %(cam_status, filt_status,self.working)
             
-            ### (If not paused) Check the queue, take off the first entry
+            # check the queue, take off the first entry (if not paused) 
             self.queue_len = len(self.exp_queue)
             print '   Exposures in queue: %i' %self.queue_len
             if (self.queue_len > 0) and not self.paused and self.current_ID == None:
                 if self.current_ID == None and not self.working:
                     self.exp_spec = self.exp_queue.pop(0)
                     self.current_ID = self.exp_spec.dbID
-                    print ' Taking exposure:',self.current_ID
+                    self.logfile.log('Taking exposure %s' %str(self.current_ID))
+                    print '     Taking exposure:',self.current_ID
             elif self.current_ID == None:
-                print ' Queue is empty, or paused'
+                print '     Queue is empty, or paused'
                 self.current_ID = None
                 time.sleep(0.5)
             
-            ### Take the exposure
+            # take the exposure
             if self.current_ID != None:
-                # Set the filter
-                if not self.working:
-                    if self.exp_spec.filt != self.current_filter:
-                        print '   Filter:'
-                        self.set_filter_flag=1
-                        self.working=1
-                # Take the image
+                # set the filter
+                if not self.working and self.exp_spec.filt != self.current_filter:
+                    print '   Filter:'
+                    self.set_filter_flag = 1
+                    self.working = 1
+                # take the image
                 if not self.working:
                     print '   Camera:'
-                    self.take_image_flag=1
-                    self.working=1
-                    # That's all, clear the exposure
+                    self.take_image_flag = 1
+                    self.working = 1
+                    # That's all to do here
                     self.current_ID = None
             
             ### control functions
-            if(self.get_info_flag): # Request info
+            # request info
+            if(self.get_info_flag):
                 info = {}
                 if self.paused:
                     info['status'] = 'Paused'
                 elif self.working:
-                    info['status'] = 'Taking image'
+                    info['status'] = 'Taking exposure'
                 else:
                     info['status'] = 'Ready'
                 info['queue_length'] = self.queue_len
-                if self.working and self.exp_spec != 'None yet':
+                if self.working and self.exp_spec != None:
                     info['current_exptime'] = self.exp_spec.exptime
                     info['current_filter'] = self.exp_spec.filt
                     info['current_bins'] = self.exp_spec.bins
@@ -228,32 +266,34 @@ class Queue_Daemon:
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 self.info = info
-                self.get_info_flag=0
+                self.get_info_flag = 0
             
+            # set filter
             if(self.set_filter_flag):
                 new_filt = self.exp_spec.filt
                 try:
-                    print '   Set filter to:', new_filt
+                    print '     Set filter to:', new_filt
                     filt.set_filter(new_filt)
                     self.current_filter = new_filt
-                    self.working=1
-                    self.set_filter_flag=0
+                    self.working = 1
+                    self.set_filter_flag = 0
                 except:
-                    print 'No response from filter wheel daemon'
+                    print 'ERROR: No response from filter wheel daemon'
             
+            # take image
             if(self.take_image_flag):
                 bins = self.exp_spec.bins
                 exptime = self.exp_spec.exptime
                 frametype = self.exp_spec.frametype
                 try:
-                    print '   Set bin factor to:', bins
+                    print '     Set bin factor to:', bins
                     cam.set_binning(bins,bins) # Assumes symmetric for now
-                    print '   Taking exposure of:', exptime
+                    print '     Taking exposure of:', exptime
                     cam.take_image(exptime,frametype)
-                    self.working=1
-                    self.take_image_flag=0
+                    self.working = 1
+                    self.take_image_flag = 0
                 except:
-                    print 'No responce from camera daemon'
+                    print 'ERROR: No responce from camera daemon'
             
             time.sleep(0.0001) # To save 100% CPU usage
             
@@ -263,62 +303,66 @@ class Queue_Daemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Queue functions
     def get_info(self):
-        self.get_info_flag=1
+        """Return queue status info"""
+        self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
     
     def add(self,exptime,filt='G',bins=1,frametype='normal',obj='',imgtype='SCIENCE',dbID='manual',glance=False):
+        """Add an exposure to the queue"""
         self.exp_queue.append(ExposureSpec(exptime,filt.upper(),bins,frametype,obj,imgtype,dbID,glance))
+        if(self.paused):
+            return 'Added exposure to queue, queue is currently paused'
+        else:
+            return 'Added exposure to queue'
 
     def clear(self):
+        """Empty the queue"""
         self.exp_queue.clear()
+        return 'Queue cleared'
 
     def get(self):
+        """Return info on exposures in the queue"""
         return self.exp_queue.get()
 
     def pause(self):
+        """Pause the queue"""
         self.paused = 1
         return 'Queue paused'
 
     def resume(self):
+        """Unpause the queue"""
         self.paused = 0
         return 'Queue resumed'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Daemon pinger
+    # Other daemon functions
     def ping(self):
-        #print '  pinged'
-        dt_control = abs(time.time()-self.time_check)
+        dt_control = abs(time.time() - self.time_check)
         if dt_control > params.DAEMONS['queue']['PINGLIFE']:
-            return 'Last queue daemon control thread time check: %.1f seconds ago' % dt_control
+            return 'Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
     
     def prod(self):
         return
-        
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Status and shutdown
+    
     def status_function(self):
-        #print 'status query:', self.running
         return self.running
     
     def shutdown(self):
         self.running=False
-        #print '  set status to', self.running
-
 
 ########################################################################
 # Create Pyro control server 
+pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['queue']['HOST'], port=params.DAEMONS['queue']['PORT'])
+queue_daemon = QueueDaemon()
 
-pyro_daemon=Pyro4.Daemon(host=params.DAEMONS['queue']['HOST'], port=params.DAEMONS['queue']['PORT'])
-queue_daemon=Queue_Daemon()
+uri = pyro_daemon.register(queue_daemon,objectId = params.DAEMONS['queue']['PYROID'])
+print 'Starting queue daemon at',uri
 
-uri=pyro_daemon.register(queue_daemon,objectId = params.DAEMONS['queue']['PYROID'])
-
-print 'Starting queue daemon, with Pyro URI:',uri
-
-Pyro4.config.COMMTIMEOUT=5.
+Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=queue_daemon.status_function)
+
 print 'Exiting queue daemon'
 time.sleep(1.)

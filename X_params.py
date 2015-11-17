@@ -26,36 +26,28 @@ elif HOST == 'host-137-205-160-42.warwick.ac.uk': # Warwick test NUC
 SCRIPT_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
-QUEUE_PATH = TECS_PATH
-WIN_PATH = '/cygdrive/c/goto_mount'
 
 # Log form
-LOGGING=1
+LOGGING = 1
 
 # Site location (predicted location of GOTO dome on La Palma)
-SITE_LATITUDE=28.7598742
-SITE_LONGITUDE=-17.8793802
+SITE_LATITUDE = 28.7598742
+SITE_LONGITUDE = -17.8793802
 
 ########################################################################
 # Daemon parameters
-DAEMONS={
+
+DAEMONS = {
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
-        'HOST':     'host-137-205-160-42.warwick.ac.uk',
+        'HOST':     'eddie',#'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9001,
         'PYROID':   'mnt_daemon',
         'PINGLIFE': 10.
         },
-    'sitech':{ # sitech daemon
-        'PROCESS':  'sitech_daemon.py',
-        'HOST':     '137.205.160.1',
-        'PORT':     7766, # No real reason
-        'PYROID':   'sitech_daemon',
-        'PINGLIFE': 10.
-        },
     'filt':{ # filter wheel daemon
         'PROCESS':  'filt_daemon.py',
-        'HOST':     'eddie', # MJD's laptop
+        'HOST':     'eddie',
         'PORT':     9002,
         'PYROID':   'filt_daemon',
         'PINGLIFE': 10.
@@ -84,12 +76,29 @@ DAEMONS={
 }
 
 for key in DAEMONS:
-    DAEMONS[key]['ADDRESS']='PYRO:'+DAEMONS[key]['PYROID']+'@'+DAEMONS[key]['HOST']+':'+str(DAEMONS[key]['PORT'])
+    DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
 
 ########################################################################
 # Mount parameters
-MIN_ELEVATION=20. #degrees
-DEFAULT_OFFSET_STEP=10. #arcsec
+WIN_HOST = '137.205.160.1'
+
+SITECH_PROCESS = 'sitech.py'
+SITECH_PYROID = 'sitech'
+SITECH_PORT = 9000
+SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
+
+WIN_PATH = 'C:/goto_mount/'
+CYGWIN_PATH = '/cygdrive/c/goto_mount/'
+CYGWIN_PYTHON_PATH = '/cygdrive/c/Python27/python.exe'
+
+MIN_ELEVATION = 20. #degrees
+DEFAULT_OFFSET_STEP = 10. #arcsec
 
 # Filter wheel parameters
-FILTER_LIST=['L','R','B','G','C']
+FILTER_LIST = ['L','R','G','B','C']
+
+# Camera parameters
+FRAMETYPE_LIST = ['normal','dark','rbi_flush']
+
+# Queue parameters
+QUEUE_PATH = TECS_PATH

@@ -23,37 +23,40 @@ import X_misc as misc
 ########################################################################
 # Filter wheel control functions
 def get_info():
-    filt=Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     try:
         info = filt.get_info()
-        
         print '#### FILTER WHEEL INFO ####'
         if info['status'] != 'Moving':
             print 'Status: %s' %info['status']
         else:
             print 'Status: %s (%i)' %(info['status'],info['remaining'])
+        print '~~~~~~~'
         print 'Current filter:     %s' %info['current_filter']
-        print 'Current filter pos: %s' %info['current_filter_pos']
+        print 'Current filter num: %s' %info['current_filter_num']
         print 'Current motor pos:  %s' %info['current_pos']
+        print '~~~~~~~'
+        print 'Uptime: %.1fs' %info['uptime']
+        print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'No response from filter wheel daemon'
+        print 'ERROR: No response from filter wheel daemon'
     
 def set_filter(new_filt):
-    filt=Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     try:
-        f=filt.set_filter(new_filt)
-        if f: print f
+        c = filt.set_filter(new_filt)
+        if c: print c
     except:
-        print 'No response from filter wheel daemon'
+        print 'ERROR: No response from filter wheel daemon'
 
 ########################################################################
-# Define interactive mode
+# Interactive mode
 def interactive():
-    while 1:
-        command=split(raw_input('filt> '))
-        if(len(command)>0):
-            if command[0]=='q':
+    while True:
+        command = split(raw_input('filt> '))
+        if len(command) > 0:
+            if command[0] == 'q':
                 return
             else:
                 query(command)
@@ -61,43 +64,41 @@ def interactive():
 def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0]=='start':
-        misc.startDaemon(FILT_DAEMON_PROCESS,FILT_DAEMON_HOST,stdout=FILT_DAEMON_OUTPUT)
-    elif command[0]=='ping':
-        misc.pingDaemon(FILT_DAEMON_ADDRESS)
-    elif command[0]=='shutdown':
-        misc.shutdownDaemon(FILT_DAEMON_ADDRESS)
-    elif command[0]=='kill':
-        misc.killDaemon(FILT_DAEMON_PROCESS,FILT_DAEMON_HOST)
-    elif command[0]=='help':
-        printInstructions()
-    elif command[0]=='i':
-        print 'Already in interactive mode'
+    if command[0] == 'start':
+        misc.start_daemon(FILT_DAEMON_PROCESS, FILT_DAEMON_HOST, stdout=FILT_DAEMON_OUTPUT)
+    elif command[0] == 'shutdown':
+        misc.shutdown_daemon(FILT_DAEMON_ADDRESS)
+    elif command[0] == 'kill':
+        misc.kill_daemon(FILT_DAEMON_PROCESS,FILT_DAEMON_HOST)
+    elif command[0] == 'ping':
+        misc.ping_daemon(FILT_DAEMON_ADDRESS)
+    elif command[0] == 'help':
+        print_instructions()
+    elif command[0] == 'i':
+        print 'ERROR: Already in interactive mode'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
-    elif command[0]=='info':
+    elif command[0] == 'info':
         get_info()
-    elif command[0]=='set':
-        set_filter(command[1].strip())
-    elif command[0]=='list':
+    elif command[0] == 'set':
+        set_filter(command[1].upper())
+    elif command[0] == 'list':
         print params.FILTER_LIST
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
-    elif command[0]=='exit':
-        print 'filt> Use "shutdown" to close the daemon or "q" to quit interactive mode'
     else:
         print 'filt> Command not recognized:',command[0]
 
-def printInstructions():
+def print_instructions():
     print 'Usage: filt start              - starts the filter wheel daemon'
     print '       filt shutdown           - shuts down the filter wheel daemon cleanly'
     print '       filt kill               - kills the filter wheel daemon (emergency use only!)'
     print '       filt ping               - pings the filter wheel daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       filt info               - reports current filter wheel data'
-    print '       filt set [filter]       - sets the currently active filter'
+    print '       filt set [filter]       - sets the active filter'
     print '       filt list               - lists the possible filters'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       filt i                  - enter interactive (command line) usage'
@@ -106,19 +107,18 @@ def printInstructions():
     print '       filt help               - prints these instructions'
 
 ########################################################################
-# Control System
+# Control system
 
-if len(sys.argv)==1:
-    printInstructions()
+if len(sys.argv) == 1:
+    print_instructions()
 else:
-    FILT_DAEMON_PROCESS=params.DAEMONS['filt']['PROCESS']
-    FILT_DAEMON_HOST=params.DAEMONS['filt']['HOST']
-    FILT_DAEMON_ADDRESS=params.DAEMONS['filt']['ADDRESS']
-    FILT_DAEMON_OUTPUT=params.LOG_PATH+'filt_daemon-stdout.log'
+    FILT_DAEMON_PROCESS = params.DAEMONS['filt']['PROCESS']
+    FILT_DAEMON_HOST = params.DAEMONS['filt']['HOST']
+    FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
+    FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
     
-    command=sys.argv[1:]    
-
-    if command[0]=='i':
+    command = sys.argv[1:]    
+    if command[0] == 'i':
         interactive()
     else:
         query(command)
