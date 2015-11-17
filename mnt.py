@@ -23,169 +23,133 @@ import X_misc as misc
 ########################################################################
 # Mount control functions
 def get_info():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.get_info()
-        time.sleep(0.1) # Wait for it to update
-        info = mnt.report_to_UI('info')
-        
-        if info['targ_ra'] != None and info['targ_dec'] != None:
-            targ_dist = misc.ang_sep(info['tel_ra'],info['tel_dec'],info['targ_ra'],info['targ_dec'])
-        else:
-            targ_dist = None
-        
-        print '#### MOUNT INFO ####'
+        info = mnt.get_info()
+        print '####### MOUNT INFO ########'
         if info['status'] != 'Slewing':
             print 'Status: %s' %info['status']
         else:
-            print 'Status: %s (%.2f)' %(info['status'],targ_dist)
+            print 'Status: %s (%.2f)' %(info['status'],info['target_dist'])
         print '~~~~~~~'
-        print 'Telescope RA:  %.4f' %info['tel_ra']
-        print 'Telescope Dec: %.4f' %info['tel_dec']
-        if info['targ_ra'] != None:
-            print 'Target RA:     %.4f' %info['targ_ra']
+        print 'Mount Alt:        %.2f' %info['mount_alt']
+        print 'Mount Az:         %.2f' %info['mount_az']
+        print 'Telescope RA:     %.4f' %info['mount_ra']
+        print 'Telescope Dec:    %.4f' %info['mount_dec']
+        if info['target_ra'] != None:
+            print 'Target RA:        %.4f' %info['target_ra']
         else:
-            print 'Target RA:     NONE'
-        if info['targ_dec'] != None:
-            print 'Target Dec:    %.4f' %info['targ_dec']
+            print 'Target RA:        TARGET NOT SET'
+        if info['target_dec'] != None:
+            print 'Target Dec:       %.4f' %info['target_dec']
         else:
-            print 'Target Dec:    NONE'
-        if targ_dist != None:
-            print 'Target dist:   %.4f' %targ_dist
-        print 'Telescope Alt: %.2f' %info['tel_alt']
-        print 'Telescope Az:  %.2f' %info['tel_az']
-        print 'Step size: %.2f arcsec' %info['step']
+            print 'Target Dec:       TARGET NOT SET'
+        if info['target_dist'] != None:
+            print 'Target distance:  %.3f' %info['target_dist']
+        print 'Offset step size: %.2f arcsec' %info['step']
         print '~~~~~~~'
-        print 'LST: %.2f' %info['lst']
-        print 'Hour Angle: %.2f' %info['ha']
-        print 'Tel Time: %s' %info['teltime']
-        #print 'UTC: %s' %info['ut']
+        print 'LST:              %.2f' %info['lst']
+        print 'Hour Angle:       %.2f' %info['ha']
+        print 'UTC:              %s' %info['utc']
         print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
-        print 'Ping: %.3fs' %info['ping']
-        #print 'Site Long: %.2f' %info['long']
-        #print 'Site Lat: %.2f' %info['lat']
-        #print 'Site Eliv: %.2f' %info['eliv']
-        print '####################'
-        #print info
+        print 'Ping: %.5fs' %info['ping']
+        print '###########################'
     except:
-        print 'No response from mount daemon'
-
-def start_tracking():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+        print 'ERROR: No response from mount daemon'
+    
+def slew_to_radec(ra,dec):
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.start_tracking()
+        c = mnt.slew_to_radec(ra,dec)
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
+    
+def slew_to_target():
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    try:
+        c = mnt.slew_to_target()
+        if c: print c
+    except:
+        print 'ERROR: No response from mount daemon'
+    
+def start_tracking():
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    try:
+        c = mnt.start_tracking()
+        if c: print c
+    except:
+        print 'ERROR: No response from mount daemon'
     
 def full_stop():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.full_stop()
+        c = mnt.full_stop()
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
 def park():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.park()
+        c = mnt.park()
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
 def unpark():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.unpark()
+        c = mnt.unpark()
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
-def ra(h,m,s):
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+def set_target_ra(h,m,s):
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    ra = h + m/60. + s/3600.
     try:
-        mnt.ra(h,m,s)
+        c = mnt.set_target_ra(ra)
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
-def dec(sign,d,m,s):
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+def set_target_dec(sign,d,m,s):
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    if sign == '+':
+        dec = d + m/60. + s/3600.
+    else:
+        dec = -1*(d + m/60. + s/3600.)
     try:
-        mnt.dec(sign,d,m,s)
+        c = mnt.set_target_dec(dec)
+        if c: print c
     except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
-def slew(ra=None,dec=None):
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+def offset(direction):
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        slew = mnt.slew(ra,dec)
-        if slew != None: print slew
+        c = mnt.offset(direction)
+        if c: print c
     except:
-        print 'No response from mount daemon'
-        
-def load_position():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        mnt.get_info()
-        time.sleep(0.1)
-        info = mnt.report_to_UI('info')
-        tel_ra = info['tel_ra']
-        tel_dec = info['tel_dec']
-        mnt.ra(tel_ra,0,0)
-        if tel_dec > 0:
-            mnt.dec('+',tel_dec,0,0)
-        else:
-            mnt.dec('-',tel_dec,0,0)
-    except:
-        print 'No response from mount daemon'
-    
-def offset_n():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        offset = mnt.offset_dec('north')
-        if offset != None: print offset
-    except:
-        print 'No response from mount daemon'
-    
-def offset_s():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        offset = mnt.offset_dec('south')
-        if offset != None: print offset
-    except:
-        print 'No response from mount daemon'
-    
-def offset_e():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        offset = mnt.offset_ra('east')
-        if offset != None: print offset
-    except:
-        print 'No response from mount daemon'
-    
-def offset_w():
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
-    try:
-        offset = mnt.offset_ra('west')
-        if offset != None: print offset
-    except:
-        print 'No response from mount daemon'
+        print 'ERROR: No response from mount daemon'
     
 def set_step(offset):
-    mnt=Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     try:
-        mnt.set_step(offset)
+        c = mnt.set_step(offset)
+        if c: print c
     except:
-        print 'No response from mount daemon'
-
-def startDaemonWin(daemonProcess,daemonHost,stdout='/dev/null'):
-    os.system('ssh goto@'+daemonHost+' /cygdrive/c/Python27/python.exe "C:/goto_mount/sitech_daemon.py >/cygdrive/c/goto_mount/sitech.log 2>&1 &"')
+        print 'ERROR: No response from mount daemon'
 
 ########################################################################
-# Define interactive mode
+# Interactive mode
 def interactive():
-    while 1:
-        command=split(raw_input('mnt> '))
-        if(len(command)>0):
-            if command[0]=='q':
+    while True:
+        command = split(raw_input('mnt> '))
+        if len(command) > 0:
+            if command[0] == 'q':
                 return
             else:
                 query(command)
@@ -193,29 +157,33 @@ def interactive():
 def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0]=='start':
-        misc.startDaemon(MNT_DAEMON_PROCESS,MNT_DAEMON_HOST,stdout=MNT_DAEMON_OUTPUT)
-    elif command[0]=='pingM': #'ping':
-        misc.pingDaemon(MNT_DAEMON_ADDRESS)
-    elif command[0]=='shutdown':
-        misc.shutdownDaemon(MNT_DAEMON_ADDRESS)
-    elif command[0]=='kill':
-        misc.killDaemon(MNT_DAEMON_PROCESS,MNT_DAEMON_HOST)
-    elif command[0]=='startS':
-        startDaemonWin(SITECH_DAEMON_PROCESS,SITECH_DAEMON_HOST,SITECH_DAEMON_OUTPUT)
-    elif command[0]=='pingS':
-        misc.pingDaemon(SITECH_DAEMON_ADDRESS)
-    elif command[0]=='shutdownS':
-        misc.shutdownDaemon(SITECH_DAEMON_ADDRESS)
-    elif command[0]=='help':
-        printInstructions()
-    elif command[0]=='i':
+    if command[0] == 'start':
+        misc.start_daemon(MNT_DAEMON_PROCESS, MNT_DAEMON_HOST, stdout=MNT_DAEMON_OUTPUT)
+    elif command[0] == 'shutdown':
+        misc.shutdown_daemon(MNT_DAEMON_ADDRESS)
+    elif command[0] == 'kill':
+        misc.kill_daemon(MNT_DAEMON_PROCESS, MNT_DAEMON_HOST)
+    elif command[0] == 'ping':
+        misc.ping_daemon(MNT_DAEMON_ADDRESS)
+    
+    elif command[0] == 'startS':
+        misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)
+    elif command[0] == 'shutdownS':
+        misc.shutdown_daemon(SITECH_ADDRESS)
+    elif command[0] == 'pingS':
+        misc.ping_daemon(SITECH_ADDRESS)
+    
+    elif command[0] == 'help':
+        print_instructions()
+    elif command[0] == 'i':
         print 'Already in interactive mode'
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     elif command[0]=='info':
         get_info()
+    elif command[0]=='slew':
+        slew_to_target()
     elif command[0]=='track':
         start_tracking()
     elif command[0]=='stop':
@@ -225,66 +193,57 @@ def query(command):
     elif command[0]=='unpark':
         unpark()
     elif command[0]=='ra':
-        ra(float(command[1]),float(command[2]),float(command[3]))
+        set_target_ra(float(command[1]),float(command[2]),float(command[3]))
     elif command[0]=='dec':
         if len(command) == 5:
-            dec(command[1],float(command[2]),float(command[3]),float(command[4]))
+            set_target_dec(command[1],float(command[2]),float(command[3]),float(command[4]))
         else:
             print 'ERROR: You probably forgot the sign!'
-    elif command[0]=='slew':
-        slew()
-    elif command[0]=='load':
-        load_position()
-    elif command[0]=='slewR':
-        slew(ra=10.15, dec=11.88)
-    elif command[0]=='slewP':
-        slew(ra=02.88, dec=89.31)
     elif command[0]=='n':
-        offset_n()
+        offset('north')
     elif command[0]=='s':
-        offset_s()
+        offset('south')
     elif command[0]=='e':
-        offset_e()
+        offset('east')
     elif command[0]=='w':
-        offset_w()
+        offset('west')
     elif command[0]=='step':
         set_step(float(command[1]))
+    elif command[0]=='slewR':
+        slew_to_radec(ra=10.15, dec=11.88)
+    elif command[0]=='slewP':
+        slew_to_radec(ra=02.88, dec=89.31)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
-    elif command[0]=='exit':
-        print 'mnt> Use "shutdown" to close the daemon or "q" to quit interactive mode'
-    elif command[0]=='ping':
-        print 'mnt> [pingM] to ping the mount daemon, [pingS] to ping the SiTech daemon'
     else:
         print 'mnt> Command not recognized:',command[0]
 
-def printInstructions():
+def print_instructions():
     print 'Usage: mnt start              - starts the mount daemon'
     print '       mnt shutdown           - shuts down the mount daemon cleanly'
     print '       mnt kill               - kills the mount daemon (emergency use only!)'
-    print '       mnt pingM              - pings the mount daemon'
+    print '       mnt ping               - pings the mount daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       mnt startS             - starts the SiTech daemon'
     print '       mnt shutdownS          - shuts down the SiTech daemon cleanly'
     print '       mnt pingS              - pings the SiTech daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       mnt info               - reports current mount data'
-    print '       mnt ra [h m s]         - set target ra'
-    print '       mnt dec [sign d m s]   - set target dec'
     print '       mnt slew               - slew to target ra/dec'
-    print '       mnt load               - load current position as target'
-    print '       mnt slewR              - slew to Regulus (Alpha Leo)'
-    print '       mnt slewP              - slew to Polaris (Alpha UMi)'
-    print '       mnt n                  - offset telescope north by one step'
-    print '       mnt s                  - offset telescope south by one step'
-    print '       mnt e                  - offset telescope east by one step'
-    print '       mnt w                  - offset telescope west by one step'
-    print '       mnt step [value]       - set offset step size (arcsec, defult=10)'
     print '       mnt track              - start tracking'
     print '       mnt stop               - stop tracking/slewing'
     print '       mnt park               - park scope'
     print '       mnt unpark             - leave park state'
+    print '       mnt ra [h m s]         - set target ra'
+    print '       mnt dec [sign d m s]   - set target dec'
+    print '       mnt n                  - offset telescope north by one step'
+    print '       mnt s                  - offset telescope south by one step'
+    print '       mnt e                  - offset telescope east by one step'
+    print '       mnt w                  - offset telescope west by one step'
+    print '       mnt step [value]       - set offset step size (arcsec, default=10)'
+    print '       mnt slewR              - slew to Regulus (Alpha Leo) - TEST'
+    print '       mnt slewP              - slew to Polaris (Alpha UMi) - TEST'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       mnt i                  - enter interactive (command line) usage'
     print '       mnt q                  - quit interactive (command line) usage'
@@ -294,22 +253,21 @@ def printInstructions():
 ########################################################################
 # Control System
 
-if len(sys.argv)==1:
-    printInstructions()
+if len(sys.argv) == 1:
+    print_instructions()
 else:
-    MNT_DAEMON_PROCESS=params.DAEMONS['mnt']['PROCESS']
-    MNT_DAEMON_HOST=params.DAEMONS['mnt']['HOST']
-    MNT_DAEMON_ADDRESS=params.DAEMONS['mnt']['ADDRESS']
-    MNT_DAEMON_OUTPUT=params.LOG_PATH+'mnt_daemon-stdout.log'
-
-    SITECH_DAEMON_PROCESS=params.DAEMONS['sitech']['PROCESS']
-    SITECH_DAEMON_HOST=params.DAEMONS['sitech']['HOST']
-    SITECH_DAEMON_ADDRESS=params.DAEMONS['sitech']['ADDRESS']
-    SITECH_DAEMON_OUTPUT=params.WIN_PATH+'sitech_daemon-stdout.log'
-
+    MNT_DAEMON_PROCESS = params.DAEMONS['mnt']['PROCESS']
+    MNT_DAEMON_HOST = params.DAEMONS['mnt']['HOST']
+    MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
+    MNT_DAEMON_OUTPUT = params.LOG_PATH + 'mnt_daemon-stdout.log'
+    
+    SITECH_PROCESS = params.SITECH_PROCESS
+    SITECH_HOST = params.WIN_HOST
+    SITECH_ADDRESS = params.SITECH_ADDRESS
+    SITECH_OUTPUT = params.CYGWIN_PATH + 'sitech-stdout.log'
+    
     command=sys.argv[1:]    
-
-    if command[0]=='i':
+    if command[0] == 'i':
         interactive()
     else:
         query(command)
