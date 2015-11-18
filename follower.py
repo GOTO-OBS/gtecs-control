@@ -36,18 +36,24 @@ def foc_info():
     proc = subprocess.Popen('python2 foc.py info', shell=True, stdout=subprocess.PIPE)
     foc_info = proc.communicate()[0]
     return foc_info
+
+def mnt_info():
+    proc = subprocess.Popen('python2 mnt.py info', shell=True, stdout=subprocess.PIPE)
+    mnt_info = proc.communicate()[0]
+    return mnt_info
     
 if __name__ == '__main__':
     
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
-        daemons = ['queue','cam','filt','foc']
+        daemons = ['queue','cam','filt','foc','mnt']
     while True:
         queue = queue_info()
         cam = cam_info()
         filt = filt_info()
         foc = foc_info()
+        mnt = mnt_info()
         now = datetime.datetime.utcnow()
         print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
         if 'queue' in daemons:
@@ -58,4 +64,6 @@ if __name__ == '__main__':
             print filt
         if 'foc' in daemons:
             print foc
+        if 'mnt' in daemons:
+            print mnt
         time.sleep(0.5)
