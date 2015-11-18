@@ -40,7 +40,7 @@ SITE_LONGITUDE = -17.8793802
 DAEMONS = {
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
-        'HOST':     'eddie',#'host-137-205-160-42.warwick.ac.uk',
+        'HOST':     'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9001,
         'PYROID':   'mnt_daemon',
         'PINGLIFE': 10.
