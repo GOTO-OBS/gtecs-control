@@ -39,15 +39,23 @@ def foc_info():
     
 if __name__ == '__main__':
     
-    while 1:
+    if len(sys.argv) > 1:
+        daemons = sys.argv[1:]
+    else:
+        daemons = ['queue','cam','filt','foc']
+    while True:
         queue = queue_info()
         cam = cam_info()
         filt = filt_info()
         foc = foc_info()
         now = datetime.datetime.utcnow()
         print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
-        print queue
-        print cam
-        print filt
-        print foc
+        if 'queue' in daemons:
+            print queue
+        if 'cam' in daemons:
+            print cam
+        if 'filt' in daemons:
+            print filt
+        if 'foc' in daemons:
+            print foc
         time.sleep(0.5)
