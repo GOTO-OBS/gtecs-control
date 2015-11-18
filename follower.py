@@ -18,22 +18,22 @@ import subprocess
 import X_params as params
 
 def queue_info():
-    proc = subprocess.Popen('python queueX.py info', shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('python2 queueX.py info', shell=True, stdout=subprocess.PIPE)
     queue_info = proc.communicate()[0]
     return queue_info
     
 def cam_info():
-    proc = subprocess.Popen('python cam.py info', shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('python2 cam.py info', shell=True, stdout=subprocess.PIPE)
     cam_info = proc.communicate()[0]
     return cam_info
 
 def filt_info():
-    proc = subprocess.Popen('python filt.py info', shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('python2 filt.py info', shell=True, stdout=subprocess.PIPE)
     filt_info = proc.communicate()[0]
     return filt_info
 
 def foc_info():
-    proc = subprocess.Popen('python foc.py info', shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('python2 foc.py info', shell=True, stdout=subprocess.PIPE)
     foc_info = proc.communicate()[0]
     return foc_info
     
