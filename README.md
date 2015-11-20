@@ -6,17 +6,17 @@ Each piece of hardware (mount, camera, dome etc) gets its own daemon, which issu
 
 The scripts and daemons communicate using PyRO (Python Remote Objects) commands (https://pythonhosted.org/Pyro4/), a very flexible system that allows any combination of daemons to be controlled from one command script (as is curently done with the queue daemon) and commands to be issued to different computers over the network (even on different operating systems, such as with the sitech daemon).
 
-At the moment there are 5 daemons:
+At the moment there are 6 daemons:
 * *mnt* (or mount) - to control the SiTech mount (called *tel* for pt5m)
  * *sitech* - a sub-daemon on a Windows PC that converts mount commands to ASCOM functions (not included)
 * *cam* - to control the FLI camera (called *ccd* for SLODAR and *qsi* for pt5m)
 * *foc* - to control the FLI focuser attached to the camera
 * *filt* - to control the FLI filter wheel attached to the camera
 * *queue* - to control the image queue and issue orders to the FLI hardware daemons
-
-There will be (at least) 2 more in the final system:
-* *dome* - to control the dome
 * *power* - to control powering the hardware
+
+There will be (at least) 1 more in the final system:
+* *dome* - to control the dome
 
 There are also two helpful scripts:
 * *lilith.py* - used to issue common commands (start, ping, shutdown, kill) to multiple daemons
