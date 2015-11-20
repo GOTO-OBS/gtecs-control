@@ -12,6 +12,8 @@
 import os,sys
 import socket
 import numpy
+# TeCS modules
+import power_control
 
 ########################################################################
 # General parameters
@@ -72,6 +74,13 @@ DAEMONS = {
         'PORT':     9005,
         'PYROID':   'queue_daemon',
         'PINGLIFE': 10.
+        },
+    'power':{ # hardware power daemon
+        'PROCESS':  'power_daemon.py',
+        'HOST':     'eddie',
+        'PORT':     9006,
+        'PYROID':   'power_daemon',
+        'PINGLIFE': 10.
         }
 }
 
@@ -102,3 +111,8 @@ FRAMETYPE_LIST = ['normal','dark','rbi_flush']
 
 # Queue parameters
 QUEUE_PATH = TECS_PATH
+
+# Power parameters
+POWER = power_control.FakePower('IP_address','port')
+POWER_CHECK_SCRIPT = '_power_status.py'
+POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']

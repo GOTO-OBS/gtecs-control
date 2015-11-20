@@ -13,6 +13,7 @@ import os, sys, commands
 from math import *
 import time
 import Pyro4
+import subprocess
 # TeCS modules
 import X_params as params
 
@@ -50,6 +51,48 @@ def get_process_ID(process_name, host):
                 if entry[-n:] == process_name:
                     process_ID.append(entries[1])
     return process_ID
+
+def cmd_timeout(command, timeout, bufsize=-1):
+    """
+    Execute command and limit execution time to 'timeout' seconds.
+    Found online and slightly modified
+    """
+    
+    p = subprocess.Popen(command, bufsize=bufsize, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    start_time = time.time()
+    seconds_passed = 0
+    
+    while p.poll() is None and seconds_passed < timeout:
+        time.sleep(0.1)
+        seconds_passed = time.time() - start_time
+    
+    if seconds_passed >= timeout:
+        try:
+            p.stdout.close()
+            p.stderr.close()
+            p.terminate()
+            p.kill()
+        except:
+            pass
+        out = None
+    else:
+        out = p.stdout.read().strip()
+        err = p.stderr.read()
+    returncode = p.returncode
+    return out #(returncode, err, out)
+
+def kill_processes(process, host):
+    '''Kill any specified processes'''
+    local_host = get_hostname()
+    process_ID_list = get_process_ID(process, host)
+    
+    if local_host == host:
+        for process_ID in process_ID_list:
+            os.system('kill -9 ' + process_ID)
+            print 'Killed process', process_ID
+    else:
+        for process_ID in process_ID_list:
+            os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
 ########################################################################
 # Core Daemon functions 
@@ -98,7 +141,6 @@ def shutdown_daemon(address):
 def kill_daemon(process, host):
     '''Kill a daemon (should be used as a last resort)'''
     local_host = get_hostname()
-    username = os.environ["LOGNAME"]
     process_ID_list = get_process_ID(process, host)
 
     if local_host == host:
