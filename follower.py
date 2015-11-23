@@ -41,19 +41,25 @@ def mnt_info():
     proc = subprocess.Popen('python2 mnt.py info', shell=True, stdout=subprocess.PIPE)
     mnt_info = proc.communicate()[0]
     return mnt_info
+
+def power_info():
+    proc = subprocess.Popen('python2 power.py info', shell=True, stdout=subprocess.PIPE)
+    power_info = proc.communicate()[0]
+    return power_info
     
 if __name__ == '__main__':
     
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
-        daemons = ['queue','cam','filt','foc','mnt']
+        daemons = ['queue','cam','filt','foc','mnt','power']
     while True:
         queue = queue_info()
         cam = cam_info()
         filt = filt_info()
         foc = foc_info()
         mnt = mnt_info()
+        power = power_info()
         now = datetime.datetime.utcnow()
         print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
         if 'queue' in daemons:
@@ -66,4 +72,6 @@ if __name__ == '__main__':
             print foc
         if 'mnt' in daemons:
             print mnt
+        if 'power' in daemons:
+            print power
         time.sleep(0.5)
