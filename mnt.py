@@ -24,6 +24,7 @@ import X_misc as misc
 # Mount control functions
 def get_info():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = mnt.get_info()
         print '####### MOUNT INFO ########'
@@ -60,6 +61,7 @@ def get_info():
     
 def slew_to_radec(ra,dec):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.slew_to_radec(ra,dec)
         if c: print c
@@ -68,6 +70,7 @@ def slew_to_radec(ra,dec):
     
 def slew_to_target():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.slew_to_target()
         if c: print c
@@ -76,6 +79,7 @@ def slew_to_target():
     
 def start_tracking():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.start_tracking()
         if c: print c
@@ -84,6 +88,7 @@ def start_tracking():
     
 def full_stop():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.full_stop()
         if c: print c
@@ -92,6 +97,7 @@ def full_stop():
     
 def park():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.park()
         if c: print c
@@ -100,6 +106,7 @@ def park():
     
 def unpark():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.unpark()
         if c: print c
@@ -108,6 +115,7 @@ def unpark():
     
 def set_target_ra(h,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     ra = h + m/60. + s/3600.
     try:
         c = mnt.set_target_ra(ra)
@@ -117,6 +125,7 @@ def set_target_ra(h,m,s):
     
 def set_target_dec(sign,d,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     if sign == '+':
         dec = d + m/60. + s/3600.
     else:
@@ -129,6 +138,7 @@ def set_target_dec(sign,d,m,s):
     
 def offset(direction):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.offset(direction)
         if c: print c
@@ -137,6 +147,7 @@ def offset(direction):
     
 def set_step(offset):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.set_step(offset)
         if c: print c

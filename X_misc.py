@@ -116,6 +116,7 @@ def start_daemon(process, host, stdout='/dev/null'):
 def ping_daemon(address):
     '''Ping a daemon'''
     daemon = Pyro4.Proxy(address)
+    daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         ping = daemon.ping()
         if ping == 'ping':
@@ -128,11 +129,13 @@ def ping_daemon(address):
 def shutdown_daemon(address):
     '''Shut a daemon down nicely'''
     daemon = Pyro4.Proxy(address)
+    daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         daemon.shutdown()
         print 'Daemon is shutting down'
         # Have to request status again to close loop
         daemon = Pyro4.Proxy(address)
+        daemon._pyroTimeout = params.PROXY_TIMEOUT
         daemon.prod()
         daemon._pyroRelease()
     except:

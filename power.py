@@ -24,7 +24,8 @@ import X_misc as misc
 # Power control functions
 def get_info():
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
-    if 1:#try:
+    power._pyroTimeout = params.PROXY_TIMEOUT
+    try:
         info = power.get_info()
         print '####### POWER INFO ########'
         for i in range(len(info['status_dict'])):
@@ -35,11 +36,12 @@ def get_info():
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
-    #except:
-     #   print 'ERROR: No response from power daemon'
+    except:
+        print 'ERROR: No response from power daemon'
     
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.on(outlet)
         if c: print c
@@ -48,6 +50,7 @@ def on(outlet):
     
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.off(outlet)
         if c: print c

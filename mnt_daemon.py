@@ -92,6 +92,7 @@ class MntDaemon:
 
             ### connect to sitech daemon
             sitech = Pyro4.Proxy(params.SITECH_ADDRESS)
+            sitech._pyroTimeout = params.PROXY_TIMEOUT
             
             ### control functions
             # request info

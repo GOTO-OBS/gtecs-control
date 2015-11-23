@@ -24,6 +24,7 @@ import X_misc as misc
 # Camera control functions
 def get_info():
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
         print '####### CAMERA INFO #######'
@@ -54,6 +55,7 @@ def get_info():
     
 def take_image(exptime,frametype='normal'):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_image(exptime,frametype)
         if c: print c
@@ -62,6 +64,7 @@ def take_image(exptime,frametype='normal'):
     
 def abort_exposure():
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.abort_exposure()
         if c: print c
@@ -70,6 +73,7 @@ def abort_exposure():
     
 def set_temp(target_temp):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_temp(target_temp)
         if c: print c
@@ -78,6 +82,7 @@ def set_temp(target_temp):
     
 def set_flushes(target_flushes):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_flushes(target_flushes)
         if c: print c
@@ -86,6 +91,7 @@ def set_flushes(target_flushes):
     
 def set_binning(hbin, vbin=None):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_binning(hbin,vbin)
         if c: print c
@@ -94,6 +100,7 @@ def set_binning(hbin, vbin=None):
     
 def set_area(ul_x, ul_y, lr_x, lr_y):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_area(ul_x, ul_y, lr_x, lr_y)
         if c: print c

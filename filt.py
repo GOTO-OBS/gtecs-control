@@ -24,6 +24,7 @@ import X_misc as misc
 # Filter wheel control functions
 def get_info():
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
         print '#### FILTER WHEEL INFO ####'
@@ -44,6 +45,7 @@ def get_info():
     
 def set_filter(new_filt):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = filt.set_filter(new_filt)
         if c: print c
