@@ -94,6 +94,13 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
+def python_command(filename, command):
+    '''Send a command to a control script as if using the terminal'''
+    command_string = 'python2 ' + filename + ' ' + command
+    proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
+    output = proc.communicate()[0]
+    return output
+
 ########################################################################
 # Core Daemon functions 
 def start_daemon(process, host, stdout='/dev/null'):

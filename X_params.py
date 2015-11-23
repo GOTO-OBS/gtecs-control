@@ -37,7 +37,7 @@ SITE_LATITUDE = 28.7598742
 SITE_LONGITUDE = -17.8793802
 
 # Pyro connection
-PROXY_TIMEOUT = 0.1
+PROXY_TIMEOUT = 0.5
 
 ########################################################################
 # Daemon parameters

@@ -16,50 +16,20 @@ import time, datetime
 import subprocess
 # TeCS modules
 import X_params as params
+import X_misc as misc
 
-def queue_info():
-    proc = subprocess.Popen('python2 queueX.py info', shell=True, stdout=subprocess.PIPE)
-    queue_info = proc.communicate()[0]
-    return queue_info
-    
-def cam_info():
-    proc = subprocess.Popen('python2 cam.py info', shell=True, stdout=subprocess.PIPE)
-    cam_info = proc.communicate()[0]
-    return cam_info
-
-def filt_info():
-    proc = subprocess.Popen('python2 filt.py info', shell=True, stdout=subprocess.PIPE)
-    filt_info = proc.communicate()[0]
-    return filt_info
-
-def foc_info():
-    proc = subprocess.Popen('python2 foc.py info', shell=True, stdout=subprocess.PIPE)
-    foc_info = proc.communicate()[0]
-    return foc_info
-
-def mnt_info():
-    proc = subprocess.Popen('python2 mnt.py info', shell=True, stdout=subprocess.PIPE)
-    mnt_info = proc.communicate()[0]
-    return mnt_info
-
-def power_info():
-    proc = subprocess.Popen('python2 power.py info', shell=True, stdout=subprocess.PIPE)
-    power_info = proc.communicate()[0]
-    return power_info
-    
 if __name__ == '__main__':
-    
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
         daemons = ['queue','cam','filt','foc','mnt','power']
     while True:
-        queue = queue_info()
-        cam = cam_info()
-        filt = filt_info()
-        foc = foc_info()
-        mnt = mnt_info()
-        power = power_info()
+        queue = misc.python_command('queueX.py', 'info')
+        cam = misc.python_command('cam.py', 'info')
+        filt = misc.python_command('filt.py', 'info')
+        foc = misc.python_command('foc.py', 'info')
+        mnt = misc.python_command('mnt.py', 'info')
+        power = misc.python_command('power.py', 'info')
         now = datetime.datetime.utcnow()
         print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
         if 'queue' in daemons:
