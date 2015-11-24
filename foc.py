@@ -24,6 +24,7 @@ import X_misc as misc
 # Focuser control functions
 def get_info():
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = foc.get_info()
         print '###### FOCUSER INFO #######'
@@ -45,6 +46,7 @@ def get_info():
     
 def set_focuser(pos):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.set_focuser(pos)
         if c: print c
@@ -53,6 +55,7 @@ def set_focuser(pos):
     
 def move_focuser(steps):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.move_focuser(steps)
         if c: print c
@@ -61,6 +64,7 @@ def move_focuser(steps):
     
 def home_focuser():
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.home_focuser()
         if c: print c

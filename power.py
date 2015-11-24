@@ -24,6 +24,7 @@ import X_misc as misc
 # Power control functions
 def get_info():
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = power.get_info()
         print '####### POWER INFO ########'
@@ -40,6 +41,7 @@ def get_info():
     
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.on(outlet)
         if c: print c
@@ -48,6 +50,7 @@ def on(outlet):
     
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.off(outlet)
         if c: print c

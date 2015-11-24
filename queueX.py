@@ -24,6 +24,7 @@ import X_misc as misc
 # Queue control functions
 def get_info():
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = queue.get_info()
         print '####### QUEUE INFO #######'
@@ -44,6 +45,7 @@ def get_info():
         
 def take_image(exptime,filt,bins,frametype='normal',obj='None',imgtype='SCIENCE',dbID='manual'):
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue._pyroTimeout = params.PROXY_TIMEOUT
     if filt.upper() not in params.FILTER_LIST:
         print 'Filter needs to be one of', params.FILTER_LIST
         return
@@ -55,6 +57,7 @@ def take_image(exptime,filt,bins,frametype='normal',obj='None',imgtype='SCIENCE'
 
 def pause():
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = queue.pause()
         if c: print c
@@ -63,6 +66,7 @@ def pause():
     
 def resume():
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = queue.resume()
         if c: print c
@@ -106,7 +110,6 @@ def query(command):
             print 'ERROR: need at least exptime, filter and bins'
         else:
             if len(command) == 4:
-                print command
                 take_image(int(command[1]),command[2],int(command[3]))
             elif len(command) == 5:
                 take_image(int(command[1]),command[2],int(command[3]),command[4])

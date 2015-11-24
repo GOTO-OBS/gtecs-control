@@ -193,9 +193,11 @@ class QueueDaemon:
             # connect to daemons
             CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
             cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+            cam._pyroTimeout = params.PROXY_TIMEOUT
             
             FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
             filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+            filt._pyroTimeout = params.PROXY_TIMEOUT
 
             # check daemon statuses
             try:
@@ -263,8 +265,8 @@ class QueueDaemon:
                     info['current_filter'] = self.exp_spec.filt
                     info['current_bins'] = self.exp_spec.bins
                     info['current_frametype'] = self.exp_spec.frametype
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
+                info['uptime'] = time.time() - self.start_time
+                info['ping'] = time.time() - self.time_check
                 self.info = info
                 self.get_info_flag = 0
             

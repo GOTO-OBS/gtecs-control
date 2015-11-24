@@ -94,6 +94,13 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
+def python_command(filename, command):
+    '''Send a command to a control script as if using the terminal'''
+    command_string = 'python2 ' + filename + ' ' + command
+    proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
+    output = proc.communicate()[0]
+    return output
+
 ########################################################################
 # Core Daemon functions 
 def start_daemon(process, host, stdout='/dev/null'):
@@ -116,6 +123,7 @@ def start_daemon(process, host, stdout='/dev/null'):
 def ping_daemon(address):
     '''Ping a daemon'''
     daemon = Pyro4.Proxy(address)
+    daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         ping = daemon.ping()
         if ping == 'ping':
@@ -128,11 +136,13 @@ def ping_daemon(address):
 def shutdown_daemon(address):
     '''Shut a daemon down nicely'''
     daemon = Pyro4.Proxy(address)
+    daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         daemon.shutdown()
         print 'Daemon is shutting down'
         # Have to request status again to close loop
         daemon = Pyro4.Proxy(address)
+        daemon._pyroTimeout = params.PROXY_TIMEOUT
         daemon.prod()
         daemon._pyroRelease()
     except:
