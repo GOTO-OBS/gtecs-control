@@ -24,7 +24,7 @@ import X_misc as misc
 # Power control functions
 def get_info():
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
-    if 1:#try:
+    try:
         info = power.get_info()
         print '####### POWER INFO ########'
         for i in range(len(info['status_dict'])):
@@ -35,8 +35,8 @@ def get_info():
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
-    #except:
-     #   print 'ERROR: No response from power daemon'
+    except:
+        print 'ERROR: No response from power daemon'
     
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
@@ -50,6 +50,14 @@ def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     try:
         c = power.off(outlet)
+        if c: print c
+    except:
+        print 'ERROR: No response from power daemon'
+
+def reboot(outlet):
+    power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    try:
+        c = power.reboot(outlet)
         if c: print c
     except:
         print 'ERROR: No response from power daemon'
@@ -89,6 +97,8 @@ def query(command):
         on(command[1])
     elif command[0] == 'off':
         off(command[1])
+    elif command[0] == 'reboot':
+        reboot(command[1])
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -102,8 +112,9 @@ def print_instructions():
     print '       power ping               - pings the power daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       power info               - reports current power data'
-    print '       power on [name/number]   - turns on specified outlet'
-    print '       power off [name/number]  - turns off specified outlet'
+    print '       power on [outlet]        - turns on specified outlet'
+    print '       power off [outlet]       - turns off specified outlet'
+    print '       power reboot [outlet]    - reboots specifiec outlet'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       power i                  - enter interactive (command line) usage'
     print '       power q                  - quit interactive (command line) usage'

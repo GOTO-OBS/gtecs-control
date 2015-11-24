@@ -43,6 +43,7 @@ class PowerDaemon:
         self.get_info_flag = 1
         self.on_flag = 0
         self.off_flag = 0
+        self.reboot_flag = 0
         
         ### power variables
         self.info = {}
@@ -70,7 +71,7 @@ class PowerDaemon:
             delta = self.time_check - self.start_time
             if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
                 try:
-                    cmd = 'python '+params.SCRIPT_PATH+params.POWER_CHECK_SCRIPT
+                    cmd = 'python2 '+params.SCRIPT_PATH+params.POWER_CHECK_SCRIPT
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
                     assert type(power_status) == type('')
                     assert len(power_status) == 8
@@ -120,6 +121,15 @@ class PowerDaemon:
                 self.off_flag = 0
                 self.status_flag = -1
             
+            # reboot a specified outlet
+            if(self.reboot_flag):
+                self.logfile.log('Reboot outlet ' + str(self.new_outlet))
+                c = power.reboot(self.new_outlet)
+                if c: print c
+                self.new_outlet = None
+                self.reboot_flag = 0
+                self.status_flag = -1
+            
             time.sleep(0.0001) # To save 100% CPU usage
         
         self.logfile.log('Power control thread stopped')
@@ -129,14 +139,13 @@ class PowerDaemon:
     # Power control functions
     def get_info(self):
         """Return power status info"""
+        self.status_flag = -1
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
     
     def on(self,outlet):
         """Power on a specified outlet"""
-        if self.on_flag == 1 or self.off_flag == 1:
-            return 'ERROR: Daemon is busy'
         self.new_outlet = self.get_outlet_number(outlet)
         if self.new_outlet == None:
             return 'ERROR: Unknown outlet'
@@ -146,8 +155,6 @@ class PowerDaemon:
     
     def off(self,outlet):
         """Power off a specified outlet"""
-        if self.on_flag == 1 or self.off_flag == 1:
-            return 'ERROR: Daemon is busy'
         self.new_outlet = self.get_outlet_number(outlet)
         if self.new_outlet == None:
             return 'ERROR: Unknown outlet'
@@ -155,6 +162,15 @@ class PowerDaemon:
             self.off_flag = 1
             return 'Turning off power'
     
+    def reboot(self,outlet):
+        """Reboot a specified outlet"""
+        self.new_outlet = self.get_outlet_number(outlet)
+        if self.new_outlet == None:
+            return 'ERROR: Unknown outlet'
+        else:
+            self.reboot_flag = 1
+            return 'Rebooting power'
+
     def get_outlet_number(self,outlet):
         """Check outlet is valid and convert name to number"""
         if outlet.isdigit():

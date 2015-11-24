@@ -77,7 +77,7 @@ DAEMONS = {
         },
     'power':{ # hardware power daemon
         'PROCESS':  'power_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9006,
         'PYROID':   'power_daemon',
         'PINGLIFE': 10.
@@ -113,6 +113,6 @@ FRAMETYPE_LIST = ['normal','dark','rbi_flush']
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-POWER = power_control.FakePower('IP_address','port')
+POWER = power_control.APCPower('137.205.160.50')
 POWER_CHECK_SCRIPT = '_power_status.py'
 POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
