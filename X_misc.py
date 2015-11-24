@@ -14,6 +14,9 @@ from math import *
 import time
 import Pyro4
 import subprocess
+import serial
+import re
+import smtplib
 # TeCS modules
 import X_params as params
 
@@ -101,6 +104,38 @@ def python_command(filename, command):
     output = proc.communicate()[0]
     return output
 
+def ping_host(hostname,count=1,ttl=1):
+    '''Ping a network address and return the number of responses'''
+    ping = commands.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
+    out = ping.split('\n')
+    packets_received = 0
+    for line in range(len(out)):
+        if 'ping statistics' in out[line]:
+            stats_line = out[line + 1].split()
+            packets_received = int(stats_line[3])
+            break
+    return packets_received
+
+def check_hosts(hostlist):
+    '''Ping list of hosts until one responds or the list is exhausted'''
+    for hostname in hostlist:
+        if ping_host(hostname) > 0:
+            return 0 # success
+    return 1 # failure
+
+def loopback_test(serialport='/dev/ttyS3', message='bob', chances=3):
+    '''Send a message to a serial port and try to read it back'''
+    s = serial.Serial(serialport, 9600, parity='N', bytesize=8, stopbits=1, rtscts=0, xonxoff=1, timeout=1)
+    for i in range(chances):
+        s.write(message + '\n')
+        reply = s.readlines()
+        for x in reply:
+            if x.find(message) >= 0:
+                s.close()
+                return 0   # success
+    s.close()
+    return 1   # failure
+    
 ########################################################################
 # Core Daemon functions 
 def start_daemon(process, host, stdout='/dev/null'):
@@ -254,15 +289,29 @@ def ang_sep(ra_1,dec_1,ra_2,dec_2):
     S = degrees(acos(cS))
     return S
 
+########################################################################
+# Misc functions
 
+def adz(num):
+    num = repr(num)
+    if len(num) == 1:
+        num = '0' + num
+    return num
 
+def remove_html_tags(data):
+    p = re.compile(r'<.*?>')
+    return p.sub('', data)
 
-
-
-
-
-
-
-
-
-
+def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
+    to_address = ', '.join(recipients)
+    from_address = params.EMAIL_ADDRESS
+    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address,from_address,subject)
+    timestamp = time.strftime('%Y-%m-%dT%H:%M:%S',time.gmtime())
+    text = '%s\n\nMessage sent at %s' % (message,timestamp)
+    
+    server = smtplib.SMTP(EMAIL_SERVER)
+    server.starttls()
+    server.login('goto-observatory@gmail.com', 'password')
+    server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
+    server.quit()
+    print 'Sent mail to',recipients

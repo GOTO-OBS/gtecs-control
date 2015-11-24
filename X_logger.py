@@ -12,26 +12,22 @@
 import time
 # TeCS modules
 import X_params as params
-
-def adz(num):
-    num=`num`
-    if(len(num)==1):
-        num='0'+num
-    return num
+import X_misc as misc
 
 class Logfile:
-    def __init__(self,logname,filemode=1):  # filemode is 1 for file, 0 for screen
-        self.filemode=1
-        ut=time.gmtime()
-        self.fname=params.LOG_PATH+adz(ut[0])+'_'+adz(ut[1])+'_'+adz(ut[2])+'_'+logname+'_log.txt'
-
-    def log(self,strng,emph=0):
+    def __init__(self, logname, filemode=1):  # filemode 1 for file, 0 for screen
+        self.filemode = 1
+        ut = time.gmtime()
+        timestring = misc.adz(ut[0]) + '_' + misc.adz(ut[1]) + '_' + misc.adz(ut[2])
+        self.filename = params.LOG_PATH + timestring + '_' + logname + '_log.txt'
+    
+    def log(self, string, emph=0):
         if emph > 0:
             strng += '     (!)'
-        if self.filemode: #save in file
-            timestamp=time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime())
-            f=open(self.fname,'a')
-            f.write(timestamp+'  '+strng+'\n')
+        if self.filemode:
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime())
+            f = open(self.filename,'a')
+            f.write(timestamp + '  ' + string + '\n')
             f.close()
-        else: #print to screen
+        else:
             print strng
