@@ -14,18 +14,20 @@ import socket
 import numpy
 # TeCS modules
 import power_control
+import dome_control
 
 ########################################################################
 # General parameters
 
-# File locations
-HOST = socket.gethostname() # Need to alter depending on system
+# File locations (need to alter depending on system)
+HOST = socket.gethostname()
 if HOST == 'eddie': # MJD's laptop
     TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
 elif HOST == 'host-137-205-160-42.warwick.ac.uk': # Warwick test NUC
     TECS_PATH = '/home/mdyer/g-tecs/'
 
 SCRIPT_PATH = TECS_PATH
+CONFIG_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
 
@@ -38,6 +40,11 @@ SITE_LONGITUDE = -17.8793802
 
 # Pyro connection
 PROXY_TIMEOUT = 0.5
+
+# Email alerts
+EMAIL_LIST = ['martin.dyer@sheffield.ac.uk']
+EMAIL_ADDRESS = 'goto-observatory@gmail.com' # An example
+EMAIL_SERVER = 'smtp.gmail.com:587'
 
 ########################################################################
 # Daemon parameters
@@ -84,6 +91,13 @@ DAEMONS = {
         'PORT':     9006,
         'PYROID':   'power_daemon',
         'PINGLIFE': 10.
+        },
+    'dome':{ # dome daemon
+        'PROCESS':  'dome_daemon.py',
+        'HOST':     'eddie',
+        'PORT':     9007,
+        'PYROID':   'dome_daemon',
+        'PINGLIFE': 10.
         }
 }
 
@@ -119,3 +133,9 @@ QUEUE_PATH = TECS_PATH
 POWER = power_control.APCPower('137.205.160.50')
 POWER_CHECK_SCRIPT = '_power_status.py'
 POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
+
+# Dome parameters
+DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
+DOME = dome_control.AstroHavenDome(DOME_LOCATION)
+BIG_RED_BUTTON_PORT = 'N/A'
+EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
