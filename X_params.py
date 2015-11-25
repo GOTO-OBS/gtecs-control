@@ -136,6 +136,6 @@ POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
 
 # Dome parameters
 DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
-DOME = dome_control.AstroHavenDome(DOME_LOCATION)
+DOME = dome_control.FakeDome('') #AstroHavenDome(DOME_LOCATION)
 BIG_RED_BUTTON_PORT = 'N/A'
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
