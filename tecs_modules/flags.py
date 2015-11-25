@@ -11,7 +11,7 @@
 # Python modules
 import time, calendar
 # TeCS modules
-import X_params as params
+import params
 
 class Conditions:
     def __init__(self):

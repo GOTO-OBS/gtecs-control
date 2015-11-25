@@ -15,8 +15,8 @@ import os, sys, commands
 import time, datetime
 import subprocess
 # TeCS modules
-import X_params as params
-import X_misc as misc
+from tecs_modules import misc
+from tecs_modules import params
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

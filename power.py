@@ -17,8 +17,8 @@ import readline
 import time
 import Pyro4
 # TeCS modules
-import X_params as params
-import X_misc as misc
+from tecs_modules import misc
+from tecs_modules import params
 
 ########################################################################
 # Power control functions

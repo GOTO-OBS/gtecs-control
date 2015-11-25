@@ -19,9 +19,9 @@ import os, sys, commands
 from string import split,find
 from collections import MutableSequence
 # TeCS modules
-import X_params as params
-import X_misc as misc
-import X_logger as logger
+from tecs_modules import logger
+from tecs_modules import misc
+from tecs_modules import params
 
 ########################################################################
 # Queue daemon functions

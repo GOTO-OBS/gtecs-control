@@ -15,8 +15,8 @@ import os, sys, commands
 import time
 import Pyro4
 # TeCS modules
-import X_misc as misc
-import X_params as params
+from tecs_modules import misc
+from tecs_modules import params
 
 INFO_TIMEOUT = 10.
 PING_LIMIT = 60.

@@ -18,7 +18,7 @@ import serial
 import re
 import smtplib
 # TeCS modules
-import X_params as params
+import params
 
 ########################################################################
 ## Command functions

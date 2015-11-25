@@ -13,7 +13,7 @@
 # Allows function call to be killed if it locks up
 # NOT for manual use - should ONLY be called by power daemon
 
-import X_params as params
+from tecs_modules import params
 
 try:
     x = params.POWER.status(0)

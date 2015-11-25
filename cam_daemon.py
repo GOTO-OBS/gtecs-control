@@ -20,9 +20,9 @@ import astropy.io.fits as pyfits
 # FLI modules
 from fliapi import FakeCamera
 # TeCS modules
-import X_params as params
-import X_misc as misc
-import X_logger as logger
+from tecs_modules import logger
+from tecs_modules import misc
+from tecs_modules import params
 
 ########################################################################
 # Camera daemon functions

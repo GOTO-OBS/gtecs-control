@@ -17,8 +17,8 @@ import readline
 import time
 import Pyro4
 # TeCS modules
-import X_params as params
-import X_misc as misc
+from tecs_modules import misc
+from tecs_modules import params
 
 ########################################################################
 # Interactive mode
@@ -142,8 +142,8 @@ def print_instructions():
 ########################################################################
 # Control System
 
-if len(sys.argv)==1:
-    printInstructions()
+if len(sys.argv) == 1:
+    print_instructions()
 else:
     # Camera daemon
     CAM_DAEMON_PROCESS = params.DAEMONS['cam']['PROCESS']

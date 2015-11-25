@@ -11,8 +11,8 @@
 # Python modules
 import time
 # TeCS modules
-import X_params as params
-import X_misc as misc
+import misc
+import params
 
 class Logfile:
     def __init__(self, logname, filemode=1):  # filemode 1 for file, 0 for screen
