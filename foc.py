@@ -45,6 +45,21 @@ def get_info():
     except:
         print 'ERROR: No response from focuser daemon'
 
+def get_info_summary():
+    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = foc.get_info()
+        for tel in params.TEL_DICT.keys():
+            print 'FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
+            if info['status'+str(tel)] != 'Moving':
+                print '  Current position: %s/%s' %(info['current_pos'+str(tel)],info['limit'+str(tel)]),
+                print '  [%s]' %info['status'+str(tel)]
+            else:
+                print '  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
+    except:
+        print 'ERROR: No response from focuser daemon'
+
 def set_focuser(pos,HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
@@ -79,7 +94,7 @@ def interactive():
     while True:
         command = split(raw_input('foc> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -95,7 +110,7 @@ def query(command):
         misc.kill_daemon(FOC_DAEMON_PROCESS, FOC_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(FOC_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print 'ERROR: Already in interactive mode'
@@ -103,7 +118,10 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     elif command[0] == 'info':
-        get_info()
+        if len(command) > 1 and command[1] in ['v','V','-v','-V']:
+            get_info()
+        else:
+            get_info_summary()
     
     elif command[0] == 'set':
         if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):

@@ -46,6 +46,23 @@ def get_info():
     except:
         print 'ERROR: No response from filter wheel daemon'
 
+def get_info_summary():
+    flist = params.FILTER_LIST
+    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = filt.get_info()
+        for tel in params.TEL_DICT.keys():
+            print 'FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
+            if info['status'+str(tel)] != 'Moving':
+                print '  Current filter: %s' %flist[info['current_filter_num'+str(tel)]],
+                print '  [%s]' %info['status'+str(tel)]
+            else:
+                #print '  Current filter: -',
+                print '  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
+    except:
+        print 'ERROR: No response from filter wheel daemon'
+
 def set_filter(new_filt,HW_list):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
@@ -61,7 +78,7 @@ def interactive():
     while True:
         command = split(raw_input('filt> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -77,7 +94,7 @@ def query(command):
         misc.kill_daemon(FILT_DAEMON_PROCESS,FILT_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(FILT_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print 'ERROR: Already in interactive mode'
@@ -85,7 +102,10 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
-        get_info()
+        if len(command) > 1 and command[1] in ['v','V','-v','-V']:
+            get_info()
+        else:
+            get_info_summary()
     
     elif command[0] == 'set':
         if command[1] in str(params.TEL_DICT.keys()):

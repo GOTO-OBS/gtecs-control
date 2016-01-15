@@ -44,6 +44,22 @@ def get_info():
     except:
         print 'ERROR: No response from queue daemon'
 
+def get_info_summary():
+    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
+    queue._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = queue.get_info()
+        print 'QUEUE: [%s]' %info['status']
+        print '  Current exposure:',
+        try:
+            print '   %i: %i, %i, %s, %i, %s, %s, %s' \
+                %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype'])
+        except:
+            print 'None'
+        print '  Items in queue: %s' %info['queue_length']
+    except:
+        print 'ERROR: No response from queue daemon'
+
 def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     queue._pyroTimeout = params.PROXY_TIMEOUT
@@ -53,11 +69,11 @@ def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='
     if tel not in params.TEL_DICT.keys()+[0]:
         print 'Invalid tel number'
         return
-    try:
+    if 1:#try:
         c = queue.add(exptime,filt,tel,bins,frametype,target,imgtype)
         if c: print c
-    except:
-        print 'ERROR: No response from queue daemon'
+    #except:
+     #   print 'ERROR: No response from queue daemon'
 
 def pause():
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
@@ -84,7 +100,7 @@ def interactive():
     while True:
         command = split(raw_input('queue> '))
         if(len(command) > 0):
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -100,7 +116,7 @@ def query(command):
         misc.kill_daemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(QUEUE_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print 'ERROR: Already in interactive mode'
@@ -108,7 +124,10 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     elif command[0] == 'info':
-        get_info()
+        if len(command) > 1 and command[1] in ['v','V','-v','-V']:
+            get_info()
+        else:
+            get_info_summary()
     
     elif command[0] == 'image':
         if len(command) < 4:

@@ -48,6 +48,21 @@ def get_info():
     except:
         print 'ERROR: No response from camera daemon'
 
+def get_info_summary():
+    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = cam.get_info()
+        for tel in params.TEL_DICT.keys():
+            print 'CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
+            if info['status'+str(tel)] != 'Exposing':
+                print '  Temp: %iC' %info['ccd_temp'+str(tel)],
+                print '  [%s]' %info['status'+str(tel)]
+            else:
+                print '  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
+    except:
+        print 'ERROR: No response from camera daemon'
+
 def take_image(exptime,frametype,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
@@ -108,7 +123,7 @@ def interactive():
     while True:
         command = split(raw_input('cam> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -124,7 +139,7 @@ def query(command):
         misc.kill_daemon(CAM_DAEMON_PROCESS,CAM_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(CAM_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print 'ERROR: Already in interactive mode'
@@ -132,8 +147,11 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     elif command[0] == 'info':
-        get_info()
-    
+        if len(command) > 1 and command[1] in ['v','V','-v','-V']:
+            get_info()
+        else:
+            get_info_summary()
+        
     elif command[0] == 'image':
         if len(command) == 2:
             # e.g. "image 2" - 2s (normal) on all cameras
