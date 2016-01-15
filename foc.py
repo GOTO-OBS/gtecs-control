@@ -4,7 +4,7 @@
 #                                foc.py                                #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #           G-TeCS script to provide control over foc_daemon           #
-#                     Martin Dyer, Sheffield, 2015                     #
+#                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 ########################################################################
@@ -28,45 +28,47 @@ def get_info():
     try:
         info = foc.get_info()
         print '###### FOCUSER INFO #######'
-        if info['status'] != 'Moving':
-            print 'Status: %s' %info['status']
-        else:
-            print 'Status: %s (%i)' %(info['status'],info['remaining'])
-        print '~~~~~~~'
-        print 'Current motor pos:    %s' %info['current_pos']
-        print 'Maximum motor limit:  %s' %info['limit']
-        print 'Internal temperature: %s' %info['int_temp']
-        print 'External temperature: %s' %info['ext_temp']
-        print '~~~~~~~'
+        for tel in params.TEL_DICT.keys():
+            print 'FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel])
+            if info['status'+str(tel)] != 'Moving':
+                print 'Status: %s' %info['status'+str(tel)]
+            else:
+                print 'Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
+            print 'Current motor pos:    %s' %info['current_pos'+str(tel)]
+            print 'Maximum motor limit:  %s' %info['limit'+str(tel)]
+            print 'Internal temperature: %s' %info['int_temp'+str(tel)]
+            print 'External temperature: %s' %info['ext_temp'+str(tel)]
+            print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
         print 'ERROR: No response from focuser daemon'
-    
-def set_focuser(pos):
+
+def set_focuser(pos,HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = foc.set_focuser(pos)
+        c = foc.set_focuser(pos,HW_list)
+        print pos, HW_list
         if c: print c
     except:
         print 'ERROR: No response from focuser daemon'
-    
-def move_focuser(steps):
+
+def move_focuser(steps,HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = foc.move_focuser(steps)
+        c = foc.move_focuser(steps,HW_list)
         if c: print c
     except:
         print 'ERROR: No response from focuser daemon'
-    
-def home_focuser():
+
+def home_focuser(HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = foc.home_focuser()
+        c = foc.home_focuser(HW_list)
         if c: print c
     except:
         print 'ERROR: No response from focuser daemon'
@@ -100,14 +102,24 @@ def query(command):
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
-    elif command[0]=='info':
+    elif command[0] == 'info':
         get_info()
-    elif command[0]=='set':
-        set_focuser(int(command[1]))
-    elif command[0]=='move':
-        move_focuser(int(command[1]))
-    elif command[0]=='home':
-        home_focuser()
+    
+    elif command[0] == 'set':
+        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
+            set_focuser(int(command[2]),[int(command[1])])
+        else:
+            set_focuser(int(command[1]),params.TEL_DICT.keys())
+    elif command[0] == 'move':
+        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
+            move_focuser(int(command[2]),[int(command[1])])
+        else:
+            move_focuser(int(command[1]),params.TEL_DICT.keys())
+    elif command[0] == 'home':
+        if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
+            home_focuser([int(command[1])])
+        else:
+            home_focuser(params.TEL_DICT.keys())
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -121,9 +133,12 @@ def print_instructions():
     print '       foc ping               - pings the focuser daemon'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       foc info               - reports current focuser data'
-    print '       foc set [pos]          - moves the focuser to a given position'
-    print '       foc move [steps]       - moves the focuser a number of steps'
-    print '       foc home               - moves the focuser to home position'
+    print '       foc set [pos]          - moves all focusers to a given position'
+    print '       foc set X [pos]        - moves focuser X to a given position'
+    print '       foc move [steps]       - moves all focusers a number of steps'
+    print '       foc move X [steps]     - moves focuser X a number of steps'
+    print '       foc home               - moves all focusers to home position'
+    print '       foc home X             - moves focuser X to home position'
     print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
     print '       foc i                  - enter interactive (command line) usage'
     print '       foc q                  - quit interactive (command line) usage'

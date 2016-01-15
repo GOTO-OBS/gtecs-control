@@ -4,7 +4,7 @@
 #                                filt.py                               #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #           G-TeCS script to provide control over filt_daemon          #
-#                     Martin Dyer, Sheffield, 2015                     #
+#                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 ########################################################################
@@ -23,31 +23,34 @@ from tecs_modules import params
 ########################################################################
 # Filter wheel control functions
 def get_info():
+    flist = params.FILTER_LIST
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
         print '#### FILTER WHEEL INFO ####'
-        if info['status'] != 'Moving':
-            print 'Status: %s' %info['status']
-        else:
-            print 'Status: %s (%i)' %(info['status'],info['remaining'])
-        print '~~~~~~~'
-        print 'Current filter:     %s' %info['current_filter']
-        print 'Current filter num: %s' %info['current_filter_num']
-        print 'Current motor pos:  %s' %info['current_pos']
-        print '~~~~~~~'
+        for tel in params.TEL_DICT.keys():
+            print 'FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel])
+            if info['status'+str(tel)] != 'Moving':
+                print 'Status: %s' %info['status'+str(tel)]
+                print 'Current filter:     %s' %flist[info['current_filter_num'+str(tel)]]
+            else:
+                print 'Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
+                print 'Current filter:     N/A'
+            print 'Current filter num: %s' %info['current_filter_num'+str(tel)]
+            print 'Current motor pos:  %s' %info['current_pos'+str(tel)]
+            print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
         print 'ERROR: No response from filter wheel daemon'
-    
-def set_filter(new_filt):
+
+def set_filter(new_filt,HW_list):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = filt.set_filter(new_filt)
+        c = filt.set_filter(new_filt,HW_list)
         if c: print c
     except:
         print 'ERROR: No response from filter wheel daemon'
@@ -83,8 +86,12 @@ def query(command):
     # Filter wheel control functions
     elif command[0] == 'info':
         get_info()
+    
     elif command[0] == 'set':
-        set_filter(command[1].upper())
+        if command[1] in str(params.TEL_DICT.keys()):
+            set_filter(command[2].upper(),[int(command[1])])
+        else:
+            set_filter(command[1].upper(),params.TEL_DICT.keys())
     elif command[0] == 'list':
         print params.FILTER_LIST
 
@@ -94,19 +101,20 @@ def query(command):
         print 'filt> Command not recognized:',command[0]
 
 def print_instructions():
-    print 'Usage: filt start              - starts the filter wheel daemon'
-    print '       filt shutdown           - shuts down the filter wheel daemon cleanly'
-    print '       filt kill               - kills the filter wheel daemon (emergency use only!)'
-    print '       filt ping               - pings the filter wheel daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt info               - reports current filter wheel data'
-    print '       filt set [filter]       - sets the active filter'
-    print '       filt list               - lists the possible filters'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt i                  - enter interactive (command line) usage'
-    print '       filt q                  - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt help               - prints these instructions'
+    print 'Usage: filt start                - starts the filter wheel daemon'
+    print '       filt shutdown             - shuts down the filter wheel daemon cleanly'
+    print '       filt kill                 - kills the filter wheel daemon (emergency use only!)'
+    print '       filt ping                 - pings the filter wheel daemon'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       filt info                 - reports current filter wheel data'
+    print '       filt set [filter]         - sets all filter wheels to given filter'
+    print '       filt set X [filter]       - sets filter wheel X to given filter'
+    print '       filt list                 - lists the possible filters'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       filt i                    - enter interactive (command line) usage'
+    print '       filt exit/q               - quit interactive (command line) usage'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       filt help/?               - prints these instructions'
 
 ########################################################################
 # Control system

@@ -4,7 +4,7 @@
 #                                cam.py                                #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #           G-TeCS script to provide control over cam_daemon           #
-#                     Martin Dyer, Sheffield, 2015                     #
+#                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 ########################################################################
@@ -28,81 +28,76 @@ def get_info():
     try:
         info = cam.get_info()
         print '####### CAMERA INFO #######'
-        if info['status'] != 'Exposing':
-            print 'Status: %s' %info['status']
-        else:
-            print 'Status: %s (%is)' %(info['status'],info['timeleft'])
-        print '~~~~~~~'
-        print 'Array area:       %s' %str(info['array_area'])
-        print 'Active area:      %s' %str(info['active_area'])
-        print 'Pixel size:       %s' %str(info['pixel_size'])
-        print 'Frame type:       %s' %info['frametype']
-        print 'Exposure time:    %is' %info['exptime']
-        print 'Bin factors:      %s' %str(info['bins'])
-        print '~~~~~~~'
-        print 'Temperature:      %.1fC' %info['ccd_temperature']
-        print 'Cooler power:     %.2f' %info['cooler_power']
-        #print '~~~~~~~'
-        #print 'Serial number:    %s' %info['serial_number']
-        #print 'Firmware:         %s' %info['firmware_revision']
-        #print 'Hardware:         %s' %info['hardware_revision']
-        print '~~~~~~~'
+        for tel in params.TEL_DICT.keys():
+            print 'CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel])
+            if info['status'+str(tel)] != 'Exposing':
+                print 'Status: %s' %info['status'+str(tel)]
+            else:
+                print 'Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
+            print 'Frame type:       %s' %info['frametype'+str(tel)]
+            print 'Exposure time:    %is' %info['exptime'+str(tel)]
+            print 'Active area:      %s' %str(info['area'+str(tel)])
+            print 'Bin factors:      %s' %str(info['bins'+str(tel)])
+            print 'CCD Temperature:   %i' %info['ccd_temp'+str(tel)]
+            print 'Base Temperature:  %i' %info['base_temp'+str(tel)]
+            print 'Cooler power:      %i' %info['cooler_power'+str(tel)]
+            print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
         print 'ERROR: No response from camera daemon'
-    
-def take_image(exptime,frametype='normal'):
+
+def take_image(exptime,frametype,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.take_image(exptime,frametype)
+        c = cam.take_image(exptime,frametype,HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
-    
-def abort_exposure():
+
+def abort_exposure(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.abort_exposure()
+        c = cam.abort_exposure(HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
-    
-def set_temp(target_temp):
+
+def set_temperature(target_temp, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.set_temp(target_temp)
+        c = cam.set_temperature(target_temp, HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
-    
-def set_flushes(target_flushes):
+
+def set_flushes(target_flushes, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.set_flushes(target_flushes)
+        c = cam.set_flushes(target_flushes, HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
-    
-def set_binning(hbin, vbin=None):
+
+def set_bins(bins, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.set_binning(hbin,vbin)
+        c = cam.set_bins(bins, HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
-    
-def set_area(ul_x, ul_y, lr_x, lr_y):
+
+def set_area(area, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.set_area(ul_x, ul_y, lr_x, lr_y)
+        c = cam.set_area(area, HW_list)
         if c: print c
     except:
         print 'ERROR: No response from camera daemon'
@@ -138,24 +133,64 @@ def query(command):
     # Camera control functions
     elif command[0] == 'info':
         get_info()
-    elif command[0]=='image':
+    
+    elif command[0] == 'image':
         if len(command) == 2:
-            take_image(int(command[1]))
+            # e.g. "image 2" - 2s (normal) on all cameras
+            take_image(int(command[1]),'normal',params.TEL_DICT.keys())
+        
+        elif len(command) == 3 and command[2] in ['dark','d','D','-d','-D']:
+            # e.g. "image 2 dark" - 2s dark on all cameras
+            take_image(int(command[1]),'dark',params.TEL_DICT.keys())
+        
+        elif len(command) == 3 and command[2] in ['flush','rbi_flush','f','F','-f','-F']:
+            # e.g. "image 2 flush" - 2s flush on all cameras
+            take_image(int(command[1]),'rbi_flush',params.TEL_DICT.keys())
+        
+        elif len(command) == 3 and command[1] in str(params.TEL_DICT.keys()):
+            # e.g. "image 2 2" - 2s (normal) on camera 2
+            take_image(int(command[2]),'normal',[int(command[1])])
+        
+        elif len(command) == 4 and command[1] in str(params.TEL_DICT.keys()) and command[3] in ['dark','d','D','-d','-D']:
+            # e.g. "image 2 2" - 2s (normal) on camera 2
+            take_image(int(command[2]),'dark',[int(command[1])])
+        
+        elif len(command) == 4 and command[1] in str(params.TEL_DICT.keys()) and command[3] in ['flush','rbi_flush','f','F','-f','-F']:
+            # e.g. "image 2 2" - 2s (normal) on camera 2
+            take_image(int(command[2]),'rbi_flush',[int(command[1])])
+        
         else:
-            take_image(int(command[1]), command[2])
-    elif command[0]=='abort':
-        abort_exposure()
-    elif command[0]=='temp':
-        set_temp(float(command[1]))
-    elif command[0]=='flush':
-        set_flushes(int(command[1]))
-    elif command[0]=='bin':
-        if len(command) == 2:
-            set_binning(int(command[1]))
+            print 'cam> Command not recognized:',command[0]
+    
+    elif command[0] == 'abort':
+        if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
+            abort_exposure([int(command[1])])
         else:
-            set_binning(int(command[1]), int(command[2]))
-    elif command[0]=='area':
-        set_area(int(command[1]), int(command[2]), int(command[3]), int(command[4]))
+            abort_exposure(params.TEL_DICT.keys())
+    
+    elif command[0] == 'temp':
+        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
+            set_temperature(float(command[2]),[int(command[1])])
+        else:
+            set_temperature(float(command[1]),params.TEL_DICT.keys())
+    
+    elif command[0] == 'flush':
+        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
+            set_flushes(int(command[2]),[int(command[1])])
+        else:
+            set_flushes(int(command[1]),params.TEL_DICT.keys())
+    
+    elif command[0] == 'bin':
+        if len(command) > 3 and command[1] in str(params.TEL_DICT.keys()):
+            set_bins([int(command[2]),int(command[3])],[int(command[1])])
+        else:
+            set_bins([int(command[1]),int(command[2])],params.TEL_DICT.keys())
+    
+    elif command[0] == 'area':
+        if len(command) > 5 and command[1] in str(params.TEL_DICT.keys()):
+            set_area([int(command[2]), int(command[3]), int(command[4]), int(command[5])],[int(command[1])])
+        else:
+            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],params.TEL_DICT.keys())
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -163,23 +198,28 @@ def query(command):
         print 'cam> Command not recognized:',command[0]
 
 def print_instructions():
-    print 'Usage: cam start                       - starts the camera daemon'
-    print '       cam shutdown                    - shuts down the camera daemon cleanly'
-    print '       cam kill                        - kills the camera daemon (emergency use only!)'
-    print '       cam ping                        - pings the camera daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam info                        - reports current camera data'
-    print '       cam image [exptime] [type]      - takes an image'
-    print '       cam abort                       - aborts current exposure'
-    print '       cam bin [b] OR [hb] [vb]        - sets binning factor(s)'
-    print '       cam temp [temp]                 - sets camera temperature'
-    print '       cam flush [number]              - sets number of CCD flushes before exposing'
-    print '       cam area [ul_x ul_y lr_x lr_y]  - sets the active area of the CCD'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam i                           - enter interactive (command line) usage'
-    print '       cam q                           - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam help                        - prints these instructions'
+    print 'Usage: cam start                         - starts the camera daemon'
+    print '       cam shutdown                      - shuts down the camera daemon cleanly'
+    print '       cam kill                          - kills the camera daemon (emergency use only!)'
+    print '       cam ping                          - pings the camera daemon'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       cam info                          - reports current camera data'
+    print '       cam image [exptime] [type]        - takes an image'
+    print '       cam abort                         - aborts all current exposures'
+    print '       cam abort X                       - aborts exposure on camera X'
+    print '       cam bin [hb] [vb]                 - sets horiz/vert binning factors on all cameras'
+    print '       cam bin X [hb] [vb]               - sets horiz/vert binning factors on camera X'
+    print '       cam temp [temp]                   - sets camera temperature on all cameras'
+    print '       cam temp X [temp]                 - sets camera temperature on camera X'
+    print '       cam flush [number]                - sets number of CCD flushes before exposing on all cameras'
+    print '       cam flush X [number]              - sets number of CCD flushes before exposing on camera X'
+    print '       cam area [ul_x ul_y lr_x lr_y]    - sets the active area of the CCD on all cameras'
+    print '       cam area X [ul_x ul_y lr_x lr_y]  - sets the active area of the CCD on camera X'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       cam i                             - enter interactive (command line) usage'
+    print '       cam q                             - quit interactive (command line) usage'
+    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    print '       cam help                          - prints these instructions'
 
 ########################################################################
 # Control System
