@@ -4,7 +4,7 @@
 #                               queue.py                               #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #          G-TeCS script to provide control over queue_daemon          #
-#                     Martin Dyer, Sheffield, 2015                     #
+#                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 ########################################################################
@@ -32,7 +32,8 @@ def get_info():
         print '~~~~~~~'
         print 'Current exposure:'
         try:
-            print '   %i, %s, %i, %s' %(info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'])
+            print '   %i: %i, %i, %s, %i, %s, %s, %s' \
+                %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype'])
         except:
             print '   None'
         print 'Items in queue:     %s' %info['queue_length']
@@ -42,15 +43,18 @@ def get_info():
         print '###########################'
     except:
         print 'ERROR: No response from queue daemon'
-        
-def take_image(exptime,filt,bins,frametype='normal',obj='None',imgtype='SCIENCE',dbID='manual'):
+
+def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     queue._pyroTimeout = params.PROXY_TIMEOUT
     if filt.upper() not in params.FILTER_LIST:
         print 'Filter needs to be one of', params.FILTER_LIST
         return
+    if tel not in params.TEL_DICT.keys()+[0]:
+        print 'Invalid tel number'
+        return
     try:
-        c = queue.add(exptime,filt,bins,frametype,obj,imgtype,dbID,False)
+        c = queue.add(exptime,filt,tel,bins,frametype,target,imgtype)
         if c: print c
     except:
         print 'ERROR: No response from queue daemon'
@@ -63,7 +67,7 @@ def pause():
         if c: print c
     except:
         print 'ERROR: No response from queue daemon'
-    
+
 def resume():
     queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
     queue._pyroTimeout = params.PROXY_TIMEOUT
@@ -105,18 +109,19 @@ def query(command):
     # Camera control functions
     elif command[0] == 'info':
         get_info()
+    
     elif command[0] == 'image':
         if len(command) < 4:
-            print 'ERROR: need at least exptime, filter and bins'
+            print 'ERROR: need at least telescopes, exptime and filter and bins'
         else:
-            if len(command) == 4:
-                take_image(int(command[1]),command[2],int(command[3]))
-            elif len(command) == 5:
-                take_image(int(command[1]),command[2],int(command[3]),command[4])
+            if len(command) == 5:
+                take_image(int(command[1]),int(command[2]),command[3],int(command[4]))
             elif len(command) == 6:
-                take_image(int(command[1]),command[2],int(command[3]),command[4],command[5])
+                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5])
             elif len(command) == 7:
-                take_image(int(command[1]),command[2],int(command[3]),command[4],command[5],command[6])
+                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6])
+            elif len(command) == 8:
+                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6],command[7])
     elif command[0] == 'pause':
         pause()
     elif command[0] == 'resume':
