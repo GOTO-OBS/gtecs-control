@@ -104,6 +104,29 @@ DAEMONS = {
 for key in DAEMONS:
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
 
+FLI_INTERFACES = {
+    'eddie1':{ # for unit telescopes 1 and 2
+        'PROCESS':  'fli_interface.py',
+        'HOST':     'eddie',
+        'PORT':     9010,
+        'PYROID':   'fli_interface',
+        'TELS':      [1,2],
+        },
+    'eddie2':{ # for unit telescopes 3 and 4
+        'PROCESS':  'fli_interfaceB.py',
+        'HOST':     'eddie',
+        'PORT':     9020,
+        'PYROID':   'fli_interfaceB',
+        'TELS':      [3,4],
+        }
+    }
+
+TEL_DICT = {}
+for nuc in FLI_INTERFACES:
+    FLI_INTERFACES[nuc]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[nuc]['PYROID'] + '@' + FLI_INTERFACES[nuc]['HOST'] + ':' + str(FLI_INTERFACES[nuc]['PORT'])
+    for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
+        TEL_DICT[tel] = [nuc,HW]
+
 ########################################################################
 # Mount parameters
 WIN_HOST = '137.205.160.1'
