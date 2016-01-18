@@ -456,8 +456,8 @@ class CamDaemon:
         # Origin data
         nuc, HW = self.tel_dict[tel]
         tel_str = "-%i (%s-%i)" %(tel,nuc,HW)
-        header.set("ORIGIN",   value = params.ORIGIN_STR,             comment = "Origin organization")
-        header.set("TELESCOP", value = params.TELESCOP_STR+tel_str,   comment = "Origin telescope")
+        header.set("ORIGIN",   value = params.ORIGIN,                   comment = "Origin organization")
+        header.set("TELESCOP", value = params.TELESCOP+tel_str,         comment = "Origin telescope")
         cam_ID = self.cam_info[nuc][HW]['serial_number']
         header.set("INSTRUME", value = cam_ID,                          comment = "Instrument/camera used")
         

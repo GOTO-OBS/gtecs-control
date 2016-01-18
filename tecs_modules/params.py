@@ -19,6 +19,10 @@ import dome_control
 ########################################################################
 # General parameters
 
+# Common file strings
+ORIGIN = "Gravitational-wave Optical Transient Observer" # "organisation or institution"
+TELESCOP = "GOTO_sim" # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
+
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
 if HOST == 'eddie': # MJD's laptop
