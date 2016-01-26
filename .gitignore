@@ -1,2 +1,8 @@
 #Ignore compiled python files
 *.pyc
+
+#Ignore status files
+queue
+conditions_flags
+overrides_flags
+run_number
