@@ -37,7 +37,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from power daemon'
+        print misc.ERROR('No response from power daemon')
     
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
@@ -46,7 +46,7 @@ def on(outlet):
         c = power.on(outlet)
         if c: print c
     except:
-        print 'ERROR: No response from power daemon'
+        print misc.ERROR('No response from power daemon')
     
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
@@ -55,7 +55,7 @@ def off(outlet):
         c = power.off(outlet)
         if c: print c
     except:
-        print 'ERROR: No response from power daemon'
+        print misc.ERROR('No response from power daemon')
 
 def reboot(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
@@ -63,7 +63,7 @@ def reboot(outlet):
         c = power.reboot(outlet)
         if c: print c
     except:
-        print 'ERROR: No response from power daemon'
+        print misc.ERROR('No response from power daemon')
 
 ########################################################################
 # Interactive mode
@@ -90,7 +90,7 @@ def query(command):
     elif command[0] == 'help':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -106,7 +106,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'power> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: power start              - starts the power daemon'

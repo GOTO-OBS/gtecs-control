@@ -44,7 +44,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from filter wheel daemon'
+        print misc.ERROR('No response from filter wheel daemon')
 
 def get_info_summary():
     flist = params.FILTER_LIST
@@ -61,7 +61,7 @@ def get_info_summary():
                 #print '  Current filter: -',
                 print '  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
     except:
-        print 'ERROR: No response from filter wheel daemon'
+        print misc.ERROR('No response from filter wheel daemon')
 
 def set_filter(new_filt,HW_list):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
@@ -70,7 +70,7 @@ def set_filter(new_filt,HW_list):
         c = filt.set_filter(new_filt,HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from filter wheel daemon'
+        print misc.ERROR('No response from filter wheel daemon')
 
 ########################################################################
 # Interactive mode
@@ -97,7 +97,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -118,7 +118,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'filt> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: filt start                - starts the filter wheel daemon'

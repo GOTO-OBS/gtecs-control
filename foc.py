@@ -43,7 +43,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from focuser daemon'
+        print misc.ERROR('No response from focuser daemon')
 
 def get_info_summary():
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
@@ -58,7 +58,7 @@ def get_info_summary():
             else:
                 print '  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
     except:
-        print 'ERROR: No response from focuser daemon'
+        print misc.ERROR('No response from focuser daemon')
 
 def set_focuser(pos,HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
@@ -68,7 +68,7 @@ def set_focuser(pos,HW_list):
         print pos, HW_list
         if c: print c
     except:
-        print 'ERROR: No response from focuser daemon'
+        print misc.ERROR('No response from focuser daemon')
 
 def move_focuser(steps,HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
@@ -77,7 +77,7 @@ def move_focuser(steps,HW_list):
         c = foc.move_focuser(steps,HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from focuser daemon'
+        print misc.ERROR('No response from focuser daemon')
 
 def home_focuser(HW_list):
     foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
@@ -86,7 +86,7 @@ def home_focuser(HW_list):
         c = foc.home_focuser(HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from focuser daemon'
+        print misc.ERROR('No response from focuser daemon')
 
 ########################################################################
 # Interactive mode
@@ -113,7 +113,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
@@ -142,7 +142,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'foc> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: foc start              - starts the focuser daemon'

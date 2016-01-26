@@ -57,7 +57,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def slew_to_radec(ra,dec):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -66,7 +66,7 @@ def slew_to_radec(ra,dec):
         c = mnt.slew_to_radec(ra,dec)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def slew_to_target():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -75,7 +75,7 @@ def slew_to_target():
         c = mnt.slew_to_target()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def start_tracking():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -84,7 +84,7 @@ def start_tracking():
         c = mnt.start_tracking()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def full_stop():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -93,7 +93,7 @@ def full_stop():
         c = mnt.full_stop()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def park():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -102,7 +102,7 @@ def park():
         c = mnt.park()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def unpark():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -111,7 +111,7 @@ def unpark():
         c = mnt.unpark()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_target_ra(h,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -121,7 +121,7 @@ def set_target_ra(h,m,s):
         c = mnt.set_target_ra(ra)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_target_dec(sign,d,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -134,7 +134,7 @@ def set_target_dec(sign,d,m,s):
         c = mnt.set_target_dec(dec)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def offset(direction):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -143,7 +143,7 @@ def offset(direction):
         c = mnt.offset(direction)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_step(offset):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -152,7 +152,7 @@ def set_step(offset):
         c = mnt.set_step(offset)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
 
 ########################################################################
 # Interactive mode
@@ -187,7 +187,7 @@ def query(command):
     elif command[0] == 'help':
         print_instructions()
     elif command[0] == 'i':
-        print 'Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
@@ -228,7 +228,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'mnt> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: mnt start              - starts the mount daemon'

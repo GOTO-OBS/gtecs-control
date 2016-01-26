@@ -308,6 +308,8 @@ def undl(text):
 
 ########################################################################
 # Misc functions
+def ERROR(message):
+    return rtxt(bold('ERROR')) + ': ' + str(message)
 
 def adz(num):
     num = repr(num)

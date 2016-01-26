@@ -46,7 +46,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def get_info_summary():
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -61,7 +61,7 @@ def get_info_summary():
             else:
                 print '  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def take_image(exptime,frametype,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -70,7 +70,7 @@ def take_image(exptime,frametype,HW_list):
         c = cam.take_image(exptime,frametype,HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def abort_exposure(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -79,7 +79,7 @@ def abort_exposure(HW_list):
         c = cam.abort_exposure(HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def set_temperature(target_temp, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -88,7 +88,7 @@ def set_temperature(target_temp, HW_list):
         c = cam.set_temperature(target_temp, HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def set_flushes(target_flushes, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -97,7 +97,7 @@ def set_flushes(target_flushes, HW_list):
         c = cam.set_flushes(target_flushes, HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def set_bins(bins, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -106,7 +106,7 @@ def set_bins(bins, HW_list):
         c = cam.set_bins(bins, HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 def set_area(area, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -115,7 +115,7 @@ def set_area(area, HW_list):
         c = cam.set_area(area, HW_list)
         if c: print c
     except:
-        print 'ERROR: No response from camera daemon'
+        print misc.ERROR('No response from camera daemon')
 
 ########################################################################
 # Interactive mode
@@ -142,7 +142,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+       print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -213,7 +213,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'cam> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: cam start                         - starts the camera daemon'

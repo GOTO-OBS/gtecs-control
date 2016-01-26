@@ -35,7 +35,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def open_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -44,7 +44,7 @@ def open_dome(side='both',steps=None):
         c = dome.open_dome(side,steps)
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def close_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -53,7 +53,7 @@ def close_dome(side='both',steps=None):
         c = dome.close_dome(side,steps)
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def halt_dome():
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -62,7 +62,7 @@ def halt_dome():
         c = dome.halt_dome()
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
 
 
 ########################################################################
@@ -90,7 +90,7 @@ def query(command):
     elif command[0] == 'help':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -112,7 +112,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'dome> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
     print 'Usage: dome start                     - starts the dome daemon'
