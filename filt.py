@@ -121,20 +121,21 @@ def query(command):
         print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: filt start                - starts the filter wheel daemon'
-    print '       filt shutdown             - shuts down the filter wheel daemon cleanly'
-    print '       filt kill                 - kills the filter wheel daemon (emergency use only!)'
-    print '       filt ping                 - pings the filter wheel daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt info                 - reports current filter wheel data'
-    print '       filt set [filter]         - sets all filter wheels to given filter'
-    print '       filt set X [filter]       - sets filter wheel X to given filter'
-    print '       filt list                 - lists the possible filters'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt i                    - enter interactive (command line) usage'
-    print '       filt exit/q               - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       filt help/?               - prints these instructions'
+    help_str = misc.bold('Usage:') + ' filt [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  filt ' + misc.bold('start') + '             - start the daemon' + '\n' +\
+    '  filt ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  filt ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  filt ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Filter wheel commands') + ':' + '\n' +\
+    '  filt ' + misc.bold('set') + ' [tels] filter' + ' - set wheel to given filter' + '\n' +\
+    '  filt ' + misc.bold('list') + '              - lists the possible filters' + '\n' +\
+    '  filt ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  filt ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  filt ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  filt ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    print help_str
 
 ########################################################################
 # Control system

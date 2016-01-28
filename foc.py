@@ -145,23 +145,22 @@ def query(command):
         print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: foc start              - starts the focuser daemon'
-    print '       foc shutdown           - shuts down the focuser daemon cleanly'
-    print '       foc kill               - kills the focuser daemon (emergency use only!)'
-    print '       foc ping               - pings the focuser daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       foc info               - reports current focuser data'
-    print '       foc set [pos]          - moves all focusers to a given position'
-    print '       foc set X [pos]        - moves focuser X to a given position'
-    print '       foc move [steps]       - moves all focusers a number of steps'
-    print '       foc move X [steps]     - moves focuser X a number of steps'
-    print '       foc home               - moves all focusers to home position'
-    print '       foc home X             - moves focuser X to home position'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       foc i                  - enter interactive (command line) usage'
-    print '       foc q                  - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       foc help               - prints these instructions'
+    help_str = misc.bold('Usage:') + ' foc [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  foc ' + misc.bold('start') + '             - start the daemon' + '\n' +\
+    '  foc ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  foc ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  foc ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Focuser commands') + ':' + '\n' +\
+    '  foc ' + misc.bold('move') + ' [tels] steps' + ' - move by the given steps' + '\n' +\
+    '  foc ' + misc.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
+    '  foc ' + misc.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
+    '  foc ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  foc ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  foc ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  foc ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    print help_str
 
 ########################################################################
 # Control system

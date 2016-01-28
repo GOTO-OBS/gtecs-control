@@ -142,7 +142,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-       print misc.ERROR('Already in interactive mode')
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -216,28 +216,25 @@ def query(command):
         print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: cam start                         - starts the camera daemon'
-    print '       cam shutdown                      - shuts down the camera daemon cleanly'
-    print '       cam kill                          - kills the camera daemon (emergency use only!)'
-    print '       cam ping                          - pings the camera daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam info                          - reports current camera data'
-    print '       cam image [exptime] [type]        - takes an image'
-    print '       cam abort                         - aborts all current exposures'
-    print '       cam abort X                       - aborts exposure on camera X'
-    print '       cam bin [hb] [vb]                 - sets horiz/vert binning factors on all cameras'
-    print '       cam bin X [hb] [vb]               - sets horiz/vert binning factors on camera X'
-    print '       cam temp [temp]                   - sets camera temperature on all cameras'
-    print '       cam temp X [temp]                 - sets camera temperature on camera X'
-    print '       cam flush [number]                - sets number of CCD flushes before exposing on all cameras'
-    print '       cam flush X [number]              - sets number of CCD flushes before exposing on camera X'
-    print '       cam area [ul_x ul_y lr_x lr_y]    - sets the active area of the CCD on all cameras'
-    print '       cam area X [ul_x ul_y lr_x lr_y]  - sets the active area of the CCD on camera X'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam i                             - enter interactive (command line) usage'
-    print '       cam q                             - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       cam help                          - prints these instructions'
+    help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  cam ' + misc.bold('start') + '                - start the daemon' + '\n' +\
+    '  cam ' + misc.bold('shutdown') + '             - shutdown the daemon' + '\n' +\
+    '  cam ' + misc.bold('kill') + '                 - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  cam ' + misc.bold('ping') + '                 - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Camera commands') + ':' + '\n' +\
+    '  cam ' + misc.bold('image') + ' [tels] exptime' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + misc.bold('abort') + ' [tels]' + '         - abort current exposure' + '\n' +\
+    '  cam ' + misc.bold('bin') + ' [tels] h v' + '       - set horiz/vert binning factors' + '\n' +\
+    '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
+    '  cam ' + misc.bold('flush') + ' [tels] number' + '  - set no. of flushes before exposing' + '\n' +\
+    '  cam ' + misc.bold('area') + ' [tels] x y X Y' + '  - sets the active area of the CCD' + '\n' +\
+    '  cam ' + misc.bold('info') + ' [v]' + '        - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  cam ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
+    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
+    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
+    print help_str
 
 ########################################################################
 # Control System

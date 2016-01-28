@@ -99,7 +99,7 @@ def resume():
 def interactive():
     while True:
         command = split(raw_input('queue> '))
-        if(len(command) > 0):
+        if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
@@ -143,7 +143,7 @@ def query(command):
                 take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6],command[7])
     elif command[0] == 'pause':
         pause()
-    elif command[0] == 'resume':
+    elif command[0] == 'resume' or command[0] == 'unpause':
         resume()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -152,21 +152,23 @@ def query(command):
         print 'queue> Command not recognized:',command[0]
 
 def print_instructions():
-    print 'Usage: queue start                   - starts the queue daemon'
-    print '       queue shutdown                - shuts down the queue daemon cleanly'
-    print '       queue kill                    - kills the queue daemon (emergency use only!)'
-    print '       queue ping                    - pings the queue daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       queue info                    - reports current queue data'
-    print '       queue image [exptime] [filter] [bins] <[object] [imgtype] [databaseID]>'
-    print '       queue pause                   - pauses taking exposures'
-    print '       queue resume                  - resumes taking exposures'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       queue i                       - enter interactive (command line) usage'
-    print '       queue q                       - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       queue help                    - prints these instructions'
-
+    help_str = misc.bold('Usage:') + ' queue [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  queue ' + misc.bold('start') + '          - start the daemon' + '\n' +\
+    '  queue ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  queue ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  queue ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Queue commands') + ':' + '\n' +\
+    '  queue ' + misc.bold('image') + ' [exptime] [filter] [bins] [object] [imgtype]' + '\n' +\
+    '  queue ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
+    '  queue ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
+    '  queue ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  queue ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  queue ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  queue ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    print help_str
+    
 ########################################################################
 # Control System
 

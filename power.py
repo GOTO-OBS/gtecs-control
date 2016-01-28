@@ -71,7 +71,7 @@ def interactive():
     while True:
         command = split(raw_input('power> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -87,7 +87,7 @@ def query(command):
         misc.kill_daemon(POWER_DAEMON_PROCESS,POWER_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(POWER_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print misc.ERROR('Already in interactive mode')
@@ -109,20 +109,22 @@ def query(command):
         print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: power start              - starts the power daemon'
-    print '       power shutdown           - shuts down the power daemon cleanly'
-    print '       power kill               - kills the power daemon (emergency use only!)'
-    print '       power ping               - pings the power daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       power info               - reports current power data'
-    print '       power on [outlet]        - turns on specified outlet'
-    print '       power off [outlet]       - turns off specified outlet'
-    print '       power reboot [outlet]    - reboots specifiec outlet'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       power i                  - enter interactive (command line) usage'
-    print '       power q                  - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       power help               - prints these instructions'
+    help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  power ' + misc.bold('start') + '           - start the daemon' + '\n' +\
+    '  power ' + misc.bold('shutdown') + '        - shutdown the daemon' + '\n' +\
+    '  power ' + misc.bold('kill') + '            - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  power ' + misc.bold('ping') + '            - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Power commands') + ':' + '\n' +\
+    '  power ' + misc.bold('on') + ' [outlet]' + '     - turn on specified outlet' + '\n' +\
+    '  power ' + misc.bold('off') + ' [outlet]' + '    - turn off specified outlet' + '\n' +\
+    '  power ' + misc.bold('reboot') + ' [outlet]' + ' - reboots specified outlet' + '\n' +\
+    '  power ' + misc.bold('info') + ' [v]' + '        - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  power ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
+    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
+    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
+    print help_str
 
 ########################################################################
 # Control system
