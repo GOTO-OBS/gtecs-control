@@ -19,6 +19,10 @@ import dome_control
 ########################################################################
 # General parameters
 
+# Common file strings
+ORIGIN = "Gravitational-wave Optical Transient Observer" # "organisation or institution"
+TELESCOP = "GOTO_sim" # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
+
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
 if HOST == 'eddie': # MJD's laptop
@@ -103,6 +107,29 @@ DAEMONS = {
 
 for key in DAEMONS:
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
+
+FLI_INTERFACES = {
+    'eddie1':{ # for unit telescopes 1 and 2
+        'PROCESS':  'fli_interface.py',
+        'HOST':     'eddie',
+        'PORT':     9010,
+        'PYROID':   'fli_interface',
+        'TELS':      [1,2],
+        },
+    'eddie2':{ # for unit telescopes 3 and 4
+        'PROCESS':  'fli_interfaceB.py',
+        'HOST':     'eddie',
+        'PORT':     9020,
+        'PYROID':   'fli_interfaceB',
+        'TELS':      [3,4],
+        }
+    }
+
+TEL_DICT = {}
+for nuc in FLI_INTERFACES:
+    FLI_INTERFACES[nuc]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[nuc]['PYROID'] + '@' + FLI_INTERFACES[nuc]['HOST'] + ':' + str(FLI_INTERFACES[nuc]['PORT'])
+    for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
+        TEL_DICT[tel] = [nuc,HW]
 
 ########################################################################
 # Mount parameters

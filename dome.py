@@ -35,7 +35,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def open_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -44,7 +44,7 @@ def open_dome(side='both',steps=None):
         c = dome.open_dome(side,steps)
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def close_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -53,7 +53,7 @@ def close_dome(side='both',steps=None):
         c = dome.close_dome(side,steps)
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
+        print misc.ERROR('No response from dome daemon')
     
 def halt_dome():
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
@@ -62,8 +62,7 @@ def halt_dome():
         c = dome.halt_dome()
         if c: print c
     except:
-        print 'ERROR: No response from dome daemon'
-
+        print misc.ERROR('No response from dome daemon')
 
 ########################################################################
 # Interactive mode
@@ -71,7 +70,7 @@ def interactive():
     while True:
         command = split(raw_input('dome> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -87,10 +86,10 @@ def query(command):
         misc.kill_daemon(DOME_DAEMON_PROCESS,DOME_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(DOME_DAEMON_ADDRESS)
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -112,25 +111,25 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'dome> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: dome start                     - starts the dome daemon'
-    print '       dome shutdown                  - shuts down the dome daemon cleanly'
-    print '       dome kill                      - kills the dome daemon (emergency use only!)'
-    print '       dome ping                      - pings the dome daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       dome info                      - reports current dome data'
-    print '       dome open                      - fully opens the dome'
-    print '       dome close                     - fully closes the dome'
-    print '       dome open [east|west] [steps]  - partially opens one side of the dome'
-    print '       dome close [east|west] [steps] - partially closes one side of the dome'
-    print '       dome halt                      - stops the dome moving'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       dome i                         - enter interactive (command line) usage'
-    print '       dome q                         - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       dome help                      - prints these instructions'
+    help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  dome ' + misc.bold('start') + '                     - start the daemon' + '\n' +\
+    '  dome ' + misc.bold('shutdown') + '                  - shutdown the daemon' + '\n' +\
+    '  dome ' + misc.bold('kill') + '                      - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  dome ' + misc.bold('ping') + '                      - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Dome commands') + ':' + '\n' +\
+    '  dome ' + misc.bold('open') + ' [east|west] [steps]' + '  - open the dome' + '\n' +\
+    '  dome ' + misc.bold('close') + ' [east|west] [steps]' + ' - close the dome' + '\n' +\
+    '  dome ' + misc.bold('halt') + '                      - stop the dome moving' + '\n' +\
+    '  dome ' + misc.bold('info') + ' [v]' + '                  - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  dome ' + misc.bold('i') + '                         - enter interactive mode' + '\n' +\
+    '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                    - quit interactive mode' + '\n' +\
+    '  dome ' + misc.bold('?') + '/' + misc.bold('help') + '                    - print these instructions'
+    print help_str
 
 ########################################################################
 # Control system

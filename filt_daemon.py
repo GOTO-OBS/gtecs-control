@@ -3,8 +3,8 @@
 ########################################################################
 #                            filt_daemon.py                            #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#               G-TeCS daemon to control FLI filter wheel              #
-#                     Martin Dyer, Sheffield, 2015                     #
+#   G-TeCS meta-daemon to control FLI filter wheels via fli_interface  #
+#                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 ########################################################################
@@ -15,8 +15,6 @@ from math import *
 import time
 import Pyro4
 import threading
-# FLI modules
-from fliapi import FakeFilterWheel
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
@@ -30,7 +28,7 @@ class FiltDaemon:
     
     Contains 2 functions:
     - get_info()
-    - set_filter(filt)
+    - set_filter(filt, telescopeIDs)
     """
     def __init__(self):
         self.running = True
@@ -47,12 +45,19 @@ class FiltDaemon:
         ### filter wheel variables
         self.info = {}
         self.flist = params.FILTER_LIST
-        self.current_pos = 0
-        self.current_filter_num = 0
-        self.current_filter = 'X'
-        self.new_filter_num = 0
-        self.new_filter = 'X'
-        self.remaining = 0
+        self.tel_dict = params.TEL_DICT
+        
+        self.current_pos = {}
+        self.current_filter_num = {}
+        self.remaining = {}
+        
+        for nuc in params.FLI_INTERFACES:
+            self.current_pos[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.remaining[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.current_filter_num[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+        
+        self.active_tel = []
+        self.new_filter = ''
         
         ### start control thread
         t = threading.Thread(target=self.filt_control)
@@ -63,9 +68,6 @@ class FiltDaemon:
     # Primary control thread
     def filt_control(self):
         
-        ### connect to (fake) filter
-        filt = FakeFilterWheel('device','serial')
-        
         while(self.running):
             self.time_check = time.time()
             
@@ -73,32 +75,54 @@ class FiltDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                self.remaining = filt.get_steps_remaining()
-                self.current_filter_num = filt.get_filter_pos()
-                self.current_filter = self.flist[self.current_filter_num]
-                self.current_pos = filt.stepper_position
+                for tel in self.tel_dict.keys():
+                    nuc, HW = self.tel_dict[tel]
+                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    try:
+                        self.current_pos[nuc][HW] = fli.get_filter_position(HW)
+                        self.remaining[nuc][HW] = fli.get_filter_steps_remaining(HW)
+                        self.current_filter_num[nuc][HW] = fli.get_filter_number(HW)
+                    except:
+                        print 'ERROR: No response from fli interface on', nuc
                 # save info
                 info = {}
-                if self.remaining > 0:
-                    info['status'] = 'Moving'
-                    info['remaining'] = self.remaining
-                    info['current_filter'] = 'N/A'
-                else:
-                    info['status'] = 'Ready'
-                    info['current_filter'] = self.current_filter
-                info['current_filter_num'] = self.current_filter_num
-                info['current_pos'] = self.current_pos
+                for tel in self.tel_dict.keys():
+                    nuc, HW = self.tel_dict[tel]
+                    tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
+                    if self.remaining[nuc][HW] > 0:
+                        info['status'+tel] = 'Moving'
+                        info['remaining'+tel] = self.remaining[nuc][HW]
+                    else:
+                        info['status'+tel] = 'Ready'
+                    info['current_filter_num'+tel] = self.current_filter_num[nuc][HW]
+                    info['current_pos'+tel] = self.current_pos[nuc][HW]
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
+                
                 self.info = info
                 self.get_info_flag = 0
             
-            # choose the active filter
+            # set the active filter
             if(self.set_filter_flag):
-                self.logfile.log('Moving filter wheel to %s (%i)'\
-                    %(self.new_filter,self.new_filter_num))
-                c = filt.set_filter_pos(self.new_filter_num)
-                if c: print c
+                # loop through each unit to send orders to in turn
+                for tel in self.active_tel:
+                    nuc, HW = self.tel_dict[tel]
+                    new_filter_num = self.flist.index(self.new_filter)
+                    
+                    self.logfile.log('Moving filter wheel %i (%s-%i) to %s (%i)'\
+                        %(tel, nuc, HW, self.new_filter, new_filter_num) )
+                    
+                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    try:
+                        c = fli.set_filter_pos(new_filter_num,HW)
+                        if c: print c
+                    except:
+                        print 'ERROR: No response from fli interface on', nuc
+                # cleare the 'active' units
+                self.active_tel = []
+                
                 self.set_filter_flag = 0
             
             time.sleep(0.0001) # To save 100% CPU usage
@@ -114,19 +138,26 @@ class FiltDaemon:
         time.sleep(0.1)
         return self.info
     
-    def set_filter(self,new_filter):
+    def set_filter(self,new_filter,tel_list):
         """Move filter wheel to given filter"""
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.remaining > 0:
-            return 'ERROR: Motor is still moving'
+        self.new_filter = new_filter
+        for tel in tel_list:
+            if tel not in self.tel_dict.keys():
+                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
         if new_filter not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
-        else:
-            self.new_filter = new_filter
-            self.new_filter_num = self.flist.index(new_filter)
-            self.set_filter_flag = 1
-            return 'Moving filter'
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        s = 'Moving:'
+        for tel in tel_list:
+            nuc, HW = self.tel_dict[tel]
+            if self.remaining[nuc][HW] > 0:
+                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+            else:
+                self.active_tel += [tel]
+                s += '\n  Moving filter wheel %i' %tel
+        self.set_filter_flag = 1
+        return s
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
@@ -147,7 +178,7 @@ class FiltDaemon:
         self.running = False
 
 ########################################################################
-# Create Pyro control server 
+# Create Pyro control server
 pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['filt']['HOST'], port=params.DAEMONS['filt']['PORT'])
 filt_daemon = FiltDaemon()
 

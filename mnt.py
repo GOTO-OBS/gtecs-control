@@ -57,7 +57,7 @@ def get_info():
         print 'Ping: %.5fs' %info['ping']
         print '###########################'
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def slew_to_radec(ra,dec):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -66,7 +66,7 @@ def slew_to_radec(ra,dec):
         c = mnt.slew_to_radec(ra,dec)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def slew_to_target():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -75,7 +75,7 @@ def slew_to_target():
         c = mnt.slew_to_target()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def start_tracking():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -84,7 +84,7 @@ def start_tracking():
         c = mnt.start_tracking()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def full_stop():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -93,7 +93,7 @@ def full_stop():
         c = mnt.full_stop()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def park():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -102,7 +102,7 @@ def park():
         c = mnt.park()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def unpark():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -111,7 +111,7 @@ def unpark():
         c = mnt.unpark()
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_target_ra(h,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -121,7 +121,7 @@ def set_target_ra(h,m,s):
         c = mnt.set_target_ra(ra)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_target_dec(sign,d,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -134,7 +134,7 @@ def set_target_dec(sign,d,m,s):
         c = mnt.set_target_dec(dec)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def offset(direction):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -143,7 +143,7 @@ def offset(direction):
         c = mnt.offset(direction)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
     
 def set_step(offset):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
@@ -152,7 +152,7 @@ def set_step(offset):
         c = mnt.set_step(offset)
         if c: print c
     except:
-        print 'ERROR: No response from mount daemon'
+        print misc.ERROR('No response from mount daemon')
 
 ########################################################################
 # Interactive mode
@@ -160,7 +160,7 @@ def interactive():
     while True:
         command = split(raw_input('mnt> '))
         if len(command) > 0:
-            if command[0] == 'q':
+            if command[0] == 'q' or command[0] == 'exit':
                 return
             else:
                 query(command)
@@ -184,10 +184,10 @@ def query(command):
     elif command[0] == 'pingS':
         misc.ping_daemon(SITECH_ADDRESS)
     
-    elif command[0] == 'help':
+    elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
@@ -228,38 +228,38 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'mnt> Command not recognized:',command[0]
+        print misc.ERROR('Unrecognized command "%s"' %command[0])
 
 def print_instructions():
-    print 'Usage: mnt start              - starts the mount daemon'
-    print '       mnt shutdown           - shuts down the mount daemon cleanly'
-    print '       mnt kill               - kills the mount daemon (emergency use only!)'
-    print '       mnt ping               - pings the mount daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       mnt startS             - starts the SiTech daemon'
-    print '       mnt shutdownS          - shuts down the SiTech daemon cleanly'
-    print '       mnt pingS              - pings the SiTech daemon'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       mnt info               - reports current mount data'
-    print '       mnt slew               - slew to target ra/dec'
-    print '       mnt track              - start tracking'
-    print '       mnt stop               - stop tracking/slewing'
-    print '       mnt park               - park scope'
-    print '       mnt unpark             - leave park state'
-    print '       mnt ra [h m s]         - set target ra'
-    print '       mnt dec [sign d m s]   - set target dec'
-    print '       mnt n                  - offset telescope north by one step'
-    print '       mnt s                  - offset telescope south by one step'
-    print '       mnt e                  - offset telescope east by one step'
-    print '       mnt w                  - offset telescope west by one step'
-    print '       mnt step [value]       - set offset step size (arcsec, default=10)'
-    print '       mnt slewR              - slew to Regulus (Alpha Leo) - TEST'
-    print '       mnt slewP              - slew to Polaris (Alpha UMi) - TEST'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       mnt i                  - enter interactive (command line) usage'
-    print '       mnt q                  - quit interactive (command line) usage'
-    print '       ~~~~~~~~~~~~~~~~~~~~~~~~'
-    print '       mnt help               - prints these instructions'
+    help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
+    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
+    '  mnt ' + misc.bold('start') + '          - start the daemon' + '\n' +\
+    '  mnt ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  mnt ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  mnt ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + misc.undl('SiTech interface commands') + ':' + '\n' +\
+    '  mnt ' + misc.bold('startS') + '         - start the daemon' + '\n' +\
+    '  mnt ' + misc.bold('shutdownS') + '      - shutdown the daemon' + '\n' +\
+    '  mnt ' + misc.bold('pingS') + '          - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Mount commands') + ':' + '\n' +\
+    '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
+    '  mnt ' + misc.bold('dec') + ' sign d m s' + ' - set target dec' + '\n' +\
+    '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
+    misc.ytxt('  mnt ' + misc.bold('slewR')) + '          - slew to Regulus (' + misc.ytxt('TEST') + ')' + '\n' +\
+    misc.ytxt('  mnt ' + misc.bold('slewP')) + '          - slew to Polaris (' + misc.ytxt('TEST') + ')' + '\n' +\
+    '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
+    '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
+    '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
+    '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
+    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + '        - offset in direction by one step' + '\n' +\
+    '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
+    '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  mnt ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  mnt ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  mnt ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    print help_str
+
 
 ########################################################################
 # Control System

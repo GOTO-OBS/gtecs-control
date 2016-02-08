@@ -290,7 +290,26 @@ def ang_sep(ra_1,dec_1,ra_2,dec_2):
     return S
 
 ########################################################################
+## Text formatting functions
+def rtxt(text):
+    return '\033[91m' + str(text) + '\033[0m'
+def gtxt(text):
+    return '\033[92m' + str(text) + '\033[0m'
+def ytxt(text):
+    return '\033[93m' + str(text) + '\033[0m'
+def btxt(text):
+    return '\033[94m' + str(text) + '\033[0m'
+def ptxt(text):
+    return '\033[95m' + str(text) + '\033[0m'
+def bold(text):
+    return '\033[1m' + str(text) + '\033[0m'
+def undl(text):
+    return '\033[4m' + str(text) + '\033[0m'
+
+########################################################################
 # Misc functions
+def ERROR(message):
+    return rtxt(bold('ERROR')) + ': ' + str(message)
 
 def adz(num):
     num = repr(num)
