@@ -102,7 +102,10 @@ class FocDaemon:
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
                         info['status'+tel] = 'Moving'
-                        info['remaining'+tel] = self.remaining[nuc][HW]
+                        if self.move_steps[nuc][HW] == 0: # Homing, needed due to bug in remaining
+                            info['remaining'+tel] = self.current_pos[nuc][HW]
+                        else:
+                            info['remaining'+tel] = self.remaining[nuc][HW]
                     else:
                         info['status'+tel] = 'Ready'
                     info['current_pos'+tel] = self.current_pos[nuc][HW]
@@ -154,6 +157,7 @@ class FocDaemon:
                         if c: print c
                     except:
                         print 'ERROR: No response from fli interface on', nuc
+                    self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
                 
