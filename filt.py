@@ -72,6 +72,15 @@ def set_filter(new_filt,HW_list):
     except:
         print misc.ERROR('No response from filter wheel daemon')
 
+def home_filter(HW_list):
+    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        c = filt.home_filter(HW_list)
+        if c: print c
+    except:
+        print misc.ERROR('No responce from filter wheel daemon')
+
 ########################################################################
 # Interactive mode
 def interactive():
@@ -112,6 +121,11 @@ def query(command):
             set_filter(command[2].upper(),[int(command[1])])
         else:
             set_filter(command[1].upper(),params.TEL_DICT.keys())
+    elif command[0] == 'home':
+        if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
+            home_filter([int(command[1])])
+        else:
+            home_filter(params.TEL_DICT.keys())
     elif command[0] == 'list':
         print params.FILTER_LIST
 
@@ -129,6 +143,7 @@ def print_instructions():
     '  filt ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
     ' ' + misc.undl('Filter wheel commands') + ':' + '\n' +\
     '  filt ' + misc.bold('set') + ' [tels] filter' + ' - set wheel to given filter' + '\n' +\
+    '  filt ' + misc.bold('home') + ' [tels]' + '       - home given filter' + '\n' +\
     '  filt ' + misc.bold('list') + '              - lists the possible filters' + '\n' +\
     '  filt ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\

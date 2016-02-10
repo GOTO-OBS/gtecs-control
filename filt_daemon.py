@@ -29,6 +29,7 @@ class FiltDaemon:
     Contains 2 functions:
     - get_info()
     - set_filter(filt, telescopeIDs)
+    - home_filter(telescopeIDs)
     """
     def __init__(self):
         self.running = True
@@ -41,6 +42,7 @@ class FiltDaemon:
         ### command flags
         self.get_info_flag = 1
         self.set_filter_flag = 0
+        self.home_filter_flag = 0
         
         ### filter wheel variables
         self.info = {}
@@ -120,10 +122,31 @@ class FiltDaemon:
                         if c: print c
                     except:
                         print 'ERROR: No response from fli interface on', nuc
-                # cleare the 'active' units
+                # clear the 'active' units
                 self.active_tel = []
                 
                 self.set_filter_flag = 0
+
+            # home the filter
+            if(self.home_filter_flag):
+                # loop through each unit to send orders to it in turn
+                for tel in self.active_tel:
+                    nuc, HW = self.tel_dict[tel]
+
+                    self.logfile.log('Homing filter wheel %i (%s-%i)'\
+                        %(tel, nuc, HW) )
+
+                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    try:
+                        c = fli.home_filter(HW)
+                        if c: print c
+                    except:
+                        print 'ERROR: No responce from fli interface on', nuc
+                # clear the active units
+                self.active_tel = []
+                
+                self.home_filter_flag = 0
             
             time.sleep(0.0001) # To save 100% CPU usage
         
@@ -157,6 +180,24 @@ class FiltDaemon:
                 self.active_tel += [tel]
                 s += '\n  Moving filter wheel %i' %tel
         self.set_filter_flag = 1
+        return s
+    
+    def home_filter(self,tel_list):
+        """Move filter wheel to home position"""
+        for tel in tel_list:
+            if tel not in self.tel_dict.keys():
+                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        s = 'Moving:'
+        for tel in tel_list:
+            nuc, HW = self.tel_dict[tel]
+            if self.remaining[nuc][HW] > 0:
+                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+            else:
+                self.active_tel += [tel]
+                s += '\n  Homing filter wheel %i' %tel
+        self.home_filter_flag = 1
         return s
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

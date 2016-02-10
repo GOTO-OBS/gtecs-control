@@ -42,6 +42,7 @@ class FLI:
        
     ::filter::
     - set_filter_pos(new_filter, HW)
+    - home_filter(HW):
     - get_filter_number(HW)
     - get_filter_position(HW)
     - get_filter_steps_remaining(HW)
@@ -106,6 +107,11 @@ class FLI:
         """Move filter wheel to position"""
         print 'Moving filter wheel',HW,'to position',new_filter
         self.filts[int(HW)].set_filter_pos(new_filter)
+    
+    def home_filter(self, HW):
+        """Move filter wheel to home position"""
+        print 'Homing filter wheel',HW
+        self.filts[int(HW)].home()
     
     def get_filter_number(self, HW):
         """Return current filter number"""
