@@ -35,7 +35,7 @@ def get_info():
             else:
                 print 'Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
             print 'Frame type:       %s' %info['frametype'+str(tel)]
-            print 'Exposure time:    %is' %info['exptime'+str(tel)]
+            print 'Exposure time:    %.2fs' %info['exptime'+str(tel)]
             print 'Active area:      %s' %str(info['area'+str(tel)])
             print 'Bin factors:      %s' %str(info['bins'+str(tel)])
             print 'CCD Temperature:   %i' %info['ccd_temp'+str(tel)]
@@ -64,14 +64,32 @@ def get_info_summary():
     except:
         print misc.ERROR('No response from camera daemon')
 
-def take_image(exptime,frametype,HW_list):
+def take_image(exptime,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = cam.take_image(exptime,frametype,HW_list)
+        c = cam.take_image(exptime,HW_list)
         if c: print c
     except:
         print misc.ERROR('No response from camera daemon')
+
+def take_dark(exptime,HW_list):
+    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        c = cam.take_dark(exptime,HW_list)
+        if c: print c
+    except:
+	print misc.ERROR('No response from camera daemon')
+
+def take_bias(HW_list):
+    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        c = cam.take_bias(HW_list)
+        if c: print c
+    except:
+	print misc.ERROR('No response from camera daemon')
 
 def abort_exposure(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -155,31 +173,33 @@ def query(command):
         
     elif command[0] == 'image':
         if len(command) == 2:
-            # e.g. "image 2" - 2s (normal) on all cameras
-            take_image(int(command[1]),'normal',params.TEL_DICT.keys())
-        
-        elif len(command) == 3 and command[2] in ['dark','d','D','-d','-D']:
-            # e.g. "image 2 dark" - 2s dark on all cameras
-            take_image(int(command[1]),'dark',params.TEL_DICT.keys())
-        
-        elif len(command) == 3 and command[2] in ['flush','rbi_flush','f','F','-f','-F']:
-            # e.g. "image 2 flush" - 2s flush on all cameras
-            take_image(int(command[1]),'rbi_flush',params.TEL_DICT.keys())
-        
+            # e.g. "image 2" - 2s on all cameras
+            take_image(float(command[1]),params.TEL_DICT.keys())
         elif len(command) == 3 and command[1] in str(params.TEL_DICT.keys()):
-            # e.g. "image 2 2" - 2s (normal) on camera 2
-            take_image(int(command[2]),'normal',[int(command[1])])
-        
-        elif len(command) == 4 and command[1] in str(params.TEL_DICT.keys()) and command[3] in ['dark','d','D','-d','-D']:
-            # e.g. "image 2 2" - 2s (normal) on camera 2
-            take_image(int(command[2]),'dark',[int(command[1])])
-        
-        elif len(command) == 4 and command[1] in str(params.TEL_DICT.keys()) and command[3] in ['flush','rbi_flush','f','F','-f','-F']:
-            # e.g. "image 2 2" - 2s (normal) on camera 2
-            take_image(int(command[2]),'rbi_flush',[int(command[1])])
-        
+            # e.g. "image 2 2" - 2s on camera 2
+            take_image(float(command[2]),[int(command[1])])
         else:
-            print 'cam> Command not recognized:',command[0]
+            print misc.ERROR('Invalid arguments')
+
+    elif command[0] == 'dark':
+        if len(command) == 2:
+            # e.g. "dark 2" - 2s dark on all cameras
+            take_dark(float(command[1]),params.TEL_DICT.keys())
+        elif len(command) == 3 and command[1] in str(params.TEL_DICT.keys()):
+            # e.g. "dark 2 2" - 2s dark on camera 2
+            take_dark(float(command[2]),[int(command[1])])
+        else:
+            print misc.ERROR('Invalid arguments')
+
+    elif command[0] == 'bias':
+        if len(command) == 1:
+            # e.g. "bias" - bias on all cameras
+            take_bias(params.TEL_DICT.keys())
+        elif len(command) == 2 and command[1] in str(params.TEL_DICT.keys()):
+            # e.g. "bias 2" - bias on camera 2
+            take_bias([int(command[1])])
+        else:
+            print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'abort':
         if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
@@ -225,6 +245,8 @@ def print_instructions():
     '  cam ' + misc.bold('ping') + '                 - ping the daemon' + '\n' +\
     ' ' + misc.undl('Camera commands') + ':' + '\n' +\
     '  cam ' + misc.bold('image') + ' [tels] exptime' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + misc.bold('dark') + ' [tels] exptime' + '  - take a dark frame' + '\n' +\
+    '  cam ' + misc.bold('bias') + ' [tels]' + '          - take a bias frame' + '\n' +\
     '  cam ' + misc.bold('abort') + ' [tels]' + '         - abort current exposure' + '\n' +\
     '  cam ' + misc.bold('bin') + ' [tels] h v' + '       - set horiz/vert binning factors' + '\n' +\
     '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\

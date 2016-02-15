@@ -31,7 +31,9 @@ class CamDaemon:
     
     Contains 7 functions:
     - get_info()
-    - take_image(exptime,frametype,telescopeIDs)
+    - take_image(exptime,telescopeIDs)
+    - take_dark(exptime,telescopeIDs)
+    - take_bias(telescopeIDs)
     - abort_exposure(telescopeIDs)
     - set_temperature(target_temp,telescopeIDs)
     - set_flushes(target_flushes,telescopeIDs)
@@ -323,13 +325,13 @@ class CamDaemon:
         time.sleep(0.1)
         return self.info
     
-    def take_image(self,exptime,frametype,tel_list):
+    def take_image(self,exptime,tel_list):
         """Take image with camera"""
         for tel in tel_list:
             if tel not in self.tel_dict.keys():
                 return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
         self.target_exptime = exptime
-        self.target_frametype = frametype
+        self.target_frametype = 'normal'
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Exposing:'
@@ -340,6 +342,46 @@ class CamDaemon:
             else:
                 self.active_tel += [tel]
                 s += '\n  Taking image on camera %i' %tel
+        self.take_exposure_flag = 1
+        return s
+
+    def take_dark(self,exptime,tel_list):
+        """Take dark frame with camera"""
+        for tel in tel_list:
+            if tel not in self.tel_dict.keys():
+                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+        self.target_exptime = exptime
+        self.target_frametype = 'dark'
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        s = 'Exposing:'
+        for tel in tel_list:
+            nuc, HW = self.tel_dict[tel]
+            if self.remaining[nuc][HW] != 0:
+                s += '\n  ERROR: Camera %i is already exposing' %tel
+            else:
+                self.active_tel += [tel]
+                s += '\n  Taking dark frame on camera %i' %tel
+        self.take_exposure_flag = 1
+        return s
+
+    def take_bias(self,tel_list):
+        """Take bias frame with camera"""
+        for tel in tel_list:
+            if tel not in self.tel_dict.keys():
+                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+        self.target_exptime = params.BIASEXP
+        self.target_frametype = 'dark'
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        s = 'Exposing:'
+        for tel in tel_list:
+            nuc, HW = self.tel_dict[tel]
+            if self.remaining[nuc][HW] != 0:
+                s += '\n  ERROR: Camera %i is already exposing' %tel
+            else:
+                self.active_tel += [tel]
+                s += '\n  Taking bias frame on camera %i' %tel
         self.take_exposure_flag = 1
         return s
     
