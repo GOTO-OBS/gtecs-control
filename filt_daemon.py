@@ -52,11 +52,13 @@ class FiltDaemon:
         self.current_pos = {}
         self.current_filter_num = {}
         self.remaining = {}
+        self.serial_number = {}
         
         for nuc in params.FLI_INTERFACES:
             self.current_pos[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.remaining[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.current_filter_num[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
         
         self.active_tel = []
         self.new_filter = ''
@@ -85,6 +87,7 @@ class FiltDaemon:
                         self.current_pos[nuc][HW] = fli.get_filter_position(HW)
                         self.remaining[nuc][HW] = fli.get_filter_steps_remaining(HW)
                         self.current_filter_num[nuc][HW] = fli.get_filter_number(HW)
+                        self.serial_number[nuc][HW] = fli.get_filter_serial_number(HW)
                     except:
                         print 'ERROR: No response from fli interface on', nuc
                 # save info
@@ -99,6 +102,7 @@ class FiltDaemon:
                         info['status'+tel] = 'Ready'
                     info['current_filter_num'+tel] = self.current_filter_num[nuc][HW]
                     info['current_pos'+tel] = self.current_pos[nuc][HW]
+                    info['serial_number'+tel] = self.serial_number[nuc][HW]
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 

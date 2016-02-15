@@ -41,6 +41,7 @@ def get_info():
             print 'CCD Temperature:   %i' %info['ccd_temp'+str(tel)]
             print 'Base Temperature:  %i' %info['base_temp'+str(tel)]
             print 'Cooler power:      %i' %info['cooler_power'+str(tel)]
+            print 'Serial number:     %s' %info['serial_number'+str(tel)]
             print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']

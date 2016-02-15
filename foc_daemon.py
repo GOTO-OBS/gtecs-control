@@ -56,6 +56,7 @@ class FocDaemon:
         self.int_temp = {}
         self.ext_temp = {}
         self.move_steps = {}
+        self.serial_number = {}
         
         for nuc in params.FLI_INTERFACES:
             self.limit[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
@@ -64,6 +65,7 @@ class FocDaemon:
             self.int_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.ext_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.move_steps[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
         
         self.active_tel = []
         
@@ -93,6 +95,7 @@ class FocDaemon:
                         self.current_pos[nuc][HW] = fli.get_focuser_position(HW)
                         self.int_temp[nuc][HW] = fli.get_focuser_temp('internal',HW)
                         self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
+                        self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
                     except:
                         print 'ERROR: No response from fli interface on', nuc
                 # save info
@@ -112,6 +115,7 @@ class FocDaemon:
                     info['limit'+tel] = self.limit[nuc][HW]
                     info['int_temp'+tel] = self.int_temp[nuc][HW]
                     info['ext_temp'+tel] = self.ext_temp[nuc][HW]
+                    info['serial_number'+tel] = self.serial_number[nuc][HW]
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 

@@ -73,6 +73,7 @@ class CamDaemon:
         self.base_temp = {}
         self.cooler_power = {}
         self.cam_info = {}
+        self.serial_number = {}
 
         
         for nuc in params.FLI_INTERFACES:
@@ -86,6 +87,7 @@ class CamDaemon:
             self.base_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.cooler_power[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.cam_info[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
         
         self.active_tel = []
         self.obs_times = {}
@@ -128,6 +130,7 @@ class CamDaemon:
                         self.ccd_temp[nuc][HW] = fli.get_camera_temp('CCD',HW)
                         self.base_temp[nuc][HW] = fli.get_camera_temp('BASE',HW)
                         self.cooler_power[nuc][HW] = fli.get_camera_cooler_power(HW)
+                        self.serial_number[nuc][HW] = fli.get_camera_serial_number(HW)
                     except:
                         print 'ERROR: No response from fli interface on', nuc
                 # save info
@@ -148,6 +151,7 @@ class CamDaemon:
                     info['ccd_temp'+tel] = self.ccd_temp[nuc][HW]
                     info['base_temp'+tel] = self.base_temp[nuc][HW]
                     info['cooler_power'+tel] = self.cooler_power[nuc][HW]
+                    info['serial_number'+tel] = self.serial_number[nuc][HW]
                 
                 info['run_ID'] = self.run_ID
                 info['uptime'] = time.time()-self.start_time

@@ -101,6 +101,11 @@ class FLI:
         tmp = self.focs[int(HW)].read_temperature(temp_type)
         return tmp
     
+    def get_focuser_serial_number(self,HW):
+        """Return focuser unique serial number"""
+        ser = self.focs[int(HW)].serial_number
+        return ser
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, HW):
@@ -127,6 +132,11 @@ class FLI:
         """Return filter wheel steps remaining"""
         rem = self.filts[int(HW)].get_steps_remaining()
         return rem
+    
+    def get_filter_serial_number(self,HW):
+       	"""Return filter wheel unique serial number"""
+        ser = self.filts[int(HW)].serial_number
+       	return ser
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -185,6 +195,11 @@ class FLI:
         """Return peltier cooler power"""
         rem = self.cams[int(HW)].get_cooler_power()
         return rem
+    
+    def get_camera_serial_number(self,HW):
+       	"""Return camera unique serial number"""
+        ser = self.cams[int(HW)].serial_number
+       	return ser
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions

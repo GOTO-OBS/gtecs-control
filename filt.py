@@ -39,6 +39,7 @@ def get_info():
                 print 'Current filter:     N/A'
             print 'Current filter num: %s' %info['current_filter_num'+str(tel)]
             print 'Current motor pos:  %s' %info['current_pos'+str(tel)]
+            print 'Serial number:      %s' %info['serial_number'+str(tel)]
             print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']

@@ -38,6 +38,7 @@ def get_info():
             print 'Maximum motor limit:  %s' %info['limit'+str(tel)]
             print 'Internal temperature: %s' %info['int_temp'+str(tel)]
             print 'External temperature: %s' %info['ext_temp'+str(tel)]
+            print 'Serial number:        %s' %info['serial_number'+str(tel)]
             print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
