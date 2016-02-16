@@ -95,7 +95,7 @@ class CamDaemon:
         self.obs_times = {}
         self.target_exptime = 0
         self.target_frametype = 0
-        self.target_bins = 0
+        self.target_bins = (1,1)
         self.target_area = 0
         self.target_temp = 0
         self.target_flushes = 0
@@ -505,7 +505,7 @@ class CamDaemon:
         header.set("ORIGIN",   value = params.ORIGIN,                   comment = "Origin organization")
         header.set("TELESCOP", value = params.TELESCOP+tel_str,         comment = "Origin telescope")
         cam_ID = self.cam_info[nuc][HW]['serial_number']
-        header.set("INSTRUME", value = cam_ID,                          comment = "Instrument/camera used")
+        header.set("INSTRUME", value = cam_ID,                          comment = "Camera serial number")
         
         # Camera data
         header.set("DATE-OBS", value = self.obs_times[tel],             comment = "Observation start time, UTC")
@@ -516,8 +516,8 @@ class CamDaemon:
         y_bin = self.target_bins[1]
         header.set("XBINNING", value = x_bin,                           comment = "Width bin factor")
         header.set("YBINNING", value = y_bin,                           comment = "Height bin factor")
-        x_pixel_size = self.cam_info[nuc][HW]['pixel_size'][0]*x_bin
-        y_pixel_size = self.cam_info[nuc][HW]['pixel_size'][1]*y_bin
+        x_pixel_size = self.cam_info[nuc][HW]['pixel_size'][0]*x_bin*1000000 #in microns
+        y_pixel_size = self.cam_info[nuc][HW]['pixel_size'][1]*y_bin*1000000
         header.set("XPIXLSZ",  value = x_pixel_size,                    comment = "Binned pixel size, microns")
         header.set("YPIXLSZ",  value = y_pixel_size,                    comment = "Binned pixel size, microns")
         header.set("CCDTEMP",  value = self.ccd_temp[nuc][HW],          comment = "CCD temperature, C")
@@ -557,11 +557,14 @@ class CamDaemon:
             foc_pos = info['current_pos'+str(tel)]
             foc_temp_int = info['int_temp'+str(tel)]
             foc_temp_ext = info['ext_temp'+str(tel)]
+            foc_ID = info['serial_number'+str(tel)]
         except:
             foc_pos = 'N/A'
-            foc_temp_i = 'N/A'
-            foc_temp_x = 'N/A'
-        header.set("FOCUSER",  value = foc_pos,                         comment = "Focuser motor position")
+            foc_temp_int = 'N/A'
+            foc_temp_ext = 'N/A'
+            foc_ID = 'N/A'
+        header.set("FOCUSER",  value = foc_ID,                          comment = "Focuser serial number")
+        header.set("FOCPOS",   value = foc_pos,                         comment = "Focuser motor position")
         header.set("FOCTEMPI", value = foc_temp_int,                    comment = "Focuser internal temperature, C")
         header.set("FOCTEMPX", value = foc_temp_ext,                    comment = "Focuser external temperature, C")
         
@@ -572,8 +575,11 @@ class CamDaemon:
         try:
             info = filt.get_info()
             filt = flist[info['current_filter_num'+str(tel)]]
+            filt_ID = info['serial_number'+str(tel)]
         except:
             filt = 'N/A'
+            filt_ID = 'N/A'
+        header.set("FILTW",     value = filt_ID,                        comment = "Filter wheel serial number")
         header.set("FILTER",    value = filt,                           comment = "Filter used for exposure")
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
