@@ -204,7 +204,7 @@ class CamDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli._pyroTimeout = 999 #params.PROXY_TIMEOUT
                     try:
                         fli.save_exposure('temp_img',HW)
                     except:
