@@ -27,7 +27,7 @@ TELESCOP = "GOTO_sim" # "the telescope used", will be appended with details (e.g
 HOST = socket.gethostname()
 if HOST == 'eddie': # MJD's laptop
     TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
-elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk': # Warwick test NUCs
+elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
     TECS_PATH = '/home/mdyer/g-tecs/'
 
 SCRIPT_PATH = TECS_PATH
@@ -63,28 +63,28 @@ DAEMONS = {
         },
     'filt':{ # filter wheel daemon
         'PROCESS':  'filt_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9002,
         'PYROID':   'filt_daemon',
         'PINGLIFE': 10.
         },
     'foc':{ # focuser daemon
         'PROCESS':  'foc_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9003,
         'PYROID':   'foc_daemon',
         'PINGLIFE': 10.
         },
     'cam':{ # camera daemon
         'PROCESS':  'cam_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9004,
         'PYROID':   'cam_daemon',
         'PINGLIFE': 10.
         },
     'queue':{ # exposure queue daemon
         'PROCESS':  'queue_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9005,
         'PYROID':   'queue_daemon',
         'PINGLIFE': 10.
