@@ -144,11 +144,11 @@ class FLI:
         """Set exposure time and frametype"""
         print 'Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure'
         self.cams[int(HW)].set_exposure(exptime_ms, frametype)
-        
+    
     def start_exposure(self, HW):
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
-        
+    
     def save_exposure(self, filename, HW):
         """Fetch the image and save it temporarily"""
         print 'Camera',HW,'saving image'
@@ -171,7 +171,7 @@ class FLI:
     def set_camera_bins(self, hbin, vbin, HW):
         """Set the image binning"""
         self.cams[int(HW)].set_image_binning(hbin,vbin)
-
+    
     def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, HW):
         """Set the active image area"""
         self.cams[int(HW)].set_image_size(ul_x, ul_y, lr_x, lr_y)
@@ -183,7 +183,7 @@ class FLI:
     
     def get_camera_time_remaining(self, HW):
         """Return exposure time remaining"""
-        rem = self.cams[int(HW)].get_exposure_timeleft()/1000
+        rem = self.cams[int(HW)].get_exposure_timeleft()/1000.
         return rem
     
     def get_camera_temp(self, temp_type, HW):
@@ -208,7 +208,7 @@ class FLI:
     
     def prod(self):
         return
-
+    
     def status_function(self):
         return self.running
     
