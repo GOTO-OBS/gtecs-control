@@ -200,11 +200,11 @@ class QueueDaemon:
             
             ### queue processes
             # connect to daemons
-            CAM_DAEMON_ADDRESS = 'PYRO:cam_daemon@eddie:9004'
+            CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
             cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
             cam._pyroTimeout = params.PROXY_TIMEOUT
             
-            FILT_DAEMON_ADDRESS = 'PYRO:filt_daemon@eddie:9002'
+            FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
             filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
             filt._pyroTimeout = params.PROXY_TIMEOUT
 
