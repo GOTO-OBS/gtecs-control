@@ -12,7 +12,7 @@
 ### Import ###
 # Python modules
 from math import *
-import time
+import time, datetime
 import Pyro4
 import threading
 # TeCS modules
@@ -125,6 +125,8 @@ class MntDaemon:
                 info['step'] = self.step
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
+                now = datetime.datetime.utcnow()
+                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
                 self.info = info
                 self.get_info_flag = 0
             

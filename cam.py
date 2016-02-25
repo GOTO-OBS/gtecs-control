@@ -45,6 +45,7 @@ def get_info():
             print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
+        print 'Timestamp: %s' %info['timestamp']
         print '###########################'
     except:
         print misc.ERROR('No response from camera daemon')

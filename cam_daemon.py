@@ -158,6 +158,8 @@ class CamDaemon:
                 info['run_ID'] = self.run_ID
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
+                now = datetime.datetime.utcnow()
+                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
                 
                 self.info = info
                 self.get_info_flag = 0

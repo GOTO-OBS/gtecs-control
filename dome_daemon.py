@@ -13,7 +13,7 @@
 # Python modules
 import os, sys, commands
 from math import *
-import time
+import time, datetime
 import Pyro4
 import threading
 # TeCS modules
@@ -120,6 +120,8 @@ class DomeDaemon:
                     info[key] = self.dome_status[key]
                 info['uptime'] = time.time() - self.start_time
                 info['ping'] = time.time() - self.time_check
+                now = datetime.datetime.utcnow()
+                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
                 if os.path.isfile(params.EMERGENCY_FILE):
                     info['emergency'] = 1
                 else:
