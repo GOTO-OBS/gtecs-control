@@ -42,6 +42,7 @@ class FLI:
        
     ::filter::
     - set_filter_pos(new_filter, HW)
+    - home_filter(HW):
     - get_filter_number(HW)
     - get_filter_position(HW)
     - get_filter_steps_remaining(HW)
@@ -100,12 +101,22 @@ class FLI:
         tmp = self.focs[int(HW)].read_temperature(temp_type)
         return tmp
     
+    def get_focuser_serial_number(self,HW):
+        """Return focuser unique serial number"""
+        ser = self.focs[int(HW)].serial_number
+        return ser
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
         print 'Moving filter wheel',HW,'to position',new_filter
         self.filts[int(HW)].set_filter_pos(new_filter)
+    
+    def home_filter(self, HW):
+        """Move filter wheel to home position"""
+        print 'Homing filter wheel',HW
+        self.filts[int(HW)].home()
     
     def get_filter_number(self, HW):
         """Return current filter number"""
@@ -122,17 +133,22 @@ class FLI:
         rem = self.filts[int(HW)].get_steps_remaining()
         return rem
     
+    def get_filter_serial_number(self,HW):
+       	"""Return filter wheel unique serial number"""
+        ser = self.filts[int(HW)].serial_number
+       	return ser
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, HW):
         """Set exposure time and frametype"""
         print 'Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure'
         self.cams[int(HW)].set_exposure(exptime_ms, frametype)
-        
+    
     def start_exposure(self, HW):
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
-        
+    
     def save_exposure(self, filename, HW):
         """Fetch the image and save it temporarily"""
         print 'Camera',HW,'saving image'
@@ -155,7 +171,7 @@ class FLI:
     def set_camera_bins(self, hbin, vbin, HW):
         """Set the image binning"""
         self.cams[int(HW)].set_image_binning(hbin,vbin)
-
+    
     def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, HW):
         """Set the active image area"""
         self.cams[int(HW)].set_image_size(ul_x, ul_y, lr_x, lr_y)
@@ -164,10 +180,10 @@ class FLI:
         """Return camera infomation dictionary"""
         dic = self.cams[int(HW)].get_info()
         return dic
-        
+    
     def get_camera_time_remaining(self, HW):
         """Return exposure time remaining"""
-        rem = self.cams[int(HW)].get_exposure_timeleft()/1000
+        rem = self.cams[int(HW)].get_exposure_timeleft()/1000.
         return rem
     
     def get_camera_temp(self, temp_type, HW):
@@ -180,6 +196,11 @@ class FLI:
         rem = self.cams[int(HW)].get_cooler_power()
         return rem
     
+    def get_camera_serial_number(self,HW):
+       	"""Return camera unique serial number"""
+        ser = self.cams[int(HW)].serial_number
+       	return ser
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
@@ -187,7 +208,7 @@ class FLI:
     
     def prod(self):
         return
-
+    
     def status_function(self):
         return self.running
     
