@@ -67,7 +67,6 @@ def set_focuser(pos,HW_list):
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.set_focuser(pos,HW_list)
-        print pos, HW_list
         if c: print c
     except:
         print misc.ERROR('No response from focuser daemon')
@@ -126,20 +125,34 @@ def query(command):
             get_info_summary()
     
     elif command[0] == 'set':
-        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
-            set_focuser(int(command[2]),[int(command[1])])
-        else:
+        if len(command) == 2 and misc.is_num(command[1]):
             set_focuser(int(command[1]),params.TEL_DICT.keys())
+        elif len(command) == 3 and misc.is_num(command[2]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                set_focuser(int(command[2]),valid)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
     elif command[0] == 'move':
-        if len(command) > 2 and command[1] in str(params.TEL_DICT.keys()):
-            move_focuser(int(command[2]),[int(command[1])])
-        else:
+        if len(command) == 2 and misc.is_num(command[1]):
             move_focuser(int(command[1]),params.TEL_DICT.keys())
-    elif command[0] == 'home':
-        if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
-            home_focuser([int(command[1])])
+        elif len(command) == 3 and misc.is_num(command[2]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                move_focuser(int(command[2]),valid)
         else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'home':
+        if len(command) == 1:
             home_focuser(params.TEL_DICT.keys())
+        elif len(command) == 2:
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                home_focuser(valid)
+        else:
+            print misc.ERROR('Invalid arguments')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function

@@ -317,6 +317,27 @@ def adz(num):
         num = '0' + num
     return num
 
+def valid_ints(array, allowed):
+    valid = []
+    for i in array:
+        if i == '':
+            pass
+        elif not i.isdigit():
+            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
+        elif i not in [str(x) for x in params.TEL_DICT.keys()]:
+            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
+        elif int(i) not in valid:
+            valid += [int(i)]
+    valid.sort()
+    return valid
+
+def is_num(value):
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
+
 def remove_html_tags(data):
     p = re.compile(r'<.*?>')
     return p.sub('', data)

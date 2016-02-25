@@ -119,15 +119,25 @@ def query(command):
             get_info_summary()
     
     elif command[0] == 'set':
-        if command[1] in str(params.TEL_DICT.keys()):
-            set_filter(command[2].upper(),[int(command[1])])
-        else:
+        if len(command) == 2:
             set_filter(command[1].upper(),params.TEL_DICT.keys())
-    elif command[0] == 'home':
-        if len(command) > 1 and command[1] in str(params.TEL_DICT.keys()):
-            home_filter([int(command[1])])
+        elif len(command) == 3:
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                set_filter(command[2].upper(),valid)
         else:
-            home_filter(params.TEL_DICT.keys())
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'home':
+        if len(command) == 2:
+            home_filter(command[1].upper(),params.TEL_DICT.keys())
+        elif len(command) == 3:
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                home_filter(command[2].upper(),valid)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
     elif command[0] == 'list':
         print params.FILTER_LIST
 
