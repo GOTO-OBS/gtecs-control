@@ -125,10 +125,12 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     elif command[0] == 'info':
-        if len(command) > 1 and command[1] in ['v','V','-v','-V']:
+        if len(command) == 1:
+            get_info_summary()
+        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
             get_info()
         else:
-            get_info_summary()
+            print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'image':
         if len(command) < 4:
