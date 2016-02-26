@@ -82,11 +82,11 @@ DAEMONS = {
         'PYROID':   'cam_daemon',
         'PINGLIFE': 10.
         },
-    'queue':{ # exposure queue daemon
-        'PROCESS':  'queue_daemon.py',
+    'exq':{ # exposure queue daemon
+        'PROCESS':  'exq_daemon.py',
         'HOST':     HOST,
         'PORT':     9005,
-        'PYROID':   'queue_daemon',
+        'PYROID':   'exq_daemon',
         'PINGLIFE': 10.
         },
     'power':{ # hardware power daemon

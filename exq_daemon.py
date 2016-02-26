@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 ########################################################################
-#                           queue_daemon.py                            #
+#                            exq_daemon.py                             #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS daemon to control image acquisition queue           #
+#               G-TeCS daemon to control exposure queue                #
 #                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
@@ -24,7 +24,7 @@ from tecs_modules import misc
 from tecs_modules import params
 
 ########################################################################
-# Queue daemon functions
+# Exposure queue daemon functions
 class ExposureSpec:
     """
     Exposure specification class
@@ -147,9 +147,9 @@ class Queue(MutableSequence):
             s += '\n' + x.info()
         return s
 
-class QueueDaemon:
+class ExqDaemon:
     """
-    Queue daemon class
+    Exposure queue daemon class
     
     Contains 6 functions:
     - get_info()
@@ -165,7 +165,7 @@ class QueueDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('queue',params.LOGGING)
+        self.logfile = logger.Logfile('exq',params.LOGGING)
         self.logfile.log('Daemon started')
         
         ### function flags
@@ -173,7 +173,7 @@ class QueueDaemon:
         self.set_filter_flag = 0
         self.take_image_flag = 0
 
-        ### queue variables
+        ### exposure queue variables
         self.info = {}
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
@@ -187,18 +187,18 @@ class QueueDaemon:
         self.paused = 1 # start paused
         
         ### start control thread
-        t = threading.Thread(target=self.queue_thread)
+        t = threading.Thread(target=self.exq_thread)
         t.daemon = True
         t.start()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary queue thread
-    def queue_thread(self):
+    # Primary exposure queue thread
+    def exq_thread(self):
         
         while(self.running):
             self.time_check = time.time()
             
-            ### queue processes
+            ### exposure queue processes
             # connect to daemons
             CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
             cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -314,7 +314,7 @@ class QueueDaemon:
                         tel_list = self.tel_dict.keys()
                     cam.set_bins([bins,bins],tel_list) # Assumes symmetric for now
                     cam.set_spec(self.exp_spec.run_ID,self.exp_spec.target,self.exp_spec.imgtype)
-                    cam.take_image(exptime,frametype,tel_list)
+                    cam.take_image(exptime,tel_list)
                     self.working = 1
                     self.take_image_flag = 0
                 except:
@@ -322,13 +322,13 @@ class QueueDaemon:
             
             time.sleep(0.0001) # To save 100% CPU usage
             
-        self.logfile.log('Queue thread stopped')
+        self.logfile.log('Exposure queue thread stopped')
         return
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Queue functions
+    # Exposure queue functions
     def get_info(self):
-        """Return queue status info"""
+        """Return exposure queue status info"""
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
@@ -349,7 +349,7 @@ class QueueDaemon:
             return 'Added exposure to queue'
     
     def clear(self):
-        """Empty the queue"""
+        """Empty the exposure queue"""
         self.exp_queue.clear()
         return 'Queue cleared'
     
@@ -371,7 +371,7 @@ class QueueDaemon:
     # Other daemon functions
     def ping(self):
         dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['queue']['PINGLIFE']:
+        if dt_control > params.DAEMONS['exq']['PINGLIFE']:
             return 'Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
@@ -387,14 +387,14 @@ class QueueDaemon:
 
 ########################################################################
 # Create Pyro control server 
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['queue']['HOST'], port=params.DAEMONS['queue']['PORT'])
-queue_daemon = QueueDaemon()
+pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
+exq_daemon = ExqDaemon()
 
-uri = pyro_daemon.register(queue_daemon,objectId = params.DAEMONS['queue']['PYROID'])
-print 'Starting queue daemon at',uri
+uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
+print 'Starting exposure queue daemon at',uri
 
 Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=queue_daemon.status_function)
+pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
 
-print 'Exiting queue daemon'
+print 'Exiting exposure queue daemon'
 time.sleep(1.)

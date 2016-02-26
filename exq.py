@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 ########################################################################
-#                               queue.py                               #
+#                                exq.py                                #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#          G-TeCS script to provide control over queue_daemon          #
+#           G-TeCS script to provide control over exq_daemon           #
 #                    Martin Dyer, Sheffield, 2015-16                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
@@ -21,12 +21,12 @@ from tecs_modules import misc
 from tecs_modules import params
 
 ########################################################################
-# Queue control functions
+# Exposure queue control functions
 def get_info():
-    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
-    queue._pyroTimeout = params.PROXY_TIMEOUT
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = queue.get_info()
+        info = exq.get_info()
         print '####### QUEUE INFO #######'
         print 'Status: %s' %info['status']
         print '~~~~~~~'
@@ -43,13 +43,13 @@ def get_info():
         print 'Timestamp: %s' %info['timestamp']
         print '###########################'
     except:
-        print 'ERROR: No response from queue daemon'
+        print 'ERROR: No response from exposure queue daemon'
 
 def get_info_summary():
-    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
-    queue._pyroTimeout = params.PROXY_TIMEOUT
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = queue.get_info()
+        info = exq.get_info()
         print 'QUEUE: [%s]' %info['status']
         print '  Current exposure:',
         try:
@@ -59,47 +59,47 @@ def get_info_summary():
             print 'None'
         print '  Items in queue: %s' %info['queue_length']
     except:
-        print 'ERROR: No response from queue daemon'
+        print 'ERROR: No response from exposure queue daemon'
 
 def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
-    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
-    queue._pyroTimeout = params.PROXY_TIMEOUT
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
     if filt.upper() not in params.FILTER_LIST:
         print 'Filter needs to be one of', params.FILTER_LIST
         return
     if tel not in params.TEL_DICT.keys()+[0]:
         print 'Invalid tel number'
         return
-    if 1:#try:
-        c = queue.add(exptime,filt,tel,bins,frametype,target,imgtype)
+    try:
+        c = exq.add(exptime,filt,tel,bins,frametype,target,imgtype)
         if c: print c
-    #except:
-     #   print 'ERROR: No response from queue daemon'
+    except:
+        print 'ERROR: No response from exposure queue daemon'
 
 def pause():
-    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
-    queue._pyroTimeout = params.PROXY_TIMEOUT
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = queue.pause()
+        c = exq.pause()
         if c: print c
     except:
-        print 'ERROR: No response from queue daemon'
+        print 'ERROR: No response from exposure queue daemon'
 
 def resume():
-    queue = Pyro4.Proxy(QUEUE_DAEMON_ADDRESS)
-    queue._pyroTimeout = params.PROXY_TIMEOUT
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        c = queue.resume()
+        c = exq.resume()
         if c: print c
     except:
-        print 'ERROR: No response from queue daemon'
+        print 'ERROR: No response from exposure queue daemon'
 
 
 ########################################################################
 # Interactive mode
 def interactive():
     while True:
-        command = split(raw_input('queue> '))
+        command = split(raw_input('exq> '))
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
@@ -110,13 +110,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST,stdout=QUEUE_DAEMON_OUTPUT)
+        misc.start_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST,stdout=EXQ_DAEMON_OUTPUT)
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(QUEUE_DAEMON_ADDRESS)
+        misc.shutdown_daemon(EXQ_DAEMON_ADDRESS)
     elif command[0] == 'kill':
-        misc.kill_daemon(QUEUE_DAEMON_PROCESS,QUEUE_DAEMON_HOST)
+        misc.kill_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST)
     elif command[0] == 'ping':
-        misc.ping_daemon(QUEUE_DAEMON_ADDRESS)
+        misc.ping_daemon(EXQ_DAEMON_ADDRESS)
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
@@ -152,24 +152,24 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print 'queue> Command not recognized:',command[0]
+        print 'exq> Command not recognized:',command[0]
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' queue [command]' + '\n' +\
+    help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  queue ' + misc.bold('start') + '          - start the daemon' + '\n' +\
-    '  queue ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
-    '  queue ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  queue ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Queue commands') + ':' + '\n' +\
-    '  queue ' + misc.bold('image') + ' [exptime] [filter] [bins] [object] [imgtype]' + '\n' +\
-    '  queue ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
-    '  queue ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
-    '  queue ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    '  exq ' + misc.bold('start') + '          - start the daemon' + '\n' +\
+    '  exq ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  exq ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
+    '  exq ' + misc.bold('image') + ' [exptime] [filter] [bins] [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
+    '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
+    '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  queue ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
-    '  queue ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
-    '  queue ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    '  exq ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  exq ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  exq ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
     print help_str
     
 ########################################################################
@@ -178,10 +178,10 @@ def print_instructions():
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    QUEUE_DAEMON_PROCESS = params.DAEMONS['queue']['PROCESS']
-    QUEUE_DAEMON_HOST = params.DAEMONS['queue']['HOST']
-    QUEUE_DAEMON_ADDRESS = params.DAEMONS['queue']['ADDRESS']
-    QUEUE_DAEMON_OUTPUT = params.LOG_PATH + 'queue_daemon-stdout.log'
+    EXQ_DAEMON_PROCESS = params.DAEMONS['exq']['PROCESS']
+    EXQ_DAEMON_HOST = params.DAEMONS['exq']['HOST']
+    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
+    EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
     
     command = sys.argv[1:]
     if command[0] == 'i':
