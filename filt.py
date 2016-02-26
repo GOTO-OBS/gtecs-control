@@ -131,12 +131,12 @@ def query(command):
             print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'home':
-        if len(command) == 2:
-            home_filter(command[1].upper(),params.TEL_DICT.keys())
-        elif len(command) == 3:
+        if len(command) == 1:
+            home_filter(params.TEL_DICT.keys())
+        elif len(command) == 2:
             valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
             if len(valid) > 0:
-                home_filter(command[2].upper(),valid)
+                home_filter(valid)
         else:
             print misc.ERROR('Invalid arguments')
     
