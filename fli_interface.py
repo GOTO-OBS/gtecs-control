@@ -16,10 +16,10 @@ import time
 import Pyro4
 import threading
 import numpy
+import socket
 # FLI modules
-from fliapi import FakeFocuser
-from fliapi import FakeFilterWheel
-from fliapi import FakeCamera
+from fliapi import USBCamera, USBFocuser, USBFilterWheel
+from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
@@ -64,10 +64,32 @@ class FLI:
     def __init__(self):
         self.running = True
         
-        ### fli variables
-        self.focs = [FakeFocuser('device1','serial1'), FakeFocuser('device2','serial2')]
-        self.filts = [FakeFilterWheel('device1','serial1'), FakeFilterWheel('device2','serial2')]
-        self.cams = [FakeCamera('device1','serial1'), FakeCamera('device2','serial2')]
+        ### find interface params
+        self.hostname = socket.gethostname()
+        for nuc in params.FLI_INTERFACES.keys():
+            if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
+                self.nuc = nuc
+        
+        ### fli objects
+        self.cams = []
+        self.focs = []
+        self.filts = []
+        for HW in range(len(params.FLI_INTERFACES[self.nuc]['TELS'])):
+            # cameras
+            cam_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['cam'][HW]
+            cam = USBCamera.locate_device(cam_serial)
+            if cam == None: cam = FakeCamera('fake','Fake-Cam')
+            self.cams.append(cam)
+            # focusers
+            foc_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['foc'][HW]
+            foc = USBFocuser.locate_device(foc_serial)
+            if foc == None: foc = FakeFocuser('fake','Fake-Foc')
+            self.focs.append(foc)
+            # filter wheels
+            filt_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['filt'][HW]
+            filt = USBFilterWheel.locate_device(filt_serial)
+            if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
+            self.filts.append(filt)
         
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
@@ -217,11 +239,8 @@ class FLI:
 
 ########################################################################
 # Create Pyro control server
-
-#IP = Pyro4.socketutil.getIpAddress('eddie')
-IP = 'eddie'
-
-pyro_daemon = Pyro4.Daemon(host=IP, port=9010)
+hostname = socket.gethostname()
+pyro_daemon = Pyro4.Daemon(host=hostname, port=9010)
 fli_daemon = FLI()
 
 uri = pyro_daemon.register(fli_daemon, 'fli_interface')

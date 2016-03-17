@@ -29,6 +29,8 @@ if HOST == 'eddie': # MJD's laptop
     TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
 elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
     TECS_PATH = '/home/mdyer/g-tecs/'
+else:
+    TECS_PATH = '/home/goto/g-tecs/'
 
 SCRIPT_PATH = TECS_PATH
 CONFIG_PATH = TECS_PATH
@@ -109,19 +111,29 @@ for key in DAEMONS:
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
 
 FLI_INTERFACES = {
-    'eddie1':{ # for unit telescopes 1 and 2
-        'PROCESS':  'fli_interface.py',
-        'HOST':     'eddie',
-        'PORT':     9010,
-        'PYROID':   'fli_interface',
-        'TELS':      [1,2],
-        },
-    'eddie2':{ # for unit telescopes 3 and 4
-        'PROCESS':  'fli_interfaceB.py',
-        'HOST':     'eddie',
-        'PORT':     9020,
-        'PYROID':   'fli_interfaceB',
-        'TELS':      [3,4],
+    'nuc1':{ # for unit telescopes 1 and 2
+        'PROCESS': 'fli_interface.py',
+        'HOST':    HOST,
+        'PORT':    9010,
+        'PYROID':  'fli_interface',
+        'TELS':    [1,2],
+        'SERIALS': {
+            'cam': ['ML0330316', 'fake'],
+            'foc': ['AT0023215', 'fake'],
+            'filt':['CFW-9-5:1-3', 'fake']
+            }
+#        },
+#    'nuc2':{ # for unit telescopes 3 and 4
+#        'PROCESS':  'fli_interfaceB.py',
+#        'HOST':     HOST,
+#        'PORT':     9020,
+#        'PYROID':   'fli_interfaceB',
+#        'TELS':      [3,4],
+#        'SERIALS': {
+#            'cam': ['fake', 'fake'],
+#            'foc': ['fake', 'fake'],
+#            'filt':['fake', 'fake']
+#            }
         }
     }
 
