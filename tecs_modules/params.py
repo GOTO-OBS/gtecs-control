@@ -27,6 +27,8 @@ TELESCOP = "GOTO_sim" # "the telescope used", will be appended with details (e.g
 HOST = socket.gethostname()
 if HOST == 'eddie': # MJD's laptop
     TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
+elif HOST == 'janus': # MJD's desktop
+    TECS_PATH = '/local/mjd/backed_up_on_astro3/g-tecs/'
 elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
     TECS_PATH = '/home/mdyer/g-tecs/'
 else:
