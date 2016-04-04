@@ -22,26 +22,13 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
-        daemons = ['queue','cam','filt','foc','mnt','power']
+        daemons = params.DAEMONS.keys()
     while True:
-        queue = misc.python_command('queueX.py', 'info')
-        cam = misc.python_command('cam.py', 'info')
-        filt = misc.python_command('filt.py', 'info')
-        foc = misc.python_command('foc.py', 'info')
-        mnt = misc.python_command('mnt.py', 'info')
-        power = misc.python_command('power.py', 'info')
+        s = ''
+        for d in daemons:
+            s += misc.python_command(d+'.py', 'info') + '\n'
         now = datetime.datetime.utcnow()
+        print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
-        if 'queue' in daemons:
-            print queue
-        if 'cam' in daemons:
-            print cam
-        if 'filt' in daemons:
-            print filt
-        if 'foc' in daemons:
-            print foc
-        if 'mnt' in daemons:
-            print mnt
-        if 'power' in daemons:
-            print power
+        print s
         time.sleep(0.5)
