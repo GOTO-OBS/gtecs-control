@@ -43,7 +43,7 @@ def get_info():
         print 'Timestamp: %s' %info['timestamp']
         print '###########################'
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def get_info_summary():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -59,7 +59,7 @@ def get_info_summary():
             print 'None'
         print '  Items in queue: %s' %info['queue_length']
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -83,7 +83,7 @@ def pause():
         c = exq.pause()
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def resume():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -92,7 +92,7 @@ def resume():
         c = exq.resume()
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 
 ########################################################################
@@ -120,7 +120,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
