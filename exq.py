@@ -72,6 +72,35 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     except:
         print misc.ERROR('No response from exposure queue daemon')
 
+def take_dark(tel_list,exptime,bins):
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    
+    filt = params.DARKFILT
+    frametype = 'dark'
+    target = 'N/A'
+    imgtype = 'DARK'
+    try:
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def take_bias(tel_list,bins):
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    
+    exptime = params.BIASEXP
+    filt = params.DARKFILT
+    frametype = 'dark'
+    target = 'N/A'
+    imgtype = 'BIAS'
+    try:
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
 def pause():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
@@ -160,6 +189,38 @@ def query(command):
         else:
             print misc.ERROR('Invalid arguments')
     
+    elif command[0] == 'dark':
+        ## all tells
+        # dark exptime bins
+        if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
+            take_dark(params.TEL_DICT.keys(),float(command[1]),int(command[2]))
+        
+        ## some tels
+        # dark TELS exptime bins
+        elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                take_dark(valid,float(command[2]),int(command[3]))
+        ## else
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'bias':
+        ## all tells
+        # bias bins
+        if len(command) == 2 and misc.is_num(command[1]):
+            take_bias(params.TEL_DICT.keys(),int(command[1]))
+        
+        ## some tels
+        # bias TELS bins
+        elif len(command) == 3 and misc.is_num(command[2]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                take_bias(valid,int(command[2]))
+        ## else
+        else:
+            print misc.ERROR('Invalid arguments')
+    
     elif command[0] == 'pause':
         pause()
     elif command[0] == 'resume' or command[0] == 'unpause':
@@ -179,6 +240,8 @@ def print_instructions():
     '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
     ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
     '  exq ' + misc.bold('image') + ' [tels] exptime filter bins [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('dark') + '  [tels] exptime bins' + '\n' +\
+    '  exq ' + misc.bold('bias') + '  [tels] bins' + '\n' +\
     '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
     '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
     '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
