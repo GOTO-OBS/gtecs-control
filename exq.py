@@ -119,6 +119,32 @@ def resume():
     except:
         print misc.ERROR('No response from exposure queue daemon')
 
+def get_queue():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        queue_list = exq.get()
+        print queue_list
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def get_queue_summary():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        queue_list = exq.get_simple()
+        print queue_list
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def clear():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        c = exq.clear()
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
 
 ########################################################################
 # Interactive mode
@@ -225,6 +251,15 @@ def query(command):
         pause()
     elif command[0] == 'resume' or command[0] == 'unpause':
         resume()
+    elif command[0] == 'get' or command[0] == 'list' or command[0] == 'ls':
+        if len(command) == 1:
+            get_queue_summary()
+        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+            get_queue()
+        else:
+            print misc.ERROR('Invalid arguments')
+    elif command[0] == 'clear':
+        clear()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -244,6 +279,8 @@ def print_instructions():
     '  exq ' + misc.bold('bias') + '  [tels] bins' + '\n' +\
     '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
     '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
+    '  exq ' + misc.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
+    '  exq ' + misc.bold('clear') + '          - empty the queue' + '\n' +\
     '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  exq ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\

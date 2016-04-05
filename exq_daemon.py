@@ -140,19 +140,25 @@ class Queue(MutableSequence):
         """Add an item to the queue at a specified position"""
         self.data.insert(index,value)
         self.write_to_file()
-
+    
     def clear(self):
         """Empty the current queue and queue file"""
         self.data = []
         self.write_to_file()
-
+    
     def get(self):
         """Return info() for all exposures in the queue"""
-        n = len(self.data)
-        s ='%i items in queue\n' %n
+        s ='%i items in queue:\n' %len(self.data)
         for x in self.data:
-            s += '\n' + x.info()
-        return s
+            s += x.info()
+        return s.rstrip()
+    
+    def get_simple(self):
+        """Return string for all exposures in the queue"""
+        s ='%i items in queue:\n' %len(self.data)
+        for x in self.data:
+            s += x.spec_to_line()
+        return s.rstrip()
 
 class ExqDaemon:
     """
@@ -361,6 +367,10 @@ class ExqDaemon:
     def get(self):
         """Return info on exposures in the queue"""
         return self.exp_queue.get()
+    
+    def get_simple(self):
+        """Return simple info on exposures in the queue"""
+        return self.exp_queue.get_simple()
     
     def pause(self):
         """Pause the queue"""
