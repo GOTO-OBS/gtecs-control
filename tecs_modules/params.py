@@ -166,7 +166,8 @@ FILTER_LIST = ['L','R','G','B','C']
 
 # Camera parameters
 FRAMETYPE_LIST = ['normal','dark','rbi_flush']
-BIASEXP = 0.05 #seconds, as an example
+DARKFILT = 'C' #as an example
+BIASEXP = 0.1 #seconds, as an example
 
 # Queue parameters
 QUEUE_PATH = TECS_PATH
