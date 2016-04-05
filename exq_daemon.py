@@ -18,6 +18,7 @@ import threading
 import os, sys, commands
 from string import split,find
 from collections import MutableSequence
+import ast
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
@@ -36,20 +37,20 @@ class ExposureSpec:
     
     Exposures contain the folowing infomation:
     - run ID      [int] <automatically assigned>
+    - tel_list    [lst] -- REQUIRED --
     - exptime     [int] -- REQUIRED --
     - filter      [str] -- REQUIRED --
-    - tel         [int] <default = 0 (all)>
     - bin factor  [int] <default = 1>
     - frame type  [str] <default = 'normal'>
     - target      [str] <default = 'N/A'>
     - image type  [str] <default = 'SCIENCE'>
     """
-    def __init__(self,run_ID,exptime,filt,tel=0,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def __init__(self,run_ID,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         self.creation_time = time.gmtime()
         self.run_ID = run_ID
+        self.tel_list = tel_list
         self.exptime = exptime
         self.filt = filt
-        self.tel = tel
         self.bins = bins
         self.frametype = frametype
         self.target = target
@@ -58,24 +59,30 @@ class ExposureSpec:
     @classmethod
     def line_to_spec(cls,line):
         """Convert a line of data to exposure spec object"""
-        run_ID, exptime, filt, tel, bins, frametype, target, imgtype = line.split(',')
-        exp = cls(int(run_ID),int(exptime),filt,int(tel),int(bins),frametype,target,imgtype)
+        # eg '00033;[1, 2, 4];20;R;2;normal;N/A;SCIENCE'
+        ls = line.split(';')
+        run_ID = int(ls[0])
+        tel_list = ast.literal_eval(ls[1])
+        exptime = float(ls[2])
+        filt = ls[3]
+        bins = int(ls[4])
+        frametype = ls[5]
+        target = ls[6]
+        imgtype = ls[7]
+        exp = cls(run_ID,tel_list,exptime,filt,bins,frametype,target,imgtype)
         return exp
     
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
-        line = '%i, %i, %s, %i, %i, %s, %s, %s\n'\
-           %(self.run_ID, self.exptime, self.filt, self.tel, self.bins, self.frametype, self.target, self.imgtype)
+        line = '%05d;%s;%.1f;%s;%i;%s;%s;%s\n'\
+           %(self.run_ID,self.tel_list,self.exptime,self.filt,self.bins,self.frametype,self.target,self.imgtype)
         return line
     
     def info(self):
         """Return a readable string of summary infomation about the exposure"""
-        s = 'RUN NUMBER %i\n' %self.run_ID
+        s = 'RUN NUMBER %05d\n' %self.run_ID
         s += '  '+time.strftime('%Y-%m-%d %H:%M:%S UT',self.creation_time)+'\n'
-        if self.tel == 0:
-            s += '  Unit telescope(s): ALL\n' %self.tel
-        else:
-            s += '  Unit telescope(s): %i\n' %self.tel
+        s += '  Unit telescope(s): %s\n' %self.tel_list
         s += '  Exposure time: %is\n' %self.exptime
         s += '  Filter: %s\n' %self.filt
         s += '  Bins: %i\n' %self.bins
@@ -104,7 +111,7 @@ class Queue(MutableSequence):
             f.close()
         
         with open(self.queue_file) as f:
-            lines = f.readlines()
+            lines = f.read().splitlines()
             for line in lines:
                 if not line.startswith('#'):
                     self.data.append(ExposureSpec.line_to_spec(line))
@@ -247,9 +254,7 @@ class ExqDaemon:
             if self.current_ID != None:
                 # set the filter
                 if not self.working:
-                    tel_list = [self.exp_spec.tel]
-                    if tel_list == [0]:
-                        tel_list = self.tel_dict.keys()
+                    tel_list = self.exp_spec.tel_list
                     for tel in tel_list:
                         current_filter = self.flist[filt.get_info()['current_filter_num'+str(tel)]]
                         if current_filter != self.exp_spec.filt: # only needs to be true for one of the active tels
@@ -275,9 +280,9 @@ class ExqDaemon:
                 info['queue_length'] = self.queue_len
                 if self.working and self.exp_spec != None:
                     info['current_run_ID'] = self.exp_spec.run_ID
+                    info['current_tel_list'] = self.exp_spec.tel_list
                     info['current_exptime'] = self.exp_spec.exptime
                     info['current_filter'] = self.exp_spec.filt
-                    info['current_tel'] = self.exp_spec.tel
                     info['current_bins'] = self.exp_spec.bins
                     info['current_frametype'] = self.exp_spec.frametype
                     info['current_target'] = self.exp_spec.target
@@ -292,10 +297,8 @@ class ExqDaemon:
             # set filter
             if(self.set_filter_flag):
                 new_filt = self.exp_spec.filt
-                tel_list = [self.exp_spec.tel]
+                tel_list = self.exp_spec.tel_list
                 try:
-                    if tel_list == [0]:
-                        tel_list = self.tel_dict.keys()
                     filt.set_filter(new_filt,tel_list)
                     self.current_filter = new_filt
                     self.working = 1
@@ -308,10 +311,8 @@ class ExqDaemon:
                 bins = self.exp_spec.bins
                 exptime = self.exp_spec.exptime
                 frametype = self.exp_spec.frametype
-                tel_list = [self.exp_spec.tel]
+                tel_list = self.exp_spec.tel_list
                 try:
-                    if tel_list == [0]:
-                        tel_list = self.tel_dict.keys()
                     cam.set_bins([bins,bins],tel_list) # Assumes symmetric for now
                     cam.set_spec(self.exp_spec.run_ID,self.exp_spec.target,self.exp_spec.imgtype)
                     cam.take_image(exptime,tel_list)
@@ -333,20 +334,24 @@ class ExqDaemon:
         time.sleep(0.1)
         return self.info
     
-    def add(self,exptime,filt,tel=0,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         """Add an exposure to the queue"""
-        # Find run number
+        # check if valid
+        if filt.upper() not in self.flist:
+            return 'ERROR: Filter not in list %s' %str(self.flist)
+        
+        # find and update run number
         with open(self.run_number_file,) as f:
             lines = f.readlines()
             new_run_ID = int(lines[0]) + 1
         with open(self.run_number_file,'w') as f:
             f.write(str(new_run_ID))
-            
-        self.exp_queue.append(ExposureSpec(new_run_ID,exptime,filt.upper(),tel,bins,frametype,target,imgtype))
+        
+        self.exp_queue.append(ExposureSpec(new_run_ID,tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
         if(self.paused):
-            return 'Added exposure to queue, queue is currently paused'
+            return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
         else:
-            return 'Added exposure to queue'
+            return 'Added exposure, now %i items in queue' %len(self.exp_queue)
     
     def clear(self):
         """Empty the exposure queue"""

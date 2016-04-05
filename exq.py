@@ -61,20 +61,16 @@ def get_info_summary():
     except:
         print misc.ERROR('No response from exposure queue daemon')
 
-def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    if filt.upper() not in params.FILTER_LIST:
-        print 'Filter needs to be one of', params.FILTER_LIST
-        return
-    if tel not in params.TEL_DICT.keys()+[0]:
-        print 'Invalid tel number'
-        return
+    
+    frametype = 'normal'
     try:
-        c = exq.add(exptime,filt,tel,bins,frametype,target,imgtype)
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def pause():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -133,17 +129,37 @@ def query(command):
             print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'image':
-        if len(command) < 4:
-            print 'ERROR: need at least telescopes, exptime and filter and bins'
+        ## all tells
+        # image exptime filter bins
+        if len(command) == 4 and misc.is_num(command[1]) and misc.is_num(command[3]):
+            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]))
+        # image exptime filter bins object
+        elif len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[3]):
+            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]),command[4])
+        # image exptime filter bins object imgtype
+        elif len(command) == 6 and misc.is_num(command[1]) and misc.is_num(command[3]):
+            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]),command[4],command[5])
+        
+        ## some tels
+        # image TELS exptime filter bins
+        elif len(command) == 5 and misc.is_num(command[2]) and misc.is_num(command[4]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                take_image(valid,float(command[2]),command[3],int(command[4]))
+        # image TELS exptime filter bins object
+        elif len(command) == 6 and misc.is_num(command[2]) and misc.is_num(command[4]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                take_image(valid,float(command[2]),command[3],int(command[4]),command[5])
+        # image TELS exptime filter bins object imgtype
+        elif len(command) == 7 and misc.is_num(command[2]) and misc.is_num(command[4]):
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            if len(valid) > 0:
+                take_image(valid,float(command[2]),command[3],int(command[4]),command[5],command[6])
+        ## else
         else:
-            if len(command) == 5:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]))
-            elif len(command) == 6:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5])
-            elif len(command) == 7:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6])
-            elif len(command) == 8:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6],command[7])
+            print misc.ERROR('Invalid arguments')
+    
     elif command[0] == 'pause':
         pause()
     elif command[0] == 'resume' or command[0] == 'unpause':
@@ -162,7 +178,7 @@ def print_instructions():
     '  exq ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
     ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
-    '  exq ' + misc.bold('image') + ' [exptime] [filter] [bins] [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('image') + ' [tels] exptime filter bins [object] [imgtype]' + '\n' +\
     '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
     '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
     '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
