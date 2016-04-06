@@ -184,66 +184,156 @@ def query(command):
             print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'image':
-        ## all tells
-        # image exptime filter bins
-        if len(command) == 4 and misc.is_num(command[1]) and misc.is_num(command[3]):
-            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]))
-        # image exptime filter bins object
-        elif len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[3]):
-            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]),command[4])
-        # image exptime filter bins object imgtype
-        elif len(command) == 6 and misc.is_num(command[1]) and misc.is_num(command[3]):
-            take_image(params.TEL_DICT.keys(),float(command[1]),command[2],int(command[3]),command[4],command[5])
-        
-        ## some tels
-        # image TELS exptime filter bins
-        elif len(command) == 5 and misc.is_num(command[2]) and misc.is_num(command[4]):
+        if len(command) < 4:
+            print misc.ERROR('Need at least: exptime filter bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[3]):
+            # exptime filter bins [object] [imgtype]
+            exptime = float(command[1])
+            filt = command[2]
+            bins = int(command[3])
+            if len(command) == 4:
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins)
+            elif len(command) == 5:
+                target = command[4]
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins,target)
+            elif len(command) == 6:
+                target = command[4]
+                imgtype = command[5]
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins,target,imgtype)
+        elif misc.is_num(command[2]) and misc.is_num(command[4]):
+            # tels exptime filter bins [object] [imgtype]
             valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
-            if len(valid) > 0:
-                take_image(valid,float(command[2]),command[3],int(command[4]))
-        # image TELS exptime filter bins object
-        elif len(command) == 6 and misc.is_num(command[2]) and misc.is_num(command[4]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
-            if len(valid) > 0:
-                take_image(valid,float(command[2]),command[3],int(command[4]),command[5])
-        # image TELS exptime filter bins object imgtype
-        elif len(command) == 7 and misc.is_num(command[2]) and misc.is_num(command[4]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
-            if len(valid) > 0:
-                take_image(valid,float(command[2]),command[3],int(command[4]),command[5],command[6])
-        ## else
+            exptime = float(command[2])
+            filt = command[3]
+            bins = int(command[4])
+            if len(command) == 5 and len(valid) > 0:
+                take_image(valid,exptime,filt,bins)
+            elif len(command) == 6 and len(valid) > 0:
+                target = command[5]
+                take_image(valid,exptime,filt,bins,target)
+            elif len(command) == 7 and len(valid) > 0:
+                target = command[5]
+                imgtype = command[6]
+                take_image(valid,exptime,filt,bins,target,imgtype)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multimage':
+        if len(command) < 5:
+            print misc.ERROR('Need at least: Nexp exptime filter bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[4]):
+            # Nexp exptime filter bins [object] [imgtype]
+            Nexp = int(command[1])
+            exptime = float(command[2])
+            filt = command[3]
+            bins = int(command[4])
+            if len(command) == 5:
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins)
+            elif len(command) == 6:
+                target = command[5]
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins,target)
+            elif len(command) == 7:
+                target = command[5]
+                imgtype = command[6]
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins,target,imgtype)
+        elif misc.is_num(command[1]) and misc.is_num(command[3]) and misc.is_num(command[5]):
+            # Nexp tels exptime filter bins [object] [imgtype]
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            exptime = float(command[3])
+            filt = command[4]
+            bins = int(command[5])
+            if len(command) == 6 and len(valid) > 0:
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins)
+            elif len(command) == 7 and len(valid) > 0:
+                target = command[6]
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins,target)
+            elif len(command) == 8 and len(valid) > 0:
+                target = command[6]
+                imgtype = command[7]
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins,target,imgtype)
         else:
             print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'dark':
-        ## all tells
-        # dark exptime bins
-        if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
-            take_dark(params.TEL_DICT.keys(),float(command[1]),int(command[2]))
-        
-        ## some tels
-        # dark TELS exptime bins
-        elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]):
+        if len(command) < 3:
+            print misc.ERROR('Need at least: exptime bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[2]) and len(command) == 3:
+            # exptime bins
+            exptime = float(command[1])
+            bins = int(command[2])
+            take_dark(params.TEL_DICT.keys(),exptime,bins)
+        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+            # tels exptime bins
             valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            exptime = float(command[2])
+            bins = int(command[3])
             if len(valid) > 0:
-                take_dark(valid,float(command[2]),int(command[3]))
-        ## else
+                take_dark(valid,exptime,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multdark':
+        if len(command) < 4:
+            print misc.ERROR('Need at least: exptime bins')
+        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+            # Nexp exptime bins
+            Nexp = int(command[1])
+            exptime = float(command[2])
+            bins = int(command[3])
+            for i in range(Nexp):
+                take_dark(params.TEL_DICT.keys(),exptime,bins)
+        elif misc.is_num(command[3]) and misc.is_num(command[4]) and len(command) == 5:
+            # Nexp tels exptime bins
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            exptime = float(command[3])
+            bins = int(command[4])
+            if len(valid) > 0:
+                for i in range(Nexp):
+                    take_dark(valid,exptime,bins)
         else:
             print misc.ERROR('Invalid arguments')
     
     elif command[0] == 'bias':
-        ## all tells
-        # bias bins
-        if len(command) == 2 and misc.is_num(command[1]):
-            take_bias(params.TEL_DICT.keys(),int(command[1]))
-        
-        ## some tels
-        # bias TELS bins
-        elif len(command) == 3 and misc.is_num(command[2]):
+        if len(command) < 2:
+            print misc.ERROR('Need at least: bins')
+        elif misc.is_num(command[1]) and len(command) == 2:
+            # bins
+            bins = int(command[1])
+            take_bias(params.TEL_DICT.keys(),bins)
+        elif misc.is_num(command[2]) and len(command) == 3:
+            # tels bins
             valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            bins = int(command[2])
             if len(valid) > 0:
-                take_bias(valid,int(command[2]))
-        ## else
+                take_bias(valid,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multbias':
+        if len(command) < 3:
+            print misc.ERROR('Need at least: bins')
+        elif misc.is_num(command[2]) and len(command) == 3:
+            # Nexp bins
+            Nexp = int(command[1])
+            bins = int(command[2])
+            for i in range(Nexp):
+                take_bias(params.TEL_DICT.keys(),bins)
+        elif misc.is_num(command[3]) and len(command) == 4:
+            # Nexp tels bins
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            bins = int(command[3])
+            if len(valid) > 0:
+                for i in range(Nexp):
+                    take_bias(valid,bins)
         else:
             print misc.ERROR('Invalid arguments')
     
@@ -275,8 +365,11 @@ def print_instructions():
     '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
     ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
     '  exq ' + misc.bold('image') + ' [tels] exptime filter bins [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('multimage') + ' Nexp [tels] exptime filter bins [object] [imgtype]' + '\n' +\
     '  exq ' + misc.bold('dark') + '  [tels] exptime bins' + '\n' +\
+    '  exq ' + misc.bold('multdark') + ' Nexp [tels] exptime bins' + '\n' +\
     '  exq ' + misc.bold('bias') + '  [tels] bins' + '\n' +\
+    '  exq ' + misc.bold('multbias') + ' Nexp [tels] bins' + '\n' +\
     '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
     '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
     '  exq ' + misc.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
