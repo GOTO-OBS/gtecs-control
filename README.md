@@ -4,12 +4,12 @@
 
 Each piece of hardware making up the telescope (mount, camera, dome etc) gets its own daemon, through which commands are sent to the hardware. When running each daemon contains a control thread which loops continuously in order to catch any incoming commands. When a command is sent to the daemon an internal flag is set, this is caught by the control thread and the relevant command will be issued to the hardware. Under this system every command is instantaneous and designed to return immediately, meaning it can always be interrupted in case of emergency. Each hardware daemon (e.g. *cam_daemon.py*) currently has its own control script (e.g. *cam.py*), which is used to start and shutdown the daemon and issue commands to it via the terminal. 
 
-The scripts and daemons communicate using PyRO (Python Remote Objects) commands (https://pythonhosted.org/Pyro4/), a very flexible system that allows any combination of daemons to be controlled from one command script (as is currently done with the queue daemon) and commands to be issued to different computers over the network (even on different operating systems, such as with the sitech daemon).
+The scripts and daemons communicate using PyRO (Python Remote Objects) commands (https://pythonhosted.org/Pyro4/), a very flexible system for calling objects and functions from other Python scripts. A daemon script is made into a 'server' which publishes its commands and objects for any script on the network to use. It allows daemon functions to be controlled from multiple command scripts and for commands to be issued to different computers over the network (via the "interface" daemons), even on different operating systems (as with the SiTech interface).
 
 At the moment there are 7 primary daemons:
 * *cam* - to control the FLI camera (called *ccd* for SLODAR and *qsi* for pt5m)
 * *filt* - to control the FLI filter wheel attached to the camera (previously built into *qsi*)
- * *queue* - to control the exposure queue, sends orders to the above two daemons (previously part of *qsi*)
+ * *exq* (queue) - to control the exposure queue, sends orders to the above two daemons (previously part of *qsi*)
 * *foc* - to control the FLI focuser attached to the camera
 * *mnt* (mount) - to control the SiTech mount (called *tel* for pt5m)
 * *dome* - to control the AstroHaven dome
@@ -36,4 +36,4 @@ The *tecs_modules* folder contains several common modules and control classes:
 The daemons will be controlled by an overall script called the pilot, which sends orders to each daemon and is in charge of monitoring the weather via the conditions monitor, as well as startup and shutdown at the beginning and end of the night. This has not yet been developed for G-TeCS.
 
 Martin Dyer
-Last update: 15 Jan 2016
+Last update: 26 Feb 2016

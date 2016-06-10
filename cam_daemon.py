@@ -475,15 +475,14 @@ class CamDaemon:
         now = datetime.datetime.utcnow()
         if now.hour < 12: now = now - datetime.timedelta(days=1)
         night = now.strftime("%Y-%m-%d")
+        if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
         direc = params.IMAGE_PATH + night
         if not os.path.exists(direc): os.mkdir(direc)
         # Find the run number, for the file name
-        print 'SPEC',self.run_ID,self.spec_flag
         if self.spec_flag == 1:
             filename = '/r%05i_ut%i.fits'%(self.run_ID,tel)
         else:
             filename = '/man_ut%i.fits'%tel
-        print direc + filename
         return direc + filename
     
     def write_fits(self,image,filename,tel):

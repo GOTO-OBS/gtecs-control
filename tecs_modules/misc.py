@@ -333,7 +333,7 @@ def valid_ints(array, allowed):
 
 def is_num(value):
     try:
-        int(value)
+        float(value)
         return True
     except ValueError:
         return False

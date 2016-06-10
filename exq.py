@@ -43,7 +43,7 @@ def get_info():
         print 'Timestamp: %s' %info['timestamp']
         print '###########################'
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def get_info_summary():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -59,22 +59,47 @@ def get_info_summary():
             print 'None'
         print '  Items in queue: %s' %info['queue_length']
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
-def take_image(tel,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    if filt.upper() not in params.FILTER_LIST:
-        print 'Filter needs to be one of', params.FILTER_LIST
-        return
-    if tel not in params.TEL_DICT.keys()+[0]:
-        print 'Invalid tel number'
-        return
+    
+    frametype = 'normal'
     try:
-        c = exq.add(exptime,filt,tel,bins,frametype,target,imgtype)
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
+
+def take_dark(tel_list,exptime,bins):
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    
+    filt = params.DARKFILT
+    frametype = 'dark'
+    target = 'N/A'
+    imgtype = 'DARK'
+    try:
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def take_bias(tel_list,bins):
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    
+    exptime = params.BIASEXP
+    filt = params.DARKFILT
+    frametype = 'dark'
+    target = 'N/A'
+    imgtype = 'BIAS'
+    try:
+        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
 
 def pause():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -83,7 +108,7 @@ def pause():
         c = exq.pause()
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
 def resume():
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
@@ -92,8 +117,34 @@ def resume():
         c = exq.resume()
         if c: print c
     except:
-        print 'ERROR: No response from exposure queue daemon'
+        print misc.ERROR('No response from exposure queue daemon')
 
+def get_queue():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        queue_list = exq.get()
+        print queue_list
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def get_queue_summary():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        queue_list = exq.get_simple()
+        print queue_list
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
+
+def clear():
+    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        c = exq.clear()
+        if c: print c
+    except:
+        print misc.ERROR('No response from exposure queue daemon')
 
 ########################################################################
 # Interactive mode
@@ -120,7 +171,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print 'ERROR: Already in interactive mode'
+        print misc.ERROR('Already in interactive mode')
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -134,20 +185,171 @@ def query(command):
     
     elif command[0] == 'image':
         if len(command) < 4:
-            print 'ERROR: need at least telescopes, exptime and filter and bins'
-        else:
-            if len(command) == 5:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]))
+            print misc.ERROR('Need at least: exptime filter bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[3]):
+            # exptime filter bins [object] [imgtype]
+            exptime = float(command[1])
+            filt = command[2]
+            bins = int(command[3])
+            if len(command) == 4:
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins)
+            elif len(command) == 5:
+                target = command[4]
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins,target)
             elif len(command) == 6:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5])
+                target = command[4]
+                imgtype = command[5]
+                take_image(params.TEL_DICT.keys(),exptime,filt,bins,target,imgtype)
+        elif misc.is_num(command[2]) and misc.is_num(command[4]):
+            # tels exptime filter bins [object] [imgtype]
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            exptime = float(command[2])
+            filt = command[3]
+            bins = int(command[4])
+            if len(command) == 5 and len(valid) > 0:
+                take_image(valid,exptime,filt,bins)
+            elif len(command) == 6 and len(valid) > 0:
+                target = command[5]
+                take_image(valid,exptime,filt,bins,target)
+            elif len(command) == 7 and len(valid) > 0:
+                target = command[5]
+                imgtype = command[6]
+                take_image(valid,exptime,filt,bins,target,imgtype)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multimage':
+        if len(command) < 5:
+            print misc.ERROR('Need at least: Nexp exptime filter bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[4]):
+            # Nexp exptime filter bins [object] [imgtype]
+            Nexp = int(command[1])
+            exptime = float(command[2])
+            filt = command[3]
+            bins = int(command[4])
+            if len(command) == 5:
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins)
+            elif len(command) == 6:
+                target = command[5]
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins,target)
             elif len(command) == 7:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6])
-            elif len(command) == 8:
-                take_image(int(command[1]),int(command[2]),command[3],int(command[4]),command[5],command[6],command[7])
+                target = command[5]
+                imgtype = command[6]
+                for i in range(Nexp):
+                    take_image(params.TEL_DICT.keys(),exptime,filt,bins,target,imgtype)
+        elif misc.is_num(command[1]) and misc.is_num(command[3]) and misc.is_num(command[5]):
+            # Nexp tels exptime filter bins [object] [imgtype]
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            exptime = float(command[3])
+            filt = command[4]
+            bins = int(command[5])
+            if len(command) == 6 and len(valid) > 0:
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins)
+            elif len(command) == 7 and len(valid) > 0:
+                target = command[6]
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins,target)
+            elif len(command) == 8 and len(valid) > 0:
+                target = command[6]
+                imgtype = command[7]
+                for i in range(Nexp):
+                    take_image(valid,exptime,filt,bins,target,imgtype)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'dark':
+        if len(command) < 3:
+            print misc.ERROR('Need at least: exptime bins')
+        elif misc.is_num(command[1]) and misc.is_num(command[2]) and len(command) == 3:
+            # exptime bins
+            exptime = float(command[1])
+            bins = int(command[2])
+            take_dark(params.TEL_DICT.keys(),exptime,bins)
+        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+            # tels exptime bins
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            exptime = float(command[2])
+            bins = int(command[3])
+            if len(valid) > 0:
+                take_dark(valid,exptime,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multdark':
+        if len(command) < 4:
+            print misc.ERROR('Need at least: exptime bins')
+        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+            # Nexp exptime bins
+            Nexp = int(command[1])
+            exptime = float(command[2])
+            bins = int(command[3])
+            for i in range(Nexp):
+                take_dark(params.TEL_DICT.keys(),exptime,bins)
+        elif misc.is_num(command[3]) and misc.is_num(command[4]) and len(command) == 5:
+            # Nexp tels exptime bins
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            exptime = float(command[3])
+            bins = int(command[4])
+            if len(valid) > 0:
+                for i in range(Nexp):
+                    take_dark(valid,exptime,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'bias':
+        if len(command) < 2:
+            print misc.ERROR('Need at least: bins')
+        elif misc.is_num(command[1]) and len(command) == 2:
+            # bins
+            bins = int(command[1])
+            take_bias(params.TEL_DICT.keys(),bins)
+        elif misc.is_num(command[2]) and len(command) == 3:
+            # tels bins
+            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            bins = int(command[2])
+            if len(valid) > 0:
+                take_bias(valid,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
+    elif command[0] == 'multbias':
+        if len(command) < 3:
+            print misc.ERROR('Need at least: bins')
+        elif misc.is_num(command[2]) and len(command) == 3:
+            # Nexp bins
+            Nexp = int(command[1])
+            bins = int(command[2])
+            for i in range(Nexp):
+                take_bias(params.TEL_DICT.keys(),bins)
+        elif misc.is_num(command[3]) and len(command) == 4:
+            # Nexp tels bins
+            Nexp = int(command[1])
+            valid = misc.valid_ints(command[2].split(','),params.TEL_DICT.keys())
+            bins = int(command[3])
+            if len(valid) > 0:
+                for i in range(Nexp):
+                    take_bias(valid,bins)
+        else:
+            print misc.ERROR('Invalid arguments')
+    
     elif command[0] == 'pause':
         pause()
     elif command[0] == 'resume' or command[0] == 'unpause':
         resume()
+    elif command[0] == 'get' or command[0] == 'list' or command[0] == 'ls':
+        if len(command) == 1:
+            get_queue_summary()
+        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+            get_queue()
+        else:
+            print misc.ERROR('Invalid arguments')
+    elif command[0] == 'clear':
+        clear()
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -162,9 +364,16 @@ def print_instructions():
     '  exq ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
     ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
-    '  exq ' + misc.bold('image') + ' [exptime] [filter] [bins] [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('image') + ' [tels] exptime filter bins [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('multimage') + ' Nexp [tels] exptime filter bins [object] [imgtype]' + '\n' +\
+    '  exq ' + misc.bold('dark') + '  [tels] exptime bins' + '\n' +\
+    '  exq ' + misc.bold('multdark') + ' Nexp [tels] exptime bins' + '\n' +\
+    '  exq ' + misc.bold('bias') + '  [tels] bins' + '\n' +\
+    '  exq ' + misc.bold('multbias') + ' Nexp [tels] bins' + '\n' +\
     '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
     '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
+    '  exq ' + misc.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
+    '  exq ' + misc.bold('clear') + '          - empty the queue' + '\n' +\
     '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  exq ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
