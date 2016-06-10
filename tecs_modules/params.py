@@ -123,22 +123,22 @@ FLI_INTERFACES = {
         'PYROID':  'fli_interface',
         'TELS':    [1,2],
         'SERIALS': {
-            'cam': ['ML0330316', 'fake'],
-            'foc': ['AT0023215', 'fake'],
-            'filt':['CFW-9-5:1-3', 'fake']
+            'cam': ['fake', 'fake'],
+            'foc': ['fake', 'fake'],
+            'filt':['fake', 'fake']
             }
-#        },
-#    'nuc2':{ # for unit telescopes 3 and 4
-#        'PROCESS':  'fli_interfaceB.py',
-#        'HOST':     HOST,
-#        'PORT':     9020,
-#        'PYROID':   'fli_interfaceB',
-#        'TELS':      [3,4],
-#        'SERIALS': {
-#            'cam': ['fake', 'fake'],
-#            'foc': ['fake', 'fake'],
-#            'filt':['fake', 'fake']
-#            }
+       },
+   'nuc2':{ # for unit telescopes 3 and 4
+       'PROCESS':  'fli_interfaceB.py',
+       'HOST':     HOST,
+       'PORT':     9020,
+       'PYROID':   'fli_interfaceB',
+       'TELS':      [3,4],
+       'SERIALS': {
+           'cam': ['fake', 'fake'],
+           'foc': ['fake', 'fake'],
+           'filt':['fake', 'fake']
+           }
         }
     }
 
