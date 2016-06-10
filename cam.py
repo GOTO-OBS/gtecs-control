@@ -37,11 +37,11 @@ def get_info():
             print 'Frame type:       %s' %info['frametype'+str(tel)]
             print 'Exposure time:    %.2fs' %info['exptime'+str(tel)]
             print 'Active area:      %s' %str(info['area'+str(tel)])
-            print 'Bin factors:      %s' %str(info['bins'+str(tel)])
-            print 'CCD Temperature:   %i' %info['ccd_temp'+str(tel)]
-            print 'Base Temperature:  %i' %info['base_temp'+str(tel)]
-            print 'Cooler power:      %i' %info['cooler_power'+str(tel)]
-            print 'Serial number:     %s' %info['serial_number'+str(tel)]
+            print 'Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1])
+            print 'CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)]
+            print 'Base Temperature: %.2fC' %info['base_temp'+str(tel)]
+            print 'Cooler power:     %i%%' %info['cooler_power'+str(tel)]
+            print 'Serial number:    %s' %info['serial_number'+str(tel)]
             print '~~~~~~~'
         print 'Uptime: %.1fs' %info['uptime']
         print 'Ping: %.5fs' %info['ping']
@@ -58,7 +58,7 @@ def get_info_summary():
         for tel in params.TEL_DICT.keys():
             print 'CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
             if info['status'+str(tel)] != 'Exposing':
-                print '  Temp: %iC' %info['ccd_temp'+str(tel)],
+                print '  Temp: %6.2fC' %info['ccd_temp'+str(tel)],
                 print '  [%s]' %info['status'+str(tel)]
             else:
                 print '  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
