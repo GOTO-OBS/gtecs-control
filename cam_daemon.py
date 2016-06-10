@@ -15,6 +15,7 @@ from math import *
 import time, datetime
 import Pyro4
 import threading
+import multiprocessing
 import os
 import astropy.io.fits as pyfits
 import numpy
@@ -76,6 +77,7 @@ class CamDaemon:
         self.cooler_power = {}
         self.cam_info = {}
         self.serial_number = {}
+        self.images = {}
 
         
         for nuc in params.FLI_INTERFACES:
@@ -90,6 +92,7 @@ class CamDaemon:
             self.cooler_power[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.cam_info[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+            self.images[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
         
         self.active_tel = []
         self.obs_times = {}
@@ -105,6 +108,9 @@ class CamDaemon:
         self.run_ID = 0
         self.target = 'N/A'
         self.imgtype = 'MANUAL'
+        
+        self.manager = multiprocessing.Manager()
+        self.images = self.manager.dict()
         
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -190,7 +196,7 @@ class CamDaemon:
             # take exposure part two - finish
             for tel in self.active_tel:
                 nuc, HW = self.tel_dict[tel]
-                if self.exposing_flag[nuc][HW] == 1 and self.finished < len(self.active_tel):
+                if self.exposing_flag[nuc][HW] == 1:
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -198,40 +204,25 @@ class CamDaemon:
                     except:
                         print 'ERROR: No response from fli interface on', nuc
                     if remaining == 0:
-                        self.finished += 1
-                    self.saving_flag = 1
+                        self.exposing_flag[nuc][HW] = 2
+                        self.images[tel] = None
+                        p = multiprocessing.Process(target=self.image_fetch, args=(tel,self.images))
+                        p.daemon = True
+                        p.start()
             
             # take exposure part three - save
-            if self.saving_flag == 1 and self.finished == len(self.active_tel):
-                for tel in self.active_tel:
-                    nuc, HW = self.tel_dict[tel]
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = 999 #params.PROXY_TIMEOUT
-                    try:
-                        fli.save_exposure('temp_img',HW)
-                    except:
-                        print 'ERROR: No response from fli interface on', nuc
-                    self.exposing_flag[nuc][HW] = 0
-                    time.sleep(0.1)
+            for tel in self.active_tel:
+                nuc, HW = self.tel_dict[tel]
+                if self.exposing_flag[nuc][HW] == 2 and self.images[tel] is not None: # image available
+                    image = self.images[tel]
                     # save info to add to header
                     header_dict = {}
                     header_dict['tel'] = tel
-                    if os.path.exists('temp_img.npy'):
-                        image = numpy.load('temp_img.npy')
-                        self.logfile.log('Fetching exposure from camera %i (%s-%i)' %(tel, nuc, HW) )
-                        filename = self.image_location(tel)
-                        self.logfile.log('Saving exposure to %s'%filename)
-                        self.write_fits(image,filename,tel)
-                        self.exposing_flag[nuc][HW] = 0
-                self.active_tel = []
-                self.obs_times = {}
-                self.finished = 0
-                self.saving_flag = 0
-                self.spec_flag = 0
-                self.run_ID = 0
-                self.target = 'N/A'
-                self.imgtype = 'MANUAL'
-                
+                    self.logfile.log('Fetching exposure from camera %i (%s-%i)' %(tel, nuc, HW) )
+                    filename = self.image_location(tel)
+                    self.logfile.log('Saving exposure to %s'%filename)
+                    self.write_fits(image,filename,tel)
+                    self.exposing_flag[nuc][HW] = 0
             
             # abort exposure
             if(self.abort_exposure_flag):
@@ -470,6 +461,19 @@ class CamDaemon:
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Image data functions
+    
+    def image_fetch(self,tel,outarr):
+        print 'fetching',tel
+        nuc, HW = self.tel_dict[tel]
+        fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+        fli._pyroTimeout = 999 #params.PROXY_TIMEOUT
+        try:
+            image = fli.fetch_exposure(HW)
+        except:
+            print 'ERROR: No response from fli interface on', nuc
+        outarr[tel] = image
+        print 'stored',tel
+    
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
         now = datetime.datetime.utcnow()

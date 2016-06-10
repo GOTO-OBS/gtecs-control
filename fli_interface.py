@@ -15,8 +15,10 @@ from math import *
 import time
 import Pyro4
 import threading
+import multiprocessing
 import numpy
 import socket
+import os
 # FLI modules
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
@@ -66,9 +68,10 @@ class FLI:
         
         ### find interface params
         self.hostname = socket.gethostname()
-        for nuc in params.FLI_INTERFACES.keys():
-            if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
-                self.nuc = nuc
+        #for nuc in params.FLI_INTERFACES.keys():
+            #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
+                #self.nuc = nuc
+        self.nuc = 'nuc1'
         
         ### fli objects
         self.cams = []
@@ -90,6 +93,9 @@ class FLI:
             filt = USBFilterWheel.locate_device(filt_serial)
             if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
             self.filts.append(filt)
+            
+        self.manager = multiprocessing.Manager()
+        self.imgdict = self.manager.dict()
         
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
@@ -171,11 +177,19 @@ class FLI:
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
     
-    def save_exposure(self, filename, HW):
-        """Fetch the image and save it temporarily"""
-        print 'Camera',HW,'saving image'
+    def fetch_process(self, HW, outdict):
         img = self.cams[int(HW)].fetch_image()
-        numpy.save(filename,img)
+        outdict[HW] = img
+    
+    def fetch_exposure(self, HW):
+        """Fetch the image"""
+        print 'Camera',HW,'saving image'
+        self.imgdict[HW] = None
+        p = multiprocessing.Process(target=self.fetch_process,args=(HW,self.imgdict))
+        p.start()
+        while self.imgdict[HW] is None:
+            time.sleep(0.001)
+        return self.imgdict[HW]
     
     def abort_exposure(self, HW):
         """Abort current exposure"""
@@ -202,6 +216,16 @@ class FLI:
         """Return camera infomation dictionary"""
         dic = self.cams[int(HW)].get_info()
         return dic
+    
+    def get_camera_state(self, HW):
+        """Return camera state string"""
+        state = self.cams[int(HW)].state
+        return state
+    
+    def get_camera_data_state(self, HW):
+        """Return True if data is available"""
+        state = self.cams[int(HW)].dataAvailable
+        return state
     
     def get_camera_time_remaining(self, HW):
         """Return exposure time remaining"""

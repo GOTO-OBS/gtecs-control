@@ -15,11 +15,13 @@ from math import *
 import time
 import Pyro4
 import threading
+import multiprocessing
 import numpy
+import socket
+import os
 # FLI modules
-from fliapi import FakeFocuser
-from fliapi import FakeFilterWheel
-from fliapi import FakeCamera
+from fliapi import USBCamera, USBFocuser, USBFilterWheel
+from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
@@ -64,11 +66,37 @@ class FLI:
     def __init__(self):
         self.running = True
         
-        ### fli variables
-        self.focs = [FakeFocuser('device1','serial1'), FakeFocuser('device2','serial2')]
-        self.filts = [FakeFilterWheel('device1','serial1'), FakeFilterWheel('device2','serial2')]
-        self.cams = [FakeCamera('device1','serial1'), FakeCamera('device2','serial2')]
+        ### find interface params
+        self.hostname = socket.gethostname()
+        #for nuc in params.FLI_INTERFACES.keys():
+            #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
+                #self.nuc = nuc
+        self.nuc = 'nuc2'
         
+        ### fli objects
+        self.cams = []
+        self.focs = []
+        self.filts = []
+        for HW in range(len(params.FLI_INTERFACES[self.nuc]['TELS'])):
+            # cameras
+            cam_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['cam'][HW]
+            cam = USBCamera.locate_device(cam_serial)
+            if cam == None: cam = FakeCamera('fake','Fake-Cam')
+            self.cams.append(cam)
+            # focusers
+            foc_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['foc'][HW]
+            foc = USBFocuser.locate_device(foc_serial)
+            if foc == None: foc = FakeFocuser('fake','Fake-Foc')
+            self.focs.append(foc)
+            # filter wheels
+            filt_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['filt'][HW]
+            filt = USBFilterWheel.locate_device(filt_serial)
+            if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
+            self.filts.append(filt)
+            
+        self.manager = multiprocessing.Manager()
+        self.imgdict = self.manager.dict()
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     def step_focuser_motor(self, steps, HW):
@@ -149,11 +177,19 @@ class FLI:
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
     
-    def save_exposure(self, filename, HW):
-        """Fetch the image and save it temporarily"""
-        print 'Camera',HW,'saving image'
+    def fetch_process(self, HW, outdict):
         img = self.cams[int(HW)].fetch_image()
-        numpy.save(filename,img)
+        outdict[HW] = img
+    
+    def fetch_exposure(self, HW):
+        """Fetch the image"""
+        print 'Camera',HW,'saving image'
+        self.imgdict[HW] = None
+        p = multiprocessing.Process(target=self.fetch_process,args=(HW,self.imgdict))
+        p.start()
+        while self.imgdict[HW] is None:
+            time.sleep(0.001)
+        return self.imgdict[HW]
     
     def abort_exposure(self, HW):
         """Abort current exposure"""
@@ -180,6 +216,16 @@ class FLI:
         """Return camera infomation dictionary"""
         dic = self.cams[int(HW)].get_info()
         return dic
+    
+    def get_camera_state(self, HW):
+        """Return camera state string"""
+        state = self.cams[int(HW)].state
+        return state
+    
+    def get_camera_data_state(self, HW):
+        """Return True if data is available"""
+        state = self.cams[int(HW)].dataAvailable
+        return state
     
     def get_camera_time_remaining(self, HW):
         """Return exposure time remaining"""
@@ -217,11 +263,8 @@ class FLI:
 
 ########################################################################
 # Create Pyro control server
-
-#IP = Pyro4.socketutil.getIpAddress('eddie')
-IP = 'eddie'
-
-pyro_daemon = Pyro4.Daemon(host=IP, port=9020)
+hostname = socket.gethostname()
+pyro_daemon = Pyro4.Daemon(host=hostname, port=9020)
 fli_daemon = FLI()
 
 uri = pyro_daemon.register(fli_daemon, 'fli_interfaceB')
