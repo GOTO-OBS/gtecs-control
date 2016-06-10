@@ -63,8 +63,9 @@ class CamDaemon:
         self.info = {}
         self.ftlist = params.FRAMETYPE_LIST
         self.tel_dict = params.TEL_DICT
+        self.run_number_file = params.TECS_PATH + 'run_number'
         
-        self.image = 'None yet' ####
+        self.image = 'None yet'
         
         self.remaining = {}
         self.exposing_flag = {}
@@ -172,6 +173,12 @@ class CamDaemon:
             
             # take exposure part one - start
             if(self.take_exposure_flag):
+                # find and update run number
+                with open(self.run_number_file,) as f:
+                    lines = f.readlines()
+                    self.run_ID = int(lines[0]) + 1
+                with open(self.run_number_file,'w') as f:
+                    f.write(str(self.run_ID))
                 exptime = self.target_exptime
                 exptime_ms = exptime*1000.
                 frametype = self.target_frametype
@@ -483,7 +490,7 @@ class CamDaemon:
         direc = params.IMAGE_PATH + night
         if not os.path.exists(direc): os.mkdir(direc)
         # Find the run number, for the file name
-        if self.spec_flag == 1:
+        if self.run_ID != 0:
             filename = '/r%05i_ut%i.fits'%(self.run_ID,tel)
         else:
             filename = '/man_ut%i.fits'%tel
