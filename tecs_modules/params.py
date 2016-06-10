@@ -63,7 +63,7 @@ EMAIL_SERVER = 'smtp.gmail.com:587'
 DAEMONS = {
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
-        'HOST':     'host-137-205-160-42.warwick.ac.uk',
+        'HOST':     HOST, #'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9001,
         'PYROID':   'mnt_daemon',
         'PINGLIFE': 10.
@@ -98,7 +98,7 @@ DAEMONS = {
         },
     'power':{ # hardware power daemon
         'PROCESS':  'power_daemon.py',
-        'HOST':     'host-137-205-160-42.warwick.ac.uk',
+        'HOST':     HOST, #'host-137-205-160-42.warwick.ac.uk',
         'PORT':     9006,
         'PYROID':   'power_daemon',
         'PINGLIFE': 10.
@@ -176,7 +176,7 @@ BIASEXP = 0.1 #seconds, as an example
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-POWER = power_control.APCPower('137.205.160.50')
+POWER = power_control.FakePower(' ',' ') #power_control.APCPower('137.205.160.50')
 POWER_CHECK_SCRIPT = '_power_status.py'
 POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
 
