@@ -230,6 +230,7 @@ class CamDaemon:
                     self.logfile.log('Saving exposure to %s'%filename)
                     self.write_fits(image,filename,tel)
                     self.exposing_flag[nuc][HW] = 0
+                    self.active_tel.pop(self.active_tel.index(tel))
             
             # abort exposure
             if(self.abort_exposure_flag):
@@ -334,15 +335,18 @@ class CamDaemon:
         self.target_frametype = 'normal'
         self.get_info_flag = 1
         time.sleep(0.1)
-        s = 'Exposing:'
-        for tel in tel_list:
+        occupied = False
+        for tel in self.active_tel:
             nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] != 0:
-                s += '\n  ERROR: Camera %i is already exposing' %tel
-            else:
+            if self.exposing_flag[nuc][HW] == 1:
+                s = 'ERROR: Cameras are already exposing'
+                occupied = True
+        if not occupied:
+            s = 'Exposing:'
+            for tel in tel_list:
                 self.active_tel += [tel]
                 s += '\n  Taking image on camera %i' %tel
-        self.take_exposure_flag = 1
+            self.take_exposure_flag = 1
         return s
 
     def take_dark(self,exptime,tel_list):
@@ -354,15 +358,18 @@ class CamDaemon:
         self.target_frametype = 'dark'
         self.get_info_flag = 1
         time.sleep(0.1)
-        s = 'Exposing:'
-        for tel in tel_list:
+        occupied = False
+        for tel in self.active_tel:
             nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] != 0:
-                s += '\n  ERROR: Camera %i is already exposing' %tel
-            else:
+            if self.exposing_flag[nuc][HW] == 1:
+                s = 'ERROR: Cameras are already exposing'
+                occupied = True
+        if not occupied:
+            s = 'Exposing:'
+            for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking dark frame on camera %i' %tel
-        self.take_exposure_flag = 1
+                s += '\n  Taking dark on camera %i' %tel
+            self.take_exposure_flag = 1
         return s
 
     def take_bias(self,tel_list):
@@ -370,19 +377,22 @@ class CamDaemon:
         for tel in tel_list:
             if tel not in self.tel_dict.keys():
                 return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
-        self.target_exptime = params.BIASEXP
+        self.target_exptime = 0
         self.target_frametype = 'dark'
         self.get_info_flag = 1
         time.sleep(0.1)
-        s = 'Exposing:'
-        for tel in tel_list:
+        occupied = False
+        for tel in self.active_tel:
             nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] != 0:
-                s += '\n  ERROR: Camera %i is already exposing' %tel
-            else:
+            if self.exposing_flag[nuc][HW] == 1:
+                s = 'ERROR: Cameras are already exposing'
+                occupied = True
+        if not occupied:
+            s = 'Exposing:'
+            for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking bias frame on camera %i' %tel
-        self.take_exposure_flag = 1
+                s += '\n  Taking bias on camera %i' %tel
+            self.take_exposure_flag = 1
         return s
     
     def abort_exposure(self,tel_list):
@@ -470,16 +480,14 @@ class CamDaemon:
     # Image data functions
     
     def image_fetch(self,tel,outarr):
-        print 'fetching',tel
         nuc, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
         fli._pyroTimeout = 999 #params.PROXY_TIMEOUT
         try:
             image = fli.fetch_exposure(HW)
+            outarr[tel] = image
         except:
             print 'ERROR: No response from fli interface on', nuc
-        outarr[tel] = image
-        print 'stored',tel
     
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
