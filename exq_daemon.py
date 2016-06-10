@@ -321,7 +321,10 @@ class ExqDaemon:
                 try:
                     cam.set_bins([bins,bins],tel_list) # Assumes symmetric for now
                     cam.set_spec(self.exp_spec.run_ID,self.exp_spec.target,self.exp_spec.imgtype)
-                    cam.take_image(exptime,tel_list)
+                    if self.exp_spec.frametype == 'normal':
+                        cam.take_image(exptime,tel_list)
+                    elif self.exp_spec.frametype == 'dark':
+                        cam.take_dark(exptime,tel_list)
                     self.working = 1
                     self.take_image_flag = 0
                 except:
