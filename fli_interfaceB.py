@@ -46,6 +46,7 @@ class FLI:
     - get_filter_number(HW)
     - get_filter_position(HW)
     - get_filter_steps_remaining(HW)
+    - get_filter_homed(HW)
     
     ::camera::
     - set_exposure(exptime_ms, frametype, HW)
@@ -132,6 +133,11 @@ class FLI:
         """Return filter wheel steps remaining"""
         rem = self.filts[int(HW)].get_steps_remaining()
         return rem
+    
+    def get_filter_homed(self, HW):
+        """Return if filter wheel has been homed"""
+        hom = self.filts[int(HW)].homed
+        return hom
     
     def get_filter_serial_number(self,HW):
        	"""Return filter wheel unique serial number"""
