@@ -12,6 +12,7 @@
 import os,sys
 import socket
 import numpy
+import Pyro4
 # TeCS modules
 import power_control
 import dome_control
@@ -48,6 +49,8 @@ SITE_LONGITUDE = -17.8793802
 
 # Pyro connection
 PROXY_TIMEOUT = 0.5
+Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 
 # Email alerts
 EMAIL_LIST = ['martin.dyer@sheffield.ac.uk']
