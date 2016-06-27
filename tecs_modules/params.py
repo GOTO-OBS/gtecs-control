@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               params.py                              #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -14,8 +15,8 @@ import socket
 import numpy
 import Pyro4
 # TeCS modules
-import power_control
-import dome_control
+from . import power_control
+from . import dome_control
 
 ########################################################################
 # General parameters

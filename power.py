@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -19,6 +21,8 @@ import Pyro4
 # TeCS modules
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import range
+from six.moves import input
 
 ########################################################################
 # Power control functions
@@ -27,50 +31,50 @@ def get_info():
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = power.get_info()
-        print '####### POWER INFO ########'
+        print('####### POWER INFO ########')
         for i in range(len(info['status_dict'])):
             outlet_name = params.POWER_LIST[i]
             outlet_status = info['status_dict'][outlet_name]
-            print 'Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status)
-        print '~~~~~~~'
-        print 'Uptime: %.1fs' %info['uptime']
-        print 'Ping: %.5fs' %info['ping']
-        print 'Timestamp: %s' %info['timestamp']
-        print '###########################'
+            print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
+        print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     except:
-        print misc.ERROR('No response from power daemon')
+        print(misc.ERROR('No response from power daemon'))
     
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.on(outlet)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from power daemon')
+        print(misc.ERROR('No response from power daemon'))
     
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.off(outlet)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from power daemon')
+        print(misc.ERROR('No response from power daemon'))
 
 def reboot(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     try:
         c = power.reboot(outlet)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from power daemon')
+        print(misc.ERROR('No response from power daemon'))
 
 ########################################################################
 # Interactive mode
 def interactive():
     while True:
-        command = split(raw_input('power> '))
+        command = split(input('power> '))
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
@@ -91,7 +95,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print misc.ERROR('Already in interactive mode')
+        print(misc.ERROR('Already in interactive mode'))
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -107,7 +111,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print misc.ERROR('Unrecognized command "%s"' %command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
@@ -125,7 +129,7 @@ def print_instructions():
     '  power ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
     '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
     '  power ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
-    print help_str
+    print(help_str)
 
 ########################################################################
 # Control system

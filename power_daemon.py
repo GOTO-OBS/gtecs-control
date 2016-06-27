@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -19,6 +21,7 @@ import threading
 from tecs_modules import logger
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import range
 
 ########################################################################
 # Power daemon functions
@@ -109,7 +112,7 @@ class PowerDaemon:
             if(self.on_flag):
                 self.logfile.log('Power on outlet ' + str(self.new_outlet))
                 c = power.on(self.new_outlet)
-                if c: print c
+                if c: print(c)
                 self.new_outlet = None
                 self.on_flag = 0
                 self.status_flag = -1
@@ -118,7 +121,7 @@ class PowerDaemon:
             if(self.off_flag):
                 self.logfile.log('Power off outlet ' + str(self.new_outlet))
                 c = power.off(self.new_outlet)
-                if c: print c
+                if c: print(c)
                 self.new_outlet = None
                 self.off_flag = 0
                 self.status_flag = -1
@@ -127,7 +130,7 @@ class PowerDaemon:
             if(self.reboot_flag):
                 self.logfile.log('Reboot outlet ' + str(self.new_outlet))
                 c = power.reboot(self.new_outlet)
-                if c: print c
+                if c: print(c)
                 self.new_outlet = None
                 self.reboot_flag = 0
                 self.status_flag = -1
@@ -210,10 +213,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAE
 power_daemon = PowerDaemon()
 
 uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-print 'Starting power daemon at',uri
+print('Starting power daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
-print 'Exiting power daemon'
+print('Exiting power daemon')
 time.sleep(1.)

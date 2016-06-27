@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                           power_control.py                           #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -12,6 +13,7 @@
 import os, sys, commands
 import socket
 import subprocess
+from six.moves import range
 
 ########################################################################
 # Fake APC PDU power class (8 ports)

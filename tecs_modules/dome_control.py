@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                           dome_control.py                            #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -12,6 +14,8 @@
 import os, sys, commands
 import time
 import serial
+from six.moves import map
+from six.moves import range
 
 ########################################################################
 # Fake AstroHaven dome class
@@ -34,7 +38,7 @@ class FakeDome:
             self._new_temp()
         else:
             f = open(self.temp_file,'r')
-            self.domestatus = map(int,list(f.read().strip()))
+            self.domestatus = list(map(int,list(f.read().strip())))
             f.close()
     
     def _write_temp(self):
@@ -100,7 +104,7 @@ class FakeDome:
         time.sleep(2)
         openE = self._move_dome('east_open')
         #self.dome_port.close()
-        print openW, openE
+        print(openW, openE)
         #return openW.strip() + openE.strip()
 
     def close_full(self):
@@ -110,7 +114,7 @@ class FakeDome:
         time.sleep(2)
         closeE = self._move_dome('east_close')
         #self.dome_port.close()
-        print closeW, closeE
+        print(closeW, closeE)
         #return closeW.strip() + closeE.strip()
     
     def open_side(self,side,steps):
@@ -152,19 +156,19 @@ class AstroHavenDome:
         '''Internal (blocking) function to keep moving dome until it reaches its limit'''
         received = ''
         stop_signal = self.stop_length * self.limit_code[command]
-        print 'Expecting stop on',stop_signal
+        print('Expecting stop on',stop_signal)
         start_time = time.time()
         while True:
             self.dome_port.write(self.move_code[command])
             x = self.dome_port.read(1)
-            print x,
+            print(x, end=' ')
             received += x
             if received[-self.stop_length:] == stop_signal:
-                print received
+                print(received)
                 return received
             elif time.time() - start_time > timeout:
-                print 'Dome moving timed out'
-                print received
+                print('Dome moving timed out')
+                print(received)
                 return received
             time.sleep(0.1)
     
@@ -175,9 +179,9 @@ class AstroHavenDome:
             self.dome_port.write(move_code[command])
             time.sleep(3)
             x = self.dome_port.read(1)
-            print x,
+            print(x, end=' ')
             received += x
-        print received
+        print(received)
         return received
     
     def status(self):
@@ -217,7 +221,7 @@ class AstroHavenDome:
         time.sleep(2)
         openE = self._move_dome('east_open')
         self.dome_port.close()
-        print openW, openE
+        print(openW, openE)
         return openW.strip() + openE.strip()
 
     def close_full(self):
@@ -227,7 +231,7 @@ class AstroHavenDome:
         time.sleep(2)
         closeE = self._move_dome('east_close')
         self.dome_port.close()
-        print closeW, closeE
+        print(closeW, closeE)
         return closeW.strip() + closeE.strip()
     
     def open_side(self,side,steps):
@@ -266,10 +270,10 @@ if __name__ == '__main__':
         elif sys.argv[1] == 'close':
             dome.close_full()
         elif sys.argv[1] == 'status':
-            print dome.status()
+            print(dome.status())
         elif sys.argv[1] == 'alarm':
             dome.sound_alarm()
         else:
-            print 'Usage: python dome_control.py status/open/close/alarm'
+            print('Usage: python dome_control.py status/open/close/alarm')
     except:
-        print 'Usage: python dome_control.py status/open/close/alarm'
+        print('Usage: python dome_control.py status/open/close/alarm')

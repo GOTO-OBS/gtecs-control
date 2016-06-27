@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python2
 
 ########################################################################
@@ -108,7 +110,7 @@ class MntDaemon:
                     self.utc = time.gmtime(time.time())
                     self.utc_str = time.strftime('%Y-%m-%d %H:%M:%S', self.utc)
                 except:
-                    print 'ERROR: No response from sitech daemon'
+                    print('ERROR: No response from sitech daemon')
                 # save info
                 info = {}
                 info['status'] = self.mount_status
@@ -136,9 +138,9 @@ class MntDaemon:
                     %(self.temp_ra,self.temp_dec))
                 try:
                     c = sitech.slew_to_radec(self.temp_ra,self.temp_dec)
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.slew_radec_flag = 0
                 self.temp_ra = None
                 self.temp_dec = None
@@ -148,56 +150,56 @@ class MntDaemon:
                 self.logfile.log('Slewing to target')
                 try:
                     c = sitech.slew_to_target()
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.slew_target_flag = 0
             
             # start tracking
             if(self.start_tracking_flag): 
                 try:
                     c = sitech.start_tracking()
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.start_tracking_flag = 0
             
             # stop all motion (tracking or slewing)
             if(self.full_stop_flag):
                 try:
                     c = sitech.full_stop()
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.full_stop_flag = 0
             
             # park the mount
             if(self.park_flag):
                 try:
                     c = sitech.park()
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.park_flag = 0
             
             # unpark the mount
             if(self.unpark_flag):
                 try:
                     c = sitech.unpark()
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.unpark_flag = 0
             
             # Set target RA
             if(self.set_target_ra_flag):
                 try:
-                    print 'set ra to',self.temp_ra
+                    print('set ra to',self.temp_ra)
                     c = sitech.set_target_ra(self.temp_ra)
-                    if c: print c
-                    print 'again, set ra to',self.temp_ra
+                    if c: print(c)
+                    print('again, set ra to',self.temp_ra)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.set_target_ra_flag = 0
                 self.temp_ra = None
             
@@ -205,10 +207,10 @@ class MntDaemon:
             if(self.set_target_dec_flag):
                 try:
                     c = sitech.set_target_dec(self.temp_dec)
-                    if c: print c
-                    print 'set dec to',self.temp_dec
+                    if c: print(c)
+                    print('set dec to',self.temp_dec)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.set_target_dec_flag = 0
                 self.temp_dec = None
             
@@ -216,9 +218,9 @@ class MntDaemon:
             if(self.set_target_flag):
                 try:
                     c = sitech.set_target(self.temp_ra,self.temp_dec)
-                    if c: print c
+                    if c: print(c)
                 except:
-                    print 'ERROR: No responce from sitech daemon'
+                    print('ERROR: No responce from sitech daemon')
                 self.set_target_flag = 0
                 self.temp_ra = None
                 self.temp_dec = None
@@ -391,10 +393,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['mnt']['HOST'], port=params.DAEMO
 mnt_daemon = MntDaemon()
 
 uri=pyro_daemon.register(mnt_daemon,objectId = params.DAEMONS['mnt']['PYROID'])
-print 'Starting mount daemon at',uri
+print('Starting mount daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
 
-print 'Exiting mount daemon'
+print('Exiting mount daemon')
 time.sleep(1.)
