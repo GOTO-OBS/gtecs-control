@@ -14,7 +14,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys
-from string import split
 import readline
 import time
 import Pyro4
