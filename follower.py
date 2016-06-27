@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -22,13 +24,13 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
-        daemons = params.DAEMONS.keys()
+        daemons = list(params.DAEMONS.keys())
     while True:
         s = ''
         for d in daemons:
             s += misc.python_command(d+'.py', 'info') + '\n'
         now = datetime.datetime.utcnow()
-        print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-        print now.strftime('%Y-%m-%d %H:%M:%S') + '\n'
-        print s
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print(now.strftime('%Y-%m-%d %H:%M:%S') + '\n')
+        print(s)
         time.sleep(0.5)

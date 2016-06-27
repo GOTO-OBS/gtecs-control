@@ -9,6 +9,8 @@
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys
 import six
 if six.PY2:
@@ -23,13 +25,14 @@ import serial
 import re
 import smtplib
 # TeCS modules
-import params
+from . import params
+from six.moves import range
 
 ########################################################################
 ## Command functions
 def get_hostname():
     '''Get the hostname of this machine'''
-    if os.environ.has_key('HOSTNAME'):
+    if 'HOSTNAME' in os.environ:
         return os.environ['HOSTNAME']
     else:
         tmp = getoutput('hostname')
@@ -87,7 +90,7 @@ def kill_processes(process, host):
     if local_host == host:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
-            print 'Killed process', process_ID
+            print('Killed process', process_ID)
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
@@ -142,13 +145,13 @@ def start_daemon(process, host, stdout='/dev/null'):
             os.system('python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
-                print 'ERROR: Daemon did not start, check logs'
+                print('ERROR: Daemon did not start, check logs')
             else:
-                print 'Daemon running as process', process_ID_n[0]
+                print('Daemon running as process', process_ID_n[0])
         else:
             os.system('ssh ' + host + ' python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
     else:
-        print 'ERROR: Daemon is already running as process', process_ID[0]
+        print('ERROR: Daemon is already running as process', process_ID[0])
 
 def ping_daemon(address):
     '''Ping a daemon'''
@@ -157,11 +160,11 @@ def ping_daemon(address):
     try:
         ping = daemon.ping()
         if ping == 'ping':
-            print 'Daemon is alive at', address
+            print('Daemon is alive at', address)
         else:
-            print ping
+            print(ping)
     except:
-        print 'ERROR: No response from daemon'
+        print('ERROR: No response from daemon')
 
 def shutdown_daemon(address):
     '''Shut a daemon down nicely'''
@@ -169,14 +172,14 @@ def shutdown_daemon(address):
     daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         daemon.shutdown()
-        print 'Daemon is shutting down'
+        print('Daemon is shutting down')
         # Have to request status again to close loop
         daemon = Pyro4.Proxy(address)
         daemon._pyroTimeout = params.PROXY_TIMEOUT
         daemon.prod()
         daemon._pyroRelease()
     except:
-        print 'ERROR: No response from daemon'
+        print('ERROR: No response from daemon')
 
 def kill_daemon(process, host):
     '''Kill a daemon (should be used as a last resort)'''
@@ -186,7 +189,7 @@ def kill_daemon(process, host):
     if local_host == host:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
-            print 'Killed daemon at process', process_ID
+            print('Killed daemon at process', process_ID)
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
@@ -318,9 +321,9 @@ def valid_ints(array, allowed):
         if i == '':
             pass
         elif not i.isdigit():
-            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
-        elif i not in [str(x) for x in params.TEL_DICT.keys()]:
-            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
+            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
+        elif i not in [str(x) for x in list(params.TEL_DICT.keys())]:
+            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()
@@ -349,4 +352,4 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     server.login('goto-observatory@gmail.com', 'password')
     server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
     server.quit()
-    print 'Sent mail to',recipients
+    print('Sent mail to',recipients)

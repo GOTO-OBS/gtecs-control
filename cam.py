@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -19,6 +21,7 @@ import Pyro4
 # TeCS modules
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import input
 
 ########################################################################
 # Camera control functions
@@ -27,121 +30,121 @@ def get_info():
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
-        print '####### CAMERA INFO #######'
-        for tel in params.TEL_DICT.keys():
-            print 'CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel])
+        print('####### CAMERA INFO #######')
+        for tel in list(params.TEL_DICT.keys()):
+            print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
             if info['status'+str(tel)] != 'Exposing':
-                print 'Status: %s' %info['status'+str(tel)]
+                print('Status: %s' %info['status'+str(tel)])
             else:
-                print 'Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
-            print 'Frame type:       %s' %info['frametype'+str(tel)]
-            print 'Exposure time:    %.2fs' %info['exptime'+str(tel)]
-            print 'Active area:      %s' %str(info['area'+str(tel)])
-            print 'Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1])
-            print 'CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)]
-            print 'Base Temperature: %.2fC' %info['base_temp'+str(tel)]
-            print 'Cooler power:     %i%%' %info['cooler_power'+str(tel)]
-            print 'Serial number:    %s' %info['serial_number'+str(tel)]
-            print '~~~~~~~'
-        print 'Uptime: %.1fs' %info['uptime']
-        print 'Ping: %.5fs' %info['ping']
-        print 'Timestamp: %s' %info['timestamp']
-        print '###########################'
+                print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+            print('Frame type:       %s' %info['frametype'+str(tel)])
+            print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
+            print('Active area:      %s' %str(info['area'+str(tel)]))
+            print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
+            print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
+            print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
+            print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
+            print('Serial number:    %s' %info['serial_number'+str(tel)])
+            print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def get_info_summary():
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
-        for tel in params.TEL_DICT.keys():
-            print 'CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
+        for tel in list(params.TEL_DICT.keys()):
+            print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
             if info['status'+str(tel)] != 'Exposing':
-                print '  Temp: %6.2fC' %info['ccd_temp'+str(tel)],
-                print '  [%s]' %info['status'+str(tel)]
+                print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
+                print('  [%s]' %info['status'+str(tel)])
             else:
-                print '  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)])
+                print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def take_image(exptime,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_image(exptime,HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def take_dark(exptime,HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_dark(exptime,HW_list)
-        if c: print c
+        if c: print(c)
     except:
-	print misc.ERROR('No response from camera daemon')
+	print(misc.ERROR('No response from camera daemon'))
 
 def take_bias(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_bias(HW_list)
-        if c: print c
+        if c: print(c)
     except:
-	print misc.ERROR('No response from camera daemon')
+	print(misc.ERROR('No response from camera daemon'))
 
 def abort_exposure(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.abort_exposure(HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def set_temperature(target_temp, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_temperature(target_temp, HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def set_flushes(target_flushes, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_flushes(target_flushes, HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def set_bins(bins, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_bins(bins, HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 def set_area(area, HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_area(area, HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from camera daemon')
+        print(misc.ERROR('No response from camera daemon'))
 
 ########################################################################
 # Interactive mode
 def interactive():
     while True:
-        command = split(raw_input('cam> '))
+        command = split(input('cam> '))
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
@@ -162,7 +165,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print misc.ERROR('Already in interactive mode')
+        print(misc.ERROR('Already in interactive mode'))
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -172,92 +175,92 @@ def query(command):
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
             get_info()
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'image':
         if len(command) == 2 and misc.is_num(command[1]):
-            take_image(float(command[1]),params.TEL_DICT.keys())
+            take_image(float(command[1]),list(params.TEL_DICT.keys()))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 take_image(float(command[2]),valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'dark':
         if len(command) == 2 and misc.is_num(command[1]):
-            take_dark(float(command[1]),params.TEL_DICT.keys())
+            take_dark(float(command[1]),list(params.TEL_DICT.keys()))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 take_dark(float(command[2]),valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'bias':
         if len(command) == 1:
-            take_bias(params.TEL_DICT.keys())
+            take_bias(list(params.TEL_DICT.keys()))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 take_bias(valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'abort':
         if len(command) == 1:
-            abort_exposure(params.TEL_DICT.keys())
+            abort_exposure(list(params.TEL_DICT.keys()))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 abort_exposure(valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'temp':
         if len(command) == 2 and misc.is_num(command[1]):
-            set_temperature(float(command[1]),params.TEL_DICT.keys())
+            set_temperature(float(command[1]),list(params.TEL_DICT.keys()))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 set_temperature(float(command[2]),valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'flush':
         if len(command) == 2 and misc.is_num(command[1]):
-            set_flushes(int(command[1]),params.TEL_DICT.keys())
+            set_flushes(int(command[1]),list(params.TEL_DICT.keys()))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 set_flushes(int(command[2]),valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'bin':
         if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
-            set_bins([int(command[1]),int(command[2])],params.TEL_DICT.keys())
+            set_bins([int(command[1]),int(command[2])],list(params.TEL_DICT.keys()))
         elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 set_bins([int(command[2]),int(command[3])],valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     elif command[0] == 'area':
         if len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]):
-            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],params.TEL_DICT.keys())
+            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],list(params.TEL_DICT.keys()))
         elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]) and misc.is_num(command[5]):
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 set_area([int(command[2]), int(command[3]), int(command[4]), int(command[5])],valid)
         else:
-            print misc.ERROR('Invalid arguments')
+            print(misc.ERROR('Invalid arguments'))
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print misc.ERROR('Unrecognized command "%s"' %command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
@@ -280,7 +283,7 @@ def print_instructions():
     '  cam ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
     '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
     '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
-    print help_str
+    print(help_str)
 
 ########################################################################
 # Control System

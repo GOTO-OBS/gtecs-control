@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -51,7 +53,7 @@ class SiTech:
         """Slew to specified coordinates (if not parked)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print "Slewing to %.3f, %.3f" %(ra,dec)
+            print("Slewing to %.3f, %.3f" %(ra,dec))
             self.ascom.SlewToCoordinatesAsync(ra, dec)
         self.ascom.Connected = False
         
@@ -59,14 +61,14 @@ class SiTech:
         """Slew to saved target coordinates (if not parked)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print "Slewing to target"
+            print("Slewing to target")
             self.ascom.SlewToTargetAsync()
         self.ascom.Connected = False
     
     def start_tracking(self):
         """Set mount tracking at siderial rate"""
         self.ascom.Connected = True
-        print "Tracking"
+        print("Tracking")
         self.ascom.Tracking = True
         self.ascom.Connected = False
     
@@ -74,7 +76,7 @@ class SiTech:
         """Abort slew (if slewing) and stops tracking (if tracking)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print "Stopping"
+            print("Stopping")
             self.ascom.AbortSlew()
             self.ascom.Tracking = False
         self.ascom.Connected = False
@@ -82,14 +84,14 @@ class SiTech:
     def park(self):
         """Move mount to park position, won't move until unparked"""
         self.ascom.Connected = True
-        print "Parking"
+        print("Parking")
         self.ascom.Park()
         self.ascom.Connected = False
     
     def unpark(self):
         """Exit mount from park state (and starts tracking)"""
         self.ascom.Connected = True
-        print "Unparking"
+        print("Unparking")
         self.ascom.Unpark()
         self.ascom.Connected = False
     
@@ -97,10 +99,10 @@ class SiTech:
         """Set target data, can do each seperatly"""
         self.ascom.Connected = True
         if ra != 'unset':
-            print "Setting Target RA to %.3f" %ra
+            print("Setting Target RA to %.3f" %ra)
             self.ascom.TargetRightAscension = ra
         if dec != 'unset':
-            print "Setting Target Dec to %.3f" %dec
+            print("Setting Target Dec to %.3f" %dec)
             self.ascom.TargetDeclination = dec
         self.ascom.Connected = False
     
@@ -108,14 +110,14 @@ class SiTech:
         """Set target RA"""
         self.ascom.Connected = True
         self.ascom.TargetRightAscension = ra
-        print "Setting Target RA to %.3f" %ra
+        print("Setting Target RA to %.3f" %ra)
         self.ascom.Connected = False
     
     def set_target_dec(self,dec):
         """Set target Dec"""
         self.ascom.Connected = True
         self.ascom.TargetDeclination = dec
-        print "Setting Target Dec to %.3f" %dec
+        print("Setting Target Dec to %.3f" %dec)
         self.ascom.Connected = False
     
     def get_mount_status(self):
@@ -216,10 +218,10 @@ pyro_daemon = Pyro4.Daemon(host=hostname, port=9000)
 sitech_daemon = SiTech()
 
 uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
-print 'Starting SiTech interface daemon at',uri
+print('Starting SiTech interface daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT=5.
 pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
 
-print 'Exiting SiTech interface daemon'
+print('Exiting SiTech interface daemon')
 time.sleep(1.)

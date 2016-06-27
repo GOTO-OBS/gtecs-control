@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -26,6 +28,7 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from tecs_modules import logger
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import range
 
 ########################################################################
 # FLI control functions
@@ -102,12 +105,12 @@ class FLI:
     # Focuser control functions
     def step_focuser_motor(self, steps, HW):
         """Move focuser by given number of steps"""
-        print 'Moving focuser',HW,'by',steps
+        print('Moving focuser',HW,'by',steps)
         self.focs[int(HW)].step_motor(steps, blocking=False)
     
     def home_focuser(self, HW):
         """Move focuser to the home position"""
-        print 'Homing focuser',HW
+        print('Homing focuser',HW)
         self.focs[int(HW)].home_focuser()
     
     def get_focuser_limit(self, HW):
@@ -139,12 +142,12 @@ class FLI:
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
-        print 'Moving filter wheel',HW,'to position',new_filter
+        print('Moving filter wheel',HW,'to position',new_filter)
         self.filts[int(HW)].set_filter_pos(new_filter)
     
     def home_filter(self, HW):
         """Move filter wheel to home position"""
-        print 'Homing filter wheel',HW
+        print('Homing filter wheel',HW)
         self.filts[int(HW)].home()
     
     def get_filter_number(self, HW):
@@ -176,7 +179,7 @@ class FLI:
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, HW):
         """Set exposure time and frametype"""
-        print 'Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure'
+        print('Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure')
         self.cams[int(HW)].set_exposure(exptime_ms, frametype)
     
     def start_exposure(self, HW):
@@ -189,7 +192,7 @@ class FLI:
     
     def fetch_exposure(self, HW):
         """Fetch the image"""
-        print 'Camera',HW,'saving image'
+        print('Camera',HW,'saving image')
         self.imgdict[HW] = None
         p = multiprocessing.Process(target=self.fetch_process,args=(HW,self.imgdict))
         p.start()
@@ -199,7 +202,7 @@ class FLI:
     
     def abort_exposure(self, HW):
         """Abort current exposure"""
-        print 'Camera',HW,'aborting exposure'
+        print('Camera',HW,'aborting exposure')
         self.cams[int(HW)].cancel_exposure()
     
     def set_camera_temp(self, target_temp, HW):
@@ -274,10 +277,10 @@ pyro_daemon = Pyro4.Daemon(host=hostname, port=9010)
 fli_daemon = FLI()
 
 uri = pyro_daemon.register(fli_daemon, 'fli_interface')
-print 'Starting FLI interface daemon at',uri
+print('Starting FLI interface daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
-print 'Exiting FLI interface daemon'
+print('Exiting FLI interface daemon')
 time.sleep(1.)

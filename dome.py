@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -19,6 +21,7 @@ import Pyro4
 # TeCS modules
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import input
 
 ########################################################################
 # Dome control functions
@@ -27,49 +30,49 @@ def get_info():
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = dome.get_info()
-        print '######## DOME INFO ########'
-        print 'Dome:        %s' %info['dome']
-        print 'Hatch:       %s' %info['hatch']
-        print '~~~~~~~'
-        print 'Uptime: %.1fs' %info['uptime']
-        print 'Ping: %.5fs' %info['ping']
-        print 'Timestamp: %s' %info['timestamp']
-        print '###########################'
+        print('######## DOME INFO ########')
+        print('Dome:        %s' %info['dome'])
+        print('Hatch:       %s' %info['hatch'])
+        print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     except:
-        print misc.ERROR('No response from dome daemon')
+        print(misc.ERROR('No response from dome daemon'))
     
 def open_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.open_dome(side,steps)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from dome daemon')
+        print(misc.ERROR('No response from dome daemon'))
     
 def close_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.close_dome(side,steps)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from dome daemon')
+        print(misc.ERROR('No response from dome daemon'))
     
 def halt_dome():
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.halt_dome()
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from dome daemon')
+        print(misc.ERROR('No response from dome daemon'))
 
 ########################################################################
 # Interactive mode
 def interactive():
     while True:
-        command = split(raw_input('dome> '))
+        command = split(input('dome> '))
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
@@ -90,7 +93,7 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print misc.ERROR('Already in interactive mode')
+        print(misc.ERROR('Already in interactive mode'))
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
@@ -112,7 +115,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print misc.ERROR('Unrecognized command "%s"' %command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
@@ -130,7 +133,7 @@ def print_instructions():
     '  dome ' + misc.bold('i') + '                         - enter interactive mode' + '\n' +\
     '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                    - quit interactive mode' + '\n' +\
     '  dome ' + misc.bold('?') + '/' + misc.bold('help') + '                    - print these instructions'
-    print help_str
+    print(help_str)
 
 ########################################################################
 # Control system

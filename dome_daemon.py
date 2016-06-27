@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -143,7 +145,7 @@ class DomeDaemon:
                     try:
                         self.logfile.log('Opening dome')
                         c = dome.open_full()
-                        if c: print c
+                        if c: print(c)
                     except:
                         self.logfile.log('ERROR: Failed to open dome')
                 # open only one side
@@ -151,7 +153,7 @@ class DomeDaemon:
                     try:
                         self.logfile.log('Opening %s side of dome' %self.move_side)
                         c = dome.open_side(self.move_side, self.move_steps)
-                        if c: print c
+                        if c: print(c)
                     except:
                         self.logfile.log('ERROR: Failed to open dome')
                 self.weather_check = 1
@@ -167,7 +169,7 @@ class DomeDaemon:
                     try:
                         self.logfile.log('Closing dome')
                         c = dome.close_full()
-                        if c: print c
+                        if c: print(c)
                     except:
                         self.logfile.log('ERROR: Failed to close dome')
                 # open only one side
@@ -175,7 +177,7 @@ class DomeDaemon:
                     try:
                         self.logfile.log('Closing %s side of dome' %self.move_side)
                         c = dome.close_side(self.move_side, self.move_steps)
-                        if c: print c
+                        if c: print(c)
                     except:
                         self.logfile.log('ERROR: Failed to open dome')
                 self.weather_check = 1
@@ -189,7 +191,7 @@ class DomeDaemon:
                 try:
                     self.logfile.log('Halting dome')
                     c = dome.halt()
-                    if c: print c
+                    if c: print(c)
                 except:
                     self.logfile.log('ERROR: Failed to halt dome')
                 self.halt_flag = 0
@@ -258,10 +260,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['dome']['HOST'], port=params.DAEM
 dome_daemon = DomeDaemon()
 
 uri = pyro_daemon.register(dome_daemon,objectId = params.DAEMONS['dome']['PYROID'])
-print 'Starting dome daemon at',uri
+print('Starting dome daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
 
-print 'Exiting dome daemon'
+print('Exiting dome daemon')
 time.sleep(1.)

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -224,23 +226,23 @@ class ExqDaemon:
             # check daemon statuses
             try:
                 cam_status = {}
-                for tel in self.tel_dict.keys():
+                for tel in list(self.tel_dict.keys()):
                     cam_status[tel] = str(cam.get_info()['status'+str(tel)])
             except:
-                print 'ERROR: No responce from camera daemon'
+                print('ERROR: No responce from camera daemon')
                 self.running = False
                 break
             try:
                 filt_status = {}
-                for tel in self.tel_dict.keys():
+                for tel in list(self.tel_dict.keys()):
                     filt_status[tel] = str(filt.get_info()['status'+str(tel)])
             except:
-                print 'ERROR: No responce from filter wheel daemon'
+                print('ERROR: No responce from filter wheel daemon')
                 self.running = False
                 break
             
             # set working flag
-            if 'Exposing' in cam_status.values() or 'Moving' in filt_status.values():
+            if 'Exposing' in list(cam_status.values()) or 'Moving' in list(filt_status.values()):
                 self.working = 1
             else:
                 self.working = 0
@@ -310,7 +312,7 @@ class ExqDaemon:
                     self.working = 1
                     self.set_filter_flag = 0
                 except:
-                    print 'ERROR: No response from filter wheel daemon'
+                    print('ERROR: No response from filter wheel daemon')
             
             # take image
             if(self.take_image_flag):
@@ -328,7 +330,7 @@ class ExqDaemon:
                     self.working = 1
                     self.take_image_flag = 0
                 except:
-                    print 'ERROR: No responce from camera daemon'
+                    print('ERROR: No responce from camera daemon')
             
             time.sleep(0.0001) # To save 100% CPU usage
             
@@ -409,10 +411,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMO
 exq_daemon = ExqDaemon()
 
 uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
-print 'Starting exposure queue daemon at',uri
+print('Starting exposure queue daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
 
-print 'Exiting exposure queue daemon'
+print('Exiting exposure queue daemon')
 time.sleep(1.)

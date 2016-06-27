@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -31,21 +33,21 @@ while True:
     if type(info) == dict:
         break
     if time.time() - start_time > INFO_TIMEOUT:
-        print 'Failed to get info dict'
+        print('Failed to get info dict')
         misc.send_email(message='Failed to get dome info dictionary')
         sys.exit()
     time.sleep(1)
 
-print info
+print(info)
 if info['ping'] > PING_LIMIT:
-    print 'Failed to ping dome daemon'
+    print('Failed to ping dome daemon')
     misc.send_email(message='Dome ping failed - daemon crashed?\nKilling and restarting daemon...')
-    print 'dome kill'
+    print('dome kill')
     os.system('python2 ' + params.SCRIPT_PATH + ' kill')
-    print 'Sleeping...'
+    print('Sleeping...')
     time.sleep(10)
-    print 'dome start'
+    print('dome start')
     os.system('python2 ' + params.SCRIPT_PATH + ' start')
     exit()
 
-print 'Dome OK'
+print('Dome OK')

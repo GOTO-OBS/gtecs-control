@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               logger.py                              #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -11,8 +13,8 @@
 # Python modules
 import time
 # TeCS modules
-import misc
-import params
+from . import misc
+from . import params
 
 class Logfile:
     def __init__(self, logname, filemode=1):  # filemode 1 for file, 0 for screen
@@ -30,4 +32,4 @@ class Logfile:
             f.write(timestamp + '  ' + string + '\n')
             f.close()
         else:
-            print strng
+            print(strng)

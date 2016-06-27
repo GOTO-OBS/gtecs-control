@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -85,7 +87,7 @@ class FocDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                for tel in self.tel_dict.keys():
+                for tel in list(self.tel_dict.keys()):
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -97,10 +99,10 @@ class FocDaemon:
                         self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
                         self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
                     except:
-                        print 'ERROR: No response from fli interface on', nuc
+                        print('ERROR: No response from fli interface on', nuc)
                 # save info
                 info = {}
-                for tel in self.tel_dict.keys():
+                for tel in list(self.tel_dict.keys()):
                     nuc, HW = self.tel_dict[tel]
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
@@ -139,9 +141,9 @@ class FocDaemon:
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.step_focuser_motor(move_steps,HW)
-                        if c: print c
+                        if c: print(c)
                     except:
-                        print 'ERROR: No response from fli interface on', nuc
+                        print('ERROR: No response from fli interface on', nuc)
                 # cleare the 'active' units
                 self.active_tel = []
                 
@@ -160,9 +162,9 @@ class FocDaemon:
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.home_focuser(HW)
-                        if c: print c
+                        if c: print(c)
                     except:
-                        print 'ERROR: No response from fli interface on', nuc
+                        print('ERROR: No response from fli interface on', nuc)
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
@@ -185,8 +187,8 @@ class FocDaemon:
     def set_focuser(self,new_pos,tel_list):
         """Move focuser to given position"""
         for tel in tel_list:
-            if tel not in self.tel_dict.keys():
-                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+            if tel not in list(self.tel_dict.keys()):
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
@@ -206,8 +208,8 @@ class FocDaemon:
     def move_focuser(self,move_steps,tel_list):
         """Move focuser by given number of steps"""
         for tel in tel_list:
-            if tel not in self.tel_dict.keys():
-                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+            if tel not in list(self.tel_dict.keys()):
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
@@ -227,8 +229,8 @@ class FocDaemon:
     def home_focuser(self,tel_list):
         """Move focuser to the home position"""
         for tel in tel_list:
-            if tel not in self.tel_dict.keys():
-                return 'ERROR: Unit telescope ID not in list %s' %str(self.tel_dict.keys())
+            if tel not in list(self.tel_dict.keys()):
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
@@ -266,10 +268,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMO
 foc_daemon = FocDaemon()
 
 uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-print 'Starting focuser daemon at',uri
+print('Starting focuser daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
 
-print 'Exiting focuser daemon'
+print('Exiting focuser daemon')
 time.sleep(1.)

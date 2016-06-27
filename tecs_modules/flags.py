@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               flags.py                               #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -11,7 +12,7 @@
 # Python modules
 import time, calendar
 # TeCS modules
-import params
+from . import params
 
 class Conditions:
     def __init__(self):
