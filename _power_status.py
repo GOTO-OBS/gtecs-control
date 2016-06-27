@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-from __future__ import print_function
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 ########################################################################
 #                             _power_status.py                         #
@@ -14,6 +12,9 @@ from __future__ import print_function
 # Tiny script to print power status to stdout
 # Allows function call to be killed if it locks up
 # NOT for manual use - should ONLY be called by power daemon
+
+from __future__ import absolute_import
+from __future__ import print_function
 
 from tecs_modules import params
 

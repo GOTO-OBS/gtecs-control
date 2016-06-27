@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -118,7 +118,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     elif command[0] == 'info':
@@ -128,7 +128,7 @@ def query(command):
             get_info()
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'set':
         if len(command) == 2 and misc.is_num(command[1]):
             set_focuser(int(command[1]),list(params.TEL_DICT.keys()))
@@ -138,7 +138,7 @@ def query(command):
                 set_focuser(int(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'move':
         if len(command) == 2 and misc.is_num(command[1]):
             move_focuser(int(command[1]),list(params.TEL_DICT.keys()))
@@ -148,7 +148,7 @@ def query(command):
                 move_focuser(int(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'home':
         if len(command) == 1:
             home_focuser(list(params.TEL_DICT.keys()))
@@ -158,7 +158,7 @@ def query(command):
                 home_focuser(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -192,7 +192,7 @@ else:
     FOC_DAEMON_HOST = params.DAEMONS['foc']['HOST']
     FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
     FOC_DAEMON_OUTPUT = params.LOG_PATH + 'foc_daemon-stdout.log'
-    
+
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

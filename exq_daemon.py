@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 from math import *
 import time, datetime
 import Pyro4
@@ -31,12 +31,12 @@ from tecs_modules import params
 class ExposureSpec:
     """
     Exposure specification class
-    
+
     Contains 3 functions:
     - line_to_spec(str)
     - spec_to_line()
     - info()
-    
+
     Exposures contain the folowing infomation:
     - run ID      [int] <automatically assigned>
     - tel_list    [lst] -- REQUIRED --
@@ -57,7 +57,7 @@ class ExposureSpec:
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype
-    
+
     @classmethod
     def line_to_spec(cls,line):
         """Convert a line of data to exposure spec object"""
@@ -73,13 +73,13 @@ class ExposureSpec:
         imgtype = ls[7]
         exp = cls(run_ID,tel_list,exptime,filt,bins,frametype,target,imgtype)
         return exp
-    
+
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
         line = '%05d;%s;%.1f;%s;%i;%s;%s;%s\n'\
            %(self.run_ID,self.tel_list,self.exptime,self.filt,self.bins,self.frametype,self.target,self.imgtype)
         return line
-    
+
     def info(self):
         """Return a readable string of summary infomation about the exposure"""
         s = 'RUN NUMBER %05d\n' %self.run_ID
@@ -96,7 +96,7 @@ class ExposureSpec:
 class Queue(MutableSequence):
     """
     Queue sequence to hold exposures
-    
+
     Contains 4 functions:
     - write_to_file()
     - insert(index,value)
@@ -106,55 +106,55 @@ class Queue(MutableSequence):
     def __init__(self):
         self.data = []
         self.queue_file = params.QUEUE_PATH + 'queue'
-        
+
         if not os.path.exists(self.queue_file):
             f = open(self.queue_file,'w')
             f.write('#\n')
             f.close()
-        
+
         with open(self.queue_file) as f:
             lines = f.read().splitlines()
             for line in lines:
                 if not line.startswith('#'):
                     self.data.append(ExposureSpec.line_to_spec(line))
-    
+
     def write_to_file(self):
         """Write the current queue to the queue file"""
         with open(self.queue_file,'w') as f:
             for exp in self.data:
                 f.write(exp.spec_to_line())
-    
+
     def __getitem__(self,index):
         return self.data[index]
-    
+
     def __setitem__(self,index,value):
         self.data[index] = value
         self.write_to_file()
-    
+
     def __delitem__(self,index):
         del self.data[index]
         self.write_to_file()
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def insert(self,index,value):
         """Add an item to the queue at a specified position"""
         self.data.insert(index,value)
         self.write_to_file()
-    
+
     def clear(self):
         """Empty the current queue and queue file"""
         self.data = []
         self.write_to_file()
-    
+
     def get(self):
         """Return info() for all exposures in the queue"""
         s ='%i items in queue:\n' %len(self.data)
         for x in self.data:
             s += x.info()
         return s.rstrip()
-    
+
     def get_simple(self):
         """Return string for all exposures in the queue"""
         s ='%i items in queue:\n' %len(self.data)
@@ -165,7 +165,7 @@ class Queue(MutableSequence):
 class ExqDaemon:
     """
     Exposure queue daemon class
-    
+
     Contains 6 functions:
     - get_info()
     - add(exptime,filt,tel,bins,frametype,target,imgtype)
@@ -182,7 +182,7 @@ class ExqDaemon:
         ### set up logfile
         self.logfile = logger.Logfile('exq',params.LOGGING)
         self.logfile.log('Daemon started')
-        
+
         ### function flags
         self.get_info_flag = 1
         self.set_filter_flag = 0
@@ -200,25 +200,25 @@ class ExqDaemon:
         self.working = 1
         self.abort = 0
         self.paused = 1 # start paused
-        
+
         ### start control thread
         t = threading.Thread(target=self.exq_thread)
         t.daemon = True
         t.start()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary exposure queue thread
     def exq_thread(self):
-        
+
         while(self.running):
             self.time_check = time.time()
-            
+
             ### exposure queue processes
             # connect to daemons
             CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
             cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
             cam._pyroTimeout = params.PROXY_TIMEOUT
-            
+
             FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
             filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
             filt._pyroTimeout = params.PROXY_TIMEOUT
@@ -240,14 +240,14 @@ class ExqDaemon:
                 print('ERROR: No responce from filter wheel daemon')
                 self.running = False
                 break
-            
+
             # set working flag
             if 'Exposing' in list(cam_status.values()) or 'Moving' in list(filt_status.values()):
                 self.working = 1
             else:
                 self.working = 0
-            
-            # check the queue, take off the first entry (if not paused) 
+
+            # check the queue, take off the first entry (if not paused)
             self.queue_len = len(self.exp_queue)
             if (self.queue_len > 0) and not self.paused and self.current_ID == None:
                 if self.current_ID == None and not self.working:
@@ -257,7 +257,7 @@ class ExqDaemon:
             elif self.current_ID == None:
                 self.current_ID = None
                 time.sleep(0.5)
-            
+
             # take the exposure
             if self.current_ID != None:
                 # set the filter
@@ -274,7 +274,7 @@ class ExqDaemon:
                     self.working = 1
                     # That's all to do here
                     self.current_ID = None
-            
+
             ### control functions
             # request info
             if(self.get_info_flag):
@@ -301,7 +301,7 @@ class ExqDaemon:
                 info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
                 self.info = info
                 self.get_info_flag = 0
-            
+
             # set filter
             if(self.set_filter_flag):
                 new_filt = self.exp_spec.filt
@@ -313,7 +313,7 @@ class ExqDaemon:
                     self.set_filter_flag = 0
                 except:
                     print('ERROR: No response from filter wheel daemon')
-            
+
             # take image
             if(self.take_image_flag):
                 bins = self.exp_spec.bins
@@ -331,12 +331,12 @@ class ExqDaemon:
                     self.take_image_flag = 0
                 except:
                     print('ERROR: No responce from camera daemon')
-            
+
             time.sleep(0.0001) # To save 100% CPU usage
-            
+
         self.logfile.log('Exposure queue thread stopped')
         return
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Exposure queue functions
     def get_info(self):
@@ -344,49 +344,49 @@ class ExqDaemon:
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
-    
+
     def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         """Add an exposure to the queue"""
         # check if valid
         if filt.upper() not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
-        
+
         # find and update run number
         with open(self.run_number_file,) as f:
             lines = f.readlines()
             new_run_ID = int(lines[0]) + 1
         with open(self.run_number_file,'w') as f:
             f.write(str(new_run_ID))
-        
+
         self.exp_queue.append(ExposureSpec(new_run_ID,tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
         if(self.paused):
             return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
         else:
             return 'Added exposure, now %i items in queue' %len(self.exp_queue)
-    
+
     def clear(self):
         """Empty the exposure queue"""
         self.exp_queue.clear()
         return 'Queue cleared'
-    
+
     def get(self):
         """Return info on exposures in the queue"""
         return self.exp_queue.get()
-    
+
     def get_simple(self):
         """Return simple info on exposures in the queue"""
         return self.exp_queue.get_simple()
-    
+
     def pause(self):
         """Pause the queue"""
         self.paused = 1
         return 'Queue paused'
-    
+
     def resume(self):
         """Unpause the queue"""
         self.paused = 0
         return 'Queue resumed'
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
@@ -395,18 +395,18 @@ class ExqDaemon:
             return 'Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
-    
+
     def prod(self):
         return
-    
+
     def status_function(self):
         return self.running
-    
+
     def shutdown(self):
         self.running=False
 
 ########################################################################
-# Create Pyro control server 
+# Create Pyro control server
 pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
 exq_daemon = ExqDaemon()
 

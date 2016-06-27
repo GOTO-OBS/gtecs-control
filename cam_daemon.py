@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 from math import *
 import time, datetime
 import Pyro4
@@ -31,7 +31,7 @@ from tecs_modules import params
 class CamDaemon:
     """
     Camera daemon class
-    
+
     Contains 7 functions:
     - get_info()
     - take_image(exptime,telescopeIDs)
@@ -51,7 +51,7 @@ class CamDaemon:
         ### set up logfile
         self.logfile = logger.Logfile('cam',params.LOGGING)
         self.logfile.log('Daemon started')
-        
+
         ### command flags
         self.get_info_flag = 1
         self.take_exposure_flag = 0
@@ -60,15 +60,15 @@ class CamDaemon:
         self.set_flushes_flag = 0
         self.set_bins_flag = 0
         self.set_area_flag = 0
-        
+
         ### camera variables
         self.info = {}
         self.ftlist = params.FRAMETYPE_LIST
         self.tel_dict = params.TEL_DICT
         self.run_number_file = params.TECS_PATH + 'run_number'
-        
+
         self.image = 'None yet'
-        
+
         self.remaining = {}
         self.exposing_flag = {}
         self.exptime = {}
@@ -82,7 +82,7 @@ class CamDaemon:
         self.serial_number = {}
         self.images = {}
 
-        
+
         for nuc in params.FLI_INTERFACES:
             self.remaining[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.exposing_flag[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
@@ -96,7 +96,7 @@ class CamDaemon:
             self.cam_info[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.images[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-        
+
         self.active_tel = []
         self.obs_times = {}
         self.target_exptime = 0
@@ -111,22 +111,22 @@ class CamDaemon:
         self.run_ID = 0
         self.target = 'N/A'
         self.imgtype = 'MANUAL'
-        
+
         self.manager = multiprocessing.Manager()
         self.images = self.manager.dict()
-        
+
         ### start control thread
         t = threading.Thread(target=self.cam_control)
         t.daemon = True
         t.start()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def cam_control(self):
-        
+
         while(self.running):
             self.time_check = time.time()
-            
+
             ### control functions
             # request info
             if(self.get_info_flag):
@@ -154,7 +154,7 @@ class CamDaemon:
                         info['remaining'+tel] = self.remaining[nuc][HW]
                     else:
                         info['status'+tel] = 'Ready'
-                        
+
                     info['frametype'+tel] = self.frametype[nuc][HW]
                     info['exptime'+tel] = self.exptime[nuc][HW]
                     info['bins'+tel] = tuple(self.bins[nuc][HW])
@@ -163,16 +163,16 @@ class CamDaemon:
                     info['base_temp'+tel] = self.base_temp[nuc][HW]
                     info['cooler_power'+tel] = self.cooler_power[nuc][HW]
                     info['serial_number'+tel] = self.serial_number[nuc][HW]
-                
+
                 info['run_ID'] = self.run_ID
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 now = datetime.datetime.utcnow()
                 info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-                
+
                 self.info = info
                 self.get_info_flag = 0
-            
+
             # take exposure part one - start
             if(self.take_exposure_flag):
                 # find and update run number
@@ -201,7 +201,7 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                     self.exposing_flag[nuc][HW] = 1
                 self.take_exposure_flag = 0
-            
+
             # take exposure part two - finish
             for tel in self.active_tel:
                 nuc, HW = self.tel_dict[tel]
@@ -218,7 +218,7 @@ class CamDaemon:
                         p = multiprocessing.Process(target=self.image_fetch, args=(tel,self.images))
                         p.daemon = True
                         p.start()
-            
+
             # take exposure part three - save
             for tel in self.active_tel:
                 nuc, HW = self.tel_dict[tel]
@@ -233,7 +233,7 @@ class CamDaemon:
                     self.write_fits(image,filename,tel)
                     self.exposing_flag[nuc][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
-            
+
             # abort exposure
             if(self.abort_exposure_flag):
                 for tel in self.active_tel:
@@ -248,7 +248,7 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 self.active_tel = []
                 self.abort_exposure_flag = 0
-            
+
             # set camera temperature
             if(self.set_temp_flag):
                 target_temp = self.target_temp
@@ -264,7 +264,7 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_temp_flag = 0
-            
+
             # set number of flushes
             if(self.set_flushes_flag):
                 target_flushes = self.target_flushes
@@ -280,7 +280,7 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_flushes_flag = 0
-            
+
             # set bins
             if(self.set_bins_flag):
                 hbin, vbin = self.target_bins
@@ -297,7 +297,7 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_bins_flag = 0
-            
+
             # set active area
             if(self.set_area_flag):
                 ul_x, ul_y, lr_x, lr_y = self.target_area
@@ -314,12 +314,12 @@ class CamDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_area_flag = 0
-            
+
             time.sleep(0.0001) # To save 100% CPU usage
-        
+
         self.logfile.log('Camera control thread stopped')
         return
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     def get_info(self):
@@ -327,7 +327,7 @@ class CamDaemon:
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
-    
+
     def take_image(self,exptime,tel_list):
         """Take image with camera"""
         for tel in tel_list:
@@ -396,7 +396,7 @@ class CamDaemon:
                 s += '\n  Taking bias on camera %i' %tel
             self.take_exposure_flag = 1
         return s
-    
+
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
         for tel in tel_list:
@@ -414,7 +414,7 @@ class CamDaemon:
                 s += '\n  Aborting exposure on camera %i' %tel
         self.abort_exposure_flag = 1
         return s
-    
+
     def set_temperature(self,target_temp,tel_list):
         """Set the camera's temperature"""
         self.target_temp = target_temp
@@ -429,7 +429,7 @@ class CamDaemon:
             s += '\n  Setting temperature on camera %i' %tel
         self.set_temp_flag = 1
         return s
-    
+
     def set_flushes(self,target_flushes,tel_list):
         """Set the number of times to flush the CCD before an exposure"""
         self.target_flushes = target_fliushes
@@ -444,7 +444,7 @@ class CamDaemon:
             s += '\n  Setting flushes on camera %i' %tel
         self.set_flushes_flag = 1
         return s
-    
+
     def set_bins(self,bins,tel_list):
         """Set the image binning"""
         self.target_bins = bins
@@ -457,7 +457,7 @@ class CamDaemon:
             s += '\n  Setting image bins on camera %i' %tel
         self.set_bins_flag = 1
         return s
-    
+
     def set_area(self,area,tel_list):
         """Set the active image area"""
         self.target_area = area
@@ -470,17 +470,17 @@ class CamDaemon:
             s += '\n  Setting active image area on camera %i' %tel
         self.set_area_flag = 1
         return s
-    
+
     def set_spec(self,run_ID,target,imgtype):
         """Save the run details if given by the queue daemon"""
         self.run_ID = run_ID
         self.target = target
         self.imgtype = imgtype
         self.spec_flag = 1
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Image data functions
-    
+
     def image_fetch(self,tel,outarr):
         nuc, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
@@ -490,7 +490,7 @@ class CamDaemon:
             outarr[tel] = image
         except:
             print('ERROR: No response from fli interface on', nuc)
-    
+
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
         now = datetime.datetime.utcnow()
@@ -505,14 +505,14 @@ class CamDaemon:
         else:
             filename = '/man_ut%i.fits'%tel
         return direc + filename
-    
+
     def write_fits(self,image,filename,tel):
         hdu = pyfits.PrimaryHDU(image)
         self.update_header(hdu.header,tel)
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
         hdulist.writeto(filename)
-    
+
     def update_header(self,header,tel):
         # File data
         now = datetime.datetime.utcnow()
@@ -520,7 +520,7 @@ class CamDaemon:
         header.set("DATE",     value = hdu_date,                        comment = "Date HDU created")
         header.set("RUN_ID",   value = self.run_ID,                     comment = "GOTO Observation ID number")
         header.set("OBJECT",   value = self.target,                     comment = "Object name")
-        
+
         # Origin data
         nuc, HW = self.tel_dict[tel]
         tel_str = "-%i (%s-%i)" %(tel,nuc,HW)
@@ -528,7 +528,7 @@ class CamDaemon:
         header.set("TELESCOP", value = params.TELESCOP+tel_str,         comment = "Origin telescope")
         cam_ID = self.cam_info[nuc][HW]['serial_number']
         header.set("INSTRUME", value = cam_ID,                          comment = "Camera serial number")
-        
+
         # Camera data
         header.set("DATE-OBS", value = self.obs_times[tel],             comment = "Observation start time, UTC")
         header.set("EXPTIME",  value = self.target_exptime,             comment = "Exposure time, seconds")
@@ -545,7 +545,7 @@ class CamDaemon:
         header.set("CCDTEMP",  value = self.ccd_temp[nuc][HW],          comment = "CCD temperature, C")
         header.set("CCDTEMPS", value = self.target_temp,                comment = "Set CCD temperature, C")
         header.set("BASETEMP", value = self.base_temp[nuc][HW],         comment = "Peltier base temperature, C")
-        
+
         # Mount data
         mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
         mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -570,8 +570,8 @@ class CamDaemon:
         header.set("DEC", value = mount_az,                             comment = "Dec requested")
         header.set("RA_TEL", value = mount_az,                          comment = "Telescope RA")
         header.set("DEC_TEL", value = mount_az,                         comment = "Telescope Dec")
-        
-        # Focuser data        
+
+        # Focuser data
         foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])
         foc._pyroTimeout = params.PROXY_TIMEOUT
         try:
@@ -589,7 +589,7 @@ class CamDaemon:
         header.set("FOCPOS",   value = foc_pos,                         comment = "Focuser motor position")
         header.set("FOCTEMPI", value = foc_temp_int,                    comment = "Focuser internal temperature, C")
         header.set("FOCTEMPX", value = foc_temp_ext,                    comment = "Focuser external temperature, C")
-        
+
         #Filter wheel data
         flist = params.FILTER_LIST
         filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
@@ -603,7 +603,7 @@ class CamDaemon:
             filt_ID = 'N/A'
         header.set("FILTW",     value = filt_ID,                        comment = "Filter wheel serial number")
         header.set("FILTER",    value = filt,                           comment = "Filter used for exposure")
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
@@ -612,13 +612,13 @@ class CamDaemon:
             return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
-    
+
     def prod(self):
         return
 
     def status_function(self):
         return self.running
-    
+
     def shutdown(self):
         self.running = False
 

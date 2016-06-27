@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -40,7 +40,7 @@ def get_info():
         print('###########################')
     except:
         print(misc.ERROR('No response from dome daemon'))
-    
+
 def open_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
@@ -49,7 +49,7 @@ def open_dome(side='both',steps=None):
         if c: print(c)
     except:
         print(misc.ERROR('No response from dome daemon'))
-    
+
 def close_dome(side='both',steps=None):
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
@@ -58,7 +58,7 @@ def close_dome(side='both',steps=None):
         if c: print(c)
     except:
         print(misc.ERROR('No response from dome daemon'))
-    
+
 def halt_dome():
     dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
@@ -94,7 +94,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
@@ -111,7 +111,7 @@ def query(command):
             close_dome(command[1], command[2])
     elif command[0] == 'halt':
         halt_dome()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -145,8 +145,8 @@ else:
     DOME_DAEMON_HOST = params.DAEMONS['dome']['HOST']
     DOME_DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
     DOME_DAEMON_OUTPUT = params.LOG_PATH + 'dome_daemon-stdout.log'
-    
-    command = sys.argv[1:]    
+
+    command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:

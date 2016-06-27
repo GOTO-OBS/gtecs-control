@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               flags.py                               #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -10,6 +9,7 @@ from __future__ import absolute_import
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
 import time, calendar
 # TeCS modules
 from . import params
@@ -19,10 +19,10 @@ class Conditions:
         f = open(params.CONFIG_PATH + 'conditions_flags','r')
         data = f.readlines()
         f.close()
-        
+
         ut = time.strptime(data[0], '%Y-%m-%d %H:%M:%S UTC\n')
         self.update_time = calendar.timegm(ut)
-        
+
         for x in data[1:]:
             exec(x)
         self.dark = dark
@@ -31,7 +31,7 @@ class Conditions:
         self.humidity = humidity
         self.temperature = temperature
         self.summary = dry + wind + humidity + temperature #exclude dark
-    
+
     def age(self):
         return time.time() - self.update_time
 
@@ -40,7 +40,7 @@ class Overrides:
         f = open(params.CONFIG_PATH + 'overrides_flags','r')
         data = f.readlines()
         f.close()
-        
+
         for x in data:
             exec(x)
         self.robotic = robotic

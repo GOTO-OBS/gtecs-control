@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -112,7 +112,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
@@ -122,7 +122,7 @@ def query(command):
             get_info()
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'set':
         if len(command) == 2:
             set_filter(command[1].upper(),list(params.TEL_DICT.keys()))
@@ -132,7 +132,7 @@ def query(command):
                 set_filter(command[2].upper(),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'home':
         if len(command) == 1:
             home_filter(list(params.TEL_DICT.keys()))
@@ -142,7 +142,7 @@ def query(command):
                 home_filter(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'list':
         print(params.FILTER_LIST)
 
@@ -179,8 +179,8 @@ else:
     FILT_DAEMON_HOST = params.DAEMONS['filt']['HOST']
     FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
     FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
-    
-    command = sys.argv[1:]    
+
+    command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:

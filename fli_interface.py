@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 from math import *
 import time
 import Pyro4
@@ -35,7 +35,7 @@ from six.moves import range
 class FLI:
     """
     FLI interface class
-    
+
     Contains 22 functions:
     ::focuser::
     - step_focuser_motor(steps, HW)
@@ -44,7 +44,7 @@ class FLI:
     - get_focuser_position(HW)
     - get_focuser_steps_remaining(HW)
     - get_focuser_temp(temp_type, HW):
-       
+
     ::filter::
     - set_filter_pos(new_filter, HW)
     - home_filter(HW):
@@ -52,7 +52,7 @@ class FLI:
     - get_filter_position(HW)
     - get_filter_steps_remaining(HW)
     - get_filter_homed(HW)
-    
+
     ::camera::
     - set_exposure(exptime_ms, frametype, HW)
     - start_exposure(HW)
@@ -69,14 +69,14 @@ class FLI:
     """
     def __init__(self):
         self.running = True
-        
+
         ### find interface params
         self.hostname = socket.gethostname()
         #for nuc in params.FLI_INTERFACES.keys():
             #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
                 #self.nuc = nuc
         self.nuc = 'nuc1'
-        
+
         ### fli objects
         self.cams = []
         self.focs = []
@@ -97,99 +97,99 @@ class FLI:
             filt = USBFilterWheel.locate_device(filt_serial)
             if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
             self.filts.append(filt)
-            
+
         self.manager = multiprocessing.Manager()
         self.imgdict = self.manager.dict()
-        
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     def step_focuser_motor(self, steps, HW):
         """Move focuser by given number of steps"""
         print('Moving focuser',HW,'by',steps)
         self.focs[int(HW)].step_motor(steps, blocking=False)
-    
+
     def home_focuser(self, HW):
         """Move focuser to the home position"""
         print('Homing focuser',HW)
         self.focs[int(HW)].home_focuser()
-    
+
     def get_focuser_limit(self, HW):
         """Return focuser motor limit"""
         lim = self.focs[int(HW)].max_extent
         return lim
-    
+
     def get_focuser_position(self, HW):
         """Return focuser position"""
         pos = self.focs[int(HW)].stepper_position
         return pos
-    
+
     def get_focuser_steps_remaining(self, HW):
         """Return focuser motor limit"""
         rem = self.focs[int(HW)].get_steps_remaining()
         return rem
-    
+
     def get_focuser_temp(self, temp_type, HW):
         """Return focuser internal/external temperature"""
         tmp = self.focs[int(HW)].read_temperature(temp_type)
         return tmp
-    
+
     def get_focuser_serial_number(self,HW):
         """Return focuser unique serial number"""
         ser = self.focs[int(HW)].serial_number
         return ser
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
         print('Moving filter wheel',HW,'to position',new_filter)
         self.filts[int(HW)].set_filter_pos(new_filter)
-    
+
     def home_filter(self, HW):
         """Move filter wheel to home position"""
         print('Homing filter wheel',HW)
         self.filts[int(HW)].home()
-    
+
     def get_filter_number(self, HW):
         """Return current filter number"""
         num = self.filts[int(HW)].get_filter_pos()
         return num
-    
+
     def get_filter_position(self, HW):
         """Return filter wheel position"""
         pos = self.filts[int(HW)].stepper_position
         return pos
-    
+
     def get_filter_steps_remaining(self, HW):
         """Return filter wheel steps remaining"""
         rem = self.filts[int(HW)].get_steps_remaining()
         return rem
-    
+
     def get_filter_homed(self, HW):
         """Return if filter wheel has been homed"""
         hom = self.filts[int(HW)].homed
         return hom
-    
+
     def get_filter_serial_number(self,HW):
        	"""Return filter wheel unique serial number"""
         ser = self.filts[int(HW)].serial_number
        	return ser
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, HW):
         """Set exposure time and frametype"""
         print('Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure')
         self.cams[int(HW)].set_exposure(exptime_ms, frametype)
-    
+
     def start_exposure(self, HW):
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
-    
+
     def fetch_process(self, HW, outdict):
         img = self.cams[int(HW)].fetch_image()
         outdict[HW] = img
-    
+
     def fetch_exposure(self, HW):
         """Fetch the image"""
         print('Camera',HW,'saving image')
@@ -199,74 +199,74 @@ class FLI:
         while self.imgdict[HW] is None:
             time.sleep(0.001)
         return self.imgdict[HW]
-    
+
     def abort_exposure(self, HW):
         """Abort current exposure"""
         print('Camera',HW,'aborting exposure')
         self.cams[int(HW)].cancel_exposure()
-    
+
     def set_camera_temp(self, target_temp, HW):
         """Set the camera's temperature"""
         self.cams[int(HW)].set_temperature(target_temp)
-    
+
     def set_camera_flushes(self, target_flushes, HW):
         """Set the number of times to flush the CCD before an exposure"""
         self.cams[int(HW)].set_flushes(target_flushes)
-    
+
     def set_camera_bins(self, hbin, vbin, HW):
         """Set the image binning"""
         self.cams[int(HW)].set_image_binning(hbin,vbin)
-    
+
     def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, HW):
         """Set the active image area"""
         self.cams[int(HW)].set_image_size(ul_x, ul_y, lr_x, lr_y)
-    
+
     def get_camera_info(self, HW):
         """Return camera infomation dictionary"""
         dic = self.cams[int(HW)].get_info()
         return dic
-    
+
     def get_camera_state(self, HW):
         """Return camera state string"""
         state = self.cams[int(HW)].state
         return state
-    
+
     def get_camera_data_state(self, HW):
         """Return True if data is available"""
         state = self.cams[int(HW)].dataAvailable
         return state
-    
+
     def get_camera_time_remaining(self, HW):
         """Return exposure time remaining"""
         rem = self.cams[int(HW)].get_exposure_timeleft()/1000.
         return rem
-    
+
     def get_camera_temp(self, temp_type, HW):
         """Return camera CCD/base temperature"""
         tmp = self.cams[int(HW)].get_temperature(temp_type)
         return tmp
-    
+
     def get_camera_cooler_power(self, HW):
         """Return peltier cooler power"""
         rem = self.cams[int(HW)].get_cooler_power()
         return rem
-    
+
     def get_camera_serial_number(self,HW):
        	"""Return camera unique serial number"""
         ser = self.cams[int(HW)].serial_number
        	return ser
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
         return 'ping'
-    
+
     def prod(self):
         return
-    
+
     def status_function(self):
         return self.running
-    
+
     def shutdown(self):
         self.running = False
 
