@@ -33,6 +33,8 @@ elif HOST == 'janus': # MJD's desktop
     TECS_PATH = '/local/mjd/backed_up_on_astro3/g-tecs/'
 elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
     TECS_PATH = '/home/mdyer/g-tecs/'
+elif HOST == 'Stus-MacBook-Pro.local':
+    TECS_PATH = '/Users/sl/g-tecs/'
 else:
     TECS_PATH = '/home/goto/g-tecs/'
 
