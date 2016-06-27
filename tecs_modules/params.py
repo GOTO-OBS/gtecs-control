@@ -152,8 +152,8 @@ for nuc in FLI_INTERFACES:
 # Mount parameters
 WIN_HOST = '137.205.160.1'
 
-SITECH_PROCESS = 'sitech.py'
-SITECH_PYROID = 'sitech'
+SITECH_PROCESS = 'sitech_interface.py'
+SITECH_PYROID = 'sitech_interface'
 SITECH_PORT = 9000
 SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
 
