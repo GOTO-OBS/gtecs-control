@@ -98,10 +98,10 @@ def kill_processes(process, host):
 
 def python_command(filename, command):
     '''Send a command to a control script as if using the terminal'''
-    command_string = 'python ' + filename + ' ' + command
+    command_string = ' '.join((sys.executable, filename, command))
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
-    return output
+    return output.decode()
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
