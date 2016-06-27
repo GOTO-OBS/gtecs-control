@@ -74,7 +74,8 @@ class PowerDaemon:
             delta = self.time_check - self.start_time
             if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
                 try:
-                    cmd = 'python2 '+params.SCRIPT_PATH+params.POWER_CHECK_SCRIPT
+                    cmd = ' '.join((sys.executable,
+                                    params.SCRIPT_PATH, params.POWER_CHECK_SCRIPT))
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
                     assert type(power_status) == type('')
                     assert len(power_status) == 8

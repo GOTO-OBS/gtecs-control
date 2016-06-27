@@ -144,7 +144,9 @@ def start_daemon(process, host, stdout='/dev/null'):
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
         if local_host == host:
-            os.system('python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
+            cmd = ' '.join((sys.executable, params.SCRIPT_PATH+process,
+                            '>', stdout, '2>&1 &'))
+            os.system(cmd)
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
                 print('ERROR: Daemon did not start, check logs')
