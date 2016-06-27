@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -43,7 +43,7 @@ def get_info():
         print('###########################')
     except:
         print(misc.ERROR('No response from power daemon'))
-    
+
 def on(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
@@ -52,7 +52,7 @@ def on(outlet):
         if c: print(c)
     except:
         print(misc.ERROR('No response from power daemon'))
-    
+
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
@@ -96,7 +96,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
@@ -141,8 +141,8 @@ else:
     POWER_DAEMON_HOST = params.DAEMONS['power']['HOST']
     POWER_DAEMON_ADDRESS = params.DAEMONS['power']['ADDRESS']
     POWER_DAEMON_OUTPUT = params.LOG_PATH + 'power_daemon-stdout.log'
-    
-    command = sys.argv[1:]    
+
+    command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:
