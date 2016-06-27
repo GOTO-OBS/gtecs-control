@@ -10,7 +10,7 @@
 ### Import ###
 # Python modules
 from __future__ import absolute_import
-import os, sys, commands
+import os, sys
 import socket
 import subprocess
 from six.moves import range
