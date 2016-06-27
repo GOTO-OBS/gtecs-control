@@ -14,7 +14,7 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
-import os, commands, sys
+import os, sys
 from math import *
 import time
 import Pyro4

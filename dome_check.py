@@ -13,7 +13,7 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
-import os, sys, commands
+import os, sys
 import time
 import Pyro4
 # TeCS modules

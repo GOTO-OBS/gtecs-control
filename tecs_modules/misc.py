@@ -51,6 +51,7 @@ def get_process_ID(process_name, host):
     for line in all_processes.split('\n'):
         if line.endswith(process_name):
             process_ID.append(line.split()[1])
+
     return process_ID
 
 def cmd_timeout(command, timeout, bufsize=-1):
@@ -97,7 +98,7 @@ def kill_processes(process, host):
 
 def python_command(filename, command):
     '''Send a command to a control script as if using the terminal'''
-    command_string = 'python2 ' + filename + ' ' + command
+    command_string = 'python ' + filename + ' ' + command
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     return output
@@ -105,6 +106,7 @@ def python_command(filename, command):
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
     ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
+
     out = ping.split('\n')
     packets_received = 0
     for line in range(len(out)):

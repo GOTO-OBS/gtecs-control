@@ -17,7 +17,7 @@ from math import *
 import time, datetime
 import Pyro4
 import threading
-import os, sys, commands
+import os, sys
 from string import split,find
 from collections import MutableSequence
 import ast
