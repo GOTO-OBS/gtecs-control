@@ -14,7 +14,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys
-from string import split
 import readline
 import time
 import Pyro4
@@ -84,7 +83,7 @@ def take_dark(exptime,HW_list):
         c = cam.take_dark(exptime,HW_list)
         if c: print(c)
     except:
-	print(misc.ERROR('No response from camera daemon'))
+        print(misc.ERROR('No response from camera daemon'))
 
 def take_bias(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -93,7 +92,7 @@ def take_bias(HW_list):
         c = cam.take_bias(HW_list)
         if c: print(c)
     except:
-	print(misc.ERROR('No response from camera daemon'))
+	    print(misc.ERROR('No response from camera daemon'))
 
 def abort_exposure(HW_list):
     cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
@@ -144,7 +143,7 @@ def set_area(area, HW_list):
 # Interactive mode
 def interactive():
     while True:
-        command = split(input('cam> '))
+        command = input('cam> ').split()
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return

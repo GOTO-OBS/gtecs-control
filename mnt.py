@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 ########################################################################
 #                                mnt.py                                #
@@ -14,7 +14,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys
-from string import split
 import readline
 import time
 import Pyro4
@@ -162,7 +161,7 @@ def set_step(offset):
 # Interactive mode
 def interactive():
     while True:
-        command = split(input('mnt> '))
+        command = input('mnt> ').split()
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return

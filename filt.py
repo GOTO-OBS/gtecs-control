@@ -14,7 +14,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys
-from string import split
 import readline
 import time
 import Pyro4
@@ -90,7 +89,7 @@ def home_filter(HW_list):
 # Interactive mode
 def interactive():
     while True:
-        command = split(input('filt> '))
+        command = input('filt> ').split()
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
