@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               logger.py                              #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -11,6 +9,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import time
 # TeCS modules
 from . import misc
@@ -22,7 +22,7 @@ class Logfile:
         ut = time.gmtime()
         timestring = misc.adz(ut[0]) + '_' + misc.adz(ut[1]) + '_' + misc.adz(ut[2])
         self.filename = params.LOG_PATH + timestring + '_' + logname + '_log.txt'
-    
+
     def log(self, string, emph=0):
         if emph > 0:
             strng += '     (!)'

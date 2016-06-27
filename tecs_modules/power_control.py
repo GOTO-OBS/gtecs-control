@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                           power_control.py                           #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -10,6 +9,7 @@ from __future__ import absolute_import
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
 import os, sys, commands
 import socket
 import subprocess
@@ -28,11 +28,11 @@ class FakePower:
         # fake stuff
         self.temp_file = '/tmp/power'
         self._read_temp()
-    
+
     def _new_temp(self):
         self.outlet_status = [2,2,2,2,2,2,2,2] # all start off
         self._write_temp()
-    
+
     def _read_temp(self):
         if not os.path.exists(self.temp_file):
             self._new_temp()
@@ -40,16 +40,16 @@ class FakePower:
             f = open(self.temp_file,'r')
             self.outlet_status = list(f.read().strip())
             f.close()
-    
+
     def _write_temp(self):
         f = open(self.temp_file,'w')
         f.write(''.join(str(i) for i in self.outlet_status))
         f.close()
-        
+
     def snmp_get(self,oid):
         outlet = oid[-1]
         return self.outlet_status[outlet]
-    
+
     def snmp_set(self,oid,value):
         if oid == self.base_oid_all:
             if value == self.commands['ALL_ON'] or value == self.commands['ALL_REBOOT']:
@@ -63,7 +63,7 @@ class FakePower:
             elif value == self.commands['IND_OFF']:
                 self.outlet_status[outlet] = 2
         self._write_temp()
-    
+
     def status(self,outlet):
         if outlet == 0: # all
             status = ''
@@ -74,7 +74,7 @@ class FakePower:
         else:
             oid = self.base_oid_ind + [outlet -1]
             return self.snmp_get(oid)
-    
+
     def on(self,outlet):
         if outlet == 0: # all
             oid = self.base_oid_all
@@ -84,7 +84,7 @@ class FakePower:
             oid = self.base_oid_ind + [outlet]
             value = self.commands['IND_ON']
             return self.snmp_set(oid,value)
-    
+
     def off(self,outlet):
         if outlet == 0: # all
             oid = self.base_oid_all
@@ -94,7 +94,7 @@ class FakePower:
             oid = self.base_oid_ind + [outlet]
             value = self.commands['IND_OFF']
             return self.snmp_set(oid,value)
-    
+
     def reboot(self,outlet):
         if outlet == 0: # all
             oid = self.base_oid_all
@@ -114,7 +114,7 @@ class APCPower:
         self.base_oid = '.1.3.6.1.4.1.318.1.1.12.3.3.1.1.4'
         self.outlets = ['1','2','3','4','5','6','7','8']
         self.commands = {'ON':'1', 'OFF':'2', 'REBOOT':'3'}
-    
+
     def snmp_get(self,oid_arr):
         IP = self.IP_address
         command = ['/usr/bin/snmpget', '-v', '1', '-c', 'public', IP] + oid_arr
@@ -123,9 +123,9 @@ class APCPower:
         for i in range(len(output)-1):
             status += output[i][-1]
         return status
-    
+
     def snmp_set(self,oid_arr,value):
-        IP = self.IP_address 
+        IP = self.IP_address
         commands = []
         for i in range(len(oid_arr)):
             commands += [oid_arr[i], 'i', value]
@@ -135,7 +135,7 @@ class APCPower:
         for i in range(len(output)-1):
             status += output[i][-1]
         return status
-    
+
     def status(self,outlet):
         if outlet == 0: # all
             oid_arr = []
@@ -144,7 +144,7 @@ class APCPower:
         else:
             oid_arr = [self.base_oid + '.' + str(outlet)]
         return self.snmp_get(oid_arr)
-    
+
     def on(self,outlet):
         if outlet == 0: # all
             oid_arr = []
@@ -162,7 +162,7 @@ class APCPower:
         else:
             oid_arr = [self.base_oid + '.' + str(outlet)]
         return self.snmp_set(oid_arr,self.commands['OFF'])
-    
+
     def reboot(self,outlet):
         if outlet == 0: # all
             oid_arr = []

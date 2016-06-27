@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 #                               params.py                              #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
@@ -10,6 +9,7 @@ from __future__ import absolute_import
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
 import os,sys
 import socket
 import numpy

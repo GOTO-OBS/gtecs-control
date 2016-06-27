@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 from math import *
 import time, datetime
 import Pyro4
@@ -27,7 +27,7 @@ from tecs_modules import params
 class FocDaemon:
     """
     Focuser daemon class
-    
+
     Contains X functions:
     - get_info()
     - set_focuser(pos, telescopeIDs)
@@ -41,17 +41,17 @@ class FocDaemon:
         ### set up logfile
         self.logfile = logger.Logfile('foc',params.LOGGING)
         self.logfile.log('Daemon started')
-        
+
         ### command flags
         self.get_info_flag = 1
         self.set_focuser_flag = 0
         self.move_focuser_flag = 0
         self.home_focuser_flag = 0
-        
+
         ### focuser variables
         self.info = {}
         self.tel_dict = params.TEL_DICT
-        
+
         self.limit = {}
         self.current_pos = {}
         self.remaining = {}
@@ -59,7 +59,7 @@ class FocDaemon:
         self.ext_temp = {}
         self.move_steps = {}
         self.serial_number = {}
-        
+
         for nuc in params.FLI_INTERFACES:
             self.limit[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.current_pos[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
@@ -68,21 +68,21 @@ class FocDaemon:
             self.ext_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.move_steps[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-        
+
         self.active_tel = []
-        
+
         ### start control thread
         t = threading.Thread(target=self.foc_control)
         t.daemon = True
         t.start()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def foc_control(self):
-        
+
         while(self.running):
             self.time_check = time.time()
-            
+
             ### control functions
             # request info
             if(self.get_info_flag):
@@ -122,10 +122,10 @@ class FocDaemon:
                 info['ping'] = time.time()-self.time_check
                 now = datetime.datetime.utcnow()
                 info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-                
+
                 self.info = info
                 self.get_info_flag = 0
-            
+
             # move the focuser
             if(self.move_focuser_flag):
                 # loop through each unit to send orders to in turn
@@ -133,10 +133,10 @@ class FocDaemon:
                     nuc, HW = self.tel_dict[tel]
                     move_steps = self.move_steps[nuc][HW]
                     new_pos = self.current_pos[nuc][HW] - move_steps
-                    
+
                     self.logfile.log('Moving focuser %i (%s-%i) by %i to %i'\
                         %(tel, nuc, HW, move_steps, new_pos))
-                    
+
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -146,18 +146,18 @@ class FocDaemon:
                         print('ERROR: No response from fli interface on', nuc)
                 # cleare the 'active' units
                 self.active_tel = []
-                
+
                 self.move_focuser_flag = 0
-            
+
             # home the focuser
             if(self.home_focuser_flag):
                 # loop through each unit to send orders to in turn
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    
+
                     self.logfile.log('Homing focuser %i (%s-%i)'\
                         %(tel, nuc, HW) )
-                    
+
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -168,14 +168,14 @@ class FocDaemon:
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
-                
+
                 self.home_focuser_flag = 0
-            
+
             time.sleep(0.0001) # To save 100% CPU usage
-        
+
         self.logfile.log('Focuser control thread stopped')
         return
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
     def get_info(self):
@@ -183,7 +183,7 @@ class FocDaemon:
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
-    
+
     def set_focuser(self,new_pos,tel_list):
         """Move focuser to given position"""
         for tel in tel_list:
@@ -204,7 +204,7 @@ class FocDaemon:
                 s += '\n  Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
-    
+
     def move_focuser(self,move_steps,tel_list):
         """Move focuser by given number of steps"""
         for tel in tel_list:
@@ -225,7 +225,7 @@ class FocDaemon:
                 s += '\n  Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
-    
+
     def home_focuser(self,tel_list):
         """Move focuser to the home position"""
         for tel in tel_list:
@@ -243,7 +243,7 @@ class FocDaemon:
                 s += '\n  Homing focuser %i' %tel
         self.home_focuser_flag = 1
         return s
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
@@ -252,13 +252,13 @@ class FocDaemon:
             return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
-    
+
     def prod(self):
         return
 
     def status_function(self):
         return self.running
-    
+
     def shutdown(self):
         self.running = False
 

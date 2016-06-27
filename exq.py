@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -68,7 +68,7 @@ def get_info_summary():
 def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    
+
     frametype = 'normal'
     try:
         c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
@@ -79,7 +79,7 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
 def take_dark(tel_list,exptime,bins):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    
+
     filt = params.DARKFILT
     frametype = 'dark'
     target = 'N/A'
@@ -93,7 +93,7 @@ def take_dark(tel_list,exptime,bins):
 def take_bias(tel_list,bins):
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    
+
     exptime = params.BIASEXP
     filt = params.DARKFILT
     frametype = 'dark'
@@ -176,7 +176,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     elif command[0] == 'info':
@@ -186,7 +186,7 @@ def query(command):
             get_info()
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'image':
         if len(command) < 4:
             print(misc.ERROR('Need at least: exptime filter bins'))
@@ -221,7 +221,7 @@ def query(command):
                 take_image(valid,exptime,filt,bins,target,imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'multimage':
         if len(command) < 5:
             print(misc.ERROR('Need at least: Nexp exptime filter bins'))
@@ -264,7 +264,7 @@ def query(command):
                     take_image(valid,exptime,filt,bins,target,imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'dark':
         if len(command) < 3:
             print(misc.ERROR('Need at least: exptime bins'))
@@ -282,7 +282,7 @@ def query(command):
                 take_dark(valid,exptime,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'multdark':
         if len(command) < 4:
             print(misc.ERROR('Need at least: exptime bins'))
@@ -304,7 +304,7 @@ def query(command):
                     take_dark(valid,exptime,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'bias':
         if len(command) < 2:
             print(misc.ERROR('Need at least: bins'))
@@ -320,7 +320,7 @@ def query(command):
                 take_bias(valid,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'multbias':
         if len(command) < 3:
             print(misc.ERROR('Need at least: bins'))
@@ -340,7 +340,7 @@ def query(command):
                     take_bias(valid,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'pause':
         pause()
     elif command[0] == 'resume' or command[0] == 'unpause':
@@ -354,7 +354,7 @@ def query(command):
             print(misc.ERROR('Invalid arguments'))
     elif command[0] == 'clear':
         clear()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -384,7 +384,7 @@ def print_instructions():
     '  exq ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
     '  exq ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
     print(help_str)
-    
+
 ########################################################################
 # Control System
 
@@ -395,7 +395,7 @@ else:
     EXQ_DAEMON_HOST = params.DAEMONS['exq']['HOST']
     EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
     EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
-    
+
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

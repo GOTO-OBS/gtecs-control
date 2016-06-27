@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -166,7 +166,7 @@ def query(command):
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
     elif command[0] == 'info':
@@ -176,7 +176,7 @@ def query(command):
             get_info()
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'image':
         if len(command) == 2 and misc.is_num(command[1]):
             take_image(float(command[1]),list(params.TEL_DICT.keys()))
@@ -186,7 +186,7 @@ def query(command):
                 take_image(float(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'dark':
         if len(command) == 2 and misc.is_num(command[1]):
             take_dark(float(command[1]),list(params.TEL_DICT.keys()))
@@ -196,7 +196,7 @@ def query(command):
                 take_dark(float(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'bias':
         if len(command) == 1:
             take_bias(list(params.TEL_DICT.keys()))
@@ -206,7 +206,7 @@ def query(command):
                 take_bias(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'abort':
         if len(command) == 1:
             abort_exposure(list(params.TEL_DICT.keys()))
@@ -216,7 +216,7 @@ def query(command):
                 abort_exposure(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'temp':
         if len(command) == 2 and misc.is_num(command[1]):
             set_temperature(float(command[1]),list(params.TEL_DICT.keys()))
@@ -226,7 +226,7 @@ def query(command):
                 set_temperature(float(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'flush':
         if len(command) == 2 and misc.is_num(command[1]):
             set_flushes(int(command[1]),list(params.TEL_DICT.keys()))
@@ -236,7 +236,7 @@ def query(command):
                 set_flushes(int(command[2]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'bin':
         if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
             set_bins([int(command[1]),int(command[2])],list(params.TEL_DICT.keys()))
@@ -246,7 +246,7 @@ def query(command):
                 set_bins([int(command[2]),int(command[3])],valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     elif command[0] == 'area':
         if len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]):
             set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],list(params.TEL_DICT.keys()))
@@ -256,7 +256,7 @@ def query(command):
                 set_area([int(command[2]), int(command[3]), int(command[4]), int(command[5])],valid)
         else:
             print(misc.ERROR('Invalid arguments'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -295,8 +295,8 @@ else:
     CAM_DAEMON_HOST = params.DAEMONS['cam']['HOST']
     CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
     CAM_DAEMON_OUTPUT = params.LOG_PATH + 'cam_daemon-stdout.log'
-    
-    command = sys.argv[1:]    
+
+    command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:
