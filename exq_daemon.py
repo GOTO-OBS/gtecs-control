@@ -18,7 +18,6 @@ import time, datetime
 import Pyro4
 import threading
 import os, sys
-from string import split,find
 from collections import MutableSequence
 import ast
 # TeCS modules
