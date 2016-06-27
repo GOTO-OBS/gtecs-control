@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from math import *
 import time, datetime
@@ -29,7 +29,7 @@ from tecs_modules import params
 class DomeDaemon:
     """
     Dome daemon class
-    
+
     Contains x functions:
     - get_info()
 
@@ -37,17 +37,17 @@ class DomeDaemon:
     def __init__(self):
         self.running = True
         self.start_time = time.time()
-        
+
         ### set up logfile
         self.logfile = logger.Logfile('dome',params.LOGGING)
         self.logfile.log('Daemon started')
-        
+
         ### command flags
         self.get_info_flag = 1
         self.open_flag = 0
         self.close_flag = 0
         self.halt_flag = 0
-        
+
         ### dome variables
         self.info = {}
         self.status_flag = 1
@@ -59,40 +59,40 @@ class DomeDaemon:
         self.power_status = None
         self.move_side = 'both'
         self.move_steps = None
-        
+
         ### start control thread
         t = threading.Thread(target=self.dome_control)
         t.daemon = True
         t.start()
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def dome_control(self):
-        
+
         ### connect to dome object
         dome = params.DOME
-        
+
         while(self.running):
             self.time_check = time.time()
-            
+
             # check dome status every 5 seconds
             delta = self.time_check - self.start_time
             if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
-                
+
                 # get current dome status
                 self.dome_status = dome.status()
                 if self.dome_status == None:
                     self.logfile.log('Failed to get dome status')
                     continue
-                
+
                 # ping the power sources
                 #pinglist = ['power1', 'power2', 'power3', 'scope', 'video', 'reg']
                 #self.power_status = misc.check_hosts(pinglist)
-                
+
                 # check any external flags
                 condition_flags = flags.Conditions()
                 override_flags = flags.Overrides()
-                
+
                 # test for an emergency
                 #if misc.loopback_test(params.BIG_RED_BUTTON_PORT,'bob',chances=3):
                 #    self.logfile.log('Emergency shutdown button pressed',1)
@@ -100,7 +100,7 @@ class DomeDaemon:
                 if self.power_status:
                     self.logfile.log('No external power')
                     os.system('touch ' + str(params.EMERGENCY_FILE))
-                
+
                 # in case of emergency
                 if os.path.isfile(params.EMERGENCY_FILE) and self.dome_status['dome'] != 'closed':
                     self.logfile.log('Closing dome (emergency!)')
@@ -113,7 +113,7 @@ class DomeDaemon:
                 self.status_flag = 0
             if delta % 30 > 1:
                 self.status_flag = 1
-            
+
             ### control functions
             # request info
             if(self.get_info_flag):
@@ -130,7 +130,7 @@ class DomeDaemon:
                     info['emergency'] = 0
                 self.info = info
                 self.get_info_flag = 0
-            
+
             # open dome
             if(self.open_flag):
                 # only open if allowed
@@ -161,7 +161,7 @@ class DomeDaemon:
                 self.move_steps = 0
                 self.open_flag = 0
                 self.status_flag = -1
-            
+
             # close dome
             if(self.close_flag):
                 # open both sides
@@ -185,7 +185,7 @@ class DomeDaemon:
                 self.move_steps = 0
                 self.close_flag = 0
                 self.status_flag = -1
-            
+
             # halt dome motion
             if(self.halt_flag):
                 try:
@@ -196,12 +196,12 @@ class DomeDaemon:
                     self.logfile.log('ERROR: Failed to halt dome')
                 self.halt_flag = 0
                 self.status_flag = -1
-            
+
             time.sleep(0.0001) # To save 100% CPU usage
-        
+
         self.logfile.log('Dome control thread stopped')
         return
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Dome control functions
     def get_info(self):
@@ -209,7 +209,7 @@ class DomeDaemon:
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
-    
+
     def open_dome(self,side,steps):
         """Open the dome"""
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
@@ -223,19 +223,19 @@ class DomeDaemon:
             self.move_side = side
             self.move_steps = steps
             return 'Opening dome'
-    
+
     def close_dome(self,side,steps):
         """Close the dome"""
         self.close_flag = 1
         self.move_side = side
         self.move_steps = steps
         return 'Closing dome'
-    
+
     def halt_dome(self):
         """Stope the dome moving"""
         self.halt_flag = 1
         return 'Halting dome'
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
     def ping(self):
@@ -244,18 +244,18 @@ class DomeDaemon:
             return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
         else:
             return 'ping'
-    
+
     def prod(self):
         return
 
     def status_function(self):
         return self.running
-    
+
     def shutdown(self):
         self.running = False
 
 ########################################################################
-# Create Pyro control server 
+# Create Pyro control server
 pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['dome']['HOST'], port=params.DAEMONS['dome']['PORT'])
 dome_daemon = DomeDaemon()
 

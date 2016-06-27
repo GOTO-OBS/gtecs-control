@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python2
 
 ########################################################################
@@ -13,6 +11,8 @@ from __future__ import print_function
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys, commands
 from string import split
 import readline
@@ -62,7 +62,7 @@ def get_info():
         print('###########################')
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def slew_to_radec(ra,dec):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -71,7 +71,7 @@ def slew_to_radec(ra,dec):
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def slew_to_target():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -80,7 +80,7 @@ def slew_to_target():
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def start_tracking():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -89,7 +89,7 @@ def start_tracking():
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def full_stop():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -98,7 +98,7 @@ def full_stop():
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def park():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -107,7 +107,7 @@ def park():
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def unpark():
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -116,7 +116,7 @@ def unpark():
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def set_target_ra(h,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -126,7 +126,7 @@ def set_target_ra(h,m,s):
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def set_target_dec(sign,d,m,s):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -139,7 +139,7 @@ def set_target_dec(sign,d,m,s):
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def offset(direction):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -148,7 +148,7 @@ def offset(direction):
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
-    
+
 def set_step(offset):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
@@ -180,19 +180,19 @@ def query(command):
         misc.kill_daemon(MNT_DAEMON_PROCESS, MNT_DAEMON_HOST)
     elif command[0] == 'ping':
         misc.ping_daemon(MNT_DAEMON_ADDRESS)
-    
+
     elif command[0] == 'startS':
         misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)
     elif command[0] == 'shutdownS':
         misc.shutdown_daemon(SITECH_ADDRESS)
     elif command[0] == 'pingS':
         misc.ping_daemon(SITECH_ADDRESS)
-    
+
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
         print(misc.ERROR('Already in interactive mode'))
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     elif command[0]=='info':
@@ -275,13 +275,13 @@ else:
     MNT_DAEMON_HOST = params.DAEMONS['mnt']['HOST']
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
     MNT_DAEMON_OUTPUT = params.LOG_PATH + 'mnt_daemon-stdout.log'
-    
+
     SITECH_PROCESS = params.SITECH_PROCESS
     SITECH_HOST = params.WIN_HOST
     SITECH_ADDRESS = params.SITECH_ADDRESS
     SITECH_OUTPUT = params.CYGWIN_PATH + 'sitech-stdout.log'
-    
-    command=sys.argv[1:]    
+
+    command=sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:
