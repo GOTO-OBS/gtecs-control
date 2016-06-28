@@ -99,6 +99,7 @@ def kill_processes(process, host):
 def python_command(filename, command):
     '''Send a command to a control script as if using the terminal'''
     command_string = ' '.join((sys.executable, filename, command))
+    print(command_string)
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     return output.decode()
@@ -146,6 +147,7 @@ def start_daemon(process, host, stdout='/dev/null'):
         if local_host == host:
             cmd = ' '.join((sys.executable, params.SCRIPT_PATH+process,
                             '>', stdout, '2>&1 &'))
+            print(cmd)
             os.system(cmd)
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
@@ -153,7 +155,9 @@ def start_daemon(process, host, stdout='/dev/null'):
             else:
                 print('Daemon running as process', process_ID_n[0])
         else:
-            os.system('ssh ' + host + ' python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
+            cmd = ' '.join(('ssh', host, sys.executable, params.SCRIPT_PATH + process,
+                            '>', stdout, '2>&1 &'))
+            os.system(cmd)
     else:
         print('ERROR: Daemon is already running as process', process_ID[0])
 
