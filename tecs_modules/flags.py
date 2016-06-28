@@ -46,13 +46,8 @@ class Conditions:
 
 class Overrides:
     def __init__(self):
-        f = open(params.CONFIG_PATH + 'overrides_flags','r')
-        data = f.readlines()
-        f.close()
-
-        for x in data:
-            exec(x)
-        self.robotic = robotic
-        self.dome_auto = dome_auto
+        with open(params.CONFIG_PATH + 'overrides_flags','r') as fh:
+            data = json.load(fh)
+        self.__dict__ = copy.copy(data)
 
 
