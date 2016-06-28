@@ -99,7 +99,6 @@ def kill_processes(process, host):
 def python_command(filename, command):
     '''Send a command to a control script as if using the terminal'''
     command_string = ' '.join((sys.executable, filename, command))
-    print(command_string)
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     return output.decode()
