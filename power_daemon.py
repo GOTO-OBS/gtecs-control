@@ -42,8 +42,9 @@ class PowerDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('power',params.LOGGING)
-        self.logfile.log('Daemon started')
+        self.logfile = logger.getLogger('power', file_logging=params.LOGGING,
+                                        stdout_logging=True)
+        self.logfile.info('Daemon started')
 
         ### command flags
         self.get_info_flag = 1
@@ -84,7 +85,7 @@ class PowerDaemon:
                     assert len(power_status) == 8
                     self.power_status = power_status
                 except:
-                    self.logfile.log('ERROR GETTING POWER STATUS')
+                    self.logfile.exception('ERROR GETTING POWER STATUS')
                     self.power_status = 'xERRORxx'
                 misc.kill_processes(params.POWER_CHECK_SCRIPT,params.DAEMONS['power']['HOST'])
                 self.status_flag = 0
@@ -114,34 +115,34 @@ class PowerDaemon:
 
             # power on a specified outlet
             if(self.on_flag):
-                self.logfile.log('Power on outlet ' + str(self.new_outlet))
+                self.logfile.info('Power on outlet ' + str(self.new_outlet))
                 c = power.on(self.new_outlet)
-                if c: print(c)
+                if c: self.logfile.info(c)
                 self.new_outlet = None
                 self.on_flag = 0
                 self.status_flag = -1
 
             # power off a specified outlet
             if(self.off_flag):
-                self.logfile.log('Power off outlet ' + str(self.new_outlet))
+                self.logfile.info('Power off outlet ' + str(self.new_outlet))
                 c = power.off(self.new_outlet)
-                if c: print(c)
+                if c: self.logfile.info(c)
                 self.new_outlet = None
                 self.off_flag = 0
                 self.status_flag = -1
 
             # reboot a specified outlet
             if(self.reboot_flag):
-                self.logfile.log('Reboot outlet ' + str(self.new_outlet))
+                self.logfile.info('Reboot outlet ' + str(self.new_outlet))
                 c = power.reboot(self.new_outlet)
-                if c: print(c)
+                if c: self.logfile.info(c)
                 self.new_outlet = None
                 self.reboot_flag = 0
                 self.status_flag = -1
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.log('Power control thread stopped')
+        self.logfile.info('Power control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,10 +218,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAE
 power_daemon = PowerDaemon()
 
 uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-print('Starting power daemon at',uri)
+power_daemon.logfile.info('Starting power daemon at',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
-print('Exiting power daemon')
+power_daemon.logfile.info('Exiting power daemon')
 time.sleep(1.)
