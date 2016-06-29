@@ -49,8 +49,8 @@ class CamDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('cam',params.LOGGING)
-        self.logfile.log('Daemon started')
+        self.logfile = logger.getLogger('cam', file_logging=params.LOGGING, stdout_logging=True)
+        self.logfile.debug('Daemon started')
 
         ### command flags
         self.get_info_flag = 1
@@ -143,7 +143,7 @@ class CamDaemon:
                         self.cooler_power[nuc][HW] = fli.get_camera_cooler_power(HW)
                         self.serial_number[nuc][HW] = fli.get_camera_serial_number(HW)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 # save info
                 info = {}
                 for tel in list(self.tel_dict.keys()):
@@ -188,17 +188,18 @@ class CamDaemon:
                     nuc, HW = self.tel_dict[tel]
                     self.exptime[nuc][HW] = self.target_exptime
                     self.frametype[nuc][HW] = self.target_frametype
-                    self.logfile.log('Taking exposure (%is, %s) on camera %i (%s-%i)' %(exptime, frametype, tel, nuc, HW) )
+                    self.logfile.debug('Taking exposure (%is, %s) on camera %i (%s-%i)',
+                                       exptime, frametype, tel, nuc, HW)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_exposure(exptime_ms,frametype,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                         self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
                         c = fli.start_exposure(HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                     self.exposing_flag[nuc][HW] = 1
                 self.take_exposure_flag = 0
 
@@ -211,7 +212,7 @@ class CamDaemon:
                     try:
                         remaining = fli.get_camera_time_remaining(HW)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                     if remaining == 0:
                         self.exposing_flag[nuc][HW] = 2
                         self.images[tel] = None
@@ -227,9 +228,9 @@ class CamDaemon:
                     # save info to add to header
                     header_dict = {}
                     header_dict['tel'] = tel
-                    self.logfile.log('Fetching exposure from camera %i (%s-%i)' %(tel, nuc, HW) )
+                    self.logfile.debug('Fetching exposure from camera %i (%s-%i)', tel, nuc, HW)
                     filename = self.image_location(tel)
-                    self.logfile.log('Saving exposure to %s'%filename)
+                    self.logfile.debug('Saving exposure to %s', filename)
                     self.write_fits(image,filename,tel)
                     self.exposing_flag[nuc][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
@@ -238,14 +239,14 @@ class CamDaemon:
             if(self.abort_exposure_flag):
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.log('Aborting exposure on camera %i (%s-%i)' %(tel, nuc, HW) )
+                    self.logfile.debug('Aborting exposure on camera %i (%s-%i)', tel, nuc, HW)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.abort_exposure(HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 self.active_tel = []
                 self.abort_exposure_flag = 0
 
@@ -254,14 +255,14 @@ class CamDaemon:
                 target_temp = self.target_temp
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.log('Setting temperature on camera %i (%s-%i) to %i' %(tel, nuc, HW, target_temp) )
+                    self.logfile.debug('Setting temperature on camera %i (%s-%i) to %i', tel, nuc, HW, target_temp)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_camera_temp(target_temp,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_temp_flag = 0
 
@@ -270,14 +271,14 @@ class CamDaemon:
                 target_flushes = self.target_flushes
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.log('Setting number of flushes on camera %i (%s-%i) to %i' %(tel, nuc, HW, target_flushes) )
+                    self.logfile.debug('Setting number of flushes on camera %i (%s-%i) to %i', tel, nuc, HW, target_flushes)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_camera_flushes(target_flushes,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_flushes_flag = 0
 
@@ -287,14 +288,14 @@ class CamDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     self.bins[nuc][HW] = self.target_bins
-                    self.logfile.log('Setting bins on camera %i (%s-%i) to (%i,%i)' %(tel, nuc, HW, hbin, vbin) )
+                    self.logfile.debug('Setting bins on camera %i (%s-%i) to (%i,%i)', tel, nuc, HW, hbin, vbin)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_camera_bins(hbin,vbin,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_bins_flag = 0
 
@@ -304,20 +305,21 @@ class CamDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     self.area[nuc][HW] = self.target_area
-                    self.logfile.log('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)' %(tel, nuc, HW, ul_x, ul_y, lr_x, lr_y) )
+                    self.logfile.debug('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)',
+                                        tel, nuc, HW, ul_x, ul_y, lr_x, lr_y)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on', nuc)
                 self.active_tel = []
                 self.set_area_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.log('Camera control thread stopped')
+        self.logfile.debug('Camera control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -489,7 +491,7 @@ class CamDaemon:
             image = fli.fetch_exposure(HW)
             outarr[tel] = image
         except:
-            print('ERROR: No response from fli interface on', nuc)
+            self.logfile.exception('No response from fli interface on', nuc)
 
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
@@ -628,10 +630,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['cam']['HOST'], port=params.DAEMO
 cam_daemon = CamDaemon()
 
 uri = pyro_daemon.register(cam_daemon,objectId = params.DAEMONS['cam']['PYROID'])
-print('Starting camera daemon at',uri)
+cam_daemon.logfile.info('Starting camera daemon at %s',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
 
-print('Exiting camera daemon')
+cam_daemon.logfile.info('Exiting camera daemon')
 time.sleep(1.)
