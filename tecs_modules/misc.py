@@ -9,7 +9,12 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
+import os, sys
+import six
+if six.PY2:
+    from commands import getoutput
+else:
+    from subprocess import getoutput
 from math import *
 import time
 import Pyro4
@@ -27,7 +32,7 @@ def get_hostname():
     if os.environ.has_key('HOSTNAME'):
         return os.environ['HOSTNAME']
     else:
-        tmp = commands.getoutput('hostname')
+        tmp = getoutput('hostname')
         return tmp.strip()
 
 def get_process_ID(process_name, host):
@@ -36,23 +41,13 @@ def get_process_ID(process_name, host):
     username = os.environ["LOGNAME"]
 
     if host == get_hostname():
-        all_processes = commands.getoutput('ps j -w -u ' + username)
+        all_processes = getoutput('ps -jwu %s | grep -i python' % username)
     else:
-        all_processes = commands.getoutput('ssh ' + host + ' ps j -w -u ' + username)
+        all_processes = getoutput('ssh ' + host + ' ps -jwu %s | grep -i python' % username)
 
-    lines = all_processes.split('\n')
-    pyflag = 0
-    for line in lines:
-        entries = line.split()
-        for entry in entries:
-            if entry == 'python' or entry == 'python2':
-                pyflag = 2
-            else:
-                pyflag -= 1
-            if pyflag == 1:
-                n = len(process_name)
-                if entry[-n:] == process_name:
-                    process_ID.append(entries[1])
+    for line in all_processes.split('\n'):
+        if line.endswith(process_name):
+            process_ID.append(line.split()[1])
     return process_ID
 
 def cmd_timeout(command, timeout, bufsize=-1):
@@ -60,15 +55,15 @@ def cmd_timeout(command, timeout, bufsize=-1):
     Execute command and limit execution time to 'timeout' seconds.
     Found online and slightly modified
     """
-    
+
     p = subprocess.Popen(command, bufsize=bufsize, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     start_time = time.time()
     seconds_passed = 0
-    
+
     while p.poll() is None and seconds_passed < timeout:
         time.sleep(0.1)
         seconds_passed = time.time() - start_time
-    
+
     if seconds_passed >= timeout:
         try:
             p.stdout.close()
@@ -88,7 +83,7 @@ def kill_processes(process, host):
     '''Kill any specified processes'''
     local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
-    
+
     if local_host == host:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
@@ -106,7 +101,7 @@ def python_command(filename, command):
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
-    ping = commands.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
+    ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
     out = ping.split('\n')
     packets_received = 0
     for line in range(len(out)):
@@ -135,9 +130,9 @@ def loopback_test(serialport='/dev/ttyS3', message='bob', chances=3):
                 return 0   # success
     s.close()
     return 1   # failure
-    
+
 ########################################################################
-# Core Daemon functions 
+# Core Daemon functions
 def start_daemon(process, host, stdout='/dev/null'):
     '''Start a daemon (unless it is already running)'''
     local_host = get_hostname()
@@ -162,7 +157,7 @@ def ping_daemon(address):
     try:
         ping = daemon.ping()
         if ping == 'ping':
-            print 'Daemon is alive at', address 
+            print 'Daemon is alive at', address
         else:
             print ping
     except:
@@ -198,7 +193,7 @@ def kill_daemon(process, host):
 
 def start_win(process, host, stdout='/dev/null'):
     os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
-    
+
 ########################################################################
 # Astronomy functions
 def eq_to_hor(ha_hrs,dec_deg,lat_deg):
@@ -273,9 +268,9 @@ def check_alt_limit(targ_ra,targ_dec,lst):
     targ_alt,targ_az = eq_to_hor(targ_ha,targ_dec,params.SITE_LATITUDE)
     if targ_alt < params.MIN_ELEVATION:
         return 1
-    else:        
+    else:
         return 0
-        
+
 def ang_sep(ra_1,dec_1,ra_2,dec_2):
     alt_1 = 90-dec_1
     alt_2 = 90-dec_2
@@ -348,7 +343,7 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address,from_address,subject)
     timestamp = time.strftime('%Y-%m-%dT%H:%M:%S',time.gmtime())
     text = '%s\n\nMessage sent at %s' % (message,timestamp)
-    
+
     server = smtplib.SMTP(EMAIL_SERVER)
     server.starttls()
     server.login('goto-observatory@gmail.com', 'password')
