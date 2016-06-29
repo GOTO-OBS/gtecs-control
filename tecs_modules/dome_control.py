@@ -12,6 +12,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys, subprocess
+import six
+if six.PY2:
+    from commands import getoutput
+else:
+    from subprocess import getoutput
 import time
 import serial
 from six.moves import map
@@ -139,7 +144,7 @@ class FakeDome:
 
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = subprocess.getoutput('curl -s dome?s')
+        curl = getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 
@@ -189,7 +194,7 @@ class AstroHavenDome:
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
         try:
-            curl = subprocess.getoutput('curl -s dome')
+            curl = getoutput('curl -s dome')
             ard = remove_html_tags(curl).split()
             for i in range(len(ard)):
                 if ard[i] == 'pin':
@@ -256,7 +261,7 @@ class AstroHavenDome:
 
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = subprocess.getoutput('curl -s dome?s')
+        curl = getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 

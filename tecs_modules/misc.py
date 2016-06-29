@@ -24,6 +24,11 @@ import subprocess
 import serial
 import re
 import smtplib
+import six
+if six.PY2:
+    from commands import getoutput
+else:
+    from subprocess import getoutput
 # TeCS modules
 from . import params
 from six.moves import range
@@ -106,7 +111,6 @@ def python_command(filename, command):
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
     ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
-
     out = ping.split('\n')
     packets_received = 0
     for line in range(len(out)):
