@@ -38,8 +38,10 @@ class FiltDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('filt',params.LOGGING)
-        self.logfile.log('Daemon started')
+        self.logfile = logger.getLogger('filt',
+                                        file_logging=params.LOGGING,
+                                        stdout_logging=True)
+        self.logfile.info('Daemon started')
 
         ### command flags
         self.get_info_flag = 1
@@ -94,7 +96,7 @@ class FiltDaemon:
                         self.serial_number[nuc][HW] = fli.get_filter_serial_number(HW)
                         self.homed[nuc][HW] = fli.get_filter_homed(HW)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %d', nuc)
                 # save info
                 info = {}
                 for tel in list(self.tel_dict.keys()):
@@ -124,16 +126,16 @@ class FiltDaemon:
                     nuc, HW = self.tel_dict[tel]
                     new_filter_num = self.flist.index(self.new_filter)
 
-                    self.logfile.log('Moving filter wheel %i (%s-%i) to %s (%i)'\
-                        %(tel, nuc, HW, self.new_filter, new_filter_num) )
+                    self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
+                                      tel, nuc, HW, self.new_filter, new_filter_num)
 
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.set_filter_pos(new_filter_num,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %d', nuc)
                 # clear the 'active' units
                 self.active_tel = []
 
@@ -145,16 +147,16 @@ class FiltDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
 
-                    self.logfile.log('Homing filter wheel %i (%s-%i)'\
-                        %(tel, nuc, HW) )
+                    self.logfile.info('Homing filter wheel %i (%s-%i)',
+                                      tel, nuc, HW)
 
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.home_filter(HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No responce from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %d', nuc)
                 # clear the active units
                 self.active_tel = []
 
@@ -162,7 +164,7 @@ class FiltDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.log('Filter wheel control thread stopped')
+        self.logfile.info('Filter wheel control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -238,10 +240,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['filt']['HOST'], port=params.DAEM
 filt_daemon = FiltDaemon()
 
 uri = pyro_daemon.register(filt_daemon,objectId = params.DAEMONS['filt']['PYROID'])
-print('Starting filter wheel daemon at',uri)
+filt_daemon.logfile.info('Starting filter wheel daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
 
-print('Exiting filter wheel daemon')
+filt_daemon.logfile.info('Exiting filter wheel daemon')
 time.sleep(1.)
