@@ -108,7 +108,7 @@ DAEMONS = {
         },
     'dome':{ # dome daemon
         'PROCESS':  'dome_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9007,
         'PYROID':   'dome_daemon',
         'PINGLIFE': 10.
