@@ -52,6 +52,7 @@ def getStreamHandler():
     # add output to stdout
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
     return console
 
 
@@ -104,7 +105,7 @@ def getLogger(name=None, file_logging=True, stdout_logging=True):
             log.exception('')
     """
     log = logging.getLogger(name)
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
 
     # if the handlers are not empty this has been called
     # before and we shouldn't add more handlers
