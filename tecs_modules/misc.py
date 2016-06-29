@@ -150,7 +150,6 @@ def start_daemon(process, host, stdout='/dev/null'):
         if local_host == host:
             cmd = ' '.join((sys.executable, params.SCRIPT_PATH+process,
                             '>', stdout, '2>&1 &'))
-            print(cmd)
             os.system(cmd)
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
