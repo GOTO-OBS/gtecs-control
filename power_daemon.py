@@ -15,6 +15,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from math import *
 import time, datetime
+import sys
 import Pyro4
 import threading
 # TeCS modules
@@ -75,7 +76,7 @@ class PowerDaemon:
             if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
                 try:
                     cmd = ' '.join((sys.executable,
-                                    params.SCRIPT_PATH, params.POWER_CHECK_SCRIPT))
+                                    params.SCRIPT_PATH + params.POWER_CHECK_SCRIPT))
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
                     assert type(power_status) == type('')
                     assert len(power_status) == 8
