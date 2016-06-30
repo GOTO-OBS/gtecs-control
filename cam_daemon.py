@@ -144,7 +144,7 @@ class CamDaemon:
                         self.cooler_power[nuc][HW] = fli.get_camera_cooler_power(HW)
                         self.serial_number[nuc][HW] = fli.get_camera_serial_number(HW)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 # save info
                 info = {}
                 for tel in list(self.tel_dict.keys()):
@@ -200,7 +200,7 @@ class CamDaemon:
                         c = fli.start_exposure(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                     self.exposing_flag[nuc][HW] = 1
                 self.take_exposure_flag = 0
 
@@ -213,7 +213,7 @@ class CamDaemon:
                     try:
                         remaining = fli.get_camera_time_remaining(HW)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                     if remaining == 0:
                         self.exposing_flag[nuc][HW] = 2
                         self.images[tel] = None
@@ -247,7 +247,7 @@ class CamDaemon:
                         c = fli.abort_exposure(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 self.active_tel = []
                 self.abort_exposure_flag = 0
 
@@ -263,7 +263,7 @@ class CamDaemon:
                         c = fli.set_camera_temp(target_temp,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 self.active_tel = []
                 self.set_temp_flag = 0
 
@@ -279,7 +279,7 @@ class CamDaemon:
                         c = fli.set_camera_flushes(target_flushes,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 self.active_tel = []
                 self.set_flushes_flag = 0
 
@@ -296,7 +296,7 @@ class CamDaemon:
                         c = fli.set_camera_bins(hbin,vbin,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 self.active_tel = []
                 self.set_bins_flag = 0
 
@@ -314,7 +314,7 @@ class CamDaemon:
                         c = fli.set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 self.active_tel = []
                 self.set_area_flag = 0
 
@@ -492,7 +492,7 @@ class CamDaemon:
             image = fli.fetch_exposure(HW)
             outarr[tel] = image
         except:
-            self.logfile.exception('No response from fli interface on', nuc)
+            self.logfile.exception('No response from fli interface on %s', nuc)
 
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
