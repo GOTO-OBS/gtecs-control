@@ -218,7 +218,7 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAE
 power_daemon = PowerDaemon()
 
 uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-power_daemon.logfile.info('Starting power daemon at',uri)
+power_daemon.logfile.info('Starting power daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
