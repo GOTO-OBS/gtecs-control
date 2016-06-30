@@ -51,7 +51,7 @@ class CamDaemon:
         ### set up logfile
         self.logfile = logger.getLogger('cam', file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.debug('Daemon started')
+        self.logfile.info('Daemon started')
 
         ### command flags
         self.get_info_flag = 1
@@ -189,7 +189,7 @@ class CamDaemon:
                     nuc, HW = self.tel_dict[tel]
                     self.exptime[nuc][HW] = self.target_exptime
                     self.frametype[nuc][HW] = self.target_frametype
-                    self.logfile.debug('Taking exposure (%is, %s) on camera %i (%s-%i)',
+                    self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
                                        exptime, frametype, tel, nuc, HW)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -229,9 +229,9 @@ class CamDaemon:
                     # save info to add to header
                     header_dict = {}
                     header_dict['tel'] = tel
-                    self.logfile.debug('Fetching exposure from camera %i (%s-%i)', tel, nuc, HW)
+                    self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, nuc, HW)
                     filename = self.image_location(tel)
-                    self.logfile.debug('Saving exposure to %s', filename)
+                    self.logfile.info('Saving exposure to %s', filename)
                     self.write_fits(image,filename,tel)
                     self.exposing_flag[nuc][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
@@ -240,7 +240,7 @@ class CamDaemon:
             if(self.abort_exposure_flag):
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.debug('Aborting exposure on camera %i (%s-%i)', tel, nuc, HW)
+                    self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, nuc, HW)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -256,7 +256,7 @@ class CamDaemon:
                 target_temp = self.target_temp
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.debug('Setting temperature on camera %i (%s-%i) to %i', tel, nuc, HW, target_temp)
+                    self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, nuc, HW, target_temp)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -272,7 +272,7 @@ class CamDaemon:
                 target_flushes = self.target_flushes
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
-                    self.logfile.debug('Setting number of flushes on camera %i (%s-%i) to %i', tel, nuc, HW, target_flushes)
+                    self.logfile.info('Setting number of flushes on camera %i (%s-%i) to %i', tel, nuc, HW, target_flushes)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -289,7 +289,7 @@ class CamDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     self.bins[nuc][HW] = self.target_bins
-                    self.logfile.debug('Setting bins on camera %i (%s-%i) to (%i,%i)', tel, nuc, HW, hbin, vbin)
+                    self.logfile.info('Setting bins on camera %i (%s-%i) to (%i,%i)', tel, nuc, HW, hbin, vbin)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
@@ -306,7 +306,7 @@ class CamDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     self.area[nuc][HW] = self.target_area
-                    self.logfile.debug('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)',
+                    self.logfile.info('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)',
                                         tel, nuc, HW, ul_x, ul_y, lr_x, lr_y)
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -320,7 +320,7 @@ class CamDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.debug('Camera control thread stopped')
+        self.logfile.info('Camera control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
