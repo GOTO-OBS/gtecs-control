@@ -96,7 +96,7 @@ class FiltDaemon:
                         self.serial_number[nuc][HW] = fli.get_filter_serial_number(HW)
                         self.homed[nuc][HW] = fli.get_filter_homed(HW)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
@@ -136,7 +136,7 @@ class FiltDaemon:
                         c = fli.set_filter_pos(new_filter_num,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # clear the 'active' units
                 self.active_tel = []
@@ -158,7 +158,7 @@ class FiltDaemon:
                         c = fli.home_filter(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # clear the active units
                 self.active_tel = []

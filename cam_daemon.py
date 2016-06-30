@@ -144,7 +144,7 @@ class CamDaemon:
                         self.cooler_power[nuc][HW] = fli.get_camera_cooler_power(HW)
                         self.serial_number[nuc][HW] = fli.get_camera_serial_number(HW)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
@@ -201,7 +201,7 @@ class CamDaemon:
                         c = fli.start_exposure(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                     self.exposing_flag[nuc][HW] = 1
                 self.take_exposure_flag = 0
@@ -215,7 +215,7 @@ class CamDaemon:
                     try:
                         remaining = fli.get_camera_time_remaining(HW)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                     if remaining == 0:
                         self.exposing_flag[nuc][HW] = 2
@@ -250,7 +250,7 @@ class CamDaemon:
                         c = fli.abort_exposure(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.abort_exposure_flag = 0
@@ -267,7 +267,7 @@ class CamDaemon:
                         c = fli.set_camera_temp(target_temp,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_temp_flag = 0
@@ -284,7 +284,7 @@ class CamDaemon:
                         c = fli.set_camera_flushes(target_flushes,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_flushes_flag = 0
@@ -302,7 +302,7 @@ class CamDaemon:
                         c = fli.set_camera_bins(hbin,vbin,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_bins_flag = 0
@@ -321,7 +321,7 @@ class CamDaemon:
                         c = fli.set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_area_flag = 0
@@ -500,7 +500,7 @@ class CamDaemon:
             image = fli.fetch_exposure(HW)
             outarr[tel] = image
         except:
-            self.logfile.info('No response from fli interface on %s', nuc)
+            self.logfile.error('No response from fli interface on %s', nuc)
             self.logfile.debug('', exc_info=True)
 
     def image_location(self,tel):

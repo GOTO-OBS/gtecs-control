@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -149,18 +147,18 @@ class DomeDaemon:
                     try:
                         self.logfile.debug('Opening dome')
                         c = dome.open_full()
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('Failed to open dome')
+                        self.logfile.error('Failed to open dome')
                         self.logfile.debug('', exc_info=True)
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
                         self.logfile.debug('Opening %s side of dome' %self.move_side)
                         c = dome.open_side(self.move_side, self.move_steps)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('Failed to open dome')
+                        self.logfile.error('Failed to open dome')
                         self.logfile.debug('', exc_info=True)
                 self.weather_check = 1
                 self.move_side = 'both'
@@ -175,18 +173,18 @@ class DomeDaemon:
                     try:
                         self.logfile.debug('Closing dome')
                         c = dome.close_full()
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('Failed to close dome')
+                        self.logfile.error('Failed to close dome')
                         self.logfile.debug('', exc_info=True)
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
                         self.logfile.debug('Closing %s side of dome', self.move_side)
                         c = dome.close_side(self.move_side, self.move_steps)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('Failed to open dome')
+                        self.logfile.error('Failed to open dome')
                         self.logfile.debug('', exc_info=True)
                 self.weather_check = 1
                 self.move_side = 'both'
@@ -199,9 +197,9 @@ class DomeDaemon:
                 try:
                     self.logfile.debug('Halting dome')
                     c = dome.halt()
-                    if c: print(c)
+                    if c: self.logfile.info(c)
                 except:
-                    self.logfile.info('Failed to halt dome')
+                    self.logfile.error('Failed to halt dome')
                     self.logfile.debug('', exc_info=True)
                 self.halt_flag = 0
                 self.status_flag = -1
