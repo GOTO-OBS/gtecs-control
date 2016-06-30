@@ -83,8 +83,8 @@ def cmd_timeout(command, timeout, bufsize=-1):
             pass
         out = None
     else:
-        out = p.stdout.read().strip()
-        err = p.stderr.read()
+        out = p.stdout.read().strip().decode()
+        err = p.stderr.read().decode()
     returncode = p.returncode
     return out #(returncode, err, out)
 
