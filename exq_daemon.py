@@ -230,7 +230,7 @@ class ExqDaemon:
                 for tel in list(self.tel_dict.keys()):
                     cam_status[tel] = str(cam.get_info()['status'+str(tel)])
             except:
-                self.logfile.info('No response from camera daemon')
+                self.logfile.error('No response from camera daemon')
                 self.logfile.debug('', exc_info=True)
                 self.running = False
                 break
@@ -239,7 +239,7 @@ class ExqDaemon:
                 for tel in list(self.tel_dict.keys()):
                     filt_status[tel] = str(filt.get_info()['status'+str(tel)])
             except:
-                self.logfile.info('No response from filter wheel daemon')
+                self.logfile.error('No response from filter wheel daemon')
                 self.logfile.debug('', exc_info=True)
                 self.running = False
                 break
@@ -315,7 +315,7 @@ class ExqDaemon:
                     self.working = 1
                     self.set_filter_flag = 0
                 except:
-                    self.logfile.info('No response from filter wheel daemon')
+                    self.logfile.error('No response from filter wheel daemon')
                     self.logfile.debug('', exc_info=True)
 
             # take image
@@ -334,7 +334,7 @@ class ExqDaemon:
                     self.working = 1
                     self.take_image_flag = 0
                 except:
-                    self.logfile.info('No response from camera daemon')
+                    self.logfile.error('No response from camera daemon')
                     self.logfile.debug('', exc_info=True)
 
             time.sleep(0.0001) # To save 100% CPU usage

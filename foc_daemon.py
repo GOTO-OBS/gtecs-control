@@ -100,7 +100,7 @@ class FocDaemon:
                         self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
                         self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
@@ -145,7 +145,7 @@ class FocDaemon:
                         c = fli.step_focuser_motor(move_steps,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                 # cleare the 'active' units
                 self.active_tel = []
@@ -167,7 +167,7 @@ class FocDaemon:
                         c = fli.home_focuser(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.info('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
