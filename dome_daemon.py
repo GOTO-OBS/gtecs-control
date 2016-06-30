@@ -151,7 +151,8 @@ class DomeDaemon:
                         c = dome.open_full()
                         if c: print(c)
                     except:
-                        self.logfile.exception('Failed to open dome')
+                        self.logfile.info('Failed to open dome')
+                        self.logfile.debug('', exc_info=True)
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
@@ -159,7 +160,8 @@ class DomeDaemon:
                         c = dome.open_side(self.move_side, self.move_steps)
                         if c: print(c)
                     except:
-                        self.logfile.exception('Failed to open dome')
+                        self.logfile.info('Failed to open dome')
+                        self.logfile.debug('', exc_info=True)
                 self.weather_check = 1
                 self.move_side = 'both'
                 self.move_steps = 0
@@ -175,7 +177,8 @@ class DomeDaemon:
                         c = dome.close_full()
                         if c: print(c)
                     except:
-                        self.logfile.exception('Failed to close dome')
+                        self.logfile.info('Failed to close dome')
+                        self.logfile.debug('', exc_info=True)
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
@@ -183,7 +186,8 @@ class DomeDaemon:
                         c = dome.close_side(self.move_side, self.move_steps)
                         if c: print(c)
                     except:
-                        self.logfile.exception('Failed to open dome')
+                        self.logfile.info('Failed to open dome')
+                        self.logfile.debug('', exc_info=True)
                 self.weather_check = 1
                 self.move_side = 'both'
                 self.move_steps = 0
@@ -197,7 +201,8 @@ class DomeDaemon:
                     c = dome.halt()
                     if c: print(c)
                 except:
-                    self.logfile.exception('Failed to halt dome')
+                    self.logfile.info('Failed to halt dome')
+                    self.logfile.debug('', exc_info=True)
                 self.halt_flag = 0
                 self.status_flag = -1
 
