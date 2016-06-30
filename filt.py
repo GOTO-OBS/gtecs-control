@@ -83,7 +83,7 @@ def home_filter(HW_list):
         c = filt.home_filter(HW_list)
         if c: print(c)
     except:
-        print(misc.ERROR('No responce from filter wheel daemon'))
+        print(misc.ERROR('No response from filter wheel daemon'))
 
 ########################################################################
 # Interactive mode
