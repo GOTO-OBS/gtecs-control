@@ -226,18 +226,17 @@ class ExqDaemon:
 
             # check daemon statuses
             try:
-                cam_status = {}
-                for tel in list(self.tel_dict.keys()):
-                    cam_status[tel] = str(cam.get_info()['status'+str(tel)])
+                cam_info_dict = cam.get_info()
+                # python dictionary comprehension
+                cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
             except:
                 self.logfile.error('No response from camera daemon')
                 self.logfile.debug('', exc_info=True)
                 self.running = False
                 break
             try:
-                filt_status = {}
-                for tel in list(self.tel_dict.keys()):
-                    filt_status[tel] = str(filt.get_info()['status'+str(tel)])
+                filt_info_dict = filt.get_info()
+                filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
             except:
                 self.logfile.error('No response from filter wheel daemon')
                 self.logfile.debug('', exc_info=True)
