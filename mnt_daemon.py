@@ -111,7 +111,8 @@ class MntDaemon:
                     self.utc = time.gmtime(time.time())
                     self.utc_str = time.strftime('%Y-%m-%d %H:%M:%S', self.utc)
                 except:
-                    self.logfile.exception('No response from sitech daemon')
+                    self.logfile.info('No response from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
                 info['status'] = self.mount_status
@@ -141,7 +142,8 @@ class MntDaemon:
                     c = sitech.slew_to_radec(self.temp_ra,self.temp_dec)
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.slew_radec_flag = 0
                 self.temp_ra = None
                 self.temp_dec = None
@@ -153,7 +155,8 @@ class MntDaemon:
                     c = sitech.slew_to_target()
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.slew_target_flag = 0
 
             # start tracking
@@ -162,7 +165,8 @@ class MntDaemon:
                     c = sitech.start_tracking()
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.start_tracking_flag = 0
 
             # stop all motion (tracking or slewing)
@@ -171,7 +175,8 @@ class MntDaemon:
                     c = sitech.full_stop()
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.full_stop_flag = 0
 
             # park the mount
@@ -180,7 +185,8 @@ class MntDaemon:
                     c = sitech.park()
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.park_flag = 0
 
             # unpark the mount
@@ -189,7 +195,8 @@ class MntDaemon:
                     c = sitech.unpark()
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.unpark_flag = 0
 
             # Set target RA
@@ -200,7 +207,8 @@ class MntDaemon:
                     if c: self.logfile.info(c)
                     self.logfile.info('again, set ra to',self.temp_ra)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.set_target_ra_flag = 0
                 self.temp_ra = None
 
@@ -211,7 +219,8 @@ class MntDaemon:
                     if c: self.logfile.info(c)
                     self.logfile.info('set dec to',self.temp_dec)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.set_target_dec_flag = 0
                 self.temp_dec = None
 
@@ -221,7 +230,8 @@ class MntDaemon:
                     c = sitech.set_target(self.temp_ra,self.temp_dec)
                     if c: self.logfile.info(c)
                 except:
-                    self.logfile.exception('No responce from sitech daemon')
+                    self.logfile.info('No responce from sitech daemon')
+                    self.logfile.debug('', exc_info=True)
                 self.set_target_flag = 0
                 self.temp_ra = None
                 self.temp_dec = None

@@ -85,7 +85,8 @@ class PowerDaemon:
                     assert len(power_status) == 8
                     self.power_status = power_status
                 except:
-                    self.logfile.exception('ERROR GETTING POWER STATUS')
+                    self.logfile.info('ERROR GETTING POWER STATUS')
+                    self.logfile.debug('', exc_info=True)
                     self.power_status = 'xERRORxx'
                 misc.kill_processes(params.POWER_CHECK_SCRIPT,params.DAEMONS['power']['HOST'])
                 self.status_flag = 0
