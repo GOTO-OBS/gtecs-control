@@ -78,7 +78,7 @@ class PowerDaemon:
                     cmd = ' '.join((sys.executable,
                                     params.SCRIPT_PATH + params.POWER_CHECK_SCRIPT))
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
-                    assert type(power_status) == type('')
+                    assert isinstance(power_status, str) or isinstance(power_status, unicode)
                     assert len(power_status) == 8
                     self.power_status = power_status
                 except:
