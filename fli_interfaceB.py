@@ -77,7 +77,7 @@ class FLI:
                 #self.nuc = nuc
         self.nuc = 'nuc2'
 
-        # logger object
+        # logger object
         self.logfile = logger.getLogger('fli_interfaceB', file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
 
