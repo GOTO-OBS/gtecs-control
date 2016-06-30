@@ -100,7 +100,7 @@ class FocDaemon:
                         self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
                         self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
                     except:
-                        self.logfile.exception('No response from fli interface on %d', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 # save info
                 info = {}
                 for tel in list(self.tel_dict.keys()):
@@ -144,7 +144,7 @@ class FocDaemon:
                         c = fli.step_focuser_motor(move_steps,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on %d', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                 # cleare the 'active' units
                 self.active_tel = []
 
@@ -165,7 +165,7 @@ class FocDaemon:
                         c = fli.home_focuser(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.exception('No response from fli interface on %d', nuc)
+                        self.logfile.exception('No response from fli interface on %s', nuc)
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
@@ -269,7 +269,7 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMO
 foc_daemon = FocDaemon()
 
 uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-foc_daemon.logfile.info('Starting focuser daemon at',uri)
+foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
