@@ -180,8 +180,8 @@ class ExqDaemon:
 
         ### set up logfile
         self.logfile = logger.getLogger('exq',
-                                        file_logging=params.LOGGING,
-                                        stdout_logging=True)
+                                        file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
         self.logfile.debug('Daemon started')
 
         ### function flags

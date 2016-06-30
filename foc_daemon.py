@@ -39,8 +39,8 @@ class FocDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.getLogger('foc', file_logging=params.LOGGING,
-                                        stdout_logging=True)
+        self.logfile = logger.getLogger('foc', file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 
         ### command flags

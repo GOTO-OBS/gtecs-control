@@ -78,7 +78,8 @@ class FLI:
         self.nuc = 'nuc1'
 
         # logger object
-        self.logfile = logger.getLogger('fli_interface', file_logging=params.LOGGING, stdout_logging=True)
+        self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
 
         ### fli objects
         self.cams = []
