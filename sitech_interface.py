@@ -20,6 +20,7 @@ import time
 import Pyro4
 import threading
 import win32com.client
+import socket
 
 ########################################################################
 # SiTech functions
