@@ -11,14 +11,16 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
-from string import split
+from __future__ import absolute_import
+from __future__ import print_function
+import os, sys
 import readline
 import time
 import Pyro4
 # TeCS modules
 from tecs_modules import misc
 from tecs_modules import params
+from six.moves import input
 
 ########################################################################
 # Filter wheel control functions
@@ -28,25 +30,25 @@ def get_info():
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
-        print '#### FILTER WHEEL INFO ####'
-        for tel in params.TEL_DICT.keys():
-            print 'FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel])
+        print('#### FILTER WHEEL INFO ####')
+        for tel in list(params.TEL_DICT.keys()):
+            print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
             if info['status'+str(tel)] != 'Moving':
-                print 'Status: %s' %info['status'+str(tel)]
-                print 'Current filter:     %s' %flist[info['current_filter_num'+str(tel)]]
+                print('Status: %s' %info['status'+str(tel)])
+                print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
             else:
-                print 'Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
-                print 'Current filter:     N/A'
-            print 'Current filter num: %s' %info['current_filter_num'+str(tel)]
-            print 'Current motor pos:  %s' %info['current_pos'+str(tel)]
-            print 'Serial number:      %s' %info['serial_number'+str(tel)]
-            print '~~~~~~~'
-        print 'Uptime: %.1fs' %info['uptime']
-        print 'Ping: %.5fs' %info['ping']
-        print 'Timestamp: %s' %info['timestamp']
-        print '###########################'
+                print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+                print('Current filter:     N/A')
+            print('Current filter num: %s' %info['current_filter_num'+str(tel)])
+            print('Current motor pos:  %s' %info['current_pos'+str(tel)])
+            print('Serial number:      %s' %info['serial_number'+str(tel)])
+            print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     except:
-        print misc.ERROR('No response from filter wheel daemon')
+        print(misc.ERROR('No response from filter wheel daemon'))
 
 def get_info_summary():
     flist = params.FILTER_LIST
@@ -54,40 +56,40 @@ def get_info_summary():
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
-        for tel in params.TEL_DICT.keys():
-            print 'FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]),
+        for tel in list(params.TEL_DICT.keys()):
+            print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
             if info['status'+str(tel)] != 'Moving':
-                print '  Current filter: %s' %flist[info['current_filter_num'+str(tel)]],
-                print '  [%s]' %info['status'+str(tel)]
+                print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+                print('  [%s]' %info['status'+str(tel)])
             else:
                 #print '  Current filter: -',
-                print '  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)])
+                print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
     except:
-        print misc.ERROR('No response from filter wheel daemon')
+        print(misc.ERROR('No response from filter wheel daemon'))
 
 def set_filter(new_filt,HW_list):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = filt.set_filter(new_filt,HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No response from filter wheel daemon')
+        print(misc.ERROR('No response from filter wheel daemon'))
 
 def home_filter(HW_list):
     filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = filt.home_filter(HW_list)
-        if c: print c
+        if c: print(c)
     except:
-        print misc.ERROR('No responce from filter wheel daemon')
+        print(misc.ERROR('No responce from filter wheel daemon'))
 
 ########################################################################
 # Interactive mode
 def interactive():
     while True:
-        command = split(raw_input('filt> '))
+        command = input('filt> ').split()
         if len(command) > 0:
             if command[0] == 'q' or command[0] == 'exit':
                 return
@@ -108,8 +110,8 @@ def query(command):
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
-        print misc.ERROR('Already in interactive mode')
-    
+        print(misc.ERROR('Already in interactive mode'))
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
@@ -118,35 +120,35 @@ def query(command):
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
             get_info()
         else:
-            print misc.ERROR('Invalid arguments')
-    
+            print(misc.ERROR('Invalid arguments'))
+
     elif command[0] == 'set':
         if len(command) == 2:
-            set_filter(command[1].upper(),params.TEL_DICT.keys())
+            set_filter(command[1].upper(),list(params.TEL_DICT.keys()))
         elif len(command) == 3:
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 set_filter(command[2].upper(),valid)
         else:
-            print misc.ERROR('Invalid arguments')
-    
+            print(misc.ERROR('Invalid arguments'))
+
     elif command[0] == 'home':
         if len(command) == 1:
-            home_filter(params.TEL_DICT.keys())
+            home_filter(list(params.TEL_DICT.keys()))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),params.TEL_DICT.keys())
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
             if len(valid) > 0:
                 home_filter(valid)
         else:
-            print misc.ERROR('Invalid arguments')
-    
+            print(misc.ERROR('Invalid arguments'))
+
     elif command[0] == 'list':
-        print params.FILTER_LIST
+        print(params.FILTER_LIST)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print misc.ERROR('Unrecognized command "%s"' %command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' filt [command]' + '\n' +\
@@ -164,7 +166,7 @@ def print_instructions():
     '  filt ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  filt ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
     '  filt ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
-    print help_str
+    print(help_str)
 
 ########################################################################
 # Control system
@@ -176,8 +178,8 @@ else:
     FILT_DAEMON_HOST = params.DAEMONS['filt']['HOST']
     FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
     FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
-    
-    command = sys.argv[1:]    
+
+    command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
     else:

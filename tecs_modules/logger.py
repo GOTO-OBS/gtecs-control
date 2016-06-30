@@ -9,10 +9,12 @@
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import time
 # TeCS modules
-import misc
-import params
+from . import misc
+from . import params
 
 class Logfile:
     def __init__(self, logname, filemode=1):  # filemode 1 for file, 0 for screen
@@ -20,7 +22,7 @@ class Logfile:
         ut = time.gmtime()
         timestring = misc.adz(ut[0]) + '_' + misc.adz(ut[1]) + '_' + misc.adz(ut[2])
         self.filename = params.LOG_PATH + timestring + '_' + logname + '_log.txt'
-    
+
     def log(self, string, emph=0):
         if emph > 0:
             strng += '     (!)'
@@ -30,4 +32,4 @@ class Logfile:
             f.write(timestamp + '  ' + string + '\n')
             f.close()
         else:
-            print strng
+            print(strng)

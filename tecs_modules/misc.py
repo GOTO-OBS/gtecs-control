@@ -9,6 +9,8 @@
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
+from __future__ import print_function
 import os, sys
 import six
 if six.PY2:
@@ -22,14 +24,20 @@ import subprocess
 import serial
 import re
 import smtplib
+import six
+if six.PY2:
+    from commands import getoutput
+else:
+    from subprocess import getoutput
 # TeCS modules
-import params
+from . import params
+from six.moves import range
 
 ########################################################################
 ## Command functions
 def get_hostname():
     '''Get the hostname of this machine'''
-    if os.environ.has_key('HOSTNAME'):
+    if 'HOSTNAME' in os.environ:
         return os.environ['HOSTNAME']
     else:
         tmp = getoutput('hostname')
@@ -48,6 +56,7 @@ def get_process_ID(process_name, host):
     for line in all_processes.split('\n'):
         if line.endswith(process_name):
             process_ID.append(line.split()[1])
+
     return process_ID
 
 def cmd_timeout(command, timeout, bufsize=-1):
@@ -74,8 +83,8 @@ def cmd_timeout(command, timeout, bufsize=-1):
             pass
         out = None
     else:
-        out = p.stdout.read().strip()
-        err = p.stderr.read()
+        out = p.stdout.read().strip().decode()
+        err = p.stderr.read().decode()
     returncode = p.returncode
     return out #(returncode, err, out)
 
@@ -87,17 +96,17 @@ def kill_processes(process, host):
     if local_host == host:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
-            print 'Killed process', process_ID
+            print('Killed process', process_ID)
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
 def python_command(filename, command):
     '''Send a command to a control script as if using the terminal'''
-    command_string = 'python2 ' + filename + ' ' + command
+    command_string = ' '.join((sys.executable, filename, command))
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
-    return output
+    return output.decode()
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
@@ -139,16 +148,20 @@ def start_daemon(process, host, stdout='/dev/null'):
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
         if local_host == host:
-            os.system('python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
+            cmd = ' '.join((sys.executable, params.SCRIPT_PATH+process,
+                            '>', stdout, '2>&1 &'))
+            os.system(cmd)
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
-                print 'ERROR: Daemon did not start, check logs'
+                print('ERROR: Daemon did not start, check logs')
             else:
-                print 'Daemon running as process', process_ID_n[0]
+                print('Daemon running as process', process_ID_n[0])
         else:
-            os.system('ssh ' + host + ' python2 ' + params.SCRIPT_PATH + process + ' >' + stdout + ' 2>&1 &')
+            cmd = ' '.join(('ssh', host, sys.executable, params.SCRIPT_PATH + process,
+                            '>', stdout, '2>&1 &'))
+            os.system(cmd)
     else:
-        print 'ERROR: Daemon is already running as process', process_ID[0]
+        print('ERROR: Daemon is already running as process', process_ID[0])
 
 def ping_daemon(address):
     '''Ping a daemon'''
@@ -157,11 +170,11 @@ def ping_daemon(address):
     try:
         ping = daemon.ping()
         if ping == 'ping':
-            print 'Daemon is alive at', address
+            print('Daemon is alive at', address)
         else:
-            print ping
+            print(ping)
     except:
-        print 'ERROR: No response from daemon'
+        print('ERROR: No response from daemon')
 
 def shutdown_daemon(address):
     '''Shut a daemon down nicely'''
@@ -169,14 +182,14 @@ def shutdown_daemon(address):
     daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         daemon.shutdown()
-        print 'Daemon is shutting down'
+        print('Daemon is shutting down')
         # Have to request status again to close loop
         daemon = Pyro4.Proxy(address)
         daemon._pyroTimeout = params.PROXY_TIMEOUT
         daemon.prod()
         daemon._pyroRelease()
     except:
-        print 'ERROR: No response from daemon'
+        print('ERROR: No response from daemon')
 
 def kill_daemon(process, host):
     '''Kill a daemon (should be used as a last resort)'''
@@ -186,7 +199,7 @@ def kill_daemon(process, host):
     if local_host == host:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
-            print 'Killed daemon at process', process_ID
+            print('Killed daemon at process', process_ID)
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
@@ -318,9 +331,9 @@ def valid_ints(array, allowed):
         if i == '':
             pass
         elif not i.isdigit():
-            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
-        elif i not in [str(x) for x in params.TEL_DICT.keys()]:
-            print 'ERROR: "' + str(i) + '" is invalid, must be in',allowed
+            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
+        elif i not in [str(x) for x in list(params.TEL_DICT.keys())]:
+            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()
@@ -349,4 +362,4 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     server.login('goto-observatory@gmail.com', 'password')
     server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
     server.quit()
-    print 'Sent mail to',recipients
+    print('Sent mail to',recipients)

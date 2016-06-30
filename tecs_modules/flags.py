@@ -9,40 +9,45 @@
 
 ### Import ###
 # Python modules
-import time, calendar
+from __future__ import absolute_import
+from astropy.time import Time
+import json
+import copy
+from six import iteritems
 # TeCS modules
-import params
+from . import params
 
 class Conditions:
     def __init__(self):
-        f = open(params.CONFIG_PATH + 'conditions_flags','r')
-        data = f.readlines()
-        f.close()
-        
-        ut = time.strptime(data[0], '%Y-%m-%d %H:%M:%S UTC\n')
-        self.update_time = calendar.timegm(ut)
-        
-        for x in data[1:]:
-            exec(x)
-        self.dark = dark
-        self.dry = dry
-        self.wind = wind
-        self.humidity = humidity
-        self.temperature = temperature
-        self.summary = dry + wind + humidity + temperature #exclude dark
-    
+        with open(params.CONFIG_PATH + 'conditions_flags', 'r') as fh:
+            # we will use JSON to store conditions, since it's easier
+            # to write and parse than the pt5m format
+            conditions_dict = json.load(fh)
+
+        # store update time and remove from dictionary
+        update_time = int(Time(conditions_dict['update_time']).unix)
+        del conditions_dict['update_time']
+
+        # set Condtions properties (which are stored in __dict__)
+        # to the values in the dictionary
+        self.__dict__ = copy.copy(conditions_dict)
+
+        # add the update time
+        self.update_time = update_time
+
+        # and the summary
+        self.summary = 0 # sum of flags, excluding dark
+        for key, value in iteritems(conditions_dict):
+            if key != 'dark':
+                self.summary += value
+
     def age(self):
-        return time.time() - self.update_time
+        return int(Time.now().unix - self.update_time)
 
 class Overrides:
     def __init__(self):
-        f = open(params.CONFIG_PATH + 'overrides_flags','r')
-        data = f.readlines()
-        f.close()
-        
-        for x in data:
-            exec(x)
-        self.robotic = robotic
-        self.dome_auto = dome_auto
+        with open(params.CONFIG_PATH + 'overrides_flags','r') as fh:
+            data = json.load(fh)
+        self.__dict__ = copy.copy(data)
 
 
