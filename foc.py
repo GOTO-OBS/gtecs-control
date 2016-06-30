@@ -190,7 +190,10 @@ else:
     FOC_DAEMON_PROCESS = params.DAEMONS['foc']['PROCESS']
     FOC_DAEMON_HOST = params.DAEMONS['foc']['HOST']
     FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
-    FOC_DAEMON_OUTPUT = params.LOG_PATH + 'foc_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        FOC_DAEMON_OUTPUT = params.LOG_PATH + 'foc_daemon-stdout.log'
+    else:
+        FOC_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':
