@@ -11,8 +11,9 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
-from string import split
+from __future__ import absolute_import
+from __future__ import print_function
+import os, sys
 import readline
 import time
 import Pyro4
@@ -25,8 +26,8 @@ if __name__ == '__main__':
         if len(sys.argv) > 2:
             daemons = sys.argv[2:]
         else:
-            daemons = params.DAEMONS.keys()
+            daemons = list(params.DAEMONS.keys())
         for d in daemons:
-            print d+':\t' + misc.python_command(d+'.py', sys.argv[1])
+            print(d+':\t' + misc.python_command(d+'.py', sys.argv[1]))
     else:
-        print 'Valid commands: start, shutdown, kill, ping'
+        print('Valid commands: start, shutdown, kill, ping')

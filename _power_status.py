@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 ########################################################################
 #                             _power_status.py                         #
@@ -13,6 +13,9 @@
 # Allows function call to be killed if it locks up
 # NOT for manual use - should ONLY be called by power daemon
 
+from __future__ import absolute_import
+from __future__ import print_function
+
 from tecs_modules import params
 
 try:
@@ -22,4 +25,4 @@ try:
 except:
     x = 'xERRORxx'
 
-print x
+print(x)

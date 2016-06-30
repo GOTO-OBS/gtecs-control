@@ -9,13 +9,14 @@
 
 ### Import ###
 # Python modules
+from __future__ import absolute_import
 import os,sys
 import socket
 import numpy
 import Pyro4
 # TeCS modules
-import power_control
-import dome_control
+from . import power_control
+from . import dome_control
 
 ########################################################################
 # General parameters
@@ -32,6 +33,8 @@ elif HOST == 'janus': # MJD's desktop
     TECS_PATH = '/local/mjd/backed_up_on_astro3/g-tecs/'
 elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
     TECS_PATH = '/home/mdyer/g-tecs/'
+elif HOST == 'Stus-MacBook-Pro.local' or HOST.startswith('dyn'):  # SL laptop
+    TECS_PATH = '/Users/sl/g-tecs/'
 else:
     TECS_PATH = '/home/goto/g-tecs/'
 
@@ -105,7 +108,7 @@ DAEMONS = {
         },
     'dome':{ # dome daemon
         'PROCESS':  'dome_daemon.py',
-        'HOST':     'eddie',
+        'HOST':     HOST,
         'PORT':     9007,
         'PYROID':   'dome_daemon',
         'PINGLIFE': 10.

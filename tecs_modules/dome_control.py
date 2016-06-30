@@ -9,9 +9,18 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
+from __future__ import absolute_import
+from __future__ import print_function
+import os, sys, subprocess
+import six
+if six.PY2:
+    from commands import getoutput
+else:
+    from subprocess import getoutput
 import time
 import serial
+from six.moves import map
+from six.moves import range
 
 ########################################################################
 # Fake AstroHaven dome class
@@ -24,24 +33,24 @@ class FakeDome:
         # fake stuff
         self.temp_file = '/tmp/dome'
         self._read_temp()
-    
+
     def _new_temp(self):
         self.domestatus = [0,0,0] # start closed
         self._write_temp()
-    
+
     def _read_temp(self):
         if not os.path.exists(self.temp_file):
             self._new_temp()
         else:
             f = open(self.temp_file,'r')
-            self.domestatus = map(int,list(f.read().strip()))
+            self.domestatus = list(map(int,list(f.read().strip())))
             f.close()
-    
+
     def _write_temp(self):
         f = open(self.temp_file,'w')
         f.write(''.join(str(i) for i in self.domestatus))
         f.close()
-    
+
     def _move_dome(self,command,timeout=40.):
         self._read_temp()
         if command[:4] == 'west':
@@ -57,7 +66,7 @@ class FakeDome:
             time.sleep(3*steps)
             self.domestatus[side] = 0
         self._write_temp()
-    
+
     def _move_dome_steps(self,command,steps):
         self._read_temp()
         if command[:4] == 'west':
@@ -79,7 +88,7 @@ class FakeDome:
             time.sleep(3*steps)
             self.domestatus[side] = finish
         self._write_temp()
-    
+
     def status(self):
         status = {'dome':'ERROR','hatch':'ERROR'}
         self._read_temp()
@@ -100,7 +109,7 @@ class FakeDome:
         time.sleep(2)
         openE = self._move_dome('east_open')
         #self.dome_port.close()
-        print openW, openE
+        print(openW, openE)
         #return openW.strip() + openE.strip()
 
     def close_full(self):
@@ -110,9 +119,9 @@ class FakeDome:
         time.sleep(2)
         closeE = self._move_dome('east_close')
         #self.dome_port.close()
-        print closeW, closeE
+        print(closeW, closeE)
         #return closeW.strip() + closeE.strip()
-    
+
     def open_side(self,side,steps):
         #self.sound_alarm()
         #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
@@ -122,7 +131,7 @@ class FakeDome:
             openS = self._move_dome_steps('east_open',steps)
         #self.dome_port.close()
         #return openS.strip()
-    
+
     def close_side(self,side,steps):
         #self.sound_alarm()
         #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
@@ -132,10 +141,10 @@ class FakeDome:
             closeS = self._move_dome_steps('east_close',steps)
         #self.dome_port.close()
         #return closeS.strip()
-    
+
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = commands.getoutput('curl -s dome?s')
+        curl = getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 
@@ -147,27 +156,27 @@ class AstroHavenDome:
         self.stop_length = stop_length
         self.move_code = {'west_open':'a', 'west_close':'A', 'east_open':'b', 'east_close':'B'}
         self.limit_code = {'west_open':'x', 'west_close':'X', 'east_open':'y', 'east_close':'Y'}
-    
+
     def _move_dome(self,command,timeout=40.):
         '''Internal (blocking) function to keep moving dome until it reaches its limit'''
         received = ''
         stop_signal = self.stop_length * self.limit_code[command]
-        print 'Expecting stop on',stop_signal
+        print('Expecting stop on',stop_signal)
         start_time = time.time()
         while True:
             self.dome_port.write(self.move_code[command])
             x = self.dome_port.read(1)
-            print x,
+            print(x, end=' ')
             received += x
             if received[-self.stop_length:] == stop_signal:
-                print received
+                print(received)
                 return received
             elif time.time() - start_time > timeout:
-                print 'Dome moving timed out'
-                print received
+                print('Dome moving timed out')
+                print(received)
                 return received
             time.sleep(0.1)
-    
+
     def _move_dome_steps(self,command,steps):
         '''Internal (blocking) function to move dome a fixed number of (stop-start) steps'''
         received = ''
@@ -175,17 +184,17 @@ class AstroHavenDome:
             self.dome_port.write(move_code[command])
             time.sleep(3)
             x = self.dome_port.read(1)
-            print x,
+            print(x, end=' ')
             received += x
-        print received
+        print(received)
         return received
-    
+
     def status(self):
         '''Check the status as reported by the arduino'''
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
         try:
-            curl = commands.getoutput('curl -s dome')
+            curl = getoutput('curl -s dome')
             ard = remove_html_tags(curl).split()
             for i in range(len(ard)):
                 if ard[i] == 'pin':
@@ -194,11 +203,11 @@ class AstroHavenDome:
                         pin_dict['pin%i' %n] = 1
                     if ard[i+2] == 'LOW':
                         pin_dict['pin%i' %n] = 0
-            
+
             pins = []
             for n in [2,3,6,7]:
                 pins.append(pin_dict['pin%n' %n])
-            
+
             if pins.count(1) == len(pins):
                 statdict['dome'] = 'open'
             elif pins.count(0) == len(pins):
@@ -217,7 +226,7 @@ class AstroHavenDome:
         time.sleep(2)
         openE = self._move_dome('east_open')
         self.dome_port.close()
-        print openW, openE
+        print(openW, openE)
         return openW.strip() + openE.strip()
 
     def close_full(self):
@@ -227,9 +236,9 @@ class AstroHavenDome:
         time.sleep(2)
         closeE = self._move_dome('east_close')
         self.dome_port.close()
-        print closeW, closeE
+        print(closeW, closeE)
         return closeW.strip() + closeE.strip()
-    
+
     def open_side(self,side,steps):
         #self.sound_alarm()
         self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
@@ -239,7 +248,7 @@ class AstroHavenDome:
             openS = self._move_dome_steps('east_open',steps)
         self.dome_port.close()
         return openS.strip()
-    
+
     def close_side(self,side,steps):
         #self.sound_alarm()
         self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
@@ -249,10 +258,10 @@ class AstroHavenDome:
             closeS = self._move_dome_steps('east_close',steps)
         self.dome_port.close()
         return closeS.strip()
-    
+
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = commands.getoutput('curl -s dome?s')
+        curl = getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 
@@ -266,10 +275,10 @@ if __name__ == '__main__':
         elif sys.argv[1] == 'close':
             dome.close_full()
         elif sys.argv[1] == 'status':
-            print dome.status()
+            print(dome.status())
         elif sys.argv[1] == 'alarm':
             dome.sound_alarm()
         else:
-            print 'Usage: python dome_control.py status/open/close/alarm'
+            print('Usage: python dome_control.py status/open/close/alarm')
     except:
-        print 'Usage: python dome_control.py status/open/close/alarm'
+        print('Usage: python dome_control.py status/open/close/alarm')

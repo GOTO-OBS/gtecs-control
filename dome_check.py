@@ -11,7 +11,9 @@
 
 ### Import ###
 # Python modules
-import os, sys, commands
+from __future__ import absolute_import
+from __future__ import print_function
+import os, sys
 import time
 import Pyro4
 # TeCS modules
@@ -31,21 +33,23 @@ while True:
     if type(info) == dict:
         break
     if time.time() - start_time > INFO_TIMEOUT:
-        print 'Failed to get info dict'
+        print('Failed to get info dict')
         misc.send_email(message='Failed to get dome info dictionary')
         sys.exit()
     time.sleep(1)
 
-print info
+print(info)
 if info['ping'] > PING_LIMIT:
-    print 'Failed to ping dome daemon'
+    print('Failed to ping dome daemon')
     misc.send_email(message='Dome ping failed - daemon crashed?\nKilling and restarting daemon...')
-    print 'dome kill'
-    os.system('python2 ' + params.SCRIPT_PATH + ' kill')
-    print 'Sleeping...'
+    print('dome kill')
+    cmd = ' '.join((sys.executable, params.SCRIPT_PATH, 'kill'))
+    os.system(cmd)
+    print('Sleeping...')
     time.sleep(10)
-    print 'dome start'
-    os.system('python2 ' + params.SCRIPT_PATH + ' start')
+    print('dome start')
+    cmd = ' '.join((sys.executable, params.SCRIPT_PATH, 'start'))
+    os.system(cmd)
     exit()
 
-print 'Dome OK'
+print('Dome OK')
