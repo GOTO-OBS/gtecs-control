@@ -51,7 +51,7 @@ def on(outlet):
         if c: print(c)
     except:
         print(misc.ERROR('No response from power daemon'))
-es
+
 def off(outlet):
     power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
