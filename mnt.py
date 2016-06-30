@@ -273,11 +273,15 @@ else:
     MNT_DAEMON_PROCESS = params.DAEMONS['mnt']['PROCESS']
     MNT_DAEMON_HOST = params.DAEMONS['mnt']['HOST']
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
-    MNT_DAEMON_OUTPUT = params.LOG_PATH + 'mnt_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        MNT_DAEMON_OUTPUT = params.LOG_PATH + 'mnt_daemon-stdout.log'
+    else:
+        MNT_DAEMON_OUTPUT = '/dev/stdout'
 
     SITECH_PROCESS = params.SITECH_PROCESS
     SITECH_HOST = params.WIN_HOST
     SITECH_ADDRESS = params.SITECH_ADDRESS
+    # don't redirect on windows
     SITECH_OUTPUT = params.CYGWIN_PATH + 'sitech-stdout.log'
 
     command=sys.argv[1:]
