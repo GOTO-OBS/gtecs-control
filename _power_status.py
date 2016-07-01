@@ -20,7 +20,7 @@ from tecs_modules import params
 
 try:
     x = params.POWER.status(0)
-    assert type(x) == type('')
+    assert isinstance(x, str) or isinstance(x, unicode)
     assert len(x) == 8
 except:
     x = 'xERRORxx'
