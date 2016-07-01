@@ -24,11 +24,7 @@ import subprocess
 import serial
 import re
 import smtplib
-import six
-if six.PY2:
-    from commands import getoutput
-else:
-    from subprocess import getoutput
+
 # TeCS modules
 from . import params
 from six.moves import range
