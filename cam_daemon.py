@@ -132,7 +132,7 @@ class CamDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -148,7 +148,7 @@ class CamDaemon:
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
@@ -342,8 +342,8 @@ class CamDaemon:
     def take_image(self,exptime,tel_list):
         """Take image with camera"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.target_exptime = exptime
         self.target_frametype = 'normal'
         self.get_info_flag = 1
@@ -365,8 +365,8 @@ class CamDaemon:
     def take_dark(self,exptime,tel_list):
         """Take dark frame with camera"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.target_exptime = exptime
         self.target_frametype = 'dark'
         self.get_info_flag = 1
@@ -388,8 +388,8 @@ class CamDaemon:
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.target_exptime = 0
         self.target_frametype = 'dark'
         self.get_info_flag = 1
@@ -411,8 +411,8 @@ class CamDaemon:
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Aborting:'
@@ -430,8 +430,8 @@ class CamDaemon:
         """Set the camera's temperature"""
         self.target_temp = target_temp
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         if not (-55 <= target_temp <= 45):
             return 'ERROR: Temperature must be between -55 and 45'
         s = 'Setting:'
@@ -445,8 +445,8 @@ class CamDaemon:
         """Set the number of times to flush the CCD before an exposure"""
         self.target_flushes = target_fliushes
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         if not (0 <= target_flushes <= 16):
             return 'ERROR: Number of flushes must be between 0 and 16'
         s = 'Setting:'
@@ -460,8 +460,8 @@ class CamDaemon:
         """Set the image binning"""
         self.target_bins = bins
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
@@ -473,8 +473,8 @@ class CamDaemon:
         """Set the active image area"""
         self.target_area = area
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]

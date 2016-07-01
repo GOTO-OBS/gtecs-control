@@ -31,7 +31,7 @@ def get_info():
     try:
         info = filt.get_info()
         print('#### FILTER WHEEL INFO ####')
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
             if info['status'+str(tel)] != 'Moving':
                 print('Status: %s' %info['status'+str(tel)])
@@ -56,7 +56,7 @@ def get_info_summary():
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
             if info['status'+str(tel)] != 'Moving':
                 print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
@@ -124,9 +124,9 @@ def query(command):
 
     elif command[0] == 'set':
         if len(command) == 2:
-            set_filter(command[1].upper(),list(params.TEL_DICT.keys()))
+            set_filter(command[1].upper(),list(params.TEL_DICT))
         elif len(command) == 3:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_filter(command[2].upper(),valid)
         else:
@@ -134,9 +134,9 @@ def query(command):
 
     elif command[0] == 'home':
         if len(command) == 1:
-            home_filter(list(params.TEL_DICT.keys()))
+            home_filter(list(params.TEL_DICT))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 home_filter(valid)
         else:

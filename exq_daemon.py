@@ -244,7 +244,7 @@ class ExqDaemon:
                 break
 
             # set working flag
-            if 'Exposing' in list(cam_status.values()) or 'Moving' in list(filt_status.values()):
+            if 'Exposing' in cam_status.values() or 'Moving' in filt_status.values():
                 self.working = 1
             else:
                 self.working = 0

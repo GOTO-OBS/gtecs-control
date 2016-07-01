@@ -24,7 +24,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         daemons = sys.argv[1:]
     else:
-        daemons = list(params.DAEMONS.keys())
+        daemons = list(params.DAEMONS)
     while True:
         s = ''
         for d in daemons:
