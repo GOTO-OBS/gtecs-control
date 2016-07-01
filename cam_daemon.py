@@ -42,7 +42,7 @@ class CamDaemon:
     - set_flushes(target_flushes,telescopeIDs)
     - set_area(area,telescopeIDs)
     - set_spec(run_ID,target,imgtype):
-"""
+    """
 
     def __init__(self):
         self.running = True
