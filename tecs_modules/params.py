@@ -43,8 +43,12 @@ CONFIG_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
 
-# Log form
-LOGGING = 1
+# Daemons should log to file?
+FILE_LOGGING = 1
+# Daemons should to stdout?
+STDOUT_LOGGING = 1
+# redirect Daemon stdout to file?
+REDIRECT_STDOUT = 0
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = 28.7598742

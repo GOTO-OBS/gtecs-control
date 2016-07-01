@@ -143,7 +143,10 @@ else:
     DOME_DAEMON_PROCESS = params.DAEMONS['dome']['PROCESS']
     DOME_DAEMON_HOST = params.DAEMONS['dome']['HOST']
     DOME_DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
-    DOME_DAEMON_OUTPUT = params.LOG_PATH + 'dome_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        DOME_DAEMON_OUTPUT = params.LOG_PATH + 'dome_daemon-stdout.log'
+    else:
+        DOME_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':

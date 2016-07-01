@@ -77,6 +77,10 @@ class FLI:
                 #self.nuc = nuc
         self.nuc = 'nuc2'
 
+        # logger object
+        self.logfile = logger.getLogger('fli_interfaceB', file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
+
         ### fli objects
         self.cams = []
         self.focs = []
@@ -105,12 +109,12 @@ class FLI:
     # Focuser control functions
     def step_focuser_motor(self, steps, HW):
         """Move focuser by given number of steps"""
-        print('Moving focuser',HW,'by',steps)
+        self.logfile.info('Moving focuser %d by %d', HW, steps)
         self.focs[int(HW)].step_motor(steps, blocking=False)
 
     def home_focuser(self, HW):
         """Move focuser to the home position"""
-        print('Homing focuser',HW)
+        self.logfile.info('Homing focuser %d', HW)
         self.focs[int(HW)].home_focuser()
 
     def get_focuser_limit(self, HW):
@@ -142,12 +146,12 @@ class FLI:
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
-        print('Moving filter wheel',HW,'to position',new_filter)
+        self.logfile.info('Moving filter wheel %d to position %d', HW, new_filter)
         self.filts[int(HW)].set_filter_pos(new_filter)
 
     def home_filter(self, HW):
         """Move filter wheel to home position"""
-        print('Homing filter wheel',HW)
+        self.logfile.info('Homing filter wheel %d', HW)
         self.filts[int(HW)].home()
 
     def get_filter_number(self, HW):
@@ -179,7 +183,8 @@ class FLI:
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, HW):
         """Set exposure time and frametype"""
-        print('Camera',HW,'starting ',str(exptime_ms/1000)+'s',frametype,'exposure')
+        self.logfile.info('Camera %d starting %ss %s exposure',
+                           HW, str(exptime_ms/1000), frametype)
         self.cams[int(HW)].set_exposure(exptime_ms, frametype)
 
     def start_exposure(self, HW):
@@ -192,7 +197,7 @@ class FLI:
 
     def fetch_exposure(self, HW):
         """Fetch the image"""
-        print('Camera',HW,'saving image')
+        self.logfile.info('Camera %d saving image', HW)
         self.imgdict[HW] = None
         p = multiprocessing.Process(target=self.fetch_process,args=(HW,self.imgdict))
         p.start()
@@ -202,7 +207,7 @@ class FLI:
 
     def abort_exposure(self, HW):
         """Abort current exposure"""
-        print('Camera',HW,'aborting exposure')
+        self.logfile.info('Camera %d aborting exposure', HW)
         self.cams[int(HW)].cancel_exposure()
 
     def set_camera_temp(self, target_temp, HW):
@@ -277,10 +282,10 @@ pyro_daemon = Pyro4.Daemon(host=hostname, port=9020)
 fli_daemon = FLI()
 
 uri = pyro_daemon.register(fli_daemon, 'fli_interfaceB')
-print('Starting FLI interface daemon at',uri)
+fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
-print('Exiting FLI interface daemon')
+fli_daemon.logfile.info('Exiting FLI interface daemon')
 time.sleep(1.)
