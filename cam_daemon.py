@@ -578,10 +578,10 @@ class CamDaemon:
             target_dec = 'N/A'
         header.set("ALT", value = mount_alt,                            comment = "Mount altitude")
         header.set("AZ", value = mount_az,                              comment = "Mount azimuth")
-        header.set("RA", value = mount_az,                              comment = "RA requested")
-        header.set("DEC", value = mount_az,                             comment = "Dec requested")
-        header.set("RA_TEL", value = mount_az,                          comment = "Telescope RA")
-        header.set("DEC_TEL", value = mount_az,                         comment = "Telescope Dec")
+        header.set("RA", value = target_ra,                              comment = "RA requested")
+        header.set("DEC", value = target_dec,                             comment = "Dec requested")
+        header.set("RA_TEL", value = mount_ra,                          comment = "Telescope RA")
+        header.set("DEC_TEL", value = mount_dec,                         comment = "Telescope Dec")
 
         # Focuser data
         foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])
