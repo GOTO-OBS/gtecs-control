@@ -30,7 +30,7 @@ def get_info():
     try:
         info = foc.get_info()
         print('###### FOCUSER INFO #######')
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
             if info['status'+str(tel)] != 'Moving':
                 print('Status: %s' %info['status'+str(tel)])
@@ -54,7 +54,7 @@ def get_info_summary():
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = foc.get_info()
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
             if info['status'+str(tel)] != 'Moving':
                 print('  Current position: %s/%s' %(info['current_pos'+str(tel)],info['limit'+str(tel)]), end=' ')
@@ -130,9 +130,9 @@ def query(command):
 
     elif command[0] == 'set':
         if len(command) == 2 and misc.is_num(command[1]):
-            set_focuser(int(command[1]),list(params.TEL_DICT.keys()))
+            set_focuser(int(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_focuser(int(command[2]),valid)
         else:
@@ -140,9 +140,9 @@ def query(command):
 
     elif command[0] == 'move':
         if len(command) == 2 and misc.is_num(command[1]):
-            move_focuser(int(command[1]),list(params.TEL_DICT.keys()))
+            move_focuser(int(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 move_focuser(int(command[2]),valid)
         else:
@@ -150,9 +150,9 @@ def query(command):
 
     elif command[0] == 'home':
         if len(command) == 1:
-            home_focuser(list(params.TEL_DICT.keys()))
+            home_focuser(list(params.TEL_DICT))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 home_focuser(valid)
         else:

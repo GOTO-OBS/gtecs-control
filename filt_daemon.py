@@ -85,7 +85,7 @@ class FiltDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -100,7 +100,7 @@ class FiltDaemon:
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
@@ -182,8 +182,8 @@ class FiltDaemon:
         """Move filter wheel to given filter"""
         self.new_filter = new_filter
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         if new_filter not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
         self.get_info_flag = 1
@@ -204,8 +204,8 @@ class FiltDaemon:
     def home_filter(self,tel_list):
         """Move filter wheel to home position"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
