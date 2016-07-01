@@ -39,8 +39,9 @@ class FocDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('foc',params.LOGGING)
-        self.logfile.log('Daemon started')
+        self.logfile = logger.getLogger('foc', file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
+        self.logfile.info('Daemon started')
 
         ### command flags
         self.get_info_flag = 1
@@ -99,7 +100,8 @@ class FocDaemon:
                         self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
                         self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
                 for tel in list(self.tel_dict.keys()):
@@ -134,16 +136,17 @@ class FocDaemon:
                     move_steps = self.move_steps[nuc][HW]
                     new_pos = self.current_pos[nuc][HW] - move_steps
 
-                    self.logfile.log('Moving focuser %i (%s-%i) by %i to %i'\
-                        %(tel, nuc, HW, move_steps, new_pos))
+                    self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
+                                      tel, nuc, HW, move_steps, new_pos)
 
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.step_focuser_motor(move_steps,HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.debug('', exc_info=True)
                 # cleare the 'active' units
                 self.active_tel = []
 
@@ -155,16 +158,17 @@ class FocDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
 
-                    self.logfile.log('Homing focuser %i (%s-%i)'\
-                        %(tel, nuc, HW) )
+                    self.logfile.info('Homing focuser %i (%s-%i)',
+                                      tel, nuc, HW)
 
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
                     try:
                         c = fli.home_focuser(HW)
-                        if c: print(c)
+                        if c: self.logfile.info(c)
                     except:
-                        print('ERROR: No response from fli interface on', nuc)
+                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.debug('', exc_info=True)
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
@@ -173,7 +177,7 @@ class FocDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.log('Focuser control thread stopped')
+        self.logfile.info('Focuser control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -268,10 +272,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMO
 foc_daemon = FocDaemon()
 
 uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-print('Starting focuser daemon at',uri)
+foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
 
-print('Exiting focuser daemon')
+foc_daemon.logfile.info('Exiting focuser daemon')
 time.sleep(1.)

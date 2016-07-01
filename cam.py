@@ -293,7 +293,10 @@ else:
     CAM_DAEMON_PROCESS = params.DAEMONS['cam']['PROCESS']
     CAM_DAEMON_HOST = params.DAEMONS['cam']['HOST']
     CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-    CAM_DAEMON_OUTPUT = params.LOG_PATH + 'cam_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        CAM_DAEMON_OUTPUT = params.LOG_PATH + 'cam_daemon-stdout.log'
+    else:
+        CAM_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':

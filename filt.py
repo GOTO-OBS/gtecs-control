@@ -83,7 +83,7 @@ def home_filter(HW_list):
         c = filt.home_filter(HW_list)
         if c: print(c)
     except:
-        print(misc.ERROR('No responce from filter wheel daemon'))
+        print(misc.ERROR('No response from filter wheel daemon'))
 
 ########################################################################
 # Interactive mode
@@ -177,7 +177,10 @@ else:
     FILT_DAEMON_PROCESS = params.DAEMONS['filt']['PROCESS']
     FILT_DAEMON_HOST = params.DAEMONS['filt']['HOST']
     FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-    FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
+    else:
+        FILT_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':

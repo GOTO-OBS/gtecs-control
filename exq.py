@@ -393,7 +393,10 @@ else:
     EXQ_DAEMON_PROCESS = params.DAEMONS['exq']['PROCESS']
     EXQ_DAEMON_HOST = params.DAEMONS['exq']['HOST']
     EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
+    else:
+        EXQ_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':

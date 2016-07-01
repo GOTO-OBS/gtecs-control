@@ -139,7 +139,10 @@ else:
     POWER_DAEMON_PROCESS = params.DAEMONS['power']['PROCESS']
     POWER_DAEMON_HOST = params.DAEMONS['power']['HOST']
     POWER_DAEMON_ADDRESS = params.DAEMONS['power']['ADDRESS']
-    POWER_DAEMON_OUTPUT = params.LOG_PATH + 'power_daemon-stdout.log'
+    if params.REDIRECT_STDOUT:
+        POWER_DAEMON_OUTPUT = params.LOG_PATH + 'power_daemon-stdout.log'
+    else:
+        POWER_DAEMON_OUTPUT = '/dev/stdout'
 
     command = sys.argv[1:]
     if command[0] == 'i':

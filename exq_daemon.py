@@ -179,8 +179,10 @@ class ExqDaemon:
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.Logfile('exq',params.LOGGING)
-        self.logfile.log('Daemon started')
+        self.logfile = logger.getLogger('exq',
+                                        file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
+        self.logfile.debug('Daemon started')
 
         ### function flags
         self.get_info_flag = 1
@@ -228,7 +230,8 @@ class ExqDaemon:
                 for tel in list(self.tel_dict.keys()):
                     cam_status[tel] = str(cam.get_info()['status'+str(tel)])
             except:
-                print('ERROR: No responce from camera daemon')
+                self.logfile.error('No response from camera daemon')
+                self.logfile.debug('', exc_info=True)
                 self.running = False
                 break
             try:
@@ -236,7 +239,8 @@ class ExqDaemon:
                 for tel in list(self.tel_dict.keys()):
                     filt_status[tel] = str(filt.get_info()['status'+str(tel)])
             except:
-                print('ERROR: No responce from filter wheel daemon')
+                self.logfile.error('No response from filter wheel daemon')
+                self.logfile.debug('', exc_info=True)
                 self.running = False
                 break
 
@@ -252,7 +256,7 @@ class ExqDaemon:
                 if self.current_ID == None and not self.working:
                     self.exp_spec = self.exp_queue.pop(0)
                     self.current_ID = self.exp_spec.run_ID
-                    self.logfile.log('Taking exposure %s' %str(self.current_ID))
+                    self.logfile.info('Taking exposure %s', str(self.current_ID))
             elif self.current_ID == None:
                 self.current_ID = None
                 time.sleep(0.5)
@@ -311,7 +315,8 @@ class ExqDaemon:
                     self.working = 1
                     self.set_filter_flag = 0
                 except:
-                    print('ERROR: No response from filter wheel daemon')
+                    self.logfile.error('No response from filter wheel daemon')
+                    self.logfile.debug('', exc_info=True)
 
             # take image
             if(self.take_image_flag):
@@ -329,11 +334,12 @@ class ExqDaemon:
                     self.working = 1
                     self.take_image_flag = 0
                 except:
-                    print('ERROR: No responce from camera daemon')
+                    self.logfile.error('No response from camera daemon')
+                    self.logfile.debug('', exc_info=True)
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.log('Exposure queue thread stopped')
+        self.logfile.info('Exposure queue thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -410,10 +416,10 @@ pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMO
 exq_daemon = ExqDaemon()
 
 uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
-print('Starting exposure queue daemon at',uri)
+exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
 
 Pyro4.config.COMMTIMEOUT = 5.
 pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
 
-print('Exiting exposure queue daemon')
+exq_daemon.logfile.info('Exiting exposure queue daemon')
 time.sleep(1.)
