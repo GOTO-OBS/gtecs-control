@@ -134,7 +134,7 @@ class FocDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     move_steps = self.move_steps[nuc][HW]
-                    new_pos = self.current_pos[nuc][HW] - move_steps
+                    new_pos = self.current_pos[nuc][HW] + move_steps
 
                     self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
                                       tel, nuc, HW, move_steps, new_pos)
