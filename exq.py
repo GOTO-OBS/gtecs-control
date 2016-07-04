@@ -195,17 +195,17 @@ def query(command):
             filt = command[2]
             bins = int(command[3])
             if len(command) == 4:
-                take_image(list(params.TEL_DICT.keys()),exptime,filt,bins)
+                take_image(list(params.TEL_DICT),exptime,filt,bins)
             elif len(command) == 5:
                 target = command[4]
-                take_image(list(params.TEL_DICT.keys()),exptime,filt,bins,target)
+                take_image(list(params.TEL_DICT),exptime,filt,bins,target)
             elif len(command) == 6:
                 target = command[4]
                 imgtype = command[5]
-                take_image(list(params.TEL_DICT.keys()),exptime,filt,bins,target,imgtype)
+                take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
         elif misc.is_num(command[2]) and misc.is_num(command[4]):
             # tels exptime filter bins [object] [imgtype]
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             exptime = float(command[2])
             filt = command[3]
             bins = int(command[4])
@@ -232,20 +232,20 @@ def query(command):
             bins = int(command[4])
             if len(command) == 5:
                 for i in range(Nexp):
-                    take_image(list(params.TEL_DICT.keys()),exptime,filt,bins)
+                    take_image(list(params.TEL_DICT),exptime,filt,bins)
             elif len(command) == 6:
                 target = command[5]
                 for i in range(Nexp):
-                    take_image(list(params.TEL_DICT.keys()),exptime,filt,bins,target)
+                    take_image(list(params.TEL_DICT),exptime,filt,bins,target)
             elif len(command) == 7:
                 target = command[5]
                 imgtype = command[6]
                 for i in range(Nexp):
-                    take_image(list(params.TEL_DICT.keys()),exptime,filt,bins,target,imgtype)
+                    take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
         elif misc.is_num(command[1]) and misc.is_num(command[3]) and misc.is_num(command[5]):
             # Nexp tels exptime filter bins [object] [imgtype]
             Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
             exptime = float(command[3])
             filt = command[4]
             bins = int(command[5])
@@ -271,10 +271,10 @@ def query(command):
             # exptime bins
             exptime = float(command[1])
             bins = int(command[2])
-            take_dark(list(params.TEL_DICT.keys()),exptime,bins)
+            take_dark(list(params.TEL_DICT),exptime,bins)
         elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
             # tels exptime bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             exptime = float(command[2])
             bins = int(command[3])
             if len(valid) > 0:
@@ -291,11 +291,11 @@ def query(command):
             exptime = float(command[2])
             bins = int(command[3])
             for i in range(Nexp):
-                take_dark(list(params.TEL_DICT.keys()),exptime,bins)
+                take_dark(list(params.TEL_DICT),exptime,bins)
         elif misc.is_num(command[3]) and misc.is_num(command[4]) and len(command) == 5:
             # Nexp tels exptime bins
             Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
             exptime = float(command[3])
             bins = int(command[4])
             if len(valid) > 0:
@@ -310,10 +310,10 @@ def query(command):
         elif misc.is_num(command[1]) and len(command) == 2:
             # bins
             bins = int(command[1])
-            take_bias(list(params.TEL_DICT.keys()),bins)
+            take_bias(list(params.TEL_DICT),bins)
         elif misc.is_num(command[2]) and len(command) == 3:
             # tels bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             bins = int(command[2])
             if len(valid) > 0:
                 take_bias(valid,bins)
@@ -328,11 +328,11 @@ def query(command):
             Nexp = int(command[1])
             bins = int(command[2])
             for i in range(Nexp):
-                take_bias(list(params.TEL_DICT.keys()),bins)
+                take_bias(list(params.TEL_DICT),bins)
         elif misc.is_num(command[3]) and len(command) == 4:
             # Nexp tels bins
             Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
             bins = int(command[3])
             if len(valid) > 0:
                 for i in range(Nexp):

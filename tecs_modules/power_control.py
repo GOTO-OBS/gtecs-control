@@ -136,38 +136,41 @@ class APCPower:
             status += output[i][-1]
         return status
 
-    def status(self,outlet):
+    def _initialise_oid_array(self, outlet):
+        """
+        Setup the oid array to use with snmp_get and snmp_set
+
+        Parameters
+        ----------
+        outlet : int
+            outlet to change
+
+        Returns
+        --------
+        oid_arr : list
+            Array of outlet IDs
+        """
+        assert outlet in self.outlets, "Unknown outlet"
         if outlet == 0: # all
             oid_arr = []
             for i in range(len(self.outlets)):
                 oid_arr += [self.base_oid + '.' + self.outlets[i]]
         else:
             oid_arr = [self.base_oid + '.' + str(outlet)]
+        return oid_arr
+
+    def status(self,outlet):
+        oid_arr = self._initialise_oid_array(outlet)
         return self.snmp_get(oid_arr)
 
     def on(self,outlet):
-        if outlet == 0: # all
-            oid_arr = []
-            for i in range(len(self.outlets)):
-                oid_arr += [self.base_oid + '.' + self.outlets[i]]
-        else:
-            oid_arr = [self.base_oid + '.' + str(outlet)]
+        oid_arr = self._initialise_oid_array(outlet)
         return self.snmp_set(oid_arr,self.commands['ON'])
 
     def off(self,outlet):
-        if outlet == 0: # all
-            oid_arr = []
-            for i in range(len(self.outlets)):
-                oid_arr += [self.base_oid + '.' + self.outlets[i]]
-        else:
-            oid_arr = [self.base_oid + '.' + str(outlet)]
+        oid_arr = self._initialise_oid_array(outlet)
         return self.snmp_set(oid_arr,self.commands['OFF'])
 
     def reboot(self,outlet):
-        if outlet == 0: # all
-            oid_arr = []
-            for i in range(len(self.outlets)):
-                oid_arr += [self.base_oid + '.' + self.outlets[i]]
-        else:
-            oid_arr = [self.base_oid + '.' + str(outlet)]
+        oid_arr = self._initialise_oid_array(outlet)
         return self.snmp_set(oid_arr,self.commands['REBOOT'])

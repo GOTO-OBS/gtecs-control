@@ -14,13 +14,15 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from math import *
-import time, datetime
 import Pyro4
 import threading
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
 from tecs_modules import params
+
+# Astropy
+from astropy.time import Time
 
 ########################################################################
 # Mount daemon functions
@@ -75,8 +77,9 @@ class MntDaemon:
         self.target_dec = None
         self.target_distance = None
         self.lst = 0
-        self.utc = time.gmtime(time.time())
-        self.utc_str = time.strftime('%Y-%m-%d %H:%M:%S', self.utc)
+        self.utc = Time.now()
+        self.utc.precision = 0  # only integer seconds
+        self.utc_str = self.utc.iso
         self.temp_ra = None
         self.temp_dec = None
 
@@ -108,8 +111,9 @@ class MntDaemon:
                     self.target_ra, self.target_dec = sitech.get_target_radec()
                     self.target_distance = sitech.get_target_distance()
                     self.lst = sitech.get_lst()
-                    self.utc = time.gmtime(time.time())
-                    self.utc_str = time.strftime('%Y-%m-%d %H:%M:%S', self.utc)
+                    self.utc = Time.now()
+                    self.utc.precision = 0  # only integer seconds
+                    self.utc_str = self.utc.iso
                 except:
                     self.logfile.error('No response from sitech daemon')
                     self.logfile.debug('', exc_info=True)
@@ -129,8 +133,9 @@ class MntDaemon:
                 info['step'] = self.step
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
-                now = datetime.datetime.utcnow()
-                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+                now = Time.now()
+                now.precision = 0
+                info['timestamp'] = now.iso
                 self.info = info
                 self.get_info_flag = 0
 
@@ -255,7 +260,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif misc.check_alt_limit(ra,dec,self.lst):
+        elif misc.check_alt_limit(ra,dec,self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.temp_ra = ra
@@ -271,7 +276,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif misc.check_alt_limit(self.target_ra,self.target_dec,self.lst):
+        elif misc.check_alt_limit(self.target_ra,self.target_dec,self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.slew_target_flag = 1
@@ -368,7 +373,7 @@ class MntDaemon:
             elif direction == 'west':
                 ra = self.mount_ra - step_ra
                 dec = self.mount_dec
-            if misc.check_alt_limit(ra,dec,self.lst):
+            if misc.check_alt_limit(ra,dec,self.utc):
                 return 'ERROR: Target too low, cannot slew'
             else:
                 self.temp_ra = ra

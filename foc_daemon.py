@@ -88,7 +88,7 @@ class FocDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -104,7 +104,7 @@ class FocDaemon:
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
@@ -134,7 +134,7 @@ class FocDaemon:
                 for tel in self.active_tel:
                     nuc, HW = self.tel_dict[tel]
                     move_steps = self.move_steps[nuc][HW]
-                    new_pos = self.current_pos[nuc][HW] - move_steps
+                    new_pos = self.current_pos[nuc][HW] + move_steps
 
                     self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
                                       tel, nuc, HW, move_steps, new_pos)
@@ -191,8 +191,8 @@ class FocDaemon:
     def set_focuser(self,new_pos,tel_list):
         """Move focuser to given position"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
@@ -212,8 +212,8 @@ class FocDaemon:
     def move_focuser(self,move_steps,tel_list):
         """Move focuser by given number of steps"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
@@ -233,8 +233,8 @@ class FocDaemon:
     def home_focuser(self,tel_list):
         """Move focuser to the home position"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
