@@ -339,14 +339,32 @@ class CamDaemon:
         time.sleep(0.1)
         return self.info
 
-    def take_image(self,exptime,tel_list):
-        """Take image with camera"""
+    def _take_frame(self, exptime, exp_type,
+                    tel_list):
+        """
+        Take a frame with camera.
+
+        Parameters
+        -----------
+        exptime : float
+            exposure time in seconds
+
+        exp_type : str
+            'image', 'dark', 'bias'
+
+        tel_list : list
+            list of unit telescopes
+        """
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.target_exptime = exptime
-        self.target_frametype = 'normal'
-        self.get_info_flag = 1
+        if exp_type == 'image':
+            self.target_frametype = 'normal'
+        elif exp_type == 'dark' or exp_type == 'bias':
+            self.target_frametype = 'dark'
+        else:
+            raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
         time.sleep(0.1)
         occupied = False
         for tel in self.active_tel:
@@ -358,55 +376,21 @@ class CamDaemon:
             s = 'Exposing:'
             for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking image on camera %i' %tel
+                s += '\n  Taking %s on camera %i' % (exp_type, tel)
             self.take_exposure_flag = 1
         return s
+
+    def take_image(self,exptime,tel_list):
+        """Take image with camera"""
+        return self._take_frame(exptime, 'image', tel_list)
 
     def take_dark(self,exptime,tel_list):
         """Take dark frame with camera"""
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        self.target_exptime = exptime
-        self.target_frametype = 'dark'
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        occupied = False
-        for tel in self.active_tel:
-            nuc, HW = self.tel_dict[tel]
-            if self.exposing_flag[nuc][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
-        if not occupied:
-            s = 'Exposing:'
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking dark on camera %i' %tel
-            self.take_exposure_flag = 1
-        return s
+        return self._take_frame(exptime, 'dark', tel_list)
 
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        self.target_exptime = 0
-        self.target_frametype = 'dark'
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        occupied = False
-        for tel in self.active_tel:
-            nuc, HW = self.tel_dict[tel]
-            if self.exposing_flag[nuc][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
-        if not occupied:
-            s = 'Exposing:'
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking bias on camera %i' %tel
-            self.take_exposure_flag = 1
-        return s
+        return self._take_frame(0, 'bias', tel_list)
 
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
