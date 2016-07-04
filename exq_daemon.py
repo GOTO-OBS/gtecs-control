@@ -257,7 +257,6 @@ class ExqDaemon:
                     self.current_ID = self.exp_spec.run_ID
                     self.logfile.info('Taking exposure %s', str(self.current_ID))
             elif self.current_ID == None:
-                self.current_ID = None
                 time.sleep(0.5)
 
             # take the exposure
