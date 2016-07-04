@@ -37,6 +37,7 @@ class FakeDome:
         # fake stuff
         self.temp_file = '/tmp/dome'
         self._read_temp()
+        self.fake = True
 
     def _new_temp(self):
         self.domestatus = [0,0,0] # start closed
@@ -164,6 +165,7 @@ class AstroHavenDome:
                            'timeout': 1}
         self.move_code = {'west_open':'a', 'west_close':'A', 'east_open':'b', 'east_close':'B'}
         self.limit_code = {'west_open':'x', 'west_close':'X', 'east_open':'y', 'east_close':'Y'}
+        self.fake = False
 
     def _move_dome(self,command,timeout=40.):
         '''Internal (blocking) function to keep moving dome until it reaches its limit'''
