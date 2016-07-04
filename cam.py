@@ -30,7 +30,7 @@ def get_info():
     try:
         info = cam.get_info()
         print('####### CAMERA INFO #######')
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
             if info['status'+str(tel)] != 'Exposing':
                 print('Status: %s' %info['status'+str(tel)])
@@ -57,7 +57,7 @@ def get_info_summary():
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
-        for tel in list(params.TEL_DICT.keys()):
+        for tel in params.TEL_DICT:
             print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
             if info['status'+str(tel)] != 'Exposing':
                 print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
@@ -178,9 +178,9 @@ def query(command):
 
     elif command[0] == 'image':
         if len(command) == 2 and misc.is_num(command[1]):
-            take_image(float(command[1]),list(params.TEL_DICT.keys()))
+            take_image(float(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 take_image(float(command[2]),valid)
         else:
@@ -188,9 +188,9 @@ def query(command):
 
     elif command[0] == 'dark':
         if len(command) == 2 and misc.is_num(command[1]):
-            take_dark(float(command[1]),list(params.TEL_DICT.keys()))
+            take_dark(float(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 take_dark(float(command[2]),valid)
         else:
@@ -198,9 +198,9 @@ def query(command):
 
     elif command[0] == 'bias':
         if len(command) == 1:
-            take_bias(list(params.TEL_DICT.keys()))
+            take_bias(list(params.TEL_DICT))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 take_bias(valid)
         else:
@@ -208,9 +208,9 @@ def query(command):
 
     elif command[0] == 'abort':
         if len(command) == 1:
-            abort_exposure(list(params.TEL_DICT.keys()))
+            abort_exposure(list(params.TEL_DICT))
         elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 abort_exposure(valid)
         else:
@@ -218,9 +218,9 @@ def query(command):
 
     elif command[0] == 'temp':
         if len(command) == 2 and misc.is_num(command[1]):
-            set_temperature(float(command[1]),list(params.TEL_DICT.keys()))
+            set_temperature(float(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_temperature(float(command[2]),valid)
         else:
@@ -228,9 +228,9 @@ def query(command):
 
     elif command[0] == 'flush':
         if len(command) == 2 and misc.is_num(command[1]):
-            set_flushes(int(command[1]),list(params.TEL_DICT.keys()))
+            set_flushes(int(command[1]),list(params.TEL_DICT))
         elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_flushes(int(command[2]),valid)
         else:
@@ -238,9 +238,9 @@ def query(command):
 
     elif command[0] == 'bin':
         if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
-            set_bins([int(command[1]),int(command[2])],list(params.TEL_DICT.keys()))
+            set_bins([int(command[1]),int(command[2])],list(params.TEL_DICT))
         elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_bins([int(command[2]),int(command[3])],valid)
         else:
@@ -248,9 +248,9 @@ def query(command):
 
     elif command[0] == 'area':
         if len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]):
-            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],list(params.TEL_DICT.keys()))
+            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],list(params.TEL_DICT))
         elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]) and misc.is_num(command[5]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT.keys()))
+            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 set_area([int(command[2]), int(command[3]), int(command[4]), int(command[5])],valid)
         else:

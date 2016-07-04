@@ -25,6 +25,7 @@ import numpy
 from tecs_modules import logger
 from tecs_modules import misc
 from tecs_modules import params
+from tecs_modules.time_date import nightStarting
 
 ########################################################################
 # Camera daemon functions
@@ -42,7 +43,7 @@ class CamDaemon:
     - set_flushes(target_flushes,telescopeIDs)
     - set_area(area,telescopeIDs)
     - set_spec(run_ID,target,imgtype):
-"""
+    """
 
     def __init__(self):
         self.running = True
@@ -132,7 +133,7 @@ class CamDaemon:
             # request info
             if(self.get_info_flag):
                 # update variables
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
                     fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -148,7 +149,7 @@ class CamDaemon:
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
-                for tel in list(self.tel_dict.keys()):
+                for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
                     tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
                     if self.remaining[nuc][HW] > 0:
@@ -339,14 +340,32 @@ class CamDaemon:
         time.sleep(0.1)
         return self.info
 
-    def take_image(self,exptime,tel_list):
-        """Take image with camera"""
+    def _take_frame(self, exptime, exp_type,
+                    tel_list):
+        """
+        Take a frame with camera.
+
+        Parameters
+        -----------
+        exptime : float
+            exposure time in seconds
+
+        exp_type : str
+            'image', 'dark', 'bias'
+
+        tel_list : list
+            list of unit telescopes
+        """
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.target_exptime = exptime
-        self.target_frametype = 'normal'
-        self.get_info_flag = 1
+        if exp_type == 'image':
+            self.target_frametype = 'normal'
+        elif exp_type == 'dark' or exp_type == 'bias':
+            self.target_frametype = 'dark'
+        else:
+            raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
         time.sleep(0.1)
         occupied = False
         for tel in self.active_tel:
@@ -358,61 +377,27 @@ class CamDaemon:
             s = 'Exposing:'
             for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking image on camera %i' %tel
+                s += '\n  Taking %s on camera %i' % (exp_type, tel)
             self.take_exposure_flag = 1
         return s
+
+    def take_image(self,exptime,tel_list):
+        """Take image with camera"""
+        return self._take_frame(exptime, 'image', tel_list)
 
     def take_dark(self,exptime,tel_list):
         """Take dark frame with camera"""
-        for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
-        self.target_exptime = exptime
-        self.target_frametype = 'dark'
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        occupied = False
-        for tel in self.active_tel:
-            nuc, HW = self.tel_dict[tel]
-            if self.exposing_flag[nuc][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
-        if not occupied:
-            s = 'Exposing:'
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking dark on camera %i' %tel
-            self.take_exposure_flag = 1
-        return s
+        return self._take_frame(exptime, 'dark', tel_list)
 
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
-        for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
-        self.target_exptime = 0
-        self.target_frametype = 'dark'
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        occupied = False
-        for tel in self.active_tel:
-            nuc, HW = self.tel_dict[tel]
-            if self.exposing_flag[nuc][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
-        if not occupied:
-            s = 'Exposing:'
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking bias on camera %i' %tel
-            self.take_exposure_flag = 1
-        return s
+        return self._take_frame(0, 'bias', tel_list)
 
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Aborting:'
@@ -430,8 +415,8 @@ class CamDaemon:
         """Set the camera's temperature"""
         self.target_temp = target_temp
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         if not (-55 <= target_temp <= 45):
             return 'ERROR: Temperature must be between -55 and 45'
         s = 'Setting:'
@@ -445,8 +430,8 @@ class CamDaemon:
         """Set the number of times to flush the CCD before an exposure"""
         self.target_flushes = target_fliushes
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         if not (0 <= target_flushes <= 16):
             return 'ERROR: Number of flushes must be between 0 and 16'
         s = 'Setting:'
@@ -460,8 +445,8 @@ class CamDaemon:
         """Set the image binning"""
         self.target_bins = bins
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
@@ -473,8 +458,8 @@ class CamDaemon:
         """Set the active image area"""
         self.target_area = area
         for tel in tel_list:
-            if tel not in list(self.tel_dict.keys()):
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict.keys()))
+            if tel not in self.tel_dict:
+                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
@@ -505,9 +490,7 @@ class CamDaemon:
 
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
-        now = datetime.datetime.utcnow()
-        if now.hour < 12: now = now - datetime.timedelta(days=1)
-        night = now.strftime("%Y-%m-%d")
+        night = nightStarting()
         if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
         direc = params.IMAGE_PATH + night
         if not os.path.exists(direc): os.mkdir(direc)
@@ -578,10 +561,10 @@ class CamDaemon:
             target_dec = 'N/A'
         header.set("ALT", value = mount_alt,                            comment = "Mount altitude")
         header.set("AZ", value = mount_az,                              comment = "Mount azimuth")
-        header.set("RA", value = mount_az,                              comment = "RA requested")
-        header.set("DEC", value = mount_az,                             comment = "Dec requested")
-        header.set("RA_TEL", value = mount_az,                          comment = "Telescope RA")
-        header.set("DEC_TEL", value = mount_az,                         comment = "Telescope Dec")
+        header.set("RA", value = target_ra,                              comment = "RA requested")
+        header.set("DEC", value = target_dec,                             comment = "Dec requested")
+        header.set("RA_TEL", value = mount_ra,                          comment = "Telescope RA")
+        header.set("DEC_TEL", value = mount_dec,                         comment = "Telescope Dec")
 
         # Focuser data
         foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])

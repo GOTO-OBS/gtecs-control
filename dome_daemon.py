@@ -88,17 +88,20 @@ class DomeDaemon:
                     continue
 
                 # ping the power sources
-                #pinglist = ['power1', 'power2', 'power3', 'scope', 'video', 'reg']
-                #self.power_status = misc.check_hosts(pinglist)
+                if not dome.fake:
+                    pinglist = ['power1', 'power2', 'power3', 'scope', 'video', 'reg']
+                    self.power_status = misc.check_hosts(pinglist)
 
                 # check any external flags
                 condition_flags = flags.Conditions()
                 override_flags = flags.Overrides()
 
                 # test for an emergency
-                #if misc.loopback_test(params.BIG_RED_BUTTON_PORT,'bob',chances=3):
-                #    self.logfile.debug('Emergency shutdown button pressed',1)
-                #    os.system('touch %s' % params.EMERGENCY_FILE)
+                if not dome.fake:
+                    if misc.loopback_test(params.BIG_RED_BUTTON_PORT,'bob',chances=3):
+                        self.logfile.debug('Emergency shutdown button pressed',1)
+                        os.system('touch %s' % params.EMERGENCY_FILE)
+
                 if self.power_status:
                     self.logfile.debug('No external power')
                     os.system('touch ' + str(params.EMERGENCY_FILE))

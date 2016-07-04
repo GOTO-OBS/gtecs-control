@@ -28,11 +28,16 @@ class FakeDome:
     def __init__(self,serial_port='/dev/ttyS1',stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
+        self.port_props = {'baudrate': 9600, 'parity': 'N',
+                           'bytesize': 8, 'stopbits': 1,
+                           'rtscts': 0, 'xonxoff': 0,
+                           'timeout': 1}
         self.move_code = {'west_open':'a', 'west_close':'A', 'east_open':'b', 'east_close':'B'}
         self.limit_code = {'west_open':'x', 'west_close':'X', 'east_open':'y', 'east_close':'Y'}
         # fake stuff
         self.temp_file = '/tmp/dome'
         self._read_temp()
+        self.fake = True
 
     def _new_temp(self):
         self.domestatus = [0,0,0] # start closed
@@ -104,7 +109,7 @@ class FakeDome:
 
     def open_full(self):
         #self.sound_alarm()
-        #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
+        #self.dome_port = serial.Serial(self.serial_port, **self.port_props)
         openW = self._move_dome('west_open')
         time.sleep(2)
         openE = self._move_dome('east_open')
@@ -114,7 +119,7 @@ class FakeDome:
 
     def close_full(self):
         #self.sound_alarm()
-        #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
+        #self.dome_port = serial.Serial(self.serial_port,**self.port_props)
         closeW = self._move_dome('west_close')
         time.sleep(2)
         closeE = self._move_dome('east_close')
@@ -124,7 +129,7 @@ class FakeDome:
 
     def open_side(self,side,steps):
         #self.sound_alarm()
-        #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
+        #self.dome_port = serial.Serial(self.serial_port,**self.port_props)
         if side == 'west':
             openS = self._move_dome_steps('west_open',steps)
         elif side == 'east':
@@ -134,7 +139,7 @@ class FakeDome:
 
     def close_side(self,side,steps):
         #self.sound_alarm()
-        #self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
+        #self.dome_port = serial.Serial(self.serial_port,**self.port_props)
         if side == 'west':
             closeS = self._move_dome_steps('west_close',steps)
         elif side == 'east':
@@ -154,8 +159,13 @@ class AstroHavenDome:
     def __init__(self,serial_port='/dev/ttyS1',stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
+        self.port_props = {'baudrate': 9600, 'parity': 'N',
+                           'bytesize': 8, 'stopbits': 1,
+                           'rtscts': 0, 'xonxoff': 0,
+                           'timeout': 1}
         self.move_code = {'west_open':'a', 'west_close':'A', 'east_open':'b', 'east_close':'B'}
         self.limit_code = {'west_open':'x', 'west_close':'X', 'east_open':'y', 'east_close':'Y'}
+        self.fake = False
 
     def _move_dome(self,command,timeout=40.):
         '''Internal (blocking) function to keep moving dome until it reaches its limit'''
@@ -221,42 +231,40 @@ class AstroHavenDome:
 
     def open_full(self):
         #self.sound_alarm()
-        self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
-        openW = self._move_dome('west_open')
-        time.sleep(2)
-        openE = self._move_dome('east_open')
-        self.dome_port.close()
+        # by using the serial port as a context manager it will still close if
+        # an exception is raised inside _move_dome
+        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
+            openW = self._move_dome('west_open')
+            time.sleep(2)
+            openE = self._move_dome('east_open')
         print(openW, openE)
         return openW.strip() + openE.strip()
 
     def close_full(self):
         #self.sound_alarm()
-        self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
-        closeW = self._move_dome('west_close')
-        time.sleep(2)
-        closeE = self._move_dome('east_close')
-        self.dome_port.close()
+        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
+            closeW = self._move_dome('west_close')
+            time.sleep(2)
+            closeE = self._move_dome('east_close')
         print(closeW, closeE)
         return closeW.strip() + closeE.strip()
 
     def open_side(self,side,steps):
         #self.sound_alarm()
-        self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
-        if side == 'west':
-            openS = self._move_dome_steps('west_open',steps)
-        elif side == 'east':
-            openS = self._move_dome_steps('east_open',steps)
-        self.dome_port.close()
+        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
+            if side == 'west':
+                openS = self._move_dome_steps('west_open',steps)
+            elif side == 'east':
+                openS = self._move_dome_steps('east_open',steps)
         return openS.strip()
 
     def close_side(self,side,steps):
         #self.sound_alarm()
-        self.dome_port = serial.Serial(self.serial_port,9600,parity='N',bytesize=8,stopbits=1,rtscts=0,xonxoff=0,timeout=1)
-        if side == 'west':
-            closeS = self._move_dome_steps('west_close',steps)
-        elif side == 'east':
-            closeS = self._move_dome_steps('east_close',steps)
-        self.dome_port.close()
+        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
+            if side == 'west':
+                closeS = self._move_dome_steps('west_close',steps)
+            elif side == 'east':
+                closeS = self._move_dome_steps('east_close',steps)
         return closeS.strip()
 
     def sound_alarm(self,sleep=True):
