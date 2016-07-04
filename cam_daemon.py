@@ -25,6 +25,7 @@ import numpy
 from tecs_modules import logger
 from tecs_modules import misc
 from tecs_modules import params
+from tecs_modules.time_date import nightStarting
 
 ########################################################################
 # Camera daemon functions
@@ -489,9 +490,7 @@ class CamDaemon:
 
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
-        now = datetime.datetime.utcnow()
-        if now.hour < 12: now = now - datetime.timedelta(days=1)
-        night = now.strftime("%Y-%m-%d")
+        night = nightStarting()
         if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
         direc = params.IMAGE_PATH + night
         if not os.path.exists(direc): os.mkdir(direc)
