@@ -17,7 +17,6 @@ if six.PY2:
     from commands import getoutput
 else:
     from subprocess import getoutput
-from math import *
 import time
 import Pyro4
 import subprocess
@@ -202,96 +201,6 @@ def kill_daemon(process, host):
 
 def start_win(process, host, stdout='/dev/null'):
     os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
-
-########################################################################
-# Astronomy functions
-def eq_to_hor(ha_hrs,dec_deg,lat_deg):
-    # from starlink slalib  sla_DE2H
-    ha = ha_hrs*15.*2.*pi/360.
-    dec= dec_deg*2.*pi/360.
-    phi= lat_deg*2.*pi/360.
-    sh = sin(ha)
-    ch = cos(ha)
-    sd = sin(dec)
-    cd = cos(dec)
-    sp = sin(phi)
-    cp = cos(phi)
-    x  = -1.*ch*cd*sp + sd*cp
-    y  = -1.*sh*cd
-    z  = ch*cd*cp + sd*sp
-    r  = sqrt(x*x+y*y)
-    if r == 0.0:
-       a = 0.0
-    else:
-       a = atan2(y,x)
-    if a < 0.0: a = a + 2.*pi
-    az_rad = a
-    el_rad = atan2(z,r)
-    az = az_rad*360./(2.*pi)
-    el = el_rad*360./(2.*pi)
-
-    return el,az
-
-def find_ha(ra_hrs,lst):
-    ha_hrs = lst - ra_hrs
-    return ha_hrs
-
-def find_lst(tel_long_deg,ut): #Local sidereal time
-    gst = find_gst(ut)
-    lst_hour = gst + tel_long_deg/15.
-    if lst_hour  > 24.0:
-        lst_hour  = lst_hour  - 24.0
-    if lst_hour  < 0.0:
-        lst_hour  = lst_hour  + 24.0
-    return lst_hour
-
-def find_gst(ut): #Greenwich sidereal time
-    (year,month,mday,hours,mins,sec,week,jd,d)=time.gmtime(ut)
-    ut_hours = hours + (mins + sec/60.)/60.
-    mday = mday + ut_hours/24.
-    if  month <= 2 :
-        year = year - 1
-        month = month + 12
-    a = int(year/100.)
-    b = 2. - a + int(a/4.)
-    if year < 0 :
-        c = int((365.2500*year)-0.7500)
-    else:
-        c = int(365.2500*year)
-
-    d = int(30.600100*(month+1))
-    jd = b + c + d + int(mday) + 1720994.500
-
-    s = jd - 2451545.000
-    t = s/36525.000
-    t0 = 6.697374558 + (2400.051336*t) + (0.000025862*(t*t));
-    t0 = (t0 - int(t0/24.)*24)
-    if t0 < 0.0: t0 = t0 + 24.
-    ut = 1.002737909*ut_hours
-    tmp = int((ut + t0)/24.)
-    gst = ut + t0 - tmp*24.
-    return gst
-
-def check_alt_limit(targ_ra,targ_dec,lst):
-    targ_ha = find_ha(targ_ra,lst)
-    targ_alt,targ_az = eq_to_hor(targ_ha,targ_dec,params.SITE_LATITUDE)
-    if targ_alt < params.MIN_ELEVATION:
-        return 1
-    else:
-        return 0
-
-def ang_sep(ra_1,dec_1,ra_2,dec_2):
-    alt_1 = 90-dec_1
-    alt_2 = 90-dec_2
-    ra_dif = (ra_1-ra_2)*360./24.
-    c1 = cos(radians(alt_1))
-    c2 = cos(radians(alt_2))
-    s1 = sin(radians(alt_1))
-    s2 = sin(radians(alt_2))
-    cR = cos(radians(ra_dif))
-    cS = c1*c2 + s1*s2*cR
-    S = degrees(acos(cS))
-    return S
 
 ########################################################################
 ## Text formatting functions

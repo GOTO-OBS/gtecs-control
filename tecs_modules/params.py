@@ -53,6 +53,7 @@ REDIRECT_STDOUT = 0
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = 28.7598742
 SITE_LONGITUDE = -17.8793802
+SITE_ALTITUDE = 2327
 
 # Pyro connection
 PROXY_TIMEOUT = 0.5
