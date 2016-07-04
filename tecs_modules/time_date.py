@@ -1,8 +1,8 @@
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                                time_date.py                          #
+#                             time_date.py                             #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #  G-TeCS module containing time/date functions used by TeCS processes #
-#                 Stuart Littlefair, Sheffield, 2015                   #
+#                 Stuart Littlefair, Sheffield, 2016                   #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
