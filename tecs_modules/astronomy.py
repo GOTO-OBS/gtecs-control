@@ -1,8 +1,8 @@
 # oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                            astronomy.py                              #
+#                             astronomy.py                             #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#       G-TeCS module containing astronomy utilities                   #
-#                     Martin Dyer, Sheffield, 2015                     #
+#             G-TeCS module containing astronomy utilities             #
+#                     Stuart Littlefair, Sheffield, 2016               #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
 # oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
