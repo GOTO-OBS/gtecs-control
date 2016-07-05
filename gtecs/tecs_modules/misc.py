@@ -13,6 +13,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 import os, sys
 import six
+import abc
+import signal
 if six.PY2:
     from commands import getoutput
 else:
@@ -134,6 +136,44 @@ def loopback_test(serialport='/dev/ttyS3', message='bob', chances=3):
                 return 0   # success
     s.close()
     return 1   # failure
+
+
+class neatCloser:
+    """
+    Neatly handles closing down of processes.
+
+    This is an abstract class.
+
+    Implement the tidyUp method to set the jobs which
+    get run before the task shuts down after receiving
+    an instruction to stop.
+
+    Once you have a concrete class based on this abstract class,
+    simply create an instance of it and the tidyUp function will
+    be caused on SIGINT and SIGTERM signals before closing.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, taskName):
+        self.taskName = taskName
+        # redirect SIGTERM, SIGINT to us
+        signal.signal(signal.SIGTERM, self.interrupt)
+        signal.signal(signal.SIGINT, self.interrupt)
+
+    def interrupt(self, sig, handler):
+        print('{} received kill signal'.format(self.taskName))
+        # do things here on interrupt, for example, stop exposing
+        # update queue DB.
+        self.tidyUp()
+        sys.exit(1)
+
+    @abc.abstractmethod
+    def tidyUp(self):
+        """
+        Must be implemented to define tasks to run when closed
+        before process is over.
+        """
+        return
 
 ########################################################################
 # Core Daemon functions
