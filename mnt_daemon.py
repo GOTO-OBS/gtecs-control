@@ -13,12 +13,14 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
-from math import *
+from math import cos
 import Pyro4
 import threading
+import time
 # TeCS modules
 from tecs_modules import logger
 from tecs_modules import misc
+from tecs_modules.astronomy import find_ha, check_alt_limit
 from tecs_modules import params
 
 # Astropy
@@ -128,7 +130,7 @@ class MntDaemon:
                 info['target_dec'] = self.target_dec
                 info['target_dist'] = self.target_distance
                 info['lst'] = self.lst
-                info['ha'] = misc.find_ha(self.mount_ra,self.lst)
+                info['ha'] = find_ha(self.mount_ra,self.lst)
                 info['utc'] = self.utc_str
                 info['step'] = self.step
                 info['uptime'] = time.time()-self.start_time
@@ -260,7 +262,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif misc.check_alt_limit(ra,dec,self.utc):
+        elif check_alt_limit(ra,dec,self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.temp_ra = ra
@@ -276,7 +278,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif misc.check_alt_limit(self.target_ra,self.target_dec,self.utc):
+        elif check_alt_limit(self.target_ra,self.target_dec,self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.slew_target_flag = 1
