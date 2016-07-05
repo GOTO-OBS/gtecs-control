@@ -95,7 +95,7 @@ if __name__ == '__main__':
             print(d+':\t', end='')
             if d == 'exq' and sys.argv[1] == 'start':
                 # give the cam and filt daemons a chance to start
-                time.sleep(0.5)
+                time.sleep(5)
             func = routines[sys.argv[1]]
             func(d)
     else:
