@@ -22,10 +22,10 @@ import os
 import astropy.io.fits as pyfits
 import numpy
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
-from tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
+from gtecs.tecs_modules.time_date import nightStarting
 
 ########################################################################
 # Camera daemon functions
@@ -67,7 +67,7 @@ class CamDaemon:
         self.info = {}
         self.ftlist = params.FRAMETYPE_LIST
         self.tel_dict = params.TEL_DICT
-        self.run_number_file = params.TECS_PATH + 'run_number'
+        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
         self.image = 'None yet'
 

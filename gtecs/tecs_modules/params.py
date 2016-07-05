@@ -14,6 +14,7 @@ import os,sys
 import socket
 import numpy
 import Pyro4
+import pkg_resources
 # TeCS modules
 from . import power_control
 from . import dome_control
@@ -38,7 +39,8 @@ elif HOST == 'Stus-MacBook-Pro.local' or HOST.startswith('dyn'):  # SL laptop
 else:
     TECS_PATH = '/home/goto/g-tecs/'
 
-SCRIPT_PATH = TECS_PATH
+SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'scripts')
+DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 CONFIG_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
@@ -67,7 +69,6 @@ EMAIL_SERVER = 'smtp.gmail.com:587'
 
 ########################################################################
 # Daemon parameters
-
 DAEMONS = {
     'mnt':{ # mount daemon
         'PROCESS':  'mnt_daemon.py',
@@ -185,7 +186,7 @@ QUEUE_PATH = TECS_PATH
 
 # Power parameters
 POWER = power_control.FakePower(' ',' ') #power_control.APCPower('137.205.160.50')
-POWER_CHECK_SCRIPT = '_power_status.py'
+POWER_CHECK_SCRIPT = '_power_status'
 POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
 
 # Dome parameters

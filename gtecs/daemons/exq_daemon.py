@@ -21,9 +21,9 @@ import os, sys
 from collections import MutableSequence
 import ast
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 
 ########################################################################
 # Exposure queue daemon functions
@@ -193,7 +193,7 @@ class ExqDaemon:
         self.info = {}
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
-        self.run_number_file = 'run_number'
+        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.exp_queue = Queue()
         self.exp_spec = None
         self.current_ID = None

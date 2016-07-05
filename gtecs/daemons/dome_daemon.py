@@ -19,10 +19,10 @@ import time, datetime
 import Pyro4
 import threading
 # TeCS modules
-from tecs_modules import flags
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import flags
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 
 ########################################################################
 # Dome daemon functions
