@@ -105,6 +105,10 @@ def python_command(filename, command):
     output = proc.communicate()[0]
     return output.decode()
 
+def execute_command(cmd):
+    print(cmd)
+    subprocess.Popen(cmd, shell=True, close_fds=True).wait()
+
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
     ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
