@@ -14,6 +14,8 @@ from __future__ import print_function
 import time
 from gtecs.tecs_modules.misc import execute_command as cmd
 
+
+
 def run():
     print('Start of Night Phase 1')
 
