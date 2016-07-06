@@ -27,6 +27,39 @@ SITE_ALTITUDE = 2327
 SITE_LATITUDE = 28.7598742
 SITE_LONGITUDE = -17.8793802
 
+########################################################################
+# Mount parameters
+WIN_HOST = 137.205.160.1
+WIN_PATH = C:/goto_mount/
+CYGWIN_PATH = /cygdrive/c/goto_mount/
+CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
+
+MIN_ELEVATION = 20.0
+DEFAULT_OFFSET_STEP = 10.0
+
+SITECH_PORT = 9000
+SITECH_PYROID = sitech_interface
+SITECH_PROCESS = sitech_interface.py
+
+########################################################################
+# Filter wheel parameters
+FILTER_LIST = L, R, G, B, C
+
+########################################################################
+# Camera parameters
+FRAMETYPE_LIST = normal, dark, rbi_flush
+DARKFILT = C
+BIASEXP = 0.1
+
+########################################################################
+# Power Parameters
+POWER_LIST = mnt, filt, foc, cam, _5_, _6_, _7_, _8_
+
+########################################################################
+# Dome parameters
+DOME_LOCATION = /dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0
+BIG_RED_BUTTON_PORT = N/A
+
 ###########################################################
 # Daemon parameters
 [DAEMONS]
@@ -85,38 +118,8 @@ SITE_LONGITUDE = -17.8793802
             foc = fake, fake
             filt = fake, fake
             cam = fake, fake
-   
-########################################################################
-# Mount parameters      
-WIN_HOST = 137.205.160.1
-WIN_PATH = C:/goto_mount/
-CYGWIN_PATH = /cygdrive/c/goto_mount/
-CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
 
-MIN_ELEVATION = 20.0
-DEFAULT_OFFSET_STEP = 10.0
 
-SITECH_PORT = 9000
-SITECH_PYROID = sitech_interface
-SITECH_PROCESS = sitech_interface.py
 
-########################################################################
-# Filter wheel parameters
-FILTER_LIST = L, R, G, B, C
-
-########################################################################
-# Camera parameters
-FRAMETYPE_LIST = normal, dark, rbi_flush
-DARKFILT = C
-BIASEXP = 0.1
-
-########################################################################
-# Power Parameters
-POWER_LIST = mnt, filt, foc, cam, _5_, _6_, _7_, _8_
-
-########################################################################
-# Dome parameters
-DOME_LOCATION = /dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0
-BIG_RED_BUTTON_PORT = N/A
 
 
