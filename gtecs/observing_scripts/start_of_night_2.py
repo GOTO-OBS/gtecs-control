@@ -7,10 +7,13 @@ This script should perform the following simple tasks:
 from __future__ import absolute_import
 from __future__ import print_function
 import time
-from ..misc import python_command
+from gtecs.tecs_modules.misc import execute_command as cmd
 
-print('Start of Night Phase 2')
-execute_command('tel info')
-execute_command('tel unpark')
-time.sleep(5)
-execute_command('tel track')
+def run():
+    print('Start of Night Phase 2')
+    cmd('mnt info')
+    cmd('mnt unpark')
+    time.sleep(5)
+
+if __name__ == "__main__":
+    run()

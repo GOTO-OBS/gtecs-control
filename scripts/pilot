@@ -13,19 +13,19 @@ import asyncio
 import sys
 import os
 import functools
+import pkg_resources
 
 from astropy.time import Time
 from astropy import units as u
 
-from testScheduler import Scheduler
-from tecs_modules.asyncio_protocols import SimpleProtocol
-from tecs_modules import logger
-from tecs_modules import params
+from gtecs.tecs_modules.testScheduler import Scheduler
+from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import params
 
 scheduler = Scheduler()
 
-script_dir = '.'
-
+SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
 class Pilot:
     """
@@ -87,11 +87,11 @@ class Pilot:
         """
         self.log.info("Starting the night")
 
-        cmd = [os.path.join(script_dir, 'start_of_night_1.py')]
+        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_1.py')]
         await self.startScript('SN1', SimpleProtocol, cmd)
 
-        cmd = [os.path.join(script_dir, 'start_of_night_2.py')]
-        # await self.startScript('SN2', SimpleProtocol, cmd)
+        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_2.py')]
+        await self.startScript('SN2', SimpleProtocol, cmd)
 
         # await self.observe()
         self.log.info("Night done")
@@ -151,7 +151,7 @@ class Pilot:
                 self.currJob = self.nextJob
                 name, duration = self.currJob
 
-                cmd = [os.path.join(script_dir, 'observe.py'), name, str(duration)]
+                cmd = [os.path.join(SCRIPT_PATH, 'observe.py'), name, str(duration)]
                 self.log.info('{} will take {} seconds'.format(name, duration))
                 # start process
                 asyncio.ensure_future(
@@ -220,7 +220,7 @@ class Pilot:
         """
         while Time.now() < stopTime:
             self.log.info(Time.now())
-            await asyncio.sleep(1)
+            await asyncio.sleep(10)
 
         # close any running tasks
         for future in self.running_tasks:

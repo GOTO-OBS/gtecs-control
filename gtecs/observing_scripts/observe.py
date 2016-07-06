@@ -8,7 +8,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import sys
 import time
-from ..misc import neatCloser, python_command
+from gtecs.tecs_modules.misc import neatCloser, python_command
 
 
 class Closer(neatCloser):
