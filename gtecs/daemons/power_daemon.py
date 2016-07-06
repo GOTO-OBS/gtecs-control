@@ -213,16 +213,20 @@ class PowerDaemon:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
-power_daemon = PowerDaemon()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
+    power_daemon = PowerDaemon()
 
-uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-power_daemon.logfile.info('Starting power daemon at %s', uri)
+    uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
+    power_daemon.logfile.info('Starting power daemon at %s', uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
-power_daemon.logfile.info('Exiting power daemon')
-time.sleep(1.)
+    power_daemon.logfile.info('Exiting power daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

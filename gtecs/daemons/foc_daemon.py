@@ -266,16 +266,21 @@ class FocDaemon:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
-foc_daemon = FocDaemon()
 
-uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
+    foc_daemon = FocDaemon()
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
+    uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
+    foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
 
-foc_daemon.logfile.info('Exiting focuser daemon')
-time.sleep(1.)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
+
+    foc_daemon.logfile.info('Exiting focuser daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

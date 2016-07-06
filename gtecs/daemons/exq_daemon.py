@@ -408,16 +408,21 @@ class ExqDaemon:
     def shutdown(self):
         self.running=False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
-exq_daemon = ExqDaemon()
 
-uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
-exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
+    exq_daemon = ExqDaemon()
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
+    uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
+    exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
 
-exq_daemon.logfile.info('Exiting exposure queue daemon')
-time.sleep(1.)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
+
+    exq_daemon.logfile.info('Exiting exposure queue daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()
