@@ -15,140 +15,92 @@ import socket
 import numpy
 import Pyro4
 import pkg_resources
+
+import configobj
+import validate
+
 # TeCS modules
 from . import power_control
 from . import dome_control
+
+# get a default spec for config file, either from local path, or installed path
+if os.path.exists('gtecs/data/configspec.ini'):
+    # we are running in install dir, during installation
+    configspec_file = 'gtecs/data/configspec.ini'
+else:
+    # we are being imported, find pkg_resources
+    configspec_file = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
+
+# try and load config file
+# look in current dir, home directory and anywhere specified by GTECS_CONF environment variable
+paths = [os.curdir, os.path.expanduser("~")]
+if "GTECS_CONF" in os.environ:
+    paths.append(os.environ["GTECS_CONF"])
+
+# now load config file
+config = configobj.ConfigObj({}, configspec=configspec_file)
+for loc in paths:
+    try:
+        with open(os.path.join(loc, ".gtecs.conf")) as source:
+            config = configobj.ConfigObj(source, configspec=configspec_file)
+    except IOError as e:
+        pass
+
+# validate ConfigObj, filling defaults from configspec if missing from config file
+validator = validate.Validator()
+result = config.validate(validator)
+if result != True:
+    print('Config file validation failed')
+    sys.exit(1)
 
 ########################################################################
 # General parameters
 
 # Common file strings
-ORIGIN = "Gravitational-wave Optical Transient Observer" # "organisation or institution"
-TELESCOP = "GOTO_sim" # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
+ORIGIN = config['ORIGIN']
+TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
 
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
-if HOST == 'eddie': # MJD's laptop
-    TECS_PATH = '/home/martin/Dropbox/Sheffield/g-tecs/'
-elif HOST == 'janus': # MJD's desktop
-    TECS_PATH = '/local/mjd/backed_up_on_astro3/g-tecs/'
-elif HOST == 'host-137-205-160-42.warwick.ac.uk' or HOST == 'b8-ae-ed-75-09-42.warwick.ac.uk' or HOST == 'gotolapalma': # Warwick test NUCs
-    TECS_PATH = '/home/mdyer/g-tecs/'
-elif HOST == 'Stus-MacBook-Pro.local' or HOST.startswith('dyn'):  # SL laptop
-    TECS_PATH = '/Users/sl/g-tecs/'
-else:
-    TECS_PATH = '/home/goto/g-tecs/'
-
+TECS_PATH = config['CONFIG_PATH']
+CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-CONFIG_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
 
 # Daemons should log to file?
-FILE_LOGGING = 1
+FILE_LOGGING = config['FILE_LOGGING']
 # Daemons should to stdout?
-STDOUT_LOGGING = 1
+STDOUT_LOGGING = config['STDOUT_LOGGING']
 # redirect Daemon stdout to file?
-REDIRECT_STDOUT = 0
+REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 
 # Site location (predicted location of GOTO dome on La Palma)
-SITE_LATITUDE = 28.7598742
-SITE_LONGITUDE = -17.8793802
-SITE_ALTITUDE = 2327
+SITE_LATITUDE = config['SITE_LATITUDE']
+SITE_LONGITUDE = config['SITE_LONGITUDE']
+SITE_ALTITUDE = config['SITE_ALTITUDE']
 
 # Pyro connection
-PROXY_TIMEOUT = 0.5
+PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 
 # Email alerts
-EMAIL_LIST = ['martin.dyer@sheffield.ac.uk']
-EMAIL_ADDRESS = 'goto-observatory@gmail.com' # An example
-EMAIL_SERVER = 'smtp.gmail.com:587'
+EMAIL_LIST = config['EMAIL_LIST']
+EMAIL_ADDRESS = config['EMAIL_ADDRESS'] # An example
+EMAIL_SERVER = config['EMAIL_SERVER']
 
 ########################################################################
 # Daemon parameters
-DAEMONS = {
-    'mnt':{ # mount daemon
-        'PROCESS':  'mnt_daemon.py',
-        'HOST':     HOST, #'host-137-205-160-42.warwick.ac.uk',
-        'PORT':     9001,
-        'PYROID':   'mnt_daemon',
-        'PINGLIFE': 10.
-        },
-    'filt':{ # filter wheel daemon
-        'PROCESS':  'filt_daemon.py',
-        'HOST':     HOST,
-        'PORT':     9002,
-        'PYROID':   'filt_daemon',
-        'PINGLIFE': 10.
-        },
-    'foc':{ # focuser daemon
-        'PROCESS':  'foc_daemon.py',
-        'HOST':     HOST,
-        'PORT':     9003,
-        'PYROID':   'foc_daemon',
-        'PINGLIFE': 10.
-        },
-    'cam':{ # camera daemon
-        'PROCESS':  'cam_daemon.py',
-        'HOST':     HOST,
-        'PORT':     9004,
-        'PYROID':   'cam_daemon',
-        'PINGLIFE': 10.
-        },
-    'exq':{ # exposure queue daemon
-        'PROCESS':  'exq_daemon.py',
-        'HOST':     HOST,
-        'PORT':     9005,
-        'PYROID':   'exq_daemon',
-        'PINGLIFE': 10.
-        },
-    'power':{ # hardware power daemon
-        'PROCESS':  'power_daemon.py',
-        'HOST':     HOST, #'host-137-205-160-42.warwick.ac.uk',
-        'PORT':     9006,
-        'PYROID':   'power_daemon',
-        'PINGLIFE': 10.
-        },
-    'dome':{ # dome daemon
-        'PROCESS':  'dome_daemon.py',
-        'HOST':     HOST,
-        'PORT':     9007,
-        'PYROID':   'dome_daemon',
-        'PINGLIFE': 10.
-        }
-}
+DAEMONS = config['DAEMONS']
 
 for key in DAEMONS:
+    DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
 
-FLI_INTERFACES = {
-    'nuc1':{ # for unit telescopes 1 and 2
-        'PROCESS': 'fli_interface.py',
-        'HOST':    HOST,
-        'PORT':    9010,
-        'PYROID':  'fli_interface',
-        'TELS':    [1,2],
-        'SERIALS': {
-            'cam': ['fake', 'fake'],
-            'foc': ['fake', 'fake'],
-            'filt':['fake', 'fake']
-            }
-       },
-   'nuc2':{ # for unit telescopes 3 and 4
-       'PROCESS':  'fli_interfaceB.py',
-       'HOST':     HOST,
-       'PORT':     9020,
-       'PYROID':   'fli_interfaceB',
-       'TELS':      [3,4],
-       'SERIALS': {
-           'cam': ['fake', 'fake'],
-           'foc': ['fake', 'fake'],
-           'filt':['fake', 'fake']
-           }
-        }
-    }
+FLI_INTERFACES = config['FLI_INTERFACES']
+for key in FLI_INTERFACES:
+    FLI_INTERFACES[key]['HOST'] = HOST if config['FLI_INTERFACE_HOST'] == '' else config['FLI_INTERFACE_HOST']
 
 TEL_DICT = {}
 for nuc in FLI_INTERFACES:
@@ -158,38 +110,44 @@ for nuc in FLI_INTERFACES:
 
 ########################################################################
 # Mount parameters
-WIN_HOST = '137.205.160.1'
+WIN_HOST = config['WIN_HOST']
 
-SITECH_PROCESS = 'sitech_interface.py'
-SITECH_PYROID = 'sitech_interface'
-SITECH_PORT = 9000
+SITECH_PROCESS = config['SITECH_PROCESS']
+SITECH_PYROID = config['SITECH_PYROID']
+SITECH_PORT = config['SITECH_PORT']
 SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
 
-WIN_PATH = 'C:/goto_mount/'
-CYGWIN_PATH = '/cygdrive/c/goto_mount/'
-CYGWIN_PYTHON_PATH = '/cygdrive/c/Python27/python.exe'
+WIN_PATH = config['WIN_PATH']
+CYGWIN_PATH = config['CYGWIN_PATH']
+CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
 
-MIN_ELEVATION = 20. #degrees
-DEFAULT_OFFSET_STEP = 10. #arcsec
+MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
+DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
 
 # Filter wheel parameters
-FILTER_LIST = ['L','R','G','B','C']
+FILTER_LIST = config['FILTER_LIST']
 
 # Camera parameters
-FRAMETYPE_LIST = ['normal','dark','rbi_flush']
-DARKFILT = 'C' #as an example
-BIASEXP = 0.1 #seconds, as an example
+FRAMETYPE_LIST = config['FRAMETYPE_LIST']
+DARKFILT = config['DARKFILT'] #as an example
+BIASEXP = config['BIASEXP'] #seconds, as an example
 
 # Queue parameters
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-POWER = power_control.FakePower(' ',' ') #power_control.APCPower('137.205.160.50')
+if config['FAKE_POWER'] == 1:
+    POWER = power_control.FakePower(' ',' ')
+else:
+    POWER = power_control.APCPower(config['POWER_IP'])
 POWER_CHECK_SCRIPT = '_power_status'
-POWER_LIST = ['mnt','filt','foc','cam','_5_','_6_','_7_','_8_']
+POWER_LIST = config['POWER_LIST']
 
 # Dome parameters
 DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
-DOME = dome_control.FakeDome('') #AstroHavenDome(DOME_LOCATION)
-BIG_RED_BUTTON_PORT = 'N/A'
+if config['FAKE_DOME'] == 1:
+    DOME = dome_control.FakeDome('')
+else:
+    DOME = AstroHavenDome(DOME_LOCATION)
+BIG_RED_BUTTON_PORT = config['BIG_RED_BUTTON_PORT']
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
