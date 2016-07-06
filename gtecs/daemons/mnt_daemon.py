@@ -405,16 +405,20 @@ class MntDaemon:
     def shutdown(self):
         self.running=False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['mnt']['HOST'], port=params.DAEMONS['mnt']['PORT'])
-mnt_daemon = MntDaemon()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['mnt']['HOST'], port=params.DAEMONS['mnt']['PORT'])
+    mnt_daemon = MntDaemon()
 
-uri=pyro_daemon.register(mnt_daemon,objectId = params.DAEMONS['mnt']['PYROID'])
-mnt_daemon.logfile.info('Starting mount daemon at %s',uri)
+    uri=pyro_daemon.register(mnt_daemon,objectId = params.DAEMONS['mnt']['PYROID'])
+    mnt_daemon.logfile.info('Starting mount daemon at %s',uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
 
-mnt_daemon.logfile.info('Exiting mount daemon')
-time.sleep(1.)
+    mnt_daemon.logfile.info('Exiting mount daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

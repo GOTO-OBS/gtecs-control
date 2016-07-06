@@ -264,16 +264,21 @@ class DomeDaemon:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['dome']['HOST'], port=params.DAEMONS['dome']['PORT'])
-dome_daemon = DomeDaemon()
 
-uri = pyro_daemon.register(dome_daemon,objectId = params.DAEMONS['dome']['PYROID'])
-dome_daemon.logfile.info('Starting dome daemon at %s',uri)
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['dome']['HOST'], port=params.DAEMONS['dome']['PORT'])
+    dome_daemon = DomeDaemon()
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
+    uri = pyro_daemon.register(dome_daemon,objectId = params.DAEMONS['dome']['PYROID'])
+    dome_daemon.logfile.info('Starting dome daemon at %s',uri)
 
-dome_daemon.logfile.info('Exiting dome daemon')
-time.sleep(1.)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
+
+    dome_daemon.logfile.info('Exiting dome daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()
