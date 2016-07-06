@@ -6,6 +6,7 @@ This script should perform the following simple tasks:
 * start the daemons
 * empty the persistent camera queues
 * unpause the camera daemon
+* home the filter wheel
 * start the pipeline data reduction
 """
 from __future__ import absolute_import
@@ -32,6 +33,9 @@ def run():
     cmd('exq clear')
     time.sleep(1)
     cmd('exq resume')
+
+    # home the wheels
+    cmd('filt home')
 
     # start the pipeline DR (TODO)
     # cmd('qsireduce start')
