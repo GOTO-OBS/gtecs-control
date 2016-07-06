@@ -39,7 +39,6 @@ elif HOST == 'Stus-MacBook-Pro.local' or HOST.startswith('dyn'):  # SL laptop
 else:
     TECS_PATH = '/home/goto/g-tecs/'
 
-SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'scripts')
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 CONFIG_PATH = TECS_PATH
 LOG_PATH = TECS_PATH + 'logs/'
