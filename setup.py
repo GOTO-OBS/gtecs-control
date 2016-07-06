@@ -10,9 +10,9 @@ if not os.path.exists(params.CONFIG_PATH):
       os.mkdir(params.CONFIG_PATH)
       os.mkdir(os.path.join(params.CONFIG_PATH, 'logs'))
       os.mkdir(os.path.join(params.CONFIG_PATH, 'images'))
-shutil.copy('data/conditions_flags', os.path.join(params.CONFIG_PATH, 'conditions_flags'))
-shutil.copy('data/overrides_flags', os.path.join(params.CONFIG_PATH, 'overrides_flags'))
-shutil.copy('data/run_number', os.path.join(params.CONFIG_PATH, 'run_number'))
+shutil.copy('gtecs/data/conditions_flags', os.path.join(params.CONFIG_PATH, 'conditions_flags'))
+shutil.copy('gtecs/data/overrides_flags', os.path.join(params.CONFIG_PATH, 'overrides_flags'))
+shutil.copy('gtecs/data/run_number', os.path.join(params.CONFIG_PATH, 'run_number'))
 
 setup(name='gtecs',
       version='0.1',
@@ -22,6 +22,8 @@ setup(name='gtecs',
       author_email='martin.dyer@sheffield.ac.uk',
       packages=['gtecs', 'gtecs.tecs_modules', 'gtecs.catalogs',
                 'gtecs.daemons'],
-      install_requires=['Pyro4', 'astropy'],
+      package_data={'': ['data/*.ini']},
+      install_requires=['Pyro4', 'astropy', 'configobj'],
       scripts=glob.glob('scripts/*'),
+      include_package_data=True,
       zip_safe=False)
