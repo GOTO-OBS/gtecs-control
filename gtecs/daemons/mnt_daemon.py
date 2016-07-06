@@ -217,10 +217,10 @@ class MntDaemon:
             if(self.set_target_ra_flag):
                 try:
                     sitech._pyroReconnect()
-                    self.logfile.info('set ra to',self.temp_ra)
+                    self.logfile.info('set ra to %.4f', self.temp_ra)
                     c = sitech.set_target_ra(self.temp_ra)
                     if c: self.logfile.info(c)
-                    self.logfile.info('again, set ra to',self.temp_ra)
+                    self.logfile.info('again, set ra to %.4f', self.temp_ra)
                 except:
                     self.logfile.error('No response from sitech daemon')
                     self.logfile.debug('', exc_info=True)
@@ -233,7 +233,7 @@ class MntDaemon:
                     sitech._pyroReconnect()
                     c = sitech.set_target_dec(self.temp_dec)
                     if c: self.logfile.info(c)
-                    self.logfile.info('set dec to',self.temp_dec)
+                    self.logfile.info('set dec to %.4f', self.temp_dec)
                 except:
                     self.logfile.error('No response from sitech daemon')
                     self.logfile.debug('', exc_info=True)
