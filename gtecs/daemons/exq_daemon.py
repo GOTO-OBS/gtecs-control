@@ -21,9 +21,9 @@ import os, sys
 from collections import MutableSequence
 import ast
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 
 ########################################################################
 # Exposure queue daemon functions
@@ -193,7 +193,7 @@ class ExqDaemon:
         self.info = {}
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
-        self.run_number_file = 'run_number'
+        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.exp_queue = Queue()
         self.exp_spec = None
         self.current_ID = None
@@ -408,16 +408,21 @@ class ExqDaemon:
     def shutdown(self):
         self.running=False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
-exq_daemon = ExqDaemon()
 
-uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
-exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
+    exq_daemon = ExqDaemon()
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
+    uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
+    exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
 
-exq_daemon.logfile.info('Exiting exposure queue daemon')
-time.sleep(1.)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
+
+    exq_daemon.logfile.info('Exiting exposure queue daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

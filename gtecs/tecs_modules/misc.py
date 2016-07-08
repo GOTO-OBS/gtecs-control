@@ -143,7 +143,7 @@ def start_daemon(process, host, stdout='/dev/null'):
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
         if local_host == host:
-            cmd = ' '.join((sys.executable, params.SCRIPT_PATH+process,
+            cmd = ' '.join((sys.executable, os.path.join(params.DAEMON_PATH, process),
                             '>', stdout, '2>&1 &'))
             os.system(cmd)
             process_ID_n = get_process_ID(process, host)
@@ -152,7 +152,7 @@ def start_daemon(process, host, stdout='/dev/null'):
             else:
                 print('Daemon running as process', process_ID_n[0])
         else:
-            cmd = ' '.join(('ssh', host, sys.executable, params.SCRIPT_PATH + process,
+            cmd = ' '.join(('ssh', host, sys.executable, os.path.join(params.DAEMON_PATH, process),
                             '>', stdout, '2>&1 &'))
             os.system(cmd)
     else:

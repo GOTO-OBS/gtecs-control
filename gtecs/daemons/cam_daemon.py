@@ -22,10 +22,10 @@ import os
 import astropy.io.fits as pyfits
 import numpy
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
-from tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
+from gtecs.tecs_modules.time_date import nightStarting
 
 ########################################################################
 # Camera daemon functions
@@ -67,7 +67,7 @@ class CamDaemon:
         self.info = {}
         self.ftlist = params.FRAMETYPE_LIST
         self.tel_dict = params.TEL_DICT
-        self.run_number_file = params.TECS_PATH + 'run_number'
+        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
         self.image = 'None yet'
 
@@ -617,16 +617,20 @@ class CamDaemon:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['cam']['HOST'], port=params.DAEMONS['cam']['PORT'])
-cam_daemon = CamDaemon()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['cam']['HOST'], port=params.DAEMONS['cam']['PORT'])
+    cam_daemon = CamDaemon()
 
-uri = pyro_daemon.register(cam_daemon,objectId = params.DAEMONS['cam']['PYROID'])
-cam_daemon.logfile.info('Starting camera daemon at %s',uri)
+    uri = pyro_daemon.register(cam_daemon,objectId = params.DAEMONS['cam']['PYROID'])
+    cam_daemon.logfile.info('Starting camera daemon at %s',uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
 
-cam_daemon.logfile.info('Exiting camera daemon')
-time.sleep(1.)
+    cam_daemon.logfile.info('Exiting camera daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()
