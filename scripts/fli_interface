@@ -25,9 +25,9 @@ import os
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 from six.moves import range
 
 ########################################################################
@@ -75,10 +75,10 @@ class FLI:
         #for nuc in params.FLI_INTERFACES.keys():
             #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
                 #self.nuc = nuc
-        self.nuc = 'nuc2'
+        self.nuc = 'nuc1'
 
         # logger object
-        self.logfile = logger.getLogger('fli_interfaceB', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
 
         ### fli objects
@@ -278,10 +278,10 @@ class FLI:
 ########################################################################
 # Create Pyro control server
 hostname = socket.gethostname()
-pyro_daemon = Pyro4.Daemon(host=hostname, port=9020)
+pyro_daemon = Pyro4.Daemon(host=hostname, port=9010)
 fli_daemon = FLI()
 
-uri = pyro_daemon.register(fli_daemon, 'fli_interfaceB')
+uri = pyro_daemon.register(fli_daemon, 'fli_interface')
 fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
 
 Pyro4.config.COMMTIMEOUT = 5.

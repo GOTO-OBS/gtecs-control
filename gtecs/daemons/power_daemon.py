@@ -18,12 +18,13 @@ from __future__ import print_function
 from math import *
 import time, datetime
 import sys
+import os
 import Pyro4
 import threading
 # TeCS modules
-from tecs_modules import logger
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 from six.moves import range
 
 ########################################################################
@@ -78,8 +79,7 @@ class PowerDaemon:
             delta = self.time_check - self.start_time
             if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
                 try:
-                    cmd = ' '.join((sys.executable,
-                                    params.SCRIPT_PATH + params.POWER_CHECK_SCRIPT))
+                    cmd = params.POWER_CHECK_SCRIPT
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
                     assert isinstance(power_status, str) or isinstance(power_status, unicode)
                     assert len(power_status) == 8
@@ -213,16 +213,20 @@ class PowerDaemon:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
-power_daemon = PowerDaemon()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
+    power_daemon = PowerDaemon()
 
-uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-power_daemon.logfile.info('Starting power daemon at %s', uri)
+    uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
+    power_daemon.logfile.info('Starting power daemon at %s', uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
-power_daemon.logfile.info('Exiting power daemon')
-time.sleep(1.)
+    power_daemon.logfile.info('Exiting power daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

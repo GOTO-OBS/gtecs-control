@@ -16,7 +16,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-from tecs_modules import params
+from gtecs.tecs_modules import params
 
 try:
     x = params.POWER.status(0)

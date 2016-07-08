@@ -17,8 +17,8 @@ import os, sys
 import time
 import Pyro4
 # TeCS modules
-from tecs_modules import misc
-from tecs_modules import params
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 
 INFO_TIMEOUT = 10.
 PING_LIMIT = 60.
@@ -43,12 +43,12 @@ if info['ping'] > PING_LIMIT:
     print('Failed to ping dome daemon')
     misc.send_email(message='Dome ping failed - daemon crashed?\nKilling and restarting daemon...')
     print('dome kill')
-    cmd = ' '.join((sys.executable, params.SCRIPT_PATH, 'kill'))
+    cmd = 'dome kill'
     os.system(cmd)
     print('Sleeping...')
     time.sleep(10)
     print('dome start')
-    cmd = ' '.join((sys.executable, params.SCRIPT_PATH, 'start'))
+    cmd = 'dome start'
     os.system(cmd)
     exit()
 
