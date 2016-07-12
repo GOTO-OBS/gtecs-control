@@ -38,6 +38,10 @@ try:
     queuepath = os.path.join(params.CONFIG_PATH, 'queue')
     if not os.path.exists(queuepath):
         os.mkdir(queuepath)
+    for folder in ['todo', 'aborted', 'completed', 'interrupted']:
+        folderpath = os.path.join(queuepath, folder)
+        if not os.path.exists(folderpath):
+            os.mkdir(folderpath)
 
     # now copy data there
     shutil.copy(os.path.join(gtecs_data_dir, 'conditions_flags'),
