@@ -33,7 +33,7 @@ from . import html
 
 ## Setup
 # define paths to directories
-queue_folder = params.QUEUE_PATH
+queue_folder = params.QUEUE_PATH + 'todo/'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
 # set observing location
