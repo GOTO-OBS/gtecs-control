@@ -10,6 +10,8 @@
 ########################################################################
 
 # Import
+from __future__ import print_function
+
 import os
 import shutil
 import pkg_resources
@@ -46,8 +48,8 @@ try:
                 os.path.join(params.CONFIG_PATH, 'run_number'))
     shutil.copy(os.path.join(gtecs_data_dir, 'horizon'),
                 os.path.join(params.CONFIG_PATH, 'horizon'))
-    for f in os.listdir('gtecs/data/html'):
-        shutil.copy(os.path.join('gtecs/data/html', f),
+    for f in os.listdir('gtecs/html/'):
+        shutil.copy(os.path.join('gtecs/html/', f),
                     os.path.join(htmlpath, f))
 except:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
