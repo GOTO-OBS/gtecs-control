@@ -29,6 +29,7 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import misc
+from . import html
 
 ## Setup
 # define paths to directories
@@ -434,7 +435,7 @@ def calculate_priority(obs, time):
     return priority_now
 
 
-def find_highest_priority(obslist, time, obs_now):
+def find_highest_priority(obslist, time, obs_now, write_html):
     """
     Calculate priorities for a list of observations at a given time
     and return the observation with the highest priority.
@@ -456,11 +457,14 @@ def find_highest_priority(obslist, time, obs_now):
 
     for obs in obslist:
         obs.priority_now = calculate_priority(obs, time)
+        if write_html:
+            html.write_obs_flag_files(obs, time, GOTO, 1)
+            html.write_obs_exp_files(obs)
 
     obslist.sort(key=lambda x: x.priority_now)
 
     obs_hp = obslist[0]
-    return obs_hp
+    return obs_hp, obslist
 
 
 def what_to_do_next(obs_now, obs_hp):
@@ -527,7 +531,7 @@ def what_to_do_next(obs_now, obs_hp):
                 return obs_now
 
 
-def check_queue(obs_now, now):
+def check_queue(obs_now, now, write_html):
     """
     Check the current observations in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
@@ -552,10 +556,13 @@ def check_queue(obs_now, now):
     obslist = import_obs_from_folder(queue_folder)
 
     if len(obslist) > 0:
-        obs_hp = find_highest_priority(obslist, now, obs_now)
+        obs_hp, obslist_sorted = find_highest_priority(obslist, now, obs_now, write_html)
     else:
         obs_hp = None
+        obslist_sorted = []
 
     obs_new = what_to_do_next(obs_now, obs_hp)
 
+    if write_html:
+        html.write_queue_page(obslist_sorted, obs_now, now)
     return obs_new
