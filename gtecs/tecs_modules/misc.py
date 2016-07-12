@@ -135,6 +135,11 @@ def loopback_test(serialport='/dev/ttyS3', message='bob', chances=3):
     s.close()
     return 1   # failure
 
+def signal_handler(signal, frame):
+    '''Trap ctrl-c and exit cleanly'''
+    print('...ctrl+c detected - closing...')
+    sys.exit(0)
+
 ########################################################################
 # Core Daemon functions
 def start_daemon(process, host, stdout='/dev/null'):
