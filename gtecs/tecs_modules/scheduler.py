@@ -12,6 +12,7 @@ from __future__ import print_function
 
 import os
 import warnings
+import signal
 from collections import namedtuple
 
 import numpy as np
@@ -39,6 +40,9 @@ GOTO = params.SITE_OBSERVER
 
 # set debug level
 debug = 1
+
+# catch ctrl-c
+signal.signal(signal.SIGINT, misc.signal_handler)
 
 
 def _get_moon_data(times, observer,
