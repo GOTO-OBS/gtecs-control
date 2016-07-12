@@ -30,6 +30,9 @@ try:
     imagepath = os.path.join(params.CONFIG_PATH, 'images')
     if not os.path.exists(imagepath):
         os.mkdir(imagepath)
+    queuepath = os.path.join(params.CONFIG_PATH, 'queue')
+    if not os.path.exists(queuepath):
+        os.mkdir(queuepath)
 
     # now copy data there
     shutil.copy(os.path.join(gtecs_data_dir, 'conditions_flags'),
@@ -38,6 +41,8 @@ try:
                 os.path.join(params.CONFIG_PATH, 'overrides_flags'))
     shutil.copy(os.path.join(gtecs_data_dir, 'run_number'),
                 os.path.join(params.CONFIG_PATH, 'run_number'))
+    shutil.copy(os.path.join(gtecs_data_dir, 'horizon'),
+                os.path.join(params.CONFIG_PATH, 'horizon'))
 except:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
           'You should create this directory yourself manually')
