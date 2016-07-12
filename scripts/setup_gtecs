@@ -30,6 +30,9 @@ try:
     imagepath = os.path.join(params.CONFIG_PATH, 'images')
     if not os.path.exists(imagepath):
         os.mkdir(imagepath)
+    htmlpath = os.path.join(params.CONFIG_PATH, 'html')
+    if not os.path.exists(htmlpath):
+        os.mkdir(htmlpath)
     queuepath = os.path.join(params.CONFIG_PATH, 'queue')
     if not os.path.exists(queuepath):
         os.mkdir(queuepath)
@@ -43,6 +46,9 @@ try:
                 os.path.join(params.CONFIG_PATH, 'run_number'))
     shutil.copy(os.path.join(gtecs_data_dir, 'horizon'),
                 os.path.join(params.CONFIG_PATH, 'horizon'))
+    for f in os.listdir('gtecs/data/html'):
+        shutil.copy(os.path.join('gtecs/data/html', f),
+                    os.path.join(htmlpath, f))
 except:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
           'You should create this directory yourself manually')
