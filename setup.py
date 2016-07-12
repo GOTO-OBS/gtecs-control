@@ -11,7 +11,7 @@ setup(name='gtecs',
       packages=['gtecs', 'gtecs.tecs_modules', 'gtecs.catalogs',
                 'gtecs.daemons', 'gtecs.controls', 'gtecs.database'],
       package_data={'': ['data/*']},
-      install_requires=['Pyro4', 'astropy', 'configobj'],
+      install_requires=['Pyro4', 'astropy', 'astroplan', 'configobj'],
       scripts=glob.glob('scripts/*'),
       include_package_data=True,
       zip_safe=False)
