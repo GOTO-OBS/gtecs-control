@@ -1,0 +1,278 @@
+#!/usr/bin/env python
+# a fake pilot to test the scheduler
+# heavily based on the pt5m pilot, including observation files and html pages
+
+from __future__ import absolute_import
+from __future__ import print_function
+
+import os
+import signal
+import time
+
+import george
+import numpy as np
+from scipy import stats
+
+from astropy.time import Time, TimeDelta
+from astropy import units as u
+import astroplan
+
+from gtecs.tecs_modules import scheduler
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
+
+from six.moves import zip
+
+# catch ctrl-c
+signal.signal(signal.SIGINT, misc.signal_handler)
+
+slewrate = 5 * u.degree/u.s
+readouttime = 10*u.s
+
+fake_dt = TimeDelta(5*60*u.s)  # 15*u.s)
+
+
+def set_obs_status(obs, status):
+    '''Mark a job as completed, aborted etc'''
+    if status not in ['aborted', 'completed', 'interrupted']:
+        print('Illegal status:', status)
+        return 1
+    else:
+        print('    Marking job', obs.id, 'as', status)
+        if 1:#try:
+            old_dir = os.path.join(params.QUEUE_PATH, 'todo')
+            new_dir = os.path.join(params.QUEUE_PATH, status)
+            filename = "ID_{:d}.dat".format(obs.id)
+            os.rename(os.path.join(old_dir, filename),
+                      os.path.join(new_dir, filename))
+            return 0
+        #except:
+         #   return 1
+
+
+class Weather(object):
+    """class to simulate bad weather using Gaussian processes
+
+    Args:
+        start_time (astropy.time.Time): start of night (sunset)
+        stop_time  (astropy.time.Time): end of night (sunset)
+        timescale  (float): typical timescale of weather event (hours)
+        frac_bad   (float): average fraction of night lost to bad weather"""
+    def __init__(self, start_time, stop_time, timescale, frac_bad):
+        self.start_time = start_time
+        self.stop_time = stop_time
+        self.kernel = george.kernels.Matern32Kernel(timescale)
+        self.gp = george.GP(self.kernel)
+
+        # evaluate guassian process on grid of hours between stop and start
+        range = stop_time - start_time
+        x = np.linspace(0, range.to(u.hour), 100)
+        e = 0.0001*np.ones_like(x)
+        # evaluate kernel of GP
+        self.gp.compute(x, e)
+
+        # now draw a sample from the GP to represent tonight's weather
+        self.weather_graph = self.gp.sample(x)
+
+        # GP follows Gaussian statistics with sigma=1.
+        # for a given fraction of bad time, we can work out the amplitude
+        # to use as a threshold for the GP using the percent point function
+        # (the inverse of the cumulative distribution function
+        # if weather_graph is below this threshold weather is bad!
+        self.threshold = stats.norm.ppf(frac_bad)
+
+    def is_bad(self, curr_time):
+        x = (curr_time - self.start_time).to(u.hour)
+        val, uncer = self.gp.predict(self.weather_graph, x)
+        if val < self.threshold:
+            return True
+        else:
+            return False
+
+
+def get_night_times(date):
+    """Calculate the start and stop times of a given date,
+    defined as sunrise and sunset times for La Palma.
+    """
+    lapalma = astroplan.Observer.at_site('lapalma')
+    # Time(date) gives start of date, add one day to get midnight that night
+    midnight = Time(date) + TimeDelta(1*u.day)
+    sunset = lapalma.sun_set_time(midnight, which="previous")
+    sunrise = lapalma.sun_rise_time(midnight, which="next")
+    return sunset, sunrise
+
+
+def estimate_completion_time(obs_new, obs_now):
+    """
+    Extimate the exposure time for an observation, based on the combined
+    exposure times in all exposure sets and the time to move into position.
+    """
+    total_exptime = 0*u.s
+    for expset in obs_new.exposuresets:
+        total_exptime += ((expset.exptime + readouttime) * expset.numexp)
+
+    if obs_now is not None:
+        slew_distance = obs_now.coord.separation(obs_new.coord)
+        slew_time = slew_distance/slewrate
+    else:
+        slew_time = 0*u.s
+
+    return slew_time + total_exptime
+
+
+class DummyPilot(object):
+    """
+    The dummy pilot simply checks to see if a more important job
+    is available from the scheduler, or if it has finished the job
+    it is supposed to be currently doing
+    """
+
+    def __init__(self):
+        self.start_time = Time.now()
+
+        self.obs_now = None
+        self.obs_start_time = None
+        self.obs_min_time = None
+        self.current_duration = None
+
+        self.completed_obs = []
+        self.completed_times = []
+        self.interrupted_obs = []
+        self.aborted_obs = []
+
+        self.dome_status = 0  # 1 = open, 0 = shut
+        self.pilot_status = None
+
+    def pause_observing(self):
+        self.dome_status = 0
+        self.pilot_status = 'Dome Closed'
+        if self.obs_now is not None:
+            print('Aborting job ID= %i due to bad weather' % self.obs_now.id)
+            self.aborted_obs.append(self.obs_now)
+            set_obs_status(self.obs_now, 'aborted')
+            self.obs_now = None
+            self.current_duration = None
+            self.current_position = None
+
+    def resume_observing(self):
+        self.dome_status = 1
+        self.pilot_status = 'Dome Open'
+
+    def check_weather(self, weather, now):
+        bad_weather = weather.is_bad(now)
+        if bad_weather and self.dome_status:
+            self.pause_observing()
+        if not bad_weather and not self.dome_status:
+            self.resume_observing()
+
+    def log_state(self, now):
+        '''Write the current state of the pilot to a log file'''
+        state = 'unknown'
+        if self.pilot_status == 'Suspended':
+            state = 'manual'
+        elif self.dome_status == 0:
+            state = 'closed'
+        elif self.obs_now is not None:
+            state = 'job:%i' % self.obs_now.id
+        else:
+            state = 'idle'
+        fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
+        with open(fname, 'a') as f:
+            f.write('%s %s\n' % (now. iso, state))
+
+    def check_obs_now(self, now):
+        if self.obs_now is not None:
+            time_elapsed = (now - self.obs_start_time).to(u.s)
+            if time_elapsed > self.current_duration:
+                print('  Job complete!')
+                self.obs_now.priority_now += 10
+                # set mintime to 0
+                # then when we review_target_situation, job will be marked
+                # as completed
+                self.obs_now.min_time = 0.0*u.s
+
+    def review_target_situation(self, now, write_html):
+        '''Check queue for a new target and, if necessary, go to it'''
+        if self.obs_now is not None:
+            print('  current obs: obs ID', self.obs_now.id)
+        else:
+            print('  current obs:', None)
+        obs_new = scheduler.check_queue(self.obs_now, now, write_html)
+        if obs_new is not None:
+            print('  check_queue: obs ID', obs_new.id)
+        else:
+            print('  check_queue:', None)
+
+        if obs_new != self.obs_now and obs_new not in self.completed_obs:
+            if self.obs_now is not None:
+                # we're already doing something,
+                # mark as finished or interrupted
+                try:
+                    time_elapsed = (now - self.obs_start_time).to(u.s)
+                except:
+                    time_elapsed = 0.
+                if time_elapsed > self.obs_min_time:  # job complete
+                    set_obs_status(self.obs_now, 'completed')
+                    self.completed_obs.append(self.obs_now)
+                    self.completed_times.append(now)
+                else:  # job wasn't complete, but something else took over
+                    print('  Job interrupted')
+                    set_obs_status(self.obs_now, 'interrupted')
+                    self.interrupted_obs.append(self.obs_now)
+
+            if obs_new is not None:
+                self.obs_min_time = obs_new.mintime
+                self.current_duration = estimate_completion_time(obs_new,
+                                                                 self.obs_now)
+                self.obs_now = obs_new
+                self.obs_start_time = now
+            else:  # park scope (but remain in standby)
+                self.obs_now = None
+
+
+if __name__ == "__main__":
+    usage = """python fake_pilot.py date sleep_time write_html"""
+    import argparse
+    parser = argparse.ArgumentParser(description="run fake pilot for a night",
+                                     usage=usage)
+    parser.add_argument('date', help="night starting date to simulate")
+    parser.add_argument('sleep_time', help="time to sleep each period")
+    parser.add_argument('write_html', help="write html webpages?", type=int)
+    args = parser.parse_args()
+
+    pilot = DummyPilot()
+
+    # weather has typical timescale = 1h and we lose 10% of time to bad weather
+    sunset, sunrise = get_night_times(args.date)
+    weather = Weather(sunset, sunrise, 1.0, 0.1)
+
+    # loop until night is over
+    print('Starting loop...')
+    now = sunset
+    while now < sunrise:
+        now.format = 'iso'
+        now.precision = 0
+        print('Loop:', now)
+        pilot.check_weather(weather, now)
+        if pilot.dome_status:  # open
+            pilot.check_obs_now(now)
+            pilot.review_target_situation(now, bool(args.write_html))
+        else:
+            print('  dome closed')
+        pilot.log_state(now)
+
+        # increment by scheduler loop timestep
+        now += fake_dt
+        time.sleep(float(args.sleep_time))
+
+    print('Listing completed jobs and time done')
+    for obs, timedone in zip(pilot.completed_obs, pilot.completed_times):
+        print(obs.id, timedone)
+
+    print('Listing jobs aborted due to bad weather')
+    for obs in pilot.aborted_obs:
+        print(obs.id)
+
+    print('Listing jobs interrupted by other jobs')
+    for obs in pilot.interrupted_obs:
+        print(obs.id)
