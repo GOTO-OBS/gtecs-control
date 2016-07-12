@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+########################################################################
+#                              setup_gtecs                             #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#     G-TeCS script to setup directory structure for config files      #
+#                    S Littlefair, Sheffield, 2015                     #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+
+# Import
+import os
+import shutil
+import pkg_resources
+
+
+from gtecs.tecs_modules import params
+
+# find package resources
+gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
+
+# create CONFIG_DIR if necessary and put files there
+try:
+    if not os.path.exists(params.CONFIG_PATH):
+        os.mkdir(params.CONFIG_PATH)
+    logpath = os.path.join(params.CONFIG_PATH, 'logs')
+    if not os.path.exists(logpath):
+        os.mkdir(logpath)
+    imagepath = os.path.join(params.CONFIG_PATH, 'images')
+    if not os.path.exists(imagepath):
+        os.mkdir(imagepath)
+
+    # now copy data there
+    shutil.copy(os.path.join(gtecs_data_dir, 'conditions_flags'),
+                os.path.join(params.CONFIG_PATH, 'conditions_flags'))
+    shutil.copy(os.path.join(gtecs_data_dir, 'overrides_flags'),
+                os.path.join(params.CONFIG_PATH, 'overrides_flags'))
+    shutil.copy(os.path.join(gtecs_data_dir, 'run_number'),
+                os.path.join(params.CONFIG_PATH, 'run_number'))
+except:
+    print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
+          'You should create this directory yourself manually')
