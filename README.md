@@ -38,14 +38,15 @@ The daemons will be controlled by an overall script called the pilot, which send
 Configuration
 -------------
 Configuration of **G-TeCS** is acheived using a config file, and the Python module configobj (http://configobj.readthedocs.io/en/latest/).
-An example config file is present in the *data* directory of this repository. Both on installation, and when running,
+An example config file is present in the *data* directory of this repository. When running,
 **G-TeCS** will look for a file named *.gtecs.conf* either in the current directory, the users home directory or any path
 specified by the *GTECS_CONF* environment variable.
 
 If no such file is available, **G-TeCS** will use the default config, as shown in the *data* directory. Users can over-ride
 as many of these default settings as they wish in the *.gtecs.conf* file. Particular attention should be paid to the
-*CONFIG_PATH* setting. This is where **G-TeCS** will save persistent files, image files and log files. If it does not
-exist, **G-TeCS** will attempt to create this directory on install.
+*CONFIG_PATH* setting. This is where **G-TeCS** will save persistent files, image files and log files. A script ```setup_gtecs```
+is provided to create this directory structure, and populate with the necessary files. It should be run after installation, and
+after an appropriate value for the *CONFIG_PATH* is set in the *.gtecs.conf* file.
 
 Martin Dyer
 Last update: 26 Feb 2016
