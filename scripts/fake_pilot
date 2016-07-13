@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # a fake pilot to test the scheduler
 # heavily based on the pt5m pilot, including observation files and html pages
+# SL & MJD @ Sheffield, 2016
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -39,15 +40,15 @@ def set_obs_status(obs, status):
         return 1
     else:
         print('    Marking job', obs.id, 'as', status)
-        if 1:#try:
+        try:
             old_dir = os.path.join(params.QUEUE_PATH, 'todo')
             new_dir = os.path.join(params.QUEUE_PATH, status)
             filename = "ID_{:d}.dat".format(obs.id)
             os.rename(os.path.join(old_dir, filename),
                       os.path.join(new_dir, filename))
             return 0
-        #except:
-         #   return 1
+        except:
+            return 1
 
 
 class Weather(object):
@@ -91,7 +92,8 @@ class Weather(object):
 
 
 def get_night_times(date):
-    """Calculate the start and stop times of a given date,
+    """
+    Calculate the start and stop times of a given date,
     defined as sunrise and sunset times for La Palma.
     """
     lapalma = astroplan.Observer.at_site('lapalma')
@@ -276,3 +278,12 @@ if __name__ == "__main__":
     print('Listing jobs interrupted by other jobs')
     for obs in pilot.interrupted_obs:
         print(obs.id)
+
+    # reset files
+    print('Resetting observation files')
+    todo_dir = os.path.join(params.QUEUE_PATH, 'todo')
+    for folder in ['aborted', 'completed', 'interrupted']:
+        cur_dir = os.path.join(params.QUEUE_PATH, folder)
+        for filename in os.listdir(cur_dir):
+            os.rename(os.path.join(cur_dir, filename),
+                      os.path.join(todo_dir, filename))
