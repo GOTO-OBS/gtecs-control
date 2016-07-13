@@ -135,9 +135,6 @@ FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 DARKFILT = config['DARKFILT'] #as an example
 BIASEXP = config['BIASEXP'] #seconds, as an example
 
-# Queue parameters
-#QUEUE_PATH = TECS_PATH  #FIX
-
 # Power parameters
 if config['FAKE_POWER'] == 1:
     POWER = power_control.FakePower(' ',' ')

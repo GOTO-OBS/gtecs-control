@@ -45,14 +45,10 @@ try:
             os.mkdir(folderpath)
 
     # now copy data there
-    shutil.copy(os.path.join(gtecs_data_dir, 'conditions_flags'),
-                os.path.join(params.CONFIG_PATH, 'conditions_flags'))
-    shutil.copy(os.path.join(gtecs_data_dir, 'overrides_flags'),
-                os.path.join(params.CONFIG_PATH, 'overrides_flags'))
-    shutil.copy(os.path.join(gtecs_data_dir, 'run_number'),
-                os.path.join(params.CONFIG_PATH, 'run_number'))
-    shutil.copy(os.path.join(gtecs_data_dir, 'horizon'),
-                os.path.join(params.CONFIG_PATH, 'horizon'))
+    for data_file in ['conditions_flags', 'overrides_flags',
+                      'run_number', 'horizon', 'exposure_queue']:
+        shutil.copy(os.path.join(gtecs_data_dir, data_file),
+                    os.path.join(params.CONFIG_PATH, data_file))
     for f in os.listdir(gtecs_html_dir):
         shutil.copy(os.path.join(gtecs_html_dir, f),
                     os.path.join(htmlpath, f))
