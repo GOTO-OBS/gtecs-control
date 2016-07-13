@@ -21,6 +21,7 @@ from gtecs.tecs_modules import params
 
 # find package resources
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
+gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'html')
 
 # create CONFIG_DIR if necessary and put files there
 try:
@@ -52,8 +53,8 @@ try:
                 os.path.join(params.CONFIG_PATH, 'run_number'))
     shutil.copy(os.path.join(gtecs_data_dir, 'horizon'),
                 os.path.join(params.CONFIG_PATH, 'horizon'))
-    for f in os.listdir('gtecs/html/'):
-        shutil.copy(os.path.join('gtecs/html/', f),
+    for f in os.listdir(gtecs_html_dir):
+        shutil.copy(os.path.join(gtecs_html_dir, f),
                     os.path.join(htmlpath, f))
 except:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
