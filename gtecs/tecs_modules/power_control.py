@@ -13,6 +13,7 @@ from __future__ import absolute_import
 import os, sys
 import socket
 import subprocess
+import time
 from six.moves import range
 
 ########################################################################
@@ -174,3 +175,76 @@ class APCPower:
     def reboot(self,outlet):
         oid_arr = self._initialise_oid_array(outlet)
         return self.snmp_set(oid_arr,self.commands['REBOOT'])
+
+########################################################################
+# Ethernet relay power class (for ETH8020, 20 ports)
+
+class EthPower:
+    def __init__(self, IP_address, port):
+        self.IP_address = IP_address
+        self.port = port
+        self.commands = {'ON':'\x20', 'OFF':'\x21', 'STATUS':'\x24'}
+        self.count = 20
+        self.reboot_time = 5  # seconds
+        self.buffer_size = 1024
+
+    def tcp_command(self, cmd_arr):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        IP = self.IP_address
+        port = self.port
+        command = ''.join(cmd_arr)
+        s.connect((IP,port))
+        s.send(command)
+        reply = s.recv(self.buffer_size)
+        s.close()
+        return reply
+
+    def tcp_multicommand(self, cmds):
+        replies = []
+        for cmd_arr in cmds:
+            replies.append(ord(self.tcp_command(cmd_arr)))
+            time.sleep(0.05)  # Just to be safe
+        if 1 in replies:
+            return 1
+        else:
+            return 0
+
+    def on(self, outlet):
+        num = int(outlet)
+        if num == 0:
+            cmds = [[self.commands['ON'], chr(n), chr(0)]
+                    for n in range(1, self.count + 1)]
+            return self.tcp_multicommand(cmds)
+        else:
+            cmd_arr = [self.commands['ON'], chr(num), chr(0)]
+            return ord(self.tcp_command(cmd_arr))
+
+    def off(self, outlet):
+        num = int(outlet)
+        if num == 0:
+            cmds = [[self.commands['OFF'], chr(n), chr(0)]
+                    for n in range(1, self.count + 1)]
+            return self.tcp_multicommand(cmds)
+        else:
+            cmd_arr = [self.commands['OFF'], chr(num), chr(0)]
+            return ord(self.tcp_command(cmd_arr))
+
+    def reboot(self, outlet):
+        num = int(outlet)
+        time = int(self.reboot_time*10)  # relay takes 0.1s intervals
+        if num == 0:
+            cmds = [[self.commands['OFF'], chr(n), chr(time)]
+                    for n in range(1, self.count + 1)]
+            return self.tcp_multicommand(cmds)
+        else:
+            cmd_arr = [self.commands['OFF'], chr(num), chr(time)]
+            return ord(self.tcp_command(cmd_arr))
+
+    def status(self, outlet):
+        num = int(outlet)
+        output = self.tcp_command([self.commands['STATUS']])
+        status_string = ''.join([bin(ord(x))[2::][::-1] for x in output])
+        if num == 0:
+            return status_string
+        else:
+            return status_string[num - 1]
