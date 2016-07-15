@@ -23,6 +23,6 @@ try:
     assert isinstance(x, str) or isinstance(x, unicode)
     assert len(x) == params.POWER.count
 except:
-    x = 'ERROR'
+    x = 'x' * params.POWER.count
 
 print(x)
