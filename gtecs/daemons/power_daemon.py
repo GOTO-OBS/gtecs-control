@@ -103,7 +103,7 @@ class PowerDaemon:
                 for i in range(len(params.POWER_LIST)):
                     if power_status[i] == '1':
                         info['status_dict'][params.POWER_LIST[i]] = 'On'
-                    elif power_status[i] == '2':
+                    elif power_status[i] == str(power.off_value):
                         info['status_dict'][params.POWER_LIST[i]] = 'Off'
                     else:
                         info['status_dict'][params.POWER_LIST[i]] = 'ERROR!'
