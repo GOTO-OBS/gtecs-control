@@ -27,6 +27,7 @@ class FakePower:
         self.base_oid_all = [1,3,6,1,4,1,318,1,1,12,3,1,1]
         self.commands = {'IND_ON':1, 'IND_OFF':2, 'IND_REBOOT':3, 'ALL_ON':2, 'ALL_OFF':3, 'ALL_REBOOT':4}
         self.count = 8
+        self.off_value = 2
         # fake stuff
         self.temp_file = '/tmp/power'
         self._read_temp()
@@ -117,6 +118,7 @@ class APCPower:
         self.outlets = ['1','2','3','4','5','6','7','8']
         self.commands = {'ON':'1', 'OFF':'2', 'REBOOT':'3'}
         self.count = 8
+        self.off_value = 2
 
     def snmp_get(self,oid_arr):
         IP = self.IP_address
@@ -187,6 +189,7 @@ class EthPower:
         self.port = port
         self.commands = {'ON':'\x20', 'OFF':'\x21', 'ALL':'\x23', 'STATUS':'\x24'}
         self.count = 20
+        self.off_value = 0
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
