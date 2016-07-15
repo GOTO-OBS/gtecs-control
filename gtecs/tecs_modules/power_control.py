@@ -183,7 +183,7 @@ class EthPower:
     def __init__(self, IP_address, port):
         self.IP_address = IP_address
         self.port = port
-        self.commands = {'ON':'\x20', 'OFF':'\x21', 'STATUS':'\x24'}
+        self.commands = {'ON':'\x20', 'OFF':'\x21', 'ALL':'\x23', 'STATUS':'\x24'}
         self.count = 20
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
@@ -201,33 +201,37 @@ class EthPower:
     def on(self, outlet):
         num = int(outlet)
         if num == 0:
-            cmds = [[self.commands['ON'], chr(n), chr(0)]
-                    for n in range(1, self.count + 1)]
-            return self.tcp_multicommand(cmds)
+            cmd_arr = [self.commands['ALL'], chr(255), chr(255), chr(255)]
         else:
             cmd_arr = [self.commands['ON'], chr(num), chr(0)]
-            return ord(self.tcp_command(cmd_arr))
+        command = ''.join(cmd_arr)
+        return ord(self.tcp_command(command))
 
     def off(self, outlet):
         num = int(outlet)
         if num == 0:
-            cmds = [[self.commands['OFF'], chr(n), chr(0)]
-                    for n in range(1, self.count + 1)]
-            return self.tcp_multicommand(cmds)
+            cmd_arr = [self.commands['ALL'], chr(0), chr(0), chr(0)]
         else:
             cmd_arr = [self.commands['OFF'], chr(num), chr(0)]
-            return ord(self.tcp_command(cmd_arr))
+        command = ''.join(cmd_arr)
+        return ord(self.tcp_command(command))
 
     def reboot(self, outlet):
         num = int(outlet)
         time = int(self.reboot_time*10)  # relay takes 0.1s intervals
         if num == 0:
-            cmds = [[self.commands['OFF'], chr(n), chr(time)]
-                    for n in range(1, self.count + 1)]
-            return self.tcp_multicommand(cmds)
+            cmd_arr = [''.join([self.commands['OFF'], chr(n), chr(time)])
+                       for n in range(1, self.count + 1)]
         else:
             cmd_arr = [self.commands['OFF'], chr(num), chr(time)]
-            return ord(self.tcp_command(cmd_arr))
+        command = ''.join(cmd_arr)
+        output = self.tcp_command(command)
+        if len(output) == 1:
+            return ord(output)
+        elif 1 in [ord(x) for x in output]:
+            return 1
+        else:
+            return 0
 
     def status(self, outlet):
         num = int(outlet)
