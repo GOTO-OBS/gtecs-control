@@ -84,6 +84,7 @@ SITE_ALTITUDE = config['SITE_ALTITUDE']
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.REQUIRE_EXPOSE = False
 
 # Email alerts
 EMAIL_LIST = config['EMAIL_LIST']
