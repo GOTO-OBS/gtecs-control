@@ -20,8 +20,8 @@ import configobj
 import validate
 
 # TeCS modules
-from . import power_control
-from . import dome_control
+from gtecs.controls import power_control
+from gtecs.controls import dome_control
 
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
