@@ -188,26 +188,15 @@ class EthPower:
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
-    def tcp_command(self, cmd_arr):
+    def tcp_command(self, command):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         IP = self.IP_address
         port = self.port
-        command = ''.join(cmd_arr)
         s.connect((IP,port))
         s.send(command)
         reply = s.recv(self.buffer_size)
         s.close()
         return reply
-
-    def tcp_multicommand(self, cmds):
-        replies = []
-        for cmd_arr in cmds:
-            replies.append(ord(self.tcp_command(cmd_arr)))
-            time.sleep(0.05)  # Just to be safe
-        if 1 in replies:
-            return 1
-        else:
-            return 0
 
     def on(self, outlet):
         num = int(outlet)
@@ -242,8 +231,12 @@ class EthPower:
 
     def status(self, outlet):
         num = int(outlet)
-        output = self.tcp_command([self.commands['STATUS']])
-        status_string = ''.join([bin(ord(x))[2::][::-1] for x in output])
+        output = self.tcp_command(self.commands['STATUS'])
+        status_strings = [bin(ord(x))[2::] for x in output]
+        status_strings[0] = status_strings[0].zfill(8)[::-1]
+        status_strings[1] = status_strings[1].zfill(8)[::-1]
+        status_strings[2] = status_strings[2].zfill(4)[::-1]
+        status_string = ''.join(status_strings)
         if num == 0:
             return status_string
         else:
