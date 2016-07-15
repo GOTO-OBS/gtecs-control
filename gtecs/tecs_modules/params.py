@@ -136,10 +136,12 @@ BIASEXP = config['BIASEXP'] #seconds, as an example
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-if config['FAKE_POWER'] == 1:
-    POWER = power_control.FakePower(' ',' ')
-else:
+if config['POWER_TYPE'] == 'APCPower':
     POWER = power_control.APCPower(config['POWER_IP'])
+elif config['POWER_TYPE'] == 'EruPower':
+    POWER = power_control.EthPower(config['POWER_IP'], config['POWER_PORT'])
+else:
+    POWER = power_control.FakePower(' ',' ')
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_LIST = config['POWER_LIST']
 
