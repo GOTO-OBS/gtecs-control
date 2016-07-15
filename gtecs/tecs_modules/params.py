@@ -139,7 +139,7 @@ QUEUE_PATH = TECS_PATH
 # Power parameters
 if config['POWER_TYPE'] == 'APCPower':
     POWER = power_control.APCPower(config['POWER_IP'])
-elif config['POWER_TYPE'] == 'EruPower':
+elif config['POWER_TYPE'] == 'EthPower':
     POWER = power_control.EthPower(config['POWER_IP'], config['POWER_PORT'])
 else:
     POWER = power_control.FakePower(' ',' ')
