@@ -82,12 +82,12 @@ class PowerDaemon:
                     cmd = params.POWER_CHECK_SCRIPT
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
                     assert isinstance(power_status, str) or isinstance(power_status, unicode)
-                    assert len(power_status) == 8
+                    assert len(power_status) == power.count
                     self.power_status = power_status
                 except:
                     self.logfile.error('ERROR GETTING POWER STATUS')
                     self.logfile.debug('', exc_info=True)
-                    self.power_status = 'xERRORxx'
+                    self.power_status = 'x' * power.count
                 misc.kill_processes(params.POWER_CHECK_SCRIPT,params.DAEMONS['power']['HOST'])
                 self.status_flag = 0
             if delta % 30 > 1:
@@ -103,7 +103,7 @@ class PowerDaemon:
                 for i in range(len(params.POWER_LIST)):
                     if power_status[i] == '1':
                         info['status_dict'][params.POWER_LIST[i]] = 'On'
-                    elif power_status[i] == '2':
+                    elif power_status[i] == str(power.off_value):
                         info['status_dict'][params.POWER_LIST[i]] = 'Off'
                     else:
                         info['status_dict'][params.POWER_LIST[i]] = 'ERROR!'

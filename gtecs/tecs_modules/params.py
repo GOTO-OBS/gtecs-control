@@ -20,8 +20,8 @@ import configobj
 import validate
 
 # TeCS modules
-from . import power_control
-from . import dome_control
+from ..controls import power_control
+from ..controls import dome_control
 
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
@@ -84,6 +84,7 @@ SITE_ALTITUDE = config['SITE_ALTITUDE']
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.REQUIRE_EXPOSE = False
 
 # Email alerts
 EMAIL_LIST = config['EMAIL_LIST']
@@ -136,10 +137,12 @@ BIASEXP = config['BIASEXP'] #seconds, as an example
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-if config['FAKE_POWER'] == 1:
-    POWER = power_control.FakePower(' ',' ')
-else:
+if config['POWER_TYPE'] == 'APCPower':
     POWER = power_control.APCPower(config['POWER_IP'])
+elif config['POWER_TYPE'] == 'EthPower':
+    POWER = power_control.EthPower(config['POWER_IP'], config['POWER_PORT'])
+else:
+    POWER = power_control.FakePower(' ',' ')
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_LIST = config['POWER_LIST']
 
