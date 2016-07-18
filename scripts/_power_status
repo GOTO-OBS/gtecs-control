@@ -21,8 +21,8 @@ from gtecs.tecs_modules import params
 try:
     x = params.POWER.status(0)
     assert isinstance(x, str) or isinstance(x, unicode)
-    assert len(x) == 8
+    assert len(x) == params.POWER.count
 except:
-    x = 'xERRORxx'
+    x = 'x' * params.POWER.count
 
 print(x)
