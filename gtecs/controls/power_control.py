@@ -15,6 +15,7 @@ import socket
 import subprocess
 import time
 from six.moves import range
+from six import int2byte, byte2int, indexbytes
 
 ########################################################################
 # Fake APC PDU power class (8 ports)
@@ -187,7 +188,7 @@ class EthPower:
     def __init__(self, IP_address, port):
         self.IP_address = IP_address
         self.port = port
-        self.commands = {'ON':'\x20', 'OFF':'\x21', 'ALL':'\x23', 'STATUS':'\x24'}
+        self.commands = {'ON':b'\x20', 'OFF':b'\x21', 'ALL':b'\x23', 'STATUS':b'\x24'}
         self.count = 20
         self.off_value = 0
         self.reboot_time = 5  # seconds
@@ -206,34 +207,32 @@ class EthPower:
     def on(self, outlet):
         num = int(outlet)
         if num == 0:
-            cmd_arr = [self.commands['ALL'], chr(255), chr(255), chr(255)]
+            command = self.commands['ALL'] + b'\xff' + b'\xff' + b'\xff'
         else:
-            cmd_arr = [self.commands['ON'], chr(num), chr(0)]
-        command = ''.join(cmd_arr)
-        return ord(self.tcp_command(command))
+            command = self.commands['ON'] + int2byte(num) + b'\x00'
+        return byte2int(self.tcp_command(command))
 
     def off(self, outlet):
         num = int(outlet)
         if num == 0:
-            cmd_arr = [self.commands['ALL'], chr(0), chr(0), chr(0)]
+            command = self.commands['ALL'] + b'\x00' + b'\x00' + b'\x00'
         else:
-            cmd_arr = [self.commands['OFF'], chr(num), chr(0)]
-        command = ''.join(cmd_arr)
-        return ord(self.tcp_command(command))
+            command = self.commands['OFF'] + int2byte(num) + b'\x00'
+        return byte2int(self.tcp_command(command))
 
     def reboot(self, outlet):
         num = int(outlet)
         time = int(self.reboot_time*10)  # relay takes 0.1s intervals
         if num == 0:
-            cmd_arr = [''.join([self.commands['OFF'], chr(n), chr(time)])
+            cmd_arr = [self.commands['OFF'] + int2byte(n) + int2byte(time)
                        for n in range(1, self.count + 1)]
+            command = b''.join(cmd_arr)
         else:
-            cmd_arr = [self.commands['OFF'], chr(num), chr(time)]
-        command = ''.join(cmd_arr)
+            command = self.commands['OFF'] + int2byte(num) + int2byte(time)
         output = self.tcp_command(command)
         if len(output) == 1:
-            return ord(output)
-        elif 1 in [ord(x) for x in output]:
+            return int2byte(output)
+        elif b'\x01' in output:
             return 1
         else:
             return 0
@@ -241,7 +240,8 @@ class EthPower:
     def status(self, outlet):
         num = int(outlet)
         output = self.tcp_command(self.commands['STATUS'])
-        status_strings = [bin(ord(x))[2::] for x in output]
+        status_ints = [indexbytes(output, x) for x in range(len(output))]
+        status_strings = [str(bin(i))[2::] for i in status_ints]
         status_strings[0] = status_strings[0].zfill(8)[::-1]
         status_strings[1] = status_strings[1].zfill(8)[::-1]
         status_strings[2] = status_strings[2].zfill(4)[::-1]
