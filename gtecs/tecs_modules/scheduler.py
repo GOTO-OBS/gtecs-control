@@ -251,6 +251,81 @@ class Observation:
         return new_obs
 
 
+class ObservationSet:
+    def __init__(self, observations=None):
+        if observations == None:
+            observations = []
+        self.observations = observations
+        self.target_arr = []
+        self.start_arr = []
+        self.stop_arr = []
+        self.maxsunalt_arr = []
+        self.minalt_arr = []
+        self.maxmoon_arr = []
+        if len(self.observations) > 0:
+            initialise_constraints()
+
+    def __len__(self):
+         return len(self.observations)
+
+    def initialise_constraints(self):
+        '''Setup the constraints when initialised.'''
+        limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
+        moondist_limit = params.MOONDIST_LIMIT * u.deg
+        for obs in self.observations:
+            self.target_arr.append(obs._as_target())
+            self.start_arr.append(obs.start)
+            self.stop_arr.append(obs.stop)
+            self.maxsunalt_arr.append(obs.maxsunalt)
+            self.minalt_arr.append(obs.minalt)
+            self.maxmoon_arr.append(limits[obs.maxmoon])
+
+        self.constraints = [TimeConstraint(self.start_arr, self.stop_arr),
+                            AtNightConstraint(self.maxsunalt_arr),
+                            AltitudeConstraint(self.minalt_arr, None),
+                            ArtificialHorizonConstraint(),
+                            MoonIlluminationConstraint(None, self.maxmoon_arr),
+                            MoonSeparationConstraint(moondist_limit, None)]
+        self.constraint_names = ['Time',
+                                 'SunAlt',
+                                 'MinAlt',
+                                 'ArtHoriz',
+                                 'Moon',
+                                 'MoonSep']
+
+    def check_validities(self, time, observer):
+        ''' Check if the observations are valid'''
+        valid_now_arr = is_observable_now(self.constraints, observer,
+                                           self.target_arr, time)
+        for i in range(len(self.observations)):
+            obs = self.observations[i]
+            obs.valid_time = time
+
+            # check validity now
+            obs.valid_now_arr = [x[0] for x in valid_now_arr[i]]
+            obs.valid_now = np.logical_and.reduce(obs.valid_now_arr)
+
+            # mintime constraints need to be evaluated for each observation
+            later = time + obs.mintime
+            valid_later_arr = is_observable_now(obs.mintime_constraints,
+                                                observer,
+                                                [obs._as_target()], time)
+            obs.valid_later_arr = [x[0] for x in valid_later_arr[0]]
+            obs.valid_later = np.logical_and.reduce(obs.valid_later_arr)
+
+            # finally consider both now and later, unless it's a queue filler
+            if obs.priority < 5:
+                valid = np.logical_and(obs.valid_now, obs.valid_later)
+            else:
+                valid = obs.valid_now
+            obs.valid = valid
+
+    def calculate_priorities(self, time):
+        ''' Calculate priorities at a given time for each observation '''
+        for obs in self.observations:
+            obs.calculate_priority(time)
+
+
 def import_obs_from_folder(queue_folder):
     """
     Creates a list of `Observation` objects from a folder containing obs files.
@@ -262,17 +337,18 @@ def import_obs_from_folder(queue_folder):
 
     Returns
     -------
-    obslist : list of `Observation` objects
-        List containing all the observations in the given folder.
-        Will return an empty list if the folder was empty.
+    obsset : `ObservationSet`
+        An ObservationSet containing Observations from the queue_folder.
     """
-    obslist = []
+    obsset = ObservationSet()
     queue_files = os.listdir(queue_folder)
 
     if queue_files is not None:
         for obsfile in queue_files:
-            obslist.append(Observation.from_file(queue_folder + obsfile))
-    return obslist
+            path = os.path.join(queue_folder, obsfile)
+            obsset.observations.append(Observation.from_file(path))
+    obsset.initialise_constraints()
+    return obsset
 
 
 def find_highest_priority(obsset, time, write_html=False):
@@ -282,8 +358,8 @@ def find_highest_priority(obsset, time, write_html=False):
 
     Parameters
     ----------
-    obslist : list of `Observation` objects
-        The list of potential observations
+    obsset : `ObservationSet`
+        An ObservationSet containing Observations to consider.
 
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
@@ -301,12 +377,14 @@ def find_highest_priority(obsset, time, write_html=False):
         A list of Observations sorted by priority (for html queue page).
     """
 
-    for obs in obslist:
-        obs.calculate_priority(obs, time)
+    obsset.check_validities(time, GOTO)
+    obsset.calculate_priorities(time)
+    for obs in obsset.observations:
         if write_html:
             html.write_obs_flag_files(obs, time, GOTO, 1)
             html.write_obs_exp_files(obs)
 
+    obslist = list(obsset.observations)
     obslist.sort(key=lambda x: x.priority_now)
 
     obs_hp = obslist[0]
@@ -399,10 +477,10 @@ def check_queue(obs_now, now, write_html=False):
         Could be a new observation, the same as obs_now or 'None' (park).
     """
 
-    obslist = import_obs_from_folder(queue_folder)
+    obsset = import_obs_from_folder(queue_folder)
 
-    if len(obslist) > 0:
-        obs_hp, obslist_sorted = find_highest_priority(obslist, now, obs_now, write_html)
+    if len(obsset) > 0:
+        obs_hp, obslist_sorted = find_highest_priority(obsset, now, write_html)
     else:
         obs_hp = None
         obslist_sorted = []
