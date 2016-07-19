@@ -252,7 +252,7 @@ def calculate_priority(obs, time):
     return priority_now
 
 
-def find_highest_priority(obslist, time, obs_now, write_html):
+def find_highest_priority(obsset, time, write_html=False):
     """
     Calculate priorities for a list of observations at a given time
     and return the observation with the highest priority.
@@ -263,13 +263,19 @@ def find_highest_priority(obslist, time, obs_now, write_html):
         The list of potential observations
 
     time : `~astropy.time.Time`
-        The time to calculate the priorities at
+        The time to calculate the priorities at.
+
+    write_html : bool
+        A flag to enable writing of html files.
 
     Returns
     -------
     obs_hp : `Observation`
         `Observation` object containing the observation with the highest
         calculated priority at the time given.
+
+    obslist_sorted : list of `Observation` objects
+        A list of Observations sorted by priority (for html queue page).
     """
 
     for obs in obslist:
@@ -348,7 +354,7 @@ def what_to_do_next(obs_now, obs_hp):
                 return obs_now
 
 
-def check_queue(obs_now, now, write_html):
+def check_queue(obs_now, now, write_html=False):
     """
     Check the current observations in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
