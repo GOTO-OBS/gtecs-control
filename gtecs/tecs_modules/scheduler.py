@@ -47,6 +47,42 @@ debug = 1
 signal.signal(signal.SIGINT, misc.signal_handler)
 
 
+def is_observable_now(constraints, observer, targets, time):
+    """
+    Determines if the targets are observable at the given time for a
+    particular observer, given the constraints.
+    A simpler version of Astroplan's ``is_observable`` for one time, but
+    returns results from each constraint.
+
+    Parameters
+    ----------
+    constraints : list or `~astroplan.constraints.Constraint`
+        Observational constraint(s)
+
+    observer : `~astroplan.Observer`
+        The observer who has constraints ``constraints``
+
+    targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
+        Target or list of targets
+
+    time : `~astropy.time.Time`
+        Array of times on which to test the constraint
+
+    Returns
+    -------
+    constraint_array : 2D list
+        M by N, where M is the number of ``targets`` and N is the number
+        of constraints
+    """
+    if not hasattr(constraints, '__len__'):
+        constraints = [constraints]
+
+    applied_constraints = [constraint(observer, targets, time)
+                           for constraint in constraints]
+    constraint_array = map(list, zip(*applied_constraints))  # transpose
+    return constraint_array
+
+
 class ArtificialHorizonConstraint(Constraint):
     """Ensure altitude is above pt5m artificial horizon"""
     def __init__(self):
@@ -127,19 +163,22 @@ class Observation:
                 self.mintime_constraints.append(constraint)
                 self.mintime_constraint_names.append(name + '_mintime')
 
-    def is_valid(self, times, observer):
-        ''' Check if the observation is valid for observer at given time(s)'''
-        targets = [self._as_target()]
-        later = times + self.mintime
-        valid_now = is_observable(self.constraints, observer,
-                                  targets, times=times)
-        valid_later = is_observable(self.mintime_constraints, observer,
-                                    targets, times=later)
+    def is_valid(self, time, observer):
+        '''Check if the observation is valid for an observer at a given time'''
+        target = [self._as_target()]
+        later = time + self.mintime
+        valid_now = is_observable_now(self.constraints, observer,
+                                      target, time)
+        valid_later = is_observable_now(self.mintime_constraints, observer,
+                                        target, time)
         # 'queue fillers' don't care about mintime constraints
         if self.priority < 5:
-            return np.logical_and(valid_now, valid_later)
+            valid = np.logical_and(valid_now, valid_later)
         else:
-            return valid_now
+            valid = valid_now
+        self.valid = valid
+        self.valid_time = time
+        return self.valid
 
     def print_validity(self, times, observer):
         targets = [self._as_target()]
@@ -152,6 +191,37 @@ class Observation:
                                     self.mintime_constraints):
             print(name,
                   is_observable(constraint, observer, targets, times=later))
+
+    def calculate_priority(self, time):
+        ''' Calculate the priority of the observation at a given time.
+
+        Current method (based on pt5m with addition of tiling ranks):
+            Base priority is an integer between 0-5 (for normal observations)
+                or 6-9 ('queue fillers').
+            The first three decimal places are the GOTO tiling rank.
+            Then if it is a ToO the next digit is zero.
+            The following digits are given by the airmass in the middle
+                of the minimum observation period.
+            Finally if the observation is invalid at the time given
+                the priority is increased by 10.
+        '''
+
+        # calculate airmass
+        self.midtime = Time(time) + self.mintime/2.
+        self.altaz_mid = self.altaz(Time(self.midtime), GOTO.location)
+        self.airmass_mid = float(self.altaz_mid.secz)
+        if not 1 < self.airmass_mid < 10:
+            self.airmass_mid = 9.999
+
+        # add airmass onto priority
+        if self.too:
+            self.priority_now = self.priority + self.airmass_mid/100000
+        else:
+            self.priority_now = self.priority + self.airmass_mid/10000
+
+        # if it's currently unobservable add 10
+        if not self.valid:
+            self.priority_now += 10
 
     def add_exposureset(self, expset):
         if not isinstance(expset, ExposureSet):
@@ -205,53 +275,6 @@ def import_obs_from_folder(queue_folder):
     return obslist
 
 
-def calculate_priority(obs, time):
-    """
-    Calculate priority of an observation at a given time.
-
-    Current method (based on pt5m with addition of tiling ranks):
-        The base priority is an integer between 0-5 (for normal observations)
-            or 6-9 ('queue fillers').
-        The first three decimal places are reserved for the GOTO tiling rank.
-        Then if it is a ToO the next digit is zero.
-        The following digits are given by the airmass in the middle
-            of the minimum observation period.
-        Finally if the observation is invalid the priority is increased by 10.
-
-    Parameters
-    ----------
-    obs : `Observation`
-        The observation object
-
-    time : `~astropy.time.Time`
-        The time to calculate the priorities at
-
-    Returns
-    -------
-    priority_now : float
-        The numeric priority value at the given time.
-    """
-
-    # calculate airmass
-    midtime = Time(time) + obs.mintime/2.
-    altaz_mid = obs.altaz(Time(midtime), GOTO.location)
-    airmass_mid = altaz_mid.secz
-    if not 1 < airmass_mid < 10:
-        airmass_mid = 9.999
-
-    # add airmass onto priority
-    if obs.too:
-        priority_now = obs.priority + airmass_mid/100000
-    else:
-        priority_now = obs.priority + airmass_mid/10000
-
-    # if it's currently unobservable add 10
-    if not obs.is_valid(time, GOTO):
-        priority_now += 10
-
-    return priority_now
-
-
 def find_highest_priority(obsset, time, write_html=False):
     """
     Calculate priorities for a list of observations at a given time
@@ -279,7 +302,7 @@ def find_highest_priority(obsset, time, write_html=False):
     """
 
     for obs in obslist:
-        obs.priority_now = calculate_priority(obs, time)
+        obs.calculate_priority(obs, time)
         if write_html:
             html.write_obs_flag_files(obs, time, GOTO, 1)
             html.write_obs_exp_files(obs)
