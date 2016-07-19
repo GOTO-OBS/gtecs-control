@@ -20,8 +20,9 @@ from scipy import interpolate
 
 from astropy import coordinates as coord, units as u
 from astroplan import (FixedTarget, is_observable)
-from astroplan import (Constraint, AltitudeConstraint,
-                       AtNightConstraint, MoonSeparationConstraint)
+from astroplan import (Constraint, TimeConstraint, AltitudeConstraint,
+                       AtNightConstraint, MoonSeparationConstraint,
+                       MoonIlluminationConstraint)
 from astroplan.moon import moon_illumination
 from astroplan.constraints import _get_altaz
 from astropy.time import Time
@@ -46,136 +47,6 @@ debug = 1
 signal.signal(signal.SIGINT, misc.signal_handler)
 
 
-def _get_moon_data(times, observer,
-                   force_zero_pressure=False):
-    """
-    Calculate moon altitude az and illumination for an array of
-    times for ``observer``.
-
-    Cache the result on the ``observer`` object.
-
-    Parameters
-    ----------
-    times : `~astropy.time.Time`
-        Array of times on which to test the constraint
-
-    observer : `~astroplan.Observer`
-        The observer who has constraints ``constraints``
-
-    Returns
-    -------
-    moon_dict : dict
-        Dictionary containing three key-value pairs. (1) 'times' contains the
-        times for the computations, (2) 'altaz' contains the
-        corresponding alt/az coordinates at those times and (3) contains
-        the moon illumination for those times.
-    """
-    if not hasattr(observer, '_transit_cache'):
-        observer._transit_cache = {}
-
-    # convert times to tuple for hashing
-    aakey = (tuple(times.jd))
-
-    if aakey not in observer._transit_cache:
-        try:
-            if force_zero_pressure:
-                observer_old_pressure = observer.pressure
-                observer.pressure = 0
-
-            altaz = observer.moon_altaz(times)
-            illumination = np.array(moon_illumination(times,
-                                                      observer.location))
-            observer._transit_cache[aakey] = dict(times=times,
-                                                  illum=illumination,
-                                                  altaz=altaz)
-        finally:
-            if force_zero_pressure:
-                observer.pressure = observer_old_pressure
-
-    return observer._transit_cache[aakey]
-
-
-def _get_transit_times(times, observer, targets):
-    """
-    Calculate next transit for an array of times for
-    ``targets`` and ``observer``.
-
-    Cache the result on the ``observer`` object.
-
-    Parameters
-    ----------
-    times : `~astropy.time.Time`
-        Array of times on which to test the constraint
-
-    observer : `~astroplan.Observer`
-        The observer who has constraints ``constraints``
-
-    targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
-        Target or list of targets
-
-    Returns
-    -------
-    time_dict : dict
-        Dictionary containing a key-value pair. 'times' contains the
-        transit times.
-    """
-    if not hasattr(observer, '_transit_cache'):
-        observer._transit_cache = {}
-
-    # convert times to tuple for hashing
-    aakey = (tuple(times.jd), tuple(targets))
-
-    if aakey not in observer._transit_cache:
-        transit_times = Time([observer.target_meridian_transit_time(
-                              time, target, which='next') for target in targets
-                              for time in times])
-        observer._transit_cache[aakey] = dict(times=transit_times)
-
-    return observer._transit_cache[aakey]
-
-
-class MoonIlluminationConstraint(Constraint):
-    """
-    Constrain the fractional illumination of the Earth's moon.
-    Is also valid if moon is not up.
-    """
-    def __init__(self, min=None, max=None):
-        """
-        Parameters
-        ----------
-        min : float or `None` (optional)
-            Minimum acceptable fractional illumination (inclusive). `None`
-            indicates no limit.
-        max : float or `None` (optional)
-            Maximum acceptable fractional illumination (inclusive). `None`
-            indicates no limit.
-        """
-        self.min = min
-        self.max = max
-
-    def compute_constraint(self, times, observer, targets):
-        # first is the moon up?
-        cached_moon = _get_moon_data(times, observer)
-        moon_alt = cached_moon['altaz'].alt
-        moon_alt_mask = moon_alt < 0
-
-        illumination = cached_moon['illum']
-        if self.min is None and self.max is not None:
-            mask = self.max >= illumination
-        elif self.max is None and self.min is not None:
-            mask = self.min <= illumination
-        elif self.min is not None and self.max is not None:
-            mask = ((self.min <= illumination) &
-                    (illumination <= self.max))
-        else:
-            raise ValueError("No max and/or min specified in "
-                             "MoonSeparationConstraint.")
-
-        mask = np.logical_or(moon_alt_mask, mask)
-        mask = np.tile(mask, len(targets))
-        return mask.reshape(len(targets), len(times))
-
-
 class ArtificialHorizonConstraint(Constraint):
     """Ensure altitude is above pt5m artificial horizon"""
     def __init__(self):
@@ -188,60 +59,6 @@ class ArtificialHorizonConstraint(Constraint):
         altaz = cached_altaz['altaz']
         artificial_horizon_alt = self.alt(altaz.az)*u.deg
         return altaz.alt > artificial_horizon_alt
-
-
-class UtcDateConstraint(Constraint):
-    """Constrain the observing time to be within UTC datetime limits"""
-    def __init__(self, min=None, max=None):
-        """
-        Parameters
-        ----------
-        min : `~astropy.time.Time`
-            Earliest time (inclusive). `None` indicates no limit.
-
-        max : `~astropy.time.Time`
-            Latest time (inclusive). `None` indicates no limit.
-
-        Examples
-        --------
-        Constrain the observations to targets that are observable between
-        23:50 and 04:08 UTC:
-
-        >>> from astroplan import Observer
-        >>> from astropy.time import Time
-        >>> import datetime as dt
-        >>> subaru = Observer.at_site("Subaru")
-        >>> t1 = Time("2016-03-28T12:00:00")
-        >>> t2 = Time("2016-03-30T12:00:00")
-        >>> constraint = UTCDateConstraint(t1,t2)
-        """
-        self.min = min
-        self.max = max
-
-        if self.min is None and self.max is None:
-            raise ValueError("You must at least supply either a minimum " +
-                             "or a maximum time.")
-
-        if self.min is not None:
-            if not isinstance(self.min, Time):
-                raise TypeError("Time limits must be specified as " +
-                                "astropy.time.Time objects.")
-        if self.max is not None:
-            if not isinstance(self.max, Time):
-                raise TypeError("Time limits must be specified as " +
-                                "astropy.time.Time objects.")
-
-    def compute_constraint(self, times, observer, targets):
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            min_time = (Time("1950-01-01T00:00:00") if self.min is None
-                        else self.min)
-            max_time = (Time("2120-01-01T00:00:00") if self.max is None
-                        else self.max)
-        calculation_times = Time([t for target in targets for t in times])
-        mask = np.logical_and(calculation_times > min_time,
-                              calculation_times < max_time)
-        return mask.reshape((len(targets), len(times)))
 
 
 ExposureSet = namedtuple('ExposureSet',
@@ -289,14 +106,14 @@ class Observation:
         '''Setup the constraints when initialised.'''
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
-        self.constraints = [UtcDateConstraint(self.start, self.stop),
+        self.constraints = [TimeConstraint(self.start, self.stop),
                             AtNightConstraint(self.maxsunalt),
                             AltitudeConstraint(self.minalt, None),
                             ArtificialHorizonConstraint(),
                             MoonIlluminationConstraint(None,
                                                        limits[self.maxmoon]),
                             MoonSeparationConstraint(moondist_limit, None)]
-        self.constraint_names = ['Date',
+        self.constraint_names = ['Time',
                                  'SunAlt',
                                  'MinAlt',
                                  'ArtHoriz',
@@ -306,7 +123,7 @@ class Observation:
         self.mintime_constraints = []
         self.mintime_constraint_names = []
         for name, constraint in zip(self.constraint_names, self.constraints):
-            if name not in ['Date', 'Moon', 'MoonSep']:
+            if name in ['SunAlt', 'MinAlt', 'ArtHoriz']:
                 self.mintime_constraints.append(constraint)
                 self.mintime_constraint_names.append(name + '_mintime')
 
