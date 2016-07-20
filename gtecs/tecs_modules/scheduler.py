@@ -11,7 +11,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import warnings
 import signal
 from collections import namedtuple
 
@@ -78,7 +77,7 @@ def apply_constraints(constraints, observer, targets, times):
         constraints = [constraints]
 
     applied_constraints = np.array([constraint(observer, targets, times)
-                                       for constraint in constraints])
+                                    for constraint in constraints])
     return np.transpose(applied_constraints)
 
 
@@ -168,10 +167,11 @@ class Observation:
         target = [self._as_target()]
         later = time + self.mintime
         self.valid_now_arr = apply_constraints(self.constraints, observer,
-                                      target, time)[0][0]
+                                               target, time)[0][0]
         self.valid_now = np.logical_and.reduce(self.valid_now_arr)
-        self.valid_later_arr = apply_constraints(self.mintime_constraints, observer,
-                                        target, later)[0][0]
+        self.valid_later_arr = apply_constraints(self.mintime_constraints,
+                                                 observer, target,
+                                                 later)[0][0]
         self.valid_later = np.logical_and.reduce(self.valid_later_arr)
         # 'queue fillers' don't care about mintime constraints
         if self.priority < 5:
@@ -239,7 +239,7 @@ class Observation:
                       minalt, mintime, moon, user, start, stop)
         # remaining lines are exposure sets
         for line in lines[1:]:
-            tels, numexp, exptime, filt, binfac, exptype  = line.split()
+            tels, numexp, exptime, filt, binfac, exptype = line.split()
             numexp = int(numexp)
             exptime = float(exptime)*u.second
             binfac = int(binfac)
@@ -250,7 +250,7 @@ class Observation:
 
 class ObservationSet:
     def __init__(self, observations=None):
-        if observations == None:
+        if observations is None:
             observations = []
         self.observations = observations
         self.target_arr = []
@@ -261,10 +261,10 @@ class ObservationSet:
         self.minalt_arr = []
         self.maxmoon_arr = []
         if len(self.observations) > 0:
-            initialise_constraints()
+            self.initialise_constraints()
 
     def __len__(self):
-         return len(self.observations)
+        return len(self.observations)
 
     def initialise_constraints(self):
         '''Setup the constraints when initialised.'''
@@ -309,7 +309,7 @@ class ObservationSet:
         # check validity at (all!) mintimes
         later_arr = [now + mintime for mintime in self.mintime_arr]
         valid_later_arr = apply_constraints(self.mintime_constraints, observer,
-                                          self.target_arr, later_arr)
+                                            self.target_arr, later_arr)
 
         for i in range(len(self.observations)):
             obs = self.observations[i]
@@ -441,7 +441,7 @@ def what_to_do_next(obs_now, obs_hp):
 
     if obs_now == obs_hp:
         if obs_now.priority_now >= 10 or obs_hp.priority_now >= 10:
-            return None # it's either finished or is now illegal
+            return None  # it's either finished or is now illegal
         else:
             return obs_hp
 
