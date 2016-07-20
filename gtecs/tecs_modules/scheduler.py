@@ -164,32 +164,30 @@ class Observation:
 
     def is_valid(self, time, observer):
         '''Check if the observation is valid for an observer at a given time'''
+        self.valid_time = time
         target = [self._as_target()]
         later = time + self.mintime
-        valid_now = is_observable_now(self.constraints, observer,
-                                      target, time)
-        valid_later = is_observable_now(self.mintime_constraints, observer,
-                                        target, time)
+        self.valid_now_arr = apply_constraints(self.constraints, observer,
+                                      target, time)[0][0]
+        self.valid_now = np.logical_and.reduce(self.valid_now_arr)
+        self.valid_later_arr = apply_constraints(self.mintime_constraints, observer,
+                                        target, later)[0][0]
+        self.valid_later = np.logical_and.reduce(self.valid_later_arr)
         # 'queue fillers' don't care about mintime constraints
         if self.priority < 5:
-            valid = np.logical_and(valid_now, valid_later)
+            self.valid = np.logical_and(self.valid_now, self.valid_later)
         else:
-            valid = valid_now
-        self.valid = valid
-        self.valid_time = time
+            self.valid = self.valid_now
         return self.valid
 
-    def print_validity(self, times, observer):
-        targets = [self._as_target()]
-        later = times + self.mintime
-        for name, constraint in zip(self.constraint_names, self.constraints):
-            print(name,
-                  is_observable(constraint, observer, targets, times=times))
-
-        for name, constraint in zip(self.mintime_constraint_names,
-                                    self.mintime_constraints):
-            print(name,
-                  is_observable(constraint, observer, targets, times=later))
+    def print_validity(self, time, observer):
+        self.is_valid(time, observer)
+        for i in range(len(self.constraint_names)):
+            print(self.constraint_names[i], ':',
+                  self.valid_now_arr[i])
+        for i in range(len(self.mintime_constraint_names)):
+            print(self.mintime_constraint_names[i], ':',
+                  self.valid_later_arr[i])
 
     def calculate_priority(self, time):
         ''' Calculate the priority of the observation at a given time.
