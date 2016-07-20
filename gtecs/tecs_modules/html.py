@@ -48,24 +48,22 @@ def write_obs_flag_files(obs, now, observer, debug):
         f.write('ID_' + str(obs.id) + '<br>\n')
         f.write(str(now) + '<br>\n')
 
-        for name, cons in zip(obs.constraint_names, obs.constraints):
-            valid = is_observable(cons, observer, target, now)[0]
+        for name, valid in zip(obs.constraint_names, obs.valid_now_arr):
             if valid:
-                f.write('<font color=limegreen>')
+                f.write('<font color=darkgreen>')
             else:
                 f.write('<font color=red>')
             f.write(name + ' = ' + str(valid))
             f.write('</font><br>\n')
 
-        for name, cons in zip(obs.mintime_constraint_names,
-                              obs.mintime_constraints):
+        for name, valid_later in zip(obs.mintime_constraint_names,
+                                     obs.valid_later_arr):
             later = now + obs.mintime
-            valid_later = is_observable(cons, observer, target, later)[0]
             if obs.priority >= 5:
                 f.write('<font color=grey>')
                 valid_later = 'N/A'
             elif valid_later:
-                f.write('<font color=limegreen>')
+                f.write('<font color=darkgreen>')
             else:
                 f.write('<font color=red>')
             f.write(name + ' = ' + str(valid_later))
