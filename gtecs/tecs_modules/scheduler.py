@@ -19,13 +19,12 @@ import numpy as np
 from scipy import interpolate
 
 from astropy import coordinates as coord, units as u
-from astroplan import (FixedTarget, is_observable)
-from astroplan import (Constraint, TimeConstraint, AltitudeConstraint,
-                       AtNightConstraint, MoonSeparationConstraint,
-                       MoonIlluminationConstraint)
-from astroplan.moon import moon_illumination
-from astroplan.constraints import _get_altaz
 from astropy.time import Time
+
+from astroplan import (FixedTarget, Constraint, TimeConstraint,
+                       AltitudeConstraint, AtNightConstraint,
+                       MoonSeparationConstraint, MoonIlluminationConstraint)
+from astroplan.constraints import _get_altaz
 
 # TeCS modules
 from . import params
@@ -47,12 +46,12 @@ debug = 1
 signal.signal(signal.SIGINT, misc.signal_handler)
 
 
-def is_observable_now(constraints, observer, targets, time):
+def apply_constraints(constraints, observer, targets, times):
     """
-    Determines if the targets are observable at the given time for a
+    Determines if the targets are observable at the given times for a
     particular observer, given the constraints.
-    A simpler version of Astroplan's ``is_observable`` for one time, but
-    returns results from each constraint.
+    Similar to Astroplan's ``is_observable``, but returns full constraint
+    results in a 3D array.
 
     Parameters
     ----------
@@ -65,22 +64,22 @@ def is_observable_now(constraints, observer, targets, time):
     targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
         Target or list of targets
 
-    time : `~astropy.time.Time`
+    times : `~astropy.time.Time`
         Array of times on which to test the constraint
 
     Returns
     -------
-    constraint_array : 2D list
-        M by N, where M is the number of ``targets`` and N is the number
-        of constraints
+    constraint_array : 3D array
+        first dimension is given by the number of times
+        second dimention is given by the number of targets
+        third dimention is given by the number of constraints
     """
     if not hasattr(constraints, '__len__'):
         constraints = [constraints]
 
-    applied_constraints = [constraint(observer, targets, time)
-                           for constraint in constraints]
-    constraint_array = map(list, zip(*applied_constraints))  # transpose
-    return constraint_array
+    applied_constraints = np.array([constraint(observer, targets, times)
+                                       for constraint in constraints])
+    return np.transpose(applied_constraints)
 
 
 class ArtificialHorizonConstraint(Constraint):
