@@ -254,6 +254,7 @@ class ObservationSet:
             observations = []
         self.observations = observations
         self.target_arr = []
+        self.mintime_arr = []
         self.start_arr = []
         self.stop_arr = []
         self.maxsunalt_arr = []
@@ -271,6 +272,7 @@ class ObservationSet:
         moondist_limit = params.MOONDIST_LIMIT * u.deg
         for obs in self.observations:
             self.target_arr.append(obs._as_target())
+            self.mintime_arr.append(obs.mintime)
             self.start_arr.append(obs.start)
             self.stop_arr.append(obs.stop)
             self.maxsunalt_arr.append(obs.maxsunalt)
@@ -290,24 +292,35 @@ class ObservationSet:
                                  'Moon',
                                  'MoonSep']
 
-    def check_validities(self, time, observer):
-        ''' Check if the observations are valid'''
-        valid_now_arr = is_observable_now(self.constraints, observer,
-                                           self.target_arr, time)
+        self.mintime_constraints = []
+        self.mintime_constraint_names = []
+        for name, constraint in zip(self.constraint_names, self.constraints):
+            if name in ['SunAlt', 'MinAlt', 'ArtHoriz']:
+                self.mintime_constraints.append(constraint)
+                self.mintime_constraint_names.append(name + '_mintime')
+
+    def check_validities(self, now, observer):
+        ''' Check if the observations are valid, both now and after mintimes'''
+
+        # check validity now
+        valid_now_arr = apply_constraints(self.constraints, observer,
+                                          self.target_arr, now)
+
+        # check validity at (all!) mintimes
+        later_arr = [now + mintime for mintime in self.mintime_arr]
+        valid_later_arr = apply_constraints(self.mintime_constraints, observer,
+                                          self.target_arr, later_arr)
+
         for i in range(len(self.observations)):
             obs = self.observations[i]
-            obs.valid_time = time
+            obs.valid_time = now
 
-            # check validity now
-            obs.valid_now_arr = [x[0] for x in valid_now_arr[i]]
+            # find validity now
+            obs.valid_now_arr = [x for x in valid_now_arr[0][i]]
             obs.valid_now = np.logical_and.reduce(obs.valid_now_arr)
 
-            # mintime constraints need to be evaluated for each observation
-            later = time + obs.mintime
-            valid_later_arr = is_observable_now(obs.mintime_constraints,
-                                                observer,
-                                                [obs._as_target()], time)
-            obs.valid_later_arr = [x[0] for x in valid_later_arr[0]]
+            # find validity at mintime
+            obs.valid_later_arr = [x for x in valid_later_arr[i][i]]
             obs.valid_later = np.logical_and.reduce(obs.valid_later_arr)
 
             # finally consider both now and later, unless it's a queue filler
