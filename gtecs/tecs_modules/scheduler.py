@@ -130,10 +130,12 @@ class Observation:
         '''Returns a FixedTarget object for the observation target.'''
         return FixedTarget(coord=self.coord, name=self.name)
 
-    def altaz(self, time, location):
+    def altaz(self, time, observer):
         '''Returns coords transformed to AltAz at given location and time'''
-        altaz = self.coord.transform_to(coord.AltAz(obstime=time,
-                                                    location=location))
+        target = [self._as_target()]
+        times = Time([time])
+        cached_altaz = _get_altaz(times, observer, target)
+        altaz = cached_altaz['altaz']
         return altaz
 
     def initialise_constraints(self):
@@ -189,7 +191,7 @@ class Observation:
             print(self.mintime_constraint_names[i], ':',
                   self.valid_later_arr[i])
 
-    def calculate_priority(self, time):
+    def calculate_priority(self, time, observer):
         ''' Calculate the priority of the observation at a given time.
 
         Current method (based on pt5m with addition of tiling ranks):
@@ -204,8 +206,8 @@ class Observation:
         '''
 
         # calculate airmass
-        self.midtime = Time(time) + self.mintime/2.
-        self.altaz_mid = self.altaz(Time(self.midtime), GOTO.location)
+        midtime = Time(time) + self.mintime/2.
+        self.altaz_mid = self.altaz(midtime, observer)
         self.airmass_mid = float(self.altaz_mid.secz)
         if not 1 < self.airmass_mid < 10:
             self.airmass_mid = 9.999
@@ -330,10 +332,10 @@ class ObservationSet:
                 valid = obs.valid_now
             obs.valid = valid
 
-    def calculate_priorities(self, time):
+    def calculate_priorities(self, time, observer):
         ''' Calculate priorities at a given time for each observation '''
         for obs in self.observations:
-            obs.calculate_priority(time)
+            obs.calculate_priority(time, observer)
 
 
 def import_obs_from_folder(queue_folder):
@@ -388,7 +390,7 @@ def find_highest_priority(obsset, time, write_html=False):
     """
 
     obsset.check_validities(time, GOTO)
-    obsset.calculate_priorities(time)
+    obsset.calculate_priorities(time, GOTO)
     for obs in obsset.observations:
         if write_html:
             html.write_obs_flag_files(obs, time, GOTO, 1)
