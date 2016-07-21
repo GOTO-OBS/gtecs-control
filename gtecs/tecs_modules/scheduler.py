@@ -29,6 +29,7 @@ from astroplan.constraints import _get_altaz
 from . import params
 from . import misc
 from . import html
+from . import astronomy
 
 ## Setup
 # define paths to directories
@@ -132,10 +133,11 @@ class Observation:
 
     def altaz(self, time, observer):
         '''Returns coords transformed to AltAz at given location and time'''
-        target = [self._as_target()]
-        times = Time([time])
-        cached_altaz = _get_altaz(times, observer, target)
-        altaz = cached_altaz['altaz']
+        target = self._as_target()
+        ra_deg = target.ra.value
+        dec_deg = target.dec.value
+        alt, az = astronomy.altaz(ra_deg, dec_deg, time)
+        altaz = coord.AltAz(alt=alt*u.deg, az=az*u.deg)
         return altaz
 
     def initialise_constraints(self):
