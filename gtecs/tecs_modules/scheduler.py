@@ -24,6 +24,7 @@ from astroplan import (FixedTarget, Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 from astroplan.constraints import _get_altaz
+from astroplan.target import get_icrs_skycoord
 
 # TeCS modules
 from . import params
@@ -257,9 +258,11 @@ class ObservationSet:
         '''
 
         # calculate altaz at midtime
-        midtime_arr = [time + mintime/2. for mintime in self.mintime_arr]
-        cached_altaz = _get_altaz(Time(midtime_arr), observer, self.target_arr)
-        altaz = cached_altaz['altaz']
+        midtime_arr = Time([time + mintime/2. for mintime in self.mintime_arr])
+        coords_arr = get_icrs_skycoord(self.target_arr)
+        altaz_arr = coords_arr.transform_to(coord.AltAz(obstime=midtime_arr,
+                                                        location = GOTO.location))
+        secz_arr = altaz_arr.secz.astype('float')
 
         # check validities
         self.check_validities(time, observer)
@@ -269,7 +272,7 @@ class ObservationSet:
             obs = self.observations[i]
 
             # approximate airmass
-            obs.airmass_mid = float(altaz[i][i].secz)
+            obs.airmass_mid = secz_arr[i]
             if not 1 < obs.airmass_mid < 10:
                 obs.airmass_mid = 9.999
 
