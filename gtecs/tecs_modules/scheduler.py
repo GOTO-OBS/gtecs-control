@@ -116,7 +116,6 @@ class Observation:
         self.start = Time(start, scale='utc')
         self.stop = Time(stop, scale='utc')
         self.exposuresets = []
-        self.initialise_constraints()
 
     def __eq__(self, other):
         try:
@@ -139,90 +138,6 @@ class Observation:
         alt, az = astronomy.altaz_ephem(ra_deg, dec_deg, time)
         altaz = coord.AltAz(alt=alt*u.deg, az=az*u.deg)
         return altaz
-
-    def initialise_constraints(self):
-        '''Setup the constraints when initialised.'''
-        limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
-        moondist_limit = params.MOONDIST_LIMIT * u.deg
-        self.constraints = [TimeConstraint(self.start, self.stop),
-                            AtNightConstraint(self.maxsunalt),
-                            AltitudeConstraint(self.minalt, None),
-                            ArtificialHorizonConstraint(),
-                            MoonIlluminationConstraint(None,
-                                                       limits[self.maxmoon]),
-                            MoonSeparationConstraint(moondist_limit, None)]
-        self.constraint_names = ['Time',
-                                 'SunAlt',
-                                 'MinAlt',
-                                 'ArtHoriz',
-                                 'Moon',
-                                 'MoonSep']
-
-        self.mintime_constraints = []
-        self.mintime_constraint_names = []
-        for name, constraint in zip(self.constraint_names, self.constraints):
-            if name in ['SunAlt', 'MinAlt', 'ArtHoriz']:
-                self.mintime_constraints.append(constraint)
-                self.mintime_constraint_names.append(name + '_mintime')
-
-    def is_valid(self, time, observer):
-        '''Check if the observation is valid for an observer at a given time'''
-        self.valid_time = time
-        target = [self._as_target()]
-        later = time + self.mintime
-        self.valid_now_arr = apply_constraints(self.constraints, observer,
-                                               target, time)[0][0]
-        self.valid_now = np.logical_and.reduce(self.valid_now_arr)
-        self.valid_later_arr = apply_constraints(self.mintime_constraints,
-                                                 observer, target,
-                                                 later)[0][0]
-        self.valid_later = np.logical_and.reduce(self.valid_later_arr)
-        # 'queue fillers' don't care about mintime constraints
-        if self.priority < 5:
-            self.valid = np.logical_and(self.valid_now, self.valid_later)
-        else:
-            self.valid = self.valid_now
-        return self.valid
-
-    def print_validity(self, time, observer):
-        self.is_valid(time, observer)
-        for i in range(len(self.constraint_names)):
-            print(self.constraint_names[i], ':',
-                  self.valid_now_arr[i])
-        for i in range(len(self.mintime_constraint_names)):
-            print(self.mintime_constraint_names[i], ':',
-                  self.valid_later_arr[i])
-
-    def calculate_priority(self, time, observer):
-        ''' Calculate the priority of the observation at a given time.
-
-        Current method (based on pt5m with addition of tiling ranks):
-            Base priority is an integer between 0-5 (for normal observations)
-                or 6-9 ('queue fillers').
-            The first three decimal places are the GOTO tiling rank.
-            Then if it is a ToO the next digit is zero.
-            The following digits are given by the airmass in the middle
-                of the minimum observation period.
-            Finally if the observation is invalid at the time given
-                the priority is increased by 10.
-        '''
-
-        # calculate airmass
-        midtime = Time(time) + self.mintime/2.
-        self.altaz_mid = self.altaz(midtime, observer)
-        self.airmass_mid = float(self.altaz_mid.secz)
-        if not 1 < self.airmass_mid < 10:
-            self.airmass_mid = 9.999
-
-        # add airmass onto priority
-        if self.too:
-            self.priority_now = self.priority + self.airmass_mid/100000
-        else:
-            self.priority_now = self.priority + self.airmass_mid/10000
-
-        # if it's currently unobservable add 10
-        if not self.valid:
-            self.priority_now += 10
 
     def add_exposureset(self, expset):
         if not isinstance(expset, ExposureSet):
@@ -264,14 +179,15 @@ class ObservationSet:
         self.maxsunalt_arr = []
         self.minalt_arr = []
         self.maxmoon_arr = []
+        self.priority_arr = []
         if len(self.observations) > 0:
-            self.initialise_constraints()
+            self.initialise()
 
     def __len__(self):
         return len(self.observations)
 
-    def initialise_constraints(self):
-        '''Setup the constraints when initialised.'''
+    def initialise(self):
+        '''Setup the observation set and constraints when initialised.'''
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
         for obs in self.observations:
@@ -282,6 +198,7 @@ class ObservationSet:
             self.maxsunalt_arr.append(obs.maxsunalt)
             self.minalt_arr.append(obs.minalt)
             self.maxmoon_arr.append(limits[obs.maxmoon])
+            self.priority_arr.append(obs.priority)
 
         self.constraints = [TimeConstraint(self.start_arr, self.stop_arr),
                             AtNightConstraint(self.maxsunalt_arr),
@@ -335,9 +252,46 @@ class ObservationSet:
             obs.valid = valid
 
     def calculate_priorities(self, time, observer):
-        ''' Calculate priorities at a given time for each observation '''
-        for obs in self.observations:
-            obs.calculate_priority(time, observer)
+        ''' Calculate priorities at a given time for each observation.
+
+        Current method (based on pt5m with addition of tiling ranks):
+            Base priority is an integer between 0-5 (for normal observations)
+                or 6-9 ('queue fillers').
+            The first three decimal places are the GOTO tiling rank.
+            Then if it is a ToO the next digit is zero.
+            The following digits are given by the airmass in the middle
+                of the minimum observation period.
+            Finally check if the observation is invalid at the time given,
+                if so the priority is increased by 10.
+        '''
+
+        # check validities
+        self.check_validities(time, observer)
+
+        # calculate priorities for each observation
+        for i in range(len(self.observations)):
+            obs = self.observations[i]
+
+            # approximate airmass
+            obs.airmass_mid = float(obs.altaz(time, observer).secz)
+            if not 1 < obs.airmass_mid < 10:
+                obs.airmass_mid = 9.999
+
+            # add airmass onto priority
+            if obs.too:
+                obs.priority_now = obs.priority + obs.airmass_mid/100000
+            else:
+                obs.priority_now = obs.priority + obs.airmass_mid/10000
+
+            # if it's currently unobservable add 10
+            if not obs.valid:
+                obs.priority_now += 10
+
+    def add_exposureset(self, expset):
+        if not isinstance(expset, ExposureSet):
+            raise ValueError('exposure set must be an ExposureSet instance')
+        self.exposuresets.append(expset)
+
 
 
 def import_obs_from_folder(queue_folder):
@@ -361,7 +315,7 @@ def import_obs_from_folder(queue_folder):
         for obsfile in queue_files:
             path = os.path.join(queue_folder, obsfile)
             obsset.observations.append(Observation.from_file(path))
-    obsset.initialise_constraints()
+    obsset.initialise()
     return obsset
 
 
@@ -391,7 +345,6 @@ def find_highest_priority(obsset, time, write_html=False):
         A list of Observations sorted by priority (for html queue page).
     """
 
-    obsset.check_validities(time, GOTO)
     obsset.calculate_priorities(time, GOTO)
     for obs in obsset.observations:
         if write_html:
