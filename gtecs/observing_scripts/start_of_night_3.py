@@ -29,19 +29,26 @@ def run(nexp=5):
     cmd('exq multbias {} 2'.format(nexp))  # 2x2 binning
     cmd('exq multbias {} 3'.format(nexp))  # 3x3 binning
     cmd('exq multdark {} 120 1'.format(nexp))
+    cmd('exq resume')  # just in case
 
     # we should not return straight away, but wait until queue is empty
     EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
     exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
-    while 1:
-        time.sleep(5)
+
+    still_working = True
+    while still_working:
+        time.sleep(30)
         try:
-            queue_list = exq.get()
-            if len(queue_list == 0):
-                break
-        except:
-            print(ERROR('No response from exposure queue daemon'))
+            exq_info = exq.get_info()
+            nexp = exq_info['queue_length']
+            status = exq_info['status']
+            if nexp == 0 and status != 'Working':
+                still_working = False
+                print("Finished taking darks and biasses")
+        except Pyro4.errors.ConnectionClosedError:
+            # for now, silently pass failures to contact exq daemon
+            pass
 
 
 if __name__ == "__main__":
@@ -51,3 +58,4 @@ if __name__ == "__main__":
     else:
         nexp = 5
     run(nexp)
+    print("Done")
