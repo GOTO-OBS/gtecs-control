@@ -130,15 +130,6 @@ class Observation:
         '''Returns a FixedTarget object for the observation target.'''
         return FixedTarget(coord=self.coord, name=self.name)
 
-    def altaz(self, time, observer):
-        '''Returns coords transformed to AltAz at given location and time'''
-        target = self._as_target()
-        ra_deg = target.ra.value
-        dec_deg = target.dec.value
-        alt, az = astronomy.altaz_ephem(ra_deg, dec_deg, time)
-        altaz = coord.AltAz(alt=alt*u.deg, az=az*u.deg)
-        return altaz
-
     def add_exposureset(self, expset):
         if not isinstance(expset, ExposureSet):
             raise ValueError('exposure set must be an ExposureSet instance')
@@ -265,6 +256,11 @@ class ObservationSet:
                 if so the priority is increased by 10.
         '''
 
+        # calculate altaz at midtime
+        midtime_arr = [time + mintime/2. for mintime in self.mintime_arr]
+        cached_altaz = _get_altaz(Time(midtime_arr), observer, self.target_arr)
+        altaz = cached_altaz['altaz']
+
         # check validities
         self.check_validities(time, observer)
 
@@ -273,7 +269,7 @@ class ObservationSet:
             obs = self.observations[i]
 
             # approximate airmass
-            obs.airmass_mid = float(obs.altaz(time, observer).secz)
+            obs.airmass_mid = float(altaz[i][i].secz)
             if not 1 < obs.airmass_mid < 10:
                 obs.airmass_mid = 9.999
 
