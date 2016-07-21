@@ -268,23 +268,19 @@ class ObservationSet:
         self.check_validities(time, observer)
 
         # calculate priorities for each observation
-        for i in range(len(self.observations)):
-            obs = self.observations[i]
+        priorities = np.array([obs.priority for obs in self.observations])
+        unobservable_mask = np.logical_or(secz_arr < 1, secz_arr > 10)
+        secz_arr[unobservable_mask] = 9.999
 
-            # approximate airmass
-            obs.airmass_mid = secz_arr[i]
-            if not 1 < obs.airmass_mid < 10:
-                obs.airmass_mid = 9.999
+        too_mask = [obs.too for obs in self.observations]
+        valid_mask = [obs.valid for obs in self.observations]
 
-            # add airmass onto priority
-            if obs.too:
-                obs.priority_now = obs.priority + obs.airmass_mid/100000
-            else:
-                obs.priority_now = obs.priority + obs.airmass_mid/10000
+        priorities_now = priorities + secz_arr/100000
+        priorities_now[too_mask] = priorities[too_mask] + secz_arr[too_mask]/10000
+        priorities_now[valid_mask] += 10
 
-            # if it's currently unobservable add 10
-            if not obs.valid:
-                obs.priority_now += 10
+        for obs, pri in zip(self.observations, priorities_now):
+            obs.priority_now = pri
 
     def add_exposureset(self, expset):
         if not isinstance(expset, ExposureSet):
