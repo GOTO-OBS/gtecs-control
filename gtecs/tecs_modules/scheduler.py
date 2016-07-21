@@ -136,7 +136,7 @@ class Observation:
         target = self._as_target()
         ra_deg = target.ra.value
         dec_deg = target.dec.value
-        alt, az = astronomy.altaz(ra_deg, dec_deg, time)
+        alt, az = astronomy.altaz_ephem(ra_deg, dec_deg, time)
         altaz = coord.AltAz(alt=alt*u.deg, az=az*u.deg)
         return altaz
 
