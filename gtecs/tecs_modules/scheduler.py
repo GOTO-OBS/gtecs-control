@@ -251,42 +251,46 @@ class ObservationSet:
                 or 6-9 ('queue fillers').
             The first three decimal places are the GOTO tiling rank.
             Then if it is a ToO the next digit is zero.
-            The following digits are given by the airmass in the middle
-                of the minimum observation period.
+            The following digits are given by the aproximate airmass in the
+                middle of the minimum observation period.
             Finally check if the observation is invalid at the time given,
                 if so the priority is increased by 10.
         '''
 
-        # calculate altaz at midtime
-        midtime_arr = Time([time + mintime/2. for mintime in self.mintime_arr])
-        coords_arr = get_icrs_skycoord(self.target_arr)
-        altaz_arr = coords_arr.transform_to(coord.AltAz(obstime=midtime_arr,
-                                                        location = GOTO.location))
-        secz_arr = altaz_arr.secz.astype('float')
-
-        # check validities
-        self.check_validities(time, observer)
-
-        # calculate priorities for each observation
+        # starting priority based on defined rank
         priorities = np.array([obs.priority for obs in self.observations])
-        unobservable_mask = np.logical_or(secz_arr < 1, secz_arr > 10)
-        secz_arr[unobservable_mask] = 9.999
 
-        too_mask = [obs.too for obs in self.observations]
-        valid_mask = [obs.valid for obs in self.observations]
+        # estimate airmass
+        # airmass at start
+        cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
+        altaz_now = cached_altaz_now['altaz']
+        secz_now = np.array([x[0].value for x in altaz_now.secz])
 
-        priorities_now = priorities + secz_arr/100000
-        priorities_now[too_mask] = priorities[too_mask] + secz_arr[too_mask]/10000
-        priorities_now[valid_mask] += 10
+        # airmass at mintime
+        later_arr = Time([time + mintime for mintime in self.mintime_arr])
+        cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
+        altaz_later = cached_altaz_later['altaz']
+        secz_later = np.diag(altaz_later.secz).astype('float')
 
-        for obs, pri in zip(self.observations, priorities_now):
-            obs.priority_now = pri
+        # take average, and constrain to between 1.000 & 9.999
+        secz_arr = np.array((secz_now + secz_later)/2.)
+        bad_airmass_mask = np.logical_or(secz_arr < 1, secz_arr > 10)
+        secz_arr[bad_airmass_mask] = 9.999
 
-    def add_exposureset(self, expset):
-        if not isinstance(expset, ExposureSet):
-            raise ValueError('exposure set must be an ExposureSet instance')
-        self.exposuresets.append(expset)
+        # calculate current priority, ToOs get an extra 0 to rank higher
+        priorities_now = priorities + secz_arr/10000
+        too_mask = np.array([obs.too for obs in self.observations])
+        priorities_now[too_mask] = priorities[too_mask] + secz_arr[too_mask]/100000
 
+        # check validities, add 10 to invalid observations
+        self.check_validities(time, observer)
+        valid_mask = np.array([obs.valid for obs in self.observations])
+        invalid_mask = np.invert(valid_mask)
+        priorities_now[invalid_mask] += 10
+
+        # save priority_now to observation
+        for obs, p_now in zip(self.observations, priorities_now):
+            obs.priority_now = p_now
 
 
 def import_obs_from_folder(queue_folder):
