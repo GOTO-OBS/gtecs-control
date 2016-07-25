@@ -229,10 +229,12 @@ class ObservationSet:
             obs.valid_time = now
 
             # find validity now
+            obs.constraint_names = self.constraint_names
             obs.valid_now_arr = [x for x in valid_now_arr[0][i]]
             obs.valid_now = np.logical_and.reduce(obs.valid_now_arr)
 
             # find validity at mintime
+            obs.mintime_constraint_names = self.mintime_constraint_names
             obs.valid_later_arr = [x for x in valid_later_arr[i][i]]
             obs.valid_later = np.logical_and.reduce(obs.valid_later_arr)
 
