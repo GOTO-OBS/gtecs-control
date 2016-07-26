@@ -86,16 +86,16 @@ def write_obs_flag_files(obs, now, observer, debug):
             f.write('ra = ' + str(obs.coord.ra) + '<br>\n')
             f.write('dec = ' + str(obs.coord.dec) + '<br>\n')
 
-            alt_now, az_now = astronomy.altaz(obs.coord.ra.value,
-                                              obs.coord.dec.value,
-                                              now)
+            alt_now, az_now = astronomy.altaz_ephem(obs.coord.ra.value,
+                                                    obs.coord.dec.value,
+                                                    now)
 
             f.write('alt_now = ' + str(alt_now) + '<br>\n')
             f.write('az_now = ' + str(az_now) + '<br>\n')
 
-            alt_later, az_later = astronomy.altaz(obs.coord.ra.value,
-                                                  obs.coord.dec.value,
-                                                  now + obs.mintime)
+            alt_later, az_later = astronomy.altaz_ephem(obs.coord.ra.value,
+                                                        obs.coord.dec.value,
+                                                        now + obs.mintime)
 
             f.write('alt_mintime = ' + str(alt_later) + '<br>\n')
             f.write('az_mintime = ' + str(az_later) + '<br>\n')
