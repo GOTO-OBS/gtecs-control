@@ -20,11 +20,73 @@ from scipy import interpolate
 from astropy import coordinates as coord, units as u
 from astropy.time import Time
 
+from astroplan.target import get_icrs_skycoord
+import astroplan.constraints as constraints
+
+def _get_altaz(times, observer, targets, force_zero_pressure=False):
+    """
+    Calculate alt/az for ``target`` at times linearly spaced between
+    the two times in ``time_range`` with grid spacing ``time_resolution``
+    for ``observer``.
+
+    Cache the result on the ``observer`` object.
+
+    NOTE: New, faster version using get_icrs_skycoord patched in.
+          Can be removed if AstroPlan is updated to include it.
+
+    Parameters
+    ----------
+    times : `~astropy.time.Time`
+        Array of times on which to test the constraint
+
+    targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
+        Target or list of targets
+
+    observer : `~astroplan.Observer`
+        The observer who has constraints ``constraints``
+
+    time_resolution : `~astropy.units.Quantity` (optional)
+        Set the time resolution in calculations of the altitude/azimuth
+
+    Returns
+    -------
+    altaz_dict : dict
+        Dictionary containing two key-value pairs. (1) 'times' contains the
+        times for the alt/az computations, (2) 'altaz' contains the
+        corresponding alt/az coordinates at those times.
+    """
+    if not hasattr(observer, '_altaz_cache'):
+        observer._altaz_cache = {}
+
+    # convert times, targets to tuple for hashing
+    aakey = (tuple(times.jd), tuple(targets))
+
+    targets = get_icrs_skycoord(targets)
+    if targets.isscalar:
+        targets = coord.SkyCoord([targets])
+
+    if aakey not in observer._altaz_cache:
+        try:
+            if force_zero_pressure:
+                observer_old_pressure = observer.pressure
+                observer.pressure = 0
+
+            altaz = targets[:, np.newaxis].transform_to(
+                coord.AltAz(obstime=times, location=observer.location)
+                )
+            observer._altaz_cache[aakey] = dict(times=times,
+                                                altaz=altaz)
+        finally:
+            if force_zero_pressure:
+                observer.pressure = observer_old_pressure
+
+    return observer._altaz_cache[aakey]
+
+constraints._get_altaz = _get_altaz # overwrite before importing
+
 from astroplan import (FixedTarget, Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
-from astroplan.constraints import _get_altaz
-from astroplan.target import get_icrs_skycoord
 
 # TeCS modules
 from . import params
