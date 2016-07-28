@@ -1,37 +1,12 @@
-26	11	20	Fence	Lightning cond
-32	12		Fence	
-55	14		Fence	
-77	13		Fence	
-88	11		Fence	
-102	11		Fence	
-115	34		Dec Limit
-126	34	36	Plant rm	Lightning cond
-135	36		Dec Limit
-146	42		Loo vent
-158	45		Dec Limit
-165	46		Dec Limit
-170	47		Dec Limit
-175	47		Dec Limit
-185	47		Dec limit
-195	46		Dec limit
-200	45	45	Dec Limit
-205	44		Dec limit
-215	40		Dec limit
-225	34		Dec limit
-230	30		WHT dome
-235	26		WHT dome
-243	31		WHT dome
-247	34		WHT dome
-251	35		WHT dome
-255	36		WHT dome
-259	36		WHT dome
-264	35		WHT dome
-271	30		WHT dome
-273	26		WHT dome
-275	22		Fence
-279	19		Fence
-284	15		Fence
-286	14		Fence
-293	13		Fence
-300	12		Fence
-330	11		Fence
+0	11	Dome
+30	11	Dome
+60	11	Dome
+90	11	Dome
+120	11	Dome
+150	11	Dome
+180	13	Dome
+210	13	Dome
+240	13	Dome
+270	13	Dome
+300	13	Dome
+330	13	Dome
