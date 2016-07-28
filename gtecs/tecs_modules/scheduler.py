@@ -307,7 +307,7 @@ class ObservationSet:
                 valid = obs.valid_now
             obs.valid = valid
 
-    def calculate_priorities(self, time, observer):
+    def calculate_priorities(self, time, observer, obs_now):
         ''' Calculate priorities at a given time for each observation.
 
         Current method (based on pt5m with addition of tiling ranks):
@@ -352,6 +352,14 @@ class ObservationSet:
         invalid_mask = np.invert(valid_mask)
         priorities_now[invalid_mask] += 10
 
+        # if the current observation is invalid it must be complete
+        # therefore add 10 to prevent it coming up again
+        if obs_now is not None:
+            if obs_now.priority_now > 10:
+                id_arr = np.array([obs.id for obs in self.observations])
+                current_mask = np.array([id == obs_now.id for id in id_arr])
+                priorities_now[current_mask] += 10
+
         # save priority_now to observation
         for obs, p_now in zip(self.observations, priorities_now):
             obs.priority_now = p_now
@@ -382,7 +390,7 @@ def import_obs_from_folder(queue_folder):
     return obsset
 
 
-def find_highest_priority(obsset, time, write_html=False):
+def find_highest_priority(obsset, obs_now, time, write_html=False):
     """
     Calculate priorities for a list of observations at a given time
     and return the observation with the highest priority.
@@ -408,7 +416,7 @@ def find_highest_priority(obsset, time, write_html=False):
         A list of Observations sorted by priority (for html queue page).
     """
 
-    obsset.calculate_priorities(time, GOTO)
+    obsset.calculate_priorities(time, GOTO, obs_now)
     for obs in obsset.observations:
         if write_html:
             html.write_obs_flag_files(obs, time, GOTO, 1)
@@ -510,7 +518,8 @@ def check_queue(obs_now, now, write_html=False):
     obsset = import_obs_from_folder(queue_folder)
 
     if len(obsset) > 0:
-        obs_hp, obslist_sorted = find_highest_priority(obsset, now, write_html)
+        obs_hp, obslist_sorted = find_highest_priority(obsset, obs_now, now,
+                                                       write_html)
     else:
         obs_hp = None
         obslist_sorted = []
