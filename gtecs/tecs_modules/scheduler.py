@@ -254,58 +254,69 @@ class ObservationSet:
             self.maxmoon_arr.append(limits[obs.maxmoon])
             self.priority_arr.append(obs.priority)
 
-        self.constraints = [TimeConstraint(self.start_arr, self.stop_arr),
-                            AtNightConstraint(self.maxsunalt_arr),
+        self.constraints = [AtNightConstraint(self.maxsunalt_arr),
                             AltitudeConstraint(self.minalt_arr, None),
                             ArtificialHorizonConstraint(),
                             MoonIlluminationConstraint(None, self.maxmoon_arr),
                             MoonSeparationConstraint(moondist_limit, None)]
-        self.constraint_names = ['Time',
-                                 'SunAlt',
+        self.constraint_names = ['SunAlt',
                                  'MinAlt',
                                  'ArtHoriz',
                                  'Moon',
                                  'MoonSep']
 
-        self.mintime_constraints = []
-        self.mintime_constraint_names = []
-        for name, constraint in zip(self.constraint_names, self.constraints):
-            if name in ['SunAlt', 'MinAlt', 'ArtHoriz']:
-                self.mintime_constraints.append(constraint)
-                self.mintime_constraint_names.append(name + '_mintime')
+        self.time_constraint = [TimeConstraint(self.start_arr, self.stop_arr)]
+        self.time_constraint_name = ['Time']
 
-    def check_validities(self, now, observer):
+        self.mintime_constraints = [AtNightConstraint(self.maxsunalt_arr),
+                                    AltitudeConstraint(self.minalt_arr, None),
+                                    ArtificialHorizonConstraint()]
+        self.mintime_constraint_names = ['SunAlt_mintime',
+                                         'MinAlt_mintime',
+                                         'ArtHoriz_mintime']
+
+        self.all_constraint_names = (self.constraint_names +
+                                     self.time_constraint_name +
+                                     self.mintime_constraint_names)
+
+    def check_validities(self, now, observer, obs_now):
         ''' Check if the observations are valid, both now and after mintimes'''
 
-        # check validity now
-        valid_now_arr = apply_constraints(self.constraints, observer,
-                                          self.target_arr, now)
+        # apply normal constraints
+        cons_valid_arr = apply_constraints(self.constraints,
+                                           observer, self.target_arr,
+                                           now)
 
-        # check validity at (all!) mintimes
+        # apply time constraint
+        time_cons_valid_arr = apply_constraints(self.time_constraint,
+                                                observer, self.target_arr,
+                                                now)
+
+        # apply mintime constraints
         later_arr = [now + mintime for mintime in self.mintime_arr]
-        valid_later_arr = apply_constraints(self.mintime_constraints, observer,
-                                            self.target_arr, later_arr)
+        min_cons_valid_arr = apply_constraints(self.mintime_constraints,
+                                               observer, self.target_arr,
+                                               later_arr)
 
         for i in range(len(self.observations)):
             obs = self.observations[i]
             obs.valid_time = now
 
-            # find validity now
-            obs.constraint_names = self.constraint_names
-            obs.valid_now_arr = [x for x in valid_now_arr[0][i]]
-            obs.valid_now = np.logical_and.reduce(obs.valid_now_arr)
+            # save constraints to observations
+            obs.all_constraint_names = self.all_constraint_names
+            obs.constraint_names = list(self.constraint_names)
+            obs.valid_arr = [x for x in cons_valid_arr[0][i]]
+            # current observation doesn't apply the time constraint
+            if obs != obs_now:
+                obs.constraint_names += self.time_constraint_name
+                obs.valid_arr += [x for x in time_cons_valid_arr[0][i]]
+            # current observation and queue fillers don't apply mintime cons
+            if obs.priority < 5 and obs != obs_now:
+                obs.constraint_names += self.mintime_constraint_names
+                obs.valid_arr += [x for x in min_cons_valid_arr[i][i]]
 
-            # find validity at mintime
-            obs.mintime_constraint_names = self.mintime_constraint_names
-            obs.valid_later_arr = [x for x in valid_later_arr[i][i]]
-            obs.valid_later = np.logical_and.reduce(obs.valid_later_arr)
-
-            # finally consider both now and later, unless it's a queue filler
-            if obs.priority < 5:
-                valid = np.logical_and(obs.valid_now, obs.valid_later)
-            else:
-                valid = obs.valid_now
-            obs.valid = valid
+            # finally find out if it's valid or not
+            obs.valid = np.logical_and.reduce(obs.valid_arr)
 
     def calculate_priorities(self, time, observer, obs_now):
         ''' Calculate priorities at a given time for each observation.
@@ -347,7 +358,7 @@ class ObservationSet:
         priorities_now[too_mask] = priorities[too_mask] + secz_arr[too_mask]/100000
 
         # check validities, add 10 to invalid observations
-        self.check_validities(time, observer)
+        self.check_validities(time, observer, obs_now)
         valid_mask = np.array([obs.valid for obs in self.observations])
         invalid_mask = np.invert(valid_mask)
         priorities_now[invalid_mask] += 10
@@ -419,7 +430,7 @@ def find_highest_priority(obsset, obs_now, time, write_html=False):
     obsset.calculate_priorities(time, GOTO, obs_now)
     for obs in obsset.observations:
         if write_html:
-            html.write_obs_flag_files(obs, time, GOTO, 1)
+            html.write_obs_flag_files(obs, time, GOTO, obs_now, 1)
             html.write_obs_exp_files(obs)
 
     obslist = list(obsset.observations)
