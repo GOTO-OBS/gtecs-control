@@ -35,7 +35,7 @@ html_refresh_string = ('<meta http-equiv=\"refresh\" content=\"' +
                       str(html_refresh) + '\">\n')
 
 
-def write_obs_flag_files(obs, now, observer, debug):
+def write_obs_flag_files(obs, now, observer, obs_now, debug):
     '''Write flag files for an observation'''
     flag_filename = html_folder + 'ID_{}_flags.html'.format(obs.id)
 
@@ -50,7 +50,7 @@ def write_obs_flag_files(obs, now, observer, debug):
         f.write('ID_' + str(obs.id) + '<br>\n')
         f.write(str(now) + '<br>\n')
 
-        for name, valid in zip(obs.constraint_names, obs.valid_now_arr):
+        for name, valid in zip(obs.constraint_names, obs.valid_arr):
             if valid:
                 f.write('<font color=darkgreen>')
             else:
@@ -58,18 +58,11 @@ def write_obs_flag_files(obs, now, observer, debug):
             f.write(name + ' = ' + str(valid))
             f.write('</font><br>\n')
 
-        for name, valid_later in zip(obs.mintime_constraint_names,
-                                     obs.valid_later_arr):
-            later = now + obs.mintime
-            if obs.priority >= 5:
+        for name in obs.all_constraint_names:
+            if name not in obs.constraint_names:
                 f.write('<font color=grey>')
-                valid_later = 'N/A'
-            elif valid_later:
-                f.write('<font color=darkgreen>')
-            else:
-                f.write('<font color=red>')
-            f.write(name + ' = ' + str(valid_later))
-            f.write('</font><br>\n')
+                f.write(name + ' = N/A')
+                f.write('</font><br>\n')
 
         f.write('<br>\n')
         if debug == 1:
