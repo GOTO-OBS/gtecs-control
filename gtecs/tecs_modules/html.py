@@ -12,6 +12,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from astroplan import Observer, FixedTarget, is_observable
+from astroplan.moon import moon_illumination
 from astropy import coordinates as coord, units as u
 
 # TeCS modules
@@ -158,12 +159,44 @@ def write_queue_page(obslist_sorted, obs_now, now):
         f.write('<title>GOTO queue</title></head>\n')
         f.write('<body bgcolor=white vlink=black alink=black link=black>\n')
         f.write('<center><br><br><img src=goto-logo.jpg width=50%><br><br>\n')
+
         f.write(html_size5)
         f.write('queue')
         f.write(html_size2)
         f.write('<br><br>')
         f.write('last updated:\n')
         f.write(str(now))
+        f.write('<br>\n')
+
+        loc = params.SITE_OBSERVER.location
+        import warnings
+        warnings.simplefilter("ignore", UnicodeWarning)
+        f.write('LST: ')
+        LST = now.sidereal_time('mean', longitude=loc.longitude)
+        f.write(LST.to_string(sep=':', precision=2))
+
+        f.write('  SunAlt: ')
+        sun = coord.get_sun(now)
+        sun_alt, _ = astronomy.altaz_ephem(sun.ra.value, sun.dec.value, now)
+        f.write('%.2f' %sun_alt)
+
+        f.write('  MoonAlt: ')
+        moon = coord.get_moon(now)
+        moon_alt, _ = astronomy.altaz_ephem(moon.ra.value, moon.dec.value, now)
+        f.write('%.2f' %moon_alt)
+
+        f.write('  MoonPhase: ')
+        moon_ill = moon_illumination(now, params.SITE_OBSERVER.location)
+        if 0 <= moon_ill < 0.25:
+            moonstring = "D"
+        elif 0.25 <= moon_ill < 0.65:
+            moonstring = "G"
+        elif 0.65 <= moon_ill <= 1.00:
+            moonstring = "B"
+        if moon_alt < params.MOONELEV_LIMIT:
+            moonstring = "D"
+        f.write('%.2f [%s]' %(moon_ill, moonstring))
+
         f.write('<br><br>' +
                 '<table border=1 bordercolor=#00639C cellspacing=\"0\"' +
                 ' cellpadding=\"10\"><tr bgcolor=white>\n')
