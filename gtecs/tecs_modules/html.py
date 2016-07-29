@@ -83,8 +83,10 @@ def write_obs_flag_files(obs, now, observer, debug):
             stop.precision = 0
             f.write('stop_time = ' + str(obs.stop) + '<br>\n')
 
-            f.write('ra = ' + str(obs.coord.ra) + '<br>\n')
-            f.write('dec = ' + str(obs.coord.dec) + '<br>\n')
+            ra = obs.coord.ra.to_string(sep=':', precision=2)
+            dec = obs.coord.dec.to_string(sep=':', precision=2)
+            f.write('ra = ' + ra + '<br>\n')
+            f.write('dec = ' + dec + '<br>\n')
 
             alt_now, az_now = astronomy.altaz_ephem(obs.coord.ra.value,
                                                     obs.coord.dec.value,
@@ -194,10 +196,12 @@ def write_queue_page(obslist_sorted, obs_now, now):
                 priority_str = "<font color=black>%.5f</font>" % obs.priority_now
             else:
                 priority_str = "<font color=red>%.5f</font>" % obs.priority_now
+            ra = obs.coord.ra.to_string(sep=':', precision=2)
+            dec = obs.coord.dec.to_string(sep=':', precision=2)
             f.write("<tr bgcolor=white>\n")
             f.write('<td>' + exp_str + '</td>' +
-                    '<td>' + str(obs.coord.ra) + '</td>' +
-                    '<td>' + str(obs.coord.dec) + '</td>' +
+                    '<td>' + ra + '</td>' +
+                    '<td>' + dec + '</td>' +
                     '<td>' + priority_str + '</td>' +
                     '<td>' + str(obs.maxsunalt) + '</td>' +
                     '<td>' + str(obs.minalt) + '</td>' +
