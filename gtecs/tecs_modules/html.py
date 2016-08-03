@@ -171,12 +171,12 @@ def write_queue_page(obslist_sorted, obs_now, now):
         f.write('  SunAlt: ')
         sun = coord.get_sun(now)
         sun_alt, _ = astronomy.altaz_ephem(sun.ra.value, sun.dec.value, now)
-        f.write('%.2f' %sun_alt)
+        f.write('%.1f deg' %sun_alt)
 
         f.write('  MoonAlt: ')
         moon = coord.get_moon(now)
         moon_alt, _ = astronomy.altaz_ephem(moon.ra.value, moon.dec.value, now)
-        f.write('%.2f' %moon_alt)
+        f.write('%.1f deg' %moon_alt)
 
         f.write('  MoonPhase: ')
         moon_ill = moon_illumination(now, params.SITE_OBSERVER.location)
@@ -198,8 +198,8 @@ def write_queue_page(obslist_sorted, obs_now, now):
                 '<td><b> Dec (j2000) </b></td>' +
                 '<td><b> Priority </b></td>' +
                 '<td><b> MaxSun </b></td>' +
-                '<td><b> MinAlt (deg) </b></td>' +
-                '<td><b> MinTime (s) </b></td>' +
+                '<td><b> MinAlt </b></td>' +
+                '<td><b> MinTime </b></td>' +
                 '<td><b> MaxMoon </b></td>' +
                 '<td><b> User </b></td>' +
                 '<td><b> Start UTC </b></td>' +
