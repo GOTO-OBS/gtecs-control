@@ -497,8 +497,8 @@ def what_to_do_next(obs_now, obs_hp):
         else:  # both are legal
             if obs_now.priority_now > 5:  # a filler, always slew
                 return obs_hp
-            elif obs_hp.too:  # slew if ToO, unless now is higher-priority ToO
-                if obs_now.too and obs_now.priority_now > obs_hp.priority_now:
+            elif obs_hp.too:  # slew to a ToO, unless now is also a ToO
+                if obs_now.too:
                     return obs_now
                 else:
                     return obs_hp
