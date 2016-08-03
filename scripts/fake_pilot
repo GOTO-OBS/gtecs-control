@@ -30,7 +30,7 @@ signal.signal(signal.SIGINT, misc.signal_handler)
 slewrate = 5 * u.degree/u.s
 readouttime = 10*u.s
 
-fake_dt = TimeDelta(5*60*u.s)  # 15*u.s)
+fake_dt = TimeDelta(60*u.s)  # 15*u.s)
 
 
 def set_obs_status(obs, status):
@@ -251,10 +251,13 @@ if __name__ == "__main__":
     # loop until night is over
     print('Starting loop...')
     now = sunset
+    ts = time.time()
     while now < sunrise:
+        tprev = ts
+        ts = time.time()
         now.format = 'iso'
         now.precision = 0
-        print('Loop:', now)
+        print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
         pilot.check_weather(weather, now)
         if pilot.dome_status:  # open
             pilot.check_obs_now(now)
