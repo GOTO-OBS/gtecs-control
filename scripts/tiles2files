@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+
+########################################################################
+#                              tiles2queue                             #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#   G-TeCS script to convert GOTO-tile files to pt5m-style obs files   #
+#                     Martin Dyer, Sheffield, 2015                     #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+
+# Import
+from __future__ import print_function
+
+import os
+import argparse
+import numpy
+from collections import namedtuple
+from astropy import units as u
+from astropy.time import Time
+
+from gtecs.tecs_modules import params
+
+Tile = namedtuple('Tile', 'tel, ra, dec, time, dt, prob, cumprob, rank')
+
+
+def read_tile_file(filename):
+    """
+    Read in GOTO tile ranking file
+
+    Parameters
+    ----------
+    filename : str
+        The file location
+
+    Returns
+    -------
+    tile_list : list of `Tile` objects
+        list of `Tile` objects containing the tiles found in the event
+
+    event_time : `~astropy.time.Time`
+        the time of the GW event, extracted from the tile file
+    """
+
+    lines = []
+    rank = 1
+    tile_list = []
+
+    with open(filename) as f:
+        for line in f.readlines():
+            if not line.startswith('#'):
+                lines.append(line)
+            # extract time of event
+            if line.startswith('# - comments: '):
+                event_time = Time(line[40:65])
+
+        for line in lines[1:]: # the first line is the header
+            tel, ra, dec, time, dt, prob, cumprob = line.split()
+            ra = float(ra)
+            dec = float(dec)
+            time = Time(time)
+            dt = float(dt)
+            prob = float(prob)
+            cumprob = float(prob)
+
+            tile = Tile(tel, ra, dec, time, dt, prob, cumprob, rank)
+            tile_list.append(tile)
+            rank += 1
+
+        return tile_list, event_time
+
+
+def calc_priority(tile, method):
+
+    # simple method: give priority on GOTO-tile order
+    if method == 'rank':
+        priority = tile.rank/1000.
+        return priority
+
+    # base priority on inverse probability contained within
+    elif method == 'prob3dp':
+        priority = numpy.around(1/(tile.prob*10.), decimals=3)
+        if priority > 1:
+            priority = 0.999
+        return priority
+    elif method == 'prob4dp':
+        priority = numpy.around(1/(tile.prob*100.), decimals=4)
+        if priority > 1:
+            priority = 0.9999
+        return priority
+
+
+def write_id_file(event_name, tile, id_start, event_time):
+    """
+    Generate pt5m-style observation files and write into the queue folder
+
+    Parameters
+    ----------
+    event_name : str
+        The name of the event
+
+    tile : `Tile`
+        The tile details to convert into the observation file
+
+    id_start : 'int'
+        The ID number to start counting from
+    """
+
+    obs_id = id_start + tile.rank
+    name = event_name
+    ra = tile.ra
+    dec = tile.dec
+    priority = calc_priority(tile, method = 'prob4dp')
+    print(obs_id, priority)
+
+    too = 1
+    sunalt = '-18'
+    minalt = '15'
+    mintime = '360'
+    maxmoon = 'B'
+    user = 'GOTO'
+
+    duration = 2*24*u.hour # 48 hours, need to think about this
+    start_time = event_time
+    start_time.precision = 0
+    start_time.format = 'isot'
+    stop_time = start_time + duration
+    stop_time.precision = 0
+    stop_time.format = 'isot'
+
+    header1 = ('# ID     |Object Name        |RA(J2k)  |Dec(J2k) |Priority '
+               '|ToO      |SunAlt   |MinAlt   |MinTime  |MaxMoon  |User     '
+               '|StartUTC           |StopUTC            |')
+    header2 = ('#-------------------------------------------------------------'
+               '--------------------------------------------------------------'
+               '------------------------------------')
+
+    line1 = (str(obs_id)     + ' '*( 9-len(str(obs_id)))     +
+             str(name)       + ' '*(20-len(str(name)))       +
+             str(ra)         + ' '*(10-len(str(ra)))         +
+             str(dec)        + ' '*(10-len(str(dec)))        +
+             str(priority)   + ' '*(10-len(str(priority)))   +
+             str(too)        + ' '*(10-len(str(too)))        +
+             str(sunalt)     + ' '*(10-len(str(sunalt)))     +
+             str(minalt)     + ' '*(10-len(str(minalt)))     +
+             str(mintime)    + ' '*(10-len(str(mintime)))    +
+             str(maxmoon)    + ' '*(10-len(str(maxmoon)))    +
+             str(user)       + ' '*(10-len(str(user)))       +
+             str(start_time) + ' '*(20-len(str(start_time))) +
+             str(stop_time)  + ' '*(20-len(str(stop_time)))  )
+
+    # add basic exposure set
+    tels = '1,2,3,4'
+    numexp = 3
+    exptime = 120
+    filt = 'L'
+    binfac = 1
+    exptype = 'SCIENCE'
+
+    header3 = '# TELS   |NUMEXP   |EXPTIME  |FILTER   |BINFAC   |TYPE     |'
+    header4 = '#-----------------------------------------------------------'
+
+    line2 = (str(tels)    + ' '*( 9-len(str(tels)))    +
+             str(numexp)  + ' '*(10-len(str(numexp)))  +
+             str(exptime) + ' '*(10-len(str(exptime))) +
+             str(filt)    + ' '*(10-len(str(filt)))    +
+             str(binfac)  + ' '*(10-len(str(binfac)))  +
+             str(exptype) + ' '*(10-len(str(exptype))) )
+
+    # write file
+    filename = 'ID_' + str(obs_id) + '.dat'
+    outfile = os.path.join(params.QUEUE_PATH, 'todo', filename)
+    with open(outfile, 'w') as f:
+        f.write(header1 + '\n')
+        f.write(header2 + '\n')
+        f.write(line1 + '\n')
+        f.write('#\n')
+        f.write('#\n')
+        f.write(header3 + '\n')
+        f.write(header4 + '\n')
+        f.write(line2 + '\n')
+    return
+
+if __name__ == '__main__':
+    description = """Convert a GOTO-tile output file containing a list of tiles
+                     and priorities into observation files for the G-TeCS
+                     observation queue."""
+
+    parser = argparse.ArgumentParser(
+                    description=description,
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('filename',
+                        help="GOTO tile priority file")
+    parser.add_argument('-e', '--eventname',
+                        help="Name of the event",
+                        default='GW000000')
+    parser.add_argument('-n', '--number',
+                        help="Number to start counting event files from",
+                        type=int, default=10000)
+
+    args = parser.parse_args()
+
+    tile_list, event_time = read_tile_file(args.filename)
+    print(event_time)
+
+    event_name = args.eventname.replace(" ", "_")
+
+    for tile in tile_list:
+        write_id_file(event_name, tile, args.number, event_time)
