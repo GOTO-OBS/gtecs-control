@@ -58,12 +58,12 @@ def _get_altaz(times, observer, targets, force_zero_pressure=False):
     if not hasattr(observer, '_altaz_cache'):
         observer._altaz_cache = {}
 
-    # convert times, targets to tuple for hashing
-    aakey = (tuple(times.jd), tuple(targets))
-
     targets = get_icrs_skycoord(targets)
     if targets.isscalar:
         targets = coord.SkyCoord([targets])
+
+    # convert times, targets to tuple for hashing
+    aakey = (tuple(times.jd), targets)
 
     if aakey not in observer._altaz_cache:
         try:
@@ -253,6 +253,8 @@ class ObservationSet:
             self.minalt_arr.append(obs.minalt)
             self.maxmoon_arr.append(limits[obs.maxmoon])
             self.priority_arr.append(obs.priority)
+
+        self.target_arr = get_icrs_skycoord(self.target_arr)
 
         self.constraints = [AtNightConstraint(self.maxsunalt_arr),
                             AltitudeConstraint(self.minalt_arr, None),
