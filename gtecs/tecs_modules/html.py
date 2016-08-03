@@ -217,11 +217,11 @@ def write_queue_page(obslist_sorted, obs_now, now):
                         'ID_' + str(obs.id) + '</a>' + popup_str)
 
             if obs == obs_now:
-                priority_str = "<font color=limegreen>%.5f</font>" % obs.priority_now
+                priority_str = "<font color=limegreen>%.8f</font>" % obs.priority_now
             elif obs.priority_now < 10:
-                priority_str = "<font color=black>%.5f</font>" % obs.priority_now
+                priority_str = "<font color=black>%.8f</font>" % obs.priority_now
             else:
-                priority_str = "<font color=red>%.5f</font>" % obs.priority_now
+                priority_str = "<font color=red>%.8f</font>" % obs.priority_now
             ra = obs.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = obs.coord.dec.to_string(sep=':', precision=2)
             f.write("<tr bgcolor=white>\n")
