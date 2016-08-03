@@ -77,7 +77,7 @@ def write_obs_flag_files(obs, now, observer, obs_now, debug):
             stop.precision = 0
             f.write('stop_time = ' + str(obs.stop) + '<br>\n')
 
-            ra = obs.coord.ra.to_string(sep=':', precision=2)
+            ra = obs.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = obs.coord.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
             f.write('dec = ' + dec + '<br>\n')
@@ -222,7 +222,7 @@ def write_queue_page(obslist_sorted, obs_now, now):
                 priority_str = "<font color=black>%.5f</font>" % obs.priority_now
             else:
                 priority_str = "<font color=red>%.5f</font>" % obs.priority_now
-            ra = obs.coord.ra.to_string(sep=':', precision=2)
+            ra = obs.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = obs.coord.dec.to_string(sep=':', precision=2)
             f.write("<tr bgcolor=white>\n")
             f.write('<td>' + exp_str + '</td>' +
