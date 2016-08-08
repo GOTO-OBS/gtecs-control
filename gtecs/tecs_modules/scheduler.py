@@ -164,12 +164,13 @@ ExposureSet = namedtuple('ExposureSet',
 
 
 class Observation:
-    def __init__(self, id, name, ra, dec, priority, too, maxsunalt,
+    def __init__(self, id, name, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, user, start, stop):
         self.id = int(id)
         self.name = name
         self.coord = coord.SkyCoord(ra, dec, unit=u.deg, frame='icrs')
         self.priority = float(priority)
+        self.tileprob = float(tileprob)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)*u.deg
         self.minalt = float(minalt)*u.deg
@@ -206,9 +207,9 @@ class Observation:
                 if not line.startswith('#'):
                     lines.append(line)
         # first line is observation
-        (id, name, ra, dec, priority, too, sunalt, minalt,
+        (id, name, ra, dec, priority, tileprob, too, sunalt, minalt,
          mintime, moon, user, start, stop) = lines[0].split()
-        new_obs = cls(id, name, ra, dec, priority, too, sunalt,
+        new_obs = cls(id, name, ra, dec, priority, tileprob, too, sunalt,
                       minalt, mintime, moon, user, start, stop)
         # remaining lines are exposure sets
         for line in lines[1:]:
