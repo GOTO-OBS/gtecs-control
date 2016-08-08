@@ -60,7 +60,7 @@ def read_tile_file(filename):
             dec = float(dec)
             time = Time(time)
             dt = float(dt)
-            prob = float(prob)
+            prob = float(prob)/100. # decimal prob
             cumprob = float(prob)
 
             tile = Tile(tel, ra, dec, time, dt, prob, cumprob, rank)
@@ -110,8 +110,9 @@ def write_id_file(event_name, tile, id_start, event_time):
     name = event_name
     ra = tile.ra
     dec = tile.dec
-    priority = calc_priority(tile, method = 'prob4dp')
-    print(obs_id, priority)
+    priority = 0 # test rank for GW tiles
+    GWprob = tile.prob # new section, only for GW tiles
+    print(obs_id, priority, GWprob)
 
     too = 1
     sunalt = '-18'
@@ -129,8 +130,8 @@ def write_id_file(event_name, tile, id_start, event_time):
     stop_time.format = 'isot'
 
     header1 = ('# ID     |Object Name        |RA(J2k)  |Dec(J2k) |Priority '
-               '|ToO      |SunAlt   |MinAlt   |MinTime  |MaxMoon  |User     '
-               '|StartUTC           |StopUTC            |')
+               '|TileProb |ToO      |SunAlt   |MinAlt   |MinTime  |MaxMoon  '
+               '|User     |StartUTC           |StopUTC            |')
     header2 = ('#-------------------------------------------------------------'
                '--------------------------------------------------------------'
                '------------------------------------')
@@ -140,6 +141,7 @@ def write_id_file(event_name, tile, id_start, event_time):
              str(ra)         + ' '*(10-len(str(ra)))         +
              str(dec)        + ' '*(10-len(str(dec)))        +
              str(priority)   + ' '*(10-len(str(priority)))   +
+             str(GWprob)     + ' '*(10-len(str(GWprob)))     +
              str(too)        + ' '*(10-len(str(too)))        +
              str(sunalt)     + ' '*(10-len(str(sunalt)))     +
              str(minalt)     + ' '*(10-len(str(minalt)))     +
