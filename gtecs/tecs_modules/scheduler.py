@@ -19,6 +19,7 @@ from scipy import interpolate
 
 from astropy import coordinates as coord, units as u
 from astropy.time import Time
+from astropy._erfa import ErfaWarning
 
 from astroplan.target import get_icrs_skycoord
 import astroplan.constraints as constraints
@@ -87,6 +88,9 @@ constraints._get_altaz = _get_altaz # overwrite before importing
 from astroplan import (FixedTarget, Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
+
+import warnings
+warnings.simplefilter("ignore", ErfaWarning)
 
 # TeCS modules
 from . import params
@@ -178,6 +182,54 @@ class ArtificialHorizonConstraint(Constraint):
         altaz = cached_altaz['altaz']
         artificial_horizon_alt = self.alt(altaz.az)*u.deg
         return altaz.alt > artificial_horizon_alt
+
+
+def _two_point_interp(times, altitudes, horizon=0*u.deg):
+    if not isinstance(times, Time):
+        return Time(-999, format='jd')
+    else:
+        slope = (altitudes[1] - altitudes[0])/(times[1].jd - times[0].jd)
+        time = times[1].jd - ((altitudes[1] - horizon)/slope).value
+        return Time(time, format='jd')
+
+def time_to_set(observer, targets, time, horizon=0*u.deg):
+    """
+    Time until ``target``s next set below the horizon
+    """
+
+    time_grid = np.linspace(0, 1, 150)*u.day
+    times = time + time_grid
+
+    cached_altaz = _get_altaz(times, observer, targets)
+    altaz = cached_altaz['altaz']
+    alts = altaz.alt
+
+    n_targets = alts.shape[0]
+
+    # Find index where altitude goes from above to below horizon
+    condition = (alts[:, :-1] > horizon) * (alts[:, 1:] < horizon)
+    crossing_target_inds, crossing_time_inds = np.nonzero(condition)
+
+
+    # If some targets never cross the horizon
+    target_inds = np.arange(n_targets)
+    time_inds = [crossing_time_inds[np.where(crossing_target_inds==i)][0]
+                   if i in crossing_target_inds
+                   else np.nan
+                   for i in np.arange(n_targets)]
+
+    # Find the upper and lower time and altitude limits for each target
+    time_lims = [times[i:i+2] if not np.isnan(i) else np.nan
+                 for i in time_inds]
+    alt_lims = [alts[i, j:j+2] if not np.isnan(j) else np.nan
+                for i, j in zip(target_inds, time_inds)]
+
+    set_times = Time([_two_point_interp(time_lims, alt_lims, horizon)
+                     for time_lims, alt_lims in zip(time_lims, alt_lims)])
+
+    seconds_until_set = (set_times - time).to(u.s)
+
+    return seconds_until_set
 
 
 ExposureSet = namedtuple('ExposureSet',
