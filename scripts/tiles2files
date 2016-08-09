@@ -70,26 +70,6 @@ def read_tile_file(filename):
         return tile_list, event_time
 
 
-def calc_priority(tile, method):
-
-    # simple method: give priority on GOTO-tile order
-    if method == 'rank':
-        priority = tile.rank/1000.
-        return priority
-
-    # base priority on inverse probability contained within
-    elif method == 'prob3dp':
-        priority = numpy.around(1/(tile.prob*10.), decimals=3)
-        if priority > 1:
-            priority = 0.999
-        return priority
-    elif method == 'prob4dp':
-        priority = numpy.around(1/(tile.prob*100.), decimals=4)
-        if priority > 1:
-            priority = 0.9999
-        return priority
-
-
 def write_id_file(event_name, tile, id_start, event_time):
     """
     Generate pt5m-style observation files and write into the queue folder

@@ -102,11 +102,32 @@ horizon_file = params.CONFIG_PATH + 'horizon'
 # set observing location
 GOTO = params.SITE_OBSERVER
 
+# GW tile priority settings
+prob_method = '1minus' # or 'inverse'
+tile_dp = 3
+
 # set debug level
 debug = 1
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
+
+
+def _tile_priority(prob, method, dp=3):
+    if method == 'inverse':
+        dp = int(dp)
+        factor = 10.**dp
+        priority = np.around(1/(prob*factor), decimals=dp)
+        if priority >= 1:
+            priority = float('0.' + '9' * dp)
+        return priority
+
+    elif method == '1minus':
+        dp = int(dp)
+        priority = np.around(1-prob, decimals=dp)
+        if priority >= 1:
+            priority = float('0.' + '9' * dp)
+        return priority
 
 
 def apply_constraints(constraints, observer, targets, times):
