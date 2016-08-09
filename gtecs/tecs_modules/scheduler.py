@@ -109,6 +109,7 @@ GOTO = params.SITE_OBSERVER
 # GW tile priority settings
 prob_method = '1minus' # or 'inverse'
 tile_dp = 3
+tie_method = 'tts' # or 'airmass'
 
 # set debug level
 debug = 1
@@ -408,8 +409,9 @@ class ObservationSet:
                 or 1 if it is not.
             The next X decimal places (e.g. GGG for 3) are reserved for
                 the GW tiling probabilities (if a tile, else zeros).
-            The final 4 decimal places are given by the 'tiebreaker'
-                based on the airmass in the middle of the observation
+            The final 4 decimal places are given by the 'tiebreaker';
+                either based on the airmass in the middle of the observation
+                or the time to set of the target.
             Finally check if the observation is invalid at the time given,
                 if so the priority is increased by 10.
         '''
@@ -432,24 +434,38 @@ class ObservationSet:
         priorities[tile_mask] += tile_priorities[tile_mask]/10.
 
         # the final 4 decimal places are the 'tiebreaker' digits
-        # airmass at start
-        cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
-        altaz_now = cached_altaz_now['altaz']
-        secz_now = np.array([x[0].value for x in altaz_now.secz])
+        if tie_method == 'airmass':
+            # airmass at start
+            cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
+            altaz_now = cached_altaz_now['altaz']
+            secz_now = np.array([x[0].value for x in altaz_now.secz])
 
-        # airmass at mintime
-        later_arr = Time([time + mintime for mintime in self.mintime_arr])
-        cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
-        altaz_later = cached_altaz_later['altaz']
-        secz_later = np.diag(altaz_later.secz).astype('float')
+            # airmass at mintime
+            later_arr = Time([time + mintime for mintime in self.mintime_arr])
+            cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
+            altaz_later = cached_altaz_later['altaz']
+            secz_later = np.diag(altaz_later.secz).astype('float')
 
-        # take average, and constrain to between 0 & 1
-        secz_arr = np.array((secz_now + secz_later)/2.)
-        airmass_arr = np.around(secz_arr/10., decimals = 4)
-        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
-        airmass_arr[bad_airmass_mask] = 0.9999
+            # take average, and constrain to between 0 & 1
+            secz_arr = np.array((secz_now + secz_later)/2.)
+            airmass_arr = np.around(secz_arr/10., decimals = 4)
+            bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
+            airmass_arr[bad_airmass_mask] = 0.9999
 
-        tiebreaker_arr = airmass_arr
+            tiebreaker_arr = airmass_arr
+
+        elif tie_method == 'tts':
+            # find time until next setting (will return -999 for always up)
+            later_arr = Time([time + mintime for mintime in self.mintime_arr])
+
+            # find seconds until next setting, limit to 9999s (~2.8 hours)
+            tts_arr = time_to_set(observer, self.target_arr,
+                                  time, horizon=0*u.deg)
+            tts_arr = np.around(tts_arr.value/10000., decimals = 4)
+            bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
+            tts_arr[bad_tts_mask] = 0.9999
+
+            tiebreaker_arr = tts_arr
 
         # now add the tiebreaker values (between 0.0000 & 0.9999) to the end
         # depends on how many decimal places were used for the tile probability
