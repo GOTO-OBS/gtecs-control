@@ -113,6 +113,7 @@ tile_dp = 3
 # General tile priority settings
 tie_method = 'tts' # or 'airmass'
 tie_dp = 5
+tts_horizon = 0*u.deg
 
 # set debug level
 debug = 1
@@ -458,16 +459,12 @@ class ObservationSet:
             tiebreaker_arr = airmass_arr
 
         elif tie_method == 'tts':
-            # find time until next setting (will return -999 for always up)
-            later_arr = Time([time + mintime for mintime in self.mintime_arr])
+            # find time until next setting
+            tts_arr = time_to_set(observer, self.target_arr, time, tts_horizon)
 
-            # find seconds until next setting
-            #  9999s =  ~2.8 hours
-            # 99999s = ~27.8 hours
-            tts_arr = time_to_set(observer, self.target_arr,
-                                  time, horizon=0*u.deg)
-            factor = 10.**tie_dp
-            tts_arr = np.around(tts_arr.value/factor, decimals = tie_dp)
+            # convert to fraction of 24 hours, and constrain to between 0 & 1
+            tts_arr = tts_arr.to(u.hour)
+            tts_arr = np.around(tts_arr.value/24, decimals = tie_dp)
             bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
             tts_arr[bad_tts_mask] = float('0.' + '9' * tie_dp)
 
