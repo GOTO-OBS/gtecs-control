@@ -114,7 +114,7 @@ def write_id_file(event_name, tile, id_start, event_time):
     GWprob = tile.prob # new section, only for GW tiles
     print(obs_id, priority, GWprob)
 
-    too = 1
+    too = 0 # There will be ToO tiles, starting observations aren't
     sunalt = '-18'
     minalt = '15'
     mintime = '360'
