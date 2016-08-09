@@ -109,7 +109,10 @@ GOTO = params.SITE_OBSERVER
 # GW tile priority settings
 prob_method = '1minus' # or 'inverse'
 tile_dp = 3
+
+# General tile priority settings
 tie_method = 'tts' # or 'airmass'
+tie_dp = 5
 
 # set debug level
 debug = 1
@@ -409,7 +412,7 @@ class ObservationSet:
                 or 1 if it is not.
             The next X decimal places (e.g. GGG for 3) are reserved for
                 the GW tiling probabilities (if a tile, else zeros).
-            The final 4 decimal places are given by the 'tiebreaker';
+            The final Y decimal places are given by the 'tiebreaker';
                 either based on the airmass in the middle of the observation
                 or the time to set of the target.
             Finally check if the observation is invalid at the time given,
@@ -433,7 +436,7 @@ class ObservationSet:
                                     for prob in self.tileprob_arr])
         priorities[tile_mask] += tile_priorities[tile_mask]/10.
 
-        # the final 4 decimal places are the 'tiebreaker' digits
+        # the final Y decimal places are the 'tiebreaker' digits
         if tie_method == 'airmass':
             # airmass at start
             cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
@@ -448,9 +451,9 @@ class ObservationSet:
 
             # take average, and constrain to between 0 & 1
             secz_arr = np.array((secz_now + secz_later)/2.)
-            airmass_arr = np.around(secz_arr/10., decimals = 4)
+            airmass_arr = np.around(secz_arr/10., decimals = tie_dp)
             bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
-            airmass_arr[bad_airmass_mask] = 0.9999
+            airmass_arr[bad_airmass_mask] = float('0.' + '9' * tie_dp)
 
             tiebreaker_arr = airmass_arr
 
@@ -458,12 +461,15 @@ class ObservationSet:
             # find time until next setting (will return -999 for always up)
             later_arr = Time([time + mintime for mintime in self.mintime_arr])
 
-            # find seconds until next setting, limit to 9999s (~2.8 hours)
+            # find seconds until next setting
+            #  9999s =  ~2.8 hours
+            # 99999s = ~27.8 hours
             tts_arr = time_to_set(observer, self.target_arr,
                                   time, horizon=0*u.deg)
-            tts_arr = np.around(tts_arr.value/10000., decimals = 4)
+            factor = 10.**tie_dp
+            tts_arr = np.around(tts_arr.value/factor, decimals = tie_dp)
             bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
-            tts_arr[bad_tts_mask] = 0.9999
+            tts_arr[bad_tts_mask] = float('0.' + '9' * tie_dp)
 
             tiebreaker_arr = tts_arr
 
