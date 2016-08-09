@@ -180,7 +180,7 @@ class DummyPilot(object):
         elif self.dome_status == 0:
             state = 'closed'
         elif self.obs_now is not None:
-            state = 'job:%i' % self.obs_now.id
+            state = 'job:%i (p:%.11f)' %(self.obs_now.id, self.obs_now.priority_now)
         else:
             state = 'idle'
         fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
@@ -235,6 +235,9 @@ class DummyPilot(object):
                 self.obs_start_time = now
             else:  # park scope (but remain in standby)
                 self.obs_now = None
+
+        if obs_new == self.obs_now:
+            self.obs_now = obs_new
 
 
 if __name__ == "__main__":
