@@ -256,6 +256,7 @@ class ObservationSet:
         self.minalt_arr = []
         self.maxmoon_arr = []
         self.priority_arr = []
+        self.tileprob_arr = []
         if len(self.observations) > 0:
             self.initialise()
 
@@ -275,6 +276,7 @@ class ObservationSet:
             self.minalt_arr.append(obs.minalt)
             self.maxmoon_arr.append(limits[obs.maxmoon])
             self.priority_arr.append(obs.priority)
+            self.tileprob_arr.append(obs.tileprob)
 
         self.target_arr = get_icrs_skycoord(self.target_arr)
 
@@ -357,7 +359,7 @@ class ObservationSet:
         '''
 
         # starting priority based on defined rank
-        priorities = np.array([obs.priority for obs in self.observations])
+        priorities = np.array(self.priority_arr + self.tileprob_arr)
 
         # estimate airmass
         # airmass at start
