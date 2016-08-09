@@ -30,6 +30,8 @@ signal.signal(signal.SIGINT, misc.signal_handler)
 slewrate = 5 * u.degree/u.s
 readouttime = 10*u.s
 
+weather_on = 0
+
 fake_dt = TimeDelta(60*u.s)  # 15*u.s)
 
 
@@ -83,10 +85,13 @@ class Weather(object):
         self.threshold = stats.norm.ppf(frac_bad)
 
     def is_bad(self, curr_time):
-        x = (curr_time - self.start_time).to(u.hour)
-        val, uncer = self.gp.predict(self.weather_graph, x)
-        if val < self.threshold:
-            return True
+        if weather_on:
+            x = (curr_time - self.start_time).to(u.hour)
+            val, uncer = self.gp.predict(self.weather_graph, x)
+            if val < self.threshold:
+                return True
+            else:
+                return False
         else:
             return False
 
