@@ -348,20 +348,38 @@ class ObservationSet:
         ''' Calculate priorities at a given time for each observation.
 
         Current method (based on pt5m with addition of tiling ranks):
-            Base priority is an integer between 0-5 (for normal observations)
-                or 6-9 ('queue fillers').
-            The first three decimal places are the GOTO tiling rank.
-            Then if it is a ToO the next digit is zero.
-            The following digits are given by the aproximate airmass in the
-                middle of the minimum observation period.
+
+            I.TGGGBBBB
+
+            Base priority (I) is an integer.
+            The first decimal place (T) is 0 if the observation is a ToO,
+                or 1 if it is not.
+            The next X decimal places (e.g. GGG for 3) are reserved for
+                the GW tiling probabilities (if a tile, else zeros).
+            The final 4 decimal places are given by the 'tiebreaker'
+                based on the airmass in the middle of the observation
             Finally check if the observation is invalid at the time given,
                 if so the priority is increased by 10.
         '''
 
         # starting priority based on defined rank
-        priorities = np.array(self.priority_arr + self.tileprob_arr)
+        priorities = np.array([obs.priority for obs in self.observations])
 
-        # estimate airmass
+        # if the observation is a ToO the first decimal is 0, otherwise it is 1
+        # NB change from pt5m, needed to deal with ToO tiles
+        too_mask = np.array([obs.too for obs in self.observations])
+        nottoo_mask = np.invert(too_mask)
+        priorities[nottoo_mask] += 0.1
+
+        # if observation is a GW tile it will have a contained probability
+        # use this to define the next X decimal places, depending on the method
+        # if it's not a tile then the probability is 999 (or another >1 null)
+        tile_mask = np.array(self.tileprob_arr) < 1
+        tile_priorities = np.array([_tile_priority(prob, prob_method, tile_dp)
+                                    for prob in self.tileprob_arr])
+        priorities[tile_mask] += tile_priorities[tile_mask]/10.
+
+        # the final 4 decimal places are the 'tiebreaker' digits
         # airmass at start
         cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
         altaz_now = cached_altaz_now['altaz']
@@ -373,15 +391,18 @@ class ObservationSet:
         altaz_later = cached_altaz_later['altaz']
         secz_later = np.diag(altaz_later.secz).astype('float')
 
-        # take average, and constrain to between 1.000 & 9.999
+        # take average, and constrain to between 0 & 1
         secz_arr = np.array((secz_now + secz_later)/2.)
-        bad_airmass_mask = np.logical_or(secz_arr < 1, secz_arr > 10)
-        secz_arr[bad_airmass_mask] = 9.999
+        airmass_arr = np.around(secz_arr/10., decimals = 4)
+        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
+        airmass_arr[bad_airmass_mask] = 0.9999
 
-        # calculate current priority, ToOs get an extra 0 to rank higher
-        priorities_now = priorities + secz_arr/10000
-        too_mask = np.array([obs.too for obs in self.observations])
-        priorities_now[too_mask] = priorities[too_mask] + secz_arr[too_mask]/100000
+        tiebreaker_arr = airmass_arr
+
+        # now add the tiebreaker values (between 0.0000 & 0.9999) to the end
+        # depends on how many decimal places were used for the tile probability
+
+        priorities_now = priorities + tiebreaker_arr/10**(tile_dp + 1)
 
         # check validities, add 10 to invalid observations
         self.check_validities(time, observer, obs_now)
