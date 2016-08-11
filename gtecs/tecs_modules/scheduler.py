@@ -106,38 +106,22 @@ horizon_file = params.CONFIG_PATH + 'horizon'
 # set observing location
 GOTO = params.SITE_OBSERVER
 
-# GW tile priority settings
-prob_method = '1minus' # or 'inverse'
-tile_dp = 3
+# priority settings
+too_weight = 0.1
+prob_dp = 3
+prob_weight = 0.1
+airmass_dp = 5
+airmass_weight = 0.00001
+tts_dp = 5
+tts_weight = 0.00001
 
-# General tile priority settings
-tie_method = 'tts' # or 'airmass'
-tie_dp = 5
-tts_horizon = 0*u.deg
+tts_horizon = 10*u.deg
 
 # set debug level
 debug = 1
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
-
-
-def _tile_priority(prob, method, dp=3):
-    if method == 'inverse':
-        dp = int(dp)
-        factor = 10.**dp
-        priority = np.around(1/(prob*factor), decimals=dp)
-        if priority >= 1:
-            priority = float('0.' + '9' * dp)
-        return priority
-
-    elif method == '1minus':
-        dp = int(dp)
-        priority = np.around(1-prob, decimals=dp)
-        if priority >= 1:
-            priority = float('0.' + '9' * dp)
-        return priority
-
 
 def apply_constraints(constraints, observer, targets, times):
     """
@@ -420,60 +404,54 @@ class ObservationSet:
                 if so the priority is increased by 10.
         '''
 
-        # starting priority based on defined rank
+        ## Find base priority based on rank
         priorities = np.array([obs.priority for obs in self.observations])
 
-        # if the observation is a ToO the first decimal is 0, otherwise it is 1
-        # NB change from pt5m, needed to deal with ToO tiles
+        ## Find ToO values (0 or 1)
         too_mask = np.array([obs.too for obs in self.observations])
         nottoo_mask = np.invert(too_mask)
-        priorities[nottoo_mask] += 0.1
+        too_arr = np.array(nottoo_mask, dtype = float)
 
-        # if observation is a GW tile it will have a contained probability
-        # use this to define the next X decimal places, depending on the method
-        # if it's not a tile then the probability is 999 (or another >1 null)
-        tile_mask = np.array(self.tileprob_arr) < 1
-        tile_priorities = np.array([_tile_priority(prob, prob_method, tile_dp)
-                                    for prob in self.tileprob_arr])
-        priorities[tile_mask] += tile_priorities[tile_mask]/10.
+        ## Find probability values (0.00.. to 0.99..)
+        prob_arr = np.array([1-prob if prob != 0
+                             else 0
+                             for prob in self.tileprob_arr])
+        prob_arr = np.around(prob_arr, decimals = prob_dp)
+        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr >= 1)
+        prob_arr[bad_prob_mask] = float('0.' + '9' * prob_dp)
 
-        # the final Y decimal places are the 'tiebreaker' digits
-        if tie_method == 'airmass':
-            # airmass at start
-            cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
-            altaz_now = cached_altaz_now['altaz']
-            secz_now = np.array([x[0].value for x in altaz_now.secz])
+        ## Find airmass values (0.00.. to 0.99..)
+        # airmass at start
+        cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
+        altaz_now = cached_altaz_now['altaz']
+        secz_now = np.array([x[0].value for x in altaz_now.secz])
 
-            # airmass at mintime
-            later_arr = Time([time + mintime for mintime in self.mintime_arr])
-            cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
-            altaz_later = cached_altaz_later['altaz']
-            secz_later = np.diag(altaz_later.secz).astype('float')
+        # airmass at mintime
+        later_arr = Time([time + mintime for mintime in self.mintime_arr])
+        cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
+        altaz_later = cached_altaz_later['altaz']
+        secz_later = np.diag(altaz_later.secz).astype('float')
 
-            # take average, and constrain to between 0 & 1
-            secz_arr = np.array((secz_now + secz_later)/2.)
-            airmass_arr = np.around(secz_arr/10., decimals = tie_dp)
-            bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
-            airmass_arr[bad_airmass_mask] = float('0.' + '9' * tie_dp)
+        # take average
+        secz_arr = np.array((secz_now + secz_later)/2.)
+        airmass_arr = np.around(secz_arr/10., decimals = airmass_dp)
+        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr >= 1)
+        airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
 
-            tiebreaker_arr = airmass_arr
+        ## Find time to set values (0.00.. to 0.99..)
+        tts_sec_arr = time_to_set(observer, self.target_arr, time, tts_horizon)
+        tts_hr_arr = tts_sec_arr.to(u.hour)
+        tts_arr = np.around(tts_hr_arr.value/24., decimals = tts_dp)
+        bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
+        tts_arr[bad_tts_mask] = float('0.' + '9' * tts_dp)
 
-        elif tie_method == 'tts':
-            # find time until next setting
-            tts_arr = time_to_set(observer, self.target_arr, time, tts_horizon)
+        ## Construct the probability based on weightings
+        priorities_now = priorities.copy()
 
-            # convert to fraction of 24 hours, and constrain to between 0 & 1
-            tts_arr = tts_arr.to(u.hour)
-            tts_arr = np.around(tts_arr.value/24, decimals = tie_dp)
-            bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
-            tts_arr[bad_tts_mask] = float('0.' + '9' * tie_dp)
-
-            tiebreaker_arr = tts_arr
-
-        # now add the tiebreaker values (between 0.0000 & 0.9999) to the end
-        # depends on how many decimal places were used for the tile probability
-
-        priorities_now = priorities + tiebreaker_arr/10**(tile_dp + 1)
+        priorities_now += too_arr * too_weight
+        priorities_now += prob_arr * prob_weight
+        priorities_now += airmass_arr * airmass_weight
+        priorities_now += tts_arr * tts_weight
 
         # check validities, add 10 to invalid observations
         self.check_validities(time, observer, obs_now)
