@@ -1,0 +1,232 @@
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import (Column, Integer, String, DateTime, Float,
+                        ForeignKey, Enum)
+from sqlalchemy.orm import relationship, validates
+
+Base = declarative_base()
+
+# TODO: docstrings and representations
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    eventID = Column(Integer, primary_key=True)
+    ivo = Column(String, unique=True)
+    name = Column(String)
+    source = Column(String)
+
+    ligoTile = relationship("LigoTile", back_populates="event", uselist=False)
+
+    def __repr__(self):
+        return "Event(eventID={}, ivo={}, name={}, source={})".format(
+            self.eventID, self.ivo, self.name, self.source
+        )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    userKey = Column(Integer, primary_key=True)
+    userName = Column('user_name', String)
+    password = Column(String)
+    fullName = Column(String)
+
+
+class LigoTile(Base):
+    __tablename__ = "ligo_tiles"
+
+    tileID = Column(Integer, primary_key=True)
+    ra = Column(Float)
+    decl = Column(Float)
+    probability = Column(Float)
+
+    # handle relationships
+    pointing = relationship("Pointing", back_populates="ligoTile", uselist=False)
+    mpointing = relationship("Mpointing", back_populates="ligoTile", uselist=False)
+
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=False)
+    event = relationship("Event", back_populates="ligoTile", uselist=False)
+
+
+class SurveyTile(Base):
+    __tablename__ = "survey"
+
+    tileID = Column(Integer, primary_key=True)
+
+
+class Mpointing(Base):
+    __tablename__ = "mpointings"
+
+    rpID = Column(Integer, primary_key=True)
+    objectName = Column('object', String)
+    ra = Column(Float)
+    decl = Column(Float)
+    rank = Column(Integer)
+    start_rank = Column(Integer)
+    minAlt = Column(Float)
+    minTime = Column(Float)
+    maxMoon = Column(String(1))
+    ToO = Column(Integer)
+    num_repeats = Column(Integer)
+    num_remain = Column(Integer)
+    scheduled = Column(Integer, default=False)
+
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=True)
+    event = relationship("Event", backref="mpointings")
+
+    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
+                     nullable=False)
+    user = relationship("User", backref="mpointings", uselist=False)
+
+    ligoTileID = Column('ligo_tiles_tileID', Integer,
+                        ForeignKey('ligo_tiles.tileID'), nullable=True)
+    ligoTile = relationship("LigoTile", back_populates="mpointing", uselist=False)
+
+    def __init__(self, objectName=objectName, ra=ra, decl=decl,
+                 start_rank=start_rank, minAlt=minAlt, minTime=minTime,
+                 maxMoon=maxMoon, ToO=ToO, num_repeats=num_repeats, **kwargs):
+        self.ra = ra
+        self.decl = decl
+        self.objectName = objectName
+        self.start_rank = start_rank
+        self.maxMoon = maxMoon
+        self.minAlt = minAlt
+        self.minTime = minTime
+        self.ToO = ToO
+        self.num_repeats = num_repeats
+        self.rank = self.start_rank
+        self.scheduled = False
+        self.num_remain = self.num_repeats
+        if 'eventID' in kwargs:
+            self.eventID = kwargs['eventID']
+        if 'event' in kwargs:
+            self.event = kwargs['event']
+        if 'user' in kwargs:
+            self.user = kwargs['user']
+        if 'userKey' in kwargs:
+            self.userKey = kwargs['userKey']
+        if 'surveyTile' in kwargs:
+            self.surveyTile = kwargs['surveyTile']
+        if 'survey_tileID' in kwargs:
+            self.survey_tileID = kwargs['survey_tileID']
+
+
+status_list = [
+    'pending',
+    'aborted',
+    'completed',
+    'running',
+    'deleted',
+    'upcoming',
+    'interrupted',
+    'expired'
+]
+
+
+class Repeat(Base):
+    __tablename__ = "repeats"
+
+    repeatID = Column(Integer, primary_key=True)
+    repeatNum = Column(Integer)
+    waitTime = Column(Integer)
+    valid_duration = Column(Integer)
+    status = Column(Enum(status_list), default='upcoming')
+    ts = Column(DateTime)
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=False)
+
+    mpointing = relationship("Mpointing", backref="repeats", uselist=False)
+    pointing = relationship("Pointing", back_populates="repeat", uselist=False)
+    # TODO: write validator so duration < waitTime
+    # @validates
+
+
+class Pointing(Base):
+    __tablename__ = "pointings"
+
+    pointingID = Column(Integer, primary_key=True)
+    objectName = Column("object", String)
+    ra = Column(Float)
+    decl = Column(Float)
+    rank = Column(Integer)
+    minAlt = Column(Float)
+    maxSunAlt = Column(Float, default=-15)
+    minTime = Column(Float)
+    maxMoon = Column(String(1))
+    startUTC = Column(DateTime)  # TODO: write validators to munge startUTC etc
+    stopUTC = Column(DateTime)
+    ToO = Column(Integer)
+    status = Column(Enum(status_list), default='pending')
+
+    # now include relationships to other tables
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=True)
+    event = relationship("Event", backref="pointings")
+
+    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
+                     nullable=False)
+    user = relationship("User", backref="pointings", uselist=False)
+
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=True)
+    mpointing = relationship("Mpointing", backref="pointings", uselist=False)
+
+    repeatID = Column('repeats_repeatID', Integer,
+                      ForeignKey('repeats.repeatID'), nullable=True)
+    repeat = relationship("Repeat", back_populates="pointing", uselist=False)
+
+    ligoTileID = Column('ligo_tiles_tileID', Integer,
+                        ForeignKey('ligo_tiles.tileID'), nullable=True)
+    ligoTile = relationship("LigoTile", back_populates="pointing", uselist=False)
+
+
+class Exposure(Base):
+    __tablename__ = "exposures"
+
+    expID = Column(Integer, primary_key=True)
+    raoff = Column(Float)
+    decoff = Column(Float)
+    typeFlag = Column(Enum(['SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD']))
+    filt = Column('filter', String(2))
+    expTime = Column(Float)
+    numexp = Column(Integer)
+    binning = Column(Integer)
+    unitTelescope = Column(Integer, nullable=True)
+
+    pointingID = Column('pointings_pointingID', Integer,
+                        ForeignKey('pointings.pointingID'),
+                        nullable=False)
+    pointing = relationship("Pointing", backref="exposures", uselist=False)
+
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=False)
+    mpointing = relationship("Mpointing", backref="exposures", uselist=False)
+
+
+class ObslogEntry(Base):
+    __tablename__ = "obslog"
+
+    obsID = Column(Integer, primary_key=True)
+    frame = Column(String)
+    utStart = Column("UTstart", DateTime)
+    objectName = Column("object", String)
+    frameType = Column("type", String)
+    ra = Column(Float)
+    decl = Column(Float)
+    expTime = Column(Float)
+    airmass = Column(Float)
+    filt = Column('filter', String(2))
+    binning = Column(Integer)
+    focus = Column(Float)
+    temp = Column(Float)
+
+    pointingID = Column('pointings_pointingID', Integer,
+                        ForeignKey('pointings.pointingID'),
+                        nullable=False)
+    pointing = relationship("Pointing", backref="obslog", uselist=False)
