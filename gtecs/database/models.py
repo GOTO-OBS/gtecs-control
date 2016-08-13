@@ -57,6 +57,7 @@ class SurveyTile(Base):
 
 
 class Mpointing(Base):
+    # TODO: add the  schedule_next_pointing function
     __tablename__ = "mpointings"
 
     rpID = Column(Integer, primary_key=True)
@@ -87,7 +88,8 @@ class Mpointing(Base):
 
     def __init__(self, objectName=objectName, ra=ra, decl=decl,
                  start_rank=start_rank, minAlt=minAlt, minTime=minTime,
-                 maxMoon=maxMoon, ToO=ToO, num_repeats=num_repeats, **kwargs):
+                 maxMoon=maxMoon, ToO=ToO, num_repeats=num_repeats,
+                 intervals=None, valid_durations=None, **kwargs):
         self.ra = ra
         self.decl = decl
         self.objectName = objectName
@@ -100,6 +102,32 @@ class Mpointing(Base):
         self.rank = self.start_rank
         self.scheduled = False
         self.num_remain = self.num_repeats
+
+        # now add repeats and intervals
+        if intervals is not None and valid_durations is not None:
+
+            # first convert to lists
+            try:
+                if len(intervals) != num_repeats:
+                    raise ValueError("number of intervals should match number of repeats or be scalar")
+            except TypeError:
+                # intervals was scalar
+                intervals = [intervals] * num_repeats
+            try:
+                if len(valid_durations) != num_repeats:
+                    raise ValueError("number of durations should match number of repeats or be scalar")
+            except TypeError:
+                valid_durations = [valid_durations] * num_repeats
+
+            # now add
+            repeatNum = 0
+            for duration, interval in zip(intervals, valid_durations):
+                self.repeats.append(
+                    Repeat(repeatNum=repeatNum, waitTime=interval,
+                        valid_duration=duration, status='upcoming')
+                )
+                repeatNum += 1
+
         if 'eventID' in kwargs:
             self.eventID = kwargs['eventID']
         if 'event' in kwargs:
@@ -113,6 +141,8 @@ class Mpointing(Base):
         if 'survey_tileID' in kwargs:
             self.survey_tileID = kwargs['survey_tileID']
 
+    def schedule_next_pointing(self):
+        pass
 
 status_list = [
     'pending',
