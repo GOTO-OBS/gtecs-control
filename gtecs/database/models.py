@@ -32,6 +32,11 @@ class User(Base):
     password = Column(String)
     fullName = Column(String)
 
+    def __repr__(self):
+        return "User(userKey={}, ivo={}, password={}, fullName={})".format(
+            self.userKey, self.userName, self.password, self.fullName
+        )
+
 
 class LigoTile(Base):
     __tablename__ = "ligo_tiles"
@@ -42,18 +47,27 @@ class LigoTile(Base):
     probability = Column(Float)
 
     # handle relationships
-    pointing = relationship("Pointing", back_populates="ligoTile", uselist=False)
+    pointings = relationship("Pointing", back_populates="ligoTile")
     mpointing = relationship("Mpointing", back_populates="ligoTile", uselist=False)
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=False)
     event = relationship("Event", back_populates="ligoTile", uselist=False)
 
+    def __repr__(self):
+        template = ("LigoTile(tileID={}, ra={}, decl={}, " +
+                    "probability={}, eventID={})")
+        return template.format(
+            self.tileID, self.ra, self.decl, self.probability, self.eventID)
+
 
 class SurveyTile(Base):
     __tablename__ = "survey"
 
     tileID = Column(Integer, primary_key=True)
+
+    def __repr__(self):
+        return "SurveyTile(tileID={})".format(self.tileID)
 
 
 class Mpointing(Base):
@@ -67,6 +81,7 @@ class Mpointing(Base):
     rank = Column(Integer)
     start_rank = Column(Integer)
     minAlt = Column(Float)
+    maxSunAlt = Column(Float)
     minTime = Column(Float)
     maxMoon = Column(String(1))
     ToO = Column(Integer)
@@ -85,6 +100,18 @@ class Mpointing(Base):
     ligoTileID = Column('ligo_tiles_tileID', Integer,
                         ForeignKey('ligo_tiles.tileID'), nullable=True)
     ligoTile = relationship("LigoTile", back_populates="mpointing", uselist=False)
+
+    def __repr__(self):
+        template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
+                    "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, num_repeats={}, " +
+                    "num_remain={}, scheduled={}, eventID={}, userKey={}, ligoTileID={})")
+        return template.format(
+            self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
+            self.num_repeats, self.num_remain, self.scheduled, self.eventID,
+            self.userKey, self.ligoTileID
+        )
 
     def __init__(self, objectName=objectName, ra=ra, decl=decl,
                  start_rank=start_rank, minAlt=minAlt, minTime=minTime,
@@ -124,7 +151,7 @@ class Mpointing(Base):
             for duration, interval in zip(intervals, valid_durations):
                 self.repeats.append(
                     Repeat(repeatNum=repeatNum, waitTime=interval,
-                        valid_duration=duration, status='upcoming')
+                           valid_duration=duration, status='upcoming')
                 )
                 repeatNum += 1
 
@@ -171,6 +198,13 @@ class Repeat(Base):
 
     mpointing = relationship("Mpointing", backref="repeats", uselist=False)
     pointing = relationship("Pointing", back_populates="repeat", uselist=False)
+
+    def __repr__(self):
+        template = ("Repeat(repeatID={}, repeatNum={}, waitTime={}, " +
+                    "valid_duration={}, status={}, mpointingID={})")
+        return template.format(self.repeatID, self.repeatNum, self.waitTime,
+                               self.valid_duration, self.status, self.mpointingID)
+
     # TODO: write validator so duration < waitTime
     # @validates
 
@@ -212,7 +246,20 @@ class Pointing(Base):
 
     ligoTileID = Column('ligo_tiles_tileID', Integer,
                         ForeignKey('ligo_tiles.tileID'), nullable=True)
-    ligoTile = relationship("LigoTile", back_populates="pointing", uselist=False)
+    ligoTile = relationship("LigoTile", back_populates="pointings", uselist=False)
+
+    def __repr__(self):
+        template = ("Pointing(pointingID={}, objectName={}, ra={}, decl={}, " +
+                    "rank={}, minAlt={}, maxSunAlt={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
+                    "stopUTC={}, status={}, eventID={}, userKey={}, " +
+                    "mpointingID={}, repeatID={}, ligoTileID={})")
+        return template.format(
+            self.pointingID, self.objectName, self.ra, self.decl, self.rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
+            self.startUTC, self.stopUTC, self.status, self.eventID,
+            self.userKey, self.mpointingID, self.repeatID, self.ligoTileID
+        )
 
 
 class Exposure(Base):
@@ -238,6 +285,16 @@ class Exposure(Base):
                          nullable=False)
     mpointing = relationship("Mpointing", backref="exposures", uselist=False)
 
+    def __repr__(self):
+        template = ("Exposure(expID={}, raoff={}, decoff={}, typeFlag={}, " +
+                    "filt={}, expTime={}, numexp={}, binning={}, unitTelescope={}, " +
+                    "pointingID={}, mpointingID={})")
+        return template.format(
+            self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
+            self.expTime, self.numexp, self.binning, self.unitTelescope,
+            self.pointingID, self.mpointingID
+        )
+
 
 class ObslogEntry(Base):
     __tablename__ = "obslog"
@@ -260,3 +317,14 @@ class ObslogEntry(Base):
                         ForeignKey('pointings.pointingID'),
                         nullable=False)
     pointing = relationship("Pointing", backref="obslog", uselist=False)
+
+    def __repr__(self):
+        template = ("ObslogEntry(obsID={}, frame={}, utStart={}, " +
+                    "objectName={}, frameType={}, ra={}, decl={}, " +
+                    "expTime={}, airmass={}, filt={}, binning={}, focus={}, " +
+                    "temp={}, pointingID={})")
+        return template.format(
+            self.obsID, self.frame, self.utStart, self.objectName, self.frameType,
+            self.ra, self.decl, self.expTime, self.airmass, self.filt, self.binning,
+            self.focus, self.temp, self.pointingID
+        )
