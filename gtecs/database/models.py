@@ -1,11 +1,15 @@
+import datetime
+
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import (Column, Integer, String, DateTime, Float,
                         ForeignKey, Enum)
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import relationship, validates, backref
+
+from astropy.time import Time
 
 Base = declarative_base()
 
-# TODO: docstrings and representations
+# TODO: docstrings
 
 
 class Event(Base):
@@ -72,6 +76,8 @@ class SurveyTile(Base):
 
 class Mpointing(Base):
     # TODO: add the  schedule_next_pointing function
+    # TOFIX: can't delete repeats. SQL is trying to set mpointingID to NULL in repeat, which is forbidden
+    # look again at relationships
     __tablename__ = "mpointings"
 
     rpID = Column(Integer, primary_key=True)
@@ -196,7 +202,20 @@ class Repeat(Base):
                          ForeignKey('mpointings.rpID'),
                          nullable=False)
 
-    mpointing = relationship("Mpointing", backref="repeats", uselist=False)
+    @validates('waitTime', 'valid_duration')
+    def validate_timings(self, key, field):
+        if key == 'waitTime' and self.valid_duration is not None:
+            if field < self.valid_duration:
+                raise AssertionError('waitTime must be > valid_duration')
+        elif key == 'valid_duration' and self.waitTime is not None:
+            if self.waitTime < field:
+                raise AssertionError('waitTime must be > valid_duration')
+        return field
+
+    # relationships
+    mpointing = relationship("Mpointing",
+                             backref=backref("repeats", cascade="all, delete-orphan"),
+                             uselist=False)
     pointing = relationship("Pointing", back_populates="repeat", uselist=False)
 
     def __repr__(self):
@@ -204,9 +223,6 @@ class Repeat(Base):
                     "valid_duration={}, status={}, mpointingID={})")
         return template.format(self.repeatID, self.repeatNum, self.waitTime,
                                self.valid_duration, self.status, self.mpointingID)
-
-    # TODO: write validator so duration < waitTime
-    # @validates
 
 
 class Pointing(Base):
@@ -225,6 +241,28 @@ class Pointing(Base):
     stopUTC = Column(DateTime)
     ToO = Column(Integer)
     status = Column(Enum(status_list), default='pending')
+
+    # use validators to allow various types of input for UTC
+    # also enforce stopUTC > startUTC
+    @validates('startUTC', 'stopUTC')
+    def munge_times(self, key, field):
+        if isinstance(field, datetime.datetime):
+            value = field.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(field, Time):
+            value.precision = 0  # no D.P on seconds
+            value = field.iso
+        else:
+            # just hope the string works!
+            value = str(field)
+
+        if (key == 'startUTC' and self.stopUTC is not None):
+            if Time(value) >= Time(self.stopUTC):
+                raise AssertionError("stopUTC must be later than startUTC")
+        elif key == 'stopUTC' and self.startUTC is not None:
+            if Time(self.startUTC) >= Time(value):
+                raise AssertionError("stopUTC must be later than startUTC")
+
+        return value
 
     # now include relationships to other tables
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
