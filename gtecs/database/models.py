@@ -38,8 +38,8 @@ class User(Base):
     fullName = Column(String)
 
     def __repr__(self):
-        return "User(userKey={}, ivo={}, password={}, fullName={})".format(
-            self.userKey, self.userName, self.password, self.fullName
+        return "User(userKey={}, username={}, fullName={})".format(
+            self.userKey, self.userName, self.fullName
         )
 
 
