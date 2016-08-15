@@ -193,7 +193,7 @@ class Mpointing(Base):
         else:
             startUTC = Time.now()
         stopUTC = startUTC + next_repeat.valid_duration * u.minute
-        print(startUTC, stopUTC)
+
         # now create a pointing
         p = Pointing(
             objectName=self.objectName, ra=self.ra,
