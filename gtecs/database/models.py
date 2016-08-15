@@ -340,7 +340,7 @@ class Exposure(Base):
     expTime = Column(Float)
     numexp = Column(Integer)
     binning = Column(Integer)
-    unitTelescope = Column(Integer, nullable=True)
+    otaMask = Column(Integer, nullable=True)
 
     pointingID = Column('pointings_pointingID', Integer,
                         ForeignKey('pointings.pointingID'),
@@ -354,11 +354,11 @@ class Exposure(Base):
 
     def __repr__(self):
         template = ("Exposure(expID={}, raoff={}, decoff={}, typeFlag={}, " +
-                    "filt={}, expTime={}, numexp={}, binning={}, unitTelescope={}, " +
+                    "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
                     "pointingID={}, mpointingID={})")
         return template.format(
             self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
-            self.expTime, self.numexp, self.binning, self.unitTelescope,
+            self.expTime, self.numexp, self.binning, self.otaMask,
             self.pointingID, self.mpointingID
         )
 
