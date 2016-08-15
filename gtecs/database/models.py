@@ -6,6 +6,7 @@ from sqlalchemy import (Column, Integer, String, DateTime, Float,
 from sqlalchemy.orm import relationship, validates, backref
 
 from astropy.time import Time
+from astropy import units as u
 
 Base = declarative_base()
 
@@ -75,9 +76,6 @@ class SurveyTile(Base):
 
 
 class Mpointing(Base):
-    # TODO: add the  schedule_next_pointing function
-    # TOFIX: can't delete repeats. SQL is trying to set mpointingID to NULL in repeat, which is forbidden
-    # look again at relationships
     __tablename__ = "mpointings"
 
     rpID = Column(Integer, primary_key=True)
@@ -174,8 +172,39 @@ class Mpointing(Base):
         if 'survey_tileID' in kwargs:
             self.survey_tileID = kwargs['survey_tileID']
 
-    def schedule_next_pointing(self):
-        pass
+    def get_next_pointing(self, session):
+        next_repeat = session.query(Repeat).filter(
+            Repeat.mpointingID == self.rpID,
+            Repeat.status == 'upcoming').order_by(Repeat.repeatNum).first()
+        if next_repeat is None:
+            return None
+
+        # get the status of the last repeat. If it was completed,
+        # schedule the next_repeat for now+waitTime. Otherwise,
+        # schedule it now
+        last_repeat_status = session.query(Repeat.status).filter(
+            Repeat.mpointingID == self.rpID,
+        ).filter(
+            ~Repeat.status.in_(['upcoming', 'running'])
+        ).order_by(Repeat.repeatNum.desc()).first()
+
+        if last_repeat_status == 'completed':
+            startUTC = Time.now() + next_repeat.waitTime * u.minute
+        else:
+            startUTC = Time.now()
+        stopUTC = startUTC + next_repeat.valid_duration * u.minute
+        print(startUTC, stopUTC)
+        # now create a pointing
+        p = Pointing(
+            objectName=self.objectName, ra=self.ra,
+            decl=self.decl, rank=self.rank, minAlt=self.minAlt,
+            maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
+            startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
+            repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
+            mpointingID=self.rpID, ligoTileID=self.ligoTileID
+        )
+        return p
+
 
 status_list = [
     'pending',
@@ -237,7 +266,7 @@ class Pointing(Base):
     maxSunAlt = Column(Float, default=-15)
     minTime = Column(Float)
     maxMoon = Column(String(1))
-    startUTC = Column(DateTime)  # TODO: write validators to munge startUTC etc
+    startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
     ToO = Column(Integer)
     status = Column(Enum(status_list), default='pending')
@@ -249,7 +278,7 @@ class Pointing(Base):
         if isinstance(field, datetime.datetime):
             value = field.strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(field, Time):
-            value.precision = 0  # no D.P on seconds
+            field.precision = 0  # no D.P on seconds
             value = field.iso
         else:
             # just hope the string works!
