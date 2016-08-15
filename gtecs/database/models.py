@@ -367,6 +367,8 @@ class ObslogEntry(Base):
     __tablename__ = "obslog"
 
     obsID = Column(Integer, primary_key=True)
+    otaID = Column(Integer)
+    camID = Column(Integer)
     frame = Column(String)
     utStart = Column("UTstart", DateTime)
     objectName = Column("object", String)
@@ -389,9 +391,9 @@ class ObslogEntry(Base):
         template = ("ObslogEntry(obsID={}, frame={}, utStart={}, " +
                     "objectName={}, frameType={}, ra={}, decl={}, " +
                     "expTime={}, airmass={}, filt={}, binning={}, focus={}, " +
-                    "temp={}, pointingID={})")
+                    "temp={}, pointingID={}, otaID={}, camID={})")
         return template.format(
             self.obsID, self.frame, self.utStart, self.objectName, self.frameType,
             self.ra, self.decl, self.expTime, self.airmass, self.filt, self.binning,
-            self.focus, self.temp, self.pointingID
+            self.focus, self.temp, self.pointingID, self.otaID, self.camID
         )
