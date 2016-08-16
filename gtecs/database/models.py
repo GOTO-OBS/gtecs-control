@@ -1,0 +1,1109 @@
+import datetime
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import (Column, Integer, String, DateTime, Float,
+                        ForeignKey, Enum)
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy import func, select, and_
+from sqlalchemy.orm import column_property
+
+from astropy.time import Time
+from astropy import units as u
+
+Base = declarative_base()
+
+
+class Event(Base):
+
+    """
+    A class to represent a transient Event.
+
+    Like all SQLAlchemy model classes, these objects link to the
+    underlying database. You can create an object, set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the eventID)
+    will be None until the Event is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        ivo : string
+            ivorn for the event
+        name : string
+            a human-readable identifier for the event
+        source : string
+            the event's origin, e.g. LVC
+
+    An Event also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        eventID : int
+            primary key for events
+        ligoTiles : list of `LigoTile`
+            a list of any `LigoTiles` associated with this Event
+        mpointings : list of `Mpointing`
+            a list of any `Mpointing`s associated with this Event
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this Event
+
+    Examples
+    --------
+
+        >>> e = Event(ivo='ivo://pt5mTest', name='pt5mVar3', source='pt5m')
+
+    """
+
+    __tablename__ = "events"
+
+    eventID = Column(Integer, primary_key=True)
+    ivo = Column(String, unique=True)
+    name = Column(String)
+    source = Column(String)
+
+    ligoTiles = relationship("LigoTile", back_populates="event")
+
+    def __repr__(self):
+        return "Event(eventID={}, ivo={}, name={}, source={})".format(
+            self.eventID, self.ivo, self.name, self.source
+        )
+
+
+class User(Base):
+
+    """
+    A class to represent a database User.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an User, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the userKey)
+    will be None until the User is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        userName : string
+            a short user name
+        password : string
+            password for authentication. stored as a hash in the database.
+        fullName : string
+            the user's full name.
+
+    A User also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        userKey : int
+            primary key for users
+        mpointings : list of `Mpointing`
+            a list of any `Mpointing`s associated with this User
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this User
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+        >>> from gtecs.database import _make_random_pointing
+        >>>
+        >>> bob = User(userName='bob', password='1234', fullName="Bob Marley")
+        >>> session = load_session()
+        >>> session.add(bob)  # add bob to database
+        >>> session.commit()  # commit changes (otherwise DB not changed)
+        >>> bob
+        User(userKey=25, username=bob, fullName=Bob Marley)
+        >>> bob.pointings
+        []
+        >>> pointing = _make_random_pointing(25)  # make a pointing for bob
+        >>> session.add(pointing)
+        >>> session.commit()
+        >>> bob.pointings
+        [Pointing(pointingID=19073, objectName=randObj, ra=228.687,
+        decl=-53.5477, rank=67, minAlt=30.0, maxSunAlt=-15.0,
+        minTime=428.848, maxMoon=D, ToO=1, startUTC=2016-08-17 14:45:15,
+        stopUTC=2016-08-26 14:45:15, status=pending, eventID=None,
+        userKey=25, mpointingID=None, repeatID=None, ligoTileID=None)]
+        >>> session.close()
+
+    """
+
+    __tablename__ = "users"
+
+    userKey = Column(Integer, primary_key=True)
+    userName = Column('user_name', String)
+    password = Column(String)
+    fullName = Column(String)
+
+    def __repr__(self):
+        return "User(userKey={}, username={}, fullName={})".format(
+            self.userKey, self.userName, self.fullName
+        )
+
+
+class LigoTile(Base):
+
+    """
+    A class to represent a Ligo Tile.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an LigoTile, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the tileID)
+    will be None until the User is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        ra : float
+            J2000 right ascension in decimal degrees
+        decl : float
+            J2000 declination in decimal degrees
+        probability : float
+            probability that GW event is contained in this tile
+        eventID : int, optional
+            the ID number of the LIGO event this tile is associated with
+
+    A LigoTile also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        tileID : int
+            primary key for ligo tiles
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this LigoTile if any
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this tile, if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+
+        make a ligo event to associate our tile with
+
+        >>> e = Event(ivo='ivo://GW150914', name='GW150914', source='LVC')
+        >>> session = load_session()
+        >>> session.add(e)  # add event
+        >>> session.commit()  # commit changes (otherwise DB not changed)
+        >>> e.eventID
+        1
+
+        construct without eventID
+
+        >>> ligo_tile = LigoTile(ra=122.34, decl=22.01, probability=0.01)
+        >>> ligo_tile
+        LigoTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+
+        set the eventID
+
+        >>> ligo_tile.eventID = 1
+        >>> ligo_tile
+        LigoTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+
+        add to the database
+
+        >>> session.add(ligo_tile)
+        >>> session.commit()
+        >>> ligo_tile  # note how tileID is populated now tile is in DB
+        LigoTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)
+        >>> e.ligoTiles  # and event knows about all associated tiles
+        [LigoTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)]
+        >>> session.close()
+
+    """
+
+    __tablename__ = "ligo_tiles"
+
+    tileID = Column(Integer, primary_key=True)
+    ra = Column(Float)
+    decl = Column(Float)
+    probability = Column(Float)
+
+    # handle relationships
+    pointings = relationship("Pointing", back_populates="ligoTile")
+    mpointing = relationship("Mpointing", back_populates="ligoTile", uselist=False)
+
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=False)
+    event = relationship("Event", back_populates="ligoTiles", uselist=False)
+
+    def __repr__(self):
+        template = ("LigoTile(tileID={}, ra={}, decl={}, " +
+                    "probability={}, eventID={})")
+        return template.format(
+            self.tileID, self.ra, self.decl, self.probability, self.eventID)
+
+
+class SurveyTile(Base):
+
+    """
+    A class to represent a Survey Tile.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an SurveyTile, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the tileID)
+    will be None until the User is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        ra : float
+            J2000 right ascension in decimal degrees
+        decl : float
+            J2000 declination in decimal degrees
+
+    A LigoTile also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        tileID : int
+            primary key for survey tiles
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this SurveyTile if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+        >>> tile = SurveyTile(ra=100, decl=20)
+        >>> tile
+        SurveyTile(tileID=None, ra=100.00, decl=20.00)
+
+        set the eventID
+
+        add to the database, demonstrating the open_session context manager,
+        which will handle committing changes for you:
+
+        >>> with open_session as session():
+        >>>     insert_items([tile])
+        >>>     tile  # note how tileID is populated now tile is in DB
+        SurveyTile(tileID=1, ra=100.00, decl=20.00)
+
+    """
+
+    __tablename__ = "survey"
+
+    tileID = Column(Integer, primary_key=True)
+    ra = Column(Float)
+    decl = Column(Float)
+
+    mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
+
+    def __repr__(self):
+        return "SurveyTile(tileID={})".format(self.tileID)
+
+
+status_list = [
+    'pending',
+    'aborted',
+    'completed',
+    'running',
+    'deleted',
+    'upcoming',
+    'interrupted',
+    'expired'
+]
+
+
+class Repeat(Base):
+
+    """
+    A class to represent a Repeat observation.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an Repeat, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the repeatID)
+    will be None until the Repeat is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        repeatNum : int
+            an integer indicating which repeat in a sequence this is
+        waitTime : float
+            time to wait since the previous repeat before observing, in minutes
+        valid_duration : float
+            amount of time repeat should stay valid in the queue, in minutes.
+            must be less than waitTime
+        mpointingID : int
+            unique key linking this repeat to an Mpointing
+        status : string, optional
+            status indicator. default='upcoming', meaning repeat will be attempted
+            at some point in the future
+
+    A Repeat also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        ts : `datetime.datetime`
+            timestamp indicating last time this repeat was changed in DB
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this SurveyTile if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+
+        make a Repeat (an Mpointing with mpointingID = 1 is already in the database)
+
+        >>> r = Repeat(repeatNum=1, waitTime=100, valid_duration=99, mpointingID=1)
+        >>> session = load_session()
+        >>> session.add(r)
+        Repeat(repeatID=7, repeatNum=1, waitTime=100.0, valid_duration=99.0, status=upcoming, mpointingID=1)
+
+    """
+
+    __tablename__ = "repeats"
+
+    repeatID = Column(Integer, primary_key=True)
+    repeatNum = Column(Integer)
+    waitTime = Column(Integer)
+    valid_duration = Column(Integer)
+    status = Column(Enum(status_list), server_default='upcoming')
+    ts = Column(DateTime)
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=False)
+
+    @validates('waitTime', 'valid_duration')
+    def validate_timings(self, key, field):
+        if key == 'waitTime' and self.valid_duration is not None:
+            if field < self.valid_duration:
+                raise AssertionError('waitTime must be > valid_duration')
+        elif key == 'valid_duration' and self.waitTime is not None:
+            if self.waitTime < field:
+                raise AssertionError('waitTime must be > valid_duration')
+        return field
+
+    # relationships
+    mpointing = relationship("Mpointing",
+                             back_populates="repeats",
+                             uselist=False)
+    pointing = relationship("Pointing", back_populates="repeat", uselist=False)
+
+    def __repr__(self):
+        template = ("Repeat(repeatID={}, repeatNum={}, waitTime={}, " +
+                    "valid_duration={}, status={}, mpointingID={})")
+        return template.format(self.repeatID, self.repeatNum, self.waitTime,
+                               self.valid_duration, self.status, self.mpointingID)
+
+
+class Mpointing(Base):
+
+    """
+    A class to represent an Mpointing.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an Mpointing, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the rpID)
+    will be None until the Mpointing is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        userKey : int
+            unique key identifying user to whom this Mpointing belongs
+        objectName : String
+            object name
+        ra : float
+            J2000 right ascension in decimal degrees
+        decl : float
+            J2000 declination in decimal degrees
+        start_rank : Integer
+            rank to use for first pointing in series
+        minAlt : float
+            minimum altitude to observer at
+        minTime : float
+            minimum time needed to schedule pointing
+        maxSunAlt : float
+            altitude constraint on Sun
+        maxMoon : string
+            Moon constraint. one of 'D', 'G', 'B'.
+        ToO : int
+            0 or 1 to indicate if this is a ToO or not
+        num_repeats : int
+            number of times to attempt pointing
+        intervals : float or list of float
+            intervals between repeats in minutes. This can
+            be specified during initialisation along with
+            `valid_durations`.
+        valid_durations : float or list of float
+            the amount of time the pointing should be valid in
+            the queue. Must be less than the corresponding interval.
+
+        ligoTileID : int, optional
+            unique key linking to `LigoTile`
+        surveyTileID : int, optional
+            unique key linking to `SurveyTile`
+        eventID : int, optional
+            unique key linking to `Event`
+
+    An Mpointing also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        rpID : int
+            primary key for mpointings
+        rank : int
+            rank for next pointing to be scheduled
+        scheduled : bool
+            True is a pointing is currently in the queue
+        num_remain : int
+            number of remaining pointings
+        exposures : list of `Exposure`
+            the `Exposure` objects associated with this `Mpointing`, if any
+        repeats : list of `Repeat`
+            the `Repeat` objects associated with this `Mpointing`, if any
+        surveyTile : `SurveyTile`
+            the `SurveyTile` associated with this `Mpointing`, if any
+        ligoTile : `LigoTile`
+            the `LigoTile` associated with this `Mpointing`, if any
+        event : `Event`
+            the `Event` associated with this `Mpointing`, if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+        >>> mp = Mpointing()
+        >>> mp
+        Mpointing(rpID=None, objectName=None, ra=None, decl=None, rank=None,
+        start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
+        ToO=None, num_repeats=None, num_remain=None, scheduled=False, eventID=None,
+        userKey=None, ligoTileID=None)
+
+        make a more useful Mpointing - repeating on increasing intervals, which stay in the
+        queue for 5 minutes.
+
+        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600
+        ... ToO=0, maxMoon='B', num_repeats = 5, userKey=24, intervals=[10,20,30,40,50],
+        ... valid_durations=5, maxSunAlt=-15)
+        >>> mp
+        Mpointing(rpID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
+        minTime=3600, maxMoon=B, ToO=0, num_repeats=None, scheduled=None, eventID=False, userKey=None, ligoTileID=24)
+
+        notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
+
+        >>> mp.repeats
+        [Repeat(repeatID=None, repeatNum=0, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=1, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=2, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=3, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=4, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        ]
+
+        That is because `num_repeats` and `num_remain` are queried from the database. If we add the Mpointing
+        we see that these values are populated, and the repeats are added to the database and get IDs
+
+        >>> session.add(mp)
+        >>> session.commit()
+        >>> mp
+        Mpointing(rpID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
+        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=5, scheduled=5, eventID=0, userKey=None, ligoTileID=24)
+        >>> mp.repeats
+        [Repeat(repeatID=1, repeatNum=0, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=2, repeatNum=1, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=3, repeatNum=2, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=4, repeatNum=3, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=5, repeatNum=4, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        ]
+
+        we can add more repeats directly.
+
+        >>> mp.repeats.append(Repeat(repeatNum=5, waitTime=100, valid_duration=5, status='upcoming'))
+        >>> session.commit()
+        >>> mp.num_repeats
+        6
+
+        To be useful, an Mpointing should have a set of `Exposures` associated with it. We
+        can either add these to the `exposures` attribute directly:
+
+        >>> e1 = Exposure(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
+        >>> mp.exposures.append(e1)
+
+        or create `Exposure` instances with the `mpointingID` attribute set, and the database will take
+        care of the rest:
+
+        >>> e2 = Exposure(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> e3 = Exposure(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> insert_items(session, [e2, e3])
+        >>> session.commit()
+        >>> mp.exposures
+        [Exposure(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         Exposure(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         Exposure(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
+
+        >>> session.close()
+
+    """
+
+    __tablename__ = "mpointings"
+
+    rpID = Column(Integer, primary_key=True)
+    objectName = Column('object', String)
+    ra = Column(Float)
+    decl = Column(Float)
+    rank = Column(Integer)
+    start_rank = Column(Integer)
+    minAlt = Column(Float)
+    maxSunAlt = Column(Float)
+    minTime = Column(Float)
+    maxMoon = Column(String(1))
+    ToO = Column(Integer)
+    scheduled = Column(Integer, default=False)
+
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=True)
+    event = relationship("Event", backref="mpointings")
+
+    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
+                     nullable=False)
+    user = relationship("User", backref="mpointings", uselist=False)
+
+    ligoTileID = Column('ligo_tiles_tileID', Integer,
+                        ForeignKey('ligo_tiles.tileID'), nullable=True)
+    ligoTile = relationship("LigoTile", back_populates="mpointing", uselist=False)
+
+    surveyTileID = Column('survey_tileID', Integer,
+                          ForeignKey('survey.tileID'), nullable=True)
+    surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
+
+    repeats = relationship("Repeat", back_populates="mpointing", viewonly=True)
+    num_repeats = column_property(
+        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == rpID).correlate_except(Repeat)
+    )
+    num_remain = column_property(
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+                                                    Repeat.status == 'upcoming')).correlate_except(Repeat)
+    )
+
+    def __repr__(self):
+        template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
+                    "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, num_repeats={}, " +
+                    "num_remain={}, scheduled={}, eventID={}, userKey={}, ligoTileID={})")
+        return template.format(
+            self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
+            self.num_repeats, self.num_remain, self.scheduled, self.eventID,
+            self.userKey, self.ligoTileID
+        )
+
+    def __init__(self, objectName=None, ra=None, decl=None,
+                 start_rank=None, minAlt=None, minTime=None,
+                 maxMoon=None, maxSunAlt=None, ToO=None, num_repeats=None,
+                 intervals=None, valid_durations=None, **kwargs):
+        self.ra = ra
+        self.decl = decl
+        self.objectName = objectName
+        self.start_rank = start_rank
+        self.maxMoon = maxMoon
+        self.minAlt = minAlt
+        self.minTime = minTime
+        self.maxSunAlt = maxSunAlt
+        self.ToO = ToO
+        self.rank = self.start_rank
+        self.scheduled = False
+
+        # now add repeats and intervals
+        if intervals is not None and valid_durations is not None:
+
+            # first convert to lists
+            try:
+                if len(intervals) != num_repeats:
+                    raise ValueError("number of intervals should match number of repeats or be scalar")
+            except TypeError:
+                # intervals was scalar
+                intervals = [intervals] * num_repeats
+            try:
+                if len(valid_durations) != num_repeats:
+                    raise ValueError("number of durations should match number of repeats or be scalar")
+            except TypeError:
+                valid_durations = [valid_durations] * num_repeats
+
+            # now add
+            repeatNum = 0
+            for interval, duration in zip(intervals, valid_durations):
+                self.repeats.append(
+                    Repeat(repeatNum=repeatNum, waitTime=interval,
+                           valid_duration=duration, status='upcoming')
+                )
+                repeatNum += 1
+
+        if 'eventID' in kwargs:
+            self.eventID = kwargs['eventID']
+        if 'event' in kwargs:
+            self.event = kwargs['event']
+        if 'user' in kwargs:
+            self.user = kwargs['user']
+        if 'userKey' in kwargs:
+            self.userKey = kwargs['userKey']
+        if 'surveyTile' in kwargs:
+            self.surveyTile = kwargs['surveyTile']
+        if 'survey_tileID' in kwargs:
+            self.survey_tileID = kwargs['survey_tileID']
+        if 'ligoTile' in kwargs:
+            self.ligoTile = kwargs['ligoTile']
+        if 'ligoTileID' in kwargs:
+            self.ligoTile = kwargs['ligoTileID']
+
+    def get_next_pointing(self, session):
+        """
+        Retrieve the next pointing which needs to be scheduled.
+
+        The start and stop UTC of the pointing are determined from
+        the status of the previous pointing.
+
+        Parameters
+        ----------
+        session : `sqlalchemy.Session.session`
+            the session object
+
+        Returns
+        -------
+        pointing : `Pointing`
+            the next pointing that should be sent to the database. Is None
+            if there is no suitable pointing remaining, or if there is
+            a pointing from this Mpointing already scheduled
+        """
+        if self.scheduled:
+            return None
+
+        next_repeat = session.query(Repeat).filter(
+            Repeat.mpointingID == self.rpID,
+            Repeat.status == 'upcoming').order_by(Repeat.repeatNum).first()
+        if next_repeat is None:
+            return None
+
+        # get the status of the last repeat. If it was completed,
+        # schedule the next_repeat for now+waitTime. Otherwise,
+        # schedule it now
+        last_repeat_status = session.query(Repeat.status).filter(
+            Repeat.mpointingID == self.rpID,
+        ).filter(
+            ~Repeat.status.in_(['upcoming', 'running'])
+        ).order_by(Repeat.repeatNum.desc()).first()
+
+        if last_repeat_status == 'completed':
+            startUTC = Time.now() + next_repeat.waitTime * u.minute
+        else:
+            startUTC = Time.now()
+        stopUTC = startUTC + next_repeat.valid_duration * u.minute
+
+        # now create a pointing
+        p = Pointing(
+            objectName=self.objectName, ra=self.ra,
+            decl=self.decl, rank=self.rank, minAlt=self.minAlt,
+            maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
+            startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
+            repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
+            mpointingID=self.rpID, ligoTileID=self.ligoTileID
+        )
+        # add the exposures
+        p.exposures = self.exposures
+        return p
+
+
+class Pointing(Base):
+    """
+    A class to represent an Pointing.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an Pointing, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the pointingID)
+    will be None until the Pointing is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        userKey : int
+            unique key identifying user to whom this Mpointing belongs
+        objectName : String
+            object name
+        ra : float
+            J2000 right ascension in decimal degrees
+        decl : float
+            J2000 declination in decimal degrees
+        rank : Integer
+            rank to use for pointing
+        minAlt : float
+            minimum altitude to observer at
+        minTime : float
+            minimum time needed to schedule pointing
+        maxSunAlt : float
+            altitude constraint on Sun
+        maxMoon : string
+            Moon constraint. one of 'D', 'G', 'B'.
+        ToO : int
+            0 or 1 to indicate if this is a ToO or not
+        startUTC : string, `astropy.time.Time` or datetime.datetime
+            UTC time from which pointing is considered valid and can be started
+        stopUTC : string, `astropy.time.Time` or datetime.datetime
+            the latest UTC time at which pointing may be started
+
+        status : string, optional
+            status of pointing, default 'pending'
+        ligoTileID : int, optional
+            unique key linking to a `LigoTile`
+        eventID : int, optional
+            unique key linking to an `Event`
+        mpointingID : int, optional
+            unique key linking to an `Mpointing`
+
+    An Pointing also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        pointingID : int
+            primary key for mpointings
+        exposures : list of `Exposure`
+            the `Exposure` objects associated with this `Pointing`, if any
+        ligoTile : `LigoTile`
+            the `LigoTile` associated with this `Pointing`, if any
+        event : `Event`
+            the `Event` associated with this `Pointing`, if any
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this `Pointing`, if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+        >>> from astropy import units as u
+        >>> from astropy.time import Time
+        >>> p = Pointing(objectName='IP Peg', ra=350.785625, decl=18.416472, rank=9, minAlt=30, maxSunAlt=-15,
+        ... minTime=3600, maxMoon='G', ToO=0, startUTC=Time.now(), stopUTC=Time.now()+3*u.day, userKey=24)
+        >>> p
+        Pointing(pointingID=None, objectName=IP Peg, ra=350.785625, decl=18.416472, rank=9, minAlt=30,
+        maxSunAlt=-15, minTime=3600, maxMoon=G, ToO=0, startUTC=2016-08-16 20:27:57, stopUTC=2016-08-19 20:27:57,
+        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, ligoTileID=None)
+
+        we can insert it into the database and the status and pointingID will be set:
+
+        >>> session.add()
+        >>> session.commit()
+        >>> p.status, p.pointingID
+        ('pending', 17073)
+
+        At the moment, this pointing has no exposures. We can either add these to the `exposures`
+        attribute directly:
+
+        >>> e1 = Exposure(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
+        >>> p.exposures.append(e1)
+
+        or create `Exposure` instances with the `pointingID` attribute set, and the database will take
+        care of the rest:
+
+        >>> e2 = Exposure(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, pointingID=17073)
+        >>> e3 = Exposure(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, pointingID=17073)
+        >>> insert_items(session, [e2, e3])
+        >>> session.commit()
+        >>> p.exposures
+        [Exposure(expID=126601, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
+         Exposure(expID=126602, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
+         Exposure(expID=126603, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None)]
+
+        >>> session.close()
+
+    """
+    __tablename__ = "pointings"
+
+    pointingID = Column(Integer, primary_key=True)
+    objectName = Column("object", String)
+    ra = Column(Float)
+    decl = Column(Float)
+    rank = Column(Integer)
+    minAlt = Column(Float)
+    maxSunAlt = Column(Float, default=-15)
+    minTime = Column(Float)
+    maxMoon = Column(String(1))
+    startUTC = Column(DateTime)
+    stopUTC = Column(DateTime)
+    ToO = Column(Integer)
+    status = Column(Enum(status_list), default='pending')
+
+    # use validators to allow various types of input for UTC
+    # also enforce stopUTC > startUTC
+    @validates('startUTC', 'stopUTC')
+    def munge_times(self, key, field):
+        if isinstance(field, datetime.datetime):
+            value = field.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(field, Time):
+            field.precision = 0  # no D.P on seconds
+            value = field.iso
+        else:
+            # just hope the string works!
+            value = str(field)
+
+        if (key == 'startUTC' and self.stopUTC is not None):
+            if Time(value) >= Time(self.stopUTC):
+                raise AssertionError("stopUTC must be later than startUTC")
+        elif key == 'stopUTC' and self.startUTC is not None:
+            if Time(self.startUTC) >= Time(value):
+                raise AssertionError("stopUTC must be later than startUTC")
+
+        return value
+
+    # now include relationships to other tables
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=True)
+    event = relationship("Event", backref="pointings")
+
+    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
+                     nullable=False)
+    user = relationship("User", backref="pointings", uselist=False)
+
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=True)
+    mpointing = relationship("Mpointing", backref="pointings", uselist=False)
+
+    repeatID = Column('repeats_repeatID', Integer,
+                      ForeignKey('repeats.repeatID'), nullable=True)
+    repeat = relationship("Repeat", back_populates="pointing", uselist=False)
+
+    ligoTileID = Column('ligo_tiles_tileID', Integer,
+                        ForeignKey('ligo_tiles.tileID'), nullable=True)
+    ligoTile = relationship("LigoTile", back_populates="pointings", uselist=False)
+
+    def __repr__(self):
+        template = ("Pointing(pointingID={}, objectName={}, ra={}, decl={}, " +
+                    "rank={}, minAlt={}, maxSunAlt={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
+                    "stopUTC={}, status={}, eventID={}, userKey={}, " +
+                    "mpointingID={}, repeatID={}, ligoTileID={})")
+        return template.format(
+            self.pointingID, self.objectName, self.ra, self.decl, self.rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
+            self.startUTC, self.stopUTC, self.status, self.eventID,
+            self.userKey, self.mpointingID, self.repeatID, self.ligoTileID
+        )
+
+
+class Exposure(Base):
+
+    """
+    A class to represent an Exposure.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an Exposure, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the expID)
+    will be None until the Exposure is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        typeFlag : string
+            indicates the type of exposure.
+            one of SCIENCE, FOCUS, STD, FLAT, BIAS, DARK
+        filt : string
+            filter to use
+        expTime : float
+            exposure time in seconds
+        numexp : int
+            number of times to repeat the exposure
+        binning : int
+            binning to apply
+
+
+        raoff : float, optional
+            the size of the random offset to apply between each exposure
+            if not set, no offset will be made
+        decoff : float, optional
+            the size of the random offset to apply between each exposure
+            if not set, no offset will be made
+        otaMask : int, optional
+            if set, this is a binary mask which will determine which OTAs
+            carry out the exposure. So a value of 5 (binary 0101) will be
+            carried out on OTAs 1 and 3.
+        mpointingID : int, optional
+            unique key linking to an `Mpointing`
+        pointingID : int, optional
+            unique key linking to an `Pointing`
+
+    An Exposure also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        expID : int
+            primary key for Exposures
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this `Exposure`, if any
+        pointing : `Pointing`
+            the `Pointing` associated with this `Exposure`, if any
+
+    """
+    __tablename__ = "exposures"
+
+    expID = Column(Integer, primary_key=True)
+    raoff = Column(Float, server_default='0.0')
+    decoff = Column(Float, server_default='0.0')
+    typeFlag = Column(Enum(['SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD']))
+    filt = Column('filter', String(2))
+    expTime = Column(Float)
+    numexp = Column(Integer)
+    binning = Column(Integer)
+    otaMask = Column(Integer, nullable=True)
+
+    pointingID = Column('pointings_pointingID', Integer,
+                        ForeignKey('pointings.pointingID'),
+                        nullable=False)
+    pointing = relationship("Pointing", backref="exposures", uselist=False)
+
+    mpointingID = Column('mpointings_rpID', Integer,
+                         ForeignKey('mpointings.rpID'),
+                         nullable=False)
+    mpointing = relationship("Mpointing", backref="exposures", uselist=False)
+
+    def __repr__(self):
+        template = ("Exposure(expID={}, raoff={}, decoff={}, typeFlag={}, " +
+                    "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
+                    "pointingID={}, mpointingID={})")
+        return template.format(
+            self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
+            self.expTime, self.numexp, self.binning, self.otaMask,
+            self.pointingID, self.mpointingID
+        )
+
+
+class ObslogEntry(Base):
+
+    """
+    A class to represent an entry in the Obslog table.
+
+    The Obslog is a duplication of a subset of the information in the
+    FITS headers of a single file, allowing easy retrieval of information.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an ObslogEntry, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the obsID)
+    will be None until the Exposure is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        frame : string
+            the frame ID number which identifies the corresponding FITS file
+        utStart : string
+            UT time at start of exposure (format 2016-08-22 12:00:01)
+        objectName : string
+            the same object name as listed in FITS headers
+        frameType : string
+            see `Exposure.typeFlag`
+        ra : float
+            J2000 right ascension in decimal degrees
+        decl : float
+            J2000 declination in decimal degrees
+        expTime : float
+            exposure time in seconds
+        airmass : float
+            airmass at start of observation
+        filt : string
+            filter used
+        binning : int
+            binning used
+        focus : int
+            position of focuser
+        temp : float
+            external temperature, degrees celsius
+        pointingID : int
+            the unique key of the pointing which generated this frame
+        otaID : int
+            the unique key identifying the OTA
+        camID : int
+            a unique key identifying the camera
+
+    An ObslogEntry also has the following property which is
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        pointing : `Pointing`
+            the `Pointing` associated with this `ObslogEntry`
+
+    """
+    __tablename__ = "obslog"
+
+    obsID = Column(Integer, primary_key=True)
+    otaID = Column(Integer)
+    camID = Column(Integer)
+    frame = Column(String)
+    utStart = Column("UTstart", DateTime)
+    objectName = Column("object", String)
+    frameType = Column("type", String)
+    ra = Column(Float)
+    decl = Column(Float)
+    expTime = Column(Float)
+    airmass = Column(Float)
+    filt = Column('filter', String(2))
+    binning = Column(Integer)
+    focus = Column(Float)
+    temp = Column(Float)
+
+    pointingID = Column('pointings_pointingID', Integer,
+                        ForeignKey('pointings.pointingID'),
+                        nullable=False)
+    pointing = relationship("Pointing", backref="obslog", uselist=False)
+
+    def __repr__(self):
+        template = ("ObslogEntry(obsID={}, frame={}, utStart={}, " +
+                    "objectName={}, frameType={}, ra={}, decl={}, " +
+                    "expTime={}, airmass={}, filt={}, binning={}, focus={}, " +
+                    "temp={}, pointingID={}, otaID={}, camID={})")
+        return template.format(
+            self.obsID, self.frame, self.utStart, self.objectName, self.frameType,
+            self.ra, self.decl, self.expTime, self.airmass, self.filt, self.binning,
+            self.focus, self.temp, self.pointingID, self.otaID, self.camID
+        )
