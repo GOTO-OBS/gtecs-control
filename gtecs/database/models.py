@@ -14,6 +14,7 @@ Base = declarative_base()
 
 
 class Event(Base):
+
     __tablename__ = "events"
 
     eventID = Column(Integer, primary_key=True)
@@ -21,7 +22,7 @@ class Event(Base):
     name = Column(String)
     source = Column(String)
 
-    ligoTile = relationship("LigoTile", back_populates="event", uselist=False)
+    ligoTiles = relationship("LigoTile", back_populates="event")
 
     def __repr__(self):
         return "Event(eventID={}, ivo={}, name={}, source={})".format(
@@ -57,7 +58,7 @@ class LigoTile(Base):
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=False)
-    event = relationship("Event", back_populates="ligoTile", uselist=False)
+    event = relationship("Event", back_populates="ligoTiles", uselist=False)
 
     def __repr__(self):
         template = ("LigoTile(tileID={}, ra={}, decl={}, " +
