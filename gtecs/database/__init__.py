@@ -29,6 +29,37 @@ def add_user(session, userName, password, fullName):
     session.add(new_user)
 
 
+def get_userkey(session, userName):
+    """
+    Returns the userKey for a given username.
+
+    The userKey must be supplied as an argument to create a
+    Pointing.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session`
+    userName : string
+        short name of user
+
+    Returns
+    --------
+    userKey : int
+        id of user in database.
+
+    Raises
+    ------
+    ValueError : if user not in DB
+    """
+    try:
+        return session.query(User.userKey).filter(
+            User.userName == userName
+        ).one()[0]
+    except NoResultFound:
+        raise ValueError('User not in db')
+
+
 def validate_user(session, userName, password):
     """
     Check user exists and password is correct.
@@ -233,6 +264,28 @@ def get_mpointing_by_id(session, rpID):
     ).one_or_none()
 
 
+def get_stale_pointing_ids(session):
+    """
+    Finds all the pointings still pending whose valid period has expired.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+
+    Returns
+    -------
+    staleIDs : list
+        a list of all matching Pointing IDs
+    """
+    query = session.query(Pointing.pointingID).filter(
+        Pointing.status == 'pending',
+        Pointing.stopUTC < Time.now().iso
+    )
+    # return values, unpacking tuples
+    return [pID for (pID,) in query.all()]
+
+
 def insert_items(session, items):
     """
     Insert one or more items into the database.
@@ -296,7 +349,7 @@ def bulk_update_pointing_status(session, pointingIDs, status):
         status to set pointings to
     """
     mappings = [dict(pointingID=thisID, status=status) for thisID in pointingIDs]
-    session.bulk_update_mapping(Pointing, mappings)
+    session.bulk_update_mappings(Pointing, mappings)
 
 
 def _make_random_pointing(userKey, numexps=None):
