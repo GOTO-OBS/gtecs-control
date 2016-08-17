@@ -96,8 +96,8 @@ class Pilot:
         retcode = await self.startScript('SN2', SimpleProtocol, cmd)
 
         # take biasses and darks, 3 of each
-        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
-        retcode = await self.startScript('SN3', SimpleProtocol, cmd)
+        #cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
+        #retcode = await self.startScript('SN3', SimpleProtocol, cmd)
 
         # take evening flats
         cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE']
@@ -132,6 +132,7 @@ class Pilot:
 
         This does nothing if the script is already done.
         """
+        retcode = None
         if self.runningScriptTransport is not None:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
@@ -245,12 +246,14 @@ class Pilot:
             self.log.info(Time.now())
             await asyncio.sleep(10)
 
+        # if we have external subprocess running, stop it
+        await self.cancelRunningScript()
+
         # close any running tasks
         for future in self.running_tasks:
             future.cancel()
 
-        # if we have external subprocess running, stop it
-        await self.cancelRunningScript()
+        self.log.info("Done")
 
 
 if __name__ == "__main__":
@@ -262,9 +265,12 @@ if __name__ == "__main__":
         asyncio.ensure_future(pilot.nightPlan())
     )
 
-    stopSignal = pilot.waitForNightsEnd(Time.now() + 20*u.minute)
+    stopSignal = pilot.waitForNightsEnd(Time.now() + 10*u.minute)
     # keep the pilot runing until the end of the night
-    loop.run_until_complete(stopSignal)
-
-    print("Pilot Done")
-    loop.close()
+    try:
+        loop.run_until_complete(stopSignal)
+    except asyncio.CancelledError:
+        print('Tasks cancelled')
+    finally:
+        print("Pilot Done")
+        loop.close()
