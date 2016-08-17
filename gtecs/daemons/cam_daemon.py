@@ -302,7 +302,7 @@ class CamDaemon:
                 time.sleep(0.01)
 
         # get info for saving to headers
-        self.get_info()
+        self.get_info(fli_proxies)
 
         image_done_iter = futures.as_completed(to_do_map)
         for future in image_done_iter:
@@ -323,12 +323,16 @@ class CamDaemon:
             self.exposing_flag[nuc][HW] = 0
         self.logfile.info('Exposure done')
 
-    def get_info(self):
+    def get_info(self, fli_proxies=None):
         for tel in self.tel_dict:
             nuc, HW = self.tel_dict[tel]
-            fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-            fli._pyroTimeout = params.PROXY_TIMEOUT
+            if fli_proxies:
+                fli = fli_proxies[nuc]
+            else:
+                fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+                fli._pyroTimeout = params.PROXY_TIMEOUT
             try:
+                fli._pyroReconnect()
                 self.cam_info[nuc][HW] = fli.get_camera_info(HW)
                 self.remaining[nuc][HW] = fli.get_camera_time_remaining(HW)
                 self.ccd_temp[nuc][HW] = fli.get_camera_temp('CCD',HW)
@@ -338,7 +342,8 @@ class CamDaemon:
             except:
                 self.logfile.error('No response from fli interface on %s', nuc)
                 self.logfile.debug('', exc_info=True)
-            fli._pyroRelease()
+            if not fli_proxies:
+                fli._pyroRelease()
 
         # save info
         info = {}
