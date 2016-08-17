@@ -123,7 +123,8 @@ def check_alt_limit(targ_ra, targ_dec, now):
         return 0
 
 
-def ang_sep(ra_1, dec_1, ra_2, dec_2):
+def ang_sep(ra_1, dec_1, ra_2, dec_2)
+
     """
     Find angular separation between two sky positions.
 
@@ -146,3 +147,21 @@ def ang_sep(ra_1, dec_1, ra_2, dec_2):
     coo1 = SkyCoord(ra_1*u.deg, dec_1*u.deg)
     coo2 = SkyCoord(ra_2*u.deg, dec_2*u.deg)
     return coo1.separation(coo2).degree
+
+
+def tel_str(ra, dec):
+    """
+    Get RA and Dec strings to send to mount
+
+    Parameters
+    ----------
+    ra : float
+        ra in decimal degrees
+    dec : float
+        declination in decimal degrees
+    """
+    coo = SkyCoord(ra*u.deg, dec*u.deg)
+    ra_string = coo.ra.to_string(sep=' ', precision=2)
+    dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
+    dec_string = dec_string[0] + ' ' + dec_string[1:]
+    return ra_string, dec_string
