@@ -33,17 +33,19 @@ def run(nexp=5):
 
     # we should not return straight away, but wait until queue is empty
     EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
 
     still_working = True
     while still_working:
         time.sleep(30)
         try:
-            exq_info = exq.get_info()
+
+            with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
+                exq._pyroTimeout = params.PROXY_TIMEOUT
+                exq_info = exq.get_info()
+
             nexp = exq_info['queue_length']
             status = exq_info['status']
-            if nexp == 0 and status != 'Working':
+            if nexp == 0 and status == 'Ready':
                 still_working = False
                 print("Finished taking darks and biasses")
         except Pyro4.errors.ConnectionClosedError:
