@@ -17,7 +17,7 @@ from math import *
 import time, datetime
 import Pyro4
 import threading
-import multiprocessing
+from concurrent import futures
 import os
 import astropy.io.fits as pyfits
 import numpy
@@ -80,7 +80,6 @@ class CamDaemon:
         self.cooler_power = {}
         self.cam_info = {}
         self.serial_number = {}
-        self.images = {}
 
 
         for nuc in params.FLI_INTERFACES:
@@ -95,7 +94,6 @@ class CamDaemon:
             self.cooler_power[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.cam_info[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
             self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.images[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
 
         self.active_tel = []
         self.obs_times = {}
@@ -111,9 +109,6 @@ class CamDaemon:
         self.run_ID = 0
         self.target = 'N/A'
         self.imgtype = 'MANUAL'
-
-        self.manager = multiprocessing.Manager()
-        self.images = self.manager.dict()
 
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -277,6 +272,7 @@ class CamDaemon:
 
         # take exposure part two - wait for finish
         keepGoing = True
+        to_do_map = {}  # mapping of future image to telescope
         while keepGoing:
             expose_flag_values = numpy.array(list(self.exposing_flag.values()))
             keepGoing = numpy.any(expose_flag_values == 1)
@@ -297,56 +293,34 @@ class CamDaemon:
                     if remaining == 0:
                         # mark this exposure as done
                         self.exposing_flag[nuc][HW] = 2
-                        self.images[tel] = None
-                        # start image fetch
-                        p = multiprocessing.Process(target=self.image_fetch, args=(tel, self.images))
-                        p.daemon = True
-                        p.start()
-            # sleep a bit, and update ping!
-            self.time_check = time.time()
-            time.sleep(0.01)
+                        # schedule image fetch
+                        future = self.image_fetch(tel)
+                        to_do_map[future] = tel
+
+                # sleep a bit, and update ping!
+                self.time_check = time.time()
+                time.sleep(0.01)
 
         # get info for saving to headers
         self.get_info()
 
-        # take exposure part three - save
-        images_saved = [False for tel in self.active_tel]
-        while not numpy.all(images_saved):
-            if self.abort_exposure_flag:
-                self.handle_aborts(fli_proxies)
-
-            # sleep a bit, and update ping!
-            self.time_check = time.time()
-            time.sleep(0.01)
-
-            # changed logic here since original
-            # was altering active_tel while looping
-            # over same list - bad!
-            ready_tels = []
-            for tel in self.active_tel:
-                try:
-                    if self.images[tel] is not None:
-                        ready_tels.append(tel)
-                except:
-                    self.logfile.warn('Caught error accessing image for tel {}'.format(tel))
-
-            print(ready_tels, self.active_tel)
-
-            # save all images that are ready
-            for tel in ready_tels:
-                nuc, HW = self.tel_dict[tel]
-                image = self.images[tel]
-                # save info to add to header
-                header_dict = {}
-                header_dict['tel'] = tel
-                self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, nuc, HW)
-                filename = self.image_location(tel)
-                self.logfile.info('Saving exposure to %s', filename)
-                self.write_fits(image, filename, tel)
-                self.active_tel.pop(self.active_tel.index(tel))
-                self.images[tel] = None
-                images_saved[tel-1] = True
-                self.exposing_flag[nuc][HW] = 0
+        image_done_iter = futures.as_completed(to_do_map)
+        for future in image_done_iter:
+            tel = to_do_map[future]
+            nuc, HW = self.tel_dict[tel]
+            image = future.result()
+            if image is None:
+                # error in image_fetch
+                continue
+            # save info to add to header
+            header_dict = {}
+            header_dict['tel'] = tel
+            self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, nuc, HW)
+            filename = self.image_location(tel)
+            self.logfile.info('Saving exposure to %s', filename)
+            self.write_fits(image, filename, tel)
+            self.active_tel.pop(self.active_tel.index(tel))
+            self.exposing_flag[nuc][HW] = 0
         self.logfile.info('Exposure done')
 
     def get_info(self):
@@ -538,18 +512,18 @@ class CamDaemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Image data functions
 
-    def image_fetch(self,tel,outarr):
+    def image_fetch(self,tel):
         nuc, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-        fli._pyroTimeout = 999 #params.PROXY_TIMEOUT
+        fli._pyroTimeout = params.PROXY_TIMEOUT
         try:
-            image = fli.fetch_exposure(HW)
-            outarr[tel] = image
+            future_image = fli.fetch_exposure(HW)
         except:
             self.logfile.error('No response from fli interface on %s', nuc)
             self.logfile.debug('', exc_info=True)
         # release proxy connection
         fli._pyroRelease()
+        return future_image
 
     def image_location(self,tel):
         # Find the date the observing night began, for the directory
