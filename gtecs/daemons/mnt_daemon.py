@@ -94,19 +94,20 @@ class MntDaemon:
     # Primary control thread
     def mnt_control(self):
 
+        sitech = Pyro4.Proxy(params.SITECH_ADDRESS)
+        sitech._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
 
             ### connect to sitech daemon
-            sitech = Pyro4.Proxy(params.SITECH_ADDRESS)
-            sitech._pyroTimeout = params.PROXY_TIMEOUT
 
             ### control functions
             # request info
             if(self.get_info_flag):
                 # update variables
                 try:
+                    sitech._pyroReconnect()
                     self.mount_status = sitech.get_mount_status()
                     self.mount_alt, self.mount_az = sitech.get_mount_altaz()
                     self.mount_ra, self.mount_dec = sitech.get_mount_radec()
@@ -146,6 +147,7 @@ class MntDaemon:
                 self.logfile.info('Slewing to %.2f,%.2f',
                                   self.temp_ra, self.temp_dec)
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.slew_to_radec(self.temp_ra,self.temp_dec)
                     if c: self.logfile.info(c)
                 except:
@@ -159,6 +161,7 @@ class MntDaemon:
             if(self.slew_target_flag):
                 self.logfile.info('Slewing to target')
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.slew_to_target()
                     if c: self.logfile.info(c)
                 except:
@@ -169,6 +172,7 @@ class MntDaemon:
             # start tracking
             if(self.start_tracking_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.start_tracking()
                     if c: self.logfile.info(c)
                 except:
@@ -179,6 +183,7 @@ class MntDaemon:
             # stop all motion (tracking or slewing)
             if(self.full_stop_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.full_stop()
                     if c: self.logfile.info(c)
                 except:
@@ -189,6 +194,7 @@ class MntDaemon:
             # park the mount
             if(self.park_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.park()
                     if c: self.logfile.info(c)
                 except:
@@ -199,6 +205,7 @@ class MntDaemon:
             # unpark the mount
             if(self.unpark_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.unpark()
                     if c: self.logfile.info(c)
                 except:
@@ -209,6 +216,7 @@ class MntDaemon:
             # Set target RA
             if(self.set_target_ra_flag):
                 try:
+                    sitech._pyroReconnect()
                     self.logfile.info('set ra to',self.temp_ra)
                     c = sitech.set_target_ra(self.temp_ra)
                     if c: self.logfile.info(c)
@@ -222,6 +230,7 @@ class MntDaemon:
             # Set target Dec
             if(self.set_target_dec_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.set_target_dec(self.temp_dec)
                     if c: self.logfile.info(c)
                     self.logfile.info('set dec to',self.temp_dec)
@@ -234,6 +243,7 @@ class MntDaemon:
             # Set target
             if(self.set_target_flag):
                 try:
+                    sitech._pyroReconnect()
                     c = sitech.set_target(self.temp_ra,self.temp_dec)
                     if c: self.logfile.info(c)
                 except:

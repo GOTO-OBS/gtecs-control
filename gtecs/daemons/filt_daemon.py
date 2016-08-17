@@ -78,6 +78,12 @@ class FiltDaemon:
     # Primary control thread
     def filt_control(self):
 
+        # make proxies once, outside the loop
+        fli_proxies = dict()
+        for nuc in params.FLI_INTERFACES:
+            fli_proxies[nuc] = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+            fli_proxies[nuc]._pyroTimeout = params.PROXY_TIMEOUT
+
         while(self.running):
             self.time_check = time.time()
 
@@ -87,9 +93,9 @@ class FiltDaemon:
                 # update variables
                 for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         self.current_pos[nuc][HW] = fli.get_filter_position(HW)
                         self.remaining[nuc][HW] = fli.get_filter_steps_remaining(HW)
                         self.current_filter_num[nuc][HW] = fli.get_filter_number(HW)
@@ -130,14 +136,15 @@ class FiltDaemon:
                     self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
                                       tel, nuc, HW, self.new_filter, new_filter_num)
 
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         c = fli.set_filter_pos(new_filter_num,HW)
                         if c: self.logfile.info(c)
                     except:
                         self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
+
                 # clear the 'active' units
                 self.active_tel = []
 
@@ -152,9 +159,9 @@ class FiltDaemon:
                     self.logfile.info('Homing filter wheel %i (%s-%i)',
                                       tel, nuc, HW)
 
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         c = fli.home_filter(HW)
                         if c: self.logfile.info(c)
                     except:
