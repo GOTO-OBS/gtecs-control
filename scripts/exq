@@ -56,8 +56,8 @@ def get_info_summary():
         print('QUEUE: [%s]' %info['status'])
         print('  Current exposure:', end=' ')
         try:
-            print('   %i: %i, %i, %s, %i, %s, %s, %s' \
-                %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+            print('   %i: %r, %i, %s, %i, %s, %s, %s' \
+                %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
         except:
             print('None')
         print('  Items in queue: %s' %info['queue_length'])
