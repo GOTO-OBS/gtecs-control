@@ -123,8 +123,7 @@ def check_alt_limit(targ_ra, targ_dec, now):
         return 0
 
 
-def ang_sep(ra_1, dec_1, ra_2, dec_2)
-
+def ang_sep(ra_1, dec_1, ra_2, dec_2):
     """
     Find angular separation between two sky positions.
 
