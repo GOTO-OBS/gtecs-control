@@ -6,12 +6,9 @@ This script should perform the following simple tasks:
 """
 from __future__ import absolute_import
 from __future__ import print_function
-import time
 
-import Pyro4
-
-from gtecs.tecs_modules.misc import execute_command as cmd, ERROR
-from gtecs.tecs_modules import params
+from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.tecs_modules.observing import wait_for_exposure_queue
 
 
 def run(nexp=5):
@@ -31,27 +28,7 @@ def run(nexp=5):
     cmd('exq multdark {} 120 1'.format(nexp))
     cmd('exq resume')  # just in case
 
-    # we should not return straight away, but wait until queue is empty
-    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-
-    still_working = True
-    while still_working:
-        time.sleep(30)
-        try:
-
-            with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
-                exq._pyroTimeout = params.PROXY_TIMEOUT
-                exq_info = exq.get_info()
-
-            nexp = exq_info['queue_length']
-            status = exq_info['status']
-            if nexp == 0 and status == 'Ready':
-                still_working = False
-                print("Finished taking darks and biasses")
-        except Pyro4.errors.ConnectionClosedError:
-            # for now, silently pass failures to contact exq daemon
-            pass
-
+    wait_for_exposure_queue()
 
 if __name__ == "__main__":
     import sys
@@ -60,4 +37,4 @@ if __name__ == "__main__":
     else:
         nexp = 5
     run(nexp)
-    print("Done")
+    print("Biasses and darks done")
