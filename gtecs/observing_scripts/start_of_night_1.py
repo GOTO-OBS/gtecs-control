@@ -18,7 +18,7 @@ from gtecs.tecs_modules.misc import execute_command as cmd
 def run():
     print('Start of Night Phase 1')
 
-    cmd('lilith start power')
+    #cmd('lilith start power')
     cmd('power on filt')
     cmd('power on foc')
     cmd('power on cam')
@@ -26,7 +26,7 @@ def run():
     time.sleep(5)
 
     # start the daemons
-    cmd('lilith start')
+    #cmd('lilith start')
     time.sleep(15)
 
     # clean up persistent queue from previous night

@@ -87,10 +87,8 @@ class Pilot:
         """
         self.log.info("Starting the night")
 
-        # all DAEMON output will be marked with this job code
-        # so I use DAE instead of SN1
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_1.py')]
-        retcode = await self.startScript('DAE', SimpleProtocol, cmd)
+        retcode = await self.startScript('SN1', SimpleProtocol, cmd)
 
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_2.py')]
         retcode = await self.startScript('SN2', SimpleProtocol, cmd)
