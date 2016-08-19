@@ -70,14 +70,15 @@ if __name__ == "__main__":
         sys.exit(1)
     print('starting in ', -time_to_go.to(u.min))
     # wait
-    time.sleep(-time_to_go.to(u.sec).value - 30)
+    if -time_to_go > 30*u.second:
+        time.sleep(-time_to_go.to(u.second).value - 30)
 
     # OK! Let's go
-    flat = flats.best_flat(ast.observatory_location(), Time.now())
+    flat = flats.best_flat(Time.now())
     print('Slewing to flat', flat)
     coordinate = flat.coord
-    goto(coordinate.ra.deg.value, coordinate.dec.deg.value)
-    wait_for_telescope()
+    goto(coordinate.ra.deg, coordinate.dec.deg)
+    wait_for_telescope(240)  # 240s timeout
 
     # set exposure order and check for sky brightness
     if eve:
