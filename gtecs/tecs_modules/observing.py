@@ -24,6 +24,69 @@ from .astronomy import tel_str
 from .misc import execute_command as cmd
 
 
+def set_new_focus(values):
+    """
+    Move each telescope to the requested focus
+
+    Parameters
+    ----------
+    values : float, list or np.ndarray
+    """
+    try:
+        len(values)
+    except:
+        values = [values] * len(params.TEL_DICT)
+    if len(values) != len(params.TEL_DICT):
+        raise ValueError("values should either be a float or same length as number of OTAs")
+
+    current_values = get_current_focus()
+    difference = np.array(values) - current_values
+    for i, delta in enumerate(difference):
+        tel = i+1
+        cmd('foc move {} {}'.format(tel, int(delta)))
+
+
+def get_current_focus():
+    """
+    Find the current focus positions
+    """
+    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
+    with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
+        foc._pyroTimeout = params.PROXY_TIMEOUT
+        foc_info = foc.get_info()
+    keys = ['current_pos{}'.format(i+1) for i in range(4)]
+    return np.array([foc_info[key] for key in keys])
+
+
+def wait_for_focuser(timeout):
+    """
+    Wait until focuser has finished moving
+
+    Parameters
+    ----------
+    timeout : float
+        time in seconds after which to timeout
+    """
+    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
+    start_time = time.time()
+    still_moving = True
+    timed_out = False
+    status_keys = ['status{}'.format(i+1) for i in range(4)]
+    while still_moving and not timed_out:
+        try:
+            with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
+                foc._pyroTimeout = params.PROXY_TIMEOUT
+                foc_info = foc.get_info()
+        except Pyro4.errors.ConnectionClosedError:
+            pass
+        if np.all([foc_info[key] == 'Ready' for key in status_keys]):
+            still_moving = False
+        if time.time() - start_time > timeout:
+            timed_out = True
+    if timed_out:
+        raise TimeoutError('Focuser timed out')
+
+
 def goto(ra, dec, timeout=60):
     """
     Move telescope and wait until there.
