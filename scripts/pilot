@@ -22,6 +22,7 @@ from gtecs.tecs_modules.testScheduler import Scheduler
 from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.astronomy import sun_alt
 
 scheduler = Scheduler()
 
@@ -67,15 +68,63 @@ class Pilot:
         # a list of all running tasks to cancel at end of night
         self.running_tasks = []
 
+        # lists of routine jobs. Each job a dict of name, protocol, cmd and sun_alt
+        self.morning_jobs = []
+        self.evening_jobs = []
+
+    async def waitingForTheSun(self, sunAlt, rising=False):
+        """
+        This coroutine will not return until the sun reaches the given altitude
+
+        Parameters
+        ----------
+        sunAlt : float
+            sun altitude in degrees
+        rising : bool
+            whether the sun is rising or setting
+        """
+        our_watch_has_ended = False
+        while not our_watch_has_ended:
+            sun_alt_now = sun_alt(Time.now())
+            if rising:
+                our_watch_has_ended = sun_alt_now > sunAlt
+            else:
+                our_watch_has_ended = sun_alt_now < sunAlt
+            await asyncio.sleep(20)
+
     async def nightMarshall(self, restart=False):
         """
         The night marshall starts tasks at the right time.
 
         It does this by polling the sun's altitude.
 
-        Not implemented yet. Thinking about best way.
+        Parameters
+        ----------
+        restart : bool
+            If true, we will skip startup jobs and get straight to observing
         """
-        pass
+        # run through the routine evening tasks
+        if not restart:
+            while self.evening_jobs:
+                job = self.evening_jobs.pop(0)
+                # wait for the right sun altitude
+                await self.waitingForTheSun(job['sunAlt'], rising=False)
+                # and go!
+                asyncio.ensure_future(
+                    self.startScript(job['name'], job['protocol'], job['cmd'])
+                )
+
+        # evening tasks over. Start observing. Will automatically stop at sunAlt
+        await self.observe(until_sun_alt=-15)
+
+        # observing is done. do morning tasks
+        while self.morning_jobs:
+            job = self.morning_jobs.pop(0)
+            # wait for the sun altitude
+            await self.waitingForTheSun(job['sunAlt'], rising=True)
+            asyncio.ensure_future(
+                    self.startScript(job['name'], job['protocol'], job['cmd'])
+            )
 
     async def nightPlan(self):
         """
