@@ -148,22 +148,24 @@ class Pilot:
         if retcode != 0:
             self.log.warn('SN1 ended abnormally')
 
+        """
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_2.py')]
         retcode, results = await self.startScript('SN2', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('SN2 ended abnormally')
 
         # take biasses and darks, 3 of each
-        # cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
-        # retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
-        # if retcode != 0:
-        #    self.log.warn('SN3 ended abnormally')
+        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
+        retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('SN3 ended abnormally')
 
         # take evening flats
         cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE']
         retcode, results = await self.startScript('FLATS', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('FLATS ended abnormally')
+        """
 
         # autofocus
 
@@ -172,11 +174,26 @@ class Pilot:
         # await self.observe()
 
         # morning flats
+        """
+        cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN']
+        retcode, results = await self.startScript('FLATS', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('FLATS ended abnormally')
+        """
+
+        # park scope and power off
+        cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
+        retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('EON ended abnormally')
 
         # shutdown daemons
+        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
+        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('DAE ended abnormally')
 
-        # power off
-        self.log.info("Night done")
+        self.log.info("Night plan is done")
 
     async def checkSchedule(self):
         """
