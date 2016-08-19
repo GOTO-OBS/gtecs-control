@@ -38,7 +38,7 @@ from gtecs.tecs_modules.time_date import nightStarting
 
 
 def take_frame(expT, current_filter, name):
-    cmd('exq image {} {} 1 {} FOCUS'.format(
+    cmd('exq image {} {} 1 "{}" FOCUS'.format(
         expT, current_filter, name
     ))
     time.sleep(0.1)
