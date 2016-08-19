@@ -232,7 +232,7 @@ def tel_str(ra, dec):
         declination in decimal degrees
     """
     coo = SkyCoord(ra*u.deg, dec*u.deg)
-    ra_string = coo.ra.to_string(sep=' ', precision=2)
+    ra_string = coo.ra.to_string(sep=' ', precision=2, unit=u.hour)
     dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
     dec_string = dec_string[0] + ' ' + dec_string[1:]
     return ra_string, dec_string
