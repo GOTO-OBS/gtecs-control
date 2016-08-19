@@ -87,7 +87,7 @@ def find_best_focus(m1, m2, delta, xval, yval):
     the line with gradient m2.
     """
     c2 = yval-m2*xval
-    c1 = m2*(-delta + c2/m1)
+    c1 = m1*(-delta + c2/m2)
     meeting_point = ((c1-c2)/(m2-m1))
     return meeting_point
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     expT = 2
 
     print('Starting focus routine')
-    # star = gliese.focus_star(Time.now())
+ #star = gliese.focus_star(Time.now())
     star = flats.best_flat(Time.now())
     print('Slewing to star', star)
     name = star.name
