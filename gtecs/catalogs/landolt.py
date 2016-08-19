@@ -1,5 +1,5 @@
 """
-Gliese 1991 catalog of nearby stars
+Landolt 2009 catalog of standard stars
 """
 from __future__ import print_function
 from __future__ import absolute_import
@@ -35,7 +35,7 @@ class LandoltStar:
 
     def __repr__(self):
         coord = self.coord_now()
-        return "GlieseStar(name={}, ra={}, dec={}, V={:.1f}, B-V={:.1f})".format(
+        return "LandoltStar(name={}, ra={}, dec={}, V={:.1f}, B-V={:.1f})".format(
             self.name,
             coord.ra.to_string(sep=" ", unit=u.hour, precision=2),
             coord.dec.to_string(sep=" ", unit=u.deg, precision=1),
