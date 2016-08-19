@@ -79,7 +79,7 @@ class Pilot:
         Parameters
         ----------
         sunAlt : float
-            sun altitude in degrees
+            sun altitude in degrees to wait for
         rising : bool
             whether the sun is rising or setting
         """
