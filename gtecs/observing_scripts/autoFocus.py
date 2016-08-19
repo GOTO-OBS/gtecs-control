@@ -26,7 +26,7 @@ from astropy.io import fits
 from astropy.stats.sigma_clipping import sigma_clipped_stats
 
 from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
-from gtecs.catalogs import flats
+from gtecs.catalogs import gliese
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
                                           get_current_focus, set_new_focus,
@@ -116,12 +116,11 @@ if __name__ == "__main__":
     expT = 2
 
     print('Starting focus routine')
- #star = gliese.focus_star(Time.now())
-    star = flats.best_flat(Time.now())
+    star = gliese.focus_star(Time.now())
     print('Slewing to star', star)
     name = star.name
 
-    coordinate = star.coord
+    coordinate = star.coord_now()
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(1)
     wait_for_telescope(240)  # 240s timeout
