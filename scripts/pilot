@@ -87,6 +87,12 @@ class Pilot:
         """
         self.log.info("Starting the night")
 
+        # Start DAEMONS
+        cmd = [os.path.join(SCRIPT_PATH, 'start_daemons.py')]
+        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('DAE ended abnormally')
+
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_1.py')]
         retcode, results = await self.startScript('SN1', SimpleProtocol, cmd)
         if retcode != 0:
