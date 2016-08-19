@@ -87,7 +87,7 @@ def random_offset(offset_size):
     dirn = np.random.choice(compass)
     cmd("mnt step {}".format(offset_size))
     time.sleep(0.2)
-    cmd("mnt ".format(dirn))
+    cmd("mnt {}".format(dirn))
     # wait a short while for it to move
     time.sleep(2)
 
