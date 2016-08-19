@@ -88,20 +88,26 @@ class Pilot:
         self.log.info("Starting the night")
 
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_1.py')]
-        retcode = await self.startScript('SN1', SimpleProtocol, cmd)
+        retcode, results = await self.startScript('SN1', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('SN1 ended abnormally')
 
         cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_2.py')]
-        retcode = await self.startScript('SN2', SimpleProtocol, cmd)
+        retcode, results = await self.startScript('SN2', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('SN2 ended abnormally')
 
         # take biasses and darks, 3 of each
         #cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
-        #retcode = await self.startScript('SN3', SimpleProtocol, cmd)
+        #retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
+        #if retcode != 0:
+        #    self.log.warn('SN3 ended abnormally')
 
         # take evening flats
         cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE']
-        retcode = await self.startScript('FLATS', SimpleProtocol, cmd)
-
-        # process flats, biasses and darks to master frames
+        retcode, results = await self.startScript('FLATS', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('FLATS ended abnormally')
 
         # autofocus
 
