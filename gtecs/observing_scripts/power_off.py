@@ -11,7 +11,7 @@ import time
 from gtecs.tecs_modules.misc import execute_command as cmd
 
 def run():
-    print('Start of Night Phase 1')
+    print('End of night power down')
 
     cmd('power off filt')
     cmd('power off foc')
