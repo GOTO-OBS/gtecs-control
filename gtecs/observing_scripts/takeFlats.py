@@ -31,7 +31,7 @@ def mean_sky_brightness(fnames):
 
 
 def take_sky(expT, current_filter, name):
-    cmd('exq image {} {} 1 {} FLAT'.format(
+    cmd('exq image {} {} 1 "{}" FLAT'.format(
         expT, current_filter, name
     ))
     time.sleep(0.1)
