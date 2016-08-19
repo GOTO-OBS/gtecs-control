@@ -28,6 +28,7 @@ scheduler = Scheduler()
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
+
 class Pilot:
     """
     Run the scheduler and telescope.
@@ -136,7 +137,7 @@ class Pilot:
         """
         self.log.info("Starting the night")
 
-        # Start DAEMONS
+        # Start DAEMONS
         cmd = [os.path.join(SCRIPT_PATH, 'start_daemons.py')]
         retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
         if retcode != 0:
@@ -153,9 +154,9 @@ class Pilot:
             self.log.warn('SN2 ended abnormally')
 
         # take biasses and darks, 3 of each
-        #cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
-        #retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
-        #if retcode != 0:
+        # cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
+        # retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
+        # if retcode != 0:
         #    self.log.warn('SN3 ended abnormally')
 
         # take evening flats
@@ -174,7 +175,7 @@ class Pilot:
 
         # shutdown daemons
 
-        # power off
+        # power off
         self.log.info("Night done")
 
     async def checkSchedule(self):
@@ -191,7 +192,6 @@ class Pilot:
 
         This does nothing if the script is already done.
         """
-        retcode = None
         if self.runningScriptTransport is not None:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
