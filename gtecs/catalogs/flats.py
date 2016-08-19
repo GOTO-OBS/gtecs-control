@@ -64,7 +64,12 @@ class FlatField:
         self.coord = SkyCoord(ra, dec, unit=(u.hour, u.deg))
         self.bmag = bmag
         self.rmag = rmag
-
+    def __repr__(self):
+        return "Flatfield(name={}, ra={}, dec={})".format(
+            self.name,
+            self.coord.ra.to_string(sep=" ", unit=u.hour),
+            self.coord.dec.to_string(sep=" ", unit=u.deg)
+        )
 
 def best_flat(time):
     """
@@ -120,7 +125,7 @@ def exposure_sequence(date, binning, startExp, nflats=5, eve=True):
     except:
         read = readout_times[0]
 
-    tau = ast.twilightLength(date)
+    tau = ast.twilightLength(date).to(u.min).value
 
     # time constant from Tyson & Gal (1993).
     if eve:
@@ -128,7 +133,7 @@ def exposure_sequence(date, binning, startExp, nflats=5, eve=True):
     else:
         a = 10.0**(7.52/tau/60)
 
-    t0 = 0/0
+    t0 = 0.0
     e0 = startExp
     S = (a**e0 - 1.0)/np.log(a)
 
@@ -226,7 +231,7 @@ def extrapolate_from_filters(filter1, expT, filter2, time):
     guess : float
         best guess of new exposure time
     """
-    sunAlt = ast.sun_alt(now)
+    sunAlt = ast.sun_alt(time)
 
     sb1 = sky_brightness(sunAlt, filter1)
     sb2 = sky_brightness(sunAlt, filter2)
