@@ -3,7 +3,6 @@ Script to run the tasks for Start Night Phase 1.
 
 This script should perform the following simple tasks:
 * power on the equipment
-* start the daemons
 * empty the persistent camera queues
 * unpause the camera daemon
 * home the filter wheel
