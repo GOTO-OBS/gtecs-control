@@ -3,10 +3,7 @@ Script to take Landolt standard star observations with a range of colours and ai
 """
 from __future__ import absolute_import
 from __future__ import print_function
-import argparse
 import time
-
-import numpy as np
 
 from astropy.time import Time
 
@@ -14,8 +11,6 @@ from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import landolt
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
-                                          get_current_focus, set_new_focus,
-                                          wait_for_focuser,
                                           wait_for_telescope)
 from gtecs.tecs_modules import params
 
