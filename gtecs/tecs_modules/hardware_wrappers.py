@@ -160,6 +160,14 @@ class DomeMonitor(HardwareMonitor):
         if obsMode == 'open' and self.info['dome'] != 'open':
             self.errors.append('Dome closed')
 
+    def setMode(self, mode):
+        super(DomeMonitor, self).setMode(mode)
+        if mode == 'open':
+            # dome open commands may need repeating if cond change hasnt propogated
+            self.recoveryProcedure[1] = [60., 'dome open']
+            self.recoveryProcedure[1] = [120., 'dome open']
+        else:
+            self.recoveryProcedure = {}
 
 class MountMonitor(HardwareMonitor):
 
