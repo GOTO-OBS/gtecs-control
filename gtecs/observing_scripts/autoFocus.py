@@ -15,15 +15,17 @@ from __future__ import absolute_import
 from __future__ import print_function
 import argparse
 import time
-import sys
-import pydoc
 
 import numpy as np
 
-from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 from astropy.stats.sigma_clipping import sigma_clipped_stats
+from astropy.stats import gaussian_fwhm_to_sigma
+from astropy.convolution import Gaussian2DKernel
+
+# for measuring HFD from sources
+import sep
 
 from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
 from gtecs.catalogs import gliese
@@ -33,8 +35,6 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           wait_for_focuser,
                                           wait_for_telescope)
 from gtecs.tecs_modules import params
-import gtecs.tecs_modules.astronomy as ast
-from gtecs.tecs_modules.time_date import nightStarting
 
 
 def take_frame(expT, current_filter, name):
@@ -96,6 +96,69 @@ def estimate_focus(targetHFD, currentHFD, currentPos, slope):
     return currentPos + (targetHFD-currentHFD)/slope
 
 
+def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
+    """
+    Crude measure of half-flux-diameter.
+
+    Parameters
+    ----------
+    fname : string
+        filename to analyse
+    filter_width : int
+        before detection, the image is filtered. This is the filter width in pixels.
+        For optimal source detection, this should roughly match the expected FWHM
+    threshold : float
+        if set to, e.g. 5, objects 5sigma above the background are detected
+    kwargs : dict
+        all remaining keyword arguments are passed to SEP's `extract` method
+
+    Returns
+    -------
+    median : float
+        median HFD
+    std : float
+        standard deviation of measurements
+    """
+
+    data = fits.getdata(fname).astype('float')
+    # measure spatially varying background
+    bkg = sep.Background(data)
+    bkg.subfrom(data)
+    # make a Gaussian kernel for smoothing before detection
+    sigma = filter_width * gaussian_fwhm_to_sigma
+    kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
+    kernel.normalize()
+    # find sources
+    objects = sep.extract(data, threshold, bkg.globalrms, clean=True,
+                          filter_kernel=kernel.array, **kwargs)
+    # get half flux radius
+    hfr, mask = sep.flux_radius(data, objects['x'], objects['y'],
+                                30*np.ones_like(objects['x']),
+                                0.5, normflux=objects['cflux'])
+    mask = np.logical_and(mask == 0, objects['peak'] < 40000)
+
+    hfd = 2*hfr[mask]
+    mean, median, std = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
+    return median, std
+
+
+def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
+    """
+    Measure the HFD diameter from multiple files and take a weighted mean.
+
+    Parameters are passed straight to `measure_hfd`
+    """
+    medians = []
+    stds = []
+    for fname in fnames:
+        median, std = measure_hfd(fname)
+        if std > 0.0:
+            medians.append(median)
+            stds.append(std)
+    medians = np.array(medians)
+    stds = np.array(stds)
+    return np.average(medians, weights=1/std**2)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description=__doc__,
@@ -129,13 +192,6 @@ if __name__ == "__main__":
     m2 = np.array(params.FOCUS_SLOPE_ABOVE)
     m1 = np.array(params.FOCUS_SLOPE_BELOW)
     delta = np.array(params.FOCUS_INTERCEPT_DIFFERENCE)
-
-    # TODO: remove the fudge below which is there for testing
-    def get_hfd(fnames):
-        focus_to_aim_for = np.array([1002, 1005, 1001, 1000])
-        hfd_at_focus = np.array([2, 2, 2, 2])
-        jitter = np.random.normal(size=4, loc=0, scale=0.1)
-        return jitter + np.fabs((get_current_focus() - focus_to_aim_for)*m2) + hfd_at_focus
 
     # start where we are now.
     fnames = take_frame(expT, filt, star.name)
