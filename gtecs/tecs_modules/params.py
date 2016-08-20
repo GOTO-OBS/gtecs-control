@@ -80,6 +80,9 @@ SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 
+# Conditions checks
+MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+
 # Pyro connection
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
