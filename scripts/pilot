@@ -14,6 +14,7 @@ import sys
 import os
 import functools
 import pkg_resources
+import time
 
 from astropy.time import Time
 from astropy import units as u
@@ -22,8 +23,13 @@ from gtecs.tecs_modules.testScheduler import Scheduler
 from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules.misc import execute_command
 from gtecs.tecs_modules.astronomy import sun_alt
-
+from gtecs.tecs_modules.flags import (Conditions, Overrides)
+from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
+                                                  MountMonitor, DomeMonitor, ExposureQueueMonitor,
+                                                  FocuserMonitor)
 scheduler = Scheduler()
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
@@ -67,13 +73,44 @@ class Pilot:
         self.runningScriptResult = None
 
         # a list of all running tasks to cancel at end of night
+        # also used to pause and resume operations?
         self.running_tasks = []
 
         # lists of routine jobs. Each job a dict of name, protocol, cmd and sun_alt
-        self.morning_jobs = []
-        self.evening_jobs = []
+        self.daytime_jobs = []  # before dome opens
+        self.morning_jobs = []  # after dome opens
+        self.evening_jobs = []  # after observing
 
-    async def waitingForTheSun(self, sunAlt, rising=False):
+        # hardware to keep track of and fix if necessary
+        self.hardware = dict(
+            dome=DomeMonitor(self.log),
+            mnt=MountMonitor(self.log),
+            cams=CameraMonitor(self.log),
+            filts=FilterWheelMonitor(self.log),
+            focs=FocuserMonitor(self.log),
+            exq=ExposureQueueMonitor(self.log)
+        )
+
+        # override and conditions flags
+        self.overrides = None
+        self.conditions = None
+
+        # dictionary of reasons to pause
+        self.whypause = dict(hw=False, cond=False, manual=False)
+
+        # paranoia Time
+        self.domeOpen = 0   # should dome be open?
+        self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
+        self.timeOfLastCloseDomeCommand = 0.
+
+    @property
+    def paused(self):
+        """
+        Global signal to pause
+        """
+        return True in self.whypause.values()
+
+    async def waitingForTheSun(self, sunAlt, rising=False, testing=False):
         """
         This coroutine will not return until the sun reaches the given altitude
 
@@ -83,15 +120,53 @@ class Pilot:
             sun altitude in degrees to wait for
         rising : bool
             whether the sun is rising or setting
+        testing : bool, optional
+            if true, immediately returns OK without checking the sun.
+            used for testing the pilot only
+
+        Returns
+        --------
+        OK : bool
+            True if you are safe to go, False if we think you are too late
         """
+        if testing:
+            return True
+
+        sun_alt_now = sun_alt(Time.now())
+        if rising and (sun_alt_now - sunAlt) > 5:
+            return False
+        if not rising and (sunAlt - sun_alt_now) > 5:
+            return False
+
         our_watch_has_ended = False
         while not our_watch_has_ended:
             sun_alt_now = sun_alt(Time.now())
+            self.log.info('Waiting: sun altitude = {}'.format(sun_alt_now))
             if rising:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
                 our_watch_has_ended = sun_alt_now < sunAlt
             await asyncio.sleep(20)
+        return True
+
+    async def runThroughJobList(self, jobList, rising=False):
+        """
+        Just pop jobs off a list and run them at correct sun_alt
+        """
+        while jobList:
+            if self.paused:  # do nothing if paused
+                await asyncio.sleep(15)
+                continue
+            job = jobList.pop(0)
+            # wait for the right sun altitude
+            OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
+            # and go!
+            if OK:
+                asyncio.ensure_future(
+                    self.startScript(job['name'], job['protocol'], job['cmd'])
+                )
+            else:
+                self.log.warn('Too late to start {}'.format(job['name']))
 
     async def nightMarshall(self, restart=False):
         """
@@ -104,133 +179,163 @@ class Pilot:
         restart : bool
             If true, we will skip startup jobs and get straight to observing
         """
+        # daytime jobs
+        if not restart:
+            await self.runThroughJobList(self.daytime_jobs, rising=False)
+
+        # done the daytime jobs. Set flag to allow open dome
+        self.ready_to_observe = True
+        while self.domeStatus() != 'open':
+            await asyncio.sleep(5)
+
         # run through the routine evening tasks
         if not restart:
-            while self.evening_jobs:
-                job = self.evening_jobs.pop(0)
-                # wait for the right sun altitude
-                await self.waitingForTheSun(job['sunAlt'], rising=False)
-                # and go!
-                asyncio.ensure_future(
-                    self.startScript(job['name'], job['protocol'], job['cmd'])
-                )
+            await self.runThroughJobList(self.evening_jobs, rising=False)
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
         await self.observe(until_sun_alt=-15)
 
         # observing is done. do morning tasks
-        while self.morning_jobs:
-            job = self.morning_jobs.pop(0)
-            # wait for the sun altitude
-            await self.waitingForTheSun(job['sunAlt'], rising=True)
-            asyncio.ensure_future(
-                    self.startScript(job['name'], job['protocol'], job['cmd'])
-            )
+        await self.runThroughJobList(self.morning_jobs, rising=True)
 
-    async def nightPlan(self):
-        """
-        Chain coroutines together to make a night plan.
-
-        Just runs them all in sequence at the moment. Have to
-        think about how best to schedule stuff to run at
-        correct times (see also nightMarshall).
-        """
-        self.log.info("Starting the night")
-
-        # Start DAEMONS
-        cmd = [os.path.join(SCRIPT_PATH, 'start_daemons.py')]
-        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('DAE ended abnormally')
-
-        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_1.py')]
-        retcode, results = await self.startScript('SN1', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('SN1 ended abnormally')
-
-        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_2.py')]
-        retcode, results = await self.startScript('SN2', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('SN2 ended abnormally')
-
-        """
-        # take biasses and darks, 3 of each
-        cmd = [os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3']
-        retcode, results = await self.startScript('SN3', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('SN3 ended abnormally')
-
-        # take evening flats
-        cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE']
-        retcode, results = await self.startScript('FLATS', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('FLATS ended abnormally')
-        """
-
-        # autofocus
-        cmd = [os.path.join(SCRIPT_PATH, 'autoFocus.py'), '20', 'G']
-        retcode, results = await self.startScript('FOC', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('FOC ended abnormally')
-
-        # take standards
-        cmd = [os.path.join(SCRIPT_PATH, 'takeStandards.py')]
-        retcode, results = await self.startScript('STD', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('STD ended abnormally')
-
-        # await self.observe()
-
-        # morning flats
-        """
-        cmd = [os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN']
-        retcode, results = await self.startScript('FLATS', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('FLATS ended abnormally')
-        """
-
-        # park scope and power off
-        cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
-        retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('EON ended abnormally')
-
-        # shutdown daemons
-        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('DAE ended abnormally')
-
-        self.log.info("Night plan is done")
+        # set flag so dome does not reopen
+        self.ready_to_observe = False
 
     async def checkSchedule(self):
         """
         Check sheduler and update current job every second
         """
         while True:
+            if self.paused:
+                await asyncio.sleep(5)
+                continue
             self.nextJob = scheduler()
             await asyncio.sleep(1)
 
-    async def cancelRunningScript(self):
+    async def hardwareChecks(self):
         """
-        Cancel the currently running Python script.
-
-        This does nothing if the script is already done.
+        Continuously monitor hardware and try to fix any issues.
         """
-        if self.runningScriptTransport is not None:
-            # check job is still running
-            if self.runningScriptTransport.get_returncode() is None:
-                self.log.info("Killing {}".format(self.runningScriptProtocol.jobName))
-                self.runningScriptTransport.terminate()
-                await self.runningScriptResult
+        # monitor until stopped
+        while True:
+            errCount = 0
+            self.log.info('running hardware checks')
+            log_str = 'hardware check results: '
+            for device in self.hardware:
+                num_errs, err_list = self.hardware[device].check()
+                if num_errs > 0:
+                    log_str += ' %s,%s,%s' % (str(device), str(num_errs), repr(err_list))
+                errCount += num_errs
+                if num_errs > 0:
+                    self.log.warn('Attempting recovery: {}'.format(device))
+                    self.hardware[device].recover()
 
-    async def observe(self):
+            if errCount > 0:
+                self.log.warn(log_str)
+                await self.handlePause('hw', True)
+            else:
+                log_str += "AOK"
+                self.log.info(log_str)
+                await self.handlePause('hw', False)
+
+            self.errCount = errCount  # save error count so we dont restart whilst broken
+            await asyncio.sleep(60)
+
+    async def check_flags(self):
+        """
+        Check the conditions and override flags.
+
+        If overrides.robotic is set we pause running and cancel running script
+        If emergency file exists we do an emergency shutdown
+        If weather is bad?
+        """
+        while True:
+
+            # overrides
+            self.overrides = Overrides()
+            # conditions flags
+            self.conditions = Conditions()
+
+            # handle overrides first
+            if self.overrides.robotic:
+                await self.handlePause('manual', True)
+            else:
+                await self.handlePause('manual', False)
+
+            # now handle conditions
+            self.conditions = Conditions()
+            if self.conditions.bad:
+                await self.handlePause('cond', True)
+            else:
+                await self.handlePause('cond', False)
+
+            # emergency file
+            if os.path.isfile(params.EMERGENCY_FILE):
+                await self.emergency_shutdown()
+
+            await asyncio.sleep(10)
+
+    async def handlePause(self, reason, pause):
+        """
+        Called when there may be a change in pause status
+
+        Parameters
+        ----------
+        reason : string
+            the reason why we should pause or unpause
+            one of 'manual', 'cond' or 'hw'
+        pause : bool
+            pause (True) or unpause (False)
+        """
+        if not self.paused and pause:
+            # ok, we need to cancel what we were doing!
+            msg = 'Pausing operations due to '
+            if reason == 'manual':
+                msg += "manual override"
+            if reason == 'cond':
+                msg += 'weather\n'
+                msg += '{!r}'.format(self.conditions.__dict__)
+            if reason == 'hw':
+                msg += 'hardware fault'
+            self.log.warn(msg)
+            await self.cancelRunningScript()
+
+        # if the reason is weather, handle dome open/close
+        if reason == 'cond':
+            if pause and self.domeOpen:
+                self.close_dome()
+            if not pause and not self.domeOpen:
+                await self.open_dome()
+
+        # finally, change global pause status by updating flag
+        # by putting this last, we dont unpause until the dome
+        # is actually open
+        self.whypause[reason] = pause
+
+    async def doubleCheckDome(self):
+        """
+        Be extra cautious and double check that dome is closed if it should be
+        """
+        while True:
+            if not self.domeOpen and not self.domeConfirmedClosed:
+                dome_info = self.hardware['dome'].getInfo()
+                if dome_info['dome'] == 'closed':
+                    # phew
+                    self.domeConfirmedClosed = 1
+                    self.log.info('dome confirmed closed')
+                elif time.time() - self.timeOfLastCloseDomeCommand > 45.:
+                    self.log.warn('Dome not closed. Trying again...')
+                    self.close_dome()
+            await asyncio.sleep(10)
+
+    async def observe(self, until_sun_alt=-15):
         """
         Observe until further notice.
 
-        Successful observing should:
-            - start a coroutine to check the scheduler
-            - loop to handle starting and cancelling observations
+        Parameters
+        ----------
+        until_sun_alt : float
+            sun altitude at which to stop observing
         """
         self.log.info("Observing")
 
@@ -244,6 +349,18 @@ class Pilot:
         )
 
         while True:
+
+            # do nothing if paused
+            if self.paused:
+                await asyncio.sleep(5)
+                continue
+
+            # should we stop for the sun?
+            now = Time.now()
+            midnight = Time(nightStarting() + "T23:59:00")
+            if now > midnight and sun_alt(now) > until_sun_alt:
+                return
+
             # check we're doing the right job
             if (self.currJob != self.nextJob) and self.nextJob[0] is not None:
                 if self.currJob is not None:
@@ -265,6 +382,33 @@ class Pilot:
             else:  # we are doing the right job, so do nothing
                 await asyncio.sleep(1)
 
+    async def set_observe_status(self, pause=False):
+        """
+        Pause or resume observing.
+
+        This will automatically cancel any running script
+        """
+        if pause:
+            cmd = [os.path.join(SCRIPT_PATH, 'pause_observing.py')]
+        else:
+            cmd = [os.path.join(SCRIPT_PATH, 'resume_observing.py')]
+        retcode, results = await self.startScript('STATE', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('STATE ended abnormally')
+
+    async def cancelRunningScript(self):
+        """
+        Cancel the currently running Python script.
+
+        This does nothing if the script is already done.
+        """
+        if self.runningScriptTransport is not None:
+            # check job is still running
+            if self.runningScriptTransport.get_returncode() is None:
+                self.log.info("Killing {}".format(self.runningScriptProtocol.jobName))
+                self.runningScriptTransport.terminate()
+                await self.runningScriptResult
+
     async def startScript(self, name, protocol, cmd):
         """
         Launch an external Python script.
@@ -280,6 +424,11 @@ class Pilot:
             first element of the list is the Python script to execute,
             any additional elements are the arguments to the script.
         """
+        # I don't think external jobs should run whilst paused
+        if self.paused:
+            self.log.warn("tried to start external script whilst paused")
+            return 0, True
+
         # first, cancel any currently running script
         await self.cancelRunningScript()
 
@@ -327,9 +476,24 @@ class Pilot:
             the time to sleep between checks against `stopTime`
         """
         while Time.now() < stopTime:
-            self.log.info(Time.now())
-            await asyncio.sleep(10)
+            status_str = Time.now().iso
+            if self.paused:
+                status_str += " (paused)"
+            self.log.info(status_str)
+            if self.paused:
+                self.log.info(self.whypause)
+            await asyncio.sleep(30)
 
+        await self.shutdown()
+
+        self.log.info("Done")
+
+    async def shutdown(self):
+        """
+        Perform a normal shutdown.
+
+        Close any running jobs and exit
+        """
         # if we have external subprocess running, stop it
         await self.cancelRunningScript()
 
@@ -337,20 +501,104 @@ class Pilot:
         for future in self.running_tasks:
             future.cancel()
 
-        self.log.info("Done")
+    async def emergency_shutdown(self):
+        """
+        Stop what we're doing.
 
+        Power off, shutdown daemons and exit Pilot
+        """
+        # park scope and power off
+        cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
+        retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('EON ended abnormally')
+
+        # shutdown daemons
+        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
+        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('DAE ended abnormally')
+        await self.shutdown()
+
+    async def open_dome(self):
+        self.log.warn('Opening dome')
+        execute_command('dome open')
+        self.domeOpen = 1
+        # make sure the dome starts reporting errors
+        self.hardware['dome'].setMode('open')
+        self.domeConfirmedClosed = 0
+        while self.domeStatus() != 'open':
+            await asyncio.sleep(10)
+
+    def domeStatus(self):
+        try:
+            return self.hardware['dome'].getInfo()['dome']
+        except:
+            return 'err'
+
+    def close_dome(self):
+        self.log.warn('Closing dome')
+        execute_command('dome close')
+        self.domeOpen = 0
+        # make sure the dome starts reporting errors
+        self.hardware['dome'].setMode(None)
+        self.domeConfirmedClosed = 0
+        self.timeOfLastCloseDomeCommand = time.time()
+
+    def assignJobs(self):
+        sn0 = dict(name='DAE', sunAlt=10,
+                   cmd=[os.path.join(SCRIPT_PATH, 'start_daemons.py')],
+                   protocol=SimpleProtocol)
+        sn1 = dict(name='SN1', sunAlt=9,
+                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_1.py')],
+                   protocol=SimpleProtocol)
+        sn2 = dict(name='SN2', sunAlt=8,
+                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_2.py')],
+                   protocol=SimpleProtocol)
+        sn3 = dict(name='SN3', sunAlt=7,
+                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
+                   protocol=SimpleProtocol)
+        self.daytime_jobs = [sn0, sn1, sn2, sn3]
+
+        sn4 = dict(name='FLATS', sunAlt=0,
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
+                   protocol=SimpleProtocol)
+        sn5 = dict(name='FOC', sunAlt=-7,
+                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), '20', 'G'],
+                   protocol=SimpleProtocol)
+        sn6 = dict(name='STD', sunAlt=-12,
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
+                   protocol=SimpleProtocol)
+        self.evening_jobs = [sn4, sn5, sn6]
+
+        en0 = dict(name='FLATS', sunAlt=-7,
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
+                   protocol=SimpleProtocol)
+        en1 = dict(name='POWOFF', sunAlt=0,
+                   cmd=[os.path.join(SCRIPT_PATH, 'power_off.py')],
+                   protocol=SimpleProtocol)
+        en2 = dict(name='DAE', sunAlt=1,
+                   cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
+                   protocol=SimpleProtocol)
+        self.morning_jobs = [en0, en1, en2]
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
+    loop.set_debug(False)
     pilot = Pilot()
+    pilot.assignJobs()
 
-    # start the night plan
-    pilot.running_tasks.append(
-        asyncio.ensure_future(pilot.nightPlan())
-    )
+    # start the recurrent tasks
+    pilot.running_tasks.extend([
+        asyncio.ensure_future(pilot.nightMarshall()),
+        asyncio.ensure_future(pilot.hardwareChecks()),
+        asyncio.ensure_future(pilot.check_flags()),
+        asyncio.ensure_future(pilot.doubleCheckDome())
+    ])
 
-    stopSignal = pilot.waitForNightsEnd(Time.now() + 10*u.minute)
     # keep the pilot runing until the end of the night
+    stopSignal = pilot.waitForNightsEnd(Time.now() + 10*u.minute)
+
     try:
         loop.run_until_complete(stopSignal)
     except asyncio.CancelledError:
