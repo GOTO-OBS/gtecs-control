@@ -597,7 +597,7 @@ class Pilot:
         sn3 = dict(name='SN3', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = []
+        self.daytime_jobs = [sn0, sn1, sn2, sn3]
 
         sn4 = dict(name='FLATS', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
@@ -608,7 +608,7 @@ class Pilot:
         sn6 = dict(name='STD', sunAlt=-12,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = []
+        self.evening_jobs = [sn4, sn5, sn6]
 
         en0 = dict(name='FLATS', sunAlt=-7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
@@ -619,7 +619,7 @@ class Pilot:
         en2 = dict(name='DAE', sunAlt=1,
                    cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
                    protocol=SimpleProtocol)
-        self.morning_jobs = []
+        self.morning_jobs = [en0, en1, en2]
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
