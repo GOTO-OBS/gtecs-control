@@ -24,6 +24,8 @@ from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.database import (markJobCompleted, markJobAborted,
+                            markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command
 from gtecs.tecs_modules.astronomy import sun_alt
 from gtecs.tecs_modules.flags import (Conditions, Overrides)
@@ -63,8 +65,12 @@ class Pilot:
                                     stdout_logging=params.STDOUT_LOGGING)
 
         # current and next job from scheduler
-        self.currJob = None
-        self.nextJob = None
+        self.currentID = None
+        self.currentMinTime = None
+        self.currentPriority = None
+        self.newID = None
+        self.newMinTime = None
+        self.newPriority = None
 
         # for communicating with external processes
         self.runningScriptTransport = None
@@ -80,6 +86,7 @@ class Pilot:
         self.daytime_jobs = []  # before dome opens
         self.morning_jobs = []  # after dome opens
         self.evening_jobs = []  # after observing
+        self.ready_to_observe = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = dict(
@@ -167,6 +174,7 @@ class Pilot:
                 )
             else:
                 self.log.warn('Too late to start {}'.format(job['name']))
+            await asyncio.sleep(1)
 
     async def nightMarshall(self, restart=False):
         """
@@ -203,14 +211,16 @@ class Pilot:
 
     async def checkSchedule(self):
         """
-        Check sheduler and update current job every second
+        Check sheduler and update current job every 5 seconds
         """
         while True:
             if self.paused:
                 await asyncio.sleep(5)
                 continue
-            self.nextJob = scheduler()
-            await asyncio.sleep(1)
+            self.newID, self.newPriority, self.newMinTime = scheduler()
+            self.log.info('Current: {} {}'.format(self.currentID, self.currentMinTime))
+            self.log.info('New: {} {}'.format(self.newID, self.newMinTime))
+            await asyncio.sleep(5)
 
     async def hardwareChecks(self):
         """
@@ -304,7 +314,7 @@ class Pilot:
         if reason == 'cond':
             if pause and self.domeOpen:
                 self.close_dome()
-            if not pause and not self.domeOpen:
+            if not pause and not self.domeOpen and self.ready_to_observe:
                 await self.open_dome()
 
         # finally, change global pause status by updating flag
@@ -361,26 +371,53 @@ class Pilot:
             if now > midnight and sun_alt(now) > until_sun_alt:
                 return
 
-            # check we're doing the right job
-            if (self.currJob != self.nextJob) and self.nextJob[0] is not None:
-                if self.currJob is not None:
-                    self.log.info("Got new job from scheduler %s", self.nextJob[0])
+            # see if a new target has arrived and mark job appropriately
+            if self.currentID != self.newID:
+                if self.currentID is not None:
+                    self.log.info("Got new job from scheduler %s", self.newID)
+                    # this will fail if obsStartTime not currently defined
+                    try:
+                        timeElapsed = time.time() - self.obsStartTime
+                    except:
+                        # in which case...
+                        timeElapsed = 0
+                    self.log.info('Min time = {}, time elapsed = {}'.format(
+                        self.currentMinTime, timeElapsed
+                    ))
+                    if timeElapsed > self.currentMinTime:
+                        markJobCompleted(self.currentID)
+                        self.log.info('Job completed: {}'.format(self.currentID))
+                    else:
+                        markJobInterrupted(self.currentID)
+                        self.log.info('Job interrupted: {}'.format(self.currentID))
                 else:
-                    self.log.info("Got first job from scheduler %s", self.nextJob[0])
+                    self.log.info("Got job from scheduler %s", self.newID)
 
                 # start new job
-                self.currJob = self.nextJob
-                name, duration = self.currJob
-
-                cmd = [os.path.join(SCRIPT_PATH, 'observe.py'), name, str(duration)]
-                self.log.info('{} will take {} seconds'.format(name, duration))
-                # start process
-                asyncio.ensure_future(
-                    self.startScript('OBS', SimpleProtocol, cmd)
-                )
+                if self.newID is None:
+                    # park scope
+                    execute_command('mnt park')
+                    execute_command('exq clear')
+                    execute_command('cam abort')
+                    self.currentID = self.newID
+                    self.currentPriority = None
+                    self.currentMinTime = None
+                else:
+                    cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
+                           str(self.newID), str(self.newMinTime)]
+                    self.log.info('Starting Job {}'.format(self.newID))
+                    self.obsStartTime = time.time()
+                    # start job, will cancel current one automatically
+                    asyncio.ensure_future(
+                        self.startScript('OBS', SimpleProtocol, cmd)
+                    )
+                    markJobRunning(self.newID)
+                    self.currentID = self.newID
+                    self.currentPriority = self.newPriority
+                    self.currentMinTime = self.newMinTime
 
             else:  # we are doing the right job, so do nothing
-                await asyncio.sleep(1)
+                await asyncio.sleep(5)
 
     async def set_observe_status(self, pause=False):
         """
@@ -406,6 +443,8 @@ class Pilot:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
                 self.log.info("Killing {}".format(self.runningScriptProtocol.jobName))
+                if self.runningScriptProtocol.jobName == 'OBS' and self.currentID is not None:
+                    markJobAborted(self.currentID)
                 self.runningScriptTransport.terminate()
                 await self.runningScriptResult
 
@@ -558,7 +597,7 @@ class Pilot:
         sn3 = dict(name='SN3', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = [sn0, sn1, sn2, sn3]
+        self.daytime_jobs = []
 
         sn4 = dict(name='FLATS', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
@@ -569,7 +608,7 @@ class Pilot:
         sn6 = dict(name='STD', sunAlt=-12,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = [sn4, sn5, sn6]
+        self.evening_jobs = []
 
         en0 = dict(name='FLATS', sunAlt=-7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
@@ -580,7 +619,7 @@ class Pilot:
         en2 = dict(name='DAE', sunAlt=1,
                    cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
                    protocol=SimpleProtocol)
-        self.morning_jobs = [en0, en1, en2]
+        self.morning_jobs = []
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
