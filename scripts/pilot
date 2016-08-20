@@ -193,15 +193,14 @@ class Pilot:
 
         # done the daytime jobs. Set flag to allow open dome
         self.ready_to_observe = True
-        while self.domeStatus() != 'open':
-            await asyncio.sleep(5)
+        await self.open_dome()
 
         # run through the routine evening tasks
         if not restart:
             await self.runThroughJobList(self.evening_jobs, rising=False)
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
-        await self.observe(until_sun_alt=-15)
+        await self.observe(until_sun_alt=90)
 
         # observing is done. do morning tasks
         await self.runThroughJobList(self.morning_jobs, rising=True)
@@ -308,18 +307,43 @@ class Pilot:
             if reason == 'hw':
                 msg += 'hardware fault'
             self.log.warn(msg)
-            await self.cancelRunningScript()
+            # is this necessary? or will all jobs gracefull handle pause in queue?
+            # self.cancelRunningScript()
 
-        # if the reason is weather, handle dome open/close
-        if reason == 'cond':
-            if pause and self.domeOpen:
-                self.close_dome()
-            if not pause and not self.domeOpen and self.ready_to_observe:
+            if reason == 'cond':
+                # if the reason is weather, handle dome open/close
+                # also park mount and pause queue
+                self.log.warn('Closing and parking')
+                execute_command('mnt park')
+                execute_command('exq pause')
+                execute_command('cam abort')
+                if self.domeOpen:
+                    self.close_dome()
+            elif reason == 'hw':
+                # just pause the queue until fixed
+                execute_command('exq pause')
+                execute_command('cam abort')
+
+        # does this change suggest a global unpause?
+        unpause = not any([self.whypause[key] for key in self.whypause.keys()
+                           if key != reason]) and not pause
+        if unpause and self.paused:
+            # OK, we can resume
+            self.log.warn('Resuming operations')
+            execute_command('mnt unpark')
+            await asyncio.sleep(10)
+            execute_command('mnt track')
+            if not self.domeOpen and self.ready_to_observe:
+                # this way we don't start this way we don't
+                # start until the dome is open
                 await self.open_dome()
+                execute_command('exq resume')
+            elif self.domeOpen:
+                execute_command('exq resume')
 
         # finally, change global pause status by updating flag
         # by putting this last, we dont unpause until the dome
-        # is actually open
+        # is actually open or HW is fixed etc.
         self.whypause[reason] = pause
 
     async def doubleCheckDome(self):
@@ -418,20 +442,6 @@ class Pilot:
 
             else:  # we are doing the right job, so do nothing
                 await asyncio.sleep(5)
-
-    async def set_observe_status(self, pause=False):
-        """
-        Pause or resume observing.
-
-        This will automatically cancel any running script
-        """
-        if pause:
-            cmd = [os.path.join(SCRIPT_PATH, 'pause_observing.py')]
-        else:
-            cmd = [os.path.join(SCRIPT_PATH, 'resume_observing.py')]
-        retcode, results = await self.startScript('STATE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('STATE ended abnormally')
 
     async def cancelRunningScript(self):
         """
@@ -597,7 +607,7 @@ class Pilot:
         sn3 = dict(name='SN3', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = [sn0, sn1, sn2, sn3]
+        self.daytime_jobs = []
 
         sn4 = dict(name='FLATS', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
@@ -608,7 +618,7 @@ class Pilot:
         sn6 = dict(name='STD', sunAlt=-12,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = [sn4, sn5, sn6]
+        self.evening_jobs = []
 
         en0 = dict(name='FLATS', sunAlt=-7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
@@ -619,7 +629,7 @@ class Pilot:
         en2 = dict(name='DAE', sunAlt=1,
                    cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
                    protocol=SimpleProtocol)
-        self.morning_jobs = [en0, en1, en2]
+        self.morning_jobs = []
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()

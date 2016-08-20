@@ -169,20 +169,23 @@ class DomeMonitor(HardwareMonitor):
         else:
             self.recoveryProcedure = {}
 
+
 class MountMonitor(HardwareMonitor):
 
     def __init__(self, log):
         super(MountMonitor, self).__init__(log)
         self.daemonID = 'mnt'
         self.availableModes.extend(['parked', 'tracking'])
-        self.recoveryProcedure[1] = [30., 'mnt track']
+        self.recoveryProcedure[1] = [30., 'mnt unpark']
         self.recoveryProcedure[2] = [60., 'mnt track']
         self.recoveryProcedure[3] = [90., 'mnt track']
         self.recoveryProcedure[4] = [120., 'mnt stop']
         self.recoveryProcedure[5] = [150., 'mnt stop']
         self.recoveryProcedure[6] = [180., 'mnt track']
-        self.recoveryProcedure[7] = [210., 'mnt track']
+        self.recoveryProcedure[7] = [190., 'mnt start']
+        self.recoveryProcedure[7] = [210., 'mnt unpark']
         self.recoveryProcedure[8] = [240., 'mnt track']
+        self.recoveryProcedure[8] = [280., 'mnt track']
 
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
