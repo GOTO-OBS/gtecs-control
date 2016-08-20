@@ -12,6 +12,8 @@ not elapsed.
 """
 from __future__ import absolute_import
 from __future__ import print_function
+from ..database import open_session, get_queue
+
 from astropy.time import Time
 from astropy import units as u
 import numpy as np
@@ -19,27 +21,25 @@ import numpy as np
 
 # dummmy scheduler
 class Scheduler:
+    """
+    Makes random choices from the queue
+    """
     def __init__(self):
-        self.jobs = (job for job in (['jobID 1', 5],
-                                     ['jobID 2', 10],
-                                     ['jobID 3', 20],
-                                     ['jobID 4', 5],
-                                     ['jobID 5', 10],
-                                     ['jobID 6', 4]))
         self.last_called = Time.now()
-        self.wait_time = 0*u.s
-        self.currJob = [None, None]
+        self.currID = None
+        self.currMinTime = None
+        self.currPriority = None
 
     def __call__(self):
-        time_check = Time.now() - self.last_called > self.wait_time
-        # there's a 5% chance that a ToO occurs at any call
-        too = np.random.rand() > 0.95
-        if time_check or too:
-            try:
-                self.currJob = next(self.jobs)
-                self.wait_time = (self.currJob[1] + 1)*u.s
-            except StopIteration:
-                self.currJob = [None, None]
-                self.wait_time = 10*u.s
+
+        wait_time = np.random.uniform(20, 120)
+        time_check = (Time.now() - self.last_called) > wait_time*u.s
+        if time_check:
             self.last_called = Time.now()
-        return self.currJob
+            with open_session() as s:
+                curr, pointings = get_queue(s)
+                new = np.random.choice(pointings)
+                self.currID = new.pointingID
+                self.currMinTime = new.minTime
+                self.currPriority = new.rank
+        return self.currID, self.currMinTime, self.currPriority
