@@ -113,7 +113,7 @@ class DomeDaemon:
                 elif self.weather_check > 0 and override_flags.dome_auto < 1:
                     if condition_flags.summary > 0:
                         self.logfile.debug('Conditions bad, auto-closing dome')
-                        elf.close_flag = 0
+                        self.close_flag = 0
 
                 self.status_flag = 0
             if delta % 30 > 1:
