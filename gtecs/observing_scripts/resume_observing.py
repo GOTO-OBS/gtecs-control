@@ -11,7 +11,6 @@ def run():
     print('Starting observations')
     cmd('dome open')
     cmd('mnt unpark')
-    cmd('exq resume')
 
 if __name__ == "__main__":
     run()
