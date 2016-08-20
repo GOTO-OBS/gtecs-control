@@ -367,7 +367,7 @@ def _make_random_pointing(userKey, numexps=None):
     t2 = t1 + np.random.randint(1, 10) * u.day
     p = Pointing(objectName='randObj', ra=np.random.uniform(0, 359),
                  decl=np.random.uniform(-89, 89), minAlt=30,
-                 minTime=np.random.normal(100, 3600),
+                 minTime=np.random.uniform(100, 3600),
                  rank=np.random.randint(1, 100),
                  ToO=np.random.randint(0, 2),
                  maxMoon=np.random.choice(['D', 'G', 'B']),
@@ -389,3 +389,27 @@ def _make_random_pointing(userKey, numexps=None):
             )
         )
     return p
+
+
+def markJobCompleted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'completed'
+
+
+def markJobAborted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'aborted'
+
+
+def markJobInterrupted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'interrupted'
+
+
+def markJobRunning(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'running'
