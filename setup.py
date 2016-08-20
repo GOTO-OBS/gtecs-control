@@ -12,7 +12,7 @@ setup(name='gtecs',
                 'gtecs.daemons', 'gtecs.controls', 'gtecs.observing_scripts',
                 'gtecs.database'],
       package_data={'': ['data/*']},
-      install_requires=['Pyro4', 'astropy', 'configobj'],
+      install_requires=['Pyro4', 'astropy', 'configobj', 'sep'],
       scripts=glob.glob('scripts/*'),
       include_package_data=True,
       zip_safe=False)
