@@ -127,7 +127,7 @@ def wait_for_telescope(timeout=None):
             pass
         if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.1:
             still_moving = False
-        print(time.time(), start_time, (time.time() - start_time) > timeout)
+
         if timeout and (time.time() - start_time) > timeout:
             print('Bum')
             timed_out = True
