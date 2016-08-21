@@ -7,6 +7,7 @@ it completed or was killed.
 from __future__ import absolute_import
 from __future__ import print_function
 import sys
+import time
 
 from gtecs.tecs_modules.misc import neatCloser
 from gtecs.database import (markJobCompleted, markJobAborted,
@@ -72,6 +73,7 @@ if __name__ == "__main__":
             cmd(exq_command)
 
         # wait for telescope (timeout 240s)
+        time.sleep(10)
         wait_for_telescope(240)
 
         print('In position: starting exposures')
