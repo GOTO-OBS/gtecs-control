@@ -718,7 +718,11 @@ if __name__ == "__main__":
     ])
 
     # keep the pilot runing until the end of the night
-    stopSignal = pilot.waitForNightsEnd(Time.now() + 10*u.minute)
+    if pilot.testing:
+        stop_time = Time.now() + 60*u.minute
+    else:
+        stop_time = Time(nightStarting() + "T12:00:00") + 1*u.day
+    stopSignal = pilot.waitForNightsEnd(stop_time)
 
     try:
         loop.run_until_complete(stopSignal)
