@@ -28,11 +28,11 @@ def take_image_set(expT, name):
 if __name__ == "__main__":
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
-
+    # use set so we don't duplicate observations
+    stars = set([landolt.standard_star(Time.now(), airmass, colour)
+                 for airmass, colour in zip(airmasses, colours)])
     print('Starting standard star routine')
-    for colour, airmass in zip(airmasses, colours):
-        star = landolt.standard_star(Time.now(), airmass, colour)
-
+    for star in stars:
         print('Slewing to star', star)
         name = star.name
 
