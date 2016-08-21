@@ -38,6 +38,17 @@ def get_position(pointingID):
     return ra, decl
 
 
+def get_exq_commands(pointingID):
+    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE"
+    commands = []
+    with open_session() as session:
+        pointing = get_pointing_by_id(session, pointingID)
+        for exposure in pointing.exposures:
+            keywords = pointing.__dict__.copy()
+            keywords.update(exposure.__dict__)
+            commands.append(command_template.format(**keywords))
+    return commands
+
 if __name__ == "__main__":
 
     pID = int(sys.argv[1])
