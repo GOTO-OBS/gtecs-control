@@ -328,8 +328,8 @@ class Pilot:
                 self.log.warn('closing and parking')
                 # TODO: discuss what should happen when dome closes in middle of
                 # observing?
-                self.cancelRunningScript()
-                execute_command('mnt park')
+                await self.cancelRunningScript()
+                self.park_scope()
                 execute_command('exq pause')
                 execute_command('cam abort')
                 if self.domeOpen:
@@ -349,9 +349,7 @@ class Pilot:
             # OK, we can resume
             self.log.warn('resuming operations')
             if self.ready_to_observe:
-                execute_command('mnt unpark')
-                await asyncio.sleep(10)
-                execute_command('mnt track')
+                await self.unpark_scope()
                 if not self.domeOpen:
                     # this way we don't start this way we don't
                     # start until the dome is open
@@ -437,7 +435,7 @@ class Pilot:
                 # start new job
                 if self.newID is None:
                     # park scope
-                    execute_command('mnt park')
+                    self.park_scope()
                     execute_command('exq clear')
                     execute_command('cam abort')
                     self.currentID = self.newID
@@ -643,6 +641,23 @@ class Pilot:
         self.hardware['dome'].setMode(None)
         self.domeConfirmedClosed = 0
         self.timeOfLastCloseDomeCommand = time.time()
+
+    def park_scope(self):
+        self.log.warn('parking scope')
+        execute_command('mnt park')
+        self.hardware['mnt'].setMode('parked')
+
+    async def unpark_scope(self):
+        mnt_info = self.hardware['mnt'].getInfo()
+        if mnt_info['status'] == 'Parked':
+            self.log.warn('unparking scope')
+            execute_command('mnt unpark')
+            await asyncio.sleep(5)
+        mnt_info = self.hardware['mnt'].getInfo()
+        if mnt_info['status'] != 'Tracking':
+            execute_command('mnt track')
+            await asyncio.sleep(2)
+        self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
         sn0 = dict(name='DAE', sunAlt=10,
