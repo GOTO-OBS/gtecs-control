@@ -79,7 +79,7 @@ if __name__ == "__main__":
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    wait_for_telescope(240)  # 240s timeout
+    wait_for_telescope(480)  # 480s timeout
 
     # set exposure order and check for sky brightness
     if eve:
