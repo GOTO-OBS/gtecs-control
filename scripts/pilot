@@ -579,7 +579,7 @@ class Pilot:
             if dome_info['dome'] == 'closed':
                 domeShut = True
             self.log.info('Waiting for dome to close')
-            asyncio.sleep(10)
+            await asyncio.sleep(10)
 
     async def shutdown(self):
         """
