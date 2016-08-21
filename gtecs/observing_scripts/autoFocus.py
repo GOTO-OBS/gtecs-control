@@ -138,8 +138,10 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     mask = np.logical_and(mask == 0, objects['peak'] < 40000)
 
     hfd = 2*hfr[mask]
-    mean, median, std = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
-    return median, std
+    if hfd.size > 3:
+        mean, median, std = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
+        return median, std
+    return 0.0, 0.0
 
 
 def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
@@ -157,7 +159,10 @@ def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
             stds.append(std)
     medians = np.array(medians)
     stds = np.array(stds)
-    return np.average(medians, weights=1/std**2)
+    if medians.size > 0:
+        return np.average(medians, weights=1/std**2)
+    else:
+        return 0.0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
