@@ -26,7 +26,7 @@ from gtecs.tecs_modules import params
 from gtecs.tecs_modules.time_date import nightStarting
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
-from gtecs.tecs_modules.misc import execute_command
+from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt
 from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
@@ -557,12 +557,41 @@ class Pilot:
 
         self.log.info("done")
 
+    async def reallyReallyCloseDome(self, time_until_panic=10):
+        """
+        Close the dome, make sure it's closed and email if it won't
+
+        Parameters
+        ----------
+        time_until_panic : float
+            time in minutes to wait before emailing
+        """
+        start_time = time.time()
+        self.close_dome()
+        domeShut = False
+        while not domeShut:
+            elapsed_time = time.time() - start_time
+            # if we've waited too long,  email
+            if elapsed_time / 60. > time_until_panic:
+                msg = "IMPORTANT: pilot cannot close dome. Take action immediately."
+                send_email(message=msg)
+            dome_info = self.hardware['dome'].getInfo()
+            if dome_info['dome'] == 'closed':
+                domeShut = True
+            self.log.info('Waiting for dome to close')
+            asyncio.sleep(10)
+
     async def shutdown(self):
         """
         Perform a normal shutdown.
 
         Close any running jobs and exit
         """
+        # first and most important.
+        # NEVER STOP WITHOUT CLOSING THE DOME!
+        # EMAIL IF DOME WON'T CLOSE
+        await self.reallyReallyCloseDome()
+
         # if we have external subprocess running, stop it
         await self.cancelRunningScript()
 
