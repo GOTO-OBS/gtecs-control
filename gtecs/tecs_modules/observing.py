@@ -109,14 +109,14 @@ def goto(ra, dec, timeout=60):
     wait_for_telescope(timeout)
 
 
-def wait_for_telescope(timeout):
+def wait_for_telescope(timeout=None):
     """
     Wait for telescope to be ready
 
     Parameters
     ----------
     timeout : float
-        time in seconds after which to timeout
+        time in seconds after which to timeout. None to wait forever
     """
     start_time = time.time()
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
@@ -129,9 +129,9 @@ def wait_for_telescope(timeout):
                 mnt_info = mnt.get_info()
         except Pyro4.errors.ConnectionClosedError:
             pass
-        if mnt_info['status'] == 'Tracking':
+        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist']<0.1:
             still_moving = False
-        if time.time() - start_time > timeout:
+        if timeout and time.time() - start_time > timeout:
             timed_out = True
     if timed_out:
         raise TimeoutError('Telescope timed out')
@@ -173,15 +173,21 @@ def last_written_image():
     return [os.path.join(path, fname) for fname in fnames]
 
 
-def wait_for_exposure_queue():
+def wait_for_exposure_queue(timeout=None):
     """
     With a set of exposures underway, wait for an empty queue
+
+    Parameters
+    ----------
+    timeout : float
+        time in seconds after which to timeout. None to wait forever
     """
     # we should not return straight away, but wait until queue is empty
     EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-
+    start_time = time.time()
     still_working = True
-    while still_working:
+    timed_out = False
+    while still_working and not timed_out:
         time.sleep(10)
         try:
             with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
@@ -195,3 +201,8 @@ def wait_for_exposure_queue():
         except Pyro4.errors.ConnectionClosedError:
             # for now, silently pass failures to contact exq daemon
             pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+    if timed_out:
+        raise TimeoutError('Exposure queue timed out')
