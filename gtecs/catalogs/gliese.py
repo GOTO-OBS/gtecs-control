@@ -24,7 +24,7 @@ gliese_table = Table.read(gliese_table_path)
 
 class GlieseStar:
     def __init__(self, name, ra, dec, pmra, pmdec, Jmag):
-        self.name = name
+        self.name = str(name).strip()
         self.coord = SkyCoord(ra, dec, unit=(u.deg, u.deg))
         self.pmra = pmra*u.arcsec/u.yr
         self.pmdec = pmdec*u.arcsec/u.yr
