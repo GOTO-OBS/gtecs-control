@@ -129,10 +129,13 @@ def wait_for_telescope(timeout=None):
                 mnt_info = mnt.get_info()
         except Pyro4.errors.ConnectionClosedError:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist']<0.1:
+        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.1:
             still_moving = False
-        if timeout and time.time() - start_time > timeout:
+        if timeout and (time.time() - start_time) > timeout:
             timed_out = True
+
+        # don't hammer the daemons
+        time.sleep(1)
     if timed_out:
         raise TimeoutError('Telescope timed out')
 
