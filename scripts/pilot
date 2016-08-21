@@ -253,11 +253,11 @@ class Pilot:
 
             if errCount > 0:
                 # check more frequently till fixed
-                sleepTime=10
+                sleepTime = 10
                 self.log.warn(log_str)
                 await self.handlePause('hw', True)
             else:
-                sleepTime=60
+                sleepTime = 60
                 log_str += "AOK"
                 self.log.info(log_str)
                 await self.handlePause('hw', False)
@@ -590,7 +590,10 @@ class Pilot:
 
         Close any running jobs and exit
         """
-        # first and most important.
+        # if we have external subprocess running, stop it
+        await self.cancelRunningScript()
+
+        # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
         # EMAIL IF DOME WON'T CLOSE
         await self.reallyReallyCloseDome()
