@@ -161,13 +161,14 @@ class DomeMonitor(HardwareMonitor):
             self.errors.append('Dome closed')
 
     def setMode(self, mode):
-        super(DomeMonitor, self).setMode(mode)
+        val = super(DomeMonitor, self).setMode(mode)
         if mode == 'open':
             # dome open commands may need repeating if cond change hasnt propogated
             self.recoveryProcedure[1] = [60., 'dome open']
             self.recoveryProcedure[1] = [120., 'dome open']
         else:
             self.recoveryProcedure = {}
+        return val
 
 
 class MountMonitor(HardwareMonitor):
@@ -192,10 +193,32 @@ class MountMonitor(HardwareMonitor):
             if (self.info['target_dist'] is None or float(self.info['target_dist']) > 0.5 or self.info['status'] != 'Tracking'):
                 self.errors.append('Not on target')
         elif obsMode == 'parked':
-            if self.info['status'] != 'parked':
+            if self.info['status'] != 'Parked':
                 self.errors.append('Not parked')
         if self.info['status'] == 'Unknown':
             self.errors.append('Mount in error state')
+
+    def setMode(self, mode):
+        val = super(MountMonitor, self).setMode(mode)
+        if mode == 'tracking':
+            self.recoveryProcedure = {}
+            self.recoveryProcedure[1] = [30., 'mnt unpark']
+            self.recoveryProcedure[2] = [60., 'mnt track']
+            self.recoveryProcedure[3] = [90., 'mnt track']
+            self.recoveryProcedure[4] = [120., 'mnt stop']
+            self.recoveryProcedure[5] = [150., 'mnt stop']
+            self.recoveryProcedure[6] = [180., 'mnt track']
+            self.recoveryProcedure[7] = [190., 'mnt start']
+            self.recoveryProcedure[7] = [210., 'mnt unpark']
+            self.recoveryProcedure[8] = [240., 'mnt track']
+            self.recoveryProcedure[8] = [280., 'mnt track']
+        else:
+            self.recoveryProcedure = {}
+            self.recoveryProcedure[1] = [30., 'mnt park']
+            self.recoveryProcedure[2] = [60., 'mnt park']
+            self.recoveryProcedure[3] = [90., 'mnt park']
+            self.recoveryProcedure[4] = [120., 'mnt stop']
+        return val
 
 
 class CameraMonitor(HardwareMonitor):
