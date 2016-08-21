@@ -593,6 +593,9 @@ class Pilot:
         # if we have external subprocess running, stop it
         await self.cancelRunningScript()
 
+        # park the scope
+        self.park_scope()
+
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
         # EMAIL IF DOME WON'T CLOSE
