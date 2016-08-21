@@ -164,8 +164,8 @@ class DomeMonitor(HardwareMonitor):
         val = super(DomeMonitor, self).setMode(mode)
         if mode == 'open':
             # dome open commands may need repeating if cond change hasnt propogated
-            self.recoveryProcedure[1] = [60., 'dome open']
-            self.recoveryProcedure[1] = [120., 'dome open']
+            self.recoveryProcedure[1] = [30., 'dome open']
+            self.recoveryProcedure[2] = [120., 'dome open']
         else:
             self.recoveryProcedure = {}
         return val
@@ -177,16 +177,6 @@ class MountMonitor(HardwareMonitor):
         super(MountMonitor, self).__init__(log)
         self.daemonID = 'mnt'
         self.availableModes.extend(['parked', 'tracking'])
-        self.recoveryProcedure[1] = [30., 'mnt unpark']
-        self.recoveryProcedure[2] = [60., 'mnt track']
-        self.recoveryProcedure[3] = [90., 'mnt track']
-        self.recoveryProcedure[4] = [120., 'mnt stop']
-        self.recoveryProcedure[5] = [150., 'mnt stop']
-        self.recoveryProcedure[6] = [180., 'mnt track']
-        self.recoveryProcedure[7] = [190., 'mnt start']
-        self.recoveryProcedure[7] = [210., 'mnt unpark']
-        self.recoveryProcedure[8] = [240., 'mnt track']
-        self.recoveryProcedure[8] = [280., 'mnt track']
 
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
@@ -202,22 +192,18 @@ class MountMonitor(HardwareMonitor):
         val = super(MountMonitor, self).setMode(mode)
         if mode == 'tracking':
             self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [30., 'mnt unpark']
-            self.recoveryProcedure[2] = [60., 'mnt track']
-            self.recoveryProcedure[3] = [90., 'mnt track']
-            self.recoveryProcedure[4] = [120., 'mnt stop']
-            self.recoveryProcedure[5] = [150., 'mnt stop']
-            self.recoveryProcedure[6] = [180., 'mnt track']
-            self.recoveryProcedure[7] = [190., 'mnt start']
-            self.recoveryProcedure[7] = [210., 'mnt unpark']
-            self.recoveryProcedure[8] = [240., 'mnt track']
-            self.recoveryProcedure[8] = [280., 'mnt track']
+            self.recoveryProcedure[1] = [60., 'mnt track']
+            self.recoveryProcedure[2] = [120., 'mnt track']
+            self.recoveryProcedure[3] = [180., 'mnt unpark']
+            self.recoveryProcedure[4] = [190., 'mnt track']
+            self.recoveryProcedure[5] = [250., 'mnt track']
+            self.recoveryProcedure[6] = [310., 'mnt track']
         else:
             self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [30., 'mnt park']
-            self.recoveryProcedure[2] = [60., 'mnt park']
-            self.recoveryProcedure[3] = [90., 'mnt park']
-            self.recoveryProcedure[4] = [120., 'mnt stop']
+            self.recoveryProcedure[1] = [60., 'mnt park']
+            self.recoveryProcedure[2] = [120., 'mnt park']
+            self.recoveryProcedure[3] = [180., 'mnt park']
+            self.recoveryProcedure[4] = [360., 'mnt stop']
         return val
 
 
