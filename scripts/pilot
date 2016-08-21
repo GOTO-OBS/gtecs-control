@@ -159,12 +159,12 @@ class Pilot:
             await asyncio.sleep(20)
         return True
 
-    async def runThroughJobList(self, jobList, rising=False):
+    async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
         """
         Just pop jobs off a list and run them at correct sun_alt
         """
         while jobList:
-            if self.paused:  # do nothing if paused
+            if self.paused and respect_pause:  # do nothing if paused
                 await asyncio.sleep(15)
                 continue
             job = jobList.pop(0)
@@ -196,9 +196,10 @@ class Pilot:
         restart : bool
             If true, we will skip startup jobs and get straight to observing
         """
-        # daytime jobs
+        # daytime jobs. Do these even in bad weather.
         if not restart:
-            await self.runThroughJobList(self.daytime_jobs, rising=False)
+            await self.runThroughJobList(self.daytime_jobs, rising=False,
+                                         respect_pause=False)
 
         # done the daytime jobs. Set flag to allow open dome
         self.ready_to_observe = True
@@ -496,11 +497,6 @@ class Pilot:
             first element of the list is the Python script to execute,
             any additional elements are the arguments to the script.
         """
-        # I don't think external jobs should run whilst paused
-        if self.paused:
-            self.log.warn("tried to start external script whilst paused")
-            return 0, True
-
         # first, cancel any currently running script
         await self.cancelRunningScript()
 
