@@ -321,13 +321,14 @@ class Pilot:
             if reason == 'hw':
                 msg += 'hardware fault'
             self.log.warn(msg)
-            # is this necessary? or will all jobs gracefull handle pause in queue?
-            # self.cancelRunningScript()
 
             if reason == 'cond':
                 # if the reason is weather, handle dome open/close
                 # also park mount and pause queue
                 self.log.warn('closing and parking')
+                # TODO: discuss what should happen when dome closes in middle of
+                # observing?
+                self.cancelRunningScript()
                 execute_command('mnt park')
                 execute_command('exq pause')
                 execute_command('cam abort')
