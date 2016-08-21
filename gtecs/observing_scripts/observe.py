@@ -72,9 +72,9 @@ if __name__ == "__main__":
             print(exq_command)
             cmd(exq_command)
 
-        # wait for telescope (timeout 240s)
+        # wait for telescope (timeout 480s)
         time.sleep(10)
-        wait_for_telescope(240)
+        wait_for_telescope(480)
 
         print('In position: starting exposures')
         # resume the queue
