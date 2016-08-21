@@ -78,6 +78,7 @@ if __name__ == "__main__":
     print('Slewing to flat', flat)
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
+    time.sleep(10)
     wait_for_telescope(240)  # 240s timeout
 
     # set exposure order and check for sky brightness
