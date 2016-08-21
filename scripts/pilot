@@ -237,6 +237,7 @@ class Pilot:
         Continuously monitor hardware and try to fix any issues.
         """
         # monitor until stopped
+        sleepTime=60
         while True:
             errCount = 0
             self.log.info('running hardware checks')
@@ -251,15 +252,18 @@ class Pilot:
                     self.hardware[device].recover()
 
             if errCount > 0:
+                # check more frequently till fixed
+                sleepTime=10
                 self.log.warn(log_str)
                 await self.handlePause('hw', True)
             else:
+                sleepTime=60
                 log_str += "AOK"
                 self.log.info(log_str)
                 await self.handlePause('hw', False)
 
             self.errCount = errCount  # save error count so we dont restart whilst broken
-            await asyncio.sleep(60)
+            await asyncio.sleep(sleepTime)
 
     async def check_flags(self):
         """
