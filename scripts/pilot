@@ -58,7 +58,7 @@ class Pilot:
     pretty dumb, and simply hands off complicated jobs to
     external scripts, which is runs as a subprocess.
     """
-    def __init__(self):
+    def __init__(self, testing=False):
         # get a logger for the pilot
         self.log = logger.getLogger('pilot',
                                     file_logging=params.FILE_LOGGING,
@@ -110,6 +110,9 @@ class Pilot:
         self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
         self.timeOfLastCloseDomeCommand = 0.
 
+        # flag for daytime testing
+        self.testing = testing
+
     @property
     def paused(self):
         """
@@ -117,7 +120,7 @@ class Pilot:
         """
         return True in self.whypause.values()
 
-    async def waitingForTheSun(self, sunAlt, rising=False, testing=False):
+    async def waitingForTheSun(self, sunAlt, rising=False):
         """
         This coroutine will not return until the sun reaches the given altitude
 
@@ -136,7 +139,7 @@ class Pilot:
         OK : bool
             True if you are safe to go, False if we think you are too late
         """
-        if testing:
+        if self.testing:
             return True
 
         sun_alt_now = sun_alt(Time.now())
@@ -148,7 +151,7 @@ class Pilot:
         our_watch_has_ended = False
         while not our_watch_has_ended:
             sun_alt_now = sun_alt(Time.now())
-            self.log.info('Waiting: sun altitude = {}'.format(sun_alt_now))
+            self.log.info('waiting: sun altitude = {}'.format(sun_alt_now))
             if rising:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
@@ -169,11 +172,17 @@ class Pilot:
             OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
             # and go!
             if OK:
-                asyncio.ensure_future(
-                    self.startScript(job['name'], job['protocol'], job['cmd'])
-                )
+                if self.testing:
+                    # wait for each script to finish
+                    await self.startScript(job['name'], job['protocol'], job['cmd'])
+                else:
+                    # don't wait for script finish, but start each one when the
+                    # sun alt says so, cancelling running script if not done
+                    asyncio.ensure_future(
+                        self.startScript(job['name'], job['protocol'], job['cmd'])
+                    )
             else:
-                self.log.warn('Too late to start {}'.format(job['name']))
+                self.log.warn('too late to start {}'.format(job['name']))
             await asyncio.sleep(1)
 
     async def nightMarshall(self, restart=False):
@@ -200,7 +209,10 @@ class Pilot:
             await self.runThroughJobList(self.evening_jobs, rising=False)
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
-        await self.observe(until_sun_alt=90)
+        if self.testing:
+            await self.observe(until_sun_alt=90)
+        else:
+            await self.observe(until_sun_alt=-15)
 
         # observing is done. do morning tasks
         await self.runThroughJobList(self.morning_jobs, rising=True)
@@ -217,8 +229,7 @@ class Pilot:
                 await asyncio.sleep(5)
                 continue
             self.newID, self.newPriority, self.newMinTime = scheduler()
-            self.log.info('Current: {} {}'.format(self.currentID, self.currentMinTime))
-            self.log.info('New: {} {}'.format(self.newID, self.newMinTime))
+            self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(5)
 
     async def hardwareChecks(self):
@@ -236,7 +247,7 @@ class Pilot:
                     log_str += ' %s,%s,%s' % (str(device), str(num_errs), repr(err_list))
                 errCount += num_errs
                 if num_errs > 0:
-                    self.log.warn('Attempting recovery: {}'.format(device))
+                    self.log.warn('attempting recovery: {}'.format(device))
                     self.hardware[device].recover()
 
             if errCount > 0:
@@ -286,15 +297,18 @@ class Pilot:
 
     async def handlePause(self, reason, pause):
         """
-        Called when there may be a change in pause status
+        Called when there may be a change in pause status.
+
+        This checks all the other flags and the current pause status.
+        If appropriate it pauses or unpauses operations
 
         Parameters
         ----------
         reason : string
-            the reason why we should pause or unpause
+            the reason why we might pause or unpause
             one of 'manual', 'cond' or 'hw'
         pause : bool
-            pause (True) or unpause (False)
+            does reason suggest a pause (True) or unpause (False)
         """
         if not self.paused and pause:
             # ok, we need to cancel what we were doing!
@@ -313,7 +327,7 @@ class Pilot:
             if reason == 'cond':
                 # if the reason is weather, handle dome open/close
                 # also park mount and pause queue
-                self.log.warn('Closing and parking')
+                self.log.warn('closing and parking')
                 execute_command('mnt park')
                 execute_command('exq pause')
                 execute_command('cam abort')
@@ -323,22 +337,24 @@ class Pilot:
                 # just pause the queue until fixed
                 execute_command('exq pause')
                 execute_command('cam abort')
+            else:
+                self.log.info('pausing for pilot for manual override')
+                self.log.info('current job will continue')
 
         # does this change suggest a global unpause?
         unpause = not any([self.whypause[key] for key in self.whypause.keys()
                            if key != reason]) and not pause
         if unpause and self.paused:
             # OK, we can resume
-            self.log.warn('Resuming operations')
-            execute_command('mnt unpark')
-            await asyncio.sleep(10)
-            execute_command('mnt track')
-            if not self.domeOpen and self.ready_to_observe:
-                # this way we don't start this way we don't
-                # start until the dome is open
-                await self.open_dome()
-                execute_command('exq resume')
-            elif self.domeOpen:
+            self.log.warn('resuming operations')
+            if self.ready_to_observe:
+                execute_command('mnt unpark')
+                await asyncio.sleep(10)
+                execute_command('mnt track')
+                if not self.domeOpen:
+                    # this way we don't start this way we don't
+                    # start until the dome is open
+                    await self.open_dome()
                 execute_command('exq resume')
 
         # finally, change global pause status by updating flag
@@ -358,7 +374,7 @@ class Pilot:
                     self.domeConfirmedClosed = 1
                     self.log.info('dome confirmed closed')
                 elif time.time() - self.timeOfLastCloseDomeCommand > 45.:
-                    self.log.warn('Dome not closed. Trying again...')
+                    self.log.warn('dome not closed. Trying again...')
                     self.close_dome()
             await asyncio.sleep(10)
 
@@ -371,7 +387,7 @@ class Pilot:
         until_sun_alt : float
             sun altitude at which to stop observing
         """
-        self.log.info("Observing")
+        self.log.info("observing")
 
         # start checking Schedule
         # normally, we'd do this when the pilot starts, but
@@ -398,24 +414,24 @@ class Pilot:
             # see if a new target has arrived and mark job appropriately
             if self.currentID != self.newID:
                 if self.currentID is not None:
-                    self.log.info("Got new job from scheduler %s", self.newID)
+                    self.log.info("got new job from scheduler %s", self.newID)
                     # this will fail if obsStartTime not currently defined
                     try:
                         timeElapsed = time.time() - self.obsStartTime
                     except:
                         # in which case...
                         timeElapsed = 0
-                    self.log.info('Min time = {}, time elapsed = {}'.format(
+                    self.log.info('min time = {}, time elapsed = {}'.format(
                         self.currentMinTime, timeElapsed
                     ))
                     if timeElapsed > self.currentMinTime:
                         markJobCompleted(self.currentID)
-                        self.log.info('Job completed: {}'.format(self.currentID))
+                        self.log.info('job completed: {}'.format(self.currentID))
                     else:
                         markJobInterrupted(self.currentID)
-                        self.log.info('Job interrupted: {}'.format(self.currentID))
+                        self.log.info('job interrupted: {}'.format(self.currentID))
                 else:
-                    self.log.info("Got job from scheduler %s", self.newID)
+                    self.log.info("got job from scheduler %s", self.newID)
 
                 # start new job
                 if self.newID is None:
@@ -429,7 +445,7 @@ class Pilot:
                 else:
                     cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
                            str(self.newID), str(self.newMinTime)]
-                    self.log.info('Starting Job {}'.format(self.newID))
+                    self.log.info('starting Job {}'.format(self.newID))
                     self.obsStartTime = time.time()
                     # start job, will cancel current one automatically
                     asyncio.ensure_future(
@@ -452,9 +468,13 @@ class Pilot:
         if self.runningScriptTransport is not None:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
-                self.log.info("Killing {}".format(self.runningScriptProtocol.jobName))
+                self.log.info("killing {}".format(self.runningScriptProtocol.jobName))
+
+                # if we were observing, mark as aborted and clear queue
                 if self.runningScriptProtocol.jobName == 'OBS' and self.currentID is not None:
                     markJobAborted(self.currentID)
+                    execute_command('exq clear')
+                    execute_command('cam abort')
                 self.runningScriptTransport.terminate()
                 await self.runningScriptResult
 
@@ -535,7 +555,7 @@ class Pilot:
 
         await self.shutdown()
 
-        self.log.info("Done")
+        self.log.info("done")
 
     async def shutdown(self):
         """
@@ -570,7 +590,7 @@ class Pilot:
         await self.shutdown()
 
     async def open_dome(self):
-        self.log.warn('Opening dome')
+        self.log.warn('opening dome')
         execute_command('dome open')
         self.domeOpen = 1
         # make sure the dome starts reporting errors
@@ -586,7 +606,7 @@ class Pilot:
             return 'err'
 
     def close_dome(self):
-        self.log.warn('Closing dome')
+        self.log.warn('closing dome')
         execute_command('dome close')
         self.domeOpen = 0
         # make sure the dome starts reporting errors
@@ -607,7 +627,7 @@ class Pilot:
         sn3 = dict(name='SN3', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = []
+        self.daytime_jobs = [sn0, sn1, sn2, sn3]
 
         sn4 = dict(name='FLATS', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
@@ -618,7 +638,7 @@ class Pilot:
         sn6 = dict(name='STD', sunAlt=-12,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = []
+        self.evening_jobs = [sn4, sn6]
 
         en0 = dict(name='FLATS', sunAlt=-7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
@@ -629,12 +649,12 @@ class Pilot:
         en2 = dict(name='DAE', sunAlt=1,
                    cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
                    protocol=SimpleProtocol)
-        self.morning_jobs = []
+        self.morning_jobs = [en0, en1, en2]
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
-    pilot = Pilot()
+    pilot = Pilot(testing=True)
     pilot.assignJobs()
 
     # start the recurrent tasks
