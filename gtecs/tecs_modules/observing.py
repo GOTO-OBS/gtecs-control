@@ -87,7 +87,7 @@ def wait_for_focuser(timeout):
         raise TimeoutError('Focuser timed out')
 
 
-def goto(ra, dec, timeout=60):
+def goto(ra, dec):
     """
     Move telescope and wait until there.
 
@@ -97,16 +97,12 @@ def goto(ra, dec, timeout=60):
         J2000 ra in decimal degrees
     dec : float
         J2000 dec in decimal degrees
-    timeout : float
-        time in seconds after which to timeout
     """
     ra_string, dec_string = tel_str(ra, dec)
     cmd("mnt ra " + ra_string)
     cmd("mnt dec " + dec_string)
     time.sleep(1)
     cmd("mnt slew")
-    time.sleep(1)
-    wait_for_telescope(timeout)
 
 
 def wait_for_telescope(timeout=None):
@@ -131,11 +127,13 @@ def wait_for_telescope(timeout=None):
             pass
         if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.1:
             still_moving = False
+        print(time.time(), start_time, (time.time() - start_time) > timeout)
         if timeout and (time.time() - start_time) > timeout:
+            print('Bum')
             timed_out = True
 
         # don't hammer the daemons
-        time.sleep(1)
+        time.sleep(5)
     if timed_out:
         raise TimeoutError('Telescope timed out')
 
