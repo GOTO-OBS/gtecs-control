@@ -251,7 +251,7 @@ class ExqDaemon:
         time.sleep(1)
         cam_info_dict = cam.get_info()
         cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
-        while('Exposing' in cam_status.values()):
+        while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
             try:
                 cam_info_dict = cam.get_info()
             except Pyro4.errors.TimeoutError:
