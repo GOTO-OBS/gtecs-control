@@ -325,9 +325,9 @@ class CamDaemon:
         for tel in self.tel_dict:
             nuc, HW = self.tel_dict[tel]
             tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
-            if self.remaining[nuc][HW] > 0:
+            info['remaining'+tel] = self.remaining[nuc][HW]
+            if self.exposing_flag[nuc][HW] > 0:
                 info['status'+tel] = 'Exposing'
-                info['remaining'+tel] = self.remaining[nuc][HW]
             else:
                 info['status'+tel] = 'Ready'
 
