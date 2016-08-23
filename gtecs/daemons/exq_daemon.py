@@ -216,13 +216,17 @@ class ExqDaemon:
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
+
         time.sleep(1)
         filt_info_dict = filt.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
         while('Moving' in filt_status.values()):
-            filt_info_dict = filt.get_info()
+            try:
+                filt_info_dict = filt.get_info()
+            except Pyro4.errors.TimeoutError:
+                pass
             filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
-            time.sleep(0.001)
+            time.sleep(0.005)
             # keep ping alive
             self.time_check = time.time()
 
@@ -248,9 +252,12 @@ class ExqDaemon:
         cam_info_dict = cam.get_info()
         cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
         while('Exposing' in cam_status.values()):
-            cam_info_dict = cam.get_info()
+            try:
+                cam_info_dict = cam.get_info()
+            except Pyro4.errors.TimeoutError:
+                pass
             cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
-            time.sleep(0.001)
+            time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
 
