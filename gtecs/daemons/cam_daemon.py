@@ -134,12 +134,6 @@ class CamDaemon:
             ### control functions
             # take exposure part one - start
             if(self.take_exposure_flag):
-                # find and update run number
-                with open(self.run_number_file,) as f:
-                    lines = f.readlines()
-                    self.run_ID = int(lines[0]) + 1
-                with open(self.run_number_file,'w') as f:
-                    f.write(str(self.run_ID))
                 exptime = self.target_exptime
                 exptime_ms = exptime*1000.
                 frametype = self.target_frametype
