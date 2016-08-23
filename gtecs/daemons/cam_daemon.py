@@ -317,6 +317,9 @@ class CamDaemon:
             except:
                 self.logfile.error('No response from fli interface on %s', nuc)
                 self.logfile.debug('', exc_info=True)
+            finally:
+                if not fli_proxies:
+                    fli._pyroRelease()
 
         # save info
         info = {}
