@@ -81,6 +81,12 @@ class FocDaemon:
     # Primary control thread
     def foc_control(self):
 
+        # make proxies once, outside the loop
+        fli_proxies = dict()
+        for nuc in params.FLI_INTERFACES:
+            fli_proxies[nuc] = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
+            fli_proxies[nuc]._pyroTimeout = params.PROXY_TIMEOUT
+
         while(self.running):
             self.time_check = time.time()
 
@@ -90,9 +96,9 @@ class FocDaemon:
                 # update variables
                 for tel in self.tel_dict:
                     nuc, HW = self.tel_dict[tel]
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         self.limit[nuc][HW] = fli.get_focuser_limit(HW)
                         self.remaining[nuc][HW] = fli.get_focuser_steps_remaining(HW)
                         self.current_pos[nuc][HW] = fli.get_focuser_position(HW)
@@ -139,14 +145,15 @@ class FocDaemon:
                     self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
                                       tel, nuc, HW, move_steps, new_pos)
 
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         c = fli.step_focuser_motor(move_steps,HW)
                         if c: self.logfile.info(c)
                     except:
                         self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
+
                 # cleare the 'active' units
                 self.active_tel = []
 
@@ -161,14 +168,15 @@ class FocDaemon:
                     self.logfile.info('Homing focuser %i (%s-%i)',
                                       tel, nuc, HW)
 
-                    fli = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-                    fli._pyroTimeout = params.PROXY_TIMEOUT
+                    fli = fli_proxies[nuc]
                     try:
+                        fli._pyroReconnect()
                         c = fli.home_focuser(HW)
                         if c: self.logfile.info(c)
                     except:
                         self.logfile.error('No response from fli interface on %s', nuc)
                         self.logfile.debug('', exc_info=True)
+                    fli._pyroRelease()
                     self.move_steps[nuc][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
