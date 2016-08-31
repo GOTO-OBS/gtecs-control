@@ -221,11 +221,10 @@ def time_to_set(observer, targets, time, horizon=0*u.deg):
     return seconds_until_set
 
 
-ExposureSet = namedtuple('ExposureSet',
-                         'tels, numexp, exptime, filt, binfac, exptype')
+Exposure = namedtuple('Exposure', 'tels, numexp, exptime, filt, binfac, exptype')
 
 
-class Observation:
+class Pointing:
     def __init__(self, id, name, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, user, start, stop):
         self.id = int(id)
@@ -241,7 +240,7 @@ class Observation:
         self.user = user
         self.start = Time(start, scale='utc')
         self.stop = Time(stop, scale='utc')
-        self.exposuresets = []
+        self.exposures = []
 
     def __eq__(self, other):
         try:
@@ -253,13 +252,13 @@ class Observation:
         return not self == other
 
     def _as_target(self):
-        '''Returns a FixedTarget object for the observation target.'''
+        '''Returns a FixedTarget object for the pointing target.'''
         return FixedTarget(coord=self.coord, name=self.name)
 
-    def add_exposureset(self, expset):
-        if not isinstance(expset, ExposureSet):
-            raise ValueError('exposure set must be an ExposureSet instance')
-        self.exposuresets.append(expset)
+    def add_exposure(self, exp):
+        if not isinstance(exp, Exposure):
+            raise ValueError('exposure must be an Exposure instance')
+        self.exposures.append(exp)
 
     @classmethod
     def from_file(cls, fname):
@@ -268,27 +267,27 @@ class Observation:
             for line in f.readlines():
                 if not line.startswith('#'):
                     lines.append(line)
-        # first line is observation
+        # first line is the pointing
         (id, name, ra, dec, priority, tileprob, too, sunalt, minalt,
          mintime, moon, user, start, stop) = lines[0].split()
-        new_obs = cls(id, name, ra, dec, priority, tileprob, too, sunalt,
-                      minalt, mintime, moon, user, start, stop)
-        # remaining lines are exposure sets
+        pointing = cls(id, name, ra, dec, priority, tileprob, too, sunalt,
+                       minalt, mintime, moon, user, start, stop)
+        # remaining lines are exposures
         for line in lines[1:]:
             tels, numexp, exptime, filt, binfac, exptype = line.split()
             numexp = int(numexp)
             exptime = float(exptime)*u.second
             binfac = int(binfac)
-            expset = ExposureSet(tels, numexp, exptime, filt, binfac, exptype)
-            new_obs.add_exposureset(expset)
-        return new_obs
+            exp = Exposure(tels, numexp, exptime, filt, binfac, exptype)
+            pointing.add_exposure(exp)
+        return pointing
 
 
-class ObservationSet:
-    def __init__(self, observations=None):
-        if observations is None:
-            observations = []
-        self.observations = observations
+class Queue:
+    def __init__(self, pointings=None):
+        if pointings is None:
+            pointings = []
+        self.pointings = pointings
         self.target_arr = []
         self.mintime_arr = []
         self.start_arr = []
@@ -298,26 +297,26 @@ class ObservationSet:
         self.maxmoon_arr = []
         self.priority_arr = []
         self.tileprob_arr = []
-        if len(self.observations) > 0:
+        if len(self.pointings) > 0:
             self.initialise()
 
     def __len__(self):
-        return len(self.observations)
+        return len(self.pointings)
 
     def initialise(self):
-        '''Setup the observation set and constraints when initialised.'''
+        '''Setup the queue and constraints when initialised.'''
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
-        for obs in self.observations:
-            self.target_arr.append(obs._as_target())
-            self.mintime_arr.append(obs.mintime)
-            self.start_arr.append(obs.start)
-            self.stop_arr.append(obs.stop)
-            self.maxsunalt_arr.append(obs.maxsunalt)
-            self.minalt_arr.append(obs.minalt)
-            self.maxmoon_arr.append(limits[obs.maxmoon])
-            self.priority_arr.append(obs.priority)
-            self.tileprob_arr.append(obs.tileprob)
+        for pointing in self.pointings:
+            self.target_arr.append(pointing._as_target())
+            self.mintime_arr.append(pointing.mintime)
+            self.start_arr.append(pointing.start)
+            self.stop_arr.append(pointing.stop)
+            self.maxsunalt_arr.append(pointing.maxsunalt)
+            self.minalt_arr.append(pointing.minalt)
+            self.maxmoon_arr.append(limits[pointing.maxmoon])
+            self.priority_arr.append(pointing.priority)
+            self.tileprob_arr.append(pointing.tileprob)
 
         self.target_arr = get_icrs_skycoord(self.target_arr)
 
@@ -346,8 +345,8 @@ class ObservationSet:
                                      self.time_constraint_name +
                                      self.mintime_constraint_names)
 
-    def check_validities(self, now, observer, obs_now):
-        ''' Check if the observations are valid, both now and after mintimes'''
+    def check_validities(self, now, observer, current_pointing):
+        ''' Check if the pointings are valid, both now and after mintimes'''
 
         # apply normal constraints
         cons_valid_arr = apply_constraints(self.constraints,
@@ -365,50 +364,34 @@ class ObservationSet:
                                                observer, self.target_arr,
                                                later_arr)
 
-        for i in range(len(self.observations)):
-            obs = self.observations[i]
-            obs.valid_time = now
+        for i in range(len(self.pointings)):
+            pointing = self.pointings[i]
+            pointing.valid_time = now
 
-            # save constraints to observations
-            obs.all_constraint_names = self.all_constraint_names
-            obs.constraint_names = list(self.constraint_names)
-            obs.valid_arr = [x for x in cons_valid_arr[0][i]]
-            # current observation doesn't apply the time constraint
-            if obs != obs_now:
-                obs.constraint_names += self.time_constraint_name
-                obs.valid_arr += [x for x in time_cons_valid_arr[0][i]]
-            # current observation and queue fillers don't apply mintime cons
-            if obs.priority < 5 and obs != obs_now:
-                obs.constraint_names += self.mintime_constraint_names
-                obs.valid_arr += [x for x in min_cons_valid_arr[i][i]]
+            # save constraints to the pointing objects
+            pointing.all_constraint_names = self.all_constraint_names
+            pointing.constraint_names = list(self.constraint_names)
+            pointing.valid_arr = [x for x in cons_valid_arr[0][i]]
+            # the current pointing doesn't apply the time constraint
+            if pointing != current_pointing:
+                pointing.constraint_names += self.time_constraint_name
+                pointing.valid_arr += [x for x in time_cons_valid_arr[0][i]]
+            # current pointing and queue fillers don't apply mintime cons
+            if pointing.priority < 5 and pointing != current_pointing:
+                pointing.constraint_names += self.mintime_constraint_names
+                pointing.valid_arr += [x for x in min_cons_valid_arr[i][i]]
 
             # finally find out if it's valid or not
-            obs.valid = np.logical_and.reduce(obs.valid_arr)
+            pointing.valid = np.logical_and.reduce(pointing.valid_arr)
 
-    def calculate_priorities(self, time, observer, obs_now):
-        ''' Calculate priorities at a given time for each observation.
-
-        Current method (based on pt5m with addition of tiling ranks):
-
-            I.TGGGBBBB
-
-            Base priority (I) is an integer.
-            The first decimal place (T) is 0 if the observation is a ToO,
-                or 1 if it is not.
-            The next X decimal places (e.g. GGG for 3) are reserved for
-                the GW tiling probabilities (if a tile, else zeros).
-            The final Y decimal places are given by the 'tiebreaker';
-                either based on the airmass in the middle of the observation
-                or the time to set of the target.
-            Finally check if the observation is invalid at the time given,
-                if so the priority is increased by 10.
-        '''
+    def calculate_priorities(self, time, observer, current_pointing):
+        '''Calculate priorities at a given time for each pointing.'''
 
         ## Find base priority based on rank
-        priorities = np.array([obs.priority for obs in self.observations])
+        priorities = np.array([p.priority for p in self.pointings])
 
         ## Find ToO values (0 or 1)
-        too_mask = np.array([obs.too for obs in self.observations])
+        too_mask = np.array([p.too for p in self.pointings])
         nottoo_mask = np.invert(too_mask)
         too_arr = np.array(nottoo_mask, dtype = float)
 
@@ -453,59 +436,60 @@ class ObservationSet:
         priorities_now += airmass_arr * airmass_weight
         priorities_now += tts_arr * tts_weight
 
-        # check validities, add 10 to invalid observations
-        self.check_validities(time, observer, obs_now)
-        valid_mask = np.array([obs.valid for obs in self.observations])
+        # check validities, add 10 to invalid pointings
+        self.check_validities(time, observer, current_pointing)
+        valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
         priorities_now[invalid_mask] += 10
 
-        # if the current observation is invalid it must be complete
+        # if the current pointing is invalid it must be complete
         # therefore add 10 to prevent it coming up again
-        if obs_now is not None:
-            if obs_now.priority_now > 10:
-                id_arr = np.array([obs.id for obs in self.observations])
-                current_mask = np.array([id == obs_now.id for id in id_arr])
+        if current_pointing is not None:
+            if current_pointing.priority_now > 10:
+                id_arr = np.array([p.id for p in self.pointings])
+                current_mask = np.array([id == current_pointing.id for id in id_arr])
                 priorities_now[current_mask] += 10
 
-        # save priority_now to observation
-        for obs, p_now in zip(self.observations, priorities_now):
-            obs.priority_now = p_now
+        # save priority_now to pointing
+        for pointing, priority_now in zip(self.pointings, priorities_now):
+            pointing.priority_now = priority_now
 
 
-def import_obs_from_folder(queue_folder):
+def import_pointings_from_folder(queue_folder):
     """
-    Creates a list of `Observation` objects from a folder containing obs files.
+    Creates a list of `Pointing` objects from a folder
+    containing pointing files.
 
     Parameters
     ----------
     queue_folder : str
-        The location of the observation files.
+        The location of the pointing files.
 
     Returns
     -------
-    obsset : `ObservationSet`
-        An ObservationSet containing Observations from the queue_folder.
+    queue : `Queue`
+        An Queue containing Pointings from the queue_folder.
     """
-    obsset = ObservationSet()
+    queue = Queue()
     queue_files = os.listdir(queue_folder)
 
     if queue_files is not None:
-        for obsfile in queue_files:
-            path = os.path.join(queue_folder, obsfile)
-            obsset.observations.append(Observation.from_file(path))
-    obsset.initialise()
-    return obsset
+        for pointing_file in queue_files:
+            path = os.path.join(queue_folder, pointing_file)
+            queue.pointings.append(Pointing.from_file(path))
+    queue.initialise()
+    return queue
 
 
-def find_highest_priority(obsset, obs_now, time, write_html=False):
+def find_highest_priority(queue, current_pointing, time, write_html=False):
     """
-    Calculate priorities for a list of observations at a given time
-    and return the observation with the highest priority.
+    Calculate priorities for pointings in a queue at a given time
+    and return the pointing with the highest priority.
 
     Parameters
     ----------
-    obsset : `ObservationSet`
-        An ObservationSet containing Observations to consider.
+    queue : `Queue`
+        An Queue containing Pointings to consider.
 
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
@@ -515,28 +499,27 @@ def find_highest_priority(obsset, obs_now, time, write_html=False):
 
     Returns
     -------
-    obs_hp : `Observation`
-        `Observation` object containing the observation with the highest
-        calculated priority at the time given.
+    highest_pointing : `Pointing`
+        Pointing with the highest calculated priority at the time given.
 
-    obslist_sorted : list of `Observation` objects
-        A list of Observations sorted by priority (for html queue page).
+    pointinglist : list of `Pointing` objects
+        A list of Pointings sorted by priority (for html queue page).
     """
 
-    obsset.calculate_priorities(time, GOTO, obs_now)
-    for obs in obsset.observations:
+    queue.calculate_priorities(time, GOTO, current_pointing)
+    for pointing in queue.pointings:
         if write_html:
-            html.write_obs_flag_files(obs, time, GOTO, obs_now, 1)
-            html.write_obs_exp_files(obs)
+            html.write_flag_files(pointing, time, GOTO, current_pointing, 1)
+            html.write_exp_files(pointing)
 
-    obslist = list(obsset.observations)
-    obslist.sort(key=lambda x: x.priority_now)
+    pointinglist = list(queue.pointings)
+    pointinglist.sort(key=lambda x: x.priority_now)
 
-    obs_hp = obslist[0]
-    return obs_hp, obslist
+    highest_pointing = pointinglist[0]
+    return highest_pointing, pointinglist
 
 
-def what_to_do_next(obs_now, obs_hp):
+def what_to_do_next(current_pointing, highest_pointing):
     """
     Decide whether to slew to a new target, remain on the current target
     or park the telescope.
@@ -544,72 +527,74 @@ def what_to_do_next(obs_now, obs_hp):
 
     Parameters
     ----------
-    obs_now : `Observation`
-        The current observation.
+    current_pointing : `Pointing`
+        The current pointing.
         `None` if the telescope is idle.
 
-    obs_hp : `Observation`
-        The current highest priority object from the queue.
+    highest_pointing : `Pointing`
+        The current highest priority pointing from the queue.
         `None` if the queue is empty.
 
     Returns
     -------
-    obs_new : `Observation`
-        The new observation to send to the pilot
-        Can be either obs_now (remain on current target), obs_new
-        (slew to new target) or `None` (nothing to do, park scope).
+    new_pointing : `Pointing`
+        The new pointing to send to the pilot
+        Could be either:
+          current_pointing (remain on current target),
+          highest_pointing (slew to new target) or
+          `None`           (nothing to do, park scope).
     """
 
     # Deal with either being missing (telescope is idle or queue is empty)
-    if obs_now is None and obs_hp is None:
-        return obs_now
-    elif obs_now is None:
-        if obs_hp.priority_now < 10:
-            return obs_hp
+    if current_pointing is None and highest_pointing is None:
+        return current_pointing
+    elif current_pointing is None:
+        if highest_pointing.priority_now < 10:
+            return highest_pointing
         else:
-            return obs_now
-    elif obs_hp is None:
-        if obs_now.priority_now > 10:
+            return current_pointing
+    elif highest_pointing is None:
+        if current_pointing.priority_now > 10:
             return None
         else:
-            return obs_now
+            return current_pointing
 
-    if obs_now == obs_hp:
-        if obs_now.priority_now >= 10 or obs_hp.priority_now >= 10:
+    if current_pointing == highest_pointing:
+        if current_pointing.priority_now >= 10 or highest_pointing.priority_now >= 10:
             return None  # it's either finished or is now illegal
         else:
-            return obs_hp
+            return highest_pointing
 
-    if obs_now.priority_now >= 10:  # current observation is illegal (finished)
-        if obs_hp.priority_now < 10:  # new observation is legal
-            return obs_hp
+    if current_pointing.priority_now >= 10:  # current pointing is illegal (finished)
+        if highest_pointing.priority_now < 10:  # new pointing is legal
+            return highest_pointing
         else:
             return None
     else:  # telescope is observing legally
-        if obs_hp.priority_now >= 10:  # no legal observations
+        if highest_pointing.priority_now >= 10:  # no legal pointings
             return None
         else:  # both are legal
-            if obs_now.priority_now > 5:  # a filler, always slew
-                return obs_hp
-            elif obs_hp.too:  # slew to a ToO, unless now is also a ToO
-                if obs_now.too:
-                    return obs_now
+            if current_pointing.priority_now > 5:  # a filler, always slew
+                return highest_pointing
+            elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
+                if current_pointing.too:
+                    return current_pointing
                 else:
-                    return obs_hp
-            else:  # stay for normal observations
-                return obs_now
+                    return highest_pointing
+            else:  # stay for normal pointings
+                return current_pointing
 
 
-def check_queue(obs_now, now, write_html=False):
+def check_queue(current_pointing, now, write_html=False):
     """
-    Check the current observations in the queue, find the highest priority at
+    Check the current pointings in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
     or park the telescope.
 
     Parameters
     ----------
-    obs_now : `Observation`
-        The current observation.
+    current_pointing : `Pointing`
+        The current pointing.
         `None` if the telescope is idle.
 
     now : `~astropy.time.Time`
@@ -617,22 +602,22 @@ def check_queue(obs_now, now, write_html=False):
 
     Returns
     -------
-    obs_new : `Observation`
-        The new observation to send to the pilot.
-        Could be a new observation, the same as obs_now or 'None' (park).
+    new_pointing : `Pointing`
+        The pointing to send to the pilot.
+        Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    obsset = import_obs_from_folder(queue_folder)
+    queue = import_pointings_from_folder(queue_folder)
 
-    if len(obsset) > 0:
-        obs_hp, obslist_sorted = find_highest_priority(obsset, obs_now, now,
-                                                       write_html)
+    if len(queue) > 0:
+        highest_pointing, pointinglist = find_highest_priority(queue, current_pointing,
+                                                               now, write_html)
     else:
-        obs_hp = None
-        obslist_sorted = []
+        highest_pointing = None
+        pointinglist = []
 
-    obs_new = what_to_do_next(obs_now, obs_hp)
+    new_pointing = what_to_do_next(current_pointing, highest_pointing)
 
     if write_html:
-        html.write_queue_page(obslist_sorted, obs_now, now)
-    return obs_new
+        html.write_queue_page(pointinglist, current_pointing, now)
+    return new_pointing

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # a fake pilot to test the scheduler
-# heavily based on the pt5m pilot, including observation files and html pages
+# heavily based on the pt5m pilot, including pointing files and html pages
 # SL & MJD @ Sheffield, 2016
 
 from __future__ import absolute_import
@@ -35,17 +35,17 @@ weather_on = 0
 fake_dt = TimeDelta(60*u.s)  # 15*u.s)
 
 
-def set_obs_status(obs, status):
-    '''Mark a job as completed, aborted etc'''
+def set_pointing_status(pointing, status):
+    '''Mark a pointing as completed, aborted etc'''
     if status not in ['aborted', 'completed', 'interrupted']:
         print('Illegal status:', status)
         return 1
     else:
-        print('    Marking job', obs.id, 'as', status)
+        print('    Marking pointing', pointing.id, 'as', status)
         try:
             old_dir = os.path.join(params.QUEUE_PATH, 'todo')
             new_dir = os.path.join(params.QUEUE_PATH, status)
-            filename = "ID_{:d}.dat".format(obs.id)
+            filename = "ID_{:d}.dat".format(pointing.id)
             os.rename(os.path.join(old_dir, filename),
                       os.path.join(new_dir, filename))
             return 0
@@ -109,17 +109,17 @@ def get_night_times(date):
     return sunset, sunrise
 
 
-def estimate_completion_time(obs_new, obs_now):
+def estimate_completion_time(new_pointing, current_pointing):
     """
-    Extimate the exposure time for an observation, based on the combined
-    exposure times in all exposure sets and the time to move into position.
+    Extimate the exposure time for a pointing, based on the combined
+    exposure times in all exposures and the time to move into position.
     """
     total_exptime = 0*u.s
-    for expset in obs_new.exposuresets:
-        total_exptime += ((expset.exptime + readouttime) * expset.numexp)
+    for exp in new_pointing.exposures:
+        total_exptime += ((exp.exptime + readouttime) * exp.numexp)
 
-    if obs_now is not None:
-        slew_distance = obs_now.coord.separation(obs_new.coord)
+    if current_pointing is not None:
+        slew_distance = current_pointing.coord.separation(new_pointing.coord)
         slew_time = slew_distance/slewrate
     else:
         slew_time = 0*u.s
@@ -129,23 +129,23 @@ def estimate_completion_time(obs_new, obs_now):
 
 class DummyPilot(object):
     """
-    The dummy pilot simply checks to see if a more important job
-    is available from the scheduler, or if it has finished the job
+    The dummy pilot simply checks to see if a more important pointing
+    is available from the scheduler, or if it has finished the pointing
     it is supposed to be currently doing
     """
 
     def __init__(self):
         self.start_time = Time.now()
 
-        self.obs_now = None
-        self.obs_start_time = None
-        self.obs_min_time = None
+        self.current_pointing = None
+        self.current_start_time = None
+        self.current_min_time = None
         self.current_duration = None
 
-        self.completed_obs = []
+        self.completed_pointings = []
         self.completed_times = []
-        self.interrupted_obs = []
-        self.aborted_obs = []
+        self.interrupted_pointings = []
+        self.aborted_pointings = []
 
         self.dome_status = 0  # 1 = open, 0 = shut
         self.pilot_status = None
@@ -153,11 +153,11 @@ class DummyPilot(object):
     def pause_observing(self):
         self.dome_status = 0
         self.pilot_status = 'Dome Closed'
-        if self.obs_now is not None:
-            print('Aborting job ID= %i due to bad weather' % self.obs_now.id)
-            self.aborted_obs.append(self.obs_now)
-            set_obs_status(self.obs_now, 'aborted')
-            self.obs_now = None
+        if self.current_pointing is not None:
+            print('Aborting ID= %i due to bad weather' % self.current_pointing.id)
+            self.aborted_pointings.append(self.current_pointing)
+            set_pointing_status(self.current_pointing, 'aborted')
+            self.current_pointing = None
             self.current_duration = None
             self.current_position = None
 
@@ -179,65 +179,65 @@ class DummyPilot(object):
             state = 'manual'
         elif self.dome_status == 0:
             state = 'closed'
-        elif self.obs_now is not None:
-            state = 'job:%i (p:%.11f)' %(self.obs_now.id, self.obs_now.priority_now)
+        elif self.current_pointing is not None:
+            state = 'pointing:%i (p:%.11f)' %(self.current_pointing.id, self.current_pointing.priority_now)
         else:
             state = 'idle'
         fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
         with open(fname, 'a') as f:
             f.write('%s %s\n' % (now. iso, state))
 
-    def check_obs_now(self, now):
-        if self.obs_now is not None:
-            time_elapsed = (now - self.obs_start_time).to(u.s)
+    def check_current_pointing(self, now):
+        if self.current_pointing is not None:
+            time_elapsed = (now - self.current_start_time).to(u.s)
             if time_elapsed > self.current_duration:
                 print('  Job complete!')
-                self.obs_now.priority_now += 10
+                self.current_pointing.priority_now += 10
                 # set mintime to 0
-                # then when we review_target_situation, job will be marked
+                # then when we review_target_situation, pointing will be marked
                 # as completed
-                self.obs_now.min_time = 0.0*u.s
+                self.current_pointing.min_time = 0.0*u.s
 
     def review_target_situation(self, now, write_html):
         '''Check queue for a new target and, if necessary, go to it'''
-        if self.obs_now is not None:
-            print('  current obs: obs ID', self.obs_now.id)
+        if self.current_pointing is not None:
+            print('  current : ID', self.current_pointing.id)
         else:
-            print('  current obs:', None)
-        obs_new = scheduler.check_queue(self.obs_now, now, write_html)
-        if obs_new is not None:
-            print('  check_queue: obs ID', obs_new.id)
+            print('  current :', None)
+        new_pointing = scheduler.check_queue(self.current_pointing, now, write_html)
+        if new_pointing is not None:
+            print('  queue   : ID', new_pointing.id)
         else:
-            print('  check_queue:', None)
+            print('  queue   :', None)
 
-        if obs_new != self.obs_now and obs_new not in self.completed_obs:
-            if self.obs_now is not None:
+        if new_pointing != self.current_pointing and new_pointing not in self.completed_pointings:
+            if self.current_pointing is not None:
                 # we're already doing something,
                 # mark as finished or interrupted
                 try:
-                    time_elapsed = (now - self.obs_start_time).to(u.s)
+                    time_elapsed = (now - self.current_start_time).to(u.s)
                 except:
                     time_elapsed = 0.
-                if time_elapsed > self.obs_min_time:  # job complete
-                    set_obs_status(self.obs_now, 'completed')
-                    self.completed_obs.append(self.obs_now)
+                if time_elapsed > self.current_min_time:  # pointing complete
+                    set_pointing_status(self.current_pointing, 'completed')
+                    self.completed_pointings.append(self.current_pointing)
                     self.completed_times.append(now)
-                else:  # job wasn't complete, but something else took over
+                else:  # pointing wasn't complete, but something else took over
                     print('  Job interrupted')
-                    set_obs_status(self.obs_now, 'interrupted')
-                    self.interrupted_obs.append(self.obs_now)
+                    set_pointing_status(self.current_pointing, 'interrupted')
+                    self.interrupted_pointings.append(self.current_pointing)
 
-            if obs_new is not None:
-                self.obs_min_time = obs_new.mintime
-                self.current_duration = estimate_completion_time(obs_new,
-                                                                 self.obs_now)
-                self.obs_now = obs_new
-                self.obs_start_time = now
+            if new_pointing is not None:
+                self.current_min_time = new_pointing.mintime
+                self.current_duration = estimate_completion_time(new_pointing,
+                                                                 self.current_pointing)
+                self.current_pointing = new_pointing
+                self.current_start_time = now
             else:  # park scope (but remain in standby)
-                self.obs_now = None
+                self.current_pointing = None
 
-        if obs_new == self.obs_now:
-            self.obs_now = obs_new
+        if new_pointing == self.current_pointing:
+            self.current_pointing = new_pointing
 
 
 if __name__ == "__main__":
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
         pilot.check_weather(weather, now)
         if pilot.dome_status:  # open
-            pilot.check_obs_now(now)
+            pilot.check_current_pointing(now)
             pilot.review_target_situation(now, bool(args.write_html))
         else:
             print('  dome closed')
@@ -278,20 +278,20 @@ if __name__ == "__main__":
         now += fake_dt
         time.sleep(float(args.sleep_time))
 
-    print('Listing completed jobs and time done')
-    for obs, timedone in zip(pilot.completed_obs, pilot.completed_times):
-        print(obs.id, timedone)
+    print('Listing completed pointings and time done')
+    for pointing, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+        print(pointing.id, timedone)
 
-    print('Listing jobs aborted due to bad weather')
-    for obs in pilot.aborted_obs:
-        print(obs.id)
+    print('Listing pointings aborted due to bad weather')
+    for pointing in pilot.aborted_pointings:
+        print(pointing.id)
 
-    print('Listing jobs interrupted by other jobs')
-    for obs in pilot.interrupted_obs:
-        print(obs.id)
+    print('Listing pointings interrupted by other pointings')
+    for pointing in pilot.interrupted_pointings:
+        print(pointing.id)
 
     # reset files
-    print('Resetting observation files')
+    print('Resetting pointing files')
     todo_dir = os.path.join(params.QUEUE_PATH, 'todo')
     for folder in ['aborted', 'completed', 'interrupted']:
         cur_dir = os.path.join(params.QUEUE_PATH, folder)

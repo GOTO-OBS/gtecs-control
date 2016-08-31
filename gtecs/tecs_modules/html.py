@@ -35,22 +35,22 @@ html_refresh_string = ('<meta http-equiv=\"refresh\" content=\"' +
                       str(html_refresh) + '\">\n')
 
 
-def write_obs_flag_files(obs, now, observer, obs_now, debug):
-    '''Write flag files for an observation'''
-    flag_filename = html_folder + 'ID_{}_flags.html'.format(obs.id)
+def write_flag_files(pointing, now, observer, current_pointing, debug):
+    '''Write flag files for a given pointing'''
+    flag_filename = html_folder + 'ID_{}_flags.html'.format(pointing.id)
 
     now.format = 'iso'
     now.precision = 0
 
-    target = [obs._as_target()]
+    target = [pointing._as_target()]
 
     with open(flag_filename,'w') as f:
         f.write('<html><body>\n')
         f.write(html_size2)
-        f.write('ID_' + str(obs.id) + '<br>\n')
+        f.write('ID_' + str(pointing.id) + '<br>\n')
         f.write(str(now) + '<br>\n')
 
-        for name, valid in zip(obs.constraint_names, obs.valid_arr):
+        for name, valid in zip(pointing.constraint_names, pointing.valid_arr):
             if valid:
                 f.write('<font color=darkgreen>')
             else:
@@ -58,8 +58,8 @@ def write_obs_flag_files(obs, now, observer, obs_now, debug):
             f.write(name + ' = ' + str(valid))
             f.write('</font><br>\n')
 
-        for name in obs.all_constraint_names:
-            if name not in obs.constraint_names:
+        for name in pointing.all_constraint_names:
+            if name not in pointing.constraint_names:
                 f.write('<font color=grey>')
                 f.write(name + ' = N/A')
                 f.write('</font><br>\n')
@@ -68,30 +68,30 @@ def write_obs_flag_files(obs, now, observer, obs_now, debug):
         if debug == 1:
             f.write('Debug info:<br>\n')
             f.write('now = ' + str(now) + '<br>\n')
-            start = obs.start
+            start = pointing.start
             start.format = 'iso'
             start.precision = 0
-            f.write('start_time = ' + str(obs.start) + '<br>\n')
-            stop = obs.stop
+            f.write('start_time = ' + str(pointing.start) + '<br>\n')
+            stop = pointing.stop
             stop.format = 'iso'
             stop.precision = 0
-            f.write('stop_time = ' + str(obs.stop) + '<br>\n')
+            f.write('stop_time = ' + str(pointing.stop) + '<br>\n')
 
-            ra = obs.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
-            dec = obs.coord.dec.to_string(sep=':', precision=2)
+            ra = pointing.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
+            dec = pointing.coord.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
             f.write('dec = ' + dec + '<br>\n')
 
-            alt_now, az_now = astronomy.altaz_ephem(obs.coord.ra.value,
-                                                    obs.coord.dec.value,
+            alt_now, az_now = astronomy.altaz_ephem(pointing.coord.ra.value,
+                                                    pointing.coord.dec.value,
                                                     now)
 
             f.write('alt_now = ' + str(alt_now) + '<br>\n')
             f.write('az_now = ' + str(az_now) + '<br>\n')
 
-            alt_later, az_later = astronomy.altaz_ephem(obs.coord.ra.value,
-                                                        obs.coord.dec.value,
-                                                        now + obs.mintime)
+            alt_later, az_later = astronomy.altaz_ephem(pointing.coord.ra.value,
+                                                        pointing.coord.dec.value,
+                                                        now + pointing.mintime)
 
             f.write('alt_mintime = ' + str(alt_later) + '<br>\n')
             f.write('az_mintime = ' + str(az_later) + '<br>\n')
@@ -104,9 +104,9 @@ def write_obs_flag_files(obs, now, observer, obs_now, debug):
         f.write("</body></html>")
 
 
-def write_obs_exp_files(obs):
-    '''Write exposure set files for an observation'''
-    exp_filename = html_folder + 'ID_{}_exp.html'.format(obs.id)
+def write_exp_files(pointing):
+    '''Write exposure files for a pointing'''
+    exp_filename = html_folder + 'ID_{}_exp.html'.format(pointing.id)
     with open(exp_filename,'w') as f:
         f.write('<html><body><table cellpadding=5 cellspacing=5>\n')
         f.write('<tr>' +
@@ -119,21 +119,21 @@ def write_obs_exp_files(obs):
                 '<td><b>Type</b></td>' +
                 '</tr>\n')
         i = 1
-        for expset in obs.exposuresets:
+        for exp in pointing.exposures:
             f.write('<tr>' +
                     '<td align=right><b>' + str(i) + '</b></td>' +
-                    '<td> ' + str(expset.tels) + ' </td>' +
-                    '<td> ' + str(expset.numexp) + ' </td>' +
-                    '<td> ' + str(expset.exptime) + ' </td>' +
-                    '<td> ' + str(expset.filt) + ' </td>' +
-                    '<td> ' + str(expset.binfac) + ' </td>' +
-                    '<td> ' + str(expset.exptype) + ' </td>' +
+                    '<td> ' + str(exp.tels) + ' </td>' +
+                    '<td> ' + str(exp.numexp) + ' </td>' +
+                    '<td> ' + str(exp.exptime) + ' </td>' +
+                    '<td> ' + str(exp.filt) + ' </td>' +
+                    '<td> ' + str(exp.binfac) + ' </td>' +
+                    '<td> ' + str(exp.exptype) + ' </td>' +
                     '</tr>\n')
             i += 1
         f.write("</table></body></html>")
 
 
-def write_queue_page(obslist_sorted, obs_now, now):
+def write_queue_page(pointinglist, current_pointing, now):
     '''Write the GOTO queue page'''
     queue_filename = html_folder + 'queue.html'
     with open(queue_filename,'w') as f:
@@ -207,35 +207,35 @@ def write_queue_page(obslist_sorted, obs_now, now):
                 '<td><b> Filename/Flags </b></td>' +
                 '</tr>\n')
 
-        for obs in obslist_sorted:
-            exp_link = 'ID_{}_exp.html'.format(obs.id)
-            flag_link = 'ID_{}_flags.html'.format(obs.id)
+        for pointing in pointinglist:
+            exp_link = 'ID_{}_exp.html'.format(pointing.id)
+            flag_link = 'ID_{}_flags.html'.format(pointing.id)
 
             exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
-                        str(obs.name) + '</a>' + popup_str)
+                        str(pointing.name) + '</a>' + popup_str)
             flag_str = ('<a href=' + flag_link + ' rel=\"#overlay\">' +
-                        'ID_' + str(obs.id) + '</a>' + popup_str)
+                        'ID_' + str(pointing.id) + '</a>' + popup_str)
 
-            if obs == obs_now:
-                priority_str = "<font color=limegreen>%.11f</font>" % obs.priority_now
-            elif obs.priority_now < 10:
-                priority_str = "<font color=black>%.11f</font>" % obs.priority_now
+            if pointing == current_pointing:
+                priority_str = "<font color=limegreen>%.11f</font>" % pointing.priority_now
+            elif pointing.priority_now < 10:
+                priority_str = "<font color=black>%.11f</font>" % pointing.priority_now
             else:
-                priority_str = "<font color=red>%.11f</font>" % obs.priority_now
-            ra = obs.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
-            dec = obs.coord.dec.to_string(sep=':', precision=2)
+                priority_str = "<font color=red>%.11f</font>" % pointing.priority_now
+            ra = pointing.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
+            dec = pointing.coord.dec.to_string(sep=':', precision=2)
             f.write("<tr bgcolor=white>\n")
             f.write('<td>' + exp_str + '</td>' +
                     '<td>' + ra + '</td>' +
                     '<td>' + dec + '</td>' +
                     '<td>' + priority_str + '</td>' +
-                    '<td>' + str(obs.maxsunalt) + '</td>' +
-                    '<td>' + str(obs.minalt) + '</td>' +
-                    '<td>' + str(obs.mintime) + '</td>' +
-                    '<td>' + str(obs.maxmoon) + '</td>' +
-                    '<td>' + str(obs.user) + '</td>' +
-                    '<td>' + str(obs.start) + '</td>' +
-                    '<td>' + str(obs.stop) + '</td>' +
+                    '<td>' + str(pointing.maxsunalt) + '</td>' +
+                    '<td>' + str(pointing.minalt) + '</td>' +
+                    '<td>' + str(pointing.mintime) + '</td>' +
+                    '<td>' + str(pointing.maxmoon) + '</td>' +
+                    '<td>' + str(pointing.user) + '</td>' +
+                    '<td>' + str(pointing.start) + '</td>' +
+                    '<td>' + str(pointing.stop) + '</td>' +
                     '<td>' + flag_str + '</td>' +
                     '</tr>\n')
             f.write("</tr>\n")
