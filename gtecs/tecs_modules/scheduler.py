@@ -97,6 +97,7 @@ from . import params
 from . import misc
 from . import html
 from . import astronomy
+from .. import database as db
 
 ## Setup
 # define paths to directories
@@ -280,6 +281,40 @@ class Pointing:
             binfac = int(binfac)
             exp = Exposure(tels, numexp, exptime, filt, binfac, exptype)
             pointing.add_exposure(exp)
+        return pointing
+
+    @classmethod
+    def from_database(cls, dbPointing):
+        # not every pointing has an assosiated GW tile probability
+        if dbPointing.ligoTile:
+            tileprob = dbPointing.ligoTile.probability
+        else:
+            tileprob = 0
+        # create pointing object
+        pointing = cls(id        = dbPointing.pointingID,
+                       name      = dbPointing.objectName,
+                       ra        = dbPointing.ra,
+                       dec       = dbPointing.decl,
+                       priority  = dbPointing.rank,
+                       tileprob  = tileprob,
+                       too       = dbPointing.ToO,
+                       maxsunalt = dbPointing.maxSunAlt,
+                       minalt    = dbPointing.minAlt,
+                       mintime   = dbPointing.minTime,
+                       maxmoon   = dbPointing.maxMoon,
+                       user      = dbPointing.userKey,
+                       start     = dbPointing.startUTC,
+                       stop      = dbPointing.stopUTC)
+        # copy exposures
+        if dbPointing.exposures is not None:
+            for dbExp in dbPointing.exposures:
+                exp = Exposure(tels    = dbExp.otaMask,
+                               numexp  = dbExp.numexp,
+                               exptime = dbExp.expTime,
+                               filt    = dbExp.filt,
+                               binfac  = dbExp.binning,
+                               exptype = dbExp.typeFlag)
+                pointing.add_exposure(exp)
         return pointing
 
 
@@ -481,6 +516,25 @@ def import_pointings_from_folder(queue_folder):
     return queue
 
 
+def import_pointings_from_database():
+    """
+    Creates a list of `Pointing` objects from the GOTO database.
+
+    Returns
+    -------
+    queue : `Queue`
+        An Queue containing Pointings from the database.
+    """
+    queue = Queue()
+    with db.open_session() as session:
+        current_pointing, pending_pointings = db.get_queue(session)
+        if pending_pointings is not None:
+            for dbPointing in pending_pointings:
+                queue.pointings.append(Pointing.from_database(dbPointing))
+    queue.initialise()
+    return queue
+
+
 def find_highest_priority(queue, current_pointing, time, write_html=False):
     """
     Calculate priorities for pointings in a queue at a given time
@@ -607,7 +661,7 @@ def check_queue(current_pointing, now, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    queue = import_pointings_from_folder(queue_folder)
+    queue = import_pointings_from_database()
 
     if len(queue) > 0:
         highest_pointing, pointinglist = find_highest_priority(queue, current_pointing,
