@@ -475,15 +475,15 @@ class Queue:
         self.check_validities(time, observer, current_pointing)
         valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
-        priorities_now[invalid_mask] += 10
+        priorities_now[invalid_mask] += 100
 
         # if the current pointing is invalid it must be complete
         # therefore add 10 to prevent it coming up again
         if current_pointing is not None:
-            if current_pointing.priority_now > 10:
+            if current_pointing.priority_now > 100:
                 id_arr = np.array([p.id for p in self.pointings])
                 current_mask = np.array([id == current_pointing.id for id in id_arr])
-                priorities_now[current_mask] += 10
+                priorities_now[current_mask] += 100
 
         # save priority_now to pointing
         for pointing, priority_now in zip(self.pointings, priorities_now):
@@ -608,29 +608,29 @@ def what_to_do_next(current_pointing, highest_pointing):
     if current_pointing is None and highest_pointing is None:
         return current_pointing
     elif current_pointing is None:
-        if highest_pointing.priority_now < 10:
+        if highest_pointing.priority_now < 100:
             return highest_pointing
         else:
             return current_pointing
     elif highest_pointing is None:
-        if current_pointing.priority_now > 10:
+        if current_pointing.priority_now > 100:
             return None
         else:
             return current_pointing
 
     if current_pointing == highest_pointing:
-        if current_pointing.priority_now >= 10 or highest_pointing.priority_now >= 10:
+        if current_pointing.priority_now >= 100 or highest_pointing.priority_now >= 100:
             return None  # it's either finished or is now illegal
         else:
             return highest_pointing
 
-    if current_pointing.priority_now >= 10:  # current pointing is illegal (finished)
-        if highest_pointing.priority_now < 10:  # new pointing is legal
+    if current_pointing.priority_now >= 100:  # current pointing is illegal (finished)
+        if highest_pointing.priority_now < 100:  # new pointing is legal
             return highest_pointing
         else:
             return None
     else:  # telescope is observing legally
-        if highest_pointing.priority_now >= 10:  # no legal pointings
+        if highest_pointing.priority_now >= 100:  # no legal pointings
             return None
         else:  # both are legal
             if current_pointing.priority_now > 5:  # a filler, always slew
