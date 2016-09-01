@@ -218,7 +218,7 @@ def write_queue_page(pointinglist, current_pointing, now):
 
             if pointing == current_pointing:
                 priority_str = "<font color=limegreen>%.11f</font>" % pointing.priority_now
-            elif pointing.priority_now < 10:
+            elif pointing.priority_now < 100:
                 priority_str = "<font color=black>%.11f</font>" % pointing.priority_now
             else:
                 priority_str = "<font color=red>%.11f</font>" % pointing.priority_now

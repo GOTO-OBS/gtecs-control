@@ -203,7 +203,7 @@ class DummyPilot(object):
         if self.currentID is not None:
             time_elapsed = (now - self.current_start_time).to(u.s)
             if time_elapsed > self.current_duration:
-                self.currentPriority += 10
+                self.currentPriority += 100
                 print('    CURRENT POINTING FINISHED')
                 set_pointing_status(self.currentID, 'completed')
                 self.completed_pointings.append(self.currentID)
