@@ -524,6 +524,9 @@ def import_pointings_from_database():
     -------
     queue : `Queue`
         An Queue containing Pointings from the database.
+
+    current_pointing : `Pointing`
+        The current running Pointing
     """
     queue = Queue()
     with db.open_session() as session:
@@ -531,8 +534,10 @@ def import_pointings_from_database():
         if pending_pointings is not None:
             for dbPointing in pending_pointings:
                 queue.pointings.append(Pointing.from_database(dbPointing))
+        if current_pointing is not None:
+            current_pointing = Pointing.from_database(running_pointing)
     queue.initialise()
-    return queue
+    return queue, current_pointing
 
 
 def find_highest_priority(queue, current_pointing, time, write_html=False):
@@ -639,7 +644,7 @@ def what_to_do_next(current_pointing, highest_pointing):
                 return current_pointing
 
 
-def check_queue(current_pointing, now, write_html=False):
+def check_queue(now, write_html=False):
     """
     Check the current pointings in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
@@ -661,7 +666,7 @@ def check_queue(current_pointing, now, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    queue = import_pointings_from_database()
+    queue, current_pointing = import_pointings_from_database()
 
     if len(queue) > 0:
         highest_pointing, pointinglist = find_highest_priority(queue, current_pointing,
