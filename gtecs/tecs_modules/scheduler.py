@@ -310,7 +310,7 @@ class Pointing:
             for dbExp in dbPointing.exposures:
                 exp = Exposure(tels    = dbExp.otaMask,
                                numexp  = dbExp.numexp,
-                               exptime = dbExp.expTime,
+                               exptime = dbExp.expTime*u.second,
                                filt    = dbExp.filt,
                                binfac  = dbExp.binning,
                                exptype = dbExp.typeFlag)
@@ -679,4 +679,7 @@ def check_queue(now, write_html=False):
 
     if write_html:
         html.write_queue_page(pointinglist, current_pointing, now)
-    return new_pointing
+    if new_pointing is not None:
+        return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
+    else:
+        return None, None, None
