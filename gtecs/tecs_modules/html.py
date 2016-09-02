@@ -174,8 +174,11 @@ def write_exp_file(pointingID, dbExps):
             f.write("</table></body></html>")
 
 
-def write_queue_page(pointinglist, current_pointing, now):
+def write_queue_page():
     '''Write the GOTO queue page'''
+    # load any needed infomation saved by the scheduler
+    time, all_constraint_names, pointing_list = import_queue_file()
+
     queue_filename = html_folder + 'queue.html'
     with open(queue_filename,'w') as f:
         f.write('<html><head>\n')
@@ -199,28 +202,27 @@ def write_queue_page(pointinglist, current_pointing, now):
         f.write(html_size2)
         f.write('<br><br>')
         f.write('last updated:\n')
-        f.write(str(now))
+        f.write(str(time))
         f.write('<br>\n')
 
-        loc = params.SITE_OBSERVER.location
+        f.write('LST: ')
         import warnings
         warnings.simplefilter("ignore", UnicodeWarning)
-        f.write('LST: ')
-        LST = now.sidereal_time('mean', longitude=loc.longitude)
+        LST = time.sidereal_time('mean', longitude=GOTO.location.longitude)
         f.write(LST.to_string(sep=':', precision=2))
 
         f.write('  SunAlt: ')
-        sun = coord.get_sun(now)
-        sun_alt, _ = astronomy.altaz_ephem(sun.ra.value, sun.dec.value, now)
+        sun = coord.get_sun(time)
+        sun_alt, _ = astronomy.altaz_ephem(sun.ra.value, sun.dec.value, time)
         f.write('%.1f deg' %sun_alt)
 
         f.write('  MoonAlt: ')
-        moon = coord.get_moon(now)
-        moon_alt, _ = astronomy.altaz_ephem(moon.ra.value, moon.dec.value, now)
+        moon = coord.get_moon(time)
+        moon_alt, _ = astronomy.altaz_ephem(moon.ra.value, moon.dec.value, time)
         f.write('%.1f deg' %moon_alt)
 
         f.write('  MoonPhase: ')
-        moon_ill = moon_illumination(now, params.SITE_OBSERVER.location)
+        moon_ill = moon_illumination(time, GOTO.location)
         if 0 <= moon_ill < 0.25:
             moonstring = "D"
         elif 0.25 <= moon_ill < 0.65:
@@ -238,9 +240,9 @@ def write_queue_page(pointinglist, current_pointing, now):
                 '<td><b> RA (j2000) </b></td>' +
                 '<td><b> Dec (j2000) </b></td>' +
                 '<td><b> Priority </b></td>' +
-                '<td><b> MaxSun </b></td>' +
-                '<td><b> MinAlt </b></td>' +
                 '<td><b> MinTime </b></td>' +
+                '<td><b> MinAlt </b></td>' +
+                '<td><b> MaxSun </b></td>' +
                 '<td><b> MaxMoon </b></td>' +
                 '<td><b> User </b></td>' +
                 '<td><b> Start UTC </b></td>' +
@@ -248,35 +250,56 @@ def write_queue_page(pointinglist, current_pointing, now):
                 '<td><b> Filename/Flags </b></td>' +
                 '</tr>\n')
 
-        for pointing in pointinglist:
-            exp_link = 'ID_{}_exp.html'.format(pointing.id)
-            flag_link = 'ID_{}_flags.html'.format(pointing.id)
+        for pointing_info in pointing_list:
+            pointingID   = pointing_info[0]
 
-            exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
-                        str(pointing.name) + '</a>' + popup_str)
+            # find database info
+            session = db.load_session()
+            dbPointing = db.get_pointing_by_id(session, pointingID)
+            if dbPointing.exposures is not None:
+                dbExps = dbPointing.exposures
+            session.close()
+
+            # create the small pointing files
+            write_flag_file(dbPointing, time, all_constraint_names, pointing_info)
+            flag_link = 'ID_{}_flags.html'.format(pointingID)
             flag_str = ('<a href=' + flag_link + ' rel=\"#overlay\">' +
-                        'ID_' + str(pointing.id) + '</a>' + popup_str)
+                        'ID_' + str(pointingID) + '</a>' + popup_str)
 
-            if pointing == current_pointing:
-                priority_str = "<font color=limegreen>%.11f</font>" % pointing.priority_now
-            elif pointing.priority_now < 100:
-                priority_str = "<font color=black>%.11f</font>" % pointing.priority_now
+            write_exp_file(pointingID, dbExps)
+            exp_link = 'ID_{}_exp.html'.format(pointingID)
+            exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
+                        str(dbPointing.objectName) + '</a>' + popup_str)
+
+            # find priority
+            priority_now = pointing_info[1]
+            if dbPointing.status == 'running':
+                priority_str = "<font color=limegreen>%.11f</font>" %priority_now
+            elif priority_now < 100:
+                priority_str = "<font color=black>%.11f</font>" %priority_now
             else:
-                priority_str = "<font color=red>%.11f</font>" % pointing.priority_now
-            ra = pointing.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
-            dec = pointing.coord.dec.to_string(sep=':', precision=2)
+                priority_str = "<font color=red>%.11f</font>" %priority_now
+
+            # find ra/dec
+            target = coord.SkyCoord(ra=dbPointing.ra, dec=dbPointing.decl,
+                                    unit=u.deg, frame='icrs')
+            ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
+            dec = target.dec.to_string(sep=':', precision=2)
+
+            # find user
+            # write table
             f.write("<tr bgcolor=white>\n")
             f.write('<td>' + exp_str + '</td>' +
                     '<td>' + ra + '</td>' +
                     '<td>' + dec + '</td>' +
                     '<td>' + priority_str + '</td>' +
-                    '<td>' + str(pointing.maxsunalt) + '</td>' +
-                    '<td>' + str(pointing.minalt) + '</td>' +
-                    '<td>' + str(pointing.mintime) + '</td>' +
-                    '<td>' + str(pointing.maxmoon) + '</td>' +
-                    '<td>' + str(pointing.user) + '</td>' +
-                    '<td>' + str(pointing.start) + '</td>' +
-                    '<td>' + str(pointing.stop) + '</td>' +
+                    '<td>' + str(dbPointing.minTime) + '</td>' +
+                    '<td>' + str(dbPointing.minAlt) + '</td>' +
+                    '<td>' + str(dbPointing.maxSunAlt) + '</td>' +
+                    '<td>' + str(dbPointing.maxMoon) + '</td>' +
+                    '<td>' + str(dbPointing.userKey) + '</td>' +
+                    '<td>' + str(dbPointing.startUTC) + '</td>' +
+                    '<td>' + str(dbPointing.stopUTC) + '</td>' +
                     '<td>' + flag_str + '</td>' +
                     '</tr>\n')
             f.write("</tr>\n")
