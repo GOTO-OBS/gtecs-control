@@ -14,6 +14,7 @@ from __future__ import print_function
 from astroplan import Observer, FixedTarget, is_observable
 from astroplan.moon import moon_illumination
 from astropy import coordinates as coord, units as u
+from astropy.time import Time
 
 # TeCS modules
 from . import params
@@ -28,11 +29,33 @@ popup_str = ('<div class=\"apple_overlay\" id=\"overlay\">' +
 
 # define paths
 html_folder = params.CONFIG_PATH + 'html/'
+queue_file   = params.QUEUE_PATH  + 'queue_info'
 
 # interval between automatic refreshes
 html_refresh = 15
 html_refresh_string = ('<meta http-equiv=\"refresh\" content=\"' +
                       str(html_refresh) + '\">\n')
+
+
+def import_queue_file():
+    import json
+    lines = []
+    with open(queue_file+'2') as f:
+        for line in f.readlines():
+            lines.append(line)
+
+    time = Time(json.loads(lines[0]))
+    all_constraint_names = json.loads(lines[1])
+    # remaining lines are pointings
+    pointing_dict = {}
+    for line in lines[2:]:
+        pointingID, priority, constraints = json.loads(line)
+        pointingID = int(pointingID)
+        priority = float(priority)
+        constraint_names, valid_arr = list(zip(*constraints))
+        valid_bools = [bool(x) for x in valid_arr]
+        pointing_dict[pointingID] = [priority, list(constraint_names), valid_bools]
+    return time, all_constraint_names, pointing_dict
 
 
 def write_flag_files(pointing, now, observer, current_pointing, debug):
