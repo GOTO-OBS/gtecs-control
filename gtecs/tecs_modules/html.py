@@ -15,6 +15,7 @@ from astroplan import Observer, FixedTarget, is_observable
 from astroplan.moon import moon_illumination
 from astropy import coordinates as coord, units as u
 from astropy.time import Time
+import os
 
 # TeCS modules
 from . import params
@@ -139,34 +140,38 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
 def write_exp_file(pointingID, dbExps):
     '''Write exposure files for a pointing'''
     exp_filename = html_folder + 'ID_{}_exp.html'.format(pointingID)
-    with open(exp_filename,'w') as f:
-        f.write('<html><body><table cellpadding=5 cellspacing=5>\n')
-        f.write('<tr>' +
-                '<td><b> </b></td>' +
-                '<td><b>Tels</b></td>' +
-                '<td><b>NumExp</b></td>' +
-                '<td><b>Exptime</b></td>' +
-                '<td><b>Filter</b></td>' +
-                '<td><b>Bin Factor</b></td>' +
-                '<td><b>Type</b></td>' +
-                '<td><b>RaOff</b></td>' +
-                '<td><b>DecOff</b></td>' +
-                '</tr>\n')
-        i = 1
-        for dbExp in dbExps:
+
+    # unlike the flags, exposure info dosn't change
+    # so don't re-write the files if they're already there!
+    if not os.path.exists(exp_filename):
+        with open(exp_filename,'w') as f:
+            f.write('<html><body><table cellpadding=5 cellspacing=5>\n')
             f.write('<tr>' +
-                    '<td align=right><b>' + str(i) + '</b></td>' +
-                    '<td> ' + str(dbExp.otaMask) + ' </td>' +
-                    '<td> ' + str(dbExp.numexp) + ' </td>' +
-                    '<td> ' + str(dbExp.expTime) + ' </td>' +
-                    '<td> ' + str(dbExp.filt) + ' </td>' +
-                    '<td> ' + str(dbExp.binning) + ' </td>' +
-                    '<td> ' + str(dbExp.typeFlag) + ' </td>' +
-                    '<td> ' + str(dbExp.raoff) + ' </td>' +
-                    '<td> ' + str(dbExp.decoff) + ' </td>' +
+                    '<td><b> </b></td>' +
+                    '<td><b>Tels</b></td>' +
+                    '<td><b>NumExp</b></td>' +
+                    '<td><b>Exptime</b></td>' +
+                    '<td><b>Filter</b></td>' +
+                    '<td><b>Bin Factor</b></td>' +
+                    '<td><b>Type</b></td>' +
+                    '<td><b>RaOff</b></td>' +
+                    '<td><b>DecOff</b></td>' +
                     '</tr>\n')
-            i += 1
-        f.write("</table></body></html>")
+            i = 1
+            for dbExp in dbExps:
+                f.write('<tr>' +
+                        '<td align=right><b>' + str(i) + '</b></td>' +
+                        '<td> ' + str(dbExp.otaMask) + ' </td>' +
+                        '<td> ' + str(dbExp.numexp) + ' </td>' +
+                        '<td> ' + str(dbExp.expTime) + ' </td>' +
+                        '<td> ' + str(dbExp.filt) + ' </td>' +
+                        '<td> ' + str(dbExp.binning) + ' </td>' +
+                        '<td> ' + str(dbExp.typeFlag) + ' </td>' +
+                        '<td> ' + str(dbExp.raoff) + ' </td>' +
+                        '<td> ' + str(dbExp.decoff) + ' </td>' +
+                        '</tr>\n')
+                i += 1
+            f.write("</table></body></html>")
 
 
 def write_queue_page(pointinglist, current_pointing, now):
