@@ -562,7 +562,7 @@ def write_queue_file(queue, time):
             f.write('\n')
 
 
-def find_highest_priority(queue, current_pointing, time, write_html=False):
+def find_highest_priority(queue, current_pointing, time):
     """
     Calculate priorities for pointings in a queue at a given time
     and return the pointing with the highest priority.
@@ -588,17 +588,12 @@ def find_highest_priority(queue, current_pointing, time, write_html=False):
     """
 
     queue.calculate_priorities(time, GOTO, current_pointing)
-    for pointing in queue.pointings:
-        if write_html:
-            html.write_flag_files(pointing, time, GOTO, current_pointing, 1)
-            html.write_exp_files(pointing)
 
     pointinglist = list(queue.pointings)
     pointinglist.sort(key=lambda x: x.priority_now)
-
     highest_pointing = pointinglist[0]
-    write_queue_file(queue, time)
-    return highest_pointing, pointinglist
+
+    return highest_pointing
 
 
 def what_to_do_next(current_pointing, highest_pointing):
@@ -667,7 +662,7 @@ def what_to_do_next(current_pointing, highest_pointing):
                 return current_pointing
 
 
-def check_queue(now, write_html=False):
+def check_queue(time, write_html=False):
     """
     Check the current pointings in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
@@ -679,7 +674,7 @@ def check_queue(now, write_html=False):
         The current pointing.
         `None` if the telescope is idle.
 
-    now : `~astropy.time.Time`
+    time : `~astropy.time.Time`
         The time to calculate the priorities at.
 
     Returns
@@ -692,16 +687,18 @@ def check_queue(now, write_html=False):
     queue, current_pointing = import_pointings_from_database()
 
     if len(queue) > 0:
-        highest_pointing, pointinglist = find_highest_priority(queue, current_pointing,
-                                                               now, write_html)
+        highest_pointing = find_highest_priority(queue, current_pointing, time)
     else:
         highest_pointing = None
-        pointinglist = []
+
+    write_queue_file(queue, time)
+    if write_html:
+        # since it's now independent, this could be run from elsewhere
+        # that would save the scheduler doing it
+        html.write_queue_page()
 
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
 
-    if write_html:
-        html.write_queue_page(pointinglist, current_pointing, now)
     if new_pointing is not None:
         return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
     else:
