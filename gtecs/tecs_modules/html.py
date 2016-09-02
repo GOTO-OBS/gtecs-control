@@ -258,6 +258,7 @@ def write_queue_page():
             dbPointing = db.get_pointing_by_id(session, pointingID)
             if dbPointing.exposures is not None:
                 dbExps = dbPointing.exposures
+            username = db.get_username(session, dbPointing.userKey)
             session.close()
 
             # create the small pointing files
@@ -286,7 +287,6 @@ def write_queue_page():
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
 
-            # find user
             # write table
             f.write("<tr bgcolor=white>\n")
             f.write('<td>' + exp_str + '</td>' +
@@ -297,7 +297,7 @@ def write_queue_page():
                     '<td>' + str(dbPointing.minAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxSunAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxMoon) + '</td>' +
-                    '<td>' + str(dbPointing.userKey) + '</td>' +
+                    '<td>' + str(username) + '</td>' +
                     '<td>' + str(dbPointing.startUTC) + '</td>' +
                     '<td>' + str(dbPointing.stopUTC) + '</td>' +
                     '<td>' + flag_str + '</td>' +
