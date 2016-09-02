@@ -224,10 +224,9 @@ def time_to_set(observer, targets, time, horizon=0*u.deg):
 
 
 class Pointing:
-    def __init__(self, id, name, ra, dec, priority, tileprob, too, maxsunalt,
-                 minalt, mintime, maxmoon, user, start, stop):
+    def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
+                 minalt, mintime, maxmoon, start, stop):
         self.id = int(id)
-        self.name = name
         self.coord = coord.SkyCoord(ra, dec, unit=u.deg, frame='icrs')
         self.priority = float(priority)
         self.tileprob = float(tileprob)
@@ -236,7 +235,6 @@ class Pointing:
         self.minalt = float(minalt)*u.deg
         self.mintime = float(mintime)*u.s
         self.maxmoon = maxmoon
-        self.user = user
         self.start = Time(start, scale='utc')
         self.stop = Time(stop, scale='utc')
 
@@ -251,7 +249,7 @@ class Pointing:
 
     def _as_target(self):
         '''Returns a FixedTarget object for the pointing target.'''
-        return FixedTarget(coord=self.coord, name=self.name)
+        return FixedTarget(self.coord)
 
     @classmethod
     def from_file(cls, fname):
@@ -261,10 +259,10 @@ class Pointing:
                 if not line.startswith('#'):
                     lines.append(line)
         # first line is the pointing
-        (id, name, ra, dec, priority, tileprob, too, sunalt, minalt,
-         mintime, moon, user, start, stop) = lines[0].split()
-        pointing = cls(id, name, ra, dec, priority, tileprob, too, sunalt,
-                       minalt, mintime, moon, user, start, stop)
+        (id, ra, dec, priority, tileprob, too, sunalt, minalt,
+         mintime, moon, start, stop) = lines[0].split()
+        pointing = cls(id, ra, dec, priority, tileprob, too, sunalt,
+                       minalt, mintime, moon, start, stop)
         return pointing
 
     @classmethod
@@ -276,7 +274,6 @@ class Pointing:
             tileprob = 0
         # create pointing object
         pointing = cls(id        = dbPointing.pointingID,
-                       name      = dbPointing.objectName,
                        ra        = dbPointing.ra,
                        dec       = dbPointing.decl,
                        priority  = dbPointing.rank,
@@ -286,7 +283,6 @@ class Pointing:
                        minalt    = dbPointing.minAlt,
                        mintime   = dbPointing.minTime,
                        maxmoon   = dbPointing.maxMoon,
-                       user      = dbPointing.userKey,
                        start     = dbPointing.startUTC,
                        stop      = dbPointing.stopUTC)
         return pointing
