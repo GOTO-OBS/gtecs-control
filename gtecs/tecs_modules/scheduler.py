@@ -541,24 +541,41 @@ def import_pointings_from_database():
     return queue, current_pointing
 
 
-def write_queue_file(queue, time):
+def write_queue_file(queue, time, observer):
     """
     Write any time-dependent pointing infomation to a file
     """
     pointinglist = list(queue.pointings)
-    pointinglist.sort(key=lambda x: x.priority_now)
-    highest_pointing = pointinglist[0]
 
+    # save altaz too
+    cached_altaz_now = _get_altaz(Time([time]), observer, queue.target_arr)
+    altaz_now = cached_altaz_now['altaz']
+    altnow_list = [a[0].value for a in altaz_now.alt]
+    aznow_list = [a[0].value for a in altaz_now.az]
+    altaznow_list = list(zip(altnow_list, aznow_list))
+
+    later_arr = Time([time + mintime for mintime in queue.mintime_arr])
+    cached_altaz_later = _get_altaz(later_arr, observer, queue.target_arr)
+    altaz_later = cached_altaz_later['altaz']
+    altlater_list = [a.value for a in np.diag(altaz_later.alt)]
+    azlater_list = [a.value for a in np.diag(altaz_later.az)]
+    altazlater_list = list(zip(altlater_list, azlater_list))
+
+    combined = list(zip(pointinglist, altaznow_list, altazlater_list))
+    combined.sort(key=lambda x: x[0].priority_now)
+
+    # now save as json file
     import json
     with open(queue_file, 'w') as f:
         json.dump(str(time),f)
         f.write('\n')
         json.dump(queue.all_constraint_names,f)
         f.write('\n')
-        for pointing in pointinglist:
+        for pointing, altaznow, altazlater in combined:
             valid_nonbool = [int(b) for b in pointing.valid_arr]
             con_list = list(zip(pointing.constraint_names, valid_nonbool))
-            json.dump([pointing.id, pointing.priority_now, con_list],f)
+            json.dump([pointing.id, pointing.priority_now,
+                       altaznow, altazlater, con_list],f)
             f.write('\n')
 
 
@@ -691,7 +708,7 @@ def check_queue(time, write_html=False):
     else:
         highest_pointing = None
 
-    write_queue_file(queue, time)
+    write_queue_file(queue, time, GOTO)
     if write_html:
         # since it's now independent, this could be run from elsewhere
         # that would save the scheduler doing it
