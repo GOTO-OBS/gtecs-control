@@ -19,6 +19,7 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import astronomy
+from .. import database as db
 
 ## setup
 # common strings
@@ -26,6 +27,12 @@ html_size2   = '<font size=2 color=black face=\"Courier New\">\n'
 html_size5   = '<font size=5 color=black face=\"Courier New\">\n'
 popup_str = ('<div class=\"apple_overlay\" id=\"overlay\">' +
             '<div class=\"contentWrap\"></div>' + '</div>')
+
+# set observing location
+GOTO = params.SITE_OBSERVER
+
+# set debug level
+debug = 1
 
 # define paths
 html_folder = params.CONFIG_PATH + 'html/'
@@ -57,22 +64,22 @@ def import_queue_file():
         pointing_list.append([pointingID, priority, list(constraint_names), valid_bools])
     return time, all_constraint_names, pointing_list
 
-def write_flag_files(pointing, now, observer, current_pointing, debug):
-    '''Write flag files for a given pointing'''
-    flag_filename = html_folder + 'ID_{}_flags.html'.format(pointing.id)
 
-    now.format = 'iso'
-    now.precision = 0
-
-    target = [pointing._as_target()]
+def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
+    '''Write flag file for a given pointing'''
+    pointingID, priority_now, constraint_names, valid_arr = pointing_info
+    flag_filename = html_folder + 'ID_{}_flags.html'.format(pointingID)
 
     with open(flag_filename,'w') as f:
         f.write('<html><body>\n')
         f.write(html_size2)
-        f.write('ID_' + str(pointing.id) + '<br>\n')
-        f.write(str(now) + '<br>\n')
+        f.write('ID_%i<br>\n' %pointingID)
 
-        for name, valid in zip(pointing.constraint_names, pointing.valid_arr):
+        time.format = 'iso'
+        time.precision = 0
+        f.write(str(time) + '<br>\n')
+
+        for name, valid in zip(constraint_names, valid_arr):
             if valid:
                 f.write('<font color=darkgreen>')
             else:
@@ -80,40 +87,43 @@ def write_flag_files(pointing, now, observer, current_pointing, debug):
             f.write(name + ' = ' + str(valid))
             f.write('</font><br>\n')
 
-        for name in pointing.all_constraint_names:
-            if name not in pointing.constraint_names:
+        for name in all_constraint_names:
+            if name not in constraint_names:
                 f.write('<font color=grey>')
                 f.write(name + ' = N/A')
                 f.write('</font><br>\n')
 
         f.write('<br>\n')
+
         if debug == 1:
             f.write('Debug info:<br>\n')
-            f.write('now = ' + str(now) + '<br>\n')
-            start = pointing.start
+            f.write('now = ' + str(time) + '<br>\n')
+            start = Time(dbPointing.startUTC)
             start.format = 'iso'
             start.precision = 0
-            f.write('start_time = ' + str(pointing.start) + '<br>\n')
-            stop = pointing.stop
+            f.write('start_time = ' + str(start) + '<br>\n')
+            stop = Time(dbPointing.stopUTC)
             stop.format = 'iso'
             stop.precision = 0
-            f.write('stop_time = ' + str(pointing.stop) + '<br>\n')
+            f.write('stop_time = ' + str(stop) + '<br>\n')
 
-            ra = pointing.coord.ra.to_string(sep=':', precision=2, unit=u.hour)
-            dec = pointing.coord.dec.to_string(sep=':', precision=2)
+            target = coord.SkyCoord(ra=dbPointing.ra, dec=dbPointing.decl,
+                                    unit=u.deg, frame='icrs')
+            ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
+            dec = target.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
             f.write('dec = ' + dec + '<br>\n')
 
-            alt_now, az_now = astronomy.altaz_ephem(pointing.coord.ra.value,
-                                                    pointing.coord.dec.value,
-                                                    now)
+            alt_now, az_now = astronomy.altaz_ephem(target.ra.value,
+                                                    target.dec.value,
+                                                    time)
 
             f.write('alt_now = ' + str(alt_now) + '<br>\n')
             f.write('az_now = ' + str(az_now) + '<br>\n')
 
-            alt_later, az_later = astronomy.altaz_ephem(pointing.coord.ra.value,
-                                                        pointing.coord.dec.value,
-                                                        now + pointing.mintime)
+            alt_later, az_later = astronomy.altaz_ephem(target.ra.value,
+                                                        target.dec.value,
+                                                        time + dbPointing.minTime*u.s)
 
             f.write('alt_mintime = ' + str(alt_later) + '<br>\n')
             f.write('az_mintime = ' + str(az_later) + '<br>\n')
