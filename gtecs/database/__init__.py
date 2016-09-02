@@ -60,6 +60,34 @@ def get_userkey(session, userName):
         raise ValueError('User not in db')
 
 
+def get_username(session, userKey):
+    """
+    Returns the userName for a given userKey.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session`
+    userKey : int
+        id of user in database.
+
+    Returns
+    --------
+    userName : string
+        short name of user
+
+    Raises
+    ------
+    ValueError : if user not in DB
+    """
+    try:
+        return session.query(User.userName).filter(
+            User.userKey == userKey
+        ).one()[0]
+    except NoResultFound:
+        raise ValueError('User not in db')
+
+
 def validate_user(session, userName, password):
     """
     Check user exists and password is correct.
