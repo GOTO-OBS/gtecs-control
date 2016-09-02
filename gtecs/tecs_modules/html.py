@@ -40,23 +40,22 @@ html_refresh_string = ('<meta http-equiv=\"refresh\" content=\"' +
 def import_queue_file():
     import json
     lines = []
-    with open(queue_file+'2') as f:
+    with open(queue_file) as f:
         for line in f.readlines():
             lines.append(line)
 
     time = Time(json.loads(lines[0]))
     all_constraint_names = json.loads(lines[1])
     # remaining lines are pointings
-    pointing_dict = {}
+    pointing_list = []
     for line in lines[2:]:
         pointingID, priority, constraints = json.loads(line)
         pointingID = int(pointingID)
         priority = float(priority)
         constraint_names, valid_arr = list(zip(*constraints))
         valid_bools = [bool(x) for x in valid_arr]
-        pointing_dict[pointingID] = [priority, list(constraint_names), valid_bools]
-    return time, all_constraint_names, pointing_dict
-
+        pointing_list.append([pointingID, priority, list(constraint_names), valid_bools])
+    return time, all_constraint_names, pointing_list
 
 def write_flag_files(pointing, now, observer, current_pointing, debug):
     '''Write flag files for a given pointing'''
