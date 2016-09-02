@@ -201,7 +201,10 @@ def write_queue_page():
         f.write('queue')
         f.write(html_size2)
         f.write('<br><br>')
+
         f.write('last updated:\n')
+        time.format = 'iso'
+        time.precision = 0
         f.write(str(time))
         f.write('<br>\n')
 
