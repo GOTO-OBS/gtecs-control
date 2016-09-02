@@ -223,9 +223,6 @@ def time_to_set(observer, targets, time, horizon=0*u.deg):
     return seconds_until_set
 
 
-Exposure = namedtuple('Exposure', 'tels, numexp, exptime, filt, binfac, exptype')
-
-
 class Pointing:
     def __init__(self, id, name, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, user, start, stop):
@@ -242,7 +239,6 @@ class Pointing:
         self.user = user
         self.start = Time(start, scale='utc')
         self.stop = Time(stop, scale='utc')
-        self.exposures = []
 
     def __eq__(self, other):
         try:
@@ -257,11 +253,6 @@ class Pointing:
         '''Returns a FixedTarget object for the pointing target.'''
         return FixedTarget(coord=self.coord, name=self.name)
 
-    def add_exposure(self, exp):
-        if not isinstance(exp, Exposure):
-            raise ValueError('exposure must be an Exposure instance')
-        self.exposures.append(exp)
-
     @classmethod
     def from_file(cls, fname):
         lines = []
@@ -274,14 +265,6 @@ class Pointing:
          mintime, moon, user, start, stop) = lines[0].split()
         pointing = cls(id, name, ra, dec, priority, tileprob, too, sunalt,
                        minalt, mintime, moon, user, start, stop)
-        # remaining lines are exposures
-        for line in lines[1:]:
-            tels, numexp, exptime, filt, binfac, exptype = line.split()
-            numexp = int(numexp)
-            exptime = float(exptime)*u.second
-            binfac = int(binfac)
-            exp = Exposure(tels, numexp, exptime, filt, binfac, exptype)
-            pointing.add_exposure(exp)
         return pointing
 
     @classmethod
@@ -306,16 +289,6 @@ class Pointing:
                        user      = dbPointing.userKey,
                        start     = dbPointing.startUTC,
                        stop      = dbPointing.stopUTC)
-        # copy exposures
-        if dbPointing.exposures is not None:
-            for dbExp in dbPointing.exposures:
-                exp = Exposure(tels    = dbExp.otaMask,
-                               numexp  = dbExp.numexp,
-                               exptime = dbExp.expTime*u.second,
-                               filt    = dbExp.filt,
-                               binfac  = dbExp.binning,
-                               exptype = dbExp.typeFlag)
-                pointing.add_exposure(exp)
         return pointing
 
 
