@@ -57,18 +57,21 @@ def import_queue_file():
     # remaining lines are pointings
     pointing_list = []
     for line in lines[2:]:
-        pointingID, priority, constraints = json.loads(line)
+        pointingID, priority, altaznow, altazlater, constraints = json.loads(line)
         pointingID = int(pointingID)
         priority = float(priority)
         constraint_names, valid_arr = list(zip(*constraints))
         valid_bools = [bool(x) for x in valid_arr]
-        pointing_list.append([pointingID, priority, list(constraint_names), valid_bools])
+        pointing_info =[pointingID, priority,
+                        altaznow, altazlater,
+                        list(constraint_names), valid_bools]
+        pointing_list.append(pointing_info)
     return time, all_constraint_names, pointing_list
 
 
 def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
     '''Write flag file for a given pointing'''
-    pointingID, priority_now, constraint_names, valid_arr = pointing_info
+    pointingID, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
     flag_filename = html_folder + 'ID_{}_flags.html'.format(pointingID)
 
     with open(flag_filename,'w') as f:
@@ -115,19 +118,13 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
             f.write('ra = ' + ra + '<br>\n')
             f.write('dec = ' + dec + '<br>\n')
 
-            alt_now, az_now = astronomy.altaz_ephem(target.ra.value,
-                                                    target.dec.value,
-                                                    time)
+            alt_now, az_now = altaznow
+            f.write('alt_now = %.2f<br>\n' %alt_now)
+            f.write('az_now = %.2f<br>\n' %az_now)
 
-            f.write('alt_now = ' + str(alt_now) + '<br>\n')
-            f.write('az_now = ' + str(az_now) + '<br>\n')
-
-            alt_later, az_later = astronomy.altaz_ephem(target.ra.value,
-                                                        target.dec.value,
-                                                        time + dbPointing.minTime*u.s)
-
-            f.write('alt_mintime = ' + str(alt_later) + '<br>\n')
-            f.write('az_mintime = ' + str(az_later) + '<br>\n')
+            alt_later, az_later = altazlater
+            f.write('alt_mintime = %.2f<br>\n' %alt_later)
+            f.write('az_mintime = %.2f<br>\n' %az_later)
 
             #altart
             #altart_mintime
