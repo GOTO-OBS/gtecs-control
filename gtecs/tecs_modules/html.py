@@ -136,9 +136,9 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
         f.write("</body></html>")
 
 
-def write_exp_files(pointing):
+def write_exp_file(pointingID, dbExps):
     '''Write exposure files for a pointing'''
-    exp_filename = html_folder + 'ID_{}_exp.html'.format(pointing.id)
+    exp_filename = html_folder + 'ID_{}_exp.html'.format(pointingID)
     with open(exp_filename,'w') as f:
         f.write('<html><body><table cellpadding=5 cellspacing=5>\n')
         f.write('<tr>' +
@@ -151,15 +151,15 @@ def write_exp_files(pointing):
                 '<td><b>Type</b></td>' +
                 '</tr>\n')
         i = 1
-        for exp in pointing.exposures:
+        for dbExp in dbExps:
             f.write('<tr>' +
                     '<td align=right><b>' + str(i) + '</b></td>' +
-                    '<td> ' + str(exp.tels) + ' </td>' +
-                    '<td> ' + str(exp.numexp) + ' </td>' +
-                    '<td> ' + str(exp.exptime) + ' </td>' +
-                    '<td> ' + str(exp.filt) + ' </td>' +
-                    '<td> ' + str(exp.binfac) + ' </td>' +
-                    '<td> ' + str(exp.exptype) + ' </td>' +
+                    '<td> ' + str(dbExp.otaMask) + ' </td>' +
+                    '<td> ' + str(dbExp.numexp) + ' </td>' +
+                    '<td> ' + str(dbExp.expTime) + ' </td>' +
+                    '<td> ' + str(dbExp.filt) + ' </td>' +
+                    '<td> ' + str(dbExp.binning) + ' </td>' +
+                    '<td> ' + str(dbExp.typeFlag) + ' </td>' +
                     '</tr>\n')
             i += 1
         f.write("</table></body></html>")
