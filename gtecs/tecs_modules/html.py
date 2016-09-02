@@ -149,6 +149,8 @@ def write_exp_file(pointingID, dbExps):
                 '<td><b>Filter</b></td>' +
                 '<td><b>Bin Factor</b></td>' +
                 '<td><b>Type</b></td>' +
+                '<td><b>RaOff</b></td>' +
+                '<td><b>DecOff</b></td>' +
                 '</tr>\n')
         i = 1
         for dbExp in dbExps:
@@ -160,6 +162,8 @@ def write_exp_file(pointingID, dbExps):
                     '<td> ' + str(dbExp.filt) + ' </td>' +
                     '<td> ' + str(dbExp.binning) + ' </td>' +
                     '<td> ' + str(dbExp.typeFlag) + ' </td>' +
+                    '<td> ' + str(dbExp.raoff) + ' </td>' +
+                    '<td> ' + str(dbExp.decoff) + ' </td>' +
                     '</tr>\n')
             i += 1
         f.write("</table></body></html>")
