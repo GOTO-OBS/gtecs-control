@@ -101,7 +101,8 @@ from .. import database as db
 
 ## Setup
 # define paths to directories
-queue_folder = params.QUEUE_PATH + 'todo/'
+queue_folder = params.QUEUE_PATH  + 'todo/'
+queue_file   = params.QUEUE_PATH  + 'queue_info'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
 # set observing location
@@ -540,6 +541,27 @@ def import_pointings_from_database():
     return queue, current_pointing
 
 
+def write_queue_file(queue, time):
+    """
+    Write any time-dependent pointing infomation to a file
+    """
+    pointinglist = list(queue.pointings)
+    pointinglist.sort(key=lambda x: x.priority_now)
+    highest_pointing = pointinglist[0]
+
+    import json
+    with open(queue_file, 'w') as f:
+        json.dump(str(time),f)
+        f.write('\n')
+        json.dump(queue.all_constraint_names,f)
+        f.write('\n')
+        for pointing in pointinglist:
+            valid_nonbool = [int(b) for b in pointing.valid_arr]
+            con_list = list(zip(pointing.constraint_names, valid_nonbool))
+            json.dump([pointing.id, pointing.priority_now, con_list],f)
+            f.write('\n')
+
+
 def find_highest_priority(queue, current_pointing, time, write_html=False):
     """
     Calculate priorities for pointings in a queue at a given time
@@ -575,6 +597,7 @@ def find_highest_priority(queue, current_pointing, time, write_html=False):
     pointinglist.sort(key=lambda x: x.priority_now)
 
     highest_pointing = pointinglist[0]
+    write_queue_file(queue, time)
     return highest_pointing, pointinglist
 
 
