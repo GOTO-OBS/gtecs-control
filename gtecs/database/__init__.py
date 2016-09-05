@@ -380,7 +380,7 @@ def bulk_update_pointing_status(session, pointingIDs, status):
     session.bulk_update_mappings(Pointing, mappings)
 
 
-def _make_random_pointing(userKey, numexps=None):
+def _make_random_pointing(userKey, numexps=None, time=None):
     """
     make a random pointing for testing.
 
@@ -391,7 +391,9 @@ def _make_random_pointing(userKey, numexps=None):
     """
     import numpy as np
     from astropy import units as u
-    t1 = Time.now() + np.random.randint(-5, 2) * u.day
+    if time is None:
+        time = Time.now()
+    t1 = time + np.random.randint(-12, 24) * u.hour
     t2 = t1 + np.random.randint(1, 10) * u.day
     p = Pointing(objectName='randObj', ra=np.random.uniform(0, 359),
                  decl=np.random.uniform(-89, 89), minAlt=30,
