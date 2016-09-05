@@ -388,6 +388,10 @@ def _make_random_pointing(userKey, numexps=None, time=None):
     ----------
     numexps : int
         if None, a random number of exposures between 1 and 5 will be added
+
+    time : `~astropy.time.Time`
+        The time to centre the pointings around
+        if None, the current time is used
     """
     import numpy as np
     from astropy import units as u
