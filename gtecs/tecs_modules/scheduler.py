@@ -486,9 +486,14 @@ def import_pointings_from_folder(queue_folder):
     return queue
 
 
-def import_pointings_from_database():
+def import_pointings_from_database(time):
     """
     Creates a list of `Pointing` objects from the GOTO database.
+
+    Parameters
+    ----------
+    time : `~astropy.time.Time`
+        The time to fetch the queue for.
 
     Returns
     -------
@@ -670,7 +675,7 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    queue, current_pointing = import_pointings_from_database()
+    queue, current_pointing = import_pointings_from_database(time)
 
     if len(queue) > 0:
         highest_pointing = find_highest_priority(queue, current_pointing, time)

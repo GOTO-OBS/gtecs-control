@@ -122,7 +122,7 @@ def validate_user(session, userName, password):
         return False
 
 
-def get_queue(session):
+def get_queue(session, time=None):
     """
     Get the currently valid queue.
 
@@ -132,6 +132,10 @@ def get_queue(session):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
+
+    time : `~astropy.time.Time`
+        If given, the time to fetch the queue for.
+        Defaults to the current time.
 
     Returns
     -------
@@ -164,7 +168,10 @@ def get_queue(session):
     >>> current_job, pending_jobs = get_queue(session)
 
     """
-    now = Time.now().iso
+    if time is None:
+        now = Time.now().iso
+    else:
+        now = time.iso
     pending_queue = session.query(Pointing).filter(
         Pointing.status == 'pending'
     ).filter(Pointing.startUTC < now, now < Pointing.stopUTC).all()
