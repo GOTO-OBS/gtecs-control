@@ -225,7 +225,7 @@ def time_to_set(observer, targets, time, horizon=0*u.deg):
 
 class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
-                 minalt, mintime, maxmoon, start, stop):
+                 minalt, mintime, maxmoon, start, stop, current):
         self.id = int(id)
         self.coord = coord.SkyCoord(ra, dec, unit=u.deg, frame='icrs')
         self.priority = float(priority)
@@ -237,6 +237,7 @@ class Pointing:
         self.maxmoon = maxmoon
         self.start = Time(start, scale='utc')
         self.stop = Time(stop, scale='utc')
+        self.current = bool(current)
 
     def __eq__(self, other):
         try:
@@ -262,7 +263,7 @@ class Pointing:
         (id, ra, dec, priority, tileprob, too, sunalt, minalt,
          mintime, moon, start, stop) = lines[0].split()
         pointing = cls(id, ra, dec, priority, tileprob, too, sunalt,
-                       minalt, mintime, moon, start, stop)
+                       minalt, mintime, moon, start, stop, False)
         return pointing
 
     @classmethod
@@ -284,7 +285,8 @@ class Pointing:
                        mintime   = dbPointing.minTime,
                        maxmoon   = dbPointing.maxMoon,
                        start     = dbPointing.startUTC,
-                       stop      = dbPointing.stopUTC)
+                       stop      = dbPointing.stopUTC,
+                       current   = False)
         return pointing
 
 
@@ -307,6 +309,12 @@ class Queue:
 
     def __len__(self):
         return len(self.pointings)
+
+    def get_current_pointing(self):
+        '''Return the current pointing from the queue'''
+        for p in self.pointings:
+            if p.current:
+                return p
 
     def initialise(self):
         '''Setup the queue and constraints when initialised.'''
@@ -350,7 +358,7 @@ class Queue:
                                      self.time_constraint_name +
                                      self.mintime_constraint_names)
 
-    def check_validities(self, now, observer, current_pointing):
+    def check_validities(self, now, observer):
         ''' Check if the pointings are valid, both now and after mintimes'''
 
         # apply normal constraints
@@ -378,18 +386,18 @@ class Queue:
             pointing.constraint_names = list(self.constraint_names)
             pointing.valid_arr = [x for x in cons_valid_arr[0][i]]
             # the current pointing doesn't apply the time constraint
-            if pointing != current_pointing:
+            if pointing.current != True:
                 pointing.constraint_names += self.time_constraint_name
                 pointing.valid_arr += [x for x in time_cons_valid_arr[0][i]]
             # current pointing and queue fillers don't apply mintime cons
-            if pointing.priority < 5 and pointing != current_pointing:
+            if pointing.priority < 5 and pointing.current != True:
                 pointing.constraint_names += self.mintime_constraint_names
                 pointing.valid_arr += [x for x in min_cons_valid_arr[i][i]]
 
             # finally find out if it's valid or not
             pointing.valid = np.logical_and.reduce(pointing.valid_arr)
 
-    def calculate_priorities(self, time, observer, current_pointing):
+    def calculate_priorities(self, time, observer):
         '''Calculate priorities at a given time for each pointing.'''
 
         ## Find base priority based on rank
@@ -442,18 +450,16 @@ class Queue:
         priorities_now += tts_arr * tts_weight
 
         # check validities, add 10 to invalid pointings
-        self.check_validities(time, observer, current_pointing)
+        self.check_validities(time, observer)
         valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
         priorities_now[invalid_mask] += 100
 
         # if the current pointing is invalid it must be complete
         # therefore add 10 to prevent it coming up again
-        if current_pointing is not None:
-            if current_pointing.priority_now > 100:
-                id_arr = np.array([p.id for p in self.pointings])
-                current_mask = np.array([id == current_pointing.id for id in id_arr])
-                priorities_now[current_mask] += 100
+        current_mask = np.array([p.current for p in self.pointings])
+        current_complete_mask = np.logical_and(current_mask, priorities_now > 100)
+        priorities_now[current_complete_mask] += 100
 
         # save priority_now to pointing
         for pointing, priority_now in zip(self.pointings, priorities_now):
@@ -499,20 +505,19 @@ def import_pointings_from_database(time):
     -------
     queue : `Queue`
         An Queue containing Pointings from the database.
-
-    current_pointing : `Pointing`
-        The current running Pointing
     """
     queue = Queue()
     with db.open_session() as session:
-        current_pointing, pending_pointings = db.get_queue(session)
+        current_dbPointing, pending_pointings = db.get_queue(session)
         if pending_pointings is not None:
             for dbPointing in pending_pointings:
                 queue.pointings.append(Pointing.from_database(dbPointing))
-        if current_pointing is not None:
-            current_pointing = Pointing.from_database(running_pointing)
+        if current_dbPointing is not None:
+            current_pointing = Pointing.from_database(current_dbPointing)
+            current_pointing.current = True
+            queue.pointings.append(current_pointing)
     queue.initialise()
-    return queue, current_pointing
+    return queue
 
 
 def write_queue_file(queue, time, observer):
@@ -553,7 +558,7 @@ def write_queue_file(queue, time, observer):
             f.write('\n')
 
 
-def find_highest_priority(queue, current_pointing, time):
+def find_highest_priority(queue, time):
     """
     Calculate priorities for pointings in a queue at a given time
     and return the pointing with the highest priority.
@@ -578,7 +583,7 @@ def find_highest_priority(queue, current_pointing, time):
         A list of Pointings sorted by priority (for html queue page).
     """
 
-    queue.calculate_priorities(time, GOTO, current_pointing)
+    queue.calculate_priorities(time, GOTO)
 
     pointinglist = list(queue.pointings)
     pointinglist.sort(key=lambda x: x.priority_now)
@@ -675,12 +680,13 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    queue, current_pointing = import_pointings_from_database(time)
+    queue = import_pointings_from_database(time)
 
     if len(queue) > 0:
-        highest_pointing = find_highest_priority(queue, current_pointing, time)
+        highest_pointing = find_highest_priority(queue, time)
     else:
         highest_pointing = None
+    current_pointing = queue.get_current_pointing()
 
     write_queue_file(queue, time, GOTO)
     if write_html:
