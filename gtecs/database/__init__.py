@@ -299,7 +299,7 @@ def get_mpointing_by_id(session, rpID):
     ).one_or_none()
 
 
-def get_stale_pointing_ids(session):
+def get_stale_pointing_ids(session, time=None):
     """
     Finds all the pointings still pending whose valid period has expired.
 
@@ -307,15 +307,22 @@ def get_stale_pointing_ids(session):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
+    time : `~astropy.time.Time`
+        If given, the time to evaluate time period at.
+        Defaults to the current time.
 
     Returns
     -------
     staleIDs : list
         a list of all matching Pointing IDs
     """
+    if time is None:
+        now = Time.now().iso
+    else:
+        now = time.iso
     query = session.query(Pointing.pointingID).filter(
         Pointing.status == 'pending',
-        Pointing.stopUTC < Time.now().iso
+        Pointing.stopUTC < now
     )
     # return values, unpacking tuples
     return [pID for (pID,) in query.all()]
