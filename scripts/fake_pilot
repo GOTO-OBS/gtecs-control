@@ -246,6 +246,7 @@ class DummyPilot(object):
                 self.currentMinTime = newMinTime
                 self.current_duration = estimate_completion_time(newID, self.currentID)
                 self.current_start_time = now
+                set_pointing_status(self.currentID, 'running')
             else:
                 print('    -- PARKING SCOPE')
                 self.currentID = None
