@@ -210,15 +210,15 @@ def start_win(process, host, stdout='/dev/null'):
 ########################################################################
 ## Text formatting functions
 def rtxt(text):
-    return '\033[91m' + str(text) + '\033[0m'
+    return '\033[31;1m' + str(text) + '\033[0m'
 def gtxt(text):
-    return '\033[92m' + str(text) + '\033[0m'
+    return '\033[32;1m' + str(text) + '\033[0m'
 def ytxt(text):
-    return '\033[93m' + str(text) + '\033[0m'
+    return '\033[33;1m' + str(text) + '\033[0m'
 def btxt(text):
-    return '\033[94m' + str(text) + '\033[0m'
+    return '\033[34;1m' + str(text) + '\033[0m'
 def ptxt(text):
-    return '\033[95m' + str(text) + '\033[0m'
+    return '\033[35;1m' + str(text) + '\033[0m'
 def bold(text):
     return '\033[1m' + str(text) + '\033[0m'
 def undl(text):
