@@ -508,7 +508,7 @@ def import_pointings_from_database(time):
     """
     queue = Queue()
     with db.open_session() as session:
-        current_dbPointing, pending_pointings = db.get_queue(session)
+        current_dbPointing, pending_pointings = db.get_queue(session, time)
         if pending_pointings is not None:
             for dbPointing in pending_pointings:
                 queue.pointings.append(Pointing.from_database(dbPointing))
