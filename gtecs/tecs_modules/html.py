@@ -111,8 +111,7 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
             stop.precision = 0
             f.write('stop_time = ' + str(stop) + '<br>\n')
 
-            target = coord.SkyCoord(ra=dbPointing.ra, dec=dbPointing.decl,
-                                    unit=u.deg, frame='icrs')
+            target = coord.ICRS(dbPointing.ra*u.deg, dbPointing.decl*u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
@@ -282,8 +281,7 @@ def write_queue_page():
                 priority_str = "<font color=red>%.11f</font>" %priority_now
 
             # find ra/dec
-            target = coord.SkyCoord(ra=dbPointing.ra, dec=dbPointing.decl,
-                                    unit=u.deg, frame='icrs')
+            target = coord.ICRS(dbPointing.ra*u.deg, dbPointing.decl*u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
 
