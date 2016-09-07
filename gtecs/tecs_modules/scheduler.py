@@ -509,7 +509,10 @@ def import_pointings_from_database(time):
     queue = Queue()
     with db.open_session() as session:
         current_dbPointing, pending_pointings = db.get_queue(session, time)
-        if pending_pointings is not None:
+        if len(pending_pointings) == 0:
+            # current queue empty
+            return None
+        else:
             for dbPointing in pending_pointings:
                 queue.pointings.append(Pointing.from_database(dbPointing))
         if current_dbPointing is not None:
@@ -681,6 +684,8 @@ def check_queue(time, write_html=False):
     """
 
     queue = import_pointings_from_database(time)
+    if queue is None:
+        return None, None, None
 
     if len(queue) > 0:
         highest_pointing = find_highest_priority(queue, time)
