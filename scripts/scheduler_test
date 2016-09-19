@@ -28,12 +28,12 @@ write_html = 0
 if len(sys.argv) > 1:
     write_html = bool(sys.argv[1])
 
-now = Time('2016-03-08 20:20')
+now = Time('2016-08-31 22:00')
 while True:
     now = now + 5*60*u.second
     print(now)
-    new_pointing = scheduler.check_queue(None, now, write_html)
-    if new_pointing is not None:
-        print('   job is', new_pointing.id, 'with', new_pointing.priority_now)
+    newID, newPriority, newMinTime = scheduler.check_queue(now, write_html)
+    if newID is not None:
+        print('   job is', newID, 'with', newPriority)
     else:
         print('   nothing to do, parking')

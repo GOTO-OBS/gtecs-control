@@ -204,18 +204,17 @@ class DummyPilot(object):
             time_elapsed = (now - self.current_start_time).to(u.s)
             if time_elapsed > self.current_duration:
                 self.currentPriority += 100
-                print('    CURRENT POINTING FINISHED')
                 set_pointing_status(self.currentID, 'completed')
                 self.completed_pointings.append(self.currentID)
                 self.completed_times.append(now)
-            print('  current : ID', self.currentID, self.currentPriority)
+            print('  current : ID', self.currentID)#, self.currentPriority)
         else:
             print('  current :', None)
 
         # find new highest priority from the scheduler
         newID, newPriority, newMinTime = scheduler.check_queue(now, write_html)
         if newID is not None:
-            print('  queue   : ID', newID, newPriority)
+            print('  queue   : ID', newID)#, newPriority)
         else:
             print('  queue   :', None)
 
@@ -230,12 +229,10 @@ class DummyPilot(object):
                     time_elapsed = 0.
                 if self.currentID not in self.completed_pointings:
                     if time_elapsed > self.currentMinTime:
-                        print('    CURRENT POINTING COMPLETED FOR MINTIME')
                         set_pointing_status(self.currentID, 'completed')
                         self.completed_pointings.append(self.currentID)
                         self.completed_times.append(now)
                     else:
-                        print('    CURRENT POINTING INTERRUPTED')
                         set_pointing_status(self.currentID, 'interrupted')
                         self.interrupted_pointings.append(self.currentID)
 
@@ -270,7 +267,7 @@ if __name__ == "__main__":
 
     # loop until night is over
     print('Starting loop...')
-    now = sunset
+    now = Time('2010-08-22 21:00') #sunset
     ts = time.time()
     while now < sunrise:
         tprev = ts
