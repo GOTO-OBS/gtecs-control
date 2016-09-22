@@ -83,6 +83,9 @@ SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
 SITE_OBSERVER = Observer.at_site(SITE_LOCATION)
 
+# Conditions checks
+MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+
 # Pyro connection
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
@@ -135,6 +138,13 @@ FILTER_LIST = config['FILTER_LIST']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 DARKFILT = config['DARKFILT'] #as an example
 BIASEXP = config['BIASEXP'] #seconds, as an example
+
+FOCUS_SLOPE_ABOVE = config['FOCUS_SLOPE_ABOVE']
+FOCUS_SLOPE_BELOW = config['FOCUS_SLOPE_BELOW']
+FOCUS_INTERCEPT_DIFFERENCE = config['FOCUS_INTERCEPT_DIFFERENCE']
+
+# Queue parameters
+QUEUE_PATH = TECS_PATH
 
 # Power parameters
 if config['POWER_TYPE'] == 'APCPower':

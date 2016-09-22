@@ -349,24 +349,6 @@ def insert_items(session, items):
             session.flush()
 
 
-def bulk_insert_items(session, items):
-    """
-    Insert a large number of pointings.
-
-    Adding pointings using `insert_items` can be slow for large numbers (>100)
-    of pointings. Instead, use this function. Objects are not updated after
-    insert, so create new objects to check state.
-
-    Parameters
-    -----------
-    session : `sqlalchemy.Session.session`
-        the session object
-    items : list
-        A list of model instances, e.g `Pointing`s
-    """
-    session.bulk_save_objects(items)
-
-
 def bulk_update_pointing_status(session, pointingIDs, status):
     """
     Set the status of a large number of pointings.
@@ -398,6 +380,9 @@ def _make_random_pointing(userKey, numexps=None, time=None):
     """
     make a random pointing for testing.
 
+    all should be observable from la palma at the time of creation. not all will
+    be valid in the queue due to start and stop times
+
     Parameters
     ----------
     numexps : int
@@ -408,14 +393,18 @@ def _make_random_pointing(userKey, numexps=None, time=None):
         if None, the current time is used
     """
     import numpy as np
+    from astropy.coordinates import EarthLocation
     from astropy import units as u
+    lapalma = EarthLocation(lat=28*u.deg, lon=-17*u.deg)
     if time is None:
         time = Time.now()
-    t1 = time + np.random.randint(-12, 24) * u.hour
+    # LST in degrees
+    lst = time.sidereal_time('mean', longitude=lapalma.longitude).deg
+    t1 = time + np.random.randint(-5, 2) * u.day
     t2 = t1 + np.random.randint(1, 10) * u.day
-    p = Pointing(objectName='randObj', ra=np.random.uniform(0, 359),
-                 decl=np.random.uniform(-89, 89), minAlt=30,
-                 minTime=np.random.normal(100, 3600),
+    p = Pointing(objectName='randObj', ra=np.random.uniform(lst-3, lst+3),
+                 decl=np.random.uniform(10, 89), minAlt=30,
+                 minTime=np.random.uniform(100, 3600),
                  rank=np.random.randint(1, 100),
                  ToO=np.random.randint(0, 2),
                  maxMoon=np.random.choice(['D', 'G', 'B']),
@@ -437,3 +426,27 @@ def _make_random_pointing(userKey, numexps=None, time=None):
             )
         )
     return p
+
+
+def markJobCompleted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'completed'
+
+
+def markJobAborted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'aborted'
+
+
+def markJobInterrupted(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'interrupted'
+
+
+def markJobRunning(pID):
+    with open_session() as s:
+        pointing = get_pointing_by_id(s, pID)
+        pointing.status = 'running'
