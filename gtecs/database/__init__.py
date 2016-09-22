@@ -60,6 +60,34 @@ def get_userkey(session, userName):
         raise ValueError('User not in db')
 
 
+def get_username(session, userKey):
+    """
+    Returns the userName for a given userKey.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session`
+    userKey : int
+        id of user in database.
+
+    Returns
+    --------
+    userName : string
+        short name of user
+
+    Raises
+    ------
+    ValueError : if user not in DB
+    """
+    try:
+        return session.query(User.userName).filter(
+            User.userKey == userKey
+        ).one()[0]
+    except NoResultFound:
+        raise ValueError('User not in db')
+
+
 def validate_user(session, userName, password):
     """
     Check user exists and password is correct.
@@ -94,7 +122,7 @@ def validate_user(session, userName, password):
         return False
 
 
-def get_queue(session):
+def get_queue(session, time=None):
     """
     Get the currently valid queue.
 
@@ -104,6 +132,10 @@ def get_queue(session):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
+
+    time : `~astropy.time.Time`
+        If given, the time to fetch the queue for.
+        Defaults to the current time.
 
     Returns
     -------
@@ -136,7 +168,10 @@ def get_queue(session):
     >>> current_job, pending_jobs = get_queue(session)
 
     """
-    now = Time.now().iso
+    if time is None:
+        now = Time.now().iso
+    else:
+        now = time.iso
     pending_queue = session.query(Pointing).filter(
         Pointing.status == 'pending'
     ).filter(Pointing.startUTC < now, now < Pointing.stopUTC).all()
@@ -264,7 +299,7 @@ def get_mpointing_by_id(session, rpID):
     ).one_or_none()
 
 
-def get_stale_pointing_ids(session):
+def get_stale_pointing_ids(session, time=None):
     """
     Finds all the pointings still pending whose valid period has expired.
 
@@ -272,15 +307,22 @@ def get_stale_pointing_ids(session):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
+    time : `~astropy.time.Time`
+        If given, the time to evaluate time period at.
+        Defaults to the current time.
 
     Returns
     -------
     staleIDs : list
         a list of all matching Pointing IDs
     """
+    if time is None:
+        now = Time.now().iso
+    else:
+        now = time.iso
     query = session.query(Pointing.pointingID).filter(
         Pointing.status == 'pending',
-        Pointing.stopUTC < Time.now().iso
+        Pointing.stopUTC < now
     )
     # return values, unpacking tuples
     return [pID for (pID,) in query.all()]
@@ -352,7 +394,7 @@ def bulk_update_pointing_status(session, pointingIDs, status):
     session.bulk_update_mappings(Pointing, mappings)
 
 
-def _make_random_pointing(userKey, numexps=None):
+def _make_random_pointing(userKey, numexps=None, time=None):
     """
     make a random pointing for testing.
 
@@ -360,10 +402,16 @@ def _make_random_pointing(userKey, numexps=None):
     ----------
     numexps : int
         if None, a random number of exposures between 1 and 5 will be added
+
+    time : `~astropy.time.Time`
+        The time to centre the pointings around
+        if None, the current time is used
     """
     import numpy as np
     from astropy import units as u
-    t1 = Time.now() + np.random.randint(-5, 2) * u.day
+    if time is None:
+        time = Time.now()
+    t1 = time + np.random.randint(-12, 24) * u.hour
     t2 = t1 + np.random.randint(1, 10) * u.day
     p = Pointing(objectName='randObj', ra=np.random.uniform(0, 359),
                  decl=np.random.uniform(-89, 89), minAlt=30,

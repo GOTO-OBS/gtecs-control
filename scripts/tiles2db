@@ -1,0 +1,175 @@
+#!/usr/bin/env python
+
+########################################################################
+#                               tiles2db                               #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#      G-TeCS script to convert GOTO-tile files to G-TeCS database     #
+#                     Martin Dyer, Sheffield, 2015                     #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+#                Uses functions taken from the sentinel                #
+########################################################################
+
+# Import
+from __future__ import print_function
+
+import os
+import argparse
+import numpy
+from collections import namedtuple
+from astropy import units as u
+from astropy.time import Time
+
+from gtecs.tecs_modules import params
+import gtecs.database as db
+
+Tile = namedtuple('Tile', 'tel, ra, dec, time, dt, prob, cumprob, rank')
+
+
+def read_tile_file(filename):
+    """
+    Read in GOTO tile ranking file
+
+    Parameters
+    ----------
+    filename : str
+        The file location
+
+    Returns
+    -------
+    tile_list : list of `Tile` objects
+        list of `Tile` objects containing the tiles found in the event
+
+    event_time : `~astropy.time.Time`
+        the time of the GW event, extracted from the tile file
+    """
+
+    lines = []
+    rank = 1
+    tile_list = []
+
+    with open(filename) as f:
+        for line in f.readlines():
+            if not line.startswith('#'):
+                lines.append(line)
+            # extract time of event
+            if line.startswith('# - comments: '):
+                event_time = Time(line[40:65])
+
+        for line in lines[1:]: # the first line is the header
+            tel, ra, dec, time, dt, prob, cumprob = line.split()
+            ra = float(ra)
+            dec = float(dec)
+            time = Time(time)
+            dt = float(dt)
+            prob = float(prob)/100. # decimal prob
+            cumprob = float(prob)
+
+            tile = Tile(tel, ra, dec, time, dt, prob, cumprob, rank)
+            tile_list.append(tile)
+            rank += 1
+
+        return tile_list, event_time
+
+
+def save_to_dbase(session, event_name, tile_list, event_time):
+    event = db.Event(ivo='test', name=event_name, source='skymap')
+    session.add(event)
+
+    for tile in tile_list:
+        ra = tile.ra
+        dec = tile.dec
+        prob = tile.prob
+        num = tile.rank
+        save_single_tile(session, ra, dec, prob, num, event)
+
+
+def save_single_tile(session, ra, dec, prob, num, event):
+    tile = db.LigoTile(ra=ra, decl=dec, probability=prob, event=event)
+    session.add(tile)
+    save_pointing(session, ra, dec, num, event, tile)
+
+
+def save_pointing(session, ra, dec, num, event, tile):
+
+    rank = 2
+    minalt = '15'
+    sunalt = '-18'
+    mintime = '360'
+    maxmoon = 'B'
+    duration = 7*24*u.hour
+    start_time = event_time
+    stop_time = start_time + duration
+    too = 0 # There will be ToO tiles, starting observations aren't
+
+    userKey = db.get_userkey(session, 'goto')
+
+    pointing = db.Pointing(userKey=userKey,
+                        objectName='%s tile %i' %(event.name, num),
+                        ra=ra,
+                        decl=dec,
+                        rank=rank,
+                        minAlt=minalt,
+                        maxSunAlt=sunalt,
+                        minTime=mintime,
+                        maxMoon=maxmoon,
+                        startUTC=start_time,
+                        stopUTC=stop_time,
+                        ToO=too,
+                        event=event,
+                        ligoTile=tile)
+    session.add(pointing)
+
+    save_exposure(session, pointing)
+
+def save_exposure(session, pointing):
+    exptime = 120
+    numexp = 3
+    exptype = 'SCIENCE'
+    filt = 'L'
+    binfac = 1
+    otamask = None
+    raoff = 0
+    decoff = 0
+
+    exposure = db.Exposure(expTime=exptime,
+                        numexp=numexp,
+                        typeFlag=exptype,
+                        filt=filt,
+                        binning=binfac,
+                        otaMask=otamask,
+                        raoff=raoff,
+                        decoff=decoff,
+                        pointing=pointing)
+    session.add(exposure)
+
+if __name__ == '__main__':
+    description = """Convert a GOTO-tile output file containing a list of tiles
+                     and priorities into observation files for the G-TeCS
+                     observation queue."""
+
+    parser = argparse.ArgumentParser(
+                    description=description,
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('filename',
+                        help="GOTO tile priority file")
+    parser.add_argument('-e', '--eventname',
+                        help="Name of the event",
+                        default='GW000000')
+
+    args = parser.parse_args()
+
+    event_name = args.eventname.replace(" ", "_")
+
+
+    tile_list, event_time = read_tile_file(args.filename)
+
+    with db.open_session() as session:
+        try:
+            userKey = db.get_userkey(session, 'goto')
+        except:
+            db.add_user(session, 'goto', 'password', "GOTO alerts")
+            userKey = db.get_userkey(session, 'goto')
+
+        save_to_dbase(session, event_name, tile_list, event_time)
