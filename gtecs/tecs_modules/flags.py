@@ -44,10 +44,22 @@ class Conditions:
     def age(self):
         return int(Time.now().unix - self.update_time)
 
+    @property
+    def bad(self):
+        """
+        A convenient property to quickly check if these conditions are bad.
+
+        Uses summary of conditions and age check
+        """
+        if self.age() > params.MAX_CONDITIONS_AGE:
+            tooOld = 1
+        else:
+            tooOld = 0
+        return self.summary + tooOld
+
 class Overrides:
     def __init__(self):
         with open(params.CONFIG_PATH + 'overrides_flags','r') as fh:
             data = json.load(fh)
         self.__dict__ = copy.copy(data)
-
 

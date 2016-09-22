@@ -14,9 +14,11 @@ from __future__ import print_function
 # TeCS modules
 from . import params
 
-# astropy
-from astropy.coordinates import SkyCoord, EarthLocation, AltAz
+# astropy/astroplan
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz, get_sun
 from astropy import units as u
+from astropy.time import Time
+from astroplan import Observer
 
 # pyephem
 import ephem
@@ -62,6 +64,76 @@ def altaz(ra_deg, dec_deg, now):
     altaz_frame = AltAz(obstime=now, location=loc)
     altaz_coo = coo.transform_to(altaz_frame)
     return (altaz_coo.alt.degree, altaz_coo.az.degree)
+
+
+def sun_alt(now):
+    """
+    Calculate sun altitude from observatory
+
+    Parameters
+    ----------
+    now : `~astropy.time.Time`
+        time(s) to calculate Altitude
+
+    Returns
+    --------
+    alt : float or np.ndarray
+    """
+    sun = get_sun(now)
+    loc = observatory_location()
+    altaz_frame = AltAz(obstime=now, location=loc)
+    altaz_coo = sun.transform_to(altaz_frame)
+    return altaz_coo.alt.degree
+
+
+def twilightLength(date):
+    """
+    Twilight length for night starting on given date
+
+    Parameters
+    ----------
+    date : string
+        night starting date (YYYY-MM-DD)
+
+    Returns
+    -------
+    twilength : `astropy.units.Quantity`
+        length of astronomical twilight
+    """
+    noon = Time(date + " 12:00:00")
+    observer = Observer(location=observatory_location())
+    sun_set_time = observer.sun_set_time(noon, which='next')
+    twilight_end = observer.sun_set_time(noon, which='next', horizon=-18*u.deg)
+    return (twilight_end - sun_set_time).to(u.min)
+
+
+@u.quantity_input(sunAlt=u.deg)
+def startTime(date, sunAlt, eve=True):
+    """
+    Find the time when the sun is at sunAlt
+
+    Parameters
+    ----------
+    date : string
+        night starting date (YYYY-MM-DD)
+    sunAlt : `astropy.units.Quantity`
+        altitude of sun to use
+    eve : bool
+        True for an evening calculation, false for morning
+
+    Returns
+    -------
+    goTime : `astropy.time.Time`
+        time when sun is at that altitude
+    """
+    observer = Observer(location=observatory_location())
+    if eve:
+        start = Time(date + " 12:00:00")
+        return observer.sun_set_time(start, which='next', horizon=sunAlt)
+    else:
+        start = Time(date + " 12:00:00") + u.day
+        return observer.sun_rise_time(start, which='previous',
+                                      horizon=sunAlt)
 
 
 def altaz_ephem(ra_deg, dec_deg, now):
@@ -193,3 +265,21 @@ def ang_sep(ra_1, dec_1, ra_2, dec_2):
     coo1 = SkyCoord(ra_1*u.deg, dec_1*u.deg)
     coo2 = SkyCoord(ra_2*u.deg, dec_2*u.deg)
     return coo1.separation(coo2).degree
+
+
+def tel_str(ra, dec):
+    """
+    Get RA and Dec strings to send to mount
+
+    Parameters
+    ----------
+    ra : float
+        ra in decimal degrees
+    dec : float
+        declination in decimal degrees
+    """
+    coo = SkyCoord(ra*u.deg, dec*u.deg)
+    ra_string = coo.ra.to_string(sep=' ', precision=2, unit=u.hour)
+    dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
+    dec_string = dec_string[0] + ' ' + dec_string[1:]
+    return ra_string, dec_string
