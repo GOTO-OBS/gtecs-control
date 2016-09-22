@@ -46,9 +46,9 @@ def get_process_ID(process_name, host):
     username = os.environ["LOGNAME"]
 
     if host == get_hostname():
-        all_processes = getoutput('ps -fwu %s | grep -i python' % username)
+        all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
     else:
-        all_processes = getoutput('ssh ' + host + ' ps -fwu %s | grep -i python' % username)
+        all_processes = getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
 
     for line in all_processes.split('\n'):
         if line.endswith(process_name):
