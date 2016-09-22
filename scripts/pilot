@@ -84,8 +84,8 @@ class Pilot:
 
         # lists of routine jobs. Each job a dict of name, protocol, cmd and sun_alt
         self.daytime_jobs = []  # before dome opens
-        self.morning_jobs = []  # after dome opens
-        self.evening_jobs = []  # after observing
+        self.evening_jobs = []  # after dome opens
+        self.morning_jobs = []  # after observing
         self.ready_to_observe = False
 
         # hardware to keep track of and fix if necessary
