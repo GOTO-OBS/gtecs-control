@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+# A simple script to monitor what's in the GOTO database
+# MJD @ Sheffield, 2016
+
+from __future__ import print_function
+
+from astropy.time import Time
+
+import gtecs.database as db
+from gtecs.tecs_modules import misc
+
+t = Time.now()
+
+with db.open_session() as session:
+    all_pointings = db.get_pointings(session)
+    print("{} points in database".format(len(all_pointings)))
+
+    running, _ = db.get_queue(session)
+    if running:
+        print(misc.ytxt('CURRENTLY OBSERVING: ID %i \n' %running.pointingID))
+    else:
+        print('\n')
+
+    for pointing in all_pointings:
+        print(pointing.pointingID, end='\t| ')
+        print(pointing.objectName, end='\t| ')
+        print(pointing.rank, end='\t| ')
+        print(pointing.minTime, end='\t| ')
+        print(pointing.startUTC, end='\t| ')
+        print(pointing.stopUTC, end='\t| ')
+        if pointing.status == 'running':
+            status = misc.ytxt('RUNNING')
+        elif pointing.status == 'completed':
+            status = misc.gtxt('completed')
+        elif pointing.status == 'pending':
+            status = misc.btxt('pending')
+        else:
+            status = pointing.status
+        print(status, end='\n')

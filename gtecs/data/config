@@ -26,6 +26,7 @@ REDIRECT_STDOUT = 0
 SITE_ALTITUDE = 2327
 SITE_LATITUDE = 28.7598742
 SITE_LONGITUDE = -17.8793802
+SITE_LOCATION = lapalma
 
 ########################################################################
 # Mount parameters
@@ -52,13 +53,19 @@ DARKFILT = C
 BIASEXP = 0.1
 
 ########################################################################
-# Power Parameters
+# Power parameters
 POWER_LIST = mnt, filt, foc, cam, _5_, _6_, _7_, _8_
 
 ########################################################################
 # Dome parameters
 DOME_LOCATION = /dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0
 BIG_RED_BUTTON_PORT = N/A
+
+########################################################################
+# Observing parameters
+MOONDIST_LIMIT = 20
+MOONELEV_LIMIT = -5
+
 
 ###########################################################
 # Daemon parameters

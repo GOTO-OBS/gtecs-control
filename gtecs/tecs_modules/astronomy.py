@@ -20,6 +20,10 @@ from astropy import units as u
 from astropy.time import Time
 from astroplan import Observer
 
+# pyephem
+import ephem
+import math
+
 
 def observatory_location():
     """
@@ -130,6 +134,49 @@ def startTime(date, sunAlt, eve=True):
         start = Time(date + " 12:00:00") + u.day
         return observer.sun_rise_time(start, which='previous',
                                       horizon=sunAlt)
+
+
+def altaz_ephem(ra_deg, dec_deg, now):
+    """
+    Calculate Altitude and Azimuth of coordinates using PyEphem.
+    Much faster than with AstroPy, annoyingly.
+
+    Parameters
+    ----------
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+    now : `~astropy.time.Time`
+        time(s) to calculate Altitude and Azimuth
+
+    Returns
+    --------
+    alt : float
+        altitude in degrees
+    az : float
+        azimuth in degrees
+    """
+    loc = ephem.Observer()
+    loc.lon = str(params.SITE_LONGITUDE)
+    loc.lat = str(params.SITE_LATITUDE)
+    loc.elevation = params.SITE_ALTITUDE
+    loc.date = now.datetime.strftime('%Y/%m/%d %H:%M:%S')
+
+    ra_string = str(ephem.hours((ephem.degrees(float(ra_deg)*math.pi/180))))
+    dec_string = str(ephem.degrees(float(dec_deg)*math.pi/180))
+    line = "target,f," + ra_string + "," + dec_string + ",0"
+    target = ephem.readdb(line)
+    target.compute(loc)
+
+    alt_now = target.alt * 180/math.pi
+    az_now = target.az * 180/math.pi
+
+    return (alt_now, az_now)
+
+
+def airmass(alt):
+    return 1/math.cos((math.pi)/2)-alt
 
 
 def find_ha(ra_hrs, lst):

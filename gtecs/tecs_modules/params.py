@@ -15,7 +15,7 @@ import socket
 import numpy
 import Pyro4
 import pkg_resources
-
+from astroplan import Observer
 import configobj
 import validate
 
@@ -67,6 +67,7 @@ CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOG_PATH = TECS_PATH + 'logs/'
 IMAGE_PATH = TECS_PATH + 'images/'
+QUEUE_PATH = TECS_PATH + 'queue/'
 
 # Daemons should log to file?
 FILE_LOGGING = config['FILE_LOGGING']
@@ -79,6 +80,8 @@ REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
+SITE_LOCATION = config['SITE_LOCATION']
+SITE_OBSERVER = Observer.at_site(SITE_LOCATION)
 
 # Conditions checks
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
@@ -161,3 +164,7 @@ else:
     DOME = AstroHavenDome(DOME_LOCATION)
 BIG_RED_BUTTON_PORT = config['BIG_RED_BUTTON_PORT']
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
+
+# Observing parameters
+MOONDIST_LIMIT = config['MOONDIST_LIMIT']
+MOONELEV_LIMIT = config['MOONELEV_LIMIT']
