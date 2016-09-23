@@ -23,6 +23,7 @@ from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.controls import dome_control
 
 ########################################################################
 # Dome daemon functions
@@ -72,7 +73,11 @@ class DomeDaemon:
     def dome_control(self):
 
         ### connect to dome object
-        dome = params.DOME
+        loc = params.DOME_LOCATION
+        if params.FAKE_DOME == 1:
+            dome = dome_control.FakeDome('')
+        else:
+            dome = dome_control.AstroHavenDome(loc)
 
         while(self.running):
             self.time_check = time.time()

@@ -17,12 +17,22 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from gtecs.tecs_modules import params
+from gtecs.controls import power_control
+
+IP = params.POWER_IP
+port = params.POWER_PORT
+if params.POWER_TYPE == 'APCPower':
+    power = power_control.APCPower(IP)
+elif params.POWER_TYPE == 'EthPower':
+    power = power_control.EthPower(IP, port)
+else:
+    power = power_control.FakePower(' ',' ')
 
 try:
-    x = params.POWER.status(0)
+    x = power.status(0)
     assert isinstance(x, str) or isinstance(x, unicode)
-    assert len(x) == params.POWER.count
+    assert len(x) == power.count
 except:
-    x = 'x' * params.POWER.count
+    x = 'x' * power.count
 
 print(x)

@@ -19,10 +19,6 @@ from astroplan import Observer
 import configobj
 import validate
 
-# TeCS modules
-from ..controls import power_control
-from ..controls import dome_control
-
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
     # we are running in install dir, during installation
@@ -147,21 +143,15 @@ FOCUS_INTERCEPT_DIFFERENCE = config['FOCUS_INTERCEPT_DIFFERENCE']
 QUEUE_PATH = TECS_PATH
 
 # Power parameters
-if config['POWER_TYPE'] == 'APCPower':
-    POWER = power_control.APCPower(config['POWER_IP'])
-elif config['POWER_TYPE'] == 'EthPower':
-    POWER = power_control.EthPower(config['POWER_IP'], config['POWER_PORT'])
-else:
-    POWER = power_control.FakePower(' ',' ')
+POWER_TYPE = config['POWER_TYPE']
+POWER_IP = config['POWER_IP']
+POWER_PORT = config['POWER_PORT']
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_LIST = config['POWER_LIST']
 
 # Dome parameters
 DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
-if config['FAKE_DOME'] == 1:
-    DOME = dome_control.FakeDome('')
-else:
-    DOME = AstroHavenDome(DOME_LOCATION)
+FAKE_DOME = config['FAKE_DOME']
 BIG_RED_BUTTON_PORT = config['BIG_RED_BUTTON_PORT']
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
 
