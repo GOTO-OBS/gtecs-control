@@ -43,7 +43,7 @@ def get_hostname():
 def get_process_ID(process_name, host):
     '''Retrieve ID numbers of python processes with specified name'''
     process_ID = []
-    username = os.environ["LOGNAME"]
+    username = os.environ["USER"]
 
     if host == get_hostname():
         all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
