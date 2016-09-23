@@ -26,6 +26,7 @@ from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 from six.moves import range
+from gtecs.controls import power_control
 
 ########################################################################
 # Power daemon functions
@@ -70,7 +71,14 @@ class PowerDaemon:
     def power_control(self):
 
         ### connect to power object
-        power = params.POWER
+        IP = params.POWER_IP
+        port = params.POWER_PORT
+        if params.POWER_TYPE == 'APCPower':
+            power = power_control.APCPower(IP)
+        elif params.POWER_TYPE == 'EthPower':
+            power = power_control.EthPower(IP, port)
+        else:
+            power = power_control.FakePower(' ',' ')
 
         while(self.running):
             self.time_check = time.time()
