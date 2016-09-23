@@ -58,12 +58,14 @@ TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with deta
 
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
-TECS_PATH = config['CONFIG_PATH']
-CONFIG_PATH = config['CONFIG_PATH']
+if sys.platform == 'win32':
+    CONFIG_PATH = config['WIN_CONFIG_PATH']
+else:
+    CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-LOG_PATH = TECS_PATH + 'logs/'
-IMAGE_PATH = TECS_PATH + 'images/'
-QUEUE_PATH = TECS_PATH + 'queue/'
+LOG_PATH = CONFIG_PATH + 'logs/'
+IMAGE_PATH = CONFIG_PATH + 'images/'
+QUEUE_PATH = CONFIG_PATH + 'queue/'
 
 # Daemons should log to file?
 FILE_LOGGING = config['FILE_LOGGING']
@@ -140,7 +142,7 @@ FOCUS_SLOPE_BELOW = config['FOCUS_SLOPE_BELOW']
 FOCUS_INTERCEPT_DIFFERENCE = config['FOCUS_INTERCEPT_DIFFERENCE']
 
 # Queue parameters
-QUEUE_PATH = TECS_PATH
+QUEUE_PATH = CONFIG_PATH
 
 # Power parameters
 POWER_TYPE = config['POWER_TYPE']

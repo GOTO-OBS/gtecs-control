@@ -13,7 +13,8 @@ EMAIL_ADDRESS = goto-observatory@gmail.com
 EMAIL_SERVER = smtp.gmail.com:587
 
 # Paths for log files, images etc
-CONFIG_PATH = /Users/sl/g-tecs/
+CONFIG_PATH = /home/goto/g-tecs/
+WIN_CONFIG_PATH = C:\goto\g-tecs\
 
 # Daemons should log to file?
 FILE_LOGGING = 1
