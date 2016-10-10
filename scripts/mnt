@@ -17,6 +17,8 @@ import os, sys
 import readline
 import time
 import Pyro4
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, get_body
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
@@ -294,6 +296,19 @@ def query(command):
         slew_to_radec(ra=10.15, dec=11.88)
     elif command[0]=='slewP':
         slew_to_radec(ra=02.88, dec=89.31)
+    elif command[0]=='target':
+        try:
+            name = command[1]
+            try:
+                coord = SkyCoord.from_name(name)
+            except:
+                coord = get_body(name, Time.now())
+            ra_hrs = coord.ra.hour
+            dec_deg = coord.dec.value
+            set_target_ra(ra_hrs)
+            set_target_dec(dec_deg)
+        except:
+            print(misc.ERROR('Cannot find target'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
