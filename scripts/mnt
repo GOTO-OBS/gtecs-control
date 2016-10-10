@@ -234,7 +234,7 @@ def query(command):
         if len(command) == 2:
             try:
                 dec_deg = float(command[1])
-                assert -90 < dec_deg < 90
+                assert -90 <= dec_deg <= 90
                 set_target_dec(dec_deg)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -245,14 +245,14 @@ def query(command):
                 d = int(command[2])
                 m = int(command[3])
                 s = int(command[4])
-                assert -90 < d < 90
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 if sign == '+':
                     dec_deg = d + m/60. + s/3600.
                 else:
                     dec_deg = -1*(d + m/60. + s/3600.)
-                set_target_ra(dec_deg)
+                assert -90 <= dec_deg <= 90
+                set_target_dec(dec_deg)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2.5: forgetting the sign
@@ -261,9 +261,9 @@ def query(command):
                 d = int(command[1])
                 m = int(command[2])
                 s = int(command[3])
-                assert -90 < d < 90
                 assert 0 <= m < 60
                 assert 0 <= s < 60
+                assert -90 <= dec_deg <= 90
                 print(misc.ERROR('You probably forgot the sign!'))
             except:
                 print(misc.ERROR('Invalid arguments'))
