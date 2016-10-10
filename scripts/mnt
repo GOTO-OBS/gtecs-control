@@ -325,9 +325,8 @@ def print_instructions():
     ' ' + misc.undl('Mount commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
     '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
+    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object ' + '\n' +\
     '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
-    misc.ytxt('  mnt ' + misc.bold('slewR')) + '          - slew to Regulus (' + misc.ytxt('TEST') + ')' + '\n' +\
-    misc.ytxt('  mnt ' + misc.bold('slewP')) + '          - slew to Polaris (' + misc.ytxt('TEST') + ')' + '\n' +\
     '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
     '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
     '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
