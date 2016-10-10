@@ -116,25 +116,20 @@ def unpark():
     except:
         print(misc.ERROR('No response from mount daemon'))
 
-def set_target_ra(h,m,s):
+def set_target_ra(ra_hrs):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
-    ra = h + m/60. + s/3600.
     try:
-        c = mnt.set_target_ra(ra)
+        c = mnt.set_target_ra(ra_hrs)
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
 
-def set_target_dec(sign,d,m,s):
+def set_target_dec(dec_deg):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
-    if sign == '+':
-        dec = d + m/60. + s/3600.
-    else:
-        dec = -1*(d + m/60. + s/3600.)
     try:
-        c = mnt.set_target_dec(dec)
+        c = mnt.set_target_dec(dec_deg)
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
@@ -206,13 +201,76 @@ def query(command):
         park()
     elif command[0]=='unpark':
         unpark()
+
     elif command[0]=='ra':
-        set_target_ra(float(command[1]),float(command[2]),float(command[3]))
-    elif command[0]=='dec':
-        if len(command) == 5:
-            set_target_dec(command[1],float(command[2]),float(command[3]),float(command[4]))
+        # option 1: decimal degrees
+        if len(command) == 2:
+            try:
+                ra_deg = float(command[1])
+                assert 0 <= ra_deg < 360
+                ra_hrs = ra_deg*24./360.
+                set_target_ra(ra_hrs)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2: hms notation
+        elif len(command) == 4:
+            try:
+                h = int(command[1])
+                m = int(command[2])
+                s = int(command[3])
+                assert 0 <= h < 24
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                ra_hrs = h + m/60. + s/3600.
+                set_target_ra(ra_hrs)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # they're the only options
         else:
-            print('ERROR: You probably forgot the sign!')
+            print(misc.ERROR('Invalid arguments'))
+
+    elif command[0]=='dec':
+        # option 1: decimal degrees
+        if len(command) == 2:
+            try:
+                dec_deg = float(command[1])
+                assert 0 <= dec_deg < 360
+                set_target_dec(dec_deg)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2: +dms notation
+        elif len(command) == 5:
+            try:
+                sign = command[1]
+                d = int(command[2])
+                m = int(command[3])
+                s = int(command[4])
+                assert 0 <= d < 360
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                if sign == '+':
+                    dec_deg = d + m/60. + s/3600.
+                else:
+                    dec_deg = -1*(d + m/60. + s/3600.)
+                set_target_ra(dec_deg)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2.5: forgetting the sign
+        elif len(command) == 4:
+            try:
+                d = int(command[1])
+                m = int(command[2])
+                s = int(command[3])
+                assert 0 <= d < 360
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                print(misc.ERROR('You probably forgot the sign!'))
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # they're the only options
+        else:
+            print(misc.ERROR('Invalid arguments'))
+
     elif command[0]=='n':
         offset('north')
     elif command[0]=='s':
