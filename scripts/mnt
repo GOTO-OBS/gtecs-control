@@ -255,16 +255,25 @@ def query(command):
                 set_target_dec(dec_deg)
             except:
                 print(misc.ERROR('Invalid arguments'))
-        # option 2.5: forgetting the sign
+        # option 2.5: forgetting the sign, let's work it out from dec
+        # NOTE tricky to deal with -0, have to use the string
         elif len(command) == 4:
             try:
+                if command[1][0] == '-':
+                    sign = '-'
+                else:
+                    sign = '+'
                 d = int(command[1])
                 m = int(command[2])
                 s = int(command[3])
                 assert 0 <= m < 60
                 assert 0 <= s < 60
+                if sign == '+':
+                    dec_deg = d + m/60. + s/3600.
+                else: #NB d is negative
+                    dec_deg = d - m/60. - s/3600.
                 assert -90 <= dec_deg <= 90
-                print(misc.ERROR('You probably forgot the sign!'))
+                set_target_dec(dec_deg)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # they're the only options
@@ -304,7 +313,7 @@ def print_instructions():
     '  mnt ' + misc.bold('pingS') + '          - ping the daemon' + '\n' +\
     ' ' + misc.undl('Mount commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
-    '  mnt ' + misc.bold('dec') + ' sign d m s' + ' - set target dec' + '\n' +\
+    '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
     '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
     misc.ytxt('  mnt ' + misc.bold('slewR')) + '          - slew to Regulus (' + misc.ytxt('TEST') + ')' + '\n' +\
     misc.ytxt('  mnt ' + misc.bold('slewP')) + '          - slew to Polaris (' + misc.ytxt('TEST') + ')' + '\n' +\
