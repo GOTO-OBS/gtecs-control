@@ -253,6 +253,8 @@ class MntDaemon:
                 self.temp_ra = None
                 self.temp_dec = None
 
+            time.sleep(0.0001) # To save 100% CPU usage
+
         self.logfile.info('Mount control thread stopped')
         return
 
