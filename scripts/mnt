@@ -294,17 +294,21 @@ def query(command):
         set_step(float(command[1]))
     elif command[0]=='target':
         try:
-            name = command[1]
+            if len(command) == 2:
+                name = command[1]
+            elif len(command) > 2:
+                name = ' '.join(command[1:])
             try:
                 coord = SkyCoord.from_name(name)
             except:
                 coord = get_body(name, Time.now())
+            print('Targeting "%s"' %name)
             ra_hrs = coord.ra.hour
             dec_deg = coord.dec.value
             set_target_ra(ra_hrs)
             set_target_dec(dec_deg)
         except:
-            print(misc.ERROR('Cannot find target'))
+            print(misc.ERROR('Cannot find target "%s"' %name))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -325,7 +329,7 @@ def print_instructions():
     ' ' + misc.undl('Mount commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
     '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
-    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object ' + '\n' +\
+    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
     '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
     '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
     '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
