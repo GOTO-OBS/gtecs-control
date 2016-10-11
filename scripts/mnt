@@ -283,15 +283,40 @@ def query(command):
             print(misc.ERROR('Invalid arguments'))
 
     elif command[0]=='n':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('north')
     elif command[0]=='s':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('south')
     elif command[0]=='e':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('east')
     elif command[0]=='w':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('west')
     elif command[0]=='step':
         set_step(float(command[1]))
+
     elif command[0]=='target':
         try:
             if len(command) == 2:
@@ -335,7 +360,7 @@ def print_instructions():
     '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
     '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
     '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
-    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + '        - offset in direction by one step' + '\n' +\
+    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
     '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
     '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
