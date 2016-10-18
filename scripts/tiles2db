@@ -72,8 +72,9 @@ def read_tile_file(filename):
         return tile_list, event_time
 
 
-def save_to_dbase(session, event_name, tile_list, event_time):
-    event = db.Event(ivo='test', name=event_name, source='skymap')
+def save_to_dbase(session, tile_list, event_time, event_name):
+    ivo = str(event_time)
+    event = db.Event(ivo=ivo, name=event_name, source='skymap')
     session.add(event)
 
     for tile in tile_list:
@@ -143,6 +144,18 @@ def save_exposure(session, pointing):
                         pointing=pointing)
     session.add(exposure)
 
+def run(filename, event_name):
+    tile_list, event_time = read_tile_file(filename)
+
+    with db.open_session() as session:
+        try:
+            userKey = db.get_userkey(session, 'goto')
+        except:
+            db.add_user(session, 'goto', 'password', "GOTO alerts")
+            userKey = db.get_userkey(session, 'goto')
+
+        save_to_dbase(session, tile_list, event_time, event_name)
+
 if __name__ == '__main__':
     description = """Convert a GOTO-tile output file containing a list of tiles
                      and priorities into observation files for the G-TeCS
@@ -154,22 +167,7 @@ if __name__ == '__main__':
 
     parser.add_argument('filename',
                         help="GOTO tile priority file")
-    parser.add_argument('-e', '--eventname',
-                        help="Name of the event",
-                        default='GW000000')
 
     args = parser.parse_args()
 
-    event_name = args.eventname.replace(" ", "_")
-
-
-    tile_list, event_time = read_tile_file(args.filename)
-
-    with db.open_session() as session:
-        try:
-            userKey = db.get_userkey(session, 'goto')
-        except:
-            db.add_user(session, 'goto', 'password', "GOTO alerts")
-            userKey = db.get_userkey(session, 'goto')
-
-        save_to_dbase(session, event_name, tile_list, event_time)
+    run(args.filename, event_name = 'GW00000')
