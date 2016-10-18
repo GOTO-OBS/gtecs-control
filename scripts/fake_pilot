@@ -190,7 +190,19 @@ class DummyPilot(object):
         elif self.dome_status == 0:
             state = 'closed'
         elif self.currentID is not None:
-            state = 'pointing:%i (p:%.11f)' %(self.currentID, self.currentPriority)
+            current_pointing = db.get_pointing_by_id(session, self.currentID)
+            self.currentName = current_pointing.objectName
+            self.currentRa   = current_pointing.ra
+            self.currentDec  = current_pointing.decl
+            current_tileID   = current_pointing.ligoTileID
+            current_tile = session.query(db.LigoTile).filter(db.LigoTile.tileID == current_tileID).one_or_none()
+            self.currentProbability = current_tile.probability
+            state = ('OBS: ID%i'    %self.currentID
+                    +' (%s;'        %self.currentName
+                    +' prob: %.8f;' %self.currentProbability
+                    +' ra: %.4f;'   %self.currentRa
+                    +' dec: %.4f;'  %self.currentDec
+                    +' p: %.11f)'   %self.currentPriority)
         else:
             state = 'idle'
         fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
