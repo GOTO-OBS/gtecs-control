@@ -104,8 +104,8 @@ def get_night_times(date):
     lapalma = astroplan.Observer.at_site('lapalma')
     # Time(date) gives start of date, add one day to get midnight that night
     midnight = Time(date) + TimeDelta(1*u.day)
-    sunset = lapalma.sun_set_time(midnight, which="previous")
-    sunrise = lapalma.sun_rise_time(midnight, which="next")
+    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -15*u.deg)
+    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -15*u.deg)
     return sunset, sunrise
 
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     # loop until night is over
     print('Starting loop...')
-    now = Time('2010-08-22 21:00') #sunset
+    now = sunset
     ts = time.time()
     while now < sunrise:
         tprev = ts
