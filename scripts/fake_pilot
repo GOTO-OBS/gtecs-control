@@ -37,7 +37,7 @@ weather_on = 1
 fake_dt = TimeDelta(60*u.s)  # 15*u.s)
 
 
-def set_pointing_status(pointingID, status):
+def set_pointing_status(pointingID, status, session):
     '''Mark a pointing as completed, aborted etc'''
     if status not in ['aborted', 'completed', 'interrupted', 'running']:
         print('Illegal status:', status)
@@ -45,11 +45,13 @@ def set_pointing_status(pointingID, status):
     else:
         print('    Marking pointing', pointingID, 'as', status)
         try:
-            with db.open_session() as session:
-                pointing = db.get_pointing_by_id(session, pointingID)
-                pointing.status = status
+            pointing = db.get_pointing_by_id(session, pointingID)
+            pointing.status = status
+            session.commit()
             return 0
         except:
+            session.rollback()
+            print('Session error!!')
             return 1
 
 
@@ -109,29 +111,28 @@ def get_night_times(date):
     return sunset, sunrise
 
 
-def estimate_completion_time(newID, currentID):
+def estimate_completion_time(newID, currentID, session):
     """
     Extimate the exposure time for a new pointing, based on the combined
     exposure times in all exposures and the time to move into position.
     """
     total_exptime = 0*u.s
-    with db.open_session() as session:
-        new_pointing = db.get_pointing_by_id(session, newID)
-        for exp in new_pointing.exposures:
-            total_exptime += ((exp.expTime*u.s + readouttime) * exp.numexp)
+    new_pointing = db.get_pointing_by_id(session, newID)
+    for exp in new_pointing.exposures:
+        total_exptime += ((exp.expTime*u.s + readouttime) * exp.numexp)
 
-        if currentID is not None:
-            current_pointing = db.get_pointing_by_id(session, currentID)
-            current_position = SkyCoord(current_pointing.ra,
-                                              current_pointing.decl,
-                                              unit=u.deg, frame='icrs')
-            new_position = SkyCoord(new_pointing.ra,
-                                          new_pointing.decl,
-                                          unit=u.deg, frame='icrs')
-            slew_distance = current_position.separation(new_position)
-            slew_time = slew_distance/slewrate
-        else:
-            slew_time = 0*u.s
+    if currentID is not None:
+        current_pointing = db.get_pointing_by_id(session, currentID)
+        current_position = SkyCoord(current_pointing.ra,
+                                    current_pointing.decl,
+                                    unit=u.deg, frame='icrs')
+        new_position = SkyCoord(new_pointing.ra,
+                                new_pointing.decl,
+                                unit=u.deg, frame='icrs')
+        slew_distance = current_position.separation(new_position)
+        slew_time = slew_distance/slewrate
+    else:
+        slew_time = 0*u.s
     return slew_time + total_exptime
 
 
@@ -159,13 +160,13 @@ class DummyPilot(object):
         self.dome_status = 0  # 1 = open, 0 = shut
         self.pilot_status = None
 
-    def pause_observing(self):
+    def pause_observing(self, session):
         self.dome_status = 0
         self.pilot_status = 'Dome Closed'
         if self.currentID is not None:
             print('Aborting ID= %i due to bad weather' % self.currentID)
             self.aborted_pointings.append(self.currentID)
-            set_pointing_status(self.currentID, 'aborted')
+            set_pointing_status(self.currentID, 'aborted', session)
             self.currentID = None
             self.current_duration = None
             self.current_position = None
@@ -174,14 +175,14 @@ class DummyPilot(object):
         self.dome_status = 1
         self.pilot_status = 'Dome Open'
 
-    def check_weather(self, weather, now):
+    def check_weather(self, weather, now, session):
         bad_weather = weather.is_bad(now)
         if bad_weather and self.dome_status:
-            self.pause_observing()
+            self.pause_observing(session)
         if not bad_weather and not self.dome_status:
             self.resume_observing()
 
-    def log_state(self, now):
+    def log_state(self, now, session):
         '''Write the current state of the pilot to a log file'''
         state = 'unknown'
         if self.pilot_status == 'Suspended':
@@ -196,7 +197,7 @@ class DummyPilot(object):
         with open(fname, 'a') as f:
             f.write('%s %s\n' % (now. iso, state))
 
-    def review_target_situation(self, now, write_html):
+    def review_target_situation(self, now, write_html, session):
         '''Check queue for a new target and, if necessary, go to it'''
 
         # check if current pointing is finished
@@ -204,7 +205,7 @@ class DummyPilot(object):
             time_elapsed = (now - self.current_start_time).to(u.s)
             if time_elapsed > self.current_duration:
                 self.currentPriority += 100
-                set_pointing_status(self.currentID, 'completed')
+                set_pointing_status(self.currentID, 'completed', session)
                 self.completed_pointings.append(self.currentID)
                 self.completed_times.append(now)
             print('  current : ID', self.currentID)#, self.currentPriority)
@@ -229,11 +230,11 @@ class DummyPilot(object):
                     time_elapsed = 0.
                 if self.currentID not in self.completed_pointings:
                     if time_elapsed > self.currentMinTime:
-                        set_pointing_status(self.currentID, 'completed')
+                        set_pointing_status(self.currentID, 'completed', session)
                         self.completed_pointings.append(self.currentID)
                         self.completed_times.append(now)
                     else:
-                        set_pointing_status(self.currentID, 'interrupted')
+                        set_pointing_status(self.currentID, 'interrupted', session)
                         self.interrupted_pointings.append(self.currentID)
 
             if newID is not None:
@@ -241,9 +242,9 @@ class DummyPilot(object):
                 self.currentID = newID
                 self.currentPriority = newPriority
                 self.currentMinTime = newMinTime
-                self.current_duration = estimate_completion_time(newID, self.currentID)
+                self.current_duration = estimate_completion_time(newID, self.currentID, session)
                 self.current_start_time = now
-                set_pointing_status(self.currentID, 'running')
+                set_pointing_status(self.currentID, 'running', session)
             else:
                 print('    -- PARKING SCOPE')
                 self.currentID = None
@@ -251,6 +252,7 @@ class DummyPilot(object):
 def run(date, sleep_time, write_html):
 
     pilot = DummyPilot()
+    session = db.load_session()
 
     # weather has typical timescale = 1h and we lose 10% of time to bad weather
     sunset, sunrise = get_night_times(date)
@@ -261,21 +263,26 @@ def run(date, sleep_time, write_html):
     now = sunset
     ts = time.time()
     while now < sunrise:
-        tprev = ts
-        ts = time.time()
-        now.format = 'iso'
-        now.precision = 0
-        print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
-        pilot.check_weather(weather, now)
-        if pilot.dome_status:  # open
-            pilot.review_target_situation(now, bool(write_html))
-        else:
-            print('  dome closed')
-        pilot.log_state(now)
+        try:
+            tprev = ts
+            ts = time.time()
+            now.format = 'iso'
+            now.precision = 0
+            print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
+            pilot.check_weather(weather, now, session)
+            if pilot.dome_status:  # open
+                pilot.review_target_situation(now, bool(write_html), session)
+            else:
+                print('  dome closed')
+            pilot.log_state(now, session)
+            # increment by scheduler loop timestep
+            now += fake_dt
+            time.sleep(float(sleep_time))
+        session.close()
 
-        # increment by scheduler loop timestep
-        now += fake_dt
-        time.sleep(float(sleep_time))
+    except Exception as e:
+        print(e)
+        session.close()
 
     print('Listing completed pointings and time done')
     for pointingID, timedone in zip(pilot.completed_pointings, pilot.completed_times):
