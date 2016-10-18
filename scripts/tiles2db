@@ -82,16 +82,16 @@ def save_to_dbase(session, tile_list, event_time, event_name):
         dec = tile.dec
         prob = tile.prob
         num = tile.rank
-        save_single_tile(session, ra, dec, prob, num, event)
+        save_single_tile(session, ra, dec, prob, num, event, event_time)
 
 
-def save_single_tile(session, ra, dec, prob, num, event):
+def save_single_tile(session, ra, dec, prob, num, event, event_time):
     tile = db.LigoTile(ra=ra, decl=dec, probability=prob, event=event)
     session.add(tile)
-    save_pointing(session, ra, dec, num, event, tile)
+    save_pointing(session, ra, dec, num, event, event_time, tile)
 
 
-def save_pointing(session, ra, dec, num, event, tile):
+def save_pointing(session, ra, dec, num, event, event_time, tile):
 
     rank = 2
     minalt = '15'
@@ -106,7 +106,7 @@ def save_pointing(session, ra, dec, num, event, tile):
     userKey = db.get_userkey(session, 'goto')
 
     pointing = db.Pointing(userKey=userKey,
-                        objectName='%s tile %i' %(event.name, num),
+                        objectName='%s T%03i' %(event.name, num),
                         ra=ra,
                         decl=dec,
                         rank=rank,
