@@ -21,6 +21,7 @@ from astropy import coordinates as coord, units as u
 from astropy.time import Time
 from astropy._erfa import ErfaWarning
 
+from astroplan import Observer
 from astroplan.target import get_icrs_skycoord
 import astroplan.constraints as constraints
 
@@ -106,7 +107,7 @@ queue_file   = params.QUEUE_PATH  + 'queue_info'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
 # set observing location
-GOTO = params.SITE_OBSERVER
+#GOTO = params.SITE_OBSERVER ## moved
 
 # priority settings
 too_weight = 0.1
@@ -561,7 +562,7 @@ def write_queue_file(queue, time, observer):
             f.write('\n')
 
 
-def find_highest_priority(queue, time):
+def find_highest_priority(queue, time, observer):
     """
     Calculate priorities for pointings in a queue at a given time
     and return the pointing with the highest priority.
@@ -586,7 +587,7 @@ def find_highest_priority(queue, time):
         A list of Pointings sorted by priority (for html queue page).
     """
 
-    queue.calculate_priorities(time, GOTO)
+    queue.calculate_priorities(time, observer)
 
     pointinglist = list(queue.pointings)
     pointinglist.sort(key=lambda x: x.priority_now)
@@ -683,12 +684,14 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
+    GOTO = Observer.at_site('lapalma')
+
     queue = import_pointings_from_database(time)
     if queue is None:
         return None, None, None
 
     if len(queue) > 0:
-        highest_pointing = find_highest_priority(queue, time)
+        highest_pointing = find_highest_priority(queue, time, GOTO)
     else:
         highest_pointing = None
     current_pointing = queue.get_current_pointing()
