@@ -248,21 +248,12 @@ class DummyPilot(object):
                 print('    -- PARKING SCOPE')
                 self.currentID = None
 
-
-if __name__ == "__main__":
-    usage = """python fake_pilot.py date sleep_time write_html"""
-    import argparse
-    parser = argparse.ArgumentParser(description="run fake pilot for a night",
-                                     usage=usage)
-    parser.add_argument('date', help="night starting date to simulate")
-    parser.add_argument('sleep_time', help="time to sleep each period")
-    parser.add_argument('write_html', help="write html webpages?", type=int)
-    args = parser.parse_args()
+def run(date, sleep_time, write_html):
 
     pilot = DummyPilot()
 
     # weather has typical timescale = 1h and we lose 10% of time to bad weather
-    sunset, sunrise = get_night_times(args.date)
+    sunset, sunrise = get_night_times(date)
     weather = Weather(sunset, sunrise, 1.0, 0.1)
 
     # loop until night is over
@@ -277,14 +268,14 @@ if __name__ == "__main__":
         print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
         pilot.check_weather(weather, now)
         if pilot.dome_status:  # open
-            pilot.review_target_situation(now, bool(args.write_html))
+            pilot.review_target_situation(now, bool(write_html))
         else:
             print('  dome closed')
         pilot.log_state(now)
 
         # increment by scheduler loop timestep
         now += fake_dt
-        time.sleep(float(args.sleep_time))
+        time.sleep(float(sleep_time))
 
     print('Listing completed pointings and time done')
     for pointingID, timedone in zip(pilot.completed_pointings, pilot.completed_times):
@@ -297,3 +288,15 @@ if __name__ == "__main__":
     print('Listing pointings interrupted by other pointings')
     for pointingID in pilot.interrupted_pointings:
         print(pointingID)
+
+if __name__ == "__main__":
+    usage = """python fake_pilot.py date sleep_time write_html"""
+    import argparse
+    parser = argparse.ArgumentParser(description="run fake pilot for a night",
+                                     usage=usage)
+    parser.add_argument('date', help="night starting date to simulate")
+    parser.add_argument('sleep_time', help="time to sleep each period")
+    parser.add_argument('write_html', help="write html webpages?", type=int)
+    args = parser.parse_args()
+
+    run(args.date, args.sleep_time, args.write_html)
