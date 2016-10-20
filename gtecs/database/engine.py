@@ -6,8 +6,11 @@ from sqlalchemy.orm import sessionmaker
 
 # TODO: build name from params
 
+echo = False
+engine = create_engine('mysql+pymysql://goto:gotoobs@localhost/goto_obs', echo=echo)
+
 @contextmanager
-def open_session(echo=False):
+def open_session():
     """
     Create a DB session context manager.
 
@@ -15,11 +18,6 @@ def open_session(echo=False):
     to DB when scope closes and rolls back on exceptions.
 
     Needless to say it also closes the session when it goes out of scope.
-
-    Parameters
-    ----------
-    echo : bool (default=False)
-        if True, session will print SQL statements issued.
 
     Returns
     -------
@@ -34,10 +32,6 @@ def open_session(echo=False):
     >>>     newUser = User('sl', '1234', 'Stuey')
     >>>     session.add(newUser)
     """
-    engine = create_engine(
-        'mysql+pymysql://goto:gotoobs@localhost/goto_obs',
-        echo=echo
-        )
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
@@ -57,11 +51,6 @@ def load_session(echo=False):
     By making a DB session this way, you must commit and rollback changes
     yourself.
 
-    Parameters
-    ----------
-    echo : bool (default=False)
-        if True, session will print SQL statements issued.
-
     Returns
     -------
     session : `sqlalchemy.orm.session.Session`
@@ -80,10 +69,6 @@ def load_session(echo=False):
     >>> finally:
     >>>    session.close()
     """
-    engine = create_engine(
-        'mysql+pymysql://goto:gotoobs@localhost/goto_obs',
-        echo=echo
-        )
     Session = sessionmaker(bind=engine)
     session = Session()
     return session
