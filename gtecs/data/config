@@ -66,6 +66,14 @@ BIG_RED_BUTTON_PORT = N/A
 MOONDIST_LIMIT = 20
 MOONELEV_LIMIT = -5
 
+########################################################################
+# Database parameters
+DATABASE_USER = goto
+DATABASE_PASSWORD = gotoobs
+DATABASE_HOST = localhost
+DATABASE_NAME = goto_obs
+# should database sessions print SQL statements?
+DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters

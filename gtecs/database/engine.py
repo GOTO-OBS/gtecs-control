@@ -3,11 +3,12 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from gtecs.tecs_modules import params
 
 # TODO: build name from params
 
-echo = False
-engine = create_engine('mysql+pymysql://goto:gotoobs@localhost/goto_obs', echo=echo)
+engine_string = 'mysql+pymysql://' + str(params.DATABASE_LOCATION)
+engine = create_engine(engine_string, echo = params.DATABASE_ECHO)
 
 @contextmanager
 def open_session():
