@@ -388,7 +388,7 @@ class Repeat(Base):
     repeatNum = Column(Integer)
     waitTime = Column(Integer)
     valid_duration = Column(Integer)
-    status = Column(Enum(status_list), server_default='upcoming')
+    status = Column(Enum(tuple(status_list)), server_default='upcoming')
     ts = Column(DateTime)
     mpointingID = Column('mpointings_rpID', Integer,
                          ForeignKey('mpointings.rpID'),
@@ -861,7 +861,7 @@ class Pointing(Base):
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
     ToO = Column(Integer)
-    status = Column(Enum(status_list), default='pending')
+    status = Column(Enum(tuple(status_list)), default='pending')
 
     # use validators to allow various types of input for UTC
     # also enforce stopUTC > startUTC
@@ -985,7 +985,7 @@ class Exposure(Base):
     expID = Column(Integer, primary_key=True)
     raoff = Column(Float, server_default='0.0')
     decoff = Column(Float, server_default='0.0')
-    typeFlag = Column(Enum(['SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD']))
+    typeFlag = Column(Enum(tuple(['SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD'])))
     filt = Column('filter', String(2))
     expTime = Column(Float)
     numexp = Column(Integer)
