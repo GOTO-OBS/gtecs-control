@@ -253,6 +253,8 @@ class MntDaemon:
                 self.temp_ra = None
                 self.temp_dec = None
 
+            time.sleep(0.0001) # To save 100% CPU usage
+
         self.logfile.info('Mount control thread stopped')
         return
 
@@ -272,7 +274,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif check_alt_limit(ra,dec,self.utc):
+        elif check_alt_limit(ra*360./24., dec, self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.temp_ra = ra
@@ -288,7 +290,7 @@ class MntDaemon:
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
-        elif check_alt_limit(self.target_ra,self.target_dec,self.utc):
+        elif check_alt_limit(self.target_ra*360./24., self.target_dec, self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
             self.slew_target_flag = 1
@@ -385,7 +387,7 @@ class MntDaemon:
             elif direction == 'west':
                 ra = self.mount_ra - step_ra
                 dec = self.mount_dec
-            if misc.check_alt_limit(ra,dec,self.utc):
+            if check_alt_limit(ra*360./24.,dec,self.utc):
                 return 'ERROR: Target too low, cannot slew'
             else:
                 self.temp_ra = ra
