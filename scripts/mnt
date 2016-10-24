@@ -17,6 +17,8 @@ import os, sys
 import readline
 import time
 import Pyro4
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, get_body
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
@@ -116,25 +118,20 @@ def unpark():
     except:
         print(misc.ERROR('No response from mount daemon'))
 
-def set_target_ra(h,m,s):
+def set_target_ra(ra_hrs):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
-    ra = h + m/60. + s/3600.
     try:
-        c = mnt.set_target_ra(ra)
+        c = mnt.set_target_ra(ra_hrs)
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
 
-def set_target_dec(sign,d,m,s):
+def set_target_dec(dec_deg):
     mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
-    if sign == '+':
-        dec = d + m/60. + s/3600.
-    else:
-        dec = -1*(d + m/60. + s/3600.)
     try:
-        c = mnt.set_target_dec(dec)
+        c = mnt.set_target_dec(dec_deg)
         if c: print(c)
     except:
         print(misc.ERROR('No response from mount daemon'))
@@ -206,27 +203,137 @@ def query(command):
         park()
     elif command[0]=='unpark':
         unpark()
+
     elif command[0]=='ra':
-        set_target_ra(float(command[1]),float(command[2]),float(command[3]))
-    elif command[0]=='dec':
-        if len(command) == 5:
-            set_target_dec(command[1],float(command[2]),float(command[3]),float(command[4]))
+        # option 1: decimal degrees
+        if len(command) == 2:
+            try:
+                ra_deg = float(command[1])
+                assert 0 <= ra_deg < 360
+                ra_hrs = ra_deg*24./360.
+                set_target_ra(ra_hrs)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2: hms notation
+        elif len(command) == 4:
+            try:
+                h = int(command[1])
+                m = int(command[2])
+                s = int(command[3])
+                assert 0 <= h < 24
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                ra_hrs = h + m/60. + s/3600.
+                set_target_ra(ra_hrs)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # they're the only options
         else:
-            print('ERROR: You probably forgot the sign!')
+            print(misc.ERROR('Invalid arguments'))
+
+    elif command[0]=='dec':
+        # option 1: decimal degrees
+        if len(command) == 2:
+            try:
+                dec_deg = float(command[1])
+                assert -90 <= dec_deg <= 90
+                set_target_dec(dec_deg)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2: +dms notation
+        elif len(command) == 5:
+            try:
+                sign = command[1]
+                d = int(command[2])
+                m = int(command[3])
+                s = int(command[4])
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                if sign == '+':
+                    dec_deg = d + m/60. + s/3600.
+                else:
+                    dec_deg = -1*(d + m/60. + s/3600.)
+                assert -90 <= dec_deg <= 90
+                set_target_dec(dec_deg)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # option 2.5: forgetting the sign, let's work it out from dec
+        # NOTE tricky to deal with -0, have to use the string
+        elif len(command) == 4:
+            try:
+                if command[1][0] == '-':
+                    sign = '-'
+                else:
+                    sign = '+'
+                d = int(command[1])
+                m = int(command[2])
+                s = int(command[3])
+                assert 0 <= m < 60
+                assert 0 <= s < 60
+                if sign == '+':
+                    dec_deg = d + m/60. + s/3600.
+                else: #NB d is negative
+                    dec_deg = d - m/60. - s/3600.
+                assert -90 <= dec_deg <= 90
+                set_target_dec(dec_deg)
+            except:
+                print(misc.ERROR('Invalid arguments'))
+        # they're the only options
+        else:
+            print(misc.ERROR('Invalid arguments'))
+
     elif command[0]=='n':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('north')
     elif command[0]=='s':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('south')
     elif command[0]=='e':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('east')
     elif command[0]=='w':
+        if len(command) == 2:
+            try:
+                step = float(command[1])
+                set_step(step)
+            except:
+                print(misc.ERROR('Invalid step distance'))
         offset('west')
     elif command[0]=='step':
         set_step(float(command[1]))
-    elif command[0]=='slewR':
-        slew_to_radec(ra=10.15, dec=11.88)
-    elif command[0]=='slewP':
-        slew_to_radec(ra=02.88, dec=89.31)
+
+    elif command[0]=='target':
+        try:
+            if len(command) == 2:
+                name = command[1]
+            elif len(command) > 2:
+                name = ' '.join(command[1:])
+            try:
+                coord = SkyCoord.from_name(name)
+            except:
+                coord = get_body(name, Time.now())
+            print('Targeting "%s"' %name)
+            ra_hrs = coord.ra.hour
+            dec_deg = coord.dec.value
+            set_target_ra(ra_hrs)
+            set_target_dec(dec_deg)
+        except:
+            print(misc.ERROR('Cannot find target "%s"' %name))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -246,15 +353,14 @@ def print_instructions():
     '  mnt ' + misc.bold('pingS') + '          - ping the daemon' + '\n' +\
     ' ' + misc.undl('Mount commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
-    '  mnt ' + misc.bold('dec') + ' sign d m s' + ' - set target dec' + '\n' +\
+    '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
+    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
     '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
-    misc.ytxt('  mnt ' + misc.bold('slewR')) + '          - slew to Regulus (' + misc.ytxt('TEST') + ')' + '\n' +\
-    misc.ytxt('  mnt ' + misc.bold('slewP')) + '          - slew to Polaris (' + misc.ytxt('TEST') + ')' + '\n' +\
     '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
     '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
     '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
     '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
-    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + '        - offset in direction by one step' + '\n' +\
+    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
     '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
     '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
