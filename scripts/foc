@@ -25,7 +25,7 @@ from six.moves import input
 ########################################################################
 # Focuser control functions
 def get_info():
-    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = foc.get_info()
@@ -50,7 +50,7 @@ def get_info():
         print(misc.ERROR('No response from focuser daemon'))
 
 def get_info_summary():
-    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = foc.get_info()
@@ -65,7 +65,7 @@ def get_info_summary():
         print(misc.ERROR('No response from focuser daemon'))
 
 def set_focuser(pos,HW_list):
-    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.set_focuser(pos,HW_list)
@@ -74,7 +74,7 @@ def set_focuser(pos,HW_list):
         print(misc.ERROR('No response from focuser daemon'))
 
 def move_focuser(steps,HW_list):
-    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.move_focuser(steps,HW_list)
@@ -83,7 +83,7 @@ def move_focuser(steps,HW_list):
         print(misc.ERROR('No response from focuser daemon'))
 
 def home_focuser(HW_list):
-    foc = Pyro4.Proxy(FOC_DAEMON_ADDRESS)
+    foc = Pyro4.Proxy(DAEMON_ADDRESS)
     foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = foc.home_focuser(HW_list)
@@ -187,14 +187,7 @@ def print_instructions():
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    FOC_DAEMON_PROCESS = params.DAEMONS['foc']['PROCESS']
-    FOC_DAEMON_HOST = params.DAEMONS['foc']['HOST']
-    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        FOC_DAEMON_OUTPUT = params.LOG_PATH + 'foc_daemon-stdout.log'
-    else:
-        FOC_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

@@ -25,7 +25,7 @@ from six.moves import input
 ########################################################################
 # Camera control functions
 def get_info():
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
@@ -53,7 +53,7 @@ def get_info():
         print(misc.ERROR('No response from camera daemon'))
 
 def get_info_summary():
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = cam.get_info()
@@ -68,7 +68,7 @@ def get_info_summary():
         print(misc.ERROR('No response from camera daemon'))
 
 def take_image(exptime,HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_image(exptime,HW_list)
@@ -77,7 +77,7 @@ def take_image(exptime,HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def take_dark(exptime,HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_dark(exptime,HW_list)
@@ -86,7 +86,7 @@ def take_dark(exptime,HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def take_bias(HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.take_bias(HW_list)
@@ -95,7 +95,7 @@ def take_bias(HW_list):
 	    print(misc.ERROR('No response from camera daemon'))
 
 def abort_exposure(HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.abort_exposure(HW_list)
@@ -104,7 +104,7 @@ def abort_exposure(HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def set_temperature(target_temp, HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_temperature(target_temp, HW_list)
@@ -113,7 +113,7 @@ def set_temperature(target_temp, HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def set_flushes(target_flushes, HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_flushes(target_flushes, HW_list)
@@ -122,7 +122,7 @@ def set_flushes(target_flushes, HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def set_bins(bins, HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_bins(bins, HW_list)
@@ -131,7 +131,7 @@ def set_bins(bins, HW_list):
         print(misc.ERROR('No response from camera daemon'))
 
 def set_area(area, HW_list):
-    cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
+    cam = Pyro4.Proxy(DAEMON_ADDRESS)
     cam._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = cam.set_area(area, HW_list)
@@ -285,19 +285,12 @@ def print_instructions():
     print(help_str)
 
 ########################################################################
-# Control System
+# Control system
 
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    CAM_DAEMON_PROCESS = params.DAEMONS['cam']['PROCESS']
-    CAM_DAEMON_HOST = params.DAEMONS['cam']['HOST']
-    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        CAM_DAEMON_OUTPUT = params.LOG_PATH + 'cam_daemon-stdout.log'
-    else:
-        CAM_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
