@@ -288,16 +288,21 @@ def kill_daemon(daemon_ID):
     '''Kill a daemon (should be used as a last resort)'''
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
-    local_host = get_hostname()
-    process_ID_list = get_process_ID(process, host)
 
-    if local_host == host:
-        for process_ID in process_ID_list:
-            os.system('kill -9 ' + process_ID)
-            print('Killed daemon at process', process_ID)
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) >= 1:
+        kill_processes(process, host)
+
+        # See if it is actually dead
+        process_ID_n = get_process_ID(process, host)
+        if len(process_ID_n) == 0:
+            print('Daemon killed on {}'.format(host))
+        elif len(process_ID_n) == 1:
+            print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+        else:
+            print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
     else:
-        for process_ID in process_ID_list:
-            os.system('ssh ' + host + ' kill -9 ' + process_ID)
+        print('ERROR: Daemon not running on {}'.format(host))
 
 
 def start_win(process, host, stdout='/dev/null'):
