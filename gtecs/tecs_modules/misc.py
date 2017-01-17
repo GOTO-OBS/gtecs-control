@@ -103,9 +103,12 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
-def python_command(filename, command):
+def python_command(filename, command, host='localhost'):
     '''Send a command to a control script as if using the terminal'''
-    command_string = ' '.join((sys.executable, filename, command))
+    if host == 'localhost' or host == get_hostname():
+        command_string = ' '.join((sys.executable, filename, command))
+    else:
+        command_string = ' '.join(('ssh', host, sys.executable, filename, command))
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     return output.decode()
