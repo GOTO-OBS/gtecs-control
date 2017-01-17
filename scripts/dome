@@ -82,13 +82,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(DOME_DAEMON_PROCESS, DOME_DAEMON_HOST, stdout=DOME_DAEMON_OUTPUT)
+        misc.start_daemon('dome')
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(DOME_DAEMON_ADDRESS)
+        misc.shutdown_daemon('dome')
     elif command[0] == 'kill':
-        misc.kill_daemon(DOME_DAEMON_PROCESS,DOME_DAEMON_HOST)
+        misc.kill_daemon('dome')
     elif command[0] == 'ping':
-        misc.ping_daemon(DOME_DAEMON_ADDRESS)
+        misc.ping_daemon('dome')
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':

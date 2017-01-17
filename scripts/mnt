@@ -169,13 +169,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(MNT_DAEMON_PROCESS, MNT_DAEMON_HOST, stdout=MNT_DAEMON_OUTPUT)
+        misc.start_daemon('mnt')
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(MNT_DAEMON_ADDRESS)
+        misc.shutdown_daemon('mnt')
     elif command[0] == 'kill':
-        misc.kill_daemon(MNT_DAEMON_PROCESS, MNT_DAEMON_HOST)
+        misc.kill_daemon('mnt')
     elif command[0] == 'ping':
-        misc.ping_daemon(MNT_DAEMON_ADDRESS)
+        misc.ping_daemon('mnt')
 
     elif command[0] == 'startS':
         misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)

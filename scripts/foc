@@ -106,13 +106,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(FOC_DAEMON_PROCESS, FOC_DAEMON_HOST, stdout=FOC_DAEMON_OUTPUT)
+        misc.start_daemon('foc')
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(FOC_DAEMON_ADDRESS)
+        misc.shutdown_daemon('foc')
     elif command[0] == 'kill':
-        misc.kill_daemon(FOC_DAEMON_PROCESS, FOC_DAEMON_HOST)
+        misc.kill_daemon('foc')
     elif command[0] == 'ping':
-        misc.ping_daemon(FOC_DAEMON_ADDRESS)
+        misc.ping_daemon('foc')
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':

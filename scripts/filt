@@ -100,13 +100,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(FILT_DAEMON_PROCESS, FILT_DAEMON_HOST, stdout=FILT_DAEMON_OUTPUT)
+        misc.start_daemon('filt')
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(FILT_DAEMON_ADDRESS)
+        misc.shutdown_daemon('filt')
     elif command[0] == 'kill':
-        misc.kill_daemon(FILT_DAEMON_PROCESS,FILT_DAEMON_HOST)
+        misc.kill_daemon('filt')
     elif command[0] == 'ping':
-        misc.ping_daemon(FILT_DAEMON_ADDRESS)
+        misc.ping_daemon('filt')
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
