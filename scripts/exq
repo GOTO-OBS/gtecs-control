@@ -26,7 +26,7 @@ from six.moves import input
 ########################################################################
 # Exposure queue control functions
 def get_info():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = exq.get_info()
@@ -49,7 +49,7 @@ def get_info():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def get_info_summary():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = exq.get_info()
@@ -65,7 +65,7 @@ def get_info_summary():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
 
     frametype = 'normal'
@@ -76,7 +76,7 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def take_dark(tel_list,exptime,bins):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
 
     filt = params.DARKFILT
@@ -90,7 +90,7 @@ def take_dark(tel_list,exptime,bins):
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def take_bias(tel_list,bins):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
 
     exptime = params.BIASEXP
@@ -105,7 +105,7 @@ def take_bias(tel_list,bins):
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def pause():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = exq.pause()
@@ -114,7 +114,7 @@ def pause():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def resume():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = exq.resume()
@@ -123,7 +123,7 @@ def resume():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def get_queue():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         queue_list = exq.get()
@@ -132,7 +132,7 @@ def get_queue():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def get_queue_summary():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         queue_list = exq.get_simple()
@@ -141,7 +141,7 @@ def get_queue_summary():
         print(misc.ERROR('No response from exposure queue daemon'))
 
 def clear():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
+    exq = Pyro4.Proxy(DAEMON_ADDRESS)
     exq._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = exq.clear()
@@ -385,19 +385,12 @@ def print_instructions():
     print(help_str)
 
 ########################################################################
-# Control System
+# Control system
 
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    EXQ_DAEMON_PROCESS = params.DAEMONS['exq']['PROCESS']
-    EXQ_DAEMON_HOST = params.DAEMONS['exq']['HOST']
-    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
-    else:
-        EXQ_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

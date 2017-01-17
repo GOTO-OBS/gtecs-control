@@ -27,7 +27,7 @@ from six.moves import input
 ########################################################################
 # Mount control functions
 def get_info():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = mnt.get_info()
@@ -65,7 +65,7 @@ def get_info():
         print(misc.ERROR('No response from mount daemon'))
 
 def slew_to_radec(ra,dec):
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.slew_to_radec(ra,dec)
@@ -74,7 +74,7 @@ def slew_to_radec(ra,dec):
         print(misc.ERROR('No response from mount daemon'))
 
 def slew_to_target():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.slew_to_target()
@@ -83,7 +83,7 @@ def slew_to_target():
         print(misc.ERROR('No response from mount daemon'))
 
 def start_tracking():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.start_tracking()
@@ -92,7 +92,7 @@ def start_tracking():
         print(misc.ERROR('No response from mount daemon'))
 
 def full_stop():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.full_stop()
@@ -101,7 +101,7 @@ def full_stop():
         print(misc.ERROR('No response from mount daemon'))
 
 def park():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.park()
@@ -110,7 +110,7 @@ def park():
         print(misc.ERROR('No response from mount daemon'))
 
 def unpark():
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.unpark()
@@ -119,7 +119,7 @@ def unpark():
         print(misc.ERROR('No response from mount daemon'))
 
 def set_target_ra(ra_hrs):
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.set_target_ra(ra_hrs)
@@ -128,7 +128,7 @@ def set_target_ra(ra_hrs):
         print(misc.ERROR('No response from mount daemon'))
 
 def set_target_dec(dec_deg):
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.set_target_dec(dec_deg)
@@ -137,7 +137,7 @@ def set_target_dec(dec_deg):
         print(misc.ERROR('No response from mount daemon'))
 
 def offset(direction):
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.offset(direction)
@@ -146,7 +146,7 @@ def offset(direction):
         print(misc.ERROR('No response from mount daemon'))
 
 def set_step(offset):
-    mnt = Pyro4.Proxy(MNT_DAEMON_ADDRESS)
+    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
     mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = mnt.set_step(offset)
@@ -371,18 +371,12 @@ def print_instructions():
 
 
 ########################################################################
-# Control System
+# Control system
 
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    MNT_DAEMON_PROCESS = params.DAEMONS['mnt']['PROCESS']
-    MNT_DAEMON_HOST = params.DAEMONS['mnt']['HOST']
-    MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        MNT_DAEMON_OUTPUT = params.LOG_PATH + 'mnt_daemon-stdout.log'
-    else:
-        MNT_DAEMON_OUTPUT = '/dev/stdout'
+    DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
 
     SITECH_PROCESS = params.SITECH_PROCESS
     SITECH_HOST = params.WIN_HOST

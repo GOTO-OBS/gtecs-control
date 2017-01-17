@@ -26,7 +26,7 @@ from six.moves import input
 ########################################################################
 # Power control functions
 def get_info():
-    power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power = Pyro4.Proxy(DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = power.get_info()
@@ -44,7 +44,7 @@ def get_info():
         print(misc.ERROR('No response from power daemon'))
 
 def on(outlet):
-    power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power = Pyro4.Proxy(DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.on(outlet)
@@ -53,7 +53,7 @@ def on(outlet):
         print(misc.ERROR('No response from power daemon'))
 
 def off(outlet):
-    power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power = Pyro4.Proxy(DAEMON_ADDRESS)
     power._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = power.off(outlet)
@@ -62,7 +62,7 @@ def off(outlet):
         print(misc.ERROR('No response from power daemon'))
 
 def reboot(outlet):
-    power = Pyro4.Proxy(POWER_DAEMON_ADDRESS)
+    power = Pyro4.Proxy(DAEMON_ADDRESS)
     try:
         c = power.reboot(outlet)
         if c: print(c)
@@ -136,14 +136,7 @@ def print_instructions():
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    POWER_DAEMON_PROCESS = params.DAEMONS['power']['PROCESS']
-    POWER_DAEMON_HOST = params.DAEMONS['power']['HOST']
-    POWER_DAEMON_ADDRESS = params.DAEMONS['power']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        POWER_DAEMON_OUTPUT = params.LOG_PATH + 'power_daemon-stdout.log'
-    else:
-        POWER_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['power']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

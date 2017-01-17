@@ -25,7 +25,7 @@ from six.moves import input
 ########################################################################
 # Dome control functions
 def get_info():
-    dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
+    dome = Pyro4.Proxy(DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = dome.get_info()
@@ -41,7 +41,7 @@ def get_info():
         print(misc.ERROR('No response from dome daemon'))
 
 def open_dome(side='both',steps=None):
-    dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
+    dome = Pyro4.Proxy(DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.open_dome(side,steps)
@@ -50,7 +50,7 @@ def open_dome(side='both',steps=None):
         print(misc.ERROR('No response from dome daemon'))
 
 def close_dome(side='both',steps=None):
-    dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
+    dome = Pyro4.Proxy(DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.close_dome(side,steps)
@@ -59,7 +59,7 @@ def close_dome(side='both',steps=None):
         print(misc.ERROR('No response from dome daemon'))
 
 def halt_dome():
-    dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
+    dome = Pyro4.Proxy(DAEMON_ADDRESS)
     dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = dome.halt_dome()
@@ -140,14 +140,7 @@ def print_instructions():
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    DOME_DAEMON_PROCESS = params.DAEMONS['dome']['PROCESS']
-    DOME_DAEMON_HOST = params.DAEMONS['dome']['HOST']
-    DOME_DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        DOME_DAEMON_OUTPUT = params.LOG_PATH + 'dome_daemon-stdout.log'
-    else:
-        DOME_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()

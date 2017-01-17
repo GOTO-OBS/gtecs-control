@@ -26,7 +26,7 @@ from six.moves import input
 # Filter wheel control functions
 def get_info():
     flist = params.FILTER_LIST
-    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
@@ -52,7 +52,7 @@ def get_info():
 
 def get_info_summary():
     flist = params.FILTER_LIST
-    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         info = filt.get_info()
@@ -68,7 +68,7 @@ def get_info_summary():
         print(misc.ERROR('No response from filter wheel daemon'))
 
 def set_filter(new_filt,HW_list):
-    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = filt.set_filter(new_filt,HW_list)
@@ -77,7 +77,7 @@ def set_filter(new_filt,HW_list):
         print(misc.ERROR('No response from filter wheel daemon'))
 
 def home_filter(HW_list):
-    filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
+    filt = Pyro4.Proxy(DAEMON_ADDRESS)
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
         c = filt.home_filter(HW_list)
@@ -174,14 +174,7 @@ def print_instructions():
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    FILT_DAEMON_PROCESS = params.DAEMONS['filt']['PROCESS']
-    FILT_DAEMON_HOST = params.DAEMONS['filt']['HOST']
-    FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        FILT_DAEMON_OUTPUT = params.LOG_PATH + 'filt_daemon-stdout.log'
-    else:
-        FILT_DAEMON_OUTPUT = '/dev/stdout'
-
+    DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
     command = sys.argv[1:]
     if command[0] == 'i':
         interactive()
