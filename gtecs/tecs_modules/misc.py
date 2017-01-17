@@ -201,15 +201,13 @@ def start_daemon(process, host, stdout='/dev/null'):
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
         # Not currently running
-        if host == get_hostname():
-            python_command(process_path, out_cmd)
-            process_ID_n = get_process_ID(process, host)
-            if len(process_ID_n) == 0:
-                print('ERROR: Daemon did not start, check logs')
-            else:
-                print('Daemon running as process', process_ID_n[0])
+        python_command(process_path, out_cmd, host)
+        # See if it started
+        process_ID_n = get_process_ID(process, host)
+        if len(process_ID_n) == 0:
+            print('ERROR: Daemon did not start, check logs')
         else:
-            python_command(process_path, out_cmd, host=host)
+            print('Daemon running as process', process_ID_n[0])
     else:
         print('ERROR: Daemon is already running as process', process_ID[0])
 
