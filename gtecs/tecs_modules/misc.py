@@ -228,16 +228,25 @@ def start_daemon(daemon_ID):
 def ping_daemon(daemon_ID):
     '''Ping a daemon'''
     address = params.DAEMONS[daemon_ID]['ADDRESS']
-    daemon = Pyro4.Proxy(address)
-    daemon._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        ping = daemon.ping()
-        if ping == 'ping':
-            print('Daemon is alive at', address)
-        else:
-            print(ping)
-    except:
-        print('ERROR: No response from daemon')
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
+        daemon = Pyro4.Proxy(address)
+        daemon._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            ping = daemon.ping()
+            if ping == 'ping':
+                print('Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0]))
+            else:
+                print(ping + ', daemon running on {} (PID {})'.format(host, process_ID[0]))
+        except:
+            print('ERROR: No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, daemon not running on {}'.format(host))
+    else:
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
 
 
 def shutdown_daemon(daemon_ID):
