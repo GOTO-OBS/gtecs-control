@@ -252,18 +252,36 @@ def ping_daemon(daemon_ID):
 def shutdown_daemon(daemon_ID):
     '''Shut a daemon down nicely'''
     address = params.DAEMONS[daemon_ID]['ADDRESS']
-    daemon = Pyro4.Proxy(address)
-    daemon._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        daemon.shutdown()
-        print('Daemon is shutting down')
-        # Have to request status again to close loop
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
         daemon = Pyro4.Proxy(address)
         daemon._pyroTimeout = params.PROXY_TIMEOUT
-        daemon.prod()
-        daemon._pyroRelease()
-    except:
-        print('ERROR: No response from daemon')
+        try:
+            daemon.shutdown()
+            # Have to request status again to close loop
+            daemon = Pyro4.Proxy(address)
+            daemon._pyroTimeout = params.PROXY_TIMEOUT
+            daemon.prod()
+            daemon._pyroRelease()
+
+            # See if it shut down
+            time.sleep(2)
+            process_ID_n = get_process_ID(process, host)
+            if len(process_ID_n) == 0:
+                print('Daemon shut down on {}'.format(host))
+            elif len(process_ID_n) == 1:
+                print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+            else:
+                print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
+        except:
+            print('ERROR: No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, daemon not running on {}'.format(host))
+    else:
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
 
 
 def kill_daemon(daemon_ID):
