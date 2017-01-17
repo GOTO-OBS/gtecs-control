@@ -195,22 +195,21 @@ class neatCloser:
 # Core Daemon functions
 def start_daemon(process, host, stdout='/dev/null'):
     '''Start a daemon (unless it is already running)'''
-    local_host = get_hostname()
+    process_path = os.path.join(params.DAEMON_PATH, process)
+    out_cmd = ''.join(('>', stdout, '2>&1 &'))
+
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
-        if local_host == host:
-            cmd = ' '.join((sys.executable, os.path.join(params.DAEMON_PATH, process),
-                            '>', stdout, '2>&1 &'))
-            os.system(cmd)
+        # Not currently running
+        if host == get_hostname():
+            python_command(process_path, out_cmd)
             process_ID_n = get_process_ID(process, host)
             if len(process_ID_n) == 0:
                 print('ERROR: Daemon did not start, check logs')
             else:
                 print('Daemon running as process', process_ID_n[0])
         else:
-            cmd = ' '.join(('ssh', host, sys.executable, os.path.join(params.DAEMON_PATH, process),
-                            '>', stdout, '2>&1 &'))
-            os.system(cmd)
+            python_command(process_path, out_cmd, host=host)
     else:
         print('ERROR: Daemon is already running as process', process_ID[0])
 
