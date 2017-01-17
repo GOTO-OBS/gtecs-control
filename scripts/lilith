@@ -22,31 +22,6 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 
-def start_daemon(daemon_key):
-    DAEMON_PROCESS = params.DAEMONS[daemon_key]['PROCESS']
-    DAEMON_HOST = params.DAEMONS[daemon_key]['HOST']
-    if params.REDIRECT_STDOUT:
-        DAEMON_OUTPUT = params.LOG_PATH + '{}_daemon-stdout.log'.format(daemon_key)
-    else:
-        DAEMON_OUTPUT = '/dev/stdout'
-    misc.start_daemon(DAEMON_PROCESS, DAEMON_HOST, stdout=DAEMON_OUTPUT)
-
-
-def shutdown_daemon(daemon_key):
-    DAEMON_ADDRESS = params.DAEMONS[daemon_key]['ADDRESS']
-    misc.shutdown_daemon(DAEMON_ADDRESS)
-
-
-def kill_daemon(daemon_key):
-    DAEMON_PROCESS = params.DAEMONS[daemon_key]['PROCESS']
-    DAEMON_HOST = params.DAEMONS[daemon_key]['HOST']
-    misc.kill_daemon(DAEMON_PROCESS, DAEMON_HOST)
-
-
-def ping_daemon(daemon_key):
-    DAEMON_ADDRESS = params.DAEMONS[daemon_key]['ADDRESS']
-    return misc.ping_daemon(DAEMON_ADDRESS)
-
 def daemon_is_alive(daemon_key):
     DAEMON_ADDRESS = params.DAEMONS[daemon_key]['ADDRESS']
     daemon = Pyro4.Proxy(DAEMON_ADDRESS)
@@ -60,8 +35,10 @@ def daemon_is_alive(daemon_key):
     except:
         return False
 
-routines = dict(start=start_daemon, shutdown=shutdown_daemon,
-                kill=kill_daemon, ping=ping_daemon)
+routines = dict(start    = misc.start_daemon,
+                shutdown = misc.shutdown_daemon,
+                kill     = misc.kill_daemon,
+                ping     = misc.ping_daemon)
 
 
 if __name__ == '__main__':
