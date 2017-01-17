@@ -193,10 +193,18 @@ class neatCloser:
 
 ########################################################################
 # Core Daemon functions
-def start_daemon(process, host, stdout='/dev/null'):
+def start_daemon(daemon_ID):
     '''Start a daemon (unless it is already running)'''
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+    pyroid  = params.DAEMONS[daemon_ID]['PYROID']
+    if params.REDIRECT_STDOUT:
+        output = params.LOG_PATH + pyroid + '-stdout.log'
+    else:
+        output = '/dev/stdout'
+
     process_path = os.path.join(params.DAEMON_PATH, process)
-    out_cmd = ''.join(('>', stdout, '2>&1 &'))
+    out_cmd = ''.join(('>', output, '2>&1 &'))
 
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
@@ -217,8 +225,9 @@ def start_daemon(process, host, stdout='/dev/null'):
         print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID_n))
 
 
-def ping_daemon(address):
+def ping_daemon(daemon_ID):
     '''Ping a daemon'''
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
     daemon = Pyro4.Proxy(address)
     daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
@@ -230,8 +239,10 @@ def ping_daemon(address):
     except:
         print('ERROR: No response from daemon')
 
-def shutdown_daemon(address):
+
+def shutdown_daemon(daemon_ID):
     '''Shut a daemon down nicely'''
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
     daemon = Pyro4.Proxy(address)
     daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
@@ -245,8 +256,11 @@ def shutdown_daemon(address):
     except:
         print('ERROR: No response from daemon')
 
-def kill_daemon(process, host):
+
+def kill_daemon(daemon_ID):
     '''Kill a daemon (should be used as a last resort)'''
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
     local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
 
@@ -257,6 +271,7 @@ def kill_daemon(process, host):
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
+
 
 def start_win(process, host, stdout='/dev/null'):
     os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')

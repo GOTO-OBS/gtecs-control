@@ -164,13 +164,13 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command[0] == 'start':
-        misc.start_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST,stdout=EXQ_DAEMON_OUTPUT)
+        misc.start_daemon('exq')
     elif command[0] == 'shutdown':
-        misc.shutdown_daemon(EXQ_DAEMON_ADDRESS)
+        misc.shutdown_daemon('exq')
     elif command[0] == 'kill':
-        misc.kill_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST)
+        misc.kill_daemon('exq')
     elif command[0] == 'ping':
-        misc.ping_daemon(EXQ_DAEMON_ADDRESS)
+        misc.ping_daemon('exq')
     elif command[0] == 'help' or command[0] == '?':
         print_instructions()
     elif command[0] == 'i':
