@@ -206,13 +206,16 @@ def start_daemon(process, host, stdout='/dev/null'):
         # See if it started
         process_ID_n = get_process_ID(process, host)
         if len(process_ID_n) == 1:
-            print('Daemon running: PID {}'.format(process_ID_n[0]))
+            print('Daemon started (PID {})'.format(process_ID_n[0]))
         elif len(process_ID_n) > 1:
-            print('ERROR: Multiple daemon processes: PID {}'.format(process_ID_n))
+            print('ERROR: Multiple daemon processes running (PID {})'.format(process_ID_n))
         else:
             print('ERROR: Daemon did not start, check logs')
+    elif len(process_ID) == 1:
+        print('ERROR: Daemon already running (PID {})'.format(process_ID[0]))
     else:
-        print('ERROR: Daemon is already running: PID {}'.format(process_ID[0]))
+        print('ERROR: Multiple daemon processes running (PID {})'.format(process_ID_n))
+
 
 def ping_daemon(address):
     '''Ping a daemon'''
