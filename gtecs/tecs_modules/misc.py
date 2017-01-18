@@ -191,6 +191,36 @@ class neatCloser:
         """
         return
 
+class MultipleDaemonError(Exception):
+    pass
+
+def daemon_is_running(daemon_ID):
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
+        return True
+    elif len(process_ID) == 0:
+        return False
+    else:
+        error_str = 'Multiple instances of {} detected on {}, PID {}'.format(process, host, process_ID)
+        raise MultipleDaemonError(error_str)
+
+def daemon_is_alive(daemon_ID):
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+
+    daemon = Pyro4.Proxy(address)
+    daemon._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        ping = daemon.ping()
+        if ping == 'ping':
+            return True
+        else:
+            return False
+    except:
+        return False
+
 ########################################################################
 # Core Daemon functions
 def start_daemon(daemon_ID):
