@@ -25,47 +25,67 @@ from six.moves import input
 ########################################################################
 # Dome control functions
 def get_info():
-    dome = Pyro4.Proxy(DAEMON_ADDRESS)
-    dome._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = dome.get_info()
-        print('######## DOME INFO ########')
-        print('Dome:        %s' %info['dome'])
-        print('Hatch:       %s' %info['hatch'])
-        print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.5fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
-    except:
-        print(misc.ERROR('No response from dome daemon'))
+    if not misc.daemon_is_running('dome'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('dome'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        dome = Pyro4.Proxy(DAEMON_ADDRESS)
+        dome._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = dome.get_info()
+            print('######## DOME INFO ########')
+            print('Dome:        %s' %info['dome'])
+            print('Hatch:       %s' %info['hatch'])
+            print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
+        except:
+            print(misc.ERROR('No response from dome daemon'))
 
 def open_dome(side='both',steps=None):
-    dome = Pyro4.Proxy(DAEMON_ADDRESS)
-    dome._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = dome.open_dome(side,steps)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from dome daemon'))
+    if not misc.daemon_is_running('dome'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('dome'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        dome = Pyro4.Proxy(DAEMON_ADDRESS)
+        dome._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = dome.open_dome(side,steps)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from dome daemon'))
 
 def close_dome(side='both',steps=None):
-    dome = Pyro4.Proxy(DAEMON_ADDRESS)
-    dome._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = dome.close_dome(side,steps)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from dome daemon'))
+    if not misc.daemon_is_running('dome'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('dome'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        dome = Pyro4.Proxy(DAEMON_ADDRESS)
+        dome._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = dome.close_dome(side,steps)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from dome daemon'))
 
 def halt_dome():
-    dome = Pyro4.Proxy(DAEMON_ADDRESS)
-    dome._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = dome.halt_dome()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from dome daemon'))
+    if not misc.daemon_is_running('dome'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('dome'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        dome = Pyro4.Proxy(DAEMON_ADDRESS)
+        dome._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = dome.halt_dome()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from dome daemon'))
 
 ########################################################################
 # Interactive mode

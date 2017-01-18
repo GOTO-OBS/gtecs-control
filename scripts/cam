@@ -25,119 +25,169 @@ from six.moves import input
 ########################################################################
 # Camera control functions
 def get_info():
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = cam.get_info()
-        print('####### CAMERA INFO #######')
-        for tel in params.TEL_DICT:
-            print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-            if info['status'+str(tel)] != 'Exposing':
-                print('Status: %s' %info['status'+str(tel)])
-            else:
-                print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
-            print('Frame type:       %s' %info['frametype'+str(tel)])
-            print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
-            print('Active area:      %s' %str(info['area'+str(tel)]))
-            print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
-            print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
-            print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
-            print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
-            print('Serial number:    %s' %info['serial_number'+str(tel)])
-            print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.5fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = cam.get_info()
+            print('####### CAMERA INFO #######')
+            for tel in params.TEL_DICT:
+                print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+                if info['status'+str(tel)] != 'Exposing':
+                    print('Status: %s' %info['status'+str(tel)])
+                else:
+                    print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+                print('Frame type:       %s' %info['frametype'+str(tel)])
+                print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
+                print('Active area:      %s' %str(info['area'+str(tel)]))
+                print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
+                print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
+                print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
+                print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
+                print('Serial number:    %s' %info['serial_number'+str(tel)])
+                print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def get_info_summary():
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = cam.get_info()
-        for tel in params.TEL_DICT:
-            print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-            if info['status'+str(tel)] != 'Exposing':
-                print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
-                print('  [%s]' %info['status'+str(tel)])
-            else:
-                print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = cam.get_info()
+            for tel in params.TEL_DICT:
+                print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+                if info['status'+str(tel)] != 'Exposing':
+                    print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
+                    print('  [%s]' %info['status'+str(tel)])
+                else:
+                    print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def take_image(exptime,HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.take_image(exptime,HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.take_image(exptime,HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def take_dark(exptime,HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.take_dark(exptime,HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.take_dark(exptime,HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def take_bias(HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.take_bias(HW_list)
-        if c: print(c)
-    except:
-	    print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.take_bias(HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def abort_exposure(HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.abort_exposure(HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.abort_exposure(HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def set_temperature(target_temp, HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.set_temperature(target_temp, HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.set_temperature(target_temp, HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def set_flushes(target_flushes, HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.set_flushes(target_flushes, HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.set_flushes(target_flushes, HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def set_bins(bins, HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.set_bins(bins, HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.set_bins(bins, HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 def set_area(area, HW_list):
-    cam = Pyro4.Proxy(DAEMON_ADDRESS)
-    cam._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = cam.set_area(area, HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from camera daemon'))
+    if not misc.daemon_is_running('cam'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('cam'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        cam = Pyro4.Proxy(DAEMON_ADDRESS)
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = cam.set_area(area, HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from camera daemon'))
 
 ########################################################################
 # Interactive mode

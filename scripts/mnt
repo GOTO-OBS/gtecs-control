@@ -27,132 +27,187 @@ from six.moves import input
 ########################################################################
 # Mount control functions
 def get_info():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = mnt.get_info()
-        print('####### MOUNT INFO ########')
-        if info['status'] != 'Slewing':
-            print('Status: %s' %info['status'])
-        else:
-            print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
-        print('~~~~~~~')
-        print('Mount Alt:        %.2f' %info['mount_alt'])
-        print('Mount Az:         %.2f' %info['mount_az'])
-        print('Telescope RA:     %.4f' %info['mount_ra'])
-        print('Telescope Dec:    %.4f' %info['mount_dec'])
-        if info['target_ra'] != None:
-            print('Target RA:        %.4f' %info['target_ra'])
-        else:
-            print('Target RA:        TARGET NOT SET')
-        if info['target_dec'] != None:
-            print('Target Dec:       %.4f' %info['target_dec'])
-        else:
-            print('Target Dec:       TARGET NOT SET')
-        if info['target_dist'] != None:
-            print('Target distance:  %.3f' %info['target_dist'])
-        print('Offset step size: %.2f arcsec' %info['step'])
-        print('~~~~~~~')
-        print('LST:              %.2f' %info['lst'])
-        print('Hour Angle:       %.2f' %info['ha'])
-        print('UTC:              %s' %info['utc'])
-        print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.5fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = mnt.get_info()
+            print('####### MOUNT INFO ########')
+            if info['status'] != 'Slewing':
+                print('Status: %s' %info['status'])
+            else:
+                print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
+            print('~~~~~~~')
+            print('Mount Alt:        %.2f' %info['mount_alt'])
+            print('Mount Az:         %.2f' %info['mount_az'])
+            print('Telescope RA:     %.4f' %info['mount_ra'])
+            print('Telescope Dec:    %.4f' %info['mount_dec'])
+            if info['target_ra'] != None:
+                print('Target RA:        %.4f' %info['target_ra'])
+            else:
+                print('Target RA:        TARGET NOT SET')
+            if info['target_dec'] != None:
+                print('Target Dec:       %.4f' %info['target_dec'])
+            else:
+                print('Target Dec:       TARGET NOT SET')
+            if info['target_dist'] != None:
+                print('Target distance:  %.3f' %info['target_dist'])
+            print('Offset step size: %.2f arcsec' %info['step'])
+            print('~~~~~~~')
+            print('LST:              %.2f' %info['lst'])
+            print('Hour Angle:       %.2f' %info['ha'])
+            print('UTC:              %s' %info['utc'])
+            print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def slew_to_radec(ra,dec):
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.slew_to_radec(ra,dec)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.slew_to_radec(ra,dec)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def slew_to_target():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.slew_to_target()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.slew_to_target()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def start_tracking():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.start_tracking()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.start_tracking()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def full_stop():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.full_stop()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.full_stop()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def park():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.park()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.park()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def unpark():
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.unpark()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.unpark()
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def set_target_ra(ra_hrs):
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.set_target_ra(ra_hrs)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.set_target_ra(ra_hrs)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def set_target_dec(dec_deg):
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.set_target_dec(dec_deg)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.set_target_dec(dec_deg)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def offset(direction):
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.offset(direction)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.offset(direction)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 def set_step(offset):
-    mnt = Pyro4.Proxy(DAEMON_ADDRESS)
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = mnt.set_step(offset)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from mount daemon'))
+    if not misc.daemon_is_running('mnt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('mnt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        mnt = Pyro4.Proxy(DAEMON_ADDRESS)
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = mnt.set_step(offset)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from mount daemon'))
 
 ########################################################################
 # Interactive mode
