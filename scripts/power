@@ -31,22 +31,22 @@ def get_info():
     elif not misc.daemon_is_alive('power'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        power = Pyro4.Proxy(DAEMON_ADDRESS)
-        power._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = power.get_info()
-            print('####### POWER INFO ########')
-            for i in range(len(info['status_dict'])):
-                outlet_name = params.POWER_LIST[i]
-                outlet_status = info['status_dict'][outlet_name]
-                print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
-            print('~~~~~~~')
-            print('Uptime: %.1fs' %info['uptime'])
-            print('Ping: %.5fs' %info['ping'])
-            print('Timestamp: %s' %info['timestamp'])
-            print('###########################')
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
+            power._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                info = power.get_info()
+                print('####### POWER INFO ########')
+                for i in range(len(info['status_dict'])):
+                    outlet_name = params.POWER_LIST[i]
+                    outlet_status = info['status_dict'][outlet_name]
+                    print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
+                print('~~~~~~~')
+                print('Uptime: %.1fs' %info['uptime'])
+                print('Ping: %.5fs' %info['ping'])
+                print('Timestamp: %s' %info['timestamp'])
+                print('###########################')
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def on(outlet):
     if not misc.daemon_is_running('power'):
@@ -54,13 +54,13 @@ def on(outlet):
     elif not misc.daemon_is_alive('power'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        power = Pyro4.Proxy(DAEMON_ADDRESS)
-        power._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = power.on(outlet)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
+            power._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = power.on(outlet)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def off(outlet):
     if not misc.daemon_is_running('power'):
@@ -68,13 +68,13 @@ def off(outlet):
     elif not misc.daemon_is_alive('power'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        power = Pyro4.Proxy(DAEMON_ADDRESS)
-        power._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = power.off(outlet)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
+            power._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = power.off(outlet)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def reboot(outlet):
     if not misc.daemon_is_running('power'):
@@ -82,12 +82,13 @@ def reboot(outlet):
     elif not misc.daemon_is_alive('power'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        power = Pyro4.Proxy(DAEMON_ADDRESS)
-        try:
-            c = power.reboot(outlet)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
+            power._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = power.reboot(outlet)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode
