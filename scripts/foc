@@ -51,8 +51,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from focuser daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_info_summary():
     if not misc.daemon_is_running('foc'):
@@ -71,8 +71,8 @@ def get_info_summary():
                     print('  [%s]' %info['status'+str(tel)])
                 else:
                     print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-        except:
-            print(misc.ERROR('No response from focuser daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_focuser(pos,HW_list):
     if not misc.daemon_is_running('foc'):
@@ -85,8 +85,8 @@ def set_focuser(pos,HW_list):
         try:
             c = foc.set_focuser(pos,HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from focuser daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def move_focuser(steps,HW_list):
     if not misc.daemon_is_running('foc'):
@@ -99,8 +99,8 @@ def move_focuser(steps,HW_list):
         try:
             c = foc.move_focuser(steps,HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from focuser daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def home_focuser(HW_list):
     if not misc.daemon_is_running('foc'):
@@ -113,8 +113,8 @@ def home_focuser(HW_list):
         try:
             c = foc.home_focuser(HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from focuser daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

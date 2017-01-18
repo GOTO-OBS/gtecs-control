@@ -52,8 +52,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from filter wheel daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_info_summary():
     if not misc.daemon_is_running('filt'):
@@ -74,8 +74,8 @@ def get_info_summary():
                 else:
                     #print '  Current filter: -',
                     print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-        except:
-            print(misc.ERROR('No response from filter wheel daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_filter(new_filt,HW_list):
     if not misc.daemon_is_running('filt'):
@@ -88,8 +88,8 @@ def set_filter(new_filt,HW_list):
         try:
             c = filt.set_filter(new_filt,HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from filter wheel daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def home_filter(HW_list):
     if not misc.daemon_is_running('filt'):
@@ -102,8 +102,8 @@ def home_filter(HW_list):
         try:
             c = filt.home_filter(HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from filter wheel daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

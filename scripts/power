@@ -45,8 +45,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from power daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def on(outlet):
     if not misc.daemon_is_running('power'):
@@ -59,8 +59,8 @@ def on(outlet):
         try:
             c = power.on(outlet)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from power daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def off(outlet):
     if not misc.daemon_is_running('power'):
@@ -73,8 +73,8 @@ def off(outlet):
         try:
             c = power.off(outlet)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from power daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def reboot(outlet):
     if not misc.daemon_is_running('power'):
@@ -86,8 +86,8 @@ def reboot(outlet):
         try:
             c = power.reboot(outlet)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from power daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

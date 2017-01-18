@@ -54,8 +54,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_info_summary():
     if not misc.daemon_is_running('cam'):
@@ -74,8 +74,8 @@ def get_info_summary():
                     print('  [%s]' %info['status'+str(tel)])
                 else:
                     print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_image(exptime,HW_list):
     if not misc.daemon_is_running('cam'):
@@ -88,8 +88,8 @@ def take_image(exptime,HW_list):
         try:
             c = cam.take_image(exptime,HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_dark(exptime,HW_list):
     if not misc.daemon_is_running('cam'):
@@ -102,8 +102,8 @@ def take_dark(exptime,HW_list):
         try:
             c = cam.take_dark(exptime,HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_bias(HW_list):
     if not misc.daemon_is_running('cam'):
@@ -116,8 +116,8 @@ def take_bias(HW_list):
         try:
             c = cam.take_bias(HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def abort_exposure(HW_list):
     if not misc.daemon_is_running('cam'):
@@ -130,8 +130,8 @@ def abort_exposure(HW_list):
         try:
             c = cam.abort_exposure(HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_temperature(target_temp, HW_list):
     if not misc.daemon_is_running('cam'):
@@ -144,8 +144,8 @@ def set_temperature(target_temp, HW_list):
         try:
             c = cam.set_temperature(target_temp, HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_flushes(target_flushes, HW_list):
     if not misc.daemon_is_running('cam'):
@@ -158,8 +158,8 @@ def set_flushes(target_flushes, HW_list):
         try:
             c = cam.set_flushes(target_flushes, HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_bins(bins, HW_list):
     if not misc.daemon_is_running('cam'):
@@ -172,8 +172,8 @@ def set_bins(bins, HW_list):
         try:
             c = cam.set_bins(bins, HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_area(area, HW_list):
     if not misc.daemon_is_running('cam'):
@@ -186,8 +186,8 @@ def set_area(area, HW_list):
         try:
             c = cam.set_area(area, HW_list)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from camera daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode
