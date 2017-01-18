@@ -22,19 +22,6 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 
-def daemon_is_alive(daemon_key):
-    DAEMON_ADDRESS = params.DAEMONS[daemon_key]['ADDRESS']
-    daemon = Pyro4.Proxy(DAEMON_ADDRESS)
-    daemon._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        ping = daemon.ping()
-        if ping == 'ping':
-            return True
-        else:
-            return False
-    except:
-        return False
-
 routines = dict(start    = misc.start_daemon,
                 shutdown = misc.shutdown_daemon,
                 kill     = misc.kill_daemon,
@@ -54,8 +41,8 @@ if __name__ == '__main__':
         if 'exq' in daemons:
             if sys.argv[1] == 'start':
                 # either cam daemon and filt daemon are running
-                cam_up = daemon_is_alive('cam')
-                filt_up = daemon_is_alive('filt')
+                cam_up  = misc.daemon_is_alive('cam')
+                filt_up = misc.daemon_is_alive('filt')
                 if (cam_up or 'cam' in daemons) and (filt_up or 'filt' in daemons):
                     # this will work. move exq to end
                     daemons.remove('exq')
