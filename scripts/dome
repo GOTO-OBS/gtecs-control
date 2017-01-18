@@ -42,8 +42,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from dome daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def open_dome(side='both',steps=None):
     if not misc.daemon_is_running('dome'):
@@ -56,8 +56,8 @@ def open_dome(side='both',steps=None):
         try:
             c = dome.open_dome(side,steps)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from dome daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def close_dome(side='both',steps=None):
     if not misc.daemon_is_running('dome'):
@@ -70,8 +70,8 @@ def close_dome(side='both',steps=None):
         try:
             c = dome.close_dome(side,steps)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from dome daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def halt_dome():
     if not misc.daemon_is_running('dome'):
@@ -84,8 +84,8 @@ def halt_dome():
         try:
             c = dome.halt_dome()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from dome daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

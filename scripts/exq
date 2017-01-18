@@ -50,8 +50,8 @@ def get_info():
             print('Ping: %.3fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_info_summary():
     if not misc.daemon_is_running('exq'):
@@ -71,8 +71,8 @@ def get_info_summary():
             except:
                 print('None')
             print('  Items in queue: %s' %info['queue_length'])
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     if not misc.daemon_is_running('exq'):
@@ -87,8 +87,8 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
         try:
             c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_dark(tel_list,exptime,bins):
     if not misc.daemon_is_running('exq'):
@@ -106,8 +106,8 @@ def take_dark(tel_list,exptime,bins):
         try:
             c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_bias(tel_list,bins):
     if not misc.daemon_is_running('exq'):
@@ -126,8 +126,8 @@ def take_bias(tel_list,bins):
         try:
             c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def pause():
     if not misc.daemon_is_running('exq'):
@@ -140,8 +140,8 @@ def pause():
         try:
             c = exq.pause()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def resume():
     if not misc.daemon_is_running('exq'):
@@ -154,8 +154,8 @@ def resume():
         try:
             c = exq.resume()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_queue():
     if not misc.daemon_is_running('exq'):
@@ -168,8 +168,8 @@ def get_queue():
         try:
             queue_list = exq.get()
             print(queue_list)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_queue_summary():
     if not misc.daemon_is_running('exq'):
@@ -182,8 +182,8 @@ def get_queue_summary():
         try:
             queue_list = exq.get_simple()
             print(queue_list)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def clear():
     if not misc.daemon_is_running('exq'):
@@ -196,8 +196,8 @@ def clear():
         try:
             c = exq.clear()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from exposure queue daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

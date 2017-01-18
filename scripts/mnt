@@ -66,8 +66,8 @@ def get_info():
             print('Ping: %.5fs' %info['ping'])
             print('Timestamp: %s' %info['timestamp'])
             print('###########################')
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def slew_to_radec(ra,dec):
     if not misc.daemon_is_running('mnt'):
@@ -80,8 +80,8 @@ def slew_to_radec(ra,dec):
         try:
             c = mnt.slew_to_radec(ra,dec)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def slew_to_target():
     if not misc.daemon_is_running('mnt'):
@@ -94,8 +94,8 @@ def slew_to_target():
         try:
             c = mnt.slew_to_target()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def start_tracking():
     if not misc.daemon_is_running('mnt'):
@@ -108,8 +108,8 @@ def start_tracking():
         try:
             c = mnt.start_tracking()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def full_stop():
     if not misc.daemon_is_running('mnt'):
@@ -122,8 +122,8 @@ def full_stop():
         try:
             c = mnt.full_stop()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def park():
     if not misc.daemon_is_running('mnt'):
@@ -136,8 +136,8 @@ def park():
         try:
             c = mnt.park()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def unpark():
     if not misc.daemon_is_running('mnt'):
@@ -150,8 +150,8 @@ def unpark():
         try:
             c = mnt.unpark()
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_target_ra(ra_hrs):
     if not misc.daemon_is_running('mnt'):
@@ -164,8 +164,8 @@ def set_target_ra(ra_hrs):
         try:
             c = mnt.set_target_ra(ra_hrs)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_target_dec(dec_deg):
     if not misc.daemon_is_running('mnt'):
@@ -178,8 +178,8 @@ def set_target_dec(dec_deg):
         try:
             c = mnt.set_target_dec(dec_deg)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def offset(direction):
     if not misc.daemon_is_running('mnt'):
@@ -192,8 +192,8 @@ def offset(direction):
         try:
             c = mnt.offset(direction)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_step(offset):
     if not misc.daemon_is_running('mnt'):
@@ -206,8 +206,8 @@ def set_step(offset):
         try:
             c = mnt.set_step(offset)
             if c: print(c)
-        except:
-            print(misc.ERROR('No response from mount daemon'))
+        except Exception as e:
+            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode
