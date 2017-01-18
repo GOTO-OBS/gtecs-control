@@ -30,20 +30,20 @@ def get_info():
     elif not misc.daemon_is_alive('dome'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        dome = Pyro4.Proxy(DAEMON_ADDRESS)
-        dome._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = dome.get_info()
-            print('######## DOME INFO ########')
-            print('Dome:        %s' %info['dome'])
-            print('Hatch:       %s' %info['hatch'])
-            print('~~~~~~~')
-            print('Uptime: %.1fs' %info['uptime'])
-            print('Ping: %.5fs' %info['ping'])
-            print('Timestamp: %s' %info['timestamp'])
-            print('###########################')
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
+            dome._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                info = dome.get_info()
+                print('######## DOME INFO ########')
+                print('Dome:        %s' %info['dome'])
+                print('Hatch:       %s' %info['hatch'])
+                print('~~~~~~~')
+                print('Uptime: %.1fs' %info['uptime'])
+                print('Ping: %.5fs' %info['ping'])
+                print('Timestamp: %s' %info['timestamp'])
+                print('###########################')
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def open_dome(side='both',steps=None):
     if not misc.daemon_is_running('dome'):
@@ -51,13 +51,13 @@ def open_dome(side='both',steps=None):
     elif not misc.daemon_is_alive('dome'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        dome = Pyro4.Proxy(DAEMON_ADDRESS)
-        dome._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = dome.open_dome(side,steps)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
+            dome._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = dome.open_dome(side,steps)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def close_dome(side='both',steps=None):
     if not misc.daemon_is_running('dome'):
@@ -65,13 +65,13 @@ def close_dome(side='both',steps=None):
     elif not misc.daemon_is_alive('dome'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        dome = Pyro4.Proxy(DAEMON_ADDRESS)
-        dome._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = dome.close_dome(side,steps)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
+            dome._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = dome.close_dome(side,steps)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def halt_dome():
     if not misc.daemon_is_running('dome'):
@@ -79,13 +79,13 @@ def halt_dome():
     elif not misc.daemon_is_alive('dome'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        dome = Pyro4.Proxy(DAEMON_ADDRESS)
-        dome._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = dome.halt_dome()
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
+            dome._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = dome.halt_dome()
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode

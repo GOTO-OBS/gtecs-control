@@ -31,27 +31,27 @@ def get_info():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = exq.get_info()
-            print('####### QUEUE INFO #######')
-            print('Status: %s' %info['status'])
-            print('~~~~~~~')
-            print('Current exposure:')
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
             try:
-                print('   %i: %i, %i, %s, %i, %s, %s, %s' \
-                    %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-            except:
-                print('   None')
-            print('Items in queue:     %s' %info['queue_length'])
-            print('~~~~~~~')
-            print('Uptime: %.1fs' %info['uptime'])
-            print('Ping: %.3fs' %info['ping'])
-            print('Timestamp: %s' %info['timestamp'])
-            print('###########################')
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+                info = exq.get_info()
+                print('####### QUEUE INFO #######')
+                print('Status: %s' %info['status'])
+                print('~~~~~~~')
+                print('Current exposure:')
+                try:
+                    print('   %i: %i, %i, %s, %i, %s, %s, %s' \
+                        %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+                except:
+                    print('   None')
+                print('Items in queue:     %s' %info['queue_length'])
+                print('~~~~~~~')
+                print('Uptime: %.1fs' %info['uptime'])
+                print('Ping: %.3fs' %info['ping'])
+                print('Timestamp: %s' %info['timestamp'])
+                print('###########################')
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_info_summary():
     if not misc.daemon_is_running('exq'):
@@ -59,20 +59,20 @@ def get_info_summary():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = exq.get_info()
-            print('QUEUE: [%s]' %info['status'])
-            print('  Current exposure:', end=' ')
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
             try:
-                print('   %i: %r, %i, %s, %i, %s, %s, %s' \
-                    %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-            except:
-                print('None')
-            print('  Items in queue: %s' %info['queue_length'])
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+                info = exq.get_info()
+                print('QUEUE: [%s]' %info['status'])
+                print('  Current exposure:', end=' ')
+                try:
+                    print('   %i: %r, %i, %s, %i, %s, %s, %s' \
+                        %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+                except:
+                    print('None')
+                print('  Items in queue: %s' %info['queue_length'])
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     if not misc.daemon_is_running('exq'):
@@ -80,15 +80,15 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
 
-        frametype = 'normal'
-        try:
-            c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+            frametype = 'normal'
+            try:
+                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_dark(tel_list,exptime,bins):
     if not misc.daemon_is_running('exq'):
@@ -96,18 +96,18 @@ def take_dark(tel_list,exptime,bins):
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
 
-        filt = params.DARKFILT
-        frametype = 'dark'
-        target = 'N/A'
-        imgtype = 'DARK'
-        try:
-            c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+            filt = params.DARKFILT
+            frametype = 'dark'
+            target = 'N/A'
+            imgtype = 'DARK'
+            try:
+                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def take_bias(tel_list,bins):
     if not misc.daemon_is_running('exq'):
@@ -115,19 +115,19 @@ def take_bias(tel_list,bins):
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
 
-        exptime = params.BIASEXP
-        filt = params.DARKFILT
-        frametype = 'dark'
-        target = 'N/A'
-        imgtype = 'BIAS'
-        try:
-            c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+            exptime = params.BIASEXP
+            filt = params.DARKFILT
+            frametype = 'dark'
+            target = 'N/A'
+            imgtype = 'BIAS'
+            try:
+                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def pause():
     if not misc.daemon_is_running('exq'):
@@ -135,13 +135,13 @@ def pause():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = exq.pause()
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = exq.pause()
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def resume():
     if not misc.daemon_is_running('exq'):
@@ -149,13 +149,13 @@ def resume():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = exq.resume()
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = exq.resume()
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_queue():
     if not misc.daemon_is_running('exq'):
@@ -163,13 +163,13 @@ def get_queue():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            queue_list = exq.get()
-            print(queue_list)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                queue_list = exq.get()
+                print(queue_list)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def get_queue_summary():
     if not misc.daemon_is_running('exq'):
@@ -177,13 +177,13 @@ def get_queue_summary():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            queue_list = exq.get_simple()
-            print(queue_list)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                queue_list = exq.get_simple()
+                print(queue_list)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def clear():
     if not misc.daemon_is_running('exq'):
@@ -191,13 +191,13 @@ def clear():
     elif not misc.daemon_is_alive('exq'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        exq = Pyro4.Proxy(DAEMON_ADDRESS)
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            c = exq.clear()
-            if c: print(c)
-        except Exception as e:
-            print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
+            exq._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                c = exq.clear()
+                if c: print(c)
+            except Exception as e:
+                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 # Interactive mode
