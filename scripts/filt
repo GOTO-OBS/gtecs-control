@@ -25,65 +25,85 @@ from six.moves import input
 ########################################################################
 # Filter wheel control functions
 def get_info():
-    flist = params.FILTER_LIST
-    filt = Pyro4.Proxy(DAEMON_ADDRESS)
-    filt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = filt.get_info()
-        print('#### FILTER WHEEL INFO ####')
-        for tel in params.TEL_DICT:
-            print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-            if info['status'+str(tel)] != 'Moving':
-                print('Status: %s' %info['status'+str(tel)])
-                print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
-            else:
-                print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-                print('Current filter:     N/A')
-            print('Current filter num: %s' %info['current_filter_num'+str(tel)])
-            print('Current motor pos:  %s' %info['current_pos'+str(tel)])
-            print('Serial number:      %s' %info['serial_number'+str(tel)])
-            print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.5fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
-    except:
-        print(misc.ERROR('No response from filter wheel daemon'))
+    if not misc.daemon_is_running('filt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('filt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        flist = params.FILTER_LIST
+        filt = Pyro4.Proxy(DAEMON_ADDRESS)
+        filt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = filt.get_info()
+            print('#### FILTER WHEEL INFO ####')
+            for tel in params.TEL_DICT:
+                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+                if info['status'+str(tel)] != 'Moving':
+                    print('Status: %s' %info['status'+str(tel)])
+                    print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+                else:
+                    print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+                    print('Current filter:     N/A')
+                print('Current filter num: %s' %info['current_filter_num'+str(tel)])
+                print('Current motor pos:  %s' %info['current_pos'+str(tel)])
+                print('Serial number:      %s' %info['serial_number'+str(tel)])
+                print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
+        except:
+            print(misc.ERROR('No response from filter wheel daemon'))
 
 def get_info_summary():
-    flist = params.FILTER_LIST
-    filt = Pyro4.Proxy(DAEMON_ADDRESS)
-    filt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = filt.get_info()
-        for tel in params.TEL_DICT:
-            print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-            if info['status'+str(tel)] != 'Moving':
-                print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
-                print('  [%s]' %info['status'+str(tel)])
-            else:
-                #print '  Current filter: -',
-                print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-    except:
-        print(misc.ERROR('No response from filter wheel daemon'))
+    if not misc.daemon_is_running('filt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('filt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        flist = params.FILTER_LIST
+        filt = Pyro4.Proxy(DAEMON_ADDRESS)
+        filt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = filt.get_info()
+            for tel in params.TEL_DICT:
+                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+                if info['status'+str(tel)] != 'Moving':
+                    print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+                    print('  [%s]' %info['status'+str(tel)])
+                else:
+                    #print '  Current filter: -',
+                    print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+        except:
+            print(misc.ERROR('No response from filter wheel daemon'))
 
 def set_filter(new_filt,HW_list):
-    filt = Pyro4.Proxy(DAEMON_ADDRESS)
-    filt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = filt.set_filter(new_filt,HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from filter wheel daemon'))
+    if not misc.daemon_is_running('filt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('filt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        filt = Pyro4.Proxy(DAEMON_ADDRESS)
+        filt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = filt.set_filter(new_filt,HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from filter wheel daemon'))
 
 def home_filter(HW_list):
-    filt = Pyro4.Proxy(DAEMON_ADDRESS)
-    filt._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = filt.home_filter(HW_list)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from filter wheel daemon'))
+    if not misc.daemon_is_running('filt'):
+        print(misc.ERROR('Daemon not running'))
+    elif not misc.daemon_is_alive('filt'):
+        print(misc.ERROR('Daemon running but not responding, check logs'))
+    else:
+        filt = Pyro4.Proxy(DAEMON_ADDRESS)
+        filt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            c = filt.home_filter(HW_list)
+            if c: print(c)
+        except:
+            print(misc.ERROR('No response from filter wheel daemon'))
 
 ########################################################################
 # Interactive mode
