@@ -168,33 +168,34 @@ def clear():
 # Interactive mode
 def interactive():
     while True:
-        command = input('exq> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('exq> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('exq')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('exq')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('exq')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('exq')
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    elif command[0] == 'info':
-        if len(command) == 1:
+    elif command == 'info':
+        if len(args) == 0:
             info = get_info()
             if info:
                 print('QUEUE: [%s]' %info['status'])
@@ -207,7 +208,7 @@ def query(command):
                 print('  Items in queue: %s' %info['queue_length'])
             else:
                 print(misc.ERROR('Problem retrieving info'))
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = get_info()
             if info:
                 print('####### QUEUE INFO #######')
@@ -230,178 +231,178 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'image':
-        if len(command) < 4:
+    elif command == 'image':
+        if len(args) < 3:
             print(misc.ERROR('Need at least: exptime filter bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[3]):
+        elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter bins [object] [imgtype]
-            exptime = float(command[1])
-            filt = command[2]
-            bins = int(command[3])
-            if len(command) == 4:
+            exptime = float(args[0])
+            filt = args[1]
+            bins = int(args[2])
+            if len(args) == 3:
                 take_image(list(params.TEL_DICT),exptime,filt,bins)
-            elif len(command) == 5:
-                target = command[4]
+            elif len(args) == 4:
+                target = args[3]
                 take_image(list(params.TEL_DICT),exptime,filt,bins,target)
-            elif len(command) == 6:
-                target = command[4]
-                imgtype = command[5]
+            elif len(args) == 5:
+                target = args[3]
+                imgtype = args[4]
                 take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
-        elif misc.is_num(command[2]) and misc.is_num(command[4]):
+        elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter bins [object] [imgtype]
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            exptime = float(command[2])
-            filt = command[3]
-            bins = int(command[4])
-            if len(command) == 5 and len(valid) > 0:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime = float(args[1])
+            filt = args[2]
+            bins = int(args[3])
+            if len(args) == 4 and len(valid) > 0:
                 take_image(valid,exptime,filt,bins)
-            elif len(command) == 6 and len(valid) > 0:
-                target = command[5]
+            elif len(args) == 5 and len(valid) > 0:
+                target = args[4]
                 take_image(valid,exptime,filt,bins,target)
-            elif len(command) == 7 and len(valid) > 0:
-                target = command[5]
-                imgtype = command[6]
+            elif len(args) == 6 and len(valid) > 0:
+                target = args[4]
+                imgtype = args[5]
                 take_image(valid,exptime,filt,bins,target,imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multimage':
-        if len(command) < 5:
+    elif command == 'multimage':
+        if len(args) < 4:
             print(misc.ERROR('Need at least: Nexp exptime filter bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[4]):
+        elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # Nexp exptime filter bins [object] [imgtype]
-            Nexp = int(command[1])
-            exptime = float(command[2])
-            filt = command[3]
-            bins = int(command[4])
-            if len(command) == 5:
+            Nexp = int(args[0])
+            exptime = float(args[1])
+            filt = args[2]
+            bins = int(args[3])
+            if len(args) == 4:
                 for i in range(Nexp):
                     take_image(list(params.TEL_DICT),exptime,filt,bins)
-            elif len(command) == 6:
-                target = command[5]
+            elif len(args) == 5:
+                target = args[4]
                 for i in range(Nexp):
                     take_image(list(params.TEL_DICT),exptime,filt,bins,target)
-            elif len(command) == 7:
-                target = command[5]
-                imgtype = command[6]
+            elif len(args) == 6:
+                target = args[4]
+                imgtype = args[5]
                 for i in range(Nexp):
                     take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
-        elif misc.is_num(command[1]) and misc.is_num(command[3]) and misc.is_num(command[5]):
+        elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter bins [object] [imgtype]
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            exptime = float(command[3])
-            filt = command[4]
-            bins = int(command[5])
-            if len(command) == 6 and len(valid) > 0:
+            Nexp = int(args[0])
+            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime = float(args[2])
+            filt = args[3]
+            bins = int(args[4])
+            if len(args) == 5 and len(valid) > 0:
                 for i in range(Nexp):
                     take_image(valid,exptime,filt,bins)
-            elif len(command) == 7 and len(valid) > 0:
-                target = command[6]
+            elif len(args) == 6 and len(valid) > 0:
+                target = args[5]
                 for i in range(Nexp):
                     take_image(valid,exptime,filt,bins,target)
-            elif len(command) == 8 and len(valid) > 0:
-                target = command[6]
-                imgtype = command[7]
+            elif len(args) == 7 and len(valid) > 0:
+                target = args[5]
+                imgtype = args[6]
                 for i in range(Nexp):
                     take_image(valid,exptime,filt,bins,target,imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'dark':
-        if len(command) < 3:
+    elif command == 'dark':
+        if len(args) < 2:
             print(misc.ERROR('Need at least: exptime bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[2]) and len(command) == 3:
+        elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime bins
-            exptime = float(command[1])
-            bins = int(command[2])
+            exptime = float(args[0])
+            bins = int(args[1])
             take_dark(list(params.TEL_DICT),exptime,bins)
-        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+        elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # tels exptime bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            exptime = float(command[2])
-            bins = int(command[3])
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime = float(args[1])
+            bins = int(args[2])
             if len(valid) > 0:
                 take_dark(valid,exptime,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multdark':
-        if len(command) < 4:
+    elif command == 'multdark':
+        if len(args) < 3:
             print(misc.ERROR('Need at least: exptime bins'))
-        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+        elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # Nexp exptime bins
-            Nexp = int(command[1])
-            exptime = float(command[2])
-            bins = int(command[3])
+            Nexp = int(args[0])
+            exptime = float(args[1])
+            bins = int(args[2])
             for i in range(Nexp):
                 take_dark(list(params.TEL_DICT),exptime,bins)
-        elif misc.is_num(command[3]) and misc.is_num(command[4]) and len(command) == 5:
+        elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # Nexp tels exptime bins
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            exptime = float(command[3])
-            bins = int(command[4])
+            Nexp = int(args[0])
+            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime = float(args[2])
+            bins = int(args[3])
             if len(valid) > 0:
                 for i in range(Nexp):
                     take_dark(valid,exptime,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'bias':
-        if len(command) < 2:
+    elif command == 'bias':
+        if len(args) < 1:
             print(misc.ERROR('Need at least: bins'))
-        elif misc.is_num(command[1]) and len(command) == 2:
+        elif misc.is_num(args[0]) and len(args) == 1:
             # bins
-            bins = int(command[1])
+            bins = int(args[0])
             take_bias(list(params.TEL_DICT),bins)
-        elif misc.is_num(command[2]) and len(command) == 3:
+        elif misc.is_num(args[1]) and len(args) == 2:
             # tels bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            bins = int(command[2])
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            bins = int(args[1])
             if len(valid) > 0:
                 take_bias(valid,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multbias':
-        if len(command) < 3:
+    elif command == 'multbias':
+        if len(args) < 2:
             print(misc.ERROR('Need at least: bins'))
-        elif misc.is_num(command[2]) and len(command) == 3:
+        elif misc.is_num(args[1]) and len(args) == 2:
             # Nexp bins
-            Nexp = int(command[1])
-            bins = int(command[2])
+            Nexp = int(args[0])
+            bins = int(args[1])
             for i in range(Nexp):
                 take_bias(list(params.TEL_DICT),bins)
-        elif misc.is_num(command[3]) and len(command) == 4:
+        elif misc.is_num(args[2]) and len(args) == 3:
             # Nexp tels bins
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            bins = int(command[3])
+            Nexp = int(args[0])
+            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            bins = int(args[2])
             if len(valid) > 0:
                 for i in range(Nexp):
                     take_bias(valid,bins)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'pause':
+    elif command == 'pause':
         pause()
-    elif command[0] == 'resume' or command[0] == 'unpause':
+    elif command == 'resume' or command == 'unpause':
         resume()
-    elif command[0] == 'get' or command[0] == 'list' or command[0] == 'ls':
-        if len(command) == 1:
+    elif command == 'get' or command == 'list' or command == 'ls':
+        if len(args) == 0:
             get_queue_summary()
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             get_queue()
         else:
             print(misc.ERROR('Invalid arguments'))
-    elif command[0] == 'clear':
+    elif command == 'clear':
         clear()
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print('exq> Command not recognized:',command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
@@ -435,8 +436,8 @@ if len(sys.argv) == 1:
     print_instructions()
 else:
     DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)

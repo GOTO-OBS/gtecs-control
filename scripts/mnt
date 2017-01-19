@@ -184,40 +184,41 @@ def set_step(offset):
 # Interactive mode
 def interactive():
     while True:
-        command = input('mnt> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('mnt> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('mnt')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('mnt')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('mnt')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('mnt')
 
-    elif command[0] == 'startS':
+    elif command == 'startS':
         misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)
-    elif command[0] == 'shutdownS':
+    elif command == 'shutdownS':
         misc.shutdown_daemon(SITECH_ADDRESS)
-    elif command[0] == 'pingS':
+    elif command == 'pingS':
         misc.ping_daemon(SITECH_ADDRESS)
 
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
-    elif command[0]=='info':
+    elif command =='info':
         info = get_info()
         if info:
             print('####### MOUNT INFO ########')
@@ -252,33 +253,33 @@ def query(command):
             print('###########################')
         else:
             print(misc.ERROR('Problem retrieving info'))
-    elif command[0]=='slew':
+    elif command == 'slew':
         slew_to_target()
-    elif command[0]=='track':
+    elif command == 'track':
         start_tracking()
-    elif command[0]=='stop':
+    elif command == 'stop':
         full_stop()
-    elif command[0]=='park':
+    elif command == 'park':
         park()
-    elif command[0]=='unpark':
+    elif command == 'unpark':
         unpark()
 
-    elif command[0]=='ra':
+    elif command == 'ra':
         # option 1: decimal degrees
-        if len(command) == 2:
+        if len(args) == 1:
             try:
-                ra_deg = float(command[1])
+                ra_deg = float(args[0])
                 assert 0 <= ra_deg < 360
                 ra_hrs = ra_deg*24./360.
                 set_target_ra(ra_hrs)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2: hms notation
-        elif len(command) == 4:
+        elif len(args) == 3:
             try:
-                h = int(command[1])
-                m = int(command[2])
-                s = int(command[3])
+                h = int(args[0])
+                m = int(args[1])
+                s = int(args[2])
                 assert 0 <= h < 24
                 assert 0 <= m < 60
                 assert 0 <= s < 60
@@ -290,22 +291,22 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0]=='dec':
+    elif command == 'dec':
         # option 1: decimal degrees
-        if len(command) == 2:
+        if len(args) == 1:
             try:
-                dec_deg = float(command[1])
+                dec_deg = float(args[0])
                 assert -90 <= dec_deg <= 90
                 set_target_dec(dec_deg)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2: +dms notation
-        elif len(command) == 5:
+        elif len(args) == 4:
             try:
-                sign = command[1]
-                d = int(command[2])
-                m = int(command[3])
-                s = int(command[4])
+                sign = args[0]
+                d = int(args[1])
+                m = int(args[2])
+                s = int(args[3])
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 if sign == '+':
@@ -318,15 +319,15 @@ def query(command):
                 print(misc.ERROR('Invalid arguments'))
         # option 2.5: forgetting the sign, let's work it out from dec
         # NOTE tricky to deal with -0, have to use the string
-        elif len(command) == 4:
+        elif len(args) == 3:
             try:
-                if command[1][0] == '-':
+                if args[0][0] == '-':
                     sign = '-'
                 else:
                     sign = '+'
-                d = int(command[1])
-                m = int(command[2])
-                s = int(command[3])
+                d = int(args[0])
+                m = int(args[1])
+                s = int(args[2])
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 if sign == '+':
@@ -341,47 +342,47 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0]=='n':
-        if len(command) == 2:
+    elif command == 'n':
+        if len(args) == 1:
             try:
-                step = float(command[1])
+                step = float(args[0])
                 set_step(step)
             except:
                 print(misc.ERROR('Invalid step distance'))
         offset('north')
-    elif command[0]=='s':
-        if len(command) == 2:
+    elif command == 's':
+        if len(args) == 1:
             try:
-                step = float(command[1])
+                step = float(args[0])
                 set_step(step)
             except:
                 print(misc.ERROR('Invalid step distance'))
         offset('south')
-    elif command[0]=='e':
-        if len(command) == 2:
+    elif command == 'e':
+        if len(args) == 1:
             try:
-                step = float(command[1])
+                step = float(args[0])
                 set_step(step)
             except:
                 print(misc.ERROR('Invalid step distance'))
         offset('east')
-    elif command[0]=='w':
-        if len(command) == 2:
+    elif command == 'w':
+        if len(args) == 1:
             try:
-                step = float(command[1])
+                step = float(args[0])
                 set_step(step)
             except:
                 print(misc.ERROR('Invalid step distance'))
         offset('west')
-    elif command[0]=='step':
-        set_step(float(command[1]))
+    elif command == 'step':
+        set_step(float(args[0]))
 
-    elif command[0]=='target':
+    elif command == 'target':
         try:
-            if len(command) == 2:
-                name = command[1]
-            elif len(command) > 2:
-                name = ' '.join(command[1:])
+            if len(args) == 1:
+                name = args[0]
+            elif len(args) > 1:
+                name = ' '.join(args)
             try:
                 coord = SkyCoord.from_name(name)
             except:
@@ -397,7 +398,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
@@ -428,7 +429,6 @@ def print_instructions():
     '  mnt ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
     print(help_str)
 
-
 ########################################################################
 # Control system
 
@@ -443,8 +443,8 @@ else:
     # don't redirect on windows
     SITECH_OUTPUT = params.CYGWIN_PATH + 'sitech-stdout.log'
 
-    command=sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)

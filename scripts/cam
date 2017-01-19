@@ -154,33 +154,34 @@ def set_area(area, HW_list):
 # Interactive mode
 def interactive():
     while True:
-        command = input('cam> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('cam> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('cam')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('cam')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('cam')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('cam')
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    elif command[0] == 'info':
-        if len(command) == 1:
+    elif command == 'info':
+        if len(args) == 0:
             info = get_info()
             if info:
                 for tel in params.TEL_DICT:
@@ -192,7 +193,7 @@ def query(command):
                         print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
             else:
                 print(misc.ERROR('Problem retrieving info'))
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = get_info()
             if info:
                 print('####### CAMERA INFO #######')
@@ -220,90 +221,90 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'image':
-        if len(command) == 2 and misc.is_num(command[1]):
-            take_image(float(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'image':
+        if len(args) == 1 and misc.is_num(args[0]):
+            take_image(float(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                take_image(float(command[2]),valid)
+                take_image(float(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'dark':
-        if len(command) == 2 and misc.is_num(command[1]):
-            take_dark(float(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'dark':
+        if len(args) == 1 and misc.is_num(args[0]):
+            take_dark(float(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                take_dark(float(command[2]),valid)
+                take_dark(float(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'bias':
-        if len(command) == 1:
+    elif command == 'bias':
+        if len(args) == 0:
             take_bias(list(params.TEL_DICT))
-        elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+        elif len(args) == 1:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 take_bias(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'abort':
-        if len(command) == 1:
+    elif command == 'abort':
+        if len(args) == 0:
             abort_exposure(list(params.TEL_DICT))
-        elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+        elif len(args) == 1:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 abort_exposure(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'temp':
-        if len(command) == 2 and misc.is_num(command[1]):
-            set_temperature(float(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'temp':
+        if len(args) == 1 and misc.is_num(args[0]):
+            set_temperature(float(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_temperature(float(command[2]),valid)
+                set_temperature(float(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'flush':
-        if len(command) == 2 and misc.is_num(command[1]):
-            set_flushes(int(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'flush':
+        if len(args) == 1 and misc.is_num(args[0]):
+            set_flushes(int(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_flushes(int(command[2]),valid)
+                set_flushes(int(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'bin':
-        if len(command) == 3 and misc.is_num(command[1]) and misc.is_num(command[2]):
-            set_bins([int(command[1]),int(command[2])],list(params.TEL_DICT))
-        elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'bin':
+        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
+            set_bins([int(args[0]),int(args[1])],list(params.TEL_DICT))
+        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_bins([int(command[2]),int(command[3])],valid)
+                set_bins([int(args[1]),int(args[2])],valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'area':
-        if len(command) == 5 and misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]):
-            set_area([int(command[1]), int(command[2]), int(command[3]), int(command[4])],list(params.TEL_DICT))
-        elif len(command) == 4 and misc.is_num(command[2]) and misc.is_num(command[3]) and misc.is_num(command[4]) and misc.is_num(command[5]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'area':
+        if len(args) == 4 and misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]):
+            set_area([int(args[0]), int(args[1]), int(args[2]), int(args[3])],list(params.TEL_DICT))
+        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]) and misc.is_num(args[4]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_area([int(command[2]), int(command[3]), int(command[4]), int(command[5])],valid)
+                set_area([int(args[1]), int(args[2]), int(args[3]), int(args[4])],valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
@@ -335,8 +336,8 @@ if len(sys.argv) == 1:
     print_instructions()
 else:
     DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)
