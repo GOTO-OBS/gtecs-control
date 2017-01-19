@@ -70,33 +70,34 @@ def home_filter(HW_list):
 # Interactive mode
 def interactive():
     while True:
-        command = input('filt> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('filt> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('filt')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('filt')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('filt')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('filt')
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
-    elif command[0] == 'info':
-        if len(command) == 1:
+    elif command == 'info':
+        if len(args) == 0:
             flist = params.FILTER_LIST
             info = get_info()
             if info:
@@ -109,7 +110,7 @@ def query(command):
                         print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
             else:
                 print(misc.ERROR('Problem retrieving info'))
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             flist = params.FILTER_LIST
             info = get_info()
             if info:
@@ -135,33 +136,33 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'set':
-        if len(command) == 2:
-            set_filter(command[1].upper(),list(params.TEL_DICT))
-        elif len(command) == 3:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'set':
+        if len(args) == 1:
+            set_filter(args[0].upper(),list(params.TEL_DICT))
+        elif len(args) == 2:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_filter(command[2].upper(),valid)
+                set_filter(args[1].upper(),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'home':
-        if len(command) == 1:
+    elif command == 'home':
+        if len(args) == 0:
             home_filter(list(params.TEL_DICT))
-        elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+        elif len(args) == 1:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 home_filter(valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'list':
+    elif command == 'list':
         print(params.FILTER_LIST)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' filt [command]' + '\n' +\
@@ -188,8 +189,8 @@ if len(sys.argv) == 1:
     print_instructions()
 else:
     DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)

@@ -84,33 +84,34 @@ def home_focuser(HW_list):
 # Interactive mode
 def interactive():
     while True:
-        command = input('foc> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('foc> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('foc')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('foc')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('foc')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('foc')
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
-    elif command[0] == 'info':
-        if len(command) == 1:
+    elif command == 'info':
+        if len(args) == 0:
             info = get_info()
             if info:
                 for tel in params.TEL_DICT:
@@ -122,7 +123,7 @@ def query(command):
                         print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
             else:
                 print(misc.ERROR('Problem retrieving info'))
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = get_info()
             if info:
                 print('###### FOCUSER INFO #######')
@@ -147,31 +148,31 @@ def query(command):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'set':
-        if len(command) == 2 and misc.is_num(command[1]):
-            set_focuser(int(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'set':
+        if len(args) == 1 and misc.is_num(args[0]):
+            set_focuser(int(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                set_focuser(int(command[2]),valid)
+                set_focuser(int(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'move':
-        if len(command) == 2 and misc.is_num(command[1]):
-            move_focuser(int(command[1]),list(params.TEL_DICT))
-        elif len(command) == 3 and misc.is_num(command[2]):
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+    elif command == 'move':
+        if len(args) == 1 and misc.is_num(args[0]):
+            move_focuser(int(args[0]),list(params.TEL_DICT))
+        elif len(args) == 2 and misc.is_num(args[1]):
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
-                move_focuser(int(command[2]),valid)
+                move_focuser(int(args[1]),valid)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'home':
-        if len(command) == 1:
+    elif command == 'home':
+        if len(args) == 0:
             home_focuser(list(params.TEL_DICT))
-        elif len(command) == 2:
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
+        elif len(args) == 1:
+            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(valid) > 0:
                 home_focuser(valid)
         else:
@@ -180,7 +181,7 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' foc [command]' + '\n' +\
@@ -207,8 +208,8 @@ if len(sys.argv) == 1:
     print_instructions()
 else:
     DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)

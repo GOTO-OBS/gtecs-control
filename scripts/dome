@@ -84,32 +84,33 @@ def halt_dome():
 # Interactive mode
 def interactive():
     while True:
-        command = input('dome> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('dome> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
+    if command == 'start':
         misc.start_daemon('dome')
-    elif command[0] == 'shutdown':
+    elif command == 'shutdown':
         misc.shutdown_daemon('dome')
-    elif command[0] == 'kill':
+    elif command == 'kill':
         misc.kill_daemon('dome')
-    elif command[0] == 'ping':
+    elif command == 'ping':
         misc.ping_daemon('dome')
-    elif command[0] == 'help' or command[0] == '?':
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Filter wheel control functions
-    elif command[0] == 'info':
+    # Dome control functions
+    elif command == 'info':
         info = get_info()
         if info:
             print('######## DOME INFO ########')
@@ -122,23 +123,23 @@ def query(command):
             print('###########################')
         else:
             print(misc.ERROR('Problem retrieving info'))
-    elif command[0] == 'open':
-        if len(command) == 1:
+    elif command == 'open':
+        if len(args) == 0:
             open_dome()
-        elif len(command) == 3:
-            open_dome(command[1], command[2])
-    elif command[0] == 'close':
-        if len(command) == 1:
+        elif len(args) == 2:
+            open_dome(args[0], args[1])
+    elif command == 'close':
+        if len(args) == 0:
             close_dome()
-        elif len(command) == 3:
-            close_dome(command[1], command[2])
-    elif command[0] == 'halt':
+        elif len(args) == 2:
+            close_dome(args[0], args[1])
+    elif command == 'halt':
         halt_dome()
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command[0]))
+        print(misc.ERROR('Unrecognized command "%s"' %command))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
@@ -165,8 +166,8 @@ if len(sys.argv) == 1:
     print_instructions()
 else:
     DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)
