@@ -184,38 +184,13 @@ def query(command, args):
         if len(args) == 0:
             info = get_info()
             if info:
-                for tel in params.TEL_DICT:
-                    print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-                    if info['status'+str(tel)] != 'Exposing':
-                        print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
-                        print('  [%s]' %info['status'+str(tel)])
-                    else:
-                        print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+                print_info_s(info)
             else:
                 print(misc.ERROR('Problem retrieving info'))
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = get_info()
             if info:
-                print('####### CAMERA INFO #######')
-                for tel in params.TEL_DICT:
-                    print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-                    if info['status'+str(tel)] != 'Exposing':
-                        print('Status: %s' %info['status'+str(tel)])
-                    else:
-                        print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
-                    print('Frame type:       %s' %info['frametype'+str(tel)])
-                    print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
-                    print('Active area:      %s' %str(info['area'+str(tel)]))
-                    print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
-                    print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
-                    print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
-                    print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
-                    print('Serial number:    %s' %info['serial_number'+str(tel)])
-                    print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.5fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
+                print_info(info)
             else:
                 print(misc.ERROR('Problem retrieving info'))
         else:
@@ -305,6 +280,37 @@ def query(command, args):
     # Unrecognized function
     else:
         print(misc.ERROR('Unrecognized command "%s"' %command))
+
+def print_info(info):
+    print('####### CAMERA INFO #######')
+    for tel in params.TEL_DICT:
+        print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+        if info['status'+str(tel)] != 'Exposing':
+            print('Status: %s' %info['status'+str(tel)])
+        else:
+            print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+        print('Frame type:       %s' %info['frametype'+str(tel)])
+        print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
+        print('Active area:      %s' %str(info['area'+str(tel)]))
+        print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
+        print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
+        print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
+        print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
+        print('Serial number:    %s' %info['serial_number'+str(tel)])
+        print('~~~~~~~')
+    print('Uptime: %.1fs' %info['uptime'])
+    print('Ping: %.5fs' %info['ping'])
+    print('Timestamp: %s' %info['timestamp'])
+    print('###########################')
+
+def print_info_s(info):
+    for tel in params.TEL_DICT:
+        print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+        if info['status'+str(tel)] != 'Exposing':
+            print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
+            print('  [%s]' %info['status'+str(tel)])
+        else:
+            print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\

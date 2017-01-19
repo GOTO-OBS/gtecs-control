@@ -114,16 +114,7 @@ def query(command, args):
     elif command == 'info':
         info = get_info()
         if info:
-            print('####### POWER INFO ########')
-            for i in range(len(info['status_dict'])):
-                outlet_name = params.POWER_LIST[i]
-                outlet_status = info['status_dict'][outlet_name]
-                print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
-            print('~~~~~~~')
-            print('Uptime: %.1fs' %info['uptime'])
-            print('Ping: %.5fs' %info['ping'])
-            print('Timestamp: %s' %info['timestamp'])
-            print('###########################')
+            print_info(info)
         else:
             print(misc.ERROR('Problem retrieving info, try again'))
     elif command == 'on':
@@ -137,6 +128,18 @@ def query(command, args):
     # Unrecognized function
     else:
         print(misc.ERROR('Unrecognized command "%s"' %command))
+
+def print_info(info):
+    print('####### POWER INFO ########')
+    for i in range(len(info['status_dict'])):
+        outlet_name = params.POWER_LIST[i]
+        outlet_status = info['status_dict'][outlet_name]
+        print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
+    print('~~~~~~~')
+    print('Uptime: %.1fs' %info['uptime'])
+    print('Ping: %.5fs' %info['ping'])
+    print('Timestamp: %s' %info['timestamp'])
+    print('###########################')
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
