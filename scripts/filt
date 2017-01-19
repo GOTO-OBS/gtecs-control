@@ -99,33 +99,39 @@ def query(command):
         if len(command) == 1:
             flist = params.FILTER_LIST
             info = get_info()
-            for tel in params.TEL_DICT:
-                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-                if info['status'+str(tel)] != 'Moving':
-                    print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
-                    print('  [%s]' %info['status'+str(tel)])
-                else:
-                    print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+            if info:
+                for tel in params.TEL_DICT:
+                    print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+                    if info['status'+str(tel)] != 'Moving':
+                        print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+                        print('  [%s]' %info['status'+str(tel)])
+                    else:
+                        print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+            else:
+                print(misc.ERROR('Problem retrieving info'))
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
             flist = params.FILTER_LIST
             info = get_info()
-            print('#### FILTER WHEEL INFO ####')
-            for tel in params.TEL_DICT:
-                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-                if info['status'+str(tel)] != 'Moving':
-                    print('Status: %s' %info['status'+str(tel)])
-                    print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
-                else:
-                    print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-                    print('Current filter:     N/A')
-                print('Current filter num: %s' %info['current_filter_num'+str(tel)])
-                print('Current motor pos:  %s' %info['current_pos'+str(tel)])
-                print('Serial number:      %s' %info['serial_number'+str(tel)])
-                print('~~~~~~~')
-            print('Uptime: %.1fs' %info['uptime'])
-            print('Ping: %.5fs' %info['ping'])
-            print('Timestamp: %s' %info['timestamp'])
-            print('###########################')
+            if info:
+                print('#### FILTER WHEEL INFO ####')
+                for tel in params.TEL_DICT:
+                    print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+                    if info['status'+str(tel)] != 'Moving':
+                        print('Status: %s' %info['status'+str(tel)])
+                        print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+                    else:
+                        print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+                        print('Current filter:     N/A')
+                    print('Current filter num: %s' %info['current_filter_num'+str(tel)])
+                    print('Current motor pos:  %s' %info['current_pos'+str(tel)])
+                    print('Serial number:      %s' %info['serial_number'+str(tel)])
+                    print('~~~~~~~')
+                print('Uptime: %.1fs' %info['uptime'])
+                print('Ping: %.5fs' %info['ping'])
+                print('Timestamp: %s' %info['timestamp'])
+                print('###########################')
+            else:
+                print(misc.ERROR('Problem retrieving info'))
         else:
             print(misc.ERROR('Invalid arguments'))
 

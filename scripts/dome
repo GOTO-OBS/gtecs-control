@@ -111,14 +111,17 @@ def query(command):
     # Filter wheel control functions
     elif command[0] == 'info':
         info = get_info()
-        print('######## DOME INFO ########')
-        print('Dome:        %s' %info['dome'])
-        print('Hatch:       %s' %info['hatch'])
-        print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.5fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
+        if info:
+            print('######## DOME INFO ########')
+            print('Dome:        %s' %info['dome'])
+            print('Hatch:       %s' %info['hatch'])
+            print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
+        else:
+            print(misc.ERROR('Problem retrieving info'))
     elif command[0] == 'open':
         if len(command) == 1:
             open_dome()
