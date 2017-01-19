@@ -34,46 +34,7 @@ def get_info():
             cam._pyroTimeout = params.PROXY_TIMEOUT
             try:
                 info = cam.get_info()
-                print('####### CAMERA INFO #######')
-                for tel in params.TEL_DICT:
-                    print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-                    if info['status'+str(tel)] != 'Exposing':
-                        print('Status: %s' %info['status'+str(tel)])
-                    else:
-                        print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
-                    print('Frame type:       %s' %info['frametype'+str(tel)])
-                    print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
-                    print('Active area:      %s' %str(info['area'+str(tel)]))
-                    print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
-                    print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
-                    print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
-                    print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
-                    print('Serial number:    %s' %info['serial_number'+str(tel)])
-                    print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.5fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def get_info_summary():
-    if not misc.daemon_is_running('cam'):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('cam'):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = cam.get_info()
-                for tel in params.TEL_DICT:
-                    print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-                    if info['status'+str(tel)] != 'Exposing':
-                        print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
-                        print('  [%s]' %info['status'+str(tel)])
-                    else:
-                        print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+                return info
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
@@ -220,9 +181,36 @@ def query(command):
     # Camera control functions
     elif command[0] == 'info':
         if len(command) == 1:
-            get_info_summary()
+            info = get_info()
+            for tel in params.TEL_DICT:
+                print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+                if info['status'+str(tel)] != 'Exposing':
+                    print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
+                    print('  [%s]' %info['status'+str(tel)])
+                else:
+                    print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
-            get_info()
+            info = get_info()
+            print('####### CAMERA INFO #######')
+            for tel in params.TEL_DICT:
+                print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+                if info['status'+str(tel)] != 'Exposing':
+                    print('Status: %s' %info['status'+str(tel)])
+                else:
+                    print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+                print('Frame type:       %s' %info['frametype'+str(tel)])
+                print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
+                print('Active area:      %s' %str(info['area'+str(tel)]))
+                print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
+                print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
+                print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
+                print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
+                print('Serial number:    %s' %info['serial_number'+str(tel)])
+                print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
         else:
             print(misc.ERROR('Invalid arguments'))
 

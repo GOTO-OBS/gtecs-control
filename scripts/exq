@@ -35,42 +35,7 @@ def get_info():
             exq._pyroTimeout = params.PROXY_TIMEOUT
             try:
                 info = exq.get_info()
-                print('####### QUEUE INFO #######')
-                print('Status: %s' %info['status'])
-                print('~~~~~~~')
-                print('Current exposure:')
-                try:
-                    print('   %i: %i, %i, %s, %i, %s, %s, %s' \
-                        %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-                except:
-                    print('   None')
-                print('Items in queue:     %s' %info['queue_length'])
-                print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.3fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def get_info_summary():
-    if not misc.daemon_is_running('exq'):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('exq'):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = exq.get_info()
-                print('QUEUE: [%s]' %info['status'])
-                print('  Current exposure:', end=' ')
-                try:
-                    print('   %i: %r, %i, %s, %i, %s, %s, %s' \
-                        %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-                except:
-                    print('None')
-                print('  Items in queue: %s' %info['queue_length'])
+                return info
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
@@ -230,9 +195,32 @@ def query(command):
     # Camera control functions
     elif command[0] == 'info':
         if len(command) == 1:
-            get_info_summary()
+            info = get_info()
+            print('QUEUE: [%s]' %info['status'])
+            print('  Current exposure:', end=' ')
+            try:
+                print('   %i: %r, %i, %s, %i, %s, %s, %s' \
+                    %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+            except:
+                print('None')
+            print('  Items in queue: %s' %info['queue_length'])
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
-            get_info()
+            info = get_info()
+            print('####### QUEUE INFO #######')
+            print('Status: %s' %info['status'])
+            print('~~~~~~~')
+            print('Current exposure:')
+            try:
+                print('   %i: %i, %i, %s, %i, %s, %s, %s' \
+                    %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+            except:
+                print('   None')
+            print('Items in queue:     %s' %info['queue_length'])
+            print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.3fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
         else:
             print(misc.ERROR('Invalid arguments'))
 
