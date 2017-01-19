@@ -30,50 +30,11 @@ def get_info():
     elif not misc.daemon_is_alive('filt'):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
-        flist = params.FILTER_LIST
         with Pyro4.Proxy(DAEMON_ADDRESS) as filt:
             filt._pyroTimeout = params.PROXY_TIMEOUT
             try:
                 info = filt.get_info()
-                print('#### FILTER WHEEL INFO ####')
-                for tel in params.TEL_DICT:
-                    print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-                    if info['status'+str(tel)] != 'Moving':
-                        print('Status: %s' %info['status'+str(tel)])
-                        print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
-                    else:
-                        print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-                        print('Current filter:     N/A')
-                    print('Current filter num: %s' %info['current_filter_num'+str(tel)])
-                    print('Current motor pos:  %s' %info['current_pos'+str(tel)])
-                    print('Serial number:      %s' %info['serial_number'+str(tel)])
-                    print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.5fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def get_info_summary():
-    if not misc.daemon_is_running('filt'):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('filt'):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        flist = params.FILTER_LIST
-        with Pyro4.Proxy(DAEMON_ADDRESS) as filt:
-            filt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = filt.get_info()
-                for tel in params.TEL_DICT:
-                    print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-                    if info['status'+str(tel)] != 'Moving':
-                        print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
-                        print('  [%s]' %info['status'+str(tel)])
-                    else:
-                        #print '  Current filter: -',
-                        print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+                return info
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
@@ -136,9 +97,35 @@ def query(command):
     # Filter wheel control functions
     elif command[0] == 'info':
         if len(command) == 1:
-            get_info_summary()
+            flist = params.FILTER_LIST
+            info = get_info()
+            for tel in params.TEL_DICT:
+                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
+                if info['status'+str(tel)] != 'Moving':
+                    print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+                    print('  [%s]' %info['status'+str(tel)])
+                else:
+                    print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
         elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
-            get_info()
+            flist = params.FILTER_LIST
+            info = get_info()
+            print('#### FILTER WHEEL INFO ####')
+            for tel in params.TEL_DICT:
+                print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
+                if info['status'+str(tel)] != 'Moving':
+                    print('Status: %s' %info['status'+str(tel)])
+                    print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+                else:
+                    print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+                    print('Current filter:     N/A')
+                print('Current filter num: %s' %info['current_filter_num'+str(tel)])
+                print('Current motor pos:  %s' %info['current_pos'+str(tel)])
+                print('Serial number:      %s' %info['serial_number'+str(tel)])
+                print('~~~~~~~')
+            print('Uptime: %.1fs' %info['uptime'])
+            print('Ping: %.5fs' %info['ping'])
+            print('Timestamp: %s' %info['timestamp'])
+            print('###########################')
         else:
             print(misc.ERROR('Invalid arguments'))
 

@@ -34,14 +34,7 @@ def get_info():
             dome._pyroTimeout = params.PROXY_TIMEOUT
             try:
                 info = dome.get_info()
-                print('######## DOME INFO ########')
-                print('Dome:        %s' %info['dome'])
-                print('Hatch:       %s' %info['hatch'])
-                print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.5fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
+                return info
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
@@ -117,7 +110,15 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
-        get_info()
+        info = get_info()
+        print('######## DOME INFO ########')
+        print('Dome:        %s' %info['dome'])
+        print('Hatch:       %s' %info['hatch'])
+        print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     elif command[0] == 'open':
         if len(command) == 1:
             open_dome()

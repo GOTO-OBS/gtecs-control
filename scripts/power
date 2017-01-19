@@ -35,16 +35,7 @@ def get_info():
             power._pyroTimeout = params.PROXY_TIMEOUT
             try:
                 info = power.get_info()
-                print('####### POWER INFO ########')
-                for i in range(len(info['status_dict'])):
-                    outlet_name = params.POWER_LIST[i]
-                    outlet_status = info['status_dict'][outlet_name]
-                    print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
-                print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.5fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
+                return info
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
@@ -120,7 +111,17 @@ def query(command):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel control functions
     elif command[0] == 'info':
-        get_info()
+        info = get_info()
+        print('####### POWER INFO ########')
+        for i in range(len(info['status_dict'])):
+            outlet_name = params.POWER_LIST[i]
+            outlet_status = info['status_dict'][outlet_name]
+            print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
+        print('~~~~~~~')
+        print('Uptime: %.1fs' %info['uptime'])
+        print('Ping: %.5fs' %info['ping'])
+        print('Timestamp: %s' %info['timestamp'])
+        print('###########################')
     elif command[0] == 'on':
         on(command[1])
     elif command[0] == 'off':
