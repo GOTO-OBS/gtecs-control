@@ -198,34 +198,13 @@ def query(command, args):
         if len(args) == 0:
             info = get_info()
             if info:
-                print('QUEUE: [%s]' %info['status'])
-                print('  Current exposure:', end=' ')
-                try:
-                    print('   %i: %r, %i, %s, %i, %s, %s, %s' \
-                        %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-                except:
-                    print('None')
-                print('  Items in queue: %s' %info['queue_length'])
+                print_info_s(info)
             else:
                 print(misc.ERROR('Problem retrieving info'))
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = get_info()
             if info:
-                print('####### QUEUE INFO #######')
-                print('Status: %s' %info['status'])
-                print('~~~~~~~')
-                print('Current exposure:')
-                try:
-                    print('   %i: %i, %i, %s, %i, %s, %s, %s' \
-                        %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-                except:
-                    print('   None')
-                print('Items in queue:     %s' %info['queue_length'])
-                print('~~~~~~~')
-                print('Uptime: %.1fs' %info['uptime'])
-                print('Ping: %.3fs' %info['ping'])
-                print('Timestamp: %s' %info['timestamp'])
-                print('###########################')
+                print_info(info)
             else:
                 print(misc.ERROR('Problem retrieving info'))
         else:
@@ -403,6 +382,33 @@ def query(command, args):
     # Unrecognized function
     else:
         print(misc.ERROR('Unrecognized command "%s"' %command))
+
+def print_info(info):
+    print('####### QUEUE INFO #######')
+    print('Status: %s' %info['status'])
+    print('~~~~~~~')
+    print('Current exposure:')
+    try:
+        print('   %i: %i, %i, %s, %i, %s, %s, %s' \
+            %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+    except:
+        print('   None')
+    print('Items in queue:     %s' %info['queue_length'])
+    print('~~~~~~~')
+    print('Uptime: %.1fs' %info['uptime'])
+    print('Ping: %.3fs' %info['ping'])
+    print('Timestamp: %s' %info['timestamp'])
+    print('###########################')
+
+def print_info_s(info):
+    print('QUEUE: [%s]' %info['status'])
+    print('  Current exposure:', end=' ')
+    try:
+        print('   %i: %r, %i, %s, %i, %s, %s, %s' \
+            %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+    except:
+        print('None')
+    print('  Items in queue: %s' %info['queue_length'])
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
