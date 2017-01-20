@@ -338,6 +338,25 @@ def kill_daemon(daemon_ID):
 def start_win(process, host, stdout='/dev/null'):
     os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
 
+
+def daemon_function(daemon_ID, function_name, args=[]):
+    if not daemon_is_running(daemon_ID):
+        print(ERROR('Daemon not running'))
+    elif not daemon_is_alive(daemon_ID):
+        print(ERROR('Daemon running but not responding, check logs'))
+    else:
+        address = params.DAEMONS[daemon_ID]['ADDRESS']
+        with Pyro4.Proxy(address) as proxy:
+            proxy._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                function = getattr(proxy, function_name)
+            except AttributeError:
+                raise NotImplementedError('Invalid function')
+            try:
+                return function(*args)
+            except Exception as e:
+                print(ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+
 ########################################################################
 ## Text formatting functions
 def rtxt(text):
