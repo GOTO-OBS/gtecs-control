@@ -27,9 +27,9 @@ from six.moves import input
 ########################################################################
 # Mount control functions
 def get_info():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -41,9 +41,9 @@ def get_info():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def slew_to_radec(ra,dec):
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -55,9 +55,9 @@ def slew_to_radec(ra,dec):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def slew_to_target():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -69,9 +69,9 @@ def slew_to_target():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def start_tracking():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -83,9 +83,9 @@ def start_tracking():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def full_stop():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -97,9 +97,9 @@ def full_stop():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def park():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -111,9 +111,9 @@ def park():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def unpark():
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -125,9 +125,9 @@ def unpark():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_target_ra(ra_hrs):
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -139,9 +139,9 @@ def set_target_ra(ra_hrs):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_target_dec(dec_deg):
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -153,9 +153,9 @@ def set_target_dec(dec_deg):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def offset(direction):
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -167,9 +167,9 @@ def offset(direction):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_step(offset):
-    if not misc.daemon_is_running('mnt'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('mnt'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
@@ -184,7 +184,7 @@ def set_step(offset):
 # Interactive mode
 def interactive():
     while True:
-        i_in = input('mnt> ').split()
+        i_in = input('{}> '.format(daemon_ID)).split()
         if len(i_in) > 0:
             command, *args = i_in
             if command == 'q' or command == 'exit':
@@ -196,13 +196,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon('mnt')
+        misc.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon('mnt')
+        misc.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon('mnt')
+        misc.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon('mnt')
+        misc.ping_daemon(daemon_ID)
 
     elif command == 'startS':
         misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)
@@ -435,10 +435,12 @@ def print_instructions():
 ########################################################################
 # Control system
 
+daemon_ID = os.path.basename(__file__)
+
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
+    DAEMON_ADDRESS = params.DAEMONS[daemon_ID]['ADDRESS']
 
     SITECH_PROCESS = params.SITECH_PROCESS
     SITECH_HOST = params.WIN_HOST
