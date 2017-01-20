@@ -25,9 +25,9 @@ from six.moves import input
 ########################################################################
 # Focuser control functions
 def get_info():
-    if not misc.daemon_is_running('foc'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('foc'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
@@ -39,9 +39,9 @@ def get_info():
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def set_focuser(pos,HW_list):
-    if not misc.daemon_is_running('foc'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('foc'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
@@ -53,9 +53,9 @@ def set_focuser(pos,HW_list):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def move_focuser(steps,HW_list):
-    if not misc.daemon_is_running('foc'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('foc'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
@@ -67,9 +67,9 @@ def move_focuser(steps,HW_list):
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 def home_focuser(HW_list):
-    if not misc.daemon_is_running('foc'):
+    if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive('foc'):
+    elif not misc.daemon_is_alive(daemon_ID):
         print(misc.ERROR('Daemon running but not responding, check logs'))
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
@@ -84,7 +84,7 @@ def home_focuser(HW_list):
 # Interactive mode
 def interactive():
     while True:
-        i_in = input('foc> ').split()
+        i_in = input('{}> '.format(daemon_ID)).split()
         if len(i_in) > 0:
             command, *args = i_in
             if command == 'q' or command == 'exit':
@@ -96,13 +96,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon('foc')
+        misc.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon('foc')
+        misc.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon('foc')
+        misc.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon('foc')
+        misc.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -210,10 +210,12 @@ def print_instructions():
 ########################################################################
 # Control system
 
+daemon_ID = os.path.basename(__file__)
+
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
+    DAEMON_ADDRESS = params.DAEMONS[daemon_ID]['ADDRESS']
     command, *args = sys.argv[1:]
     if command == 'i':
         interactive()
