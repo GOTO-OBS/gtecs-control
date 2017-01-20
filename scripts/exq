@@ -245,7 +245,7 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command == 'multimage':
+    elif command == 'multimage' or command == 'multiimage' or command == 'mimage':
         if len(args) < 4:
             print(misc.ERROR('Need at least: Nexp exptime filter bins'))
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
@@ -306,7 +306,7 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command == 'multdark':
+    elif command == 'multdark' or command == 'multidark' or command == 'mdark':
         if len(args) < 3:
             print(misc.ERROR('Need at least: exptime bins'))
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
@@ -344,7 +344,7 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command == 'multbias':
+    elif command == 'multbias' or command == 'multibias' or command == 'mbias':
         if len(args) < 2:
             print(misc.ERROR('Need at least: bins'))
         elif misc.is_num(args[1]) and len(args) == 2:
