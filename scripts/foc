@@ -23,64 +23,6 @@ from gtecs.tecs_modules import params
 from six.moves import input
 
 ########################################################################
-# Focuser control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
-            foc._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = foc.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_focuser(pos,HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
-            foc._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = foc.set_focuser(pos,HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def move_focuser(steps,HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
-            foc._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = foc.move_focuser(steps,HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def home_focuser(HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as foc:
-            foc._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = foc.home_focuser(HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -112,47 +54,54 @@ def query(command, args):
     # Focuser control functions
     elif command == 'info':
         if len(args) == 0:
-            info = get_info()
-            if info:
-                print_info_s(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = get_info()
-            if info:
-                print_info(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'set':
         if len(args) == 1 and misc.is_num(args[0]):
-            set_focuser(int(args[0]),list(params.TEL_DICT))
+            pos     = int(args[0])
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'set_focuser', [pos, HW_list])
+            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                set_focuser(int(args[1]),valid)
+            pos     = int(args[1])
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'set_focuser', [pos, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'move':
         if len(args) == 1 and misc.is_num(args[0]):
-            move_focuser(int(args[0]),list(params.TEL_DICT))
+            steps   = int(args[0])
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'move_focuser', [steps, HW_list])
+            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                move_focuser(int(args[1]),valid)
+            steps   = int(args[1])
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'move_focuser', [steps, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'home':
         if len(args) == 0:
-            home_focuser(list(params.TEL_DICT))
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'home_focuser', [HW_list])
+            if c: print(c)
         elif len(args) == 1:
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                home_focuser(valid)
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'home_focuser', [HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 

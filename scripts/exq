@@ -24,106 +24,6 @@ from six.moves import range
 from six.moves import input
 
 ########################################################################
-# Exposure queue control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = exq.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def add(tel_list,exptime,filt,bins,frametype,target,imgtype):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def pause():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = exq.pause()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def resume():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = exq.resume()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def get_queue():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                queue_list = exq.get()
-                print(queue_list)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def get_queue_summary():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                queue_list = exq.get_simple()
-                print(queue_list)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def clear():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = exq.clear()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -155,17 +55,11 @@ def query(command, args):
     # Camera control functions
     elif command == 'info':
         if len(args) == 0:
-            info = get_info()
-            if info:
-                print_info_s(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = get_info()
-            if info:
-                print_info(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -188,7 +82,9 @@ def query(command, args):
             elif len(args) == 5:
                 target  = args[3]
                 imgtype = args[4]
-            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter bins [object] [imgtype]
             tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
@@ -205,8 +101,10 @@ def query(command, args):
             elif len(args) == 6:
                 target  = args[4]
                 imgtype = args[5]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -230,8 +128,10 @@ def query(command, args):
             elif len(args) == 6:
                 target  = args[4]
                 imgtype = args[5]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             for i in range(Nexp):
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter bins [object] [imgtype]
             Nexp      = int(args[0])
@@ -249,9 +149,11 @@ def query(command, args):
             elif len(args) == 7:
                 target  = args[5]
                 imgtype = args[6]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
                 for i in range(Nexp):
-                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -267,7 +169,9 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'DARK'
-            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # tels exptime bins
             tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
@@ -277,8 +181,10 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -295,8 +201,10 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             for i in range(Nexp):
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # Nexp tels exptime bins
             Nexp      = int(args[0])
@@ -307,9 +215,11 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
                 for i in range(Nexp):
-                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -325,7 +235,9 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'BIAS'
-            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
         elif misc.is_num(args[1]) and len(args) == 2:
             # tels bins
             tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
@@ -335,8 +247,10 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -353,8 +267,10 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             for i in range(Nexp):
-                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         elif misc.is_num(args[2]) and len(args) == 3:
             # Nexp tels bins
             Nexp      = int(args[0])
@@ -365,25 +281,35 @@ def query(command, args):
             frametype = 'dark'
             target    = 'N/A'
             imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             if len(tel_list) > 0:
                 for i in range(Nexp):
-                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'pause':
-        pause()
+        c = misc.daemon_function(daemon_ID, 'pause')
+        if c: print(c)
+
     elif command == 'resume' or command == 'unpause':
-        resume()
+        c = misc.daemon_function(daemon_ID, 'resume')
+        if c: print(c)
+
     elif command == 'get' or command == 'list' or command == 'ls':
         if len(args) == 0:
-            get_queue_summary()
+            queue_list = misc.daemon_function(daemon_ID, 'get_simple')
+            if queue_list: print(queue_list)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            get_queue()
+            queue_list = misc.daemon_function(daemon_ID, 'get')
+            if queue_list: print(queue_list)
         else:
             print(misc.ERROR('Invalid arguments'))
+
     elif command == 'clear':
-        clear()
+        c = misc.daemon_function(daemon_ID, 'clear')
+        if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function

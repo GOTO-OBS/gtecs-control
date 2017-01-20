@@ -25,162 +25,6 @@ from gtecs.tecs_modules import params
 from six.moves import input
 
 ########################################################################
-# Mount control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = mnt.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def slew_to_radec(ra,dec):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.slew_to_radec(ra,dec)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def slew_to_target():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.slew_to_target()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def start_tracking():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.start_tracking()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def full_stop():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.full_stop()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def park():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.park()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def unpark():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.unpark()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_target_ra(ra_hrs):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.set_target_ra(ra_hrs)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_target_dec(dec_deg):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.set_target_dec(dec_deg)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def offset(direction):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.offset(direction)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_step(offset):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as mnt:
-            mnt._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = mnt.set_step(offset)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -218,22 +62,29 @@ def query(command, args):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
-    elif command =='info':
-        info = get_info()
-        if info:
-            print_info(info)
-        else:
-            print(misc.ERROR('Problem retrieving info'))
+    elif command == 'info':
+        info = misc.daemon_function(daemon_ID, 'get_info')
+        if info: print_info(info)
+
     elif command == 'slew':
-        slew_to_target()
+        c = misc.daemon_function(daemon_ID, 'slew_to_target')
+        if c: print(c)
+
     elif command == 'track':
-        start_tracking()
+        c = misc.daemon_function(daemon_ID, 'start_tracking')
+        if c: print(c)
+
     elif command == 'stop':
-        full_stop()
+        c = misc.daemon_function(daemon_ID, 'full_stop')
+        if c: print(c)
+
     elif command == 'park':
-        park()
+        c = misc.daemon_function(daemon_ID, 'park')
+        if c: print(c)
+
     elif command == 'unpark':
-        unpark()
+        c = misc.daemon_function(daemon_ID, 'unpark')
+        if c: print(c)
 
     elif command == 'ra':
         # option 1: decimal degrees
@@ -242,7 +93,8 @@ def query(command, args):
                 ra_deg = float(args[0])
                 assert 0 <= ra_deg < 360
                 ra_hrs = ra_deg*24./360.
-                set_target_ra(ra_hrs)
+                c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2: hms notation
@@ -255,7 +107,8 @@ def query(command, args):
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 ra_hrs = h + m/60. + s/3600.
-                set_target_ra(ra_hrs)
+                c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # they're the only options
@@ -268,7 +121,8 @@ def query(command, args):
             try:
                 dec_deg = float(args[0])
                 assert -90 <= dec_deg <= 90
-                set_target_dec(dec_deg)
+                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2: +dms notation
@@ -285,7 +139,8 @@ def query(command, args):
                 else:
                     dec_deg = -1*(d + m/60. + s/3600.)
                 assert -90 <= dec_deg <= 90
-                set_target_dec(dec_deg)
+                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # option 2.5: forgetting the sign, let's work it out from dec
@@ -306,7 +161,8 @@ def query(command, args):
                 else: #NB d is negative
                     dec_deg = d - m/60. - s/3600.
                 assert -90 <= dec_deg <= 90
-                set_target_dec(dec_deg)
+                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
         # they're the only options
@@ -317,36 +173,54 @@ def query(command, args):
         if len(args) == 1:
             try:
                 step = float(args[0])
-                set_step(step)
+                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
-        offset('north')
+        direction = 'north'
+        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
+
     elif command == 's':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                set_step(step)
+                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
-        offset('south')
+        direction = 'south'
+        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
+
     elif command == 'e':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                set_step(step)
+                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
-        offset('east')
+        direction = 'east'
+        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
+
     elif command == 'w':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                set_step(step)
+                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
-        offset('west')
+        direction = 'west'
+        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
+
     elif command == 'step':
-        set_step(float(args[0]))
+        step = float(args[0])
+        c = misc.daemon_function(daemon_ID, 'set_step', [step])
+        if c: print(c)
 
     elif command == 'target':
         try:
@@ -359,10 +233,14 @@ def query(command, args):
             except:
                 coord = get_body(name, Time.now())
             print('Targeting "%s"' %name)
-            ra_hrs = coord.ra.hour
+            # set RA
+            ra_hrs  = coord.ra.hour
+            c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+            if c: print(c)
+            # set Dec
             dec_deg = coord.dec.value
-            set_target_ra(ra_hrs)
-            set_target_dec(dec_deg)
+            c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            if c: print(c)
         except:
             print(misc.ERROR('Cannot find target "%s"' %name))
 
