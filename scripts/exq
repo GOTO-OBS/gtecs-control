@@ -39,7 +39,7 @@ def get_info():
             except Exception as e:
                 print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
-def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
+def add(tel_list,exptime,filt,bins,frametype,target,imgtype):
     if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
     elif not misc.daemon_is_alive(daemon_ID):
@@ -47,47 +47,6 @@ def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
     else:
         with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
             exq._pyroTimeout = params.PROXY_TIMEOUT
-
-            frametype = 'normal'
-            try:
-                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def take_dark(tel_list,exptime,bins):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-
-            filt = params.DARKFILT
-            frametype = 'dark'
-            target = 'N/A'
-            imgtype = 'DARK'
-            try:
-                c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def take_bias(tel_list,bins):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as exq:
-            exq._pyroTimeout = params.PROXY_TIMEOUT
-
-            exptime = params.BIASEXP
-            filt = params.DARKFILT
-            frametype = 'dark'
-            target = 'N/A'
-            imgtype = 'BIAS'
             try:
                 c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
                 if c: print(c)
@@ -215,33 +174,39 @@ def query(command, args):
             print(misc.ERROR('Need at least: exptime filter bins'))
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter bins [object] [imgtype]
-            exptime = float(args[0])
-            filt = args[1]
-            bins = int(args[2])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[0])
+            filt      = args[1]
+            bins      = int(args[2])
+            frametype = 'normal'
             if len(args) == 3:
-                take_image(list(params.TEL_DICT),exptime,filt,bins)
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
             elif len(args) == 4:
-                target = args[3]
-                take_image(list(params.TEL_DICT),exptime,filt,bins,target)
+                target  = args[3]
+                imgtype = 'SCIENCE'
             elif len(args) == 5:
-                target = args[3]
+                target  = args[3]
                 imgtype = args[4]
-                take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
+            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter bins [object] [imgtype]
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            exptime = float(args[1])
-            filt = args[2]
-            bins = int(args[3])
-            if len(args) == 4 and len(valid) > 0:
-                take_image(valid,exptime,filt,bins)
-            elif len(args) == 5 and len(valid) > 0:
-                target = args[4]
-                take_image(valid,exptime,filt,bins,target)
-            elif len(args) == 6 and len(valid) > 0:
-                target = args[4]
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = float(args[1])
+            filt      = args[2]
+            bins      = int(args[3])
+            frametype = 'normal'
+            if len(args) == 4:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 5:
+                target  = args[4]
+                imgtype = 'SCIENCE'
+            elif len(args) == 6:
+                target  = args[4]
                 imgtype = args[5]
-                take_image(valid,exptime,filt,bins,target,imgtype)
+            if len(tel_list) > 0:
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -250,41 +215,43 @@ def query(command, args):
             print(misc.ERROR('Need at least: Nexp exptime filter bins'))
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # Nexp exptime filter bins [object] [imgtype]
-            Nexp = int(args[0])
-            exptime = float(args[1])
-            filt = args[2]
-            bins = int(args[3])
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[1])
+            filt      = args[2]
+            bins      = int(args[3])
+            frametype = 'normal'
             if len(args) == 4:
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins)
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
             elif len(args) == 5:
-                target = args[4]
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins,target)
+                target  = args[4]
+                imgtype = 'SCIENCE'
             elif len(args) == 6:
-                target = args[4]
+                target  = args[4]
                 imgtype = args[5]
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
+            for i in range(Nexp):
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter bins [object] [imgtype]
-            Nexp = int(args[0])
-            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
-            exptime = float(args[2])
-            filt = args[3]
-            bins = int(args[4])
-            if len(args) == 5 and len(valid) > 0:
-                for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins)
-            elif len(args) == 6 and len(valid) > 0:
-                target = args[5]
-                for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins,target)
-            elif len(args) == 7 and len(valid) > 0:
-                target = args[5]
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = float(args[2])
+            filt      = args[3]
+            bins      = int(args[4])
+            frametype = 'normal'
+            if len(args) == 5:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 6:
+                target  = args[5]
+                imgtype = 'SCIENCE'
+            elif len(args) == 7:
+                target  = args[5]
                 imgtype = args[6]
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins,target,imgtype)
+                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -293,16 +260,25 @@ def query(command, args):
             print(misc.ERROR('Need at least: exptime bins'))
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime bins
-            exptime = float(args[0])
-            bins = int(args[1])
-            take_dark(list(params.TEL_DICT),exptime,bins)
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[0])
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # tels exptime bins
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            exptime = float(args[1])
-            bins = int(args[2])
-            if len(valid) > 0:
-                take_dark(valid,exptime,bins)
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = float(args[1])
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            if len(tel_list) > 0:
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -311,20 +287,29 @@ def query(command, args):
             print(misc.ERROR('Need at least: exptime bins'))
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # Nexp exptime bins
-            Nexp = int(args[0])
-            exptime = float(args[1])
-            bins = int(args[2])
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[1])
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
             for i in range(Nexp):
-                take_dark(list(params.TEL_DICT),exptime,bins)
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # Nexp tels exptime bins
-            Nexp = int(args[0])
-            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
-            exptime = float(args[2])
-            bins = int(args[3])
-            if len(valid) > 0:
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = float(args[2])
+            filt      = params.DARKFILT
+            bins      = int(args[3])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_dark(valid,exptime,bins)
+                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -333,14 +318,25 @@ def query(command, args):
             print(misc.ERROR('Need at least: bins'))
         elif misc.is_num(args[0]) and len(args) == 1:
             # bins
-            bins = int(args[0])
-            take_bias(list(params.TEL_DICT),bins)
+            tel_list  = list(params.TEL_DICT)
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[0])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[1]) and len(args) == 2:
             # tels bins
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            bins = int(args[1])
-            if len(valid) > 0:
-                take_bias(valid,bins)
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            if len(tel_list) > 0:
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -349,18 +345,29 @@ def query(command, args):
             print(misc.ERROR('Need at least: bins'))
         elif misc.is_num(args[1]) and len(args) == 2:
             # Nexp bins
-            Nexp = int(args[0])
-            bins = int(args[1])
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
             for i in range(Nexp):
-                take_bias(list(params.TEL_DICT),bins)
+                add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         elif misc.is_num(args[2]) and len(args) == 3:
             # Nexp tels bins
-            Nexp = int(args[0])
-            valid = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
-            bins = int(args[2])
-            if len(valid) > 0:
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_bias(valid,bins)
+                    add(tel_list, exptime, filt, bins, frametype, target, imgtype)
         else:
             print(misc.ERROR('Invalid arguments'))
 
