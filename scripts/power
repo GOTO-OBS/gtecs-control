@@ -24,64 +24,6 @@ from six.moves import range
 from six.moves import input
 
 ########################################################################
-# Power control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
-            power._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = power.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def on(outlet):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
-            power._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = power.on(outlet)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def off(outlet):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
-            power._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = power.off(outlet)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def reboot(outlet):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as power:
-            power._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = power.reboot(outlet)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -110,19 +52,25 @@ def query(command, args):
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Filter wheel control functions
+    # Daemon functions
     elif command == 'info':
-        info = get_info()
-        if info:
-            print_info(info)
-        else:
-            print(misc.ERROR('Problem retrieving info, try again'))
+        info = misc.daemon_function(daemon_ID, 'get_info')
+        if info: print_info(info)
+
     elif command == 'on':
-        on(args[0])
+        outlet = args[0]
+        c = misc.daemon_function(daemon_ID, 'on', [outlet])
+        if c: print(c)
+
     elif command == 'off':
-        off(args[0])
+        outlet = args[0]
+        c = misc.daemon_function(daemon_ID, 'off', [outlet])
+        if c: print(c)
+
     elif command == 'reboot':
-        reboot(args[0])
+        outlet = args[0]
+        c = misc.daemon_function(daemon_ID, 'reboot', [outlet])
+        if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function

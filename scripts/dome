@@ -23,64 +23,6 @@ from gtecs.tecs_modules import params
 from six.moves import input
 
 ########################################################################
-# Dome control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
-            dome._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = dome.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def open_dome(side='both',steps=None):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
-            dome._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = dome.open_dome(side,steps)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def close_dome(side='both',steps=None):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
-            dome._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = dome.close_dome(side,steps)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def halt_dome():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as dome:
-            dome._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = dome.halt_dome()
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -109,25 +51,34 @@ def query(command, args):
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Dome control functions
+    # Daemon functions
     elif command == 'info':
-        info = get_info()
-        if info:
-            print_info(info)
-        else:
-            print(misc.ERROR('Problem retrieving info'))
+        info = misc.daemon_function(daemon_ID, 'get_info')
+        if info: print_info(info)
+
     elif command == 'open':
         if len(args) == 0:
-            open_dome()
+            side  = 'both'
+            steps = None
         elif len(args) == 2:
-            open_dome(args[0], args[1])
+            side  = args[0]
+            steps = args[1]
+        c = misc.daemon_function(daemon_ID, 'open_dome', [side, steps])
+        if c: print(c)
+
     elif command == 'close':
         if len(args) == 0:
-            close_dome()
+            side  = 'both'
+            steps = None
         elif len(args) == 2:
-            close_dome(args[0], args[1])
+            side  = args[0]
+            steps = args[1]
+        c = misc.daemon_function(daemon_ID, 'close_dome', [side, steps])
+        if c: print(c)
+
     elif command == 'halt':
-        halt_dome()
+        c = misc.daemon_function(daemon_ID, 'halt_dome')
+        if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function

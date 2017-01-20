@@ -23,134 +23,6 @@ from gtecs.tecs_modules import params
 from six.moves import input
 
 ########################################################################
-# Camera control functions
-def get_info():
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                info = cam.get_info()
-                return info
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def take_image(exptime,HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.take_image(exptime,HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def take_dark(exptime,HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.take_dark(exptime,HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def take_bias(HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.take_bias(HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def abort_exposure(HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.abort_exposure(HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_temperature(target_temp, HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.set_temperature(target_temp, HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_flushes(target_flushes, HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.set_flushes(target_flushes, HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_bins(bins, HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.set_bins(bins, HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-def set_area(area, HW_list):
-    if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
-    elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
-    else:
-        with Pyro4.Proxy(DAEMON_ADDRESS) as cam:
-            cam._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                c = cam.set_area(area, HW_list)
-                if c: print(c)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
-
-########################################################################
 # Interactive mode
 def interactive():
     while True:
@@ -182,97 +54,128 @@ def query(command, args):
     # Camera control functions
     elif command == 'info':
         if len(args) == 0:
-            info = get_info()
-            if info:
-                print_info_s(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = get_info()
-            if info:
-                print_info(info)
-            else:
-                print(misc.ERROR('Problem retrieving info'))
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'image':
         if len(args) == 1 and misc.is_num(args[0]):
-            take_image(float(args[0]),list(params.TEL_DICT))
+            exptime = float(args[0])
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
+            if c: print(c)
+
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                take_image(float(args[1]),valid)
+            exptime = float(args[1])
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'dark':
         if len(args) == 1 and misc.is_num(args[0]):
-            take_dark(float(args[0]),list(params.TEL_DICT))
+            exptime = float(args[0])
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
+            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                take_dark(float(args[1]),valid)
+            exptime = float(args[1])
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'bias':
         if len(args) == 0:
-            take_bias(list(params.TEL_DICT))
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'take_bias', [HW_list])
+            if c: print(c)
         elif len(args) == 1:
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                take_bias(valid)
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'take_bias', [HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'abort':
         if len(args) == 0:
-            abort_exposure(list(params.TEL_DICT))
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
+            if c: print(c)
         elif len(args) == 1:
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                abort_exposure(valid)
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'temp':
         if len(args) == 1 and misc.is_num(args[0]):
-            set_temperature(float(args[0]),list(params.TEL_DICT))
+            target_temp = float(args[0])
+            HW_list     = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
+            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                set_temperature(float(args[1]),valid)
+            target_temp = float(args[1])
+            HW_list     = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'flush':
         if len(args) == 1 and misc.is_num(args[0]):
-            set_flushes(int(args[0]),list(params.TEL_DICT))
+            target_flushes = int(args[0])
+            HW_list        = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
+            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                set_flushes(int(args[1]),valid)
+            target_flushes = float(args[1])
+            HW_list        = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'bin':
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            set_bins([int(args[0]),int(args[1])],list(params.TEL_DICT))
+            bins    = [int(args[0]), int(args[1])]
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
+            if c: print(c)
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                set_bins([int(args[1]),int(args[2])],valid)
+            bins    = [int(args[1]), int(args[2])]
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'area':
         if len(args) == 4 and misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]):
-            set_area([int(args[0]), int(args[1]), int(args[2]), int(args[3])],list(params.TEL_DICT))
-        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]) and misc.is_num(args[4]):
-            valid = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(valid) > 0:
-                set_area([int(args[1]), int(args[2]), int(args[3]), int(args[4])],valid)
+            area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
+            HW_list = list(params.TEL_DICT)
+            c = misc.daemon_function(daemon_ID, 'set_area', [area, HW_list])
+            if c: print(c)
+        elif len(args) == 5 and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]) and misc.is_num(args[4]):
+            area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
+            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            if len(HW_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'set_area', [area, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
