@@ -19,13 +19,14 @@ import time
 import Pyro4
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
+from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import input
 
 ########################################################################
-# Interactive mode
+# Interactive functions
+
 def interactive():
     while True:
         i_in = input('{}> '.format(daemon_ID)).split()
@@ -249,6 +250,9 @@ def query(command, args):
     else:
         print(misc.ERROR('Unrecognized command "%s"' %command))
 
+########################################################################
+# Output formatting functions
+
 def print_info(info):
     print('####### MOUNT INFO ########')
     if info['status'] != 'Slewing':
@@ -311,7 +315,6 @@ def print_instructions():
     print(help_str)
 
 ########################################################################
-# Control system
 
 daemon_ID = os.path.basename(__file__)
 
