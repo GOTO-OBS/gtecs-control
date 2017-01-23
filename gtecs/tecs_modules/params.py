@@ -63,6 +63,7 @@ if sys.platform == 'win32':
 else:
     CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
+INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
 IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
