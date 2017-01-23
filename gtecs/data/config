@@ -16,6 +16,11 @@ EMAIL_SERVER = smtp.gmail.com:587
 CONFIG_PATH = /home/goto/g-tecs/
 WIN_CONFIG_PATH = C:\goto\g-tecs\
 
+# Specific Windows paths
+WIN_PATH = C:/goto_mount/
+CYGWIN_PATH = /cygdrive/c/goto_mount/
+CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
+
 # Daemons should log to file?
 FILE_LOGGING = 1
 # Daemons should log to stdout?
@@ -32,10 +37,6 @@ SITE_LOCATION = lapalma
 ########################################################################
 # Mount parameters
 WIN_HOST = 137.205.160.1
-WIN_PATH = C:/goto_mount/
-CYGWIN_PATH = /cygdrive/c/goto_mount/
-CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
-
 MIN_ELEVATION = 20.0
 DEFAULT_OFFSET_STEP = 10.0
 

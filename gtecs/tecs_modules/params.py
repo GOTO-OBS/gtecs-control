@@ -67,6 +67,10 @@ LOG_PATH = CONFIG_PATH + 'logs/'
 IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
+WIN_PATH = config['WIN_PATH']
+CYGWIN_PATH = config['CYGWIN_PATH']
+CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
+
 # Daemons should log to file?
 FILE_LOGGING = config['FILE_LOGGING']
 # Daemons should to stdout?
@@ -121,10 +125,6 @@ SITECH_PROCESS = config['SITECH_PROCESS']
 SITECH_PYROID = config['SITECH_PYROID']
 SITECH_PORT = config['SITECH_PORT']
 SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
-
-WIN_PATH = config['WIN_PATH']
-CYGWIN_PATH = config['CYGWIN_PATH']
-CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
 
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
