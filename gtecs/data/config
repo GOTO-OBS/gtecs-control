@@ -36,13 +36,8 @@ SITE_LOCATION = lapalma
 
 ########################################################################
 # Mount parameters
-WIN_HOST = 137.205.160.1
 MIN_ELEVATION = 20.0
 DEFAULT_OFFSET_STEP = 10.0
-
-SITECH_PORT = 9000
-SITECH_PYROID = sitech_interface
-SITECH_PROCESS = sitech_interface.py
 
 ########################################################################
 # Filter wheel parameters
@@ -136,7 +131,9 @@ DATABASE_ECHO = 0
             filt = fake, fake
             cam = fake, fake
 
-
-
-
-
+[WIN_INTERFACES]
+    [[sitech]]
+        PORT = 9000
+        PROCESS = sitech_interface.py
+        PYROID = sitech_interface
+        HOST = goto_mount

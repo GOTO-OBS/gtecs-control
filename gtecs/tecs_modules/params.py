@@ -117,15 +117,12 @@ for nuc in FLI_INTERFACES:
     for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
         TEL_DICT[tel] = [nuc,HW]
 
+WIN_INTERFACES = config['WIN_INTERFACES']
+for key in WIN_INTERFACES:
+    WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
+
 ########################################################################
 # Mount parameters
-WIN_HOST = config['WIN_HOST']
-
-SITECH_PROCESS = config['SITECH_PROCESS']
-SITECH_PYROID = config['SITECH_PYROID']
-SITECH_PORT = config['SITECH_PORT']
-SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
-
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
 
