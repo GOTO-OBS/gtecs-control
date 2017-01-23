@@ -265,17 +265,20 @@ class FLI:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-hostname = socket.gethostname()
-pyro_daemon = Pyro4.Daemon(host=hostname, port=9010)
-fli_daemon = FLI()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.FLI_INTERFACES['nuc1']['HOST'], port=params.FLI_INTERFACES['nuc1']['PORT'])
+    fli_daemon = FLI()
 
-uri = pyro_daemon.register(fli_daemon, 'fli_interface')
-fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+    uri = pyro_daemon.register(fli_daemon,objectId = params.FLI_INTERFACES['nuc1']['PYROID'])
+    fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
-fli_daemon.logfile.info('Exiting FLI interface daemon')
-time.sleep(1.)
+    fli_daemon.logfile.info('Exiting FLI interface daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

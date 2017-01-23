@@ -212,17 +212,20 @@ class SiTech:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-hostname = socket.gethostname()
-pyro_daemon = Pyro4.Daemon(host=hostname, port=9000)
-sitech_daemon = SiTech()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=socket.gethostname(), port=9000)
+    sitech_daemon = SiTech()
 
-uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
-print('Starting SiTech interface daemon at',uri)
+    uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
+    print('Starting SiTech interface daemon at',uri)
 
-Pyro4.config.COMMTIMEOUT=5.
-pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
 
-print('Exiting SiTech interface daemon')
-time.sleep(1.)
+    print('Exiting SiTech interface daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()
