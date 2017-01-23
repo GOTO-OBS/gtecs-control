@@ -94,7 +94,8 @@ class MntDaemon:
     # Primary control thread
     def mnt_control(self):
 
-        sitech = Pyro4.Proxy(params.SITECH_ADDRESS)
+        sitech_address = params.WIN_INTERFACES['sitech']['ADDRESS']
+        sitech = Pyro4.Proxy(sitech_address)
         sitech._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):
