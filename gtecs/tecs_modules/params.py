@@ -108,7 +108,7 @@ for key in DAEMONS:
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
-    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != ''
+    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != '' else FLI_INTERFACES[key]['HOST']
     FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
@@ -118,7 +118,7 @@ for nuc in FLI_INTERFACES:
 
 WIN_INTERFACES = config['WIN_INTERFACES']
 for key in WIN_INTERFACES:
-    WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != ''
+    WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != '' else WIN_INTERFACES[key]['HOST']
     WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
 
 ########################################################################
