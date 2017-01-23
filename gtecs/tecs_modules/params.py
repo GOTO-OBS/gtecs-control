@@ -102,23 +102,23 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 ########################################################################
 # Daemon parameters
 DAEMONS = config['DAEMONS']
-
 for key in DAEMONS:
     DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
-    FLI_INTERFACES[key]['HOST'] = HOST if config['FLI_INTERFACE_HOST'] == '' else config['FLI_INTERFACE_HOST']
+    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != ''
+    FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
 for nuc in FLI_INTERFACES:
-    FLI_INTERFACES[nuc]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[nuc]['PYROID'] + '@' + FLI_INTERFACES[nuc]['HOST'] + ':' + str(FLI_INTERFACES[nuc]['PORT'])
     for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
         TEL_DICT[tel] = [nuc,HW]
 
 WIN_INTERFACES = config['WIN_INTERFACES']
 for key in WIN_INTERFACES:
+    WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != ''
     WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
 
 ########################################################################
