@@ -121,6 +121,14 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
+def kill_processes_windows(process, host, username=None):
+    '''Kill any specified processes on a remote Windows machine'''
+    process_ID_list = get_process_ID_windows(process, host, username)
+
+    for process_ID in process_ID_list:
+        getoutput('ssh {}@{}'.format(username, host)
+                 +' taskkill /F /PID {}'.format(process_ID))
+
 def python_command(filename, command, host='localhost'):
     '''Send a command to a control script as if using the terminal'''
     if host == 'localhost' or host == get_hostname():
