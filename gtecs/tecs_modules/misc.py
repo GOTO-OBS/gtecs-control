@@ -61,6 +61,24 @@ def get_process_ID(process_name, host):
 
     return process_ID
 
+def get_process_ID_windows(process_name, host, username=None):
+    '''Retrieve ID numbers of python processes from a remote Windows machine'''
+    process_ID = []
+    if username:
+        all_processes = getoutput('ssh {}@{}'.format(username, host)
+                                 +' wmic process get ProcessId,CommandLine'
+                                 +' | grep -i python')
+    else:
+        all_processes = getoutput('ssh {}'.format(host)
+                                 +' wmic process get ProcessId,CommandLine'
+                                 +' | grep -i python')
+
+    for line in all_processes.split('\n'):
+        if process_name in line:
+            process_ID.append(line.split()[2])
+
+    return process_ID
+
 def cmd_timeout(command, timeout, bufsize=-1):
     """
     Execute command and limit execution time to 'timeout' seconds.
