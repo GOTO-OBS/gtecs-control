@@ -74,6 +74,8 @@ DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters
+PROXY_TIMEOUT = 0.5
+
 [DAEMONS]
     [[foc]]
         PORT = 9003
@@ -117,6 +119,7 @@ DATABASE_ECHO = 0
         PORT = 9020
         PROCESS = fli_interfaceB.py
         PYROID = fli_interfaceB
+        HOST = nuc2
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
@@ -126,6 +129,7 @@ DATABASE_ECHO = 0
         PORT = 9010
         PROCESS = fli_interface.py
         PYROID = fli_interface
+        HOST = nuc1
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
