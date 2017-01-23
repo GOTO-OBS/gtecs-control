@@ -103,9 +103,12 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
 
-def python_command(filename, command):
+def python_command(filename, command, host='localhost'):
     '''Send a command to a control script as if using the terminal'''
-    command_string = ' '.join((sys.executable, filename, command))
+    if host == 'localhost' or host == get_hostname():
+        command_string = ' '.join((sys.executable, filename, command))
+    else:
+        command_string = ' '.join(('ssh', host, sys.executable, filename, command))
     proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     return output.decode()
@@ -188,72 +191,171 @@ class neatCloser:
         """
         return
 
-########################################################################
-# Core Daemon functions
-def start_daemon(process, host, stdout='/dev/null'):
-    '''Start a daemon (unless it is already running)'''
-    local_host = get_hostname()
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) == 0:
-        if local_host == host:
-            cmd = ' '.join((sys.executable, os.path.join(params.DAEMON_PATH, process),
-                            '>', stdout, '2>&1 &'))
-            os.system(cmd)
-            process_ID_n = get_process_ID(process, host)
-            if len(process_ID_n) == 0:
-                print('ERROR: Daemon did not start, check logs')
-            else:
-                print('Daemon running as process', process_ID_n[0])
-        else:
-            cmd = ' '.join(('ssh', host, sys.executable, os.path.join(params.DAEMON_PATH, process),
-                            '>', stdout, '2>&1 &'))
-            os.system(cmd)
-    else:
-        print('ERROR: Daemon is already running as process', process_ID[0])
+class MultipleDaemonError(Exception):
+    pass
 
-def ping_daemon(address):
-    '''Ping a daemon'''
+def daemon_is_running(daemon_ID):
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
+        return True
+    elif len(process_ID) == 0:
+        return False
+    else:
+        error_str = 'Multiple instances of {} detected on {}, PID {}'.format(process, host, process_ID)
+        raise MultipleDaemonError(error_str)
+
+def daemon_is_alive(daemon_ID):
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+
     daemon = Pyro4.Proxy(address)
     daemon._pyroTimeout = params.PROXY_TIMEOUT
     try:
         ping = daemon.ping()
         if ping == 'ping':
-            print('Daemon is alive at', address)
+            return True
         else:
-            print(ping)
+            return False
     except:
-        print('ERROR: No response from daemon')
+        return False
 
-def shutdown_daemon(address):
-    '''Shut a daemon down nicely'''
-    daemon = Pyro4.Proxy(address)
-    daemon._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        daemon.shutdown()
-        print('Daemon is shutting down')
-        # Have to request status again to close loop
+########################################################################
+# Core Daemon functions
+def start_daemon(daemon_ID):
+    '''Start a daemon (unless it is already running)'''
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+    pyroid  = params.DAEMONS[daemon_ID]['PYROID']
+    if params.REDIRECT_STDOUT:
+        output = params.LOG_PATH + pyroid + '-stdout.log'
+    else:
+        output = '/dev/stdout'
+
+    process_path = os.path.join(params.DAEMON_PATH, process)
+    out_cmd = ''.join(('>', output, '2>&1 &'))
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 0:
+        # Run script
+        python_command(process_path, out_cmd, host)
+
+        # See if it started
+        process_ID_n = get_process_ID(process, host)
+        if len(process_ID_n) == 1:
+            print('Daemon started on {} (PID {})'.format(host, process_ID_n[0]))
+        elif len(process_ID_n) > 1:
+            print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+        else:
+            print('ERROR: Daemon did not start on {}, check logs'.format(host))
+    elif len(process_ID) == 1:
+        print('ERROR: Daemon already running on {} (PID {})'.format(host, process_ID[0]))
+    else:
+        print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID_n))
+
+
+def ping_daemon(daemon_ID):
+    '''Ping a daemon'''
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
         daemon = Pyro4.Proxy(address)
         daemon._pyroTimeout = params.PROXY_TIMEOUT
-        daemon.prod()
-        daemon._pyroRelease()
-    except:
-        print('ERROR: No response from daemon')
-
-def kill_daemon(process, host):
-    '''Kill a daemon (should be used as a last resort)'''
-    local_host = get_hostname()
-    process_ID_list = get_process_ID(process, host)
-
-    if local_host == host:
-        for process_ID in process_ID_list:
-            os.system('kill -9 ' + process_ID)
-            print('Killed daemon at process', process_ID)
+        try:
+            ping = daemon.ping()
+            if ping == 'ping':
+                print('Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0]))
+            else:
+                print(ping + ', daemon running on {} (PID {})'.format(host, process_ID[0]))
+        except:
+            print('ERROR: No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, daemon not running on {}'.format(host))
     else:
-        for process_ID in process_ID_list:
-            os.system('ssh ' + host + ' kill -9 ' + process_ID)
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+
+
+def shutdown_daemon(daemon_ID):
+    '''Shut a daemon down nicely'''
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) == 1:
+        daemon = Pyro4.Proxy(address)
+        daemon._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            daemon.shutdown()
+            # Have to request status again to close loop
+            daemon = Pyro4.Proxy(address)
+            daemon._pyroTimeout = params.PROXY_TIMEOUT
+            daemon.prod()
+            daemon._pyroRelease()
+
+            # See if it shut down
+            time.sleep(2)
+            process_ID_n = get_process_ID(process, host)
+            if len(process_ID_n) == 0:
+                print('Daemon shut down on {}'.format(host))
+            elif len(process_ID_n) == 1:
+                print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+            else:
+                print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
+        except:
+            print('ERROR: No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, daemon not running on {}'.format(host))
+    else:
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+
+
+def kill_daemon(daemon_ID):
+    '''Kill a daemon (should be used as a last resort)'''
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+    host    = params.DAEMONS[daemon_ID]['HOST']
+
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) >= 1:
+        kill_processes(process, host)
+
+        # See if it is actually dead
+        process_ID_n = get_process_ID(process, host)
+        if len(process_ID_n) == 0:
+            print('Daemon killed on {}'.format(host))
+        elif len(process_ID_n) == 1:
+            print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+        else:
+            print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
+    else:
+        print('ERROR: Daemon not running on {}'.format(host))
+
 
 def start_win(process, host, stdout='/dev/null'):
     os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
+
+
+def daemon_function(daemon_ID, function_name, args=[]):
+    if not daemon_is_running(daemon_ID):
+        print(ERROR('Daemon not running'))
+    elif not daemon_is_alive(daemon_ID):
+        print(ERROR('Daemon running but not responding, check logs'))
+    else:
+        address = params.DAEMONS[daemon_ID]['ADDRESS']
+        with Pyro4.Proxy(address) as proxy:
+            proxy._pyroTimeout = params.PROXY_TIMEOUT
+            try:
+                function = getattr(proxy, function_name)
+            except AttributeError:
+                raise NotImplementedError('Invalid function')
+            try:
+                return function(*args)
+            except Exception as e:
+                print(ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
 
 ########################################################################
 ## Text formatting functions

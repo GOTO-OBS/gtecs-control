@@ -17,347 +17,334 @@ import os, sys
 import readline
 import time
 import Pyro4
+from six.moves import input, range
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import range
-from six.moves import input
 
 ########################################################################
-# Exposure queue control functions
-def get_info():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = exq.get_info()
-        print('####### QUEUE INFO #######')
-        print('Status: %s' %info['status'])
-        print('~~~~~~~')
-        print('Current exposure:')
-        try:
-            print('   %i: %i, %i, %s, %i, %s, %s, %s' \
-                %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-        except:
-            print('   None')
-        print('Items in queue:     %s' %info['queue_length'])
-        print('~~~~~~~')
-        print('Uptime: %.1fs' %info['uptime'])
-        print('Ping: %.3fs' %info['ping'])
-        print('Timestamp: %s' %info['timestamp'])
-        print('###########################')
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
+# Interactive functions
 
-def get_info_summary():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        info = exq.get_info()
-        print('QUEUE: [%s]' %info['status'])
-        print('  Current exposure:', end=' ')
-        try:
-            print('   %i: %r, %i, %s, %i, %s, %s, %s' \
-                %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
-        except:
-            print('None')
-        print('  Items in queue: %s' %info['queue_length'])
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def take_image(tel_list,exptime,filt,bins,target='N/A',imgtype='SCIENCE'):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-
-    frametype = 'normal'
-    try:
-        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def take_dark(tel_list,exptime,bins):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-
-    filt = params.DARKFILT
-    frametype = 'dark'
-    target = 'N/A'
-    imgtype = 'DARK'
-    try:
-        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def take_bias(tel_list,bins):
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-
-    exptime = params.BIASEXP
-    filt = params.DARKFILT
-    frametype = 'dark'
-    target = 'N/A'
-    imgtype = 'BIAS'
-    try:
-        c = exq.add(tel_list,exptime,filt,bins,frametype,target,imgtype)
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def pause():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = exq.pause()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def resume():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = exq.resume()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def get_queue():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        queue_list = exq.get()
-        print(queue_list)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def get_queue_summary():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        queue_list = exq.get_simple()
-        print(queue_list)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-def clear():
-    exq = Pyro4.Proxy(EXQ_DAEMON_ADDRESS)
-    exq._pyroTimeout = params.PROXY_TIMEOUT
-    try:
-        c = exq.clear()
-        if c: print(c)
-    except:
-        print(misc.ERROR('No response from exposure queue daemon'))
-
-########################################################################
-# Interactive mode
 def interactive():
     while True:
-        command = input('exq> ').split()
-        if len(command) > 0:
-            if command[0] == 'q' or command[0] == 'exit':
+        i_in = input('{}> '.format(daemon_ID)).split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
                 return
             else:
-                query(command)
+                query(command, args)
 
-def query(command):
+def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
-    if command[0] == 'start':
-        misc.start_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST,stdout=EXQ_DAEMON_OUTPUT)
-    elif command[0] == 'shutdown':
-        misc.shutdown_daemon(EXQ_DAEMON_ADDRESS)
-    elif command[0] == 'kill':
-        misc.kill_daemon(EXQ_DAEMON_PROCESS,EXQ_DAEMON_HOST)
-    elif command[0] == 'ping':
-        misc.ping_daemon(EXQ_DAEMON_ADDRESS)
-    elif command[0] == 'help' or command[0] == '?':
+    if command == 'start':
+        misc.start_daemon(daemon_ID)
+    elif command == 'shutdown':
+        misc.shutdown_daemon(daemon_ID)
+    elif command == 'kill':
+        misc.kill_daemon(daemon_ID)
+    elif command == 'ping':
+        misc.ping_daemon(daemon_ID)
+    elif command == 'help' or command == '?':
         print_instructions()
-    elif command[0] == 'i':
+    elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    elif command[0] == 'info':
-        if len(command) == 1:
-            get_info_summary()
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
-            get_info()
+    elif command == 'info':
+        if len(args) == 0:
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = misc.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'image':
-        if len(command) < 4:
+    elif command == 'image':
+        if len(args) < 3:
             print(misc.ERROR('Need at least: exptime filter bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[3]):
+        elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter bins [object] [imgtype]
-            exptime = float(command[1])
-            filt = command[2]
-            bins = int(command[3])
-            if len(command) == 4:
-                take_image(list(params.TEL_DICT),exptime,filt,bins)
-            elif len(command) == 5:
-                target = command[4]
-                take_image(list(params.TEL_DICT),exptime,filt,bins,target)
-            elif len(command) == 6:
-                target = command[4]
-                imgtype = command[5]
-                take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
-        elif misc.is_num(command[2]) and misc.is_num(command[4]):
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[0])
+            filt      = args[1]
+            bins      = int(args[2])
+            frametype = 'normal'
+            if len(args) == 3:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 4:
+                target  = args[3]
+                imgtype = 'SCIENCE'
+            elif len(args) == 5:
+                target  = args[3]
+                imgtype = args[4]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
+        elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter bins [object] [imgtype]
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            exptime = float(command[2])
-            filt = command[3]
-            bins = int(command[4])
-            if len(command) == 5 and len(valid) > 0:
-                take_image(valid,exptime,filt,bins)
-            elif len(command) == 6 and len(valid) > 0:
-                target = command[5]
-                take_image(valid,exptime,filt,bins,target)
-            elif len(command) == 7 and len(valid) > 0:
-                target = command[5]
-                imgtype = command[6]
-                take_image(valid,exptime,filt,bins,target,imgtype)
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = float(args[1])
+            filt      = args[2]
+            bins      = int(args[3])
+            frametype = 'normal'
+            if len(args) == 4:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 5:
+                target  = args[4]
+                imgtype = 'SCIENCE'
+            elif len(args) == 6:
+                target  = args[4]
+                imgtype = args[5]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multimage':
-        if len(command) < 5:
+    elif command == 'multimage' or command == 'multiimage' or command == 'mimage':
+        if len(args) < 4:
             print(misc.ERROR('Need at least: Nexp exptime filter bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[2]) and misc.is_num(command[4]):
+        elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # Nexp exptime filter bins [object] [imgtype]
-            Nexp = int(command[1])
-            exptime = float(command[2])
-            filt = command[3]
-            bins = int(command[4])
-            if len(command) == 5:
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins)
-            elif len(command) == 6:
-                target = command[5]
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins,target)
-            elif len(command) == 7:
-                target = command[5]
-                imgtype = command[6]
-                for i in range(Nexp):
-                    take_image(list(params.TEL_DICT),exptime,filt,bins,target,imgtype)
-        elif misc.is_num(command[1]) and misc.is_num(command[3]) and misc.is_num(command[5]):
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[1])
+            filt      = args[2]
+            bins      = int(args[3])
+            frametype = 'normal'
+            if len(args) == 4:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 5:
+                target  = args[4]
+                imgtype = 'SCIENCE'
+            elif len(args) == 6:
+                target  = args[4]
+                imgtype = args[5]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            for i in range(Nexp):
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
+        elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter bins [object] [imgtype]
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            exptime = float(command[3])
-            filt = command[4]
-            bins = int(command[5])
-            if len(command) == 6 and len(valid) > 0:
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = float(args[2])
+            filt      = args[3]
+            bins      = int(args[4])
+            frametype = 'normal'
+            if len(args) == 5:
+                target  = 'N/A'
+                imgtype = 'SCIENCE'
+            elif len(args) == 6:
+                target  = args[5]
+                imgtype = 'SCIENCE'
+            elif len(args) == 7:
+                target  = args[5]
+                imgtype = args[6]
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins)
-            elif len(command) == 7 and len(valid) > 0:
-                target = command[6]
-                for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins,target)
-            elif len(command) == 8 and len(valid) > 0:
-                target = command[6]
-                imgtype = command[7]
-                for i in range(Nexp):
-                    take_image(valid,exptime,filt,bins,target,imgtype)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'dark':
-        if len(command) < 3:
+    elif command == 'dark':
+        if len(args) < 2:
             print(misc.ERROR('Need at least: exptime bins'))
-        elif misc.is_num(command[1]) and misc.is_num(command[2]) and len(command) == 3:
+        elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime bins
-            exptime = float(command[1])
-            bins = int(command[2])
-            take_dark(list(params.TEL_DICT),exptime,bins)
-        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[0])
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
+        elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # tels exptime bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            exptime = float(command[2])
-            bins = int(command[3])
-            if len(valid) > 0:
-                take_dark(valid,exptime,bins)
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = float(args[1])
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multdark':
-        if len(command) < 4:
+    elif command == 'multdark' or command == 'multidark' or command == 'mdark':
+        if len(args) < 3:
             print(misc.ERROR('Need at least: exptime bins'))
-        elif misc.is_num(command[2]) and misc.is_num(command[3]) and len(command) == 4:
+        elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # Nexp exptime bins
-            Nexp = int(command[1])
-            exptime = float(command[2])
-            bins = int(command[3])
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = float(args[1])
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             for i in range(Nexp):
-                take_dark(list(params.TEL_DICT),exptime,bins)
-        elif misc.is_num(command[3]) and misc.is_num(command[4]) and len(command) == 5:
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
+        elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # Nexp tels exptime bins
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            exptime = float(command[3])
-            bins = int(command[4])
-            if len(valid) > 0:
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = float(args[2])
+            filt      = params.DARKFILT
+            bins      = int(args[3])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'DARK'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_dark(valid,exptime,bins)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'bias':
-        if len(command) < 2:
+    elif command == 'bias':
+        if len(args) < 1:
             print(misc.ERROR('Need at least: bins'))
-        elif misc.is_num(command[1]) and len(command) == 2:
+        elif misc.is_num(args[0]) and len(args) == 1:
             # bins
-            bins = int(command[1])
-            take_bias(list(params.TEL_DICT),bins)
-        elif misc.is_num(command[2]) and len(command) == 3:
+            tel_list  = list(params.TEL_DICT)
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[0])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            c = misc.daemon_function(daemon_ID, 'add', arg_list)
+            if c: print(c)
+        elif misc.is_num(args[1]) and len(args) == 2:
             # tels bins
-            valid = misc.valid_ints(command[1].split(','),list(params.TEL_DICT))
-            bins = int(command[2])
-            if len(valid) > 0:
-                take_bias(valid,bins)
+            tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'multbias':
-        if len(command) < 3:
+    elif command == 'multbias' or command == 'multibias' or command == 'mbias':
+        if len(args) < 2:
             print(misc.ERROR('Need at least: bins'))
-        elif misc.is_num(command[2]) and len(command) == 3:
+        elif misc.is_num(args[1]) and len(args) == 2:
             # Nexp bins
-            Nexp = int(command[1])
-            bins = int(command[2])
+            Nexp      = int(args[0])
+            tel_list  = list(params.TEL_DICT)
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[1])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
             for i in range(Nexp):
-                take_bias(list(params.TEL_DICT),bins)
-        elif misc.is_num(command[3]) and len(command) == 4:
+                c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                if c: print(c)
+        elif misc.is_num(args[2]) and len(args) == 3:
             # Nexp tels bins
-            Nexp = int(command[1])
-            valid = misc.valid_ints(command[2].split(','),list(params.TEL_DICT))
-            bins = int(command[3])
-            if len(valid) > 0:
+            Nexp      = int(args[0])
+            tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
+            exptime   = params.BIASEXP
+            filt      = params.DARKFILT
+            bins      = int(args[2])
+            frametype = 'dark'
+            target    = 'N/A'
+            imgtype   = 'BIAS'
+            arg_list = [tel_list, exptime, filt, bins, frametype, target, imgtype]
+            if len(tel_list) > 0:
                 for i in range(Nexp):
-                    take_bias(valid,bins)
+                    c = misc.daemon_function(daemon_ID, 'add', arg_list)
+                    if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command[0] == 'pause':
-        pause()
-    elif command[0] == 'resume' or command[0] == 'unpause':
-        resume()
-    elif command[0] == 'get' or command[0] == 'list' or command[0] == 'ls':
-        if len(command) == 1:
-            get_queue_summary()
-        elif len(command) == 2 and command[1] in ['v','V','-v','-V']:
-            get_queue()
+    elif command == 'pause':
+        c = misc.daemon_function(daemon_ID, 'pause')
+        if c: print(c)
+
+    elif command == 'resume' or command == 'unpause':
+        c = misc.daemon_function(daemon_ID, 'resume')
+        if c: print(c)
+
+    elif command == 'get' or command == 'list' or command == 'ls':
+        if len(args) == 0:
+            queue_list = misc.daemon_function(daemon_ID, 'get_simple')
+            if queue_list: print(queue_list)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            queue_list = misc.daemon_function(daemon_ID, 'get')
+            if queue_list: print(queue_list)
         else:
             print(misc.ERROR('Invalid arguments'))
-    elif command[0] == 'clear':
-        clear()
+
+    elif command == 'clear':
+        c = misc.daemon_function(daemon_ID, 'clear')
+        if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print('exq> Command not recognized:',command[0])
+        print(misc.ERROR('Unrecognized command "%s"' %command))
+
+########################################################################
+# Output formatting functions
+
+def print_info(info):
+    print('####### QUEUE INFO #######')
+    print('Status: %s' %info['status'])
+    print('~~~~~~~')
+    print('Current exposure:')
+    try:
+        print('   %i: %i, %i, %s, %i, %s, %s, %s' \
+            %(info['current_run_ID'], info['current_tel'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+    except:
+        print('   None')
+    print('Items in queue:     %s' %info['queue_length'])
+    print('~~~~~~~')
+    print('Uptime: %.1fs' %info['uptime'])
+    print('Ping: %.3fs' %info['ping'])
+    print('Timestamp: %s' %info['timestamp'])
+    print('###########################')
+
+def print_info_s(info):
+    print('QUEUE: [%s]' %info['status'])
+    print('  Current exposure:', end=' ')
+    try:
+        print('   %i: %r, %i, %s, %i, %s, %s, %s' \
+            %(info['current_run_ID'], info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_bins'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+    except:
+        print('None')
+    print('  Items in queue: %s' %info['queue_length'])
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
@@ -385,21 +372,14 @@ def print_instructions():
     print(help_str)
 
 ########################################################################
-# Control System
+
+daemon_ID = os.path.basename(__file__)
 
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    EXQ_DAEMON_PROCESS = params.DAEMONS['exq']['PROCESS']
-    EXQ_DAEMON_HOST = params.DAEMONS['exq']['HOST']
-    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    if params.REDIRECT_STDOUT:
-        EXQ_DAEMON_OUTPUT = params.LOG_PATH + 'exq_daemon-stdout.log'
-    else:
-        EXQ_DAEMON_OUTPUT = '/dev/stdout'
-
-    command = sys.argv[1:]
-    if command[0] == 'i':
+    command, *args = sys.argv[1:]
+    if command == 'i':
         interactive()
     else:
-        query(command)
+        query(command, args)
