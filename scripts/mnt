@@ -48,14 +48,6 @@ def query(command, args):
         misc.kill_daemon(daemon_ID)
     elif command == 'ping':
         misc.ping_daemon(daemon_ID)
-
-    elif command == 'startS':
-        misc.start_win(SITECH_PROCESS, SITECH_HOST, stdout=SITECH_OUTPUT)
-    elif command == 'shutdownS':
-        misc.shutdown_daemon(SITECH_ADDRESS)
-    elif command == 'pingS':
-        misc.ping_daemon(SITECH_ADDRESS)
-
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -292,10 +284,6 @@ def print_instructions():
     '  mnt ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
     '  mnt ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  mnt ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
-    ' ' + misc.undl('SiTech interface commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('startS') + '         - start the daemon' + '\n' +\
-    '  mnt ' + misc.bold('shutdownS') + '      - shutdown the daemon' + '\n' +\
-    '  mnt ' + misc.bold('pingS') + '          - ping the daemon' + '\n' +\
     ' ' + misc.undl('Mount commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
     '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
@@ -321,12 +309,6 @@ daemon_ID = os.path.basename(__file__)
 if len(sys.argv) == 1:
     print_instructions()
 else:
-    SITECH_PROCESS = params.SITECH_PROCESS
-    SITECH_HOST = params.WIN_HOST
-    SITECH_ADDRESS = params.SITECH_ADDRESS
-    # don't redirect on windows
-    SITECH_OUTPUT = params.CYGWIN_PATH + 'sitech-stdout.log'
-
     command, *args = sys.argv[1:]
     if command == 'i':
         interactive()
