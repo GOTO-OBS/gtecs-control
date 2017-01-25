@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 ########################################################################
-#                                int.py                                #
+#                                fli.py                                #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#       G-TeCS script to provide control over interface daemons        #
+#     G-TeCS script to provide control over fli interface daemons      #
 #                      Martin Dyer, Sheffield, 2017                    #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
@@ -137,30 +137,12 @@ def kill_fli_interface(interface):
         print('ERROR: Interface not running on {}'.format(host))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ########################################################################
 # Interactive functions
 
 def interactive():
     while True:
-        i_in = input('int> ').split()
+        i_in = input('fli> ').split()
         if len(i_in) > 0:
             command, *args = i_in
             if command == 'q' or command == 'exit':
@@ -174,29 +156,15 @@ def query(command, args):
     if command == 'start':
         for interface in params.FLI_INTERFACES:
             start_fli_interface(interface)
-
-
-
     elif command == 'shutdown':
         for interface in params.FLI_INTERFACES:
             shutdown_fli_interface(interface)
-
-
     elif command == 'kill':
         for interface in params.FLI_INTERFACES:
             kill_fli_interface(interface)
-
-
     elif command == 'ping':
         for interface in params.FLI_INTERFACES:
             ping_fli_interface(interface)
-
-
-
-
-
-
-
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -211,16 +179,16 @@ def query(command, args):
 # Output formatting functions
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' int [command]' + '\n' +\
+    help_str = misc.bold('Usage:') + ' fli [command]' + '\n' +\
     ' ' + misc.undl('Interface commands') + ':' + '\n' +\
-    '  int ' + misc.bold('start') + '             - start the interfaces' + '\n' +\
-    '  int ' + misc.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
-    '  int ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  int ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
+    '  fli ' + misc.bold('start') + '             - start the interfaces' + '\n' +\
+    '  fli ' + misc.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
+    '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  int ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  int ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  int ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    '  fli ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  fli ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  fli ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
     print(help_str)
 
 ########################################################################
