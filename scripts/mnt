@@ -103,7 +103,7 @@ def query(command, args):
             try:
                 h = int(args[0])
                 m = int(args[1])
-                s = int(args[2])
+                s = float(args[2])
                 assert 0 <= h < 24
                 assert 0 <= m < 60
                 assert 0 <= s < 60
@@ -132,7 +132,7 @@ def query(command, args):
                 sign = args[0]
                 d = int(args[1])
                 m = int(args[2])
-                s = int(args[3])
+                s = float(args[3])
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 if sign == '+':
@@ -154,7 +154,7 @@ def query(command, args):
                     sign = '+'
                 d = int(args[0])
                 m = int(args[1])
-                s = int(args[2])
+                s = float(args[2])
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 if sign == '+':
