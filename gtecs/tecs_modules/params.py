@@ -68,8 +68,9 @@ LOG_PATH = CONFIG_PATH + 'logs/'
 IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
-WIN_PATH = config['WIN_PATH']
-CYGWIN_PATH = config['CYGWIN_PATH']
+# Specific Windows paths
+WIN_INSTALL_PATH = config['WIN_INSTALL_PATH']
+WIN_CONFIG_PATH = config['WIN_CONFIG_PATH']
 CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
 
 # Daemons should log to file?
