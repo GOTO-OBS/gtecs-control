@@ -361,10 +361,6 @@ def kill_daemon(daemon_ID):
         print('ERROR: Daemon not running on {}'.format(host))
 
 
-def start_win(process, host, stdout='/dev/null'):
-    os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
-
-
 def daemon_function(daemon_ID, function_name, args=[]):
     if not daemon_is_running(daemon_ID):
         print(ERROR('Daemon not running'))
