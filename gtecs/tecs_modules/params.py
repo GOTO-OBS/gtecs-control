@@ -68,7 +68,8 @@ LOG_PATH = CONFIG_PATH + 'logs/'
 IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
-# Specific Windows paths
+# Specific Windows params
+WIN_USER = config['WIN_USER']
 WIN_INSTALL_PATH = config['WIN_INSTALL_PATH']
 WIN_CONFIG_PATH = config['WIN_CONFIG_PATH']
 CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']

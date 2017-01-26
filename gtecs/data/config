@@ -15,7 +15,8 @@ EMAIL_SERVER = smtp.gmail.com:587
 # Paths for log files, images etc
 CONFIG_PATH = /home/goto/g-tecs/
 
-# Specific Windows paths
+# Specific Windows params
+WIN_USER = goto
 WIN_INSTALL_PATH = C:/Python27/lib/site-packages/gtecs/
 WIN_CONFIG_PATH = C:/goto/g-tecs/
 CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
