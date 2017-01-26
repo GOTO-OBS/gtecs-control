@@ -260,7 +260,7 @@ def start_daemon(daemon_ID):
         output = '/dev/stdout'
 
     process_path = os.path.join(params.DAEMON_PATH, process)
-    out_cmd = ''.join(('>', output, '2>&1 &'))
+    out_cmd = ' '.join(('>', output, '2>&1 &'))
 
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
