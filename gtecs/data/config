@@ -17,9 +17,9 @@ CONFIG_PATH = /home/goto/g-tecs/
 
 # Specific Windows params
 WIN_USER = goto
-WIN_INSTALL_PATH = C:/Python27/lib/site-packages/gtecs/
+WIN_INSTALL_PATH = C:/Anaconda3/lib/site-packages/gtecs/
 WIN_CONFIG_PATH = C:/goto/g-tecs/
-CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
+CYGWIN_PYTHON_PATH = /cygdrive/c/Anaconda3/pythonw.exe
 
 # Daemons should log to file?
 FILE_LOGGING = 1
