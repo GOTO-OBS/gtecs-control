@@ -15,7 +15,6 @@ import socket
 import numpy
 import Pyro4
 import pkg_resources
-from astroplan import Observer
 import configobj
 import validate
 
@@ -86,7 +85,6 @@ SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
-SITE_OBSERVER = Observer.at_site(SITE_LOCATION)
 
 # Conditions checks
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']

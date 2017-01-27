@@ -30,7 +30,7 @@ popup_str = ('<div class=\"apple_overlay\" id=\"overlay\">' +
             '<div class=\"contentWrap\"></div>' + '</div>')
 
 # set observing location
-GOTO = params.SITE_OBSERVER
+GOTO = Observer.at_site('lapalma')
 
 # set debug level
 debug = 1
