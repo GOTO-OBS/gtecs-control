@@ -228,7 +228,7 @@ def start():
     sitech_daemon = SiTech()
 
     uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
-    sitech_daemon.logfile.info('Starting SiTech interface daemon at',uri)
+    sitech_daemon.logfile.info('Starting SiTech interface daemon at %s',uri)
 
     Pyro4.config.COMMTIMEOUT = 5.
     pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
