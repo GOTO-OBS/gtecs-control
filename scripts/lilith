@@ -21,46 +21,47 @@ import Pyro4
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
-
-routines = dict(start    = misc.start_daemon,
-                shutdown = misc.shutdown_daemon,
-                kill     = misc.kill_daemon,
-                ping     = misc.ping_daemon)
-
-
 if __name__ == '__main__':
     if sys.argv[1] in ['start', 'shutdown', 'kill', 'ping']:
         if len(sys.argv) > 2:
             daemons = sys.argv[2:]
         else:
-            daemons = list(params.DAEMONS)
+            daemons = list(params.DAEMONS) + ['fli'] + ['sitech']
 
-        # exq daemon needs a little careful handling.
-        # it has to start after cam and filt daemon
-        # and close before cam and filt daemon
+        # handle dependencies
         if 'exq' in daemons:
+            # exq needs to start after cam and filt and shutdown first
             if sys.argv[1] == 'start':
-                # either cam daemon and filt daemon are running
-                cam_up  = misc.daemon_is_alive('cam')
-                filt_up = misc.daemon_is_alive('filt')
-                if (cam_up or 'cam' in daemons) and (filt_up or 'filt' in daemons):
-                    # this will work. move exq to end
-                    daemons.remove('exq')
-                    daemons.append('exq')
-                else:
-                    # this won't work. raise Exception
-                    raise ValueError('If exq daemon is to start, you must start cam and filt daemons first')
+                daemons.remove('exq')
+                daemons.append('exq')
             elif sys.argv[1] == 'shutdown':
-                    # stop exq first
-                    daemons.remove('exq')
-                    daemons.insert(0, 'exq')
+                # move to front
+                daemons.remove('exq')
+                daemons.insert(0, 'exq')
+        if 'fli' in daemons:
+            # interfaces need to start before the daemons and shutdown after
+            if sys.argv[1] == 'start':
+                # move to front
+                daemons.remove('fli')
+                daemons.insert(0, 'fli')
+            elif sys.argv[1] == 'shutdown':
+                # move to back
+                daemons.remove('fli')
+                daemons.append('fli')
+        if 'sitech' in daemons:
+            # interfaces need to start before the daemons and shutdown after
+            if sys.argv[1] == 'start':
+                # move to front
+                daemons.remove('sitech')
+                daemons.insert(0, 'sitech')
+            elif sys.argv[1] == 'shutdown':
+                # move to back
+                daemons.remove('sitech')
+                daemons.append('sitech')
 
         for d in daemons:
             print(d+':\t', end='')
-            if d == 'exq' and sys.argv[1] == 'start':
-                # give the cam and filt daemons a chance to start
-                time.sleep(5)
-            func = routines[sys.argv[1]]
-            func(d)
+            time.sleep(1)
+            misc.execute_command('{} {}'.format(d,sys.argv[1]))
     else:
         print('Valid commands: start, shutdown, kill, ping')
