@@ -264,10 +264,20 @@ def start_daemon(daemon_ID):
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
     pyroid  = params.DAEMONS[daemon_ID]['PYROID']
+    depends = params.DAEMONS[daemon_ID]['DEPENDS']
     if params.REDIRECT_STDOUT:
         output = params.LOG_PATH + pyroid + '-stdout.log'
     else:
         output = '/dev/stdout'
+
+    if depends[0] != 'None':
+        fail = 0
+        for dependency in depends:
+            if not daemon_is_alive(dependency):
+                print('ERROR: Dependency "{}" is not running, abort start'.format(dependency))
+                fail += 1
+        if fail > 0:
+            return
 
     process_path = os.path.join(params.DAEMON_PATH, process)
     out_cmd = ' '.join(('>', output, '2>&1 &'))
