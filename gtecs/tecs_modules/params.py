@@ -15,7 +15,6 @@ import socket
 import numpy
 import Pyro4
 import pkg_resources
-from astroplan import Observer
 import configobj
 import validate
 
@@ -63,9 +62,16 @@ if sys.platform == 'win32':
 else:
     CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
+INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
 IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
+
+# Specific Windows params
+WIN_USER = config['WIN_USER']
+WIN_INSTALL_PATH = config['WIN_INSTALL_PATH']
+WIN_CONFIG_PATH = config['WIN_CONFIG_PATH']
+CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
 
 # Daemons should log to file?
 FILE_LOGGING = config['FILE_LOGGING']
@@ -79,7 +85,6 @@ SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
-SITE_OBSERVER = Observer.at_site(SITE_LOCATION)
 
 # Conditions checks
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
@@ -98,34 +103,30 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 ########################################################################
 # Daemon parameters
 DAEMONS = config['DAEMONS']
-
 for key in DAEMONS:
     DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
+    if 'fli' in DAEMONS[key]['DEPENDS']:
+        DAEMONS[key]['DEPENDS'].remove('fli')
+        DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
-    FLI_INTERFACES[key]['HOST'] = HOST if config['FLI_INTERFACE_HOST'] == '' else config['FLI_INTERFACE_HOST']
+    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != '' else FLI_INTERFACES[key]['HOST']
+    FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
 for nuc in FLI_INTERFACES:
-    FLI_INTERFACES[nuc]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[nuc]['PYROID'] + '@' + FLI_INTERFACES[nuc]['HOST'] + ':' + str(FLI_INTERFACES[nuc]['PORT'])
     for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
         TEL_DICT[tel] = [nuc,HW]
 
+WIN_INTERFACES = config['WIN_INTERFACES']
+for key in WIN_INTERFACES:
+    WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != '' else WIN_INTERFACES[key]['HOST']
+    WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
+
 ########################################################################
 # Mount parameters
-WIN_HOST = config['WIN_HOST']
-
-SITECH_PROCESS = config['SITECH_PROCESS']
-SITECH_PYROID = config['SITECH_PYROID']
-SITECH_PORT = config['SITECH_PORT']
-SITECH_ADDRESS = 'PYRO:' + SITECH_PYROID + '@' + WIN_HOST + ':' + str(SITECH_PORT)
-
-WIN_PATH = config['WIN_PATH']
-CYGWIN_PATH = config['CYGWIN_PATH']
-CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
-
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
 

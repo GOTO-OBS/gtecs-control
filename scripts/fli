@@ -1,0 +1,203 @@
+#!/usr/bin/env python
+
+########################################################################
+#                                fli.py                                #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#     G-TeCS script to provide control over fli interface daemons      #
+#                      Martin Dyer, Sheffield, 2017                    #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+
+### Import ###
+# Python modules
+from __future__ import absolute_import
+from __future__ import print_function
+import os, sys
+import readline
+import time
+import Pyro4
+from six.moves import input
+# TeCS modules
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
+
+########################################################################
+# FLI interface functions
+
+def start_fli_interface(interface):
+    '''Start an interface (unless it is already running)'''
+    process = params.FLI_INTERFACES[interface]['PROCESS']
+    host    = params.FLI_INTERFACES[interface]['HOST']
+    pyroid  = params.FLI_INTERFACES[interface]['PYROID']
+    if params.REDIRECT_STDOUT:
+        output = params.LOG_PATH + pyroid + '-stdout.log'
+    else:
+        output = '/dev/stdout'
+
+    process_path = os.path.join(params.INTERFACE_PATH, process)
+    out_cmd = ''.join(('>', output, '2>&1 &'))
+
+    process_ID = misc.get_process_ID(process, host)
+    if len(process_ID) == 0:
+        # Run script
+        misc.python_command(process_path, out_cmd, host)
+
+        # See if it started
+        process_ID_n = misc.get_process_ID(process, host)
+        if len(process_ID_n) == 1:
+            print('Interface started on {} (PID {})'.format(host, process_ID_n[0]))
+        elif len(process_ID_n) > 1:
+            print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID_n))
+        else:
+            print('ERROR: Interface did not start on {}, check logs'.format(host))
+    elif len(process_ID) == 1:
+        print('ERROR: Interface already running on {} (PID {})'.format(host, process_ID[0]))
+    else:
+        print('ERROR: Multiple interfaces already running on {} (PID {})'.format(host, process_ID_n))
+
+
+def ping_fli_interface(interface):
+    '''Ping an interface'''
+    address = params.FLI_INTERFACES[interface]['ADDRESS']
+    process = params.FLI_INTERFACES[interface]['PROCESS']
+    host    = params.FLI_INTERFACES[interface]['HOST']
+
+    process_ID = misc.get_process_ID(process, host)
+    if len(process_ID) == 1:
+        interface = Pyro4.Proxy(address)
+        interface._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            ping = interface.ping()
+            if ping == 'ping':
+                print('Ping received OK, interface running on {} (PID {})'.format(host, process_ID[0]))
+            else:
+                print(ping + ', interface running on {} (PID {})'.format(host, process_ID[0]))
+        except:
+            print('ERROR: No response, interface running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, interface not running on {}'.format(host))
+    else:
+        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID_n))
+
+
+def shutdown_fli_interface(interface):
+    '''Shut an interface down nicely'''
+    address = params.FLI_INTERFACES[interface]['ADDRESS']
+    process = params.FLI_INTERFACES[interface]['PROCESS']
+    host    = params.FLI_INTERFACES[interface]['HOST']
+
+    process_ID = misc.get_process_ID(process, host)
+    if len(process_ID) == 1:
+        interface = Pyro4.Proxy(address)
+        interface._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            interface.shutdown()
+            # Have to request status again to close loop
+            interface = Pyro4.Proxy(address)
+            interface._pyroTimeout = params.PROXY_TIMEOUT
+            interface.prod()
+            interface._pyroRelease()
+
+            # See if it shut down
+            time.sleep(2)
+            process_ID_n = misc.get_process_ID(process, host)
+            if len(process_ID_n) == 0:
+                print('Interface shut down on {}'.format(host))
+            elif len(process_ID_n) == 1:
+                print('ERROR: Interface still running on {} (PID {})'.format(host, process_ID_n[0]))
+            else:
+                print('ERROR: Multiple interfaces still running on {} (PID {})'.format(host, process_ID_n))
+        except:
+            print('ERROR: No response, interface still running on {} (PID {})'.format(host, process_ID[0]))
+    elif len(process_ID) == 0:
+        print('ERROR: No response, interface not running on {}'.format(host))
+    else:
+        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID_n))
+
+
+def kill_fli_interface(interface):
+    '''Kill an interface (should be used as a last resort)'''
+    process = params.FLI_INTERFACES[interface]['PROCESS']
+    host    = params.FLI_INTERFACES[interface]['HOST']
+
+    process_ID = misc.get_process_ID(process, host)
+    if len(process_ID) >= 1:
+        misc.kill_processes(process, host)
+
+        # See if it is actually dead
+        process_ID_n = misc.get_process_ID(process, host)
+        if len(process_ID_n) == 0:
+            print('Interface killed on {}'.format(host))
+        elif len(process_ID_n) == 1:
+            print('ERROR: Interface still running on {} (PID {})'.format(host, process_ID_n[0]))
+        else:
+            print('ERROR: Multiple interfaces still running on {} (PID {})'.format(host, process_ID_n))
+    else:
+        print('ERROR: Interface not running on {}'.format(host))
+
+
+########################################################################
+# Interactive functions
+
+def interactive():
+    while True:
+        i_in = input('fli> ').split()
+        if len(i_in) > 0:
+            command, *args = i_in
+            if command == 'q' or command == 'exit':
+                return
+            else:
+                query(command, args)
+
+def query(command, args):
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Primary control functions
+    if command == 'start':
+        for interface in params.FLI_INTERFACES:
+            start_fli_interface(interface)
+    elif command == 'shutdown':
+        for interface in params.FLI_INTERFACES:
+            shutdown_fli_interface(interface)
+    elif command == 'kill':
+        for interface in params.FLI_INTERFACES:
+            kill_fli_interface(interface)
+    elif command == 'ping':
+        for interface in params.FLI_INTERFACES:
+            ping_fli_interface(interface)
+    elif command == 'help' or command == '?':
+        print_instructions()
+    elif command == 'i':
+        print(misc.ERROR('Already in interactive mode'))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Unrecognized function
+    else:
+        print(misc.ERROR('Unrecognized command "%s"' %command))
+
+########################################################################
+# Output formatting functions
+
+def print_instructions():
+    help_str = misc.bold('Usage:') + ' fli [command]' + '\n' +\
+    ' ' + misc.undl('Interface commands') + ':' + '\n' +\
+    '  fli ' + misc.bold('start') + '             - start the interfaces' + '\n' +\
+    '  fli ' + misc.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
+    '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
+    ' ' + misc.undl('Control commands') + ':' + '\n' +\
+    '  fli ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  fli ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  fli ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    print(help_str)
+
+########################################################################
+
+if len(sys.argv) == 1:
+    print_instructions()
+else:
+    command, *args = sys.argv[1:]
+    if command == 'i':
+        interactive()
+    else:
+        query(command, args)

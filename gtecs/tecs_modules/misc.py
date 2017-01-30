@@ -61,6 +61,24 @@ def get_process_ID(process_name, host):
 
     return process_ID
 
+def get_process_ID_windows(process_name, host, username=None):
+    '''Retrieve ID numbers of python processes from a remote Windows machine'''
+    process_ID = []
+    if username:
+        all_processes = getoutput('ssh {}@{}'.format(username, host)
+                                 +' wmic process get ProcessId,CommandLine'
+                                 +' | grep -i python')
+    else:
+        all_processes = getoutput('ssh {}'.format(host)
+                                 +' wmic process get ProcessId,CommandLine'
+                                 +' | grep -i python')
+
+    for line in all_processes.split('\n'):
+        if process_name in line:
+            process_ID.append(line.split()[2])
+
+    return process_ID
+
 def cmd_timeout(command, timeout, bufsize=-1):
     """
     Execute command and limit execution time to 'timeout' seconds.
@@ -102,6 +120,14 @@ def kill_processes(process, host):
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
+
+def kill_processes_windows(process, host, username=None):
+    '''Kill any specified processes on a remote Windows machine'''
+    process_ID_list = get_process_ID_windows(process, host, username)
+
+    for process_ID in process_ID_list:
+        getoutput('ssh {}@{}'.format(username, host)
+                 +' taskkill /F /PID {}'.format(process_ID))
 
 def python_command(filename, command, host='localhost'):
     '''Send a command to a control script as if using the terminal'''
@@ -208,7 +234,17 @@ def daemon_is_running(daemon_ID):
         raise MultipleDaemonError(error_str)
 
 def daemon_is_alive(daemon_ID):
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    '''
+    Will check if a daemon or interface is alive and responding to pings
+    '''
+    if daemon_ID in params.DAEMONS:
+        address = params.DAEMONS[daemon_ID]['ADDRESS']
+    elif daemon_ID in params.FLI_INTERFACES:
+        address = params.FLI_INTERFACES[daemon_ID]['ADDRESS']
+    elif daemon_ID in params.WIN_INTERFACES:
+        address = params.WIN_INTERFACES[daemon_ID]['ADDRESS']
+    else:
+        raise ValueError('Invalid daemon ID')
 
     daemon = Pyro4.Proxy(address)
     daemon._pyroTimeout = params.PROXY_TIMEOUT
@@ -221,6 +257,21 @@ def daemon_is_alive(daemon_ID):
     except:
         return False
 
+def dependencies_are_alive(daemon_ID):
+    depends = params.DAEMONS[daemon_ID]['DEPENDS']
+
+    if depends[0] != 'None':
+        fail = 0
+        for dependency in depends:
+            if not daemon_is_alive(dependency):
+                fail += 1
+        if fail > 0:
+            return False
+        else:
+            return True
+    else:
+        return True
+
 ########################################################################
 # Core Daemon functions
 def start_daemon(daemon_ID):
@@ -228,13 +279,23 @@ def start_daemon(daemon_ID):
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
     pyroid  = params.DAEMONS[daemon_ID]['PYROID']
+    depends = params.DAEMONS[daemon_ID]['DEPENDS']
     if params.REDIRECT_STDOUT:
         output = params.LOG_PATH + pyroid + '-stdout.log'
     else:
         output = '/dev/stdout'
 
+    if depends[0] != 'None':
+        fail = 0
+        for dependency in depends:
+            if not daemon_is_alive(dependency):
+                print('ERROR: Dependency "{}" is not running, abort start'.format(dependency))
+                fail += 1
+        if fail > 0:
+            return
+
     process_path = os.path.join(params.DAEMON_PATH, process)
-    out_cmd = ''.join(('>', output, '2>&1 &'))
+    out_cmd = ' '.join(('>', output, '2>&1 &'))
 
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 0:
@@ -335,15 +396,13 @@ def kill_daemon(daemon_ID):
         print('ERROR: Daemon not running on {}'.format(host))
 
 
-def start_win(process, host, stdout='/dev/null'):
-    os.system('ssh goto@'+host+' '+params.CYGWIN_PYTHON_PATH+' "'+params.WIN_PATH+process+' >'+stdout+' 2>&1 &"')
-
-
 def daemon_function(daemon_ID, function_name, args=[]):
     if not daemon_is_running(daemon_ID):
         print(ERROR('Daemon not running'))
     elif not daemon_is_alive(daemon_ID):
         print(ERROR('Daemon running but not responding, check logs'))
+    elif not dependencies_are_alive(daemon_ID):
+        print(ERROR('Required dependencies are not responding'))
     else:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
         with Pyro4.Proxy(address) as proxy:
