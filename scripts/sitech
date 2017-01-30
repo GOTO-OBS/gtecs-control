@@ -40,7 +40,7 @@ def start_win_interface(interface):
         # Run script
         cmd = ('ssh {}@{}'.format(params.WIN_USER, host)
               +" '{}".format(params.CYGWIN_PYTHON_PATH)
-              +" {}scripts/{}".format(params.WIN_INSTALL_PATH, process)
+              +" {}gtecs/interfaces/{}".format(params.WIN_INSTALL_PATH, process)
               +" > {} 2>&1 &'".format(output))
         misc.getoutput(cmd)
         # See if it started
