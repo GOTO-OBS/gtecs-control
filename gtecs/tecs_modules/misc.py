@@ -234,7 +234,17 @@ def daemon_is_running(daemon_ID):
         raise MultipleDaemonError(error_str)
 
 def daemon_is_alive(daemon_ID):
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    '''
+    Will check if a daemon or interface is alive and responding to pings
+    '''
+    if daemon_ID in params.DAEMONS:
+        address = params.DAEMONS[daemon_ID]['ADDRESS']
+    elif daemon_ID in params.FLI_INTERFACES:
+        address = params.FLI_INTERFACES[daemon_ID]['ADDRESS']
+    elif daemon_ID in params.WIN_INTERFACES:
+        address = params.WIN_INTERFACES[daemon_ID]['ADDRESS']
+    else:
+        raise ValueError('Invalid daemon ID')
 
     daemon = Pyro4.Proxy(address)
     daemon._pyroTimeout = params.PROXY_TIMEOUT
