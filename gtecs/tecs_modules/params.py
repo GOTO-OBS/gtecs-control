@@ -106,6 +106,9 @@ DAEMONS = config['DAEMONS']
 for key in DAEMONS:
     DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
+    if 'fli' in DAEMONS[key]['DEPENDS']:
+        DAEMONS[key]['DEPENDS'].remove('fli')
+        DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
