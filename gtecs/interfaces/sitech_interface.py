@@ -224,10 +224,10 @@ class SiTech:
 def start():
     ########################################################################
     # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=socket.gethostname(), port=9000)
+    pyro_daemon = Pyro4.Daemon(host=params.WIN_INTERFACES['sitech']['HOST'], port=params.WIN_INTERFACES['sitech']['PORT'])
     sitech_daemon = SiTech()
 
-    uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
+    uri = pyro_daemon.register(sitech_daemon,objectId = params.WIN_INTERFACES['sitech']['PYROID'])
     sitech_daemon.logfile.info('Starting SiTech interface daemon at %s',uri)
 
     Pyro4.config.COMMTIMEOUT = 5.
