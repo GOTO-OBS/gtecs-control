@@ -257,6 +257,21 @@ def daemon_is_alive(daemon_ID):
     except:
         return False
 
+def dependencies_are_alive(daemon_ID):
+    depends = params.DAEMONS[daemon_ID]['DEPENDS']
+
+    if depends[0] != 'None':
+        fail = 0
+        for dependency in depends:
+            if not daemon_is_alive(dependency):
+                fail += 1
+        if fail > 0:
+            return False
+        else:
+            return True
+    else:
+        return True
+
 ########################################################################
 # Core Daemon functions
 def start_daemon(daemon_ID):
