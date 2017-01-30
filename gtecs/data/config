@@ -14,7 +14,12 @@ EMAIL_SERVER = smtp.gmail.com:587
 
 # Paths for log files, images etc
 CONFIG_PATH = /home/goto/g-tecs/
-WIN_CONFIG_PATH = C:\goto\g-tecs\
+
+# Specific Windows params
+WIN_USER = goto
+WIN_INSTALL_PATH = C:/g-tecs/
+WIN_CONFIG_PATH = C:/goto/g-tecs/
+CYGWIN_PYTHON_PATH = /cygdrive/c/Anaconda3/pythonw.exe
 
 # Daemons should log to file?
 FILE_LOGGING = 1
@@ -31,17 +36,8 @@ SITE_LOCATION = lapalma
 
 ########################################################################
 # Mount parameters
-WIN_HOST = 137.205.160.1
-WIN_PATH = C:/goto_mount/
-CYGWIN_PATH = /cygdrive/c/goto_mount/
-CYGWIN_PYTHON_PATH = /cygdrive/c/Python27/python.exe
-
 MIN_ELEVATION = 20.0
 DEFAULT_OFFSET_STEP = 10.0
-
-SITECH_PORT = 9000
-SITECH_PYROID = sitech_interface
-SITECH_PROCESS = sitech_interface.py
 
 ########################################################################
 # Filter wheel parameters
@@ -78,42 +74,51 @@ DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters
+PROXY_TIMEOUT = 0.5
+
 [DAEMONS]
     [[foc]]
         PORT = 9003
         PINGLIFE = 10.0
         PROCESS = foc_daemon.py
         PYROID = foc_daemon
+        DEPENDS = fli
     [[cam]]
         PORT = 9004
         PINGLIFE = 10.0
         PROCESS = cam_daemon.py
         PYROID = cam_daemon
+        DEPENDS = fli
     [[dome]]
         PORT = 9007
         PINGLIFE = 10.0
         PROCESS = dome_daemon.py
         PYROID = dome_daemon
+        DEPENDS = None
     [[exq]]
         PORT = 9005
         PINGLIFE = 10.0
         PROCESS = exq_daemon.py
         PYROID = exq_daemon
+        DEPENDS = cam, filt
     [[filt]]
         PORT = 9002
         PINGLIFE = 10.0
         PROCESS = filt_daemon.py
         PYROID = filt_daemon
+        DEPENDS = fli
     [[mnt]]
         PORT = 9001
         PINGLIFE = 10.0
         PROCESS = mnt_daemon.py
         PYROID = mnt_daemon
+        DEPENDS = sitech
     [[power]]
         PORT = 9006
         PINGLIFE = 10.0
         PROCESS = power_daemon.py
         PYROID = power_daemon
+        DEPENDS = None
 
 [FLI_INTERFACES]
     [[nuc2]]
@@ -121,6 +126,7 @@ DATABASE_ECHO = 0
         PORT = 9020
         PROCESS = fli_interfaceB.py
         PYROID = fli_interfaceB
+        HOST = nuc2
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
@@ -130,12 +136,15 @@ DATABASE_ECHO = 0
         PORT = 9010
         PROCESS = fli_interface.py
         PYROID = fli_interface
+        HOST = nuc1
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
             cam = fake, fake
 
-
-
-
-
+[WIN_INTERFACES]
+    [[sitech]]
+        PORT = 9000
+        PROCESS = sitech_interface.py
+        PYROID = sitech_interface
+        HOST = goto_mount

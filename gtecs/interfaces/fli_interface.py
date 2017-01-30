@@ -16,7 +16,7 @@ from __future__ import print_function
 from math import *
 import time
 import Pyro4
-from concurrent import futures
+from concurrent import futures  # pip install on Py2.7
 import socket
 # FLI modules
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
@@ -72,10 +72,10 @@ class FLI:
         #for nuc in params.FLI_INTERFACES.keys():
             #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
                 #self.nuc = nuc
-        self.nuc = 'nuc2'
+        self.nuc = 'nuc1'
 
         # logger object
-        self.logfile = logger.getLogger('fli_interfaceB', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
 
         ### fli objects
@@ -265,17 +265,20 @@ class FLI:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-hostname = socket.gethostname()
-pyro_daemon = Pyro4.Daemon(host=hostname, port=9020)
-fli_daemon = FLI()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.FLI_INTERFACES['nuc1']['HOST'], port=params.FLI_INTERFACES['nuc1']['PORT'])
+    fli_daemon = FLI()
 
-uri = pyro_daemon.register(fli_daemon, 'fli_interfaceB')
-fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+    uri = pyro_daemon.register(fli_daemon,objectId = params.FLI_INTERFACES['nuc1']['PYROID'])
+    fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
 
-Pyro4.config.COMMTIMEOUT = 5.
-pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
-fli_daemon.logfile.info('Exiting FLI interface daemon')
-time.sleep(1.)
+    fli_daemon.logfile.info('Exiting FLI interface daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()

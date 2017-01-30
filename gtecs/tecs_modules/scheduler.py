@@ -106,9 +106,6 @@ queue_folder = params.QUEUE_PATH  + 'todo/'
 queue_file   = params.QUEUE_PATH  + 'queue_info'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
-# set observing location
-#GOTO = params.SITE_OBSERVER ## moved
-
 # priority settings
 too_weight = 0.1
 prob_dp = 3

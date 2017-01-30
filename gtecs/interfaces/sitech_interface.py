@@ -21,6 +21,10 @@ import Pyro4
 import threading
 import win32com.client
 import socket
+# TeCS modules
+from gtecs.tecs_modules import logger
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
 
 ########################################################################
 # SiTech functions
@@ -45,6 +49,11 @@ class SiTech:
     def __init__(self):
         self.running = True
 
+        ### set up logfile
+        self.logfile = logger.getLogger('sitech', file_logging=params.FILE_LOGGING,
+                                        stdout_logging=params.STDOUT_LOGGING)
+        self.logfile.info('Daemon started')
+
         ### sitech variables
         self.tel = 'ASCOM.SiTechDll.Telescope'
         self.ascom = win32com.client.Dispatch(self.tel)
@@ -54,7 +63,7 @@ class SiTech:
         """Slew to specified coordinates (if not parked)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print("Slewing to %.3f, %.3f" %(ra,dec))
+            self.logfile.info("Slewing to %.3f, %.3f" %(ra,dec))
             self.ascom.SlewToCoordinatesAsync(ra, dec)
         self.ascom.Connected = False
 
@@ -62,14 +71,14 @@ class SiTech:
         """Slew to saved target coordinates (if not parked)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print("Slewing to target")
+            self.logfile.info("Slewing to target")
             self.ascom.SlewToTargetAsync()
         self.ascom.Connected = False
 
     def start_tracking(self):
         """Set mount tracking at siderial rate"""
         self.ascom.Connected = True
-        print("Tracking")
+        self.logfile.info("Tracking")
         self.ascom.Tracking = True
         self.ascom.Connected = False
 
@@ -77,7 +86,7 @@ class SiTech:
         """Abort slew (if slewing) and stops tracking (if tracking)"""
         self.ascom.Connected = True
         if not self.ascom.AtPark:
-            print("Stopping")
+            self.logfile.info("Stopping")
             self.ascom.AbortSlew()
             self.ascom.Tracking = False
         self.ascom.Connected = False
@@ -85,14 +94,14 @@ class SiTech:
     def park(self):
         """Move mount to park position, won't move until unparked"""
         self.ascom.Connected = True
-        print("Parking")
+        self.logfile.info("Parking")
         self.ascom.Park()
         self.ascom.Connected = False
 
     def unpark(self):
         """Exit mount from park state (and starts tracking)"""
         self.ascom.Connected = True
-        print("Unparking")
+        self.logfile.info("Unparking")
         self.ascom.Unpark()
         self.ascom.Connected = False
 
@@ -100,10 +109,10 @@ class SiTech:
         """Set target data, can do each seperatly"""
         self.ascom.Connected = True
         if ra != 'unset':
-            print("Setting Target RA to %.3f" %ra)
+            self.logfile.info("Setting Target RA to %.3f" %ra)
             self.ascom.TargetRightAscension = ra
         if dec != 'unset':
-            print("Setting Target Dec to %.3f" %dec)
+            self.logfile.info("Setting Target Dec to %.3f" %dec)
             self.ascom.TargetDeclination = dec
         self.ascom.Connected = False
 
@@ -111,14 +120,14 @@ class SiTech:
         """Set target RA"""
         self.ascom.Connected = True
         self.ascom.TargetRightAscension = ra
-        print("Setting Target RA to %.3f" %ra)
+        self.logfile.info("Setting Target RA to %.3f" %ra)
         self.ascom.Connected = False
 
     def set_target_dec(self,dec):
         """Set target Dec"""
         self.ascom.Connected = True
         self.ascom.TargetDeclination = dec
-        print("Setting Target Dec to %.3f" %dec)
+        self.logfile.info("Setting Target Dec to %.3f" %dec)
         self.ascom.Connected = False
 
     def get_mount_status(self):
@@ -212,17 +221,20 @@ class SiTech:
     def shutdown(self):
         self.running = False
 
-########################################################################
-# Create Pyro control server
-hostname = socket.gethostname()
-pyro_daemon = Pyro4.Daemon(host=hostname, port=9000)
-sitech_daemon = SiTech()
+def start():
+    ########################################################################
+    # Create Pyro control server
+    pyro_daemon = Pyro4.Daemon(host=params.WIN_INTERFACES['sitech']['HOST'], port=params.WIN_INTERFACES['sitech']['PORT'])
+    sitech_daemon = SiTech()
 
-uri = pyro_daemon.register(sitech_daemon,'sitech_interface')
-print('Starting SiTech interface daemon at',uri)
+    uri = pyro_daemon.register(sitech_daemon,objectId = params.WIN_INTERFACES['sitech']['PYROID'])
+    sitech_daemon.logfile.info('Starting SiTech interface daemon at %s',uri)
 
-Pyro4.config.COMMTIMEOUT=5.
-pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
+    Pyro4.config.COMMTIMEOUT = 5.
+    pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
 
-print('Exiting SiTech interface daemon')
-time.sleep(1.)
+    sitech_daemon.logfile.info('Exiting SiTech interface daemon')
+    time.sleep(1.)
+
+if __name__ == "__main__":
+    start()
