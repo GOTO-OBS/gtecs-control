@@ -17,7 +17,7 @@ CONFIG_PATH = /home/goto/g-tecs/
 
 # Specific Windows params
 WIN_USER = goto
-WIN_INSTALL_PATH = C:/Anaconda3/lib/site-packages/gtecs/
+WIN_INSTALL_PATH = C:/g-tecs/
 WIN_CONFIG_PATH = C:/goto/g-tecs/
 CYGWIN_PYTHON_PATH = /cygdrive/c/Anaconda3/pythonw.exe
 
