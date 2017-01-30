@@ -401,6 +401,8 @@ def daemon_function(daemon_ID, function_name, args=[]):
         print(ERROR('Daemon not running'))
     elif not daemon_is_alive(daemon_ID):
         print(ERROR('Daemon running but not responding, check logs'))
+    elif not dependencies_are_alive(daemon_ID):
+        print(ERROR('Required dependencies are not responding'))
     else:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
         with Pyro4.Proxy(address) as proxy:
