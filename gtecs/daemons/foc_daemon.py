@@ -23,7 +23,8 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Focuser daemon functions
+# Focuser daemon class
+
 class FocDaemon:
     """
     Focuser daemon class
@@ -274,14 +275,20 @@ class FocDaemon:
     def shutdown(self):
         self.running = False
 
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
+    '''
+    Create Pyro server, register the daemon and enter control loop
+    '''
+    pyro_host = params.DAEMONS['foc']['HOST']
+    pyro_port = params.DAEMONS['foc']['PORT']
+    pyro_ID = params.DAEMONS['foc']['PYROID']
+
+    pyro_daemon = Pyro4.Daemon(host=pyro_host, port=pyro_port)
     foc_daemon = FocDaemon()
 
-    uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
+    uri = pyro_daemon.register(foc_daemon, objectId=pyro_ID)
     foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
 
     Pyro4.config.COMMTIMEOUT = 5.

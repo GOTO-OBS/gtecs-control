@@ -27,7 +27,8 @@ from gtecs.tecs_modules import params
 from astropy.time import Time
 
 ########################################################################
-# Mount daemon functions
+# Mount daemon class
+
 class MntDaemon:
     """
     Mount daemon class
@@ -418,18 +419,26 @@ class MntDaemon:
     def shutdown(self):
         self.running=False
 
+########################################################################
+
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['mnt']['HOST'], port=params.DAEMONS['mnt']['PORT'])
-    mnt_daemon = MntDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['mnt']['HOST']
+    port = params.DAEMONS['mnt']['PORT']
+    pyroID = params.DAEMONS['mnt']['PYROID']
 
-    uri=pyro_daemon.register(mnt_daemon,objectId = params.DAEMONS['mnt']['PYROID'])
-    mnt_daemon.logfile.info('Starting mount daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        mnt_daemon = MntDaemon()
+        uri = pyro_daemon.register(mnt_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
+        # Start request loop
+        mnt_daemon.logfile.info('Starting mount daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
 
+    # Loop has closed
     mnt_daemon.logfile.info('Exiting mount daemon')
     time.sleep(1.)
 

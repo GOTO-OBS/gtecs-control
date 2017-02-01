@@ -28,7 +28,8 @@ from gtecs.tecs_modules import params
 from gtecs.tecs_modules.time_date import nightStarting
 
 ########################################################################
-# Camera daemon functions
+# Camera daemon class
+
 class CamDaemon:
     """
     Camera daemon class
@@ -629,18 +630,26 @@ class CamDaemon:
     def shutdown(self):
         self.running = False
 
+########################################################################
+
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['cam']['HOST'], port=params.DAEMONS['cam']['PORT'])
-    cam_daemon = CamDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['cam']['HOST']
+    port = params.DAEMONS['cam']['PORT']
+    pyroID = params.DAEMONS['cam']['PYROID']
 
-    uri = pyro_daemon.register(cam_daemon,objectId = params.DAEMONS['cam']['PYROID'])
-    cam_daemon.logfile.info('Starting camera daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        cam_daemon = CamDaemon()
+        uri = pyro_daemon.register(cam_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
+        # Start request loop
+        cam_daemon.logfile.info('Starting camera daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
 
+    # Loop has closed
     cam_daemon.logfile.info('Exiting camera daemon')
     time.sleep(1.)
 
