@@ -26,7 +26,8 @@ from gtecs.tecs_modules import params
 from gtecs.controls import dome_control
 
 ########################################################################
-# Dome daemon functions
+# Dome daemon class
+
 class DomeDaemon:
     """
     Dome daemon class
@@ -269,19 +270,26 @@ class DomeDaemon:
     def shutdown(self):
         self.running = False
 
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['dome']['HOST'], port=params.DAEMONS['dome']['PORT'])
-    dome_daemon = DomeDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['dome']['HOST']
+    port = params.DAEMONS['dome']['PORT']
+    pyroID = params.DAEMONS['dome']['PYROID']
 
-    uri = pyro_daemon.register(dome_daemon,objectId = params.DAEMONS['dome']['PYROID'])
-    dome_daemon.logfile.info('Starting dome daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        dome_daemon = DomeDaemon()
+        uri = pyro_daemon.register(dome_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
+        # Start request loop
+        dome_daemon.logfile.info('Starting dome daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
 
+    # Loop has closed
     dome_daemon.logfile.info('Exiting dome daemon')
     time.sleep(1.)
 

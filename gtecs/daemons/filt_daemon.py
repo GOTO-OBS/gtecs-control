@@ -23,7 +23,8 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Filter wheel daemon functions
+# Filter wheel daemon class
+
 class FiltDaemon:
     """
     Filter wheel daemon class
@@ -244,22 +245,28 @@ class FiltDaemon:
     def shutdown(self):
         self.running = False
 
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['filt']['HOST'], port=params.DAEMONS['filt']['PORT'])
-    filt_daemon = FiltDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['filt']['HOST']
+    port = params.DAEMONS['filt']['PORT']
+    pyroID = params.DAEMONS['filt']['PYROID']
 
-    uri = pyro_daemon.register(filt_daemon,objectId = params.DAEMONS['filt']['PYROID'])
-    filt_daemon.logfile.info('Starting filter wheel daemon at %s', uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        filt_daemon = FiltDaemon()
+        uri = pyro_daemon.register(filt_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
+        # Start request loop
+        filt_daemon.logfile.info('Starting filter wheel daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
 
+    # Loop has closed
     filt_daemon.logfile.info('Exiting filter wheel daemon')
     time.sleep(1.)
-
 
 if __name__ == "__main__":
     start()

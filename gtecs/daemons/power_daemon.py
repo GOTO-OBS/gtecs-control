@@ -27,7 +27,8 @@ from six.moves import range
 from gtecs.controls import power_control
 
 ########################################################################
-# Power daemon functions
+# Power daemon class
+
 class PowerDaemon:
     """
     Power daemon class
@@ -219,18 +220,26 @@ class PowerDaemon:
     def shutdown(self):
         self.running = False
 
+########################################################################
+
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
-    power_daemon = PowerDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['power']['HOST']
+    port = params.DAEMONS['power']['PORT']
+    pyroID = params.DAEMONS['power']['PYROID']
 
-    uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-    power_daemon.logfile.info('Starting power daemon at %s', uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        power_daemon = PowerDaemon()
+        uri = pyro_daemon.register(power_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
+        # Start request loop
+        power_daemon.logfile.info('Starting power daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
+    # Loop has closed
     power_daemon.logfile.info('Exiting power daemon')
     time.sleep(1.)
 

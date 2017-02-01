@@ -28,8 +28,9 @@ from gtecs.tecs_modules import params
 from six.moves import range
 
 ########################################################################
-# FLI control functions
-class FLI:
+# FLI interface class
+
+class FLIDaemon:
     """
     FLI interface class
 
@@ -265,18 +266,26 @@ class FLI:
     def shutdown(self):
         self.running = False
 
+########################################################################
+
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.FLI_INTERFACES['nuc2']['HOST'], port=params.FLI_INTERFACES['nuc2']['PORT'])
-    fli_daemon = FLI()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.FLI_INTERFACES['nuc2']['HOST']
+    port = params.FLI_INTERFACES['nuc2']['PORT']
+    pyroID = params.FLI_INTERFACES['nuc2']['PYROID']
 
-    uri = pyro_daemon.register(fli_daemon,objectId = params.FLI_INTERFACES['nuc2']['PYROID'])
-    fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        fli_daemon = FLIDaemon()
+        uri = pyro_daemon.register(fli_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+        # Start request loop
+        fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
+    # Loop has closed
     fli_daemon.logfile.info('Exiting FLI interface daemon')
     time.sleep(1.)
 

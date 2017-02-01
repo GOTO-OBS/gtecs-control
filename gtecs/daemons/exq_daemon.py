@@ -26,7 +26,8 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Exposure queue daemon functions
+# Exposure queue classes
+
 class ExposureSpec:
     """
     Exposure specification class
@@ -160,6 +161,9 @@ class Queue(MutableSequence):
         for x in self.data:
             s += x.spec_to_line()
         return s.rstrip()
+
+########################################################################
+# Exposure queue daemon class
 
 class ExqDaemon:
     """
@@ -391,19 +395,26 @@ class ExqDaemon:
     def shutdown(self):
         self.running=False
 
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['exq']['HOST'], port=params.DAEMONS['exq']['PORT'])
-    exq_daemon = ExqDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['exq']['HOST']
+    port = params.DAEMONS['exq']['PORT']
+    pyroID = params.DAEMONS['exq']['PYROID']
 
-    uri = pyro_daemon.register(exq_daemon,objectId = params.DAEMONS['exq']['PYROID'])
-    exq_daemon.logfile.info('Starting exposure queue daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        exq_daemon = ExqDaemon()
+        uri = pyro_daemon.register(exq_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
+        # Start request loop
+        exq_daemon.logfile.info('Starting exposure queue daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
 
+    # Loop has closed
     exq_daemon.logfile.info('Exiting exposure queue daemon')
     time.sleep(1.)
 
