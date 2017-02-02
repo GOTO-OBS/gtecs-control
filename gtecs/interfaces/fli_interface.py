@@ -65,17 +65,17 @@ class FLIDaemon:
     - get_camera_temp(temp_type, HW)
     - get_camera_cooler_power(HW)
     """
+
     def __init__(self, intf):
         self.running = True
-
-        ### find interface params
+        self.start_time = time.time()
         self.intf = intf
 
-        # logger object
-        interface_name = params.FLI_INTERFACES[self.intf]['PYROID']
-        self.logfile = logger.getLogger(interface_name,
+        ### set up logfile
+        self.logfile = logger.getLogger(intf,
                                         file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
+        self.logfile.info('Daemon started')
 
         ### fli objects
         self.cams = []

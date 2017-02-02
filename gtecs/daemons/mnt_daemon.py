@@ -47,12 +47,14 @@ class MntDaemon:
     - offset(direction)
     - set_step()
     """
+
     def __init__(self):
         self.running = True
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.getLogger('mnt', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('mnt',
+                                        file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 

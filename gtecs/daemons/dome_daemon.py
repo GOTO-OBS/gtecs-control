@@ -36,6 +36,7 @@ class DomeDaemon:
     - get_info()
 
     """
+
     def __init__(self):
         self.running = True
         self.start_time = time.time()
@@ -44,7 +45,7 @@ class DomeDaemon:
         self.logfile = logger.getLogger('dome',
                                         file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.debug('Daemon started')
+        self.logfile.info('Daemon started')
 
         ### command flags
         self.get_info_flag = 1

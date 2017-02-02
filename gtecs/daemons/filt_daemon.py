@@ -34,6 +34,7 @@ class FiltDaemon:
     - set_filter(filt, telescopeIDs)
     - home_filter(telescopeIDs)
     """
+
     def __init__(self):
         self.running = True
         self.start_time = time.time()
