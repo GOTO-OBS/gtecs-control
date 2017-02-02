@@ -70,10 +70,10 @@ class FLIDaemon:
 
         ### find interface params
         self.hostname = socket.gethostname()
-        #for nuc in params.FLI_INTERFACES.keys():
-            #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
-                #self.nuc = nuc
-        self.nuc = 'fli1'
+        #for intf in params.FLI_INTERFACES.keys():
+            #if params.FLI_INTERFACES[intf]['HOST'] == self.hostname:
+                #self.intf = intf
+        self.intf = 'fli1'
 
         # logger object
         self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
@@ -83,19 +83,19 @@ class FLIDaemon:
         self.cams = []
         self.focs = []
         self.filts = []
-        for HW in range(len(params.FLI_INTERFACES[self.nuc]['TELS'])):
+        for HW in range(len(params.FLI_INTERFACES[self.intf]['TELS'])):
             # cameras
-            cam_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['cam'][HW]
+            cam_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['cam'][HW]
             cam = USBCamera.locate_device(cam_serial)
             if cam == None: cam = FakeCamera('fake','Fake-Cam')
             self.cams.append(cam)
             # focusers
-            foc_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['foc'][HW]
+            foc_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['foc'][HW]
             foc = USBFocuser.locate_device(foc_serial)
             if foc == None: foc = FakeFocuser('fake','Fake-Foc')
             self.focs.append(foc)
             # filter wheels
-            filt_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['filt'][HW]
+            filt_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['filt'][HW]
             filt = USBFilterWheel.locate_device(filt_serial)
             if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
             self.filts.append(filt)
