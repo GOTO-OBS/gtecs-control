@@ -47,17 +47,21 @@ class SiTechDaemon:
     - get_target_radec()
     - get_lst()
     """
+
     def __init__(self):
         self.running = True
+        self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.getLogger('sitech', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('sitech',
+                                        file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 
         ### sitech variables
         self.tel = 'ASCOM.SiTechDll.Telescope'
         self.ascom = win32com.client.Dispatch(self.tel)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     def slew_to_radec(self,ra,dec):

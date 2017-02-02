@@ -38,12 +38,14 @@ class PowerDaemon:
     - on(outletname/number/'all')
     - off(outletname/number/'all')
     """
+
     def __init__(self):
         self.running = True
         self.start_time = time.time()
 
         ### set up logfile
-        self.logfile = logger.getLogger('power', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('power',
+                                        file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 

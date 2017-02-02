@@ -178,6 +178,7 @@ class ExqDaemon:
     - resume()
 
     """
+
     def __init__(self):
         self.running = True
         self.start_time = time.time()
@@ -186,7 +187,7 @@ class ExqDaemon:
         self.logfile = logger.getLogger('exq',
                                         file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.debug('Daemon started')
+        self.logfile.info('Daemon started')
 
         ### function flags
         self.set_filter_flag = 0
@@ -206,7 +207,7 @@ class ExqDaemon:
         self.paused = 1 # start paused
 
         ### start control thread
-        t = threading.Thread(target=self.exq_thread)
+        t = threading.Thread(target=self.exq_control)
         t.daemon = True
         t.start()
 
@@ -267,8 +268,8 @@ class ExqDaemon:
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary exposure queue thread
-    def exq_thread(self):
+    # Primary control thread
+    def exq_control(self):
 
         # connect to daemons
         CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
@@ -305,7 +306,7 @@ class ExqDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Exposure queue thread stopped')
+        self.logfile.info('Exposure queue control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -50,8 +50,10 @@ class CamDaemon:
         self.running = True
         self.start_time = time.time()
         self.time_check = time.time()
+
         ### set up logfile
-        self.logfile = logger.getLogger('cam', file_logging=params.FILE_LOGGING,
+        self.logfile = logger.getLogger('cam',
+                                        file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 
