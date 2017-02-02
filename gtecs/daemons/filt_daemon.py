@@ -60,12 +60,13 @@ class FiltDaemon:
         self.serial_number = {}
         self.homed = {}
 
-        for nuc in params.FLI_INTERFACES:
-            self.current_pos[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.remaining[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.current_filter_num[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.homed[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+        for intf in params.FLI_INTERFACES:
+            ntels = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.current_pos[intf] = [0]*ntels
+            self.remaining[intf] = [0]*ntels
+            self.current_filter_num[intf] = [0]*ntels
+            self.serial_number[intf] = [0]*ntels
+            self.homed[intf] = [0]*ntels
 
         self.active_tel = []
         self.new_filter = ''
@@ -81,9 +82,9 @@ class FiltDaemon:
 
         # make proxies once, outside the loop
         fli_proxies = dict()
-        for nuc in params.FLI_INTERFACES:
-            fli_proxies[nuc] = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-            fli_proxies[nuc]._pyroTimeout = params.PROXY_TIMEOUT
+        for intf in params.FLI_INTERFACES:
+            fli_proxies[intf] = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
+            fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
@@ -93,32 +94,32 @@ class FiltDaemon:
             if(self.get_info_flag):
                 # update variables
                 for tel in self.tel_dict:
-                    nuc, HW = self.tel_dict[tel]
-                    fli = fli_proxies[nuc]
+                    intf, HW = self.tel_dict[tel]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
-                        self.current_pos[nuc][HW] = fli.get_filter_position(HW)
-                        self.remaining[nuc][HW] = fli.get_filter_steps_remaining(HW)
-                        self.current_filter_num[nuc][HW] = fli.get_filter_number(HW)
-                        self.serial_number[nuc][HW] = fli.get_filter_serial_number(HW)
-                        self.homed[nuc][HW] = fli.get_filter_homed(HW)
+                        self.current_pos[intf][HW] = fli.get_filter_position(HW)
+                        self.remaining[intf][HW] = fli.get_filter_steps_remaining(HW)
+                        self.current_filter_num[intf][HW] = fli.get_filter_number(HW)
+                        self.serial_number[intf][HW] = fli.get_filter_serial_number(HW)
+                        self.homed[intf][HW] = fli.get_filter_homed(HW)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
                 for tel in self.tel_dict:
-                    nuc, HW = self.tel_dict[tel]
-                    tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
-                    if self.remaining[nuc][HW] > 0:
+                    intf, HW = self.tel_dict[tel]
+                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                    if self.remaining[intf][HW] > 0:
                         info['status'+tel] = 'Moving'
-                        info['remaining'+tel] = self.remaining[nuc][HW]
+                        info['remaining'+tel] = self.remaining[intf][HW]
                     else:
                         info['status'+tel] = 'Ready'
-                    info['current_filter_num'+tel] = self.current_filter_num[nuc][HW]
-                    info['current_pos'+tel] = self.current_pos[nuc][HW]
-                    info['serial_number'+tel] = self.serial_number[nuc][HW]
-                    info['homed'+tel] = self.homed[nuc][HW]
+                    info['current_filter_num'+tel] = self.current_filter_num[intf][HW]
+                    info['current_pos'+tel] = self.current_pos[intf][HW]
+                    info['serial_number'+tel] = self.serial_number[intf][HW]
+                    info['homed'+tel] = self.homed[intf][HW]
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 now = datetime.datetime.utcnow()
@@ -131,19 +132,19 @@ class FiltDaemon:
             if(self.set_filter_flag):
                 # loop through each unit to send orders to in turn
                 for tel in self.active_tel:
-                    nuc, HW = self.tel_dict[tel]
+                    intf, HW = self.tel_dict[tel]
                     new_filter_num = self.flist.index(self.new_filter)
 
                     self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
-                                      tel, nuc, HW, self.new_filter, new_filter_num)
+                                      tel, intf, HW, self.new_filter, new_filter_num)
 
-                    fli = fli_proxies[nuc]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
                         c = fli.set_filter_pos(new_filter_num,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
 
                 # clear the 'active' units
@@ -155,18 +156,18 @@ class FiltDaemon:
             if(self.home_filter_flag):
                 # loop through each unit to send orders to it in turn
                 for tel in self.active_tel:
-                    nuc, HW = self.tel_dict[tel]
+                    intf, HW = self.tel_dict[tel]
 
                     self.logfile.info('Homing filter wheel %i (%s-%i)',
-                                      tel, nuc, HW)
+                                      tel, intf, HW)
 
-                    fli = fli_proxies[nuc]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
                         c = fli.home_filter(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
                 # clear the active units
                 self.active_tel = []
@@ -198,10 +199,10 @@ class FiltDaemon:
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
-            nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] > 0:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] > 0:
                 s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
-            elif not self.homed[nuc][HW]:
+            elif not self.homed[intf][HW]:
                 s += '\n  ERROR: Home filter wheel %i first!' %tel
             else:
                 self.active_tel += [tel]
@@ -218,8 +219,8 @@ class FiltDaemon:
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
-            nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] > 0:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] > 0:
                 s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
             else:
                 self.active_tel += [tel]

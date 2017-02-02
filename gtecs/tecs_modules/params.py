@@ -116,9 +116,9 @@ for key in FLI_INTERFACES:
     FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
-for nuc in FLI_INTERFACES:
-    for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
-        TEL_DICT[tel] = [nuc,HW]
+for intf in FLI_INTERFACES:
+    for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
+        TEL_DICT[tel] = [intf, HW]
 
 WIN_INTERFACES = config['WIN_INTERFACES']
 for key in WIN_INTERFACES:
