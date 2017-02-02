@@ -65,18 +65,16 @@ class FLIDaemon:
     - get_camera_temp(temp_type, HW)
     - get_camera_cooler_power(HW)
     """
-    def __init__(self):
+    def __init__(self, intf):
         self.running = True
 
         ### find interface params
-        self.hostname = socket.gethostname()
-        #for intf in params.FLI_INTERFACES.keys():
-            #if params.FLI_INTERFACES[intf]['HOST'] == self.hostname:
-                #self.intf = intf
-        self.intf = 'fli2'
+        self.intf = intf
 
         # logger object
-        self.logfile = logger.getLogger('fli_interfaceB', file_logging=params.FILE_LOGGING,
+        interface_name = params.FLI_INTERFACES[self.intf]['PYROID']
+        self.logfile = logger.getLogger(interface_name,
+                                        file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
 
         ### fli objects
@@ -272,12 +270,16 @@ def start():
     '''
     Create Pyro server, register the daemon and enter request loop
     '''
-    host = params.FLI_INTERFACES['fli2']['HOST']
-    port = params.FLI_INTERFACES['fli2']['PORT']
-    pyroID = params.FLI_INTERFACES['fli2']['PYROID']
+    # find which interface this is
+    hostname = socket.gethostname()
+    intf = 'fli2'#misc.find_interface_ID(hostname)
+
+    host = params.FLI_INTERFACES[intf]['HOST']
+    port = params.FLI_INTERFACES[intf]['PORT']
+    pyroID = params.FLI_INTERFACES[intf]['PYROID']
 
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        fli_daemon = FLIDaemon()
+        fli_daemon = FLIDaemon(intf)
         uri = pyro_daemon.register(fli_daemon, objectId=pyroID)
         Pyro4.config.COMMTIMEOUT = 5.
 

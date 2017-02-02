@@ -272,6 +272,21 @@ def dependencies_are_alive(daemon_ID):
     else:
         return True
 
+def find_interface_ID(hostname):
+    '''Find what interface should be running on a given host.
+
+    Used by the FLI interfaces to find which interface it should identify as.
+
+    NOTE it will only return the first match, as there should only be one
+        interface per host.
+        For testing the fli_interfaceB file will be used.
+    '''
+    for intf in params.FLI_INTERFACES:
+        if params.FLI_INTERFACES[intf]['HOST'] == hostname:
+            return intf
+        else:
+            raise ValueError('Host {} does not have an associated interface'.format(hostname))
+
 ########################################################################
 # Core Daemon functions
 def start_daemon(daemon_ID):
