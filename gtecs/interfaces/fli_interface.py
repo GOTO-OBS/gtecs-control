@@ -73,7 +73,7 @@ class FLIDaemon:
         #for nuc in params.FLI_INTERFACES.keys():
             #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
                 #self.nuc = nuc
-        self.nuc = 'nuc1'
+        self.nuc = 'fli1'
 
         # logger object
         self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
@@ -272,9 +272,9 @@ def start():
     '''
     Create Pyro server, register the daemon and enter request loop
     '''
-    host = params.FLI_INTERFACES['nuc1']['HOST']
-    port = params.FLI_INTERFACES['nuc1']['PORT']
-    pyroID = params.FLI_INTERFACES['nuc1']['PYROID']
+    host = params.FLI_INTERFACES['fli1']['HOST']
+    port = params.FLI_INTERFACES['fli1']['PORT']
+    pyroID = params.FLI_INTERFACES['fli1']['PYROID']
 
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         fli_daemon = FLIDaemon()
