@@ -63,14 +63,14 @@ class FocDaemon:
         self.serial_number = {}
 
         for intf in params.FLI_INTERFACES:
-            ntels = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.limit[intf] = [0]*ntels
-            self.current_pos[intf] = [0]*ntels
-            self.remaining[intf] = [0]*ntels
-            self.int_temp[intf] = [0]*ntels
-            self.ext_temp[intf] = [0]*ntels
-            self.move_steps[intf] = [0]*ntels
-            self.serial_number[intf] = [0]*ntels
+            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.limit[intf] = [0]*nHW
+            self.current_pos[intf] = [0]*nHW
+            self.remaining[intf] = [0]*nHW
+            self.int_temp[intf] = [0]*nHW
+            self.ext_temp[intf] = [0]*nHW
+            self.move_steps[intf] = [0]*nHW
+            self.serial_number[intf] = [0]*nHW
 
         self.active_tel = []
 

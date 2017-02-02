@@ -61,12 +61,12 @@ class FiltDaemon:
         self.homed = {}
 
         for intf in params.FLI_INTERFACES:
-            ntels = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.current_pos[intf] = [0]*ntels
-            self.remaining[intf] = [0]*ntels
-            self.current_filter_num[intf] = [0]*ntels
-            self.serial_number[intf] = [0]*ntels
-            self.homed[intf] = [0]*ntels
+            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.current_pos[intf] = [0]*nHW
+            self.remaining[intf] = [0]*nHW
+            self.current_filter_num[intf] = [0]*nHW
+            self.serial_number[intf] = [0]*nHW
+            self.homed[intf] = [0]*nHW
 
         self.active_tel = []
         self.new_filter = ''

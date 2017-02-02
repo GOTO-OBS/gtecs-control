@@ -85,18 +85,18 @@ class CamDaemon:
         self.serial_number = {}
 
         for intf in params.FLI_INTERFACES:
-            ntels = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.remaining[intf] = [0]*ntels
-            self.exposing_flag[intf] = [0]*ntels
-            self.exptime[intf] = [1]*ntels
-            self.frametype[intf] = ['normal']*ntels
-            self.bins[intf] = [[1,1]]*ntels
-            self.area[intf] = [[0,0,0,0]]*ntels
-            self.ccd_temp[intf] = [0]*ntels
-            self.base_temp[intf] = [0]*ntels
-            self.cooler_power[intf] = [0]*ntels
-            self.cam_info[intf] = [0]*ntels
-            self.serial_number[intf] = [0]*ntels
+            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.remaining[intf] = [0]*nHW
+            self.exposing_flag[intf] = [0]*nHW
+            self.exptime[intf] = [1]*nHW
+            self.frametype[intf] = ['normal']*nHW
+            self.bins[intf] = [[1,1]]*nHW
+            self.area[intf] = [[0,0,0,0]]*nHW
+            self.ccd_temp[intf] = [0]*nHW
+            self.base_temp[intf] = [0]*nHW
+            self.cooler_power[intf] = [0]*nHW
+            self.cam_info[intf] = [0]*nHW
+            self.serial_number[intf] = [0]*nHW
 
         self.active_tel = []
         self.obs_times = {}
