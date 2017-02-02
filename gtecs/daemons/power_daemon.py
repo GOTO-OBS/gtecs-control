@@ -166,7 +166,7 @@ class PowerDaemon:
 
     def on(self,outlet):
         """Power on a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
+        self.new_outlet = self._get_outlet_number(outlet)
         if self.new_outlet == None:
             return 'ERROR: Unknown outlet'
         else:
@@ -175,7 +175,7 @@ class PowerDaemon:
 
     def off(self,outlet):
         """Power off a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
+        self.new_outlet = self._get_outlet_number(outlet)
         if self.new_outlet == None:
             return 'ERROR: Unknown outlet'
         else:
@@ -184,14 +184,14 @@ class PowerDaemon:
 
     def reboot(self,outlet):
         """Reboot a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
+        self.new_outlet = self._get_outlet_number(outlet)
         if self.new_outlet == None:
             return 'ERROR: Unknown outlet'
         else:
             self.reboot_flag = 1
             return 'Rebooting power'
 
-    def get_outlet_number(self,outlet):
+    def _get_outlet_number(self,outlet):
         """Check outlet is valid and convert name to number"""
         if outlet.isdigit():
             x = int(outlet)

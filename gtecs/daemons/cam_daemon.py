@@ -175,7 +175,7 @@ class CamDaemon:
                         self.logfile.debug('', exc_info=True)
                     if remaining == 0:
                         self.exposing_flag[intf][HW] = 2
-                        self.images[tel] = self.image_fetch(tel) # store a future image
+                        self.images[tel] = self._image_fetch(tel) # store a future image
 
             # take exposure part three - save
             for tel in self.active_tel:
@@ -190,9 +190,9 @@ class CamDaemon:
                     header_dict = {}
                     header_dict['tel'] = tel
                     self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
-                    filename = self.image_location(tel)
+                    filename = self._image_location(tel)
                     self.logfile.info('Saving exposure to %s', filename)
-                    self.write_fits(image, filename, tel)
+                    self._write_fits(image, filename, tel)
                     self.exposing_flag[intf][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
 
@@ -490,7 +490,7 @@ class CamDaemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Image data functions
 
-    def image_fetch(self, tel):
+    def _image_fetch(self, tel):
         intf, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
         fli._pyroTimeout = params.PROXY_TIMEOUT
@@ -504,7 +504,7 @@ class CamDaemon:
         fli._pyroRelease()
         return future_image
 
-    def image_location(self,tel):
+    def _image_location(self,tel):
         # Find the date the observing night began, for the directory
         night = nightStarting()
         if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
@@ -517,14 +517,14 @@ class CamDaemon:
             filename = '/man_ut%i.fits'%tel
         return direc + filename
 
-    def write_fits(self,image,filename,tel):
+    def _write_fits(self,image,filename,tel):
         hdu = pyfits.PrimaryHDU(image)
-        self.update_header(hdu.header,tel)
+        self._update_header(hdu.header,tel)
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
         hdulist.writeto(filename)
 
-    def update_header(self,header,tel):
+    def _update_header(self,header,tel):
         # File data
         now = datetime.datetime.utcnow()
         hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
