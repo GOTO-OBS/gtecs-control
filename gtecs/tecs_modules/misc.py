@@ -466,7 +466,7 @@ def valid_ints(array, allowed):
             pass
         elif not i.isdigit():
             print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
-        elif i not in [str(x) for x in list(params.TEL_DICT.keys())]:
+        elif i not in [str(x) for x in allowed]:
             print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
         elif int(i) not in valid:
             valid += [int(i)]
