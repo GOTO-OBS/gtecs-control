@@ -189,10 +189,6 @@ class ExqDaemon:
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon started')
 
-        ### function flags
-        self.set_filter_flag = 0
-        self.take_image_flag = 0
-
         ### exposure queue variables
         self.info = {}
         self.flist = params.FILTER_LIST
@@ -210,62 +206,6 @@ class ExqDaemon:
         t = threading.Thread(target=self.exq_control)
         t.daemon = True
         t.start()
-
-    def set_filter(self, filt):
-        new_filt = self.exp_spec.filt
-        tel_list = self.exp_spec.tel_list
-        try:
-            filt._pyroReconnect()
-            filt.set_filter(new_filt, tel_list)
-            self.current_filter = new_filt
-        except:
-            self.logfile.error('No response from filter wheel daemon')
-            self.logfile.debug('', exc_info=True)
-
-        time.sleep(1)
-        filt_info_dict = filt.get_info()
-        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
-        while('Moving' in filt_status.values()):
-            try:
-                filt_info_dict = filt.get_info()
-            except Pyro4.errors.TimeoutError:
-                pass
-            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
-            time.sleep(0.005)
-            # keep ping alive
-            self.time_check = time.time()
-
-    def take_image(self, cam):
-        bins = self.exp_spec.bins
-        exptime = self.exp_spec.exptime
-        tel_list = self.exp_spec.tel_list
-        try:
-            cam._pyroReconnect()
-            cam.set_bins([bins, bins], tel_list)  # Assumes symmetric for now
-            cam.set_spec(self.exp_spec.run_ID, self.exp_spec.target,
-                         self.exp_spec.imgtype)
-            time.sleep(0.1)
-            if self.exp_spec.frametype == 'normal':
-                cam.take_image(exptime, tel_list)
-            elif self.exp_spec.frametype == 'dark':
-                cam.take_dark(exptime, tel_list)
-        except:
-            self.logfile.error('No response from camera daemon')
-            self.logfile.debug('', exc_info=True)
-
-        time.sleep(1)
-        cam_info_dict = cam.get_info()
-        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
-        while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
-            try:
-                cam_info_dict = cam.get_info()
-            except Pyro4.errors.TimeoutError:
-                pass
-            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
-            time.sleep(0.05)
-            # keep ping alive
-            self.time_check = time.time()
-
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
@@ -295,8 +235,8 @@ class ExqDaemon:
                     self.logfile.info('Taking exposure %s', str(self.current_ID))
                     self.working = 1
                     # we need to set filter and take image
-                    self.set_filter(filt)
-                    self.take_image(cam)
+                    self._set_filter(filt)
+                    self._take_image(cam)
                     self.working = 0
                     self.current_ID = None
 
@@ -335,6 +275,61 @@ class ExqDaemon:
         now = datetime.datetime.utcnow()
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
         return info
+
+    def _set_filter(self, filt):
+        new_filt = self.exp_spec.filt
+        tel_list = self.exp_spec.tel_list
+        try:
+            filt._pyroReconnect()
+            filt.set_filter(new_filt, tel_list)
+            self.current_filter = new_filt
+        except:
+            self.logfile.error('No response from filter wheel daemon')
+            self.logfile.debug('', exc_info=True)
+
+        time.sleep(1)
+        filt_info_dict = filt.get_info()
+        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+        while('Moving' in filt_status.values()):
+            try:
+                filt_info_dict = filt.get_info()
+            except Pyro4.errors.TimeoutError:
+                pass
+            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+            time.sleep(0.005)
+            # keep ping alive
+            self.time_check = time.time()
+
+    def _take_image(self, cam):
+        bins = self.exp_spec.bins
+        exptime = self.exp_spec.exptime
+        tel_list = self.exp_spec.tel_list
+        try:
+            cam._pyroReconnect()
+            cam.set_bins([bins, bins], tel_list)  # Assumes symmetric for now
+            cam.set_spec(self.exp_spec.run_ID, self.exp_spec.target,
+                         self.exp_spec.imgtype)
+            time.sleep(0.1)
+            if self.exp_spec.frametype == 'normal':
+                cam.take_image(exptime, tel_list)
+            elif self.exp_spec.frametype == 'dark':
+                cam.take_dark(exptime, tel_list)
+        except:
+            self.logfile.error('No response from camera daemon')
+            self.logfile.debug('', exc_info=True)
+
+        time.sleep(1)
+        cam_info_dict = cam.get_info()
+        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+        while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
+            try:
+                cam_info_dict = cam.get_info()
+            except Pyro4.errors.TimeoutError:
+                pass
+            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+            time.sleep(0.05)
+            # keep ping alive
+            self.time_check = time.time()
 
     def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         """Add an exposure to the queue"""
