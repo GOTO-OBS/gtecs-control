@@ -276,6 +276,50 @@ class ExqDaemon:
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
         return info
 
+    def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+        """Add an exposure to the queue"""
+        # check if valid
+        if filt.upper() not in self.flist:
+            return 'ERROR: Filter not in list %s' %str(self.flist)
+
+        # find and update run number
+        with open(self.run_number_file,) as f:
+            lines = f.readlines()
+            new_run_ID = int(lines[0]) + 1
+        with open(self.run_number_file,'w') as f:
+            f.write(str(new_run_ID))
+
+        self.exp_queue.append(ExposureSpec(new_run_ID,tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
+        if(self.paused):
+            return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
+        else:
+            return 'Added exposure, now %i items in queue' %len(self.exp_queue)
+
+    def clear(self):
+        """Empty the exposure queue"""
+        self.exp_queue.clear()
+        return 'Queue cleared'
+
+    def get(self):
+        """Return info on exposures in the queue"""
+        return self.exp_queue.get()
+
+    def get_simple(self):
+        """Return simple info on exposures in the queue"""
+        return self.exp_queue.get_simple()
+
+    def pause(self):
+        """Pause the queue"""
+        self.paused = 1
+        return 'Queue paused'
+
+    def resume(self):
+        """Unpause the queue"""
+        self.paused = 0
+        return 'Queue resumed'
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Internal functions
     def _set_filter(self, filt):
         new_filt = self.exp_spec.filt
         tel_list = self.exp_spec.tel_list
@@ -330,48 +374,6 @@ class ExqDaemon:
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
-
-    def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
-        """Add an exposure to the queue"""
-        # check if valid
-        if filt.upper() not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
-
-        # find and update run number
-        with open(self.run_number_file,) as f:
-            lines = f.readlines()
-            new_run_ID = int(lines[0]) + 1
-        with open(self.run_number_file,'w') as f:
-            f.write(str(new_run_ID))
-
-        self.exp_queue.append(ExposureSpec(new_run_ID,tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
-        if(self.paused):
-            return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
-        else:
-            return 'Added exposure, now %i items in queue' %len(self.exp_queue)
-
-    def clear(self):
-        """Empty the exposure queue"""
-        self.exp_queue.clear()
-        return 'Queue cleared'
-
-    def get(self):
-        """Return info on exposures in the queue"""
-        return self.exp_queue.get()
-
-    def get_simple(self):
-        """Return simple info on exposures in the queue"""
-        return self.exp_queue.get_simple()
-
-    def pause(self):
-        """Pause the queue"""
-        self.paused = 1
-        return 'Queue paused'
-
-    def resume(self):
-        """Unpause the queue"""
-        self.paused = 0
-        return 'Queue resumed'
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other daemon functions
