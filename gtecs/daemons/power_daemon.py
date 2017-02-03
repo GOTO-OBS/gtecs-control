@@ -191,6 +191,8 @@ class PowerDaemon:
             self.reboot_flag = 1
             return 'Rebooting power'
 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Internal functions
     def _get_outlet_number(self,outlet):
         """Check outlet is valid and convert name to number"""
         if outlet.isdigit():
