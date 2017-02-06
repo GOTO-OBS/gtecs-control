@@ -21,6 +21,7 @@ from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import daemons
 
 ########################################################################
 # Interactive functions
@@ -39,13 +40,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon(daemon_ID)
+        daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon(daemon_ID)
+        daemons.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon(daemon_ID)
+        daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon(daemon_ID)
+        daemons.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -54,7 +55,7 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'info':
-        info = misc.daemon_function(daemon_ID, 'get_info')
+        info = daemons.daemon_function(daemon_ID, 'get_info')
         if info: print_info(info)
 
     elif command == 'open':
@@ -64,7 +65,7 @@ def query(command, args):
         elif len(args) == 2:
             side  = args[0]
             steps = args[1]
-        c = misc.daemon_function(daemon_ID, 'open_dome', [side, steps])
+        c = daemons.daemon_function(daemon_ID, 'open_dome', [side, steps])
         if c: print(c)
 
     elif command == 'close':
@@ -74,11 +75,11 @@ def query(command, args):
         elif len(args) == 2:
             side  = args[0]
             steps = args[1]
-        c = misc.daemon_function(daemon_ID, 'close_dome', [side, steps])
+        c = daemons.daemon_function(daemon_ID, 'close_dome', [side, steps])
         if c: print(c)
 
     elif command == 'halt':
-        c = misc.daemon_function(daemon_ID, 'halt_dome')
+        c = daemons.daemon_function(daemon_ID, 'halt_dome')
         if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
