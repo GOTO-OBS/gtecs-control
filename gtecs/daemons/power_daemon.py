@@ -157,7 +157,7 @@ class PowerDaemon(HardwareDaemon):
         """Return power status info"""
         self.status_flag = -1
         self.get_info_flag = 1
-        time.sleep(0.1)
+        time.sleep(0.5)
         return self.info
 
     def on(self,outlet):
