@@ -259,21 +259,22 @@ class FocDaemon(HardwareDaemon):
 
 def start():
     '''
-    Create Pyro server, register the daemon and enter control loop
+    Create Pyro server, register the daemon and enter request loop
     '''
-    pyro_host = params.DAEMONS['foc']['HOST']
-    pyro_port = params.DAEMONS['foc']['PORT']
-    pyro_ID = params.DAEMONS['foc']['PYROID']
+    host = params.DAEMONS['foc']['HOST']
+    port = params.DAEMONS['foc']['PORT']
+    pyroID = params.DAEMONS['foc']['PYROID']
 
-    pyro_daemon = Pyro4.Daemon(host=pyro_host, port=pyro_port)
-    foc_daemon = FocDaemon()
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        foc_daemon = FocDaemon()
+        uri = pyro_daemon.register(foc_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    uri = pyro_daemon.register(foc_daemon, objectId=pyro_ID)
-    foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
+        # Start request loop
+        foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
-
+    # Loop has closed
     foc_daemon.logfile.info('Exiting focuser daemon')
     time.sleep(1.)
 
