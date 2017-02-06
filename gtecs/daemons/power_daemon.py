@@ -65,6 +65,7 @@ class PowerDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def power_control(self):
+        self.logfile.info('Daemon control thread started')
 
         ### connect to power object
         IP = params.POWER_IP
@@ -147,7 +148,7 @@ class PowerDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Power control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,11 +218,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        power_daemon.logfile.info('Starting power daemon at %s', uri)
+        power_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
     # Loop has closed
-    power_daemon.logfile.info('Exiting power daemon')
+    power_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

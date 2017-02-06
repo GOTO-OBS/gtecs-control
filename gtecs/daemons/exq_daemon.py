@@ -205,6 +205,7 @@ class ExqDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def exq_control(self):
+        self.logfile.info('Daemon control thread started')
 
         # connect to daemons
         CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
@@ -241,7 +242,7 @@ class ExqDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Exposure queue control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -386,11 +387,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        exq_daemon.logfile.info('Starting exposure queue daemon at %s', uri)
+        exq_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=exq_daemon.status_function)
 
     # Loop has closed
-    exq_daemon.logfile.info('Exiting exposure queue daemon')
+    exq_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

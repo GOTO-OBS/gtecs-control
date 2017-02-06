@@ -222,11 +222,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        sitech_daemon.logfile.info('Starting SiTech interface daemon at %s', uri)
+        sitech_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
 
     # Loop has closed
-    sitech_daemon.logfile.info('Exiting SiTech interface daemon')
+    sitech_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

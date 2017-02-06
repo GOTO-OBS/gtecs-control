@@ -68,6 +68,7 @@ class DomeDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def dome_control(self):
+        self.logfile.info('Daemon control thread started')
 
         ### connect to dome object
         loc = params.DOME_LOCATION
@@ -86,7 +87,7 @@ class DomeDaemon(HardwareDaemon):
                 # get current dome status
                 self.dome_status = dome.status()
                 if self.dome_status == None:
-                    self.logfile.debug('Failed to get dome status')
+                    self.logfile.info('Failed to get dome status')
                     continue
 
                 # ping the power sources
@@ -101,20 +102,20 @@ class DomeDaemon(HardwareDaemon):
                 # test for an emergency
                 if not dome.fake:
                     if misc.loopback_test(params.BIG_RED_BUTTON_PORT,'bob',chances=3):
-                        self.logfile.debug('Emergency shutdown button pressed',1)
+                        self.logfile.info('Emergency shutdown button pressed',1)
                         os.system('touch %s' % params.EMERGENCY_FILE)
 
                 if self.power_status:
-                    self.logfile.debug('No external power')
+                    self.logfile.info('No external power')
                     os.system('touch ' + str(params.EMERGENCY_FILE))
 
                 # in case of emergency
                 if os.path.isfile(params.EMERGENCY_FILE) and self.dome_status['dome'] != 'closed':
-                    self.logfile.debug('Closing dome (emergency!)')
+                    self.logfile.info('Closing dome (emergency!)')
                     self.close_flag = 0
                 elif self.weather_check > 0 and override_flags.dome_auto < 1:
                     if condition_flags.summary > 0:
-                        self.logfile.debug('Conditions bad, auto-closing dome')
+                        self.logfile.info('Conditions bad, auto-closing dome')
                         self.close_flag = 0
 
                 self.status_flag = 0
@@ -150,7 +151,7 @@ class DomeDaemon(HardwareDaemon):
                 # open both sides
                 elif self.move_side == 'both':
                     try:
-                        self.logfile.debug('Opening dome')
+                        self.logfile.info('Opening dome')
                         c = dome.open_full()
                         if c: self.logfile.info(c)
                     except:
@@ -159,7 +160,7 @@ class DomeDaemon(HardwareDaemon):
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
-                        self.logfile.debug('Opening %s side of dome' %self.move_side)
+                        self.logfile.info('Opening %s side of dome' %self.move_side)
                         c = dome.open_side(self.move_side, self.move_steps)
                         if c: self.logfile.info(c)
                     except:
@@ -176,7 +177,7 @@ class DomeDaemon(HardwareDaemon):
                 # open both sides
                 if self.move_side == 'both':
                     try:
-                        self.logfile.debug('Closing dome')
+                        self.logfile.info('Closing dome')
                         c = dome.close_full()
                         if c: self.logfile.info(c)
                     except:
@@ -185,7 +186,7 @@ class DomeDaemon(HardwareDaemon):
                 # open only one side
                 elif self.move_side in ['east','west']:
                     try:
-                        self.logfile.debug('Closing %s side of dome', self.move_side)
+                        self.logfile.info('Closing %s side of dome', self.move_side)
                         c = dome.close_side(self.move_side, self.move_steps)
                         if c: self.logfile.info(c)
                     except:
@@ -200,7 +201,7 @@ class DomeDaemon(HardwareDaemon):
             # halt dome motion
             if(self.halt_flag):
                 try:
-                    self.logfile.debug('Halting dome')
+                    self.logfile.info('Halting dome')
                     c = dome.halt()
                     if c: self.logfile.info(c)
                 except:
@@ -211,7 +212,7 @@ class DomeDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.debug('Dome control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -264,11 +265,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        dome_daemon.logfile.info('Starting dome daemon at %s', uri)
+        dome_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
 
     # Loop has closed
-    dome_daemon.logfile.info('Exiting dome daemon')
+    dome_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

@@ -57,6 +57,7 @@ class HardwareDaemon(object):
         return self.running
 
     def shutdown(self):
+        self.logfile.info('Daemon shutting down')
         self.running = False
 
 
@@ -88,6 +89,7 @@ class InterfaceDaemon(object):
         return self.running
 
     def shutdown(self):
+        self.logfile.info('Daemon shutting down')
         self.running = False
 
 
