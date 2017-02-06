@@ -117,6 +117,7 @@ class CamDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def cam_control(self):
+        self.logfile.info('Daemon control thread started')
 
         # make proxies once, outside the loop
         fli_proxies = dict()
@@ -288,7 +289,7 @@ class CamDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Camera control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -624,11 +625,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        cam_daemon.logfile.info('Starting camera daemon at %s', uri)
+        cam_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
 
     # Loop has closed
-    cam_daemon.logfile.info('Exiting camera daemon')
+    cam_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

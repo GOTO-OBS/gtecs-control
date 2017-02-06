@@ -75,6 +75,7 @@ class FiltDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def filt_control(self):
+        self.logfile.info('Daemon control thread started')
 
         # make proxies once, outside the loop
         fli_proxies = dict()
@@ -172,7 +173,7 @@ class FiltDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Filter wheel control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -241,11 +242,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        filt_daemon.logfile.info('Starting filter wheel daemon at %s', uri)
+        filt_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
 
     # Loop has closed
-    filt_daemon.logfile.info('Exiting filter wheel daemon')
+    filt_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

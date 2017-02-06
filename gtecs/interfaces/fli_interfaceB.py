@@ -42,11 +42,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+        fli_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
 
     # Loop has closed
-    fli_daemon.logfile.info('Exiting FLI interface daemon')
+    fli_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

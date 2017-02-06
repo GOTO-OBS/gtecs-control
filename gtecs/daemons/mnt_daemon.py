@@ -89,6 +89,7 @@ class MntDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def mnt_control(self):
+        self.logfile.info('Daemon control thread started')
 
         sitech_address = params.WIN_INTERFACES['sitech']['ADDRESS']
         sitech = Pyro4.Proxy(sitech_address)
@@ -252,7 +253,7 @@ class MntDaemon(HardwareDaemon):
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Mount control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -412,11 +413,11 @@ def start():
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        mnt_daemon.logfile.info('Starting mount daemon at %s', uri)
+        mnt_daemon.logfile.info('Daemon registered at %s', uri)
         pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
 
     # Loop has closed
-    mnt_daemon.logfile.info('Exiting mount daemon')
+    mnt_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":
