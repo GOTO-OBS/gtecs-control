@@ -17,19 +17,18 @@ from math import cos
 import Pyro4
 import threading
 import time
+from astropy.time import Time
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
-from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
 from gtecs.tecs_modules import params
-
-# Astropy
-from astropy.time import Time
+from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
 # Mount daemon class
 
-class MntDaemon:
+class MntDaemon(HardwareDaemon):
     """
     Mount daemon class
 
@@ -49,14 +48,8 @@ class MntDaemon:
     """
 
     def __init__(self):
-        self.running = True
-        self.start_time = time.time()
-
-        ### set up logfile
-        self.logfile = logger.getLogger('mnt',
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'mnt')
 
         ### command flags
         self.get_info_flag = 1
@@ -402,24 +395,6 @@ class MntDaemon:
     def set_step(self,offset):
         self.step = offset
         return 'New offset step set'
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['mnt']['PINGLIFE']:
-            return 'ERROR: Last control thread time check: %.1f seconds ago' % dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running=False
 
 ########################################################################
 

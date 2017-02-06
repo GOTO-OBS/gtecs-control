@@ -19,17 +19,18 @@ import sys
 import os
 import Pyro4
 import threading
+from six.moves import range
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import range
 from gtecs.controls import power_control
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
 # Power daemon class
 
-class PowerDaemon:
+class PowerDaemon(HardwareDaemon):
     """
     Power daemon class
 
@@ -40,14 +41,8 @@ class PowerDaemon:
     """
 
     def __init__(self):
-        self.running = True
-        self.start_time = time.time()
-
-        ### set up logfile
-        self.logfile = logger.getLogger('power',
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'power')
 
         ### command flags
         self.get_info_flag = 1
@@ -205,24 +200,6 @@ class PowerDaemon:
             return 0
         else:
             return None
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['power']['PINGLIFE']:
-            return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
 
 ########################################################################
 

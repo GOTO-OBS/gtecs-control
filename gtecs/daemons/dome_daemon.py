@@ -24,11 +24,12 @@ from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 from gtecs.controls import dome_control
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
 # Dome daemon class
 
-class DomeDaemon:
+class DomeDaemon(HardwareDaemon):
     """
     Dome daemon class
 
@@ -38,14 +39,8 @@ class DomeDaemon:
     """
 
     def __init__(self):
-        self.running = True
-        self.start_time = time.time()
-
-        ### set up logfile
-        self.logfile = logger.getLogger('dome',
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'dome')
 
         ### command flags
         self.get_info_flag = 1
@@ -252,24 +247,6 @@ class DomeDaemon:
         """Stope the dome moving"""
         self.halt_flag = 1
         return 'Halting dome'
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['dome']['PINGLIFE']:
-            return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
 
 ########################################################################
 

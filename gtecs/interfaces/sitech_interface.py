@@ -29,7 +29,7 @@ from gtecs.tecs_modules import params
 ########################################################################
 # SiTech interface class
 
-class SiTechDaemon:
+class SiTechDaemon(InterfaceDaemon):
     """
     SiTech commands class
 
@@ -49,14 +49,8 @@ class SiTechDaemon:
     """
 
     def __init__(self):
-        self.running = True
-        self.start_time = time.time()
-
-        ### set up logfile
-        self.logfile = logger.getLogger('sitech',
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        InterfaceDaemon.__init__(self, 'sitech')
 
         ### sitech variables
         self.tel = 'ASCOM.SiTechDll.Telescope'
@@ -211,20 +205,6 @@ class SiTechDaemon:
         lst = self.ascom.SiderealTime
         self.ascom.Connected = False
         return lst
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
 
 ########################################################################
 

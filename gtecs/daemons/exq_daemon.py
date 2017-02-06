@@ -24,6 +24,7 @@ import ast
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
 # Exposure queue classes
@@ -165,7 +166,7 @@ class Queue(MutableSequence):
 ########################################################################
 # Exposure queue daemon class
 
-class ExqDaemon:
+class ExqDaemon(HardwareDaemon):
     """
     Exposure queue daemon class
 
@@ -180,14 +181,8 @@ class ExqDaemon:
     """
 
     def __init__(self):
-        self.running = True
-        self.start_time = time.time()
-
-        ### set up logfile
-        self.logfile = logger.getLogger('exq',
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'exq')
 
         ### exposure queue variables
         self.info = {}
@@ -374,24 +369,6 @@ class ExqDaemon:
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['exq']['PINGLIFE']:
-            return 'Last control thread time check was %.1f seconds ago' %dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running=False
 
 ########################################################################
 
