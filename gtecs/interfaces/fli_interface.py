@@ -18,6 +18,7 @@ import time
 import Pyro4
 from concurrent import futures
 import socket
+from six.moves import range
 # FLI modules
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
@@ -25,12 +26,12 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import range
+from gtecs.tecs_modules.daemons import InterfaceDaemon
 
 ########################################################################
 # FLI interface class
 
-class FLIDaemon:
+class FLIDaemon(InterfaceDaemon):
     """
     FLI interface class
 
@@ -67,15 +68,9 @@ class FLIDaemon:
     """
 
     def __init__(self, intf):
-        self.running = True
-        self.start_time = time.time()
         self.intf = intf
-
-        ### set up logfile
-        self.logfile = logger.getLogger(intf,
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+        ### initiate daemon
+        InterfaceDaemon.__init__(self, self.intf)
 
         ### fli objects
         self.cams = []
@@ -249,20 +244,6 @@ class FLIDaemon:
        	"""Return camera unique serial number"""
         ser = self.cams[int(HW)].serial_number
        	return ser
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
 
 ########################################################################
 
