@@ -21,6 +21,7 @@ from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import daemons
 
 ########################################################################
 # Interactive functions
@@ -39,13 +40,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon(daemon_ID)
+        daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon(daemon_ID)
+        daemons.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon(daemon_ID)
+        daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon(daemon_ID)
+        daemons.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -55,10 +56,10 @@ def query(command, args):
     # Camera control functions
     elif command == 'info':
         if len(args) == 0:
-            info = misc.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = misc.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -67,14 +68,14 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             exptime = float(args[0])
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
             if c: print(c)
 
         elif len(args) == 2 and misc.is_num(args[1]):
             exptime = float(args[1])
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -83,13 +84,13 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             exptime = float(args[0])
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
             if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
             exptime = float(args[1])
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -97,12 +98,12 @@ def query(command, args):
     elif command == 'bias':
         if len(args) == 0:
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'take_bias', [HW_list])
+            c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
             if c: print(c)
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'take_bias', [HW_list])
+                c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -110,12 +111,12 @@ def query(command, args):
     elif command == 'abort':
         if len(args) == 0:
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
+            c = daemons.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
             if c: print(c)
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
+                c = daemons.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -124,13 +125,13 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             target_temp = float(args[0])
             HW_list     = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
             if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
             target_temp = float(args[1])
             HW_list     = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -139,13 +140,13 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             target_flushes = int(args[0])
             HW_list        = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
             if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
             target_flushes = float(args[1])
             HW_list        = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -154,13 +155,13 @@ def query(command, args):
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             bins    = [int(args[0]), int(args[1])]
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
             if c: print(c)
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             bins    = [int(args[1]), int(args[2])]
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -169,13 +170,13 @@ def query(command, args):
         if len(args) == 4 and misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]):
             area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
             HW_list = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'set_area', [area, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'set_area', [area, HW_list])
             if c: print(c)
         elif len(args) == 5 and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]) and misc.is_num(args[4]):
             area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'set_area', [area, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_area', [area, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
