@@ -26,7 +26,7 @@ if params.POWER_TYPE == 'APCPower':
 elif params.POWER_TYPE == 'EthPower':
     power = power_control.EthPower(IP, port)
 else:
-    power = power_control.FakePower(' ',' ')
+    power = power_control.FakePower()
 
 try:
     x = power.status(0)

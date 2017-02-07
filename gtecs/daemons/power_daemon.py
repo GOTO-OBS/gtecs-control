@@ -75,7 +75,7 @@ class PowerDaemon(HardwareDaemon):
         elif params.POWER_TYPE == 'EthPower':
             power = power_control.EthPower(IP, port)
         else:
-            power = power_control.FakePower(' ',' ')
+            power = power_control.FakePower()
 
         while(self.running):
             self.time_check = time.time()
