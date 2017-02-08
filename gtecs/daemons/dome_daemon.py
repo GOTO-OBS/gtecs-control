@@ -50,7 +50,6 @@ class DomeDaemon(HardwareDaemon):
 
         ### dome variables
         self.info = {}
-        self.status_flag = 1
         self.dome_status = {'dome':'unknown', 'hatch':'unknown', 'estop':'unknown', 'monitorlink':'unknown'}
         self.weather_check = 0
         self.count = 0
@@ -59,6 +58,8 @@ class DomeDaemon(HardwareDaemon):
         self.power_status = None
         self.move_side = 'both'
         self.move_steps = None
+        self.check_status_flag = 1
+        self.status_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self.dome_control)
@@ -80,10 +81,13 @@ class DomeDaemon(HardwareDaemon):
         while(self.running):
             self.time_check = time.time()
 
-            # check dome status every 5 seconds
-            delta = self.time_check - self.start_time
-            if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
+            # autocheck status every 5 seconds (if not already forced)
+            delta = self.time_check - self.status_check_time
+            if delta > 5:
+                self.check_status_flag = 1
 
+            # check dome status
+            if(self.check_status_flag):
                 # get current dome status
                 self.dome_status = dome.status()
                 if self.dome_status == None:
@@ -118,9 +122,8 @@ class DomeDaemon(HardwareDaemon):
                         self.logfile.info('Conditions bad, auto-closing dome')
                         self.close_flag = 0
 
-                self.status_flag = 0
-            if delta % 30 > 1:
-                self.status_flag = 1
+                self.status_check_time = time.time()
+                self.check_status_flag = 0
 
             ### control functions
             # request info
@@ -170,7 +173,7 @@ class DomeDaemon(HardwareDaemon):
                 self.move_side = 'both'
                 self.move_steps = 0
                 self.open_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # close dome
             if(self.close_flag):
@@ -196,7 +199,7 @@ class DomeDaemon(HardwareDaemon):
                 self.move_side = 'both'
                 self.move_steps = 0
                 self.close_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # halt dome motion
             if(self.halt_flag):
@@ -208,7 +211,7 @@ class DomeDaemon(HardwareDaemon):
                     self.logfile.error('Failed to halt dome')
                     self.logfile.debug('', exc_info=True)
                 self.halt_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             time.sleep(0.0001) # To save 100% CPU usage
 
@@ -219,6 +222,7 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
+        self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
