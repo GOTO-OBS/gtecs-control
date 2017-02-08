@@ -55,8 +55,12 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'info':
-        info = daemons.daemon_function(daemon_ID, 'get_info')
-        if info: print_info(info)
+        if len(args) == 0:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
 
     elif command == 'on':
         outlet = args[0]
@@ -92,6 +96,13 @@ def print_info(info):
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
+
+def print_info_s(info):
+    for i in range(len(info['status_dict'])):
+        outlet_name = format(params.POWER_LIST[i])
+        outlet_name_b = '({})'.format(outlet_name)
+        outlet_status = info['status_dict'][outlet_name]
+        print('OUTLET {} {: <8} [{}]'.format(i+1, outlet_name_b, outlet_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\

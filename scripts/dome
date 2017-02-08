@@ -55,8 +55,12 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'info':
-        info = daemons.daemon_function(daemon_ID, 'get_info')
-        if info: print_info(info)
+        if len(args) == 0:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
 
     elif command == 'open':
         if len(args) == 0:
@@ -92,13 +96,17 @@ def query(command, args):
 
 def print_info(info):
     print('######## DOME INFO ########')
-    print('Dome:        %s' %info['dome'])
-    print('Hatch:       %s' %info['hatch'])
+    print('Dome:        %s' %info['dome'].capitalize())
+    print('Hatch:       %s' %info['hatch'].capitalize())
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
+
+def print_info_s(info):
+    print('DOME:        [%s]' %info['dome'].capitalize())
+    print('HATCH:       [%s]' %info['hatch'].capitalize())
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\

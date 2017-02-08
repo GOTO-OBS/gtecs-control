@@ -57,8 +57,12 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     elif command == 'info':
-        info = daemons.daemon_function(daemon_ID, 'get_info')
-        if info: print_info(info)
+        if len(args) == 0:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
 
     elif command == 'slew':
         c = daemons.daemon_function(daemon_ID, 'slew_to_target')
@@ -277,6 +281,28 @@ def print_info(info):
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
+
+def print_info_s(info):
+    if info['status'] != 'Slewing':
+        print('MOUNT (sitech)           [{}]'.format(info['status']))
+    else:
+        print('MOUNT (sitech)           Slewing (%.2f)' %info['target_dist'])
+
+    alt, az = info['mount_alt'], info['mount_az']
+    ra, dec = info['mount_ra'], info['mount_dec']
+
+
+    ra_m, ra_s = divmod(abs(ra)*3600,60)
+    ra_h, ra_m = divmod(ra_m,60)
+    if ra < 0: ra_h = -ra_h
+    ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+    print('  RA:  {}       Alt: {:6.2f}'.format(ra_str, alt))
+
+    dec_m, dec_s = divmod(abs(dec)*3600,60)
+    dec_d, dec_m = divmod(dec_m,60)
+    if dec < 0: dec_d = -dec_d
+    dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+    print('  Dec: {}       Az:  {:6.2f}'.format(dec_str, az))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
