@@ -60,6 +60,7 @@ class DomeDaemon(HardwareDaemon):
         self.move_steps = None
         self.check_status_flag = 1
         self.status_check_time = 0
+        self.check_period = params.DOME_CHECK_PERIOD
 
         ### start control thread
         t = threading.Thread(target=self.dome_control)
@@ -81,9 +82,9 @@ class DomeDaemon(HardwareDaemon):
         while(self.running):
             self.time_check = time.time()
 
-            # autocheck status every 5 seconds (if not already forced)
+            # autocheck status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
-            if delta > 5:
+            if delta > self.check_period:
                 self.check_status_flag = 1
 
             # check dome status
