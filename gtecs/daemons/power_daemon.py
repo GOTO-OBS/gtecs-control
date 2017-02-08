@@ -55,7 +55,8 @@ class PowerDaemon(HardwareDaemon):
         self.power_list = params.POWER_LIST
         self.power_status = 'None yet'
         self.outlet_list = []
-        self.status_flag = 1
+        self.check_status_flag = 1
+        self.status_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self.power_control)
@@ -80,9 +81,13 @@ class PowerDaemon(HardwareDaemon):
         while(self.running):
             self.time_check = time.time()
 
-            # check power status every 30 seconds
-            delta = self.time_check - self.start_time
-            if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
+            # autocheck status every 30 seconds (if not already forced)
+            delta = self.time_check - self.status_check_time
+            if delta > 30:
+                self.check_status_flag = 1
+
+            # check power status
+            if(self.check_status_flag):
                 try:
                     cmd = params.POWER_CHECK_SCRIPT
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
@@ -94,9 +99,8 @@ class PowerDaemon(HardwareDaemon):
                     self.logfile.debug('', exc_info=True)
                     self.power_status = 'x' * power.count
                 misc.kill_processes(params.POWER_CHECK_SCRIPT,params.DAEMONS['power']['HOST'])
-                self.status_flag = 0
-            if delta % 30 > 1:
-                self.status_flag = 1
+                self.status_check_time = time.time()
+                self.check_status_flag = 0
 
             ### control functions
             # request info
@@ -127,7 +131,7 @@ class PowerDaemon(HardwareDaemon):
                     if c: self.logfile.info(c)
                 self.outlet_list = []
                 self.on_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # power off a specified outlet
             if(self.off_flag):
@@ -137,7 +141,7 @@ class PowerDaemon(HardwareDaemon):
                     if c: self.logfile.info(c)
                 self.outlet_list = []
                 self.off_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # reboot a specified outlet
             if(self.reboot_flag):
@@ -147,7 +151,7 @@ class PowerDaemon(HardwareDaemon):
                     if c: self.logfile.info(c)
                 self.outlet_list = []
                 self.reboot_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             time.sleep(0.0001) # To save 100% CPU usage
 
@@ -158,7 +162,7 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info"""
-        self.status_flag = -1
+        self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.5)
         return self.info
