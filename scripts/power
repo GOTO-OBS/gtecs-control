@@ -63,18 +63,18 @@ def query(command, args):
             if info: print_info(info)
 
     elif command == 'on':
-        outlet = args[0]
-        c = daemons.daemon_function(daemon_ID, 'on', [outlet])
+        outlets = args[0].split(',')
+        c = daemons.daemon_function(daemon_ID, 'on', [outlets])
         if c: print(c)
 
     elif command == 'off':
-        outlet = args[0]
-        c = daemons.daemon_function(daemon_ID, 'off', [outlet])
+        outlets = args[0].split(',')
+        c = daemons.daemon_function(daemon_ID, 'off', [outlets])
         if c: print(c)
 
     elif command == 'reboot':
-        outlet = args[0]
-        c = daemons.daemon_function(daemon_ID, 'reboot', [outlet])
+        outlets = args[0].split(',')
+        c = daemons.daemon_function(daemon_ID, 'reboot', [outlets])
         if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -107,19 +107,19 @@ def print_info_s(info):
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  power ' + misc.bold('start') + '           - start the daemon' + '\n' +\
-    '  power ' + misc.bold('shutdown') + '        - shutdown the daemon' + '\n' +\
-    '  power ' + misc.bold('kill') + '            - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  power ' + misc.bold('ping') + '            - ping the daemon' + '\n' +\
+    '  power ' + misc.bold('start') + '            - start the daemon' + '\n' +\
+    '  power ' + misc.bold('shutdown') + '         - shutdown the daemon' + '\n' +\
+    '  power ' + misc.bold('kill') + '             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  power ' + misc.bold('ping') + '             - ping the daemon' + '\n' +\
     ' ' + misc.undl('Power commands') + ':' + '\n' +\
-    '  power ' + misc.bold('on') + ' [outlet]' + '     - turn on specified outlet' + '\n' +\
-    '  power ' + misc.bold('off') + ' [outlet]' + '    - turn off specified outlet' + '\n' +\
-    '  power ' + misc.bold('reboot') + ' [outlet]' + ' - reboots specified outlet' + '\n' +\
-    '  power ' + misc.bold('info') + ' [v]' + '        - report current status' + '\n' +\
+    '  power ' + misc.bold('on') + ' [outlets]' + '     - turn on specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('off') + ' [outlets]' + '    - turn off specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('reboot') + ' [outlets]' + ' - reboots specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('info') + ' [v]' + '         - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  power ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
-    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
-    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
+    '  power ' + misc.bold('i') + '                - enter interactive mode' + '\n' +\
+    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '           - quit interactive mode' + '\n' +\
+    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '           - print these instructions'
     print(help_str)
 
 ########################################################################

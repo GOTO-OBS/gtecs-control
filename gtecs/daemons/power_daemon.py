@@ -54,7 +54,7 @@ class PowerDaemon(HardwareDaemon):
         self.info = {}
         self.power_list = params.POWER_LIST
         self.power_status = 'None yet'
-        self.new_outlet = None
+        self.outlet_list = []
         self.status_flag = 1
 
         ### start control thread
@@ -121,28 +121,31 @@ class PowerDaemon(HardwareDaemon):
 
             # power on a specified outlet
             if(self.on_flag):
-                self.logfile.info('Power on outlet ' + str(self.new_outlet))
-                c = power.on(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Power on outlet ' + str(outlet))
+                    c = power.on(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.on_flag = 0
                 self.status_flag = -1
 
             # power off a specified outlet
             if(self.off_flag):
-                self.logfile.info('Power off outlet ' + str(self.new_outlet))
-                c = power.off(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Power off outlet ' + str(outlet))
+                    c = power.off(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.off_flag = 0
                 self.status_flag = -1
 
             # reboot a specified outlet
             if(self.reboot_flag):
-                self.logfile.info('Reboot outlet ' + str(self.new_outlet))
-                c = power.reboot(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Reboot outlet ' + str(outlet))
+                    c = power.reboot(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.reboot_flag = 0
                 self.status_flag = -1
 
@@ -160,28 +163,28 @@ class PowerDaemon(HardwareDaemon):
         time.sleep(0.5)
         return self.info
 
-    def on(self,outlet):
-        """Power on a specified outlet"""
-        self.new_outlet = self._get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def on(self, outlet_list):
+        """Power on given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.on_flag = 1
             return 'Turning on power'
 
-    def off(self,outlet):
-        """Power off a specified outlet"""
-        self.new_outlet = self._get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def off(self, outlet_list):
+        """Power off given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.off_flag = 1
             return 'Turning off power'
 
-    def reboot(self,outlet):
-        """Reboot a specified outlet"""
-        self.new_outlet = self._get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def reboot(self, outlet_list):
+        """Reboot a given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.reboot_flag = 1
@@ -189,18 +192,19 @@ class PowerDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
-    def _get_outlet_number(self,outlet):
-        """Check outlet is valid and convert name to number"""
-        if outlet.isdigit():
-            x = int(outlet)
-            if 0 <= x < (len(params.POWER_LIST) + 1):
-                return x
-        elif outlet in params.POWER_LIST:
-            return params.POWER_LIST.index(outlet) + 1
-        elif outlet == 'all':
-            return 0
-        else:
-            return None
+    def _get_valid_outlets(self, outlet_list):
+        """Check outlets are valid and convert any names to numbers"""
+        valid_list = []
+        for outlet in outlet_list:
+            if outlet == 'all':
+                valid_list = [0]
+            elif outlet.isdigit():
+                x = int(outlet)
+                if 0 <= x < (len(params.POWER_LIST) + 1):
+                    valid_list.append(x)
+            elif outlet in params.POWER_LIST:
+                valid_list.append(params.POWER_LIST.index(outlet) + 1)
+        return valid_list
 
 ########################################################################
 
