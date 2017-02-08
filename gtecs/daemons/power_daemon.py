@@ -57,6 +57,7 @@ class PowerDaemon(HardwareDaemon):
         self.outlet_list = []
         self.check_status_flag = 1
         self.status_check_time = 0
+        self.check_period = params.POWER_CHECK_PERIOD
 
         ### start control thread
         t = threading.Thread(target=self.power_control)
@@ -81,9 +82,9 @@ class PowerDaemon(HardwareDaemon):
         while(self.running):
             self.time_check = time.time()
 
-            # autocheck status every 30 seconds (if not already forced)
+            # autocheck status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
-            if delta > 30:
+            if delta > self.check_period:
                 self.check_status_flag = 1
 
             # check power status
