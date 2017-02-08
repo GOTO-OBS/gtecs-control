@@ -73,7 +73,7 @@ class DomeDaemon(HardwareDaemon):
         ### connect to dome object
         loc = params.DOME_LOCATION
         if params.FAKE_DOME == 1:
-            dome = dome_control.FakeDome('')
+            dome = dome_control.FakeDome()
         else:
             dome = dome_control.AstroHavenDome(loc)
 
