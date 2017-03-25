@@ -17,18 +17,18 @@ from math import cos
 import Pyro4
 import threading
 import time
+from astropy.time import Time
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
-from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
 from gtecs.tecs_modules import params
-
-# Astropy
-from astropy.time import Time
+from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
-# Mount daemon functions
-class MntDaemon:
+# Mount daemon class
+
+class MntDaemon(HardwareDaemon):
     """
     Mount daemon class
 
@@ -46,14 +46,10 @@ class MntDaemon:
     - offset(direction)
     - set_step()
     """
-    def __init__(self):
-        self.running = True
-        self.start_time = time.time()
 
-        ### set up logfile
-        self.logfile = logger.getLogger('mnt', file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+    def __init__(self):
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'mnt')
 
         ### command flags
         self.get_info_flag = 1
@@ -93,6 +89,7 @@ class MntDaemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def mnt_control(self):
+        self.logfile.info('Daemon control thread started')
 
         sitech_address = params.WIN_INTERFACES['sitech']['ADDRESS']
         sitech = Pyro4.Proxy(sitech_address)
@@ -256,7 +253,7 @@ class MntDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Mount control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -400,37 +397,27 @@ class MntDaemon:
         self.step = offset
         return 'New offset step set'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['mnt']['PINGLIFE']:
-            return 'ERROR: Last control thread time check: %.1f seconds ago' % dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running=False
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['mnt']['HOST'], port=params.DAEMONS['mnt']['PORT'])
-    mnt_daemon = MntDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['mnt']['HOST']
+    port = params.DAEMONS['mnt']['PORT']
+    pyroID = params.DAEMONS['mnt']['PYROID']
 
-    uri=pyro_daemon.register(mnt_daemon,objectId = params.DAEMONS['mnt']['PYROID'])
-    mnt_daemon.logfile.info('Starting mount daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        mnt_daemon = MntDaemon()
+        uri = pyro_daemon.register(mnt_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
+        # Start request loop
+        mnt_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
 
-    mnt_daemon.logfile.info('Exiting mount daemon')
+    # Loop has closed
+    mnt_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

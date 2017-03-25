@@ -51,10 +51,12 @@ BIASEXP = 0.1
 
 ########################################################################
 # Power parameters
+POWER_CHECK_PERIOD = 30
 POWER_LIST = mnt, filt, foc, cam, _5_, _6_, _7_, _8_
 
 ########################################################################
 # Dome parameters
+DOME_CHECK_PERIOD = 5
 DOME_LOCATION = /dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0
 BIG_RED_BUTTON_PORT = N/A
 
@@ -121,22 +123,22 @@ PROXY_TIMEOUT = 0.5
         DEPENDS = None
 
 [FLI_INTERFACES]
-    [[nuc2]]
-        TELS = 3, 4
-        PORT = 9020
-        PROCESS = fli_interfaceB.py
-        PYROID = fli_interfaceB
-        HOST = nuc2
-        [[[SERIALS]]]
-            foc = fake, fake
-            filt = fake, fake
-            cam = fake, fake
-    [[nuc1]]
+    [[fli1]]
         TELS = 1, 2
         PORT = 9010
         PROCESS = fli_interface.py
         PYROID = fli_interface
         HOST = nuc1
+        [[[SERIALS]]]
+            foc = fake, fake
+            filt = fake, fake
+            cam = fake, fake
+    [[fli2]]
+        TELS = 3, 4
+        PORT = 9020
+        PROCESS = fli_interfaceB.py
+        PYROID = fli_interfaceB
+        HOST = nuc2
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake

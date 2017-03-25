@@ -21,6 +21,7 @@ from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import daemons
 
 ########################################################################
 # Interactive functions
@@ -39,13 +40,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon(daemon_ID)
+        daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon(daemon_ID)
+        daemons.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon(daemon_ID)
+        daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon(daemon_ID)
+        daemons.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -55,10 +56,10 @@ def query(command, args):
     # Filter wheel control functions
     elif command == 'info':
         if len(args) == 0:
-            info = misc.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = misc.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -67,13 +68,13 @@ def query(command, args):
         if len(args) == 1:
             new_filt = args[0].upper()
             HW_list  = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+            c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
             if c: print(c)
         elif len(args) == 2:
             new_filt = args[1].upper()
             HW_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -81,12 +82,12 @@ def query(command, args):
     elif command == 'home':
         if len(args) == 0:
             HW_list  = list(params.TEL_DICT)
-            c = misc.daemon_function(daemon_ID, 'home_filter', [HW_list])
+            c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
             if c: print(c)
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = misc.daemon_function(daemon_ID, 'home_filter', [HW_list])
+                c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))

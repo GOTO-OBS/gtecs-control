@@ -21,10 +21,12 @@ import threading
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
-# Focuser daemon functions
-class FocDaemon:
+# Focuser daemon class
+
+class FocDaemon(HardwareDaemon):
     """
     Focuser daemon class
 
@@ -34,14 +36,10 @@ class FocDaemon:
     - move_focuser(steps, telescopeIDs)
     - home_focuser(telescopeIDs)
     """
-    def __init__(self):
-        self.running = True
-        self.start_time = time.time()
 
-        ### set up logfile
-        self.logfile = logger.getLogger('foc', file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+    def __init__(self):
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'foc')
 
         ### command flags
         self.get_info_flag = 1
@@ -61,14 +59,15 @@ class FocDaemon:
         self.move_steps = {}
         self.serial_number = {}
 
-        for nuc in params.FLI_INTERFACES:
-            self.limit[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.current_pos[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.remaining[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.int_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.ext_temp[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.move_steps[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
-            self.serial_number[nuc] = [0]*len(params.FLI_INTERFACES[nuc]['TELS'])
+        for intf in params.FLI_INTERFACES:
+            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.limit[intf] = [0]*nHW
+            self.current_pos[intf] = [0]*nHW
+            self.remaining[intf] = [0]*nHW
+            self.int_temp[intf] = [0]*nHW
+            self.ext_temp[intf] = [0]*nHW
+            self.move_steps[intf] = [0]*nHW
+            self.serial_number[intf] = [0]*nHW
 
         self.active_tel = []
 
@@ -80,12 +79,13 @@ class FocDaemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def foc_control(self):
+        self.logfile.info('Daemon control thread started')
 
         # make proxies once, outside the loop
         fli_proxies = dict()
-        for nuc in params.FLI_INTERFACES:
-            fli_proxies[nuc] = Pyro4.Proxy(params.FLI_INTERFACES[nuc]['ADDRESS'])
-            fli_proxies[nuc]._pyroTimeout = params.PROXY_TIMEOUT
+        for intf in params.FLI_INTERFACES:
+            fli_proxies[intf] = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
+            fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
@@ -95,37 +95,37 @@ class FocDaemon:
             if(self.get_info_flag):
                 # update variables
                 for tel in self.tel_dict:
-                    nuc, HW = self.tel_dict[tel]
-                    fli = fli_proxies[nuc]
+                    intf, HW = self.tel_dict[tel]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
-                        self.limit[nuc][HW] = fli.get_focuser_limit(HW)
-                        self.remaining[nuc][HW] = fli.get_focuser_steps_remaining(HW)
-                        self.current_pos[nuc][HW] = fli.get_focuser_position(HW)
-                        self.int_temp[nuc][HW] = fli.get_focuser_temp('internal',HW)
-                        self.ext_temp[nuc][HW] = fli.get_focuser_temp('external',HW)
-                        self.serial_number[nuc][HW] = fli.get_focuser_serial_number(HW)
+                        self.limit[intf][HW] = fli.get_focuser_limit(HW)
+                        self.remaining[intf][HW] = fli.get_focuser_steps_remaining(HW)
+                        self.current_pos[intf][HW] = fli.get_focuser_position(HW)
+                        self.int_temp[intf][HW] = fli.get_focuser_temp('internal',HW)
+                        self.ext_temp[intf][HW] = fli.get_focuser_temp('external',HW)
+                        self.serial_number[intf][HW] = fli.get_focuser_serial_number(HW)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
                 for tel in self.tel_dict:
-                    nuc, HW = self.tel_dict[tel]
-                    tel = str(params.FLI_INTERFACES[nuc]['TELS'][HW])
-                    if self.remaining[nuc][HW] > 0:
+                    intf, HW = self.tel_dict[tel]
+                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                    if self.remaining[intf][HW] > 0:
                         info['status'+tel] = 'Moving'
-                        if self.move_steps[nuc][HW] == 0: # Homing, needed due to bug in remaining
-                            info['remaining'+tel] = self.current_pos[nuc][HW]
+                        if self.move_steps[intf][HW] == 0: # Homing, needed due to bug in remaining
+                            info['remaining'+tel] = self.current_pos[intf][HW]
                         else:
-                            info['remaining'+tel] = self.remaining[nuc][HW]
+                            info['remaining'+tel] = self.remaining[intf][HW]
                     else:
                         info['status'+tel] = 'Ready'
-                    info['current_pos'+tel] = self.current_pos[nuc][HW]
-                    info['limit'+tel] = self.limit[nuc][HW]
-                    info['int_temp'+tel] = self.int_temp[nuc][HW]
-                    info['ext_temp'+tel] = self.ext_temp[nuc][HW]
-                    info['serial_number'+tel] = self.serial_number[nuc][HW]
+                    info['current_pos'+tel] = self.current_pos[intf][HW]
+                    info['limit'+tel] = self.limit[intf][HW]
+                    info['int_temp'+tel] = self.int_temp[intf][HW]
+                    info['ext_temp'+tel] = self.ext_temp[intf][HW]
+                    info['serial_number'+tel] = self.serial_number[intf][HW]
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
                 now = datetime.datetime.utcnow()
@@ -138,20 +138,20 @@ class FocDaemon:
             if(self.move_focuser_flag):
                 # loop through each unit to send orders to in turn
                 for tel in self.active_tel:
-                    nuc, HW = self.tel_dict[tel]
-                    move_steps = self.move_steps[nuc][HW]
-                    new_pos = self.current_pos[nuc][HW] + move_steps
+                    intf, HW = self.tel_dict[tel]
+                    move_steps = self.move_steps[intf][HW]
+                    new_pos = self.current_pos[intf][HW] + move_steps
 
                     self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
-                                      tel, nuc, HW, move_steps, new_pos)
+                                      tel, intf, HW, move_steps, new_pos)
 
-                    fli = fli_proxies[nuc]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
                         c = fli.step_focuser_motor(move_steps,HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
 
                 # cleare the 'active' units
@@ -163,21 +163,21 @@ class FocDaemon:
             if(self.home_focuser_flag):
                 # loop through each unit to send orders to in turn
                 for tel in self.active_tel:
-                    nuc, HW = self.tel_dict[tel]
+                    intf, HW = self.tel_dict[tel]
 
                     self.logfile.info('Homing focuser %i (%s-%i)',
-                                      tel, nuc, HW)
+                                      tel, intf, HW)
 
-                    fli = fli_proxies[nuc]
+                    fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
                         c = fli.home_focuser(HW)
                         if c: self.logfile.info(c)
                     except:
-                        self.logfile.error('No response from fli interface on %s', nuc)
+                        self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
                     fli._pyroRelease()
-                    self.move_steps[nuc][HW] = 0 # to mark that it's homing
+                    self.move_steps[intf][HW] = 0 # to mark that it's homing
                 # cleare the 'active' units
                 self.active_tel = []
 
@@ -185,7 +185,7 @@ class FocDaemon:
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Focuser control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -205,14 +205,14 @@ class FocDaemon:
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
-            nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] > 0:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] > 0:
                 s += '\n  ERROR: Focuser %i motor is still moving' %tel
-            elif new_pos > self.limit[nuc][HW]:
+            elif new_pos > self.limit[intf][HW]:
                 s += '\n  ERROR: Position past limit'
             else:
                 self.active_tel += [tel]
-                self.move_steps[nuc][HW] = new_pos - self.current_pos[nuc][HW]
+                self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
                 s += '\n  Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
@@ -226,14 +226,14 @@ class FocDaemon:
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
-            nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] > 0:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] > 0:
                 s += '\n  ERROR: Focuser %i motor is still moving' %tel
-            elif (self.current_pos[nuc][HW] + move_steps) > self.limit[nuc][HW]:
+            elif (self.current_pos[intf][HW] + move_steps) > self.limit[intf][HW]:
                 s += '\n  ERROR: Position past limit'
             else:
                 self.active_tel += [tel]
-                self.move_steps[nuc][HW] = move_steps
+                self.move_steps[intf][HW] = move_steps
                 s += '\n  Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
@@ -247,8 +247,8 @@ class FocDaemon:
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
-            nuc, HW = self.tel_dict[tel]
-            if self.remaining[nuc][HW] > 0:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] > 0:
                 s += '\n  ERROR: Focuser %i motor is still moving' %tel
             else:
                 self.active_tel += [tel]
@@ -256,38 +256,27 @@ class FocDaemon:
         self.home_focuser_flag = 1
         return s
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['foc']['PINGLIFE']:
-            return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
-        else:
-            return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
-
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['foc']['HOST'], port=params.DAEMONS['foc']['PORT'])
-    foc_daemon = FocDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['foc']['HOST']
+    port = params.DAEMONS['foc']['PORT']
+    pyroID = params.DAEMONS['foc']['PYROID']
 
-    uri = pyro_daemon.register(foc_daemon,objectId = params.DAEMONS['foc']['PYROID'])
-    foc_daemon.logfile.info('Starting focuser daemon at %s', uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        foc_daemon = FocDaemon()
+        uri = pyro_daemon.register(foc_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
+        # Start request loop
+        foc_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
 
-    foc_daemon.logfile.info('Exiting focuser daemon')
+    # Loop has closed
+    foc_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

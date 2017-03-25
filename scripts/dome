@@ -21,6 +21,7 @@ from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import daemons
 
 ########################################################################
 # Interactive functions
@@ -39,13 +40,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon(daemon_ID)
+        daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon(daemon_ID)
+        daemons.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon(daemon_ID)
+        daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon(daemon_ID)
+        daemons.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -54,8 +55,12 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'info':
-        info = misc.daemon_function(daemon_ID, 'get_info')
-        if info: print_info(info)
+        if len(args) == 0:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
 
     elif command == 'open':
         if len(args) == 0:
@@ -64,7 +69,7 @@ def query(command, args):
         elif len(args) == 2:
             side  = args[0]
             steps = args[1]
-        c = misc.daemon_function(daemon_ID, 'open_dome', [side, steps])
+        c = daemons.daemon_function(daemon_ID, 'open_dome', [side, steps])
         if c: print(c)
 
     elif command == 'close':
@@ -74,11 +79,11 @@ def query(command, args):
         elif len(args) == 2:
             side  = args[0]
             steps = args[1]
-        c = misc.daemon_function(daemon_ID, 'close_dome', [side, steps])
+        c = daemons.daemon_function(daemon_ID, 'close_dome', [side, steps])
         if c: print(c)
 
     elif command == 'halt':
-        c = misc.daemon_function(daemon_ID, 'halt_dome')
+        c = daemons.daemon_function(daemon_ID, 'halt_dome')
         if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,13 +96,17 @@ def query(command, args):
 
 def print_info(info):
     print('######## DOME INFO ########')
-    print('Dome:        %s' %info['dome'])
-    print('Hatch:       %s' %info['hatch'])
+    print('Dome:        %s' %info['dome'].capitalize())
+    print('Hatch:       %s' %info['hatch'].capitalize())
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
+
+def print_info_s(info):
+    print('DOME:        [%s]' %info['dome'].capitalize())
+    print('HATCH:       [%s]' %info['hatch'].capitalize())
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\

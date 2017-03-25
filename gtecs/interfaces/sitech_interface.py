@@ -27,8 +27,9 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
-# SiTech functions
-class SiTech:
+# SiTech interface class
+
+class SiTechDaemon(InterfaceDaemon):
     """
     SiTech commands class
 
@@ -46,17 +47,15 @@ class SiTech:
     - get_target_radec()
     - get_lst()
     """
-    def __init__(self):
-        self.running = True
 
-        ### set up logfile
-        self.logfile = logger.getLogger('sitech', file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+    def __init__(self):
+        ### initiate daemon
+        InterfaceDaemon.__init__(self, 'sitech')
 
         ### sitech variables
         self.tel = 'ASCOM.SiTechDll.Telescope'
         self.ascom = win32com.client.Dispatch(self.tel)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     def slew_to_radec(self,ra,dec):
@@ -207,33 +206,27 @@ class SiTech:
         self.ascom.Connected = False
         return lst
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.WIN_INTERFACES['sitech']['HOST'], port=params.WIN_INTERFACES['sitech']['PORT'])
-    sitech_daemon = SiTech()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.WIN_INTERFACES['sitech']['HOST']
+    port = params.WIN_INTERFACES['sitech']['PORT']
+    pyroID = params.WIN_INTERFACES['sitech']['PYROID']
 
-    uri = pyro_daemon.register(sitech_daemon,objectId = params.WIN_INTERFACES['sitech']['PYROID'])
-    sitech_daemon.logfile.info('Starting SiTech interface daemon at %s',uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        sitech_daemon = SiTechDaemon()
+        uri = pyro_daemon.register(sitech_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
+        # Start request loop
+        sitech_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=sitech_daemon.status_function)
 
-    sitech_daemon.logfile.info('Exiting SiTech interface daemon')
+    # Loop has closed
+    sitech_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":
