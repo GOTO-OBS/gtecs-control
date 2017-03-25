@@ -13,35 +13,28 @@ from __future__ import absolute_import
 import os, sys
 import socket
 import subprocess
+import threading
 import time
 from six.moves import range
 from six import int2byte, byte2int, indexbytes
 
 ########################################################################
-# Fake APC PDU power class (8 ports)
+# Fake power class (8 ports)
 class FakePower:
-    def __init__(self,IP_address,port):
-        self.IP_address = IP_address
-        self.port = port
-        # depends on hardware
-        self.base_oid_ind = [1,3,6,1,4,1,318,1,1,12,3,3,1,1,4]
-        self.base_oid_all = [1,3,6,1,4,1,318,1,1,12,3,1,1]
-        self.commands = {'IND_ON':1, 'IND_OFF':2, 'IND_REBOOT':3, 'ALL_ON':2, 'ALL_OFF':3, 'ALL_REBOOT':4}
+    def __init__(self):
         self.count = 8
-        self.off_value = 2
+        self.off_value = 0
+        self.on_value = 1
         # fake stuff
         self.temp_file = '/tmp/power'
         self._read_temp()
 
-    def _new_temp(self):
-        self.outlet_status = [2,2,2,2,2,2,2,2] # all start off
-        self._write_temp()
-
     def _read_temp(self):
         if not os.path.exists(self.temp_file):
-            self._new_temp()
+            self.outlet_status = [self.off_value]*self.count
+            self._write_temp()
         else:
-            f = open(self.temp_file,'r')
+            f = open(self.temp_file, 'r')
             self.outlet_status = list(f.read().strip())
             f.close()
 
@@ -50,64 +43,36 @@ class FakePower:
         f.write(''.join(str(i) for i in self.outlet_status))
         f.close()
 
-    def snmp_get(self,oid):
-        outlet = oid[-1]
-        return self.outlet_status[outlet]
-
-    def snmp_set(self,oid,value):
-        if oid == self.base_oid_all:
-            if value == self.commands['ALL_ON'] or value == self.commands['ALL_REBOOT']:
-                for i in range(8): self.outlet_status[i] = 1
-            elif value == self.commands['ALL_OFF']:
-                 for i in range(8): self.outlet_status[i] = 2
-        elif oid[:-1] == self.base_oid_ind:
-            outlet = oid[-1] -1
-            if value == self.commands['IND_ON'] or value == self.commands['IND_REBOOT']:
-                self.outlet_status[outlet] = 1
-            elif value == self.commands['IND_OFF']:
-                self.outlet_status[outlet] = 2
-        self._write_temp()
-
     def status(self,outlet):
+        self._read_temp()
         if outlet == 0: # all
-            status = ''
-            for i in range(8):
-                oid = self.base_oid_ind + [i]
-                status += str(self.snmp_get(oid))
-            return status
+            return ''.join(self.outlet_status)
         else:
-            oid = self.base_oid_ind + [outlet -1]
-            return self.snmp_get(oid)
+            return self.outlet_status[outlet-1]
 
     def on(self,outlet):
         if outlet == 0: # all
-            oid = self.base_oid_all
-            value = self.commands['ALL_ON']
-            return self.snmp_set(oid,value)
+            self.outlet_status = [self.on_value]*self.count
         else:
-            oid = self.base_oid_ind + [outlet]
-            value = self.commands['IND_ON']
-            return self.snmp_set(oid,value)
+            self.outlet_status[outlet-1] = self.on_value
+        self._write_temp()
 
     def off(self,outlet):
         if outlet == 0: # all
-            oid = self.base_oid_all
-            value = self.commands['ALL_OFF']
-            return self.snmp_set(oid,value)
+            self.outlet_status = [self.off_value]*self.count
         else:
-            oid = self.base_oid_ind + [outlet]
-            value = self.commands['IND_OFF']
-            return self.snmp_set(oid,value)
+            self.outlet_status[outlet-1] = self.off_value
+        self._write_temp()
 
     def reboot(self,outlet):
-        if outlet == 0: # all
-            oid = self.base_oid_all
-            value = self.commands['ALL_REBOOT']
-            return self.snmp_set(oid,value)
-        else:
-            oid = self.base_oid_ind + [outlet]
-            value = self.commands['IND_REBOOT']
-            return self.snmp_set(oid,value)
+        self.off(outlet)
+        t = threading.Thread(target=self._turn_on_after_reboot, args = [outlet])
+        t.start()
+
+    def _turn_on_after_reboot(self,outlet):
+        time.sleep(3)
+        self.on(outlet)
+
 
 ########################################################################
 # APC PDU power class (for AP7921, 8 ports)

@@ -272,149 +272,20 @@ def dependencies_are_alive(daemon_ID):
     else:
         return True
 
-########################################################################
-# Core Daemon functions
-def start_daemon(daemon_ID):
-    '''Start a daemon (unless it is already running)'''
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-    pyroid  = params.DAEMONS[daemon_ID]['PYROID']
-    depends = params.DAEMONS[daemon_ID]['DEPENDS']
-    if params.REDIRECT_STDOUT:
-        output = params.LOG_PATH + pyroid + '-stdout.log'
-    else:
-        output = '/dev/stdout'
+def find_interface_ID(hostname):
+    '''Find what interface should be running on a given host.
 
-    if depends[0] != 'None':
-        fail = 0
-        for dependency in depends:
-            if not daemon_is_alive(dependency):
-                print('ERROR: Dependency "{}" is not running, abort start'.format(dependency))
-                fail += 1
-        if fail > 0:
-            return
+    Used by the FLI interfaces to find which interface it should identify as.
 
-    process_path = os.path.join(params.DAEMON_PATH, process)
-    out_cmd = ' '.join(('>', output, '2>&1 &'))
-
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) == 0:
-        # Run script
-        python_command(process_path, out_cmd, host)
-
-        # See if it started
-        process_ID_n = get_process_ID(process, host)
-        if len(process_ID_n) == 1:
-            print('Daemon started on {} (PID {})'.format(host, process_ID_n[0]))
-        elif len(process_ID_n) > 1:
-            print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+    NOTE it will only return the first match, as there should only be one
+        interface per host.
+        For testing the fli_interfaceB file will be used.
+    '''
+    for intf in params.FLI_INTERFACES:
+        if params.FLI_INTERFACES[intf]['HOST'] == hostname:
+            return intf
         else:
-            print('ERROR: Daemon did not start on {}, check logs'.format(host))
-    elif len(process_ID) == 1:
-        print('ERROR: Daemon already running on {} (PID {})'.format(host, process_ID[0]))
-    else:
-        print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID_n))
-
-
-def ping_daemon(daemon_ID):
-    '''Ping a daemon'''
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            ping = daemon.ping()
-            if ping == 'ping':
-                print('Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0]))
-            else:
-                print(ping + ', daemon running on {} (PID {})'.format(host, process_ID[0]))
-        except:
-            print('ERROR: No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
-        print('ERROR: No response, daemon not running on {}'.format(host))
-    else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
-
-
-def shutdown_daemon(daemon_ID):
-    '''Shut a daemon down nicely'''
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            daemon.shutdown()
-            # Have to request status again to close loop
-            daemon = Pyro4.Proxy(address)
-            daemon._pyroTimeout = params.PROXY_TIMEOUT
-            daemon.prod()
-            daemon._pyroRelease()
-
-            # See if it shut down
-            time.sleep(2)
-            process_ID_n = get_process_ID(process, host)
-            if len(process_ID_n) == 0:
-                print('Daemon shut down on {}'.format(host))
-            elif len(process_ID_n) == 1:
-                print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
-            else:
-                print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
-        except:
-            print('ERROR: No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
-        print('ERROR: No response, daemon not running on {}'.format(host))
-    else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
-
-
-def kill_daemon(daemon_ID):
-    '''Kill a daemon (should be used as a last resort)'''
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) >= 1:
-        kill_processes(process, host)
-
-        # See if it is actually dead
-        process_ID_n = get_process_ID(process, host)
-        if len(process_ID_n) == 0:
-            print('Daemon killed on {}'.format(host))
-        elif len(process_ID_n) == 1:
-            print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
-        else:
-            print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
-    else:
-        print('ERROR: Daemon not running on {}'.format(host))
-
-
-def daemon_function(daemon_ID, function_name, args=[]):
-    if not daemon_is_running(daemon_ID):
-        print(ERROR('Daemon not running'))
-    elif not daemon_is_alive(daemon_ID):
-        print(ERROR('Daemon running but not responding, check logs'))
-    elif not dependencies_are_alive(daemon_ID):
-        print(ERROR('Required dependencies are not responding'))
-    else:
-        address = params.DAEMONS[daemon_ID]['ADDRESS']
-        with Pyro4.Proxy(address) as proxy:
-            proxy._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                function = getattr(proxy, function_name)
-            except AttributeError:
-                raise NotImplementedError('Invalid function')
-            try:
-                return function(*args)
-            except Exception as e:
-                print(ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+            raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
 ########################################################################
 ## Text formatting functions
@@ -451,7 +322,7 @@ def valid_ints(array, allowed):
             pass
         elif not i.isdigit():
             print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
-        elif i not in [str(x) for x in list(params.TEL_DICT.keys())]:
+        elif i not in [str(x) for x in allowed]:
             print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
         elif int(i) not in valid:
             valid += [int(i)]

@@ -36,7 +36,7 @@ def start_fli_interface(interface):
         output = '/dev/stdout'
 
     process_path = os.path.join(params.INTERFACE_PATH, process)
-    out_cmd = ''.join(('>', output, '2>&1 &'))
+    out_cmd = ' '.join(('>', output, '2>&1 &'))
 
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 0:

@@ -23,6 +23,7 @@ from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import daemons
 
 ########################################################################
 # Interactive functions
@@ -41,13 +42,13 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        misc.start_daemon(daemon_ID)
+        daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
-        misc.shutdown_daemon(daemon_ID)
+        daemons.shutdown_daemon(daemon_ID)
     elif command == 'kill':
-        misc.kill_daemon(daemon_ID)
+        daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
-        misc.ping_daemon(daemon_ID)
+        daemons.ping_daemon(daemon_ID)
     elif command == 'help' or command == '?':
         print_instructions()
     elif command == 'i':
@@ -56,27 +57,31 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount control functions
     elif command == 'info':
-        info = misc.daemon_function(daemon_ID, 'get_info')
-        if info: print_info(info)
+        if len(args) == 0:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
 
     elif command == 'slew':
-        c = misc.daemon_function(daemon_ID, 'slew_to_target')
+        c = daemons.daemon_function(daemon_ID, 'slew_to_target')
         if c: print(c)
 
     elif command == 'track':
-        c = misc.daemon_function(daemon_ID, 'start_tracking')
+        c = daemons.daemon_function(daemon_ID, 'start_tracking')
         if c: print(c)
 
     elif command == 'stop':
-        c = misc.daemon_function(daemon_ID, 'full_stop')
+        c = daemons.daemon_function(daemon_ID, 'full_stop')
         if c: print(c)
 
     elif command == 'park':
-        c = misc.daemon_function(daemon_ID, 'park')
+        c = daemons.daemon_function(daemon_ID, 'park')
         if c: print(c)
 
     elif command == 'unpark':
-        c = misc.daemon_function(daemon_ID, 'unpark')
+        c = daemons.daemon_function(daemon_ID, 'unpark')
         if c: print(c)
 
     elif command == 'ra':
@@ -86,7 +91,7 @@ def query(command, args):
                 ra_deg = float(args[0])
                 assert 0 <= ra_deg < 360
                 ra_hrs = ra_deg*24./360.
-                c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+                c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -100,7 +105,7 @@ def query(command, args):
                 assert 0 <= m < 60
                 assert 0 <= s < 60
                 ra_hrs = h + m/60. + s/3600.
-                c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+                c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -114,7 +119,7 @@ def query(command, args):
             try:
                 dec_deg = float(args[0])
                 assert -90 <= dec_deg <= 90
-                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -132,7 +137,7 @@ def query(command, args):
                 else:
                     dec_deg = -1*(d + m/60. + s/3600.)
                 assert -90 <= dec_deg <= 90
-                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -154,7 +159,7 @@ def query(command, args):
                 else: #NB d is negative
                     dec_deg = d - m/60. - s/3600.
                 assert -90 <= dec_deg <= 90
-                c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid arguments'))
@@ -166,53 +171,53 @@ def query(command, args):
         if len(args) == 1:
             try:
                 step = float(args[0])
-                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
         direction = 'north'
-        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
         if c: print(c)
 
     elif command == 's':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
         direction = 'south'
-        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
         if c: print(c)
 
     elif command == 'e':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
         direction = 'east'
-        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
         if c: print(c)
 
     elif command == 'w':
         if len(args) == 1:
             try:
                 step = float(args[0])
-                c = misc.daemon_function(daemon_ID, 'set_step', [step])
+                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
                 if c: print(c)
             except:
                 print(misc.ERROR('Invalid step distance'))
         direction = 'west'
-        c = misc.daemon_function(daemon_ID, 'offset', [direction])
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
         if c: print(c)
 
     elif command == 'step':
         step = float(args[0])
-        c = misc.daemon_function(daemon_ID, 'set_step', [step])
+        c = daemons.daemon_function(daemon_ID, 'set_step', [step])
         if c: print(c)
 
     elif command == 'target':
@@ -228,11 +233,11 @@ def query(command, args):
             print('Targeting "%s"' %name)
             # set RA
             ra_hrs  = coord.ra.hour
-            c = misc.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
             if c: print(c)
             # set Dec
             dec_deg = coord.dec.value
-            c = misc.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
             if c: print(c)
         except:
             print(misc.ERROR('Cannot find target "%s"' %name))
@@ -276,6 +281,28 @@ def print_info(info):
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
+
+def print_info_s(info):
+    if info['status'] != 'Slewing':
+        print('MOUNT (sitech)           [{}]'.format(info['status']))
+    else:
+        print('MOUNT (sitech)           Slewing (%.2f)' %info['target_dist'])
+
+    alt, az = info['mount_alt'], info['mount_az']
+    ra, dec = info['mount_ra'], info['mount_dec']
+
+
+    ra_m, ra_s = divmod(abs(ra)*3600,60)
+    ra_h, ra_m = divmod(ra_m,60)
+    if ra < 0: ra_h = -ra_h
+    ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+    print('  RA:  {}       Alt: {:6.2f}'.format(ra_str, alt))
+
+    dec_m, dec_s = divmod(abs(dec)*3600,60)
+    dec_d, dec_m = divmod(dec_m,60)
+    if dec < 0: dec_d = -dec_d
+    dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+    print('  Dec: {}       Az:  {:6.2f}'.format(dec_str, az))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\

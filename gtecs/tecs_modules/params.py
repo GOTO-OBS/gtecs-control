@@ -116,9 +116,9 @@ for key in FLI_INTERFACES:
     FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
-for nuc in FLI_INTERFACES:
-    for HW, tel in enumerate(FLI_INTERFACES[nuc]['TELS']):
-        TEL_DICT[tel] = [nuc,HW]
+for intf in FLI_INTERFACES:
+    for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
+        TEL_DICT[tel] = [intf, HW]
 
 WIN_INTERFACES = config['WIN_INTERFACES']
 for key in WIN_INTERFACES:
@@ -146,13 +146,15 @@ FOCUS_INTERCEPT_DIFFERENCE = config['FOCUS_INTERCEPT_DIFFERENCE']
 QUEUE_PATH = CONFIG_PATH
 
 # Power parameters
+POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
+POWER_CHECK_SCRIPT = '_power_status'
 POWER_TYPE = config['POWER_TYPE']
 POWER_IP = config['POWER_IP']
 POWER_PORT = config['POWER_PORT']
-POWER_CHECK_SCRIPT = '_power_status'
 POWER_LIST = config['POWER_LIST']
 
 # Dome parameters
+DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
 DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
 FAKE_DOME = config['FAKE_DOME']
 BIG_RED_BUTTON_PORT = config['BIG_RED_BUTTON_PORT']

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
 #!/usr/bin/env python
 
 ########################################################################
@@ -21,16 +19,18 @@ import sys
 import os
 import Pyro4
 import threading
+from six.moves import range
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import range
 from gtecs.controls import power_control
+from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
-# Power daemon functions
-class PowerDaemon:
+# Power daemon class
+
+class PowerDaemon(HardwareDaemon):
     """
     Power daemon class
 
@@ -39,14 +39,10 @@ class PowerDaemon:
     - on(outletname/number/'all')
     - off(outletname/number/'all')
     """
-    def __init__(self):
-        self.running = True
-        self.start_time = time.time()
 
-        ### set up logfile
-        self.logfile = logger.getLogger('power', file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon started')
+    def __init__(self):
+        ### initiate daemon
+        HardwareDaemon.__init__(self, 'power')
 
         ### command flags
         self.get_info_flag = 1
@@ -58,8 +54,10 @@ class PowerDaemon:
         self.info = {}
         self.power_list = params.POWER_LIST
         self.power_status = 'None yet'
-        self.new_outlet = None
-        self.status_flag = 1
+        self.outlet_list = []
+        self.check_status_flag = 1
+        self.status_check_time = 0
+        self.check_period = params.POWER_CHECK_PERIOD
 
         ### start control thread
         t = threading.Thread(target=self.power_control)
@@ -69,6 +67,7 @@ class PowerDaemon:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def power_control(self):
+        self.logfile.info('Daemon control thread started')
 
         ### connect to power object
         IP = params.POWER_IP
@@ -78,14 +77,18 @@ class PowerDaemon:
         elif params.POWER_TYPE == 'EthPower':
             power = power_control.EthPower(IP, port)
         else:
-            power = power_control.FakePower(' ',' ')
+            power = power_control.FakePower()
 
         while(self.running):
             self.time_check = time.time()
 
-            # check power status every 30 seconds
-            delta = self.time_check - self.start_time
-            if (delta % 30 < 1 and self.status_flag == 1) or self.status_flag == -1:
+            # autocheck status every X seconds (if not already forced)
+            delta = self.time_check - self.status_check_time
+            if delta > self.check_period:
+                self.check_status_flag = 1
+
+            # check power status
+            if(self.check_status_flag):
                 try:
                     cmd = params.POWER_CHECK_SCRIPT
                     power_status = misc.cmd_timeout(cmd, timeout=10.)
@@ -97,9 +100,8 @@ class PowerDaemon:
                     self.logfile.debug('', exc_info=True)
                     self.power_status = 'x' * power.count
                 misc.kill_processes(params.POWER_CHECK_SCRIPT,params.DAEMONS['power']['HOST'])
-                self.status_flag = 0
-            if delta % 30 > 1:
-                self.status_flag = 1
+                self.status_check_time = time.time()
+                self.check_status_flag = 0
 
             ### control functions
             # request info
@@ -124,116 +126,112 @@ class PowerDaemon:
 
             # power on a specified outlet
             if(self.on_flag):
-                self.logfile.info('Power on outlet ' + str(self.new_outlet))
-                c = power.on(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Power on outlet ' + str(outlet))
+                    c = power.on(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.on_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # power off a specified outlet
             if(self.off_flag):
-                self.logfile.info('Power off outlet ' + str(self.new_outlet))
-                c = power.off(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Power off outlet ' + str(outlet))
+                    c = power.off(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.off_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             # reboot a specified outlet
             if(self.reboot_flag):
-                self.logfile.info('Reboot outlet ' + str(self.new_outlet))
-                c = power.reboot(self.new_outlet)
-                if c: self.logfile.info(c)
-                self.new_outlet = None
+                for outlet in self.outlet_list:
+                    self.logfile.info('Reboot outlet ' + str(outlet))
+                    c = power.reboot(outlet)
+                    if c: self.logfile.info(c)
+                self.outlet_list = []
                 self.reboot_flag = 0
-                self.status_flag = -1
+                self.check_status_flag = 1
 
             time.sleep(0.0001) # To save 100% CPU usage
 
-        self.logfile.info('Power control thread stopped')
+        self.logfile.info('Daemon control thread stopped')
         return
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Power control functions
     def get_info(self):
         """Return power status info"""
-        self.status_flag = -1
+        self.check_status_flag = 1
         self.get_info_flag = 1
-        time.sleep(0.1)
+        time.sleep(0.5)
         return self.info
 
-    def on(self,outlet):
-        """Power on a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def on(self, outlet_list):
+        """Power on given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.on_flag = 1
             return 'Turning on power'
 
-    def off(self,outlet):
-        """Power off a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def off(self, outlet_list):
+        """Power off given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.off_flag = 1
             return 'Turning off power'
 
-    def reboot(self,outlet):
-        """Reboot a specified outlet"""
-        self.new_outlet = self.get_outlet_number(outlet)
-        if self.new_outlet == None:
+    def reboot(self, outlet_list):
+        """Reboot a given outlet(s)"""
+        self.outlet_list = self._get_valid_outlets(outlet_list)
+        if len(self.outlet_list) == 0:
             return 'ERROR: Unknown outlet'
         else:
             self.reboot_flag = 1
             return 'Rebooting power'
 
-    def get_outlet_number(self,outlet):
-        """Check outlet is valid and convert name to number"""
-        if outlet.isdigit():
-            x = int(outlet)
-            if 0 <= x < (len(params.POWER_LIST) + 1):
-                return x
-        elif outlet in params.POWER_LIST:
-            return params.POWER_LIST.index(outlet) + 1
-        elif outlet == 'all':
-            return 0
-        else:
-            return None
-
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        dt_control = abs(time.time() - self.time_check)
-        if dt_control > params.DAEMONS['power']['PINGLIFE']:
-            return 'ERROR: Last control thread time check was %.1f seconds ago' %dt_control
-        else:
-            return 'ping'
+    # Internal functions
+    def _get_valid_outlets(self, outlet_list):
+        """Check outlets are valid and convert any names to numbers"""
+        valid_list = []
+        for outlet in outlet_list:
+            if outlet == 'all':
+                valid_list = [0]
+            elif outlet.isdigit():
+                x = int(outlet)
+                if 0 <= x < (len(params.POWER_LIST) + 1):
+                    valid_list.append(x)
+            elif outlet in params.POWER_LIST:
+                valid_list.append(params.POWER_LIST.index(outlet) + 1)
+        return valid_list
 
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.DAEMONS['power']['HOST'], port=params.DAEMONS['power']['PORT'])
-    power_daemon = PowerDaemon()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['power']['HOST']
+    port = params.DAEMONS['power']['PORT']
+    pyroID = params.DAEMONS['power']['PYROID']
 
-    uri = pyro_daemon.register(power_daemon,objectId = params.DAEMONS['power']['PYROID'])
-    power_daemon.logfile.info('Starting power daemon at %s', uri)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        power_daemon = PowerDaemon()
+        uri = pyro_daemon.register(power_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
+        # Start request loop
+        power_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
 
-    power_daemon.logfile.info('Exiting power daemon')
+    # Loop has closed
+    power_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":

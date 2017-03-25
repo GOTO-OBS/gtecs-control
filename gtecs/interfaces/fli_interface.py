@@ -16,8 +16,9 @@ from __future__ import print_function
 from math import *
 import time
 import Pyro4
-from concurrent import futures  # pip install on Py2.7
+from concurrent import futures
 import socket
+from six.moves import range
 # FLI modules
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
@@ -25,11 +26,12 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from six.moves import range
+from gtecs.tecs_modules.daemons import InterfaceDaemon
 
 ########################################################################
-# FLI control functions
-class FLI:
+# FLI interface class
+
+class FLIDaemon(InterfaceDaemon):
     """
     FLI interface class
 
@@ -64,37 +66,29 @@ class FLI:
     - get_camera_temp(temp_type, HW)
     - get_camera_cooler_power(HW)
     """
-    def __init__(self):
-        self.running = True
 
-        ### find interface params
-        self.hostname = socket.gethostname()
-        #for nuc in params.FLI_INTERFACES.keys():
-            #if params.FLI_INTERFACES[nuc]['HOST'] == self.hostname:
-                #self.nuc = nuc
-        self.nuc = 'nuc1'
-
-        # logger object
-        self.logfile = logger.getLogger('fli_interface', file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
+    def __init__(self, intf):
+        self.intf = intf
+        ### initiate daemon
+        InterfaceDaemon.__init__(self, self.intf)
 
         ### fli objects
         self.cams = []
         self.focs = []
         self.filts = []
-        for HW in range(len(params.FLI_INTERFACES[self.nuc]['TELS'])):
+        for HW in range(len(params.FLI_INTERFACES[self.intf]['TELS'])):
             # cameras
-            cam_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['cam'][HW]
+            cam_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['cam'][HW]
             cam = USBCamera.locate_device(cam_serial)
             if cam == None: cam = FakeCamera('fake','Fake-Cam')
             self.cams.append(cam)
             # focusers
-            foc_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['foc'][HW]
+            foc_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['foc'][HW]
             foc = USBFocuser.locate_device(foc_serial)
             if foc == None: foc = FakeFocuser('fake','Fake-Foc')
             self.focs.append(foc)
             # filter wheels
-            filt_serial = params.FLI_INTERFACES[self.nuc]['SERIALS']['filt'][HW]
+            filt_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['filt'][HW]
             filt = USBFilterWheel.locate_device(filt_serial)
             if filt == None: filt = FakeFilterWheel('fake','Fake-Filt')
             self.filts.append(filt)
@@ -251,33 +245,31 @@ class FLI:
         ser = self.cams[int(HW)].serial_number
        	return ser
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Other daemon functions
-    def ping(self):
-        return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.running = False
+########################################################################
 
 def start():
-    ########################################################################
-    # Create Pyro control server
-    pyro_daemon = Pyro4.Daemon(host=params.FLI_INTERFACES['nuc1']['HOST'], port=params.FLI_INTERFACES['nuc1']['PORT'])
-    fli_daemon = FLI()
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    # find which interface this is
+    hostname = socket.gethostname()
+    intf = misc.find_interface_ID(hostname)
 
-    uri = pyro_daemon.register(fli_daemon,objectId = params.FLI_INTERFACES['nuc1']['PYROID'])
-    fli_daemon.logfile.info('Starting FLI interface daemon at %s', uri)
+    host = params.FLI_INTERFACES[intf]['HOST']
+    port = params.FLI_INTERFACES[intf]['PORT']
+    pyroID = params.FLI_INTERFACES[intf]['PYROID']
 
-    Pyro4.config.COMMTIMEOUT = 5.
-    pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        fli_daemon = FLIDaemon(intf)
+        uri = pyro_daemon.register(fli_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
 
-    fli_daemon.logfile.info('Exiting FLI interface daemon')
+        # Start request loop
+        fli_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+
+    # Loop has closed
+    fli_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 if __name__ == "__main__":
