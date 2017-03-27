@@ -4,13 +4,13 @@
 # Vaisala weather station.
 # vsd @ING 27-Mar-2017
 
-import time, math, ephem, string, os, commands, re, signal, smtplib, sys, urllib, calendar
+import time, math, ephem, string, os, subprocess, re, signal, smtplib, sys, urllib, calendar
 import numpy as np
-import params
+from gtecs.tecs_modules import params
 
 # function to trap ctrl-c and exit cleanly by closing open files
 def signal_handler(signal, frame):
-        print '...ctrl+c detected - stopping the conditions monitor...'
+        print ('...ctrl+c detected - stopping the conditions monitor...')
         f.close()        
         sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
@@ -24,9 +24,9 @@ def get_sun_alt():
 
 # function to get the current weather from the ING weather page (JKT mast)
 def get_ing_weather_html():
-    curl_command = "curl -m 10 -o " + monitor_folder + "weather.html http://catserver.ing.iac.es/weather/"
-    commands.getoutput(curl_command)
-    f = open(monitor_folder+"weather.html", 'r')
+    curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.html http://catserver.ing.iac.es/weather/"
+    os.popen(curl_command)
+    f = open(monitor_folder+"weather.html", 'r',encoding='ISO-8859-1')
 
     deltat_set = 1 # these _set variables added to make function more robust to 
     temp_set = 1   # changes/errors in the ING weather page
@@ -39,7 +39,7 @@ def get_ing_weather_html():
 
     for line in f:
         html_stripped = remove_html_tags(line)
-        columns = string.split(html_stripped)
+        columns = html_stripped.split()
         if not columns:
             continue
         if columns[0].split(":")[0] == 'Temperature':
@@ -64,7 +64,7 @@ def get_ing_weather_html():
                 wind_set = 1
             try:
                 if columns[1].split(":")[0] == 'Direction':
-                    winddir = columns[1].split(":")[1]
+                    winddir = float(columns[1].split(":")[1])
                     winddir_set = 0
             except:
                 winddir_set = 1
@@ -93,13 +93,13 @@ def get_ing_weather_html():
             except:
                 rain_set = 1
         elif len(columns) == 3:
-		if columns[2].split(":")[0] == 'UT':
-			try:
-				update = time.strptime(columns[0] + columns[1] + "GMT","%Y/%m/%d%H:%M%Z")
-				deltat = time.mktime(now)-time.mktime(update)
-				deltat_set = 0
-			except:
-				deltat_set = 1
+                if columns[2].split(":")[0] == 'UT':
+                        try:
+                                update = time.strptime(columns[0] + columns[1] + "GMT","%Y/%m/%d%H:%M%Z")
+                                deltat = time.mktime(now)-time.mktime(update)
+                                deltat_set = 0
+                        except:
+                                deltat_set = 1
 
     if deltat_set == 1:
             deltat = -999
@@ -119,17 +119,17 @@ def get_ing_weather_html():
             dry = 2
 
     if deltat < -999:    # add some checks to pick up weird negative numbers being returned by the ING weather system
-	    deltat = -999
+        deltat = -999
     if winddir < -999:
-	    winddir = -999
+        winddir = -999
     if wind_now < -999:
-	    wind_now = -999
+        wind_now = -999
     if windgust < -999:
-	    windgust = -999
+        windgust = -999
     if humidity_now < -999:
-	    humidity_now = -999
+        humidity_now = -999
     if temp_now < -999:
-	    temp_now = -999
+        temp_now = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
 
@@ -137,16 +137,16 @@ def get_ing_weather_html():
 def get_ing_weather_xml(weather_source):
 
     if weather_source == 'wht':
- 	    # WHT local data:
- 	    curl_command = "curl -m 10 -o " + monitor_folder + "weather.xml http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
+        # WHT local data:
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
     elif weather_source == 'int':
- 	    # INT local data:
- 	    curl_command = "curl -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
+        # INT local data:
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
     elif weather_source == 'jkt':
- 	    # JKT local data:
- 	    curl_command = "curl -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml" 
+        # JKT local data:
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml" 
 
-    commands.getoutput(curl_command)
+    os.popen(curl_command)
     f = open(monitor_folder+"weather.xml", 'r')
 
     deltat_set = 1 # these _set variables added to make function more robust to 
@@ -159,7 +159,7 @@ def get_ing_weather_xml(weather_source):
     rain_set = 1
 
     for line in f:
-        columns = string.split(line)
+        columns = line.split()
         try:
             label = columns[1].split("\"")[1].split(".")[2] 
         except:
@@ -186,28 +186,28 @@ def get_ing_weather_xml(weather_source):
         elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
             try:
                 wind_now = float(columns[2].split("\"")[1]) / 3.6   #convert from km/h to m/s
-		wind_set = 0
+                wind_set = 0
             except:
                 wind_set = 1
         elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
             try:
                 winddir = float(columns[2].split("\"")[1])
-		winddir_set = 0
+                winddir_set = 0
             except:
                 winddir_set = 1
         elif label == 'LocalMastGust' or label == 'MainMastGust':
             try:
                 windgust = float(columns[2].split("\"")[1]) / 3.6
-		windgust_set = 0
-	    except:
+                windgust_set = 0
+            except:
                 windgust_set = 1
-	elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
+        elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
             try:
                 humidity_now = float(columns[2].split("\"")[1])
                 humidity_set = 0
             except:
                 humidity_set = 1
-	elif label == 'LocalMastWetness' or label == 'MainMastWetness':
+        elif label == 'LocalMastWetness' or label == 'MainMastWetness':
             try:
                 rain = float(columns[2].split("\"")[1])
                 if rain <= 0.:
@@ -238,48 +238,42 @@ def get_ing_weather_xml(weather_source):
             dry = 2
 
     if deltat < -999:     # add some checks to pick up weird negative numbers being returned by the ING weather system
-	    deltat = -999
+        deltat = -999
     if winddir < -999:
-	    winddir = -999
+        winddir = -999
     if wind_now < -999:
-	    wind_now = -999
+        wind_now = -999
     if humidity_now < -999:
-	    humidity_now = -999
+        humidity_now = -999
     if temp_now < -999:
-	    temp_now = -999
+        temp_now = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
 
-# function to read local humidity sensor in pt5m dome
-def getCometData():
-    url = 'http://comet/epocasi.html'
-    try:
-        filehandle = urllib.urlopen(url, proxies={})
-        data=filehandle.read().split()
-        temperature = float(data[-2])
-        relativeHumidity = float(data[-1])
-        return temperature,relativeHumidity    
-    except:
-        return None,None
+# function to read local humidity sensor in GOTO dome
+# def getCometData():
+#    url = 'http://comet/epocasi.html'
+#    try:
+#        filehandle = urllib.urlopen(url, proxies={})
+#        data=filehandle.read().split()
+#        temperature = float(data[-2])
+#        relativeHumidity = float(data[-1])
+#        return temperature,relativeHumidity    
+#    except:
+#        return None,None
 
 # function to remove html tags
 def remove_html_tags(data):
     p = re.compile(r'<.*?>')
     return p.sub('', data)
 
-# function to check the connection between ron and elvira (the server in Durham)
-#def checkDurhamConnection(tmpfile=monitor_folder+'elviraUT.txt',url='http://elvira.phyaig.dur.ac.uk/la_palma/elviraUT.txt',tFormat='%Y-%m-%d %H:%M:%S'):
-def checkDurhamConnection():
-    tmpfile=monitor_folder+'elviraUT.txt'
-    url='http://elvira.cfai.dur.ac.uk/la_palma/elviraUT.txt'
-    tFormat='%Y-%m-%d %H:%M:%S'
-    commands.getoutput('curl -m 5 -o %s %s' % (tmpfile,url))
+# function to check the connection between GOTO dome NUC and the GOTO head 
+# (the server in Warwick)
+def checkWarwickConnection():
+    link=os.popen('ping -c 3 ngtshead.warwick.ac.uk | grep "ttl="').read()
     try:
-        f = open(tmpfile,'r')
-        dat = f.readline()
-        f.close()
-        t = calendar.timegm(time.strptime(dat,tFormat))
-        dt = time.time() - t
+        if "ttl=" in link:
+            dt=10
         return dt
     except:
         return None
@@ -287,19 +281,20 @@ def checkDurhamConnection():
 # function to get dome status
 def checkDome():
     try:
-	    domeStat = eval(commands.getoutput('dome info'))['dome']
-	    if domeStat == 'closed':
-		    return 0
-	    else:
-		    return 1
+        domeStat = os.popen('dome info').read()
+        if 'DOME:    [Closed]' in domeStat:
+            return 0
+        else:
+            return 1
     except:
-	    return 2
+        return 2
+
 
 def ThereCanOnlyBeOne():
     '''Quit if this process is already running (dodgy kludge!)'''
-    ps=commands.getoutput('ps -fu '+os.environ['LOGNAME']+' | grep -v cron')
+    ps=os.popen('ps -fu '+os.environ['LOGNAME']+' | grep -v cron | grep -v emacs' ).read()
     if ps.count(sys.argv[0])>1:
-        print ps
+        print(ps)
         sys.exit()
 
 # def SendStartupEmail():
@@ -319,26 +314,26 @@ def ThereCanOnlyBeOne():
 #         server.quit()
 #         print 'Sent mail to',toaddrs
 
-def SendStartupEmail():
-    # Message
-    recipients = ['timothy.butterley@durham.ac.uk','vik.dhillon@sheffield.ac.uk']
-    toaddrs = ', '.join( recipients )
-    fromaddr = 'pt5m.lapalma@gmail.com'  
-    subject = 'pt5m: conditions monitor'
-    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (toaddrs,fromaddr,subject)
-    msg = 'conditions_monitor.py started on ron: '+time.strftime('%Y-%m-%d %H:%M:%S\n', time.gmtime()) 
-
-    # Credentials
-    username = 'pt5m.lapalma@gmail.com'
-    password = 'lp!slodar'
-    
-    # The actual mail send
-    server = smtplib.SMTP('smtp.gmail.com:587')  
-    server.starttls()  
-    server.login(username,password)  
-    server.sendmail(fromaddr, recipients, header + '\n' + msg + '\n\n')  
-    server.quit()
-    print 'Sent mail to',recipients
+#def SendStartupEmail():
+#    # Message
+#    recipients = ['timothy.butterley@durham.ac.uk','vik.dhillon@sheffield.ac.uk']
+#    toaddrs = ', '.join( recipients )
+#    fromaddr = 'pt5m.lapalma@gmail.com'  
+#    subject = 'pt5m: conditions monitor'
+#    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (toaddrs,fromaddr,subject)
+#    msg = 'conditions_monitor.py started on ron: '+time.strftime('%Y-%m-%d %H:%M:%S\n', time.gmtime())
+#
+#    # Credentials
+#    username = 'pt5m.lapalma@gmail.com'
+#    password = 'lp!slodar'
+#    
+#    # The actual mail send
+#    server = smtplib.SMTP('smtp.gmail.com:587')  
+#    server.starttls()  
+#    server.login(username,password)  
+#    server.sendmail(fromaddr, recipients, header + '\n' + msg + '\n\n')  
+#    server.quit()
+#    print 'Sent mail to',recipients
 
 
 
@@ -347,7 +342,7 @@ def SendStartupEmail():
 # set monitor parameters
 
 log_file = 0                                 # write log file, 0 = yes, 1 = no
-monitor_folder = "/home/slodar/config/"      # path to the flags directory
+monitor_folder = params.CONFIG_PATH          # path to the flags directory
 log_folder = params.LOG_PATH                 # path to the logs directory
 weather_source = params.WEATHER_SOURCE       # select weather source: html = external ING weather html web page (JKT mast); wht = internal ING xml weather file (WHT mast); int = internal ING xml weather file (INT mast); jkt = internal ING xml weather file (JKT mast)
 backup_weather_source = params.BACKUP_WEATHER_SOURCE
@@ -372,8 +367,8 @@ max_temp_limit_closed = max_temp_limit-1.0                            # max temp
 deltat_limit = params.WEATHER_TIMEOUT                             # weather data age limit in seconds
 static_limit = params.WEATHER_STATIC                              # max time that weather parameters can remain unchanged in seconds
 monitor_interval = params.WEATHER_INTERVAL                        # weather monitoring interval in seconds
-elvira_interval_closed = params.ELVIRA_CLOSED                     # max time in secs that can elapse without contact with Durham server when dome closed
-elvira_interval_open = params.ELVIRA_OPEN                          # max time in secs that can elapse without contact with Durham server when dome open
+warwick_interval_closed = params.WARWICK_CLOSED                     # max time in secs that can elapse without contact with Durham server when dome closed
+warwick_interval_open = params.WARWICK_OPEN                          # max time in secs that can elapse without contact with Durham server when dome open
 
 #sun_alt_limit = -10. * math.pi/180.                               # maximum altitude limit of the Sun in radians
 #wind_limit = 13.                                                  # wind speed limit in m/s
@@ -391,10 +386,10 @@ elvira_interval_open = params.ELVIRA_OPEN                          # max time in
 # set observing location of pt5m. Note the pyephem convention that
 # longitude east = +ve
 
-pt5m = ephem.Observer()
-pt5m.lat = str(params.SITE_LATITUDE)     
-pt5m.long = str(params.SITE_LONGITUDE)
-pt5m.elevation = params.SITE_ELEVATION   
+goto = ephem.Observer()
+goto.lat = str(params.SITE_LATITUDE)     
+goto.long = str(params.SITE_LONGITUDE)
+goto.elevation = params.SITE_ALTITUDE
 
 #pt5m.lat = str(28.761)     
 #pt5m.long = str(-17.882)
@@ -418,7 +413,7 @@ link = 2
 # start monitoring
 
 ThereCanOnlyBeOne()
-SendStartupEmail()
+#SendStartupEmail()
 loop = 0
 while True:
     loop +=1
@@ -446,39 +441,40 @@ while True:
 
 # replaced this commented out code, as the wind direction is a string of characters and can't be checked with numpy like below
 #    if weather_source == 'html':
-#	    (deltat, dry, winddir, wind_now, humidity_now, temp_now) = get_ing_weather_html()
+#       (deltat, dry, winddir, wind_now, humidity_now, temp_now) = get_ing_weather_html()
 #    else:
-#	    vals = get_ing_weather_xml(weather_source)
-#	    weather_source_used = weather_source
-#	    if np.any( (np.array(vals) == '-999') | (np.isnan(np.array(vals))) ):
-#		    if backup_weather_source != 'html':
-#			    print 'using backup weather source = ' + backup_weather_source + ', instead of primary weather source = ' + weather_source
-#			    vals = get_ing_weather_xml(backup_weather_source)
-#			    weather_source_used = backup_weather_source
-#		    else:
-#			    print 'only xml sources are supported as backup sources'
-#	    deltat, dry, winddir, wind_now, humidity_now, temp_now = vals
+#       vals = get_ing_weather_xml(weather_source)
+#       weather_source_used = weather_source
+#       if np.any( (np.array(vals) == '-999') | (np.isnan(np.array(vals))) ):
+#           if backup_weather_source != 'html':
+#               print 'using backup weather source = ' + backup_weather_source + ', instead of primary weather source = ' + weather_source
+#               vals = get_ing_weather_xml(backup_weather_source)
+#               weather_source_used = backup_weather_source
+#           else:
+#               print 'only xml sources are supported as backup sources'
+#       deltat, dry, winddir, wind_now, humidity_now, temp_now = vals
 
     if weather_source == 'html':
-	    deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
+        deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
     else:
-	    deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(weather_source)
+        deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(weather_source)
     vals = deltat, dry, wind_now, humidity_now, temp_now
     weather_source_used = weather_source
     if np.any( (np.array(vals) == -999) | (np.isnan(np.array(vals))) ) or deltat > deltat_limit:
-	    if backup_weather_source != 'html':
-		    deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(backup_weather_source)
-	    else:
-		    deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
-	    weather_source_used = backup_weather_source
+        if backup_weather_source != 'html':
+            deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(backup_weather_source)
+        else:
+            deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
+        weather_source_used = backup_weather_source
 
 # check the local humidity sensor in the pt5m dome
 
-    temp_local,humidity_local = getCometData()
+#    temp_local,humidity_local = getCometData()
+    temp_local,humidity_local = 20,50
 
 # check the connectivity with Durham
 
-    dt = checkDurhamConnection()
+    dt = checkWarwickConnection()
 
 # check the dome status
 
@@ -494,12 +490,12 @@ while True:
         wind = 1
     elif wind_now <= wind_limit:
         if wind == 1:
-		if wind_now < wind_limit_closed:
-			wind = 0
-		else:
-			wind = 1
-	else:
-		wind = 0
+            if wind_now < wind_limit_closed:
+                wind = 0
+            else:
+                wind = 1
+        else:
+            wind = 0
     else:
         wind = 2
 
@@ -509,12 +505,12 @@ while True:
         humidity = 1
     elif humidity_now <= humidity_limit and humidity_local <= local_humidity_limit:
         if humidity == 1:
-		if humidity_now <= humidity_limit_closed and humidity_local <= local_humidity_limit_closed:
-			humidity = 0
-		else:
-			humidity = 1
-	else:
-		humidity = 0
+            if humidity_now <= humidity_limit_closed and humidity_local <= local_humidity_limit_closed:
+                humidity = 0
+            else:
+                humidity = 1
+        else:
+            humidity = 0
     else:
         humidity = 2
  
@@ -526,12 +522,12 @@ while True:
         temp = 1
     elif temp_now >= min_temp_limit and temp_now <= max_temp_limit:
         if temp == 1:
-		if temp_now > min_temp_limit_closed or temp_now < max_temp_limit_closed:
-			temp = 0
-		else:
-			temp = 1
-	else:
-		temp = 0
+            if temp_now > min_temp_limit_closed or temp_now < max_temp_limit_closed:
+                temp = 0
+            else:
+                temp = 1
+        else:
+            temp = 0
     else:
         temp = 2
 
@@ -540,23 +536,23 @@ while True:
         wind = 2
         humidity = 2
         temp = 2
-	
+    
     if dome_status == 0:
-	    if dt >= elvira_interval_closed:
-		    link = 1
-            elif dt is None:
-		    link = 2
-	    else:
-		    link = 0
+        if dt >= warwick_interval_closed:
+            link = 1
+        elif dt is None:
+            link = 2
+        else:
+            link = 0
     elif dome_status == 1:
-	    if dt >= elvira_interval_open:
-		    link = 1
-            elif dt is None:
-		    link = 2
-	    else:
-		    link = 0
+        if dt >= warwick_interval_open:
+            link = 1
+        elif dt is None:
+            link = 2
+        else:
+            link = 0
     else:
-	    link = 2
+        link = 2
 
 # check to see if the weather values are changing - if they aren't, assume something is wrong
 
@@ -591,37 +587,34 @@ while True:
     f.write(temp_flag)
     f.write(link_flag)
     f.close()
-    os.system('cp -p '+monitor_folder+'conditions_flags '+monitor_folder+'sendhome/')
-    os.system('cp -p '+monitor_folder+'conditions_flags '+monitor_folder+'sendhome2/')
 
 # write useful info to the conditions monitor log file if required
 
     if log_file == 0:
         f = open(log_folder+time.strftime('%Y_%m_%d', now)+'_conditions_monitor.log', 'a')
         time_log = time.strftime('%Y-%m-%d %H:%M:%S', now)
-	if weather_source_used == backup_weather_source:
-		backup = 'backup'
-	else:
-		backup = ''
-	if weather_source_used == 'html':
-		src_log = backup + 'htmlJKT'
-	elif weather_source_used == 'jkt':
-		src_log = backup + 'xmlJKT'
-	elif weather_source_used == 'int':
-		src_log = backup + 'xmlINT'
-	elif weather_source_used == 'wht':
-		src_log = backup + 'xmlWHT'
-        wind_log = '%.1f' % wind_now
-        hum_log = '%.1f' % humidity_now
-        temp_log = '%.1f' % temp_now
-        log_line = str(loop) + " " + time_log + " src=" + src_log + " sun=" + str(sun_alt_now)  + " dark=" + str(dark) + " deltat=" + str(deltat) + " dry=" + str(dry) + " winddir=" + str(winddir) + " wind=" + wind_log + " wind_flag=" + str(wind) + " hum=" + hum_log + " hum_flag=" + str(humidity) + " temp=" + temp_log + " temp_flag=" + str(temp) + " hum_local=" + str(humidity_local) + " temp_local1=" + str(temp_local) + " temp_local2=" + str(amb_temp) + " sky_temp=" + str(sky_temp) + " link_flag=" + str(link) + "\n"
-#        log_line = str(loop) + " " + time_log + " sun=" + str(sun_alt_now)  + " dark=" + str(dark) + " deltat=" + str(deltat) + " dry=" + str(dry) + " winddir=" + str(winddir) + " wind=" + wind_log + " wind_flag=" + str(wind) + " hum=" + hum_log + " hum_flag=" + str(humidity) + " temp=" + temp_log + " temp_flag=" + str(temp) + " hum_local=" + str(humidity_local) + " temp_local1=" + str(temp_local) + " temp_local2=" + str(amb_temp) + " sky_temp=" + str(sky_temp) + " link_flag=" + str(link) + "\n"
-#	log_line2 = "{'loop': %d, 'timestamp': '%s', 'sunAlt': '%s', 'dark': %d, 'deltat': %s, 'dry': %d, 'winddir': '%s', 'wind': %s, 'wind_flag': %d, 'hum': %d, 'temp': %.1f, 'temp_flag': %d}" % (loop, time_log, str(sun_alt_now), dark, str(deltat), dry, winddir, wind_log, wind_flag, humidity, temp_now, temp)
-        f.write(log_line)
-        f.close()
+    if weather_source_used == backup_weather_source:
+        backup = 'backup'
+    else:
+        backup = ''
+    if weather_source_used == 'html':
+        src_log = backup + 'htmlJKT'
+    elif weather_source_used == 'jkt':
+        src_log = backup + 'xmlJKT'
+    elif weather_source_used == 'int':
+        src_log = backup + 'xmlINT'
+    elif weather_source_used == 'wht':
+        src_log = backup + 'xmlWHT'
+    wind_log = '%.1f' % wind_now
+    hum_log = '%.1f' % humidity_now
+    temp_log = '%.1f' % temp_now
+    log_line = str(loop) + " " + time_log + " src=" + src_log + " sun=" + str(sun_alt_now)  + " dark=" + str(dark) + " deltat=" + str(deltat) + " dry=" + str(dry) + " winddir=" + str(winddir) + " wind=" + wind_log + " wind_flag=" + str(wind) + " hum=" + hum_log + " hum_flag=" + str(humidity) + " temp=" + temp_log + " temp_flag=" + str(temp) + " hum_local=" + str(humidity_local) + " temp_local1=" + str(temp_local) + " link_flag=" + str(link) + "\n"
+    print(log_line)
+#   log_line = str(loop) + " " + time_log + " sun=" + str(sun_alt_now)  + " dark=" + str(dark) + " deltat=" + str(deltat) + " dry=" + str(dry) + " winddir=" + str(winddir) + " wind=" + wind_log + " wind_flag=" + str(wind) + " hum=" + hum_log + " hum_flag=" + str(humidity) + " temp=" + temp_log + " temp_flag=" + str(temp) + " hum_local=" + str(humidity_local) + " temp_local1=" + str(temp_local) + " link_flag=" + str(link) + "\n"
+#   log_line2 = "{'loop': %d, 'timestamp': '%s', 'sunAlt': '%s', 'dark': %d, 'deltat': %s, 'dry': %d, 'winddir': '%s', 'wind': %s, 'wind_flag': %d, 'hum': %d, 'temp': %.1f, 'temp_flag': %d}" % (loop, time_log, str(sun_alt_now), dark, str(deltat), dry, winddir, wind_log, wind_flag, humidity, temp_now, temp)
+    f.write(log_line)
+    f.close()
 
-        f2 = open(monitor_folder+'conditions_monitor', 'w')
-        f2.write(log_line)
-        f2.close()
-        os.system('cp -p '+monitor_folder+'conditions_monitor '+monitor_folder+'sendhome/')
-        os.system('cp -p '+monitor_folder+'conditions_monitor '+monitor_folder+'sendhome2/')
+    f2 = open(monitor_folder+'conditions_monitor', 'w')
+    f2.write(log_line)
+    f2.close()
