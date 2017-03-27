@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+import json
+f = open('/home/goto/g-tecs-config/overrides_flags', 'r')
+data = json.load(f)
+data['robotic']=0
+f = open('/home/goto/g-tecs-config/overrides_flags', 'w')
+json.dump(data, f)
