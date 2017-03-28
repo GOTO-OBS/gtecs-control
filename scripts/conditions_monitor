@@ -543,25 +543,33 @@ while True:
         humidity = 2
         temp = 2
                         
-# now write all the values to the conditions flags file
+# now write all the values to the conditions flags file in JSON format
 
-    time_flag = time.strftime('%Y-%m-%d %H:%M:%S %Z\n', now)
-    dark_flag = "dark = " + str(dark) + "\n"
-    dry_flag = "dry = " + str(dry) + "\n"
-    wind_flag = "wind = " + str(wind) + "\n"
-    humidity_flag = "humidity = " + str(humidity) + "\n"
-    temp_flag = "temperature = " + str(temp) + "\n"
-    link_flag = "link = " + str(link) + "\n"
+    time_flag = time.strftime('%Y-%m-%d %H:%M:%S', now)
+    dark_flag = int(dark)
+    dry_flag = int(dry)
+    wind_flag = int(wind)
+    humidity_flag = int(humidity)
+    temp_flag = int(temp)
+    link_flag = int(link)
+
+    if os.path.exists(monitor_folder+"conditions_flags"):
+        f = open(monitor_folder+"conditions_flags", 'r')
+        data = json.load(f)
+    else:
+        data = {}
+
+    data['update_time'] = time_flag
+    data['dark'] = dark_flag
+    data['dry'] = dry_flag
+    data['wind'] = wind_flag
+    data['humidity'] = humidity_flag
+    data['temperature'] = temp_flag
+    data['link'] = link_flag
 
     f = open(monitor_folder+"conditions_flags", 'w')
-    f.write(time_flag)
-    f.write(dark_flag)
-    f.write(dry_flag)
-    f.write(wind_flag)
-    f.write(humidity_flag)
-    f.write(temp_flag)
-    f.write(link_flag)
-    f.close()
+    json.dump(data, f)
+
 
 # write useful info to the conditions monitor log file if required
 
