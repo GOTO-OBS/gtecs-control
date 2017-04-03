@@ -199,7 +199,7 @@ class AstroHavenDome:
         return status
 
     def open_full(self):
-        #self.sound_alarm()
+        self.sound_alarm(7)
         # by using the serial port as a context manager it will still close if
         # an exception is raised inside _move_dome
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
@@ -210,7 +210,7 @@ class AstroHavenDome:
         return openW.strip() + openE.strip()
 
     def close_full(self):
-        #self.sound_alarm()
+        self.sound_alarm(7)
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
             closeW = self._move_dome('west_close')
             time.sleep(2)
@@ -219,7 +219,7 @@ class AstroHavenDome:
         return closeW.strip() + closeE.strip()
 
     def open_side(self,side,steps):
-        #self.sound_alarm()
+        self.sound_alarm(7)
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
             if side == 'west':
                 openS = self._move_dome_steps('west_open',steps)
@@ -228,7 +228,7 @@ class AstroHavenDome:
         return openS.strip()
 
     def close_side(self,side,steps):
-        #self.sound_alarm()
+        self.sound_alarm(7)
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
             if side == 'west':
                 closeS = self._move_dome_steps('west_close',steps)
@@ -236,12 +236,24 @@ class AstroHavenDome:
                 closeS = self._move_dome_steps('east_close',steps)
         return closeS.strip()
 
-    def sound_alarm(self,sleep=True):
-        '''Sound the dome alarm using the arduino'''
+    def sound_alarm(self,duration=3,sleep=True):
+        '''Sound the dome alarm using the Arduino
+
+        duration : int [0-9]
+            The time to sound the alarm for (seconds)
+            default = 3
+
+        sleep : bool
+            Whether to sleep for the duration of the alarm
+            or return immediately
+            default = True
+        '''
         loc = params.ARDUINO_LOCATION
-        curl = getoutput('curl -s %s?s' %loc)
+        curl = getoutput('curl -s {}?s{}'.format(loc, duration))
         if sleep:
-            time.sleep(5)
+            time.sleep(duration)
+        return
+
 
 ########################################################################
 # AstroHaven dome class (based on KNU SLODAR dome control)
