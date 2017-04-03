@@ -162,11 +162,11 @@ def check_hosts(hostlist):
             return 0 # success
     return 1 # failure
 
-def loopback_test(serialport='/dev/ttyS3', message='bob', chances=3):
+def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
     '''Send a message to a serial port and try to read it back'''
     s = serial.Serial(serialport, 9600, parity='N', bytesize=8, stopbits=1, rtscts=0, xonxoff=1, timeout=1)
     for i in range(chances):
-        s.write(message + '\n')
+        s.write(message + b'\n')
         reply = s.readlines()
         for x in reply:
             if x.find(message) >= 0:
