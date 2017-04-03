@@ -18,9 +18,11 @@ import readline
 import time
 import Pyro4
 from six.moves import input
+import json
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import daemons
 
 ########################################################################
@@ -64,27 +66,58 @@ def query(command, args):
 
     elif command == 'open':
         if len(args) == 0:
-            side  = 'both'
-            steps = None
-        elif len(args) == 2:
-            side  = args[0]
-            steps = args[1]
-        c = daemons.daemon_function(daemon_ID, 'open_dome', [side, steps])
-        if c: print(c)
+            side = 'both'
+            fraction = 1
+        elif len(args) == 1 and not misc.is_num(args[0]):
+            side = args[0]
+            fraction = 1
+        elif len(args) == 1 and misc.is_num(args[0]):
+            side = 'both'
+            fraction = float(args[0])
+        elif len(args) == 2 and misc.is_num(args[1]):
+            side = args[0]
+            fraction = float(args[1])
+        if 0 < fraction <= 1:
+            c = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
+            if c: print(c)
+        else:
+            print('ERROR: Fraction must be between 0 and 1')
 
     elif command == 'close':
         if len(args) == 0:
             side  = 'both'
-            steps = None
-        elif len(args) == 2:
-            side  = args[0]
-            steps = args[1]
-        c = daemons.daemon_function(daemon_ID, 'close_dome', [side, steps])
-        if c: print(c)
+        elif len(args) == 1 and not misc.is_num(args[0]):
+            side = args[0]
+            fraction = 1
+        elif len(args) == 1 and misc.is_num(args[0]):
+            side = 'both'
+            fraction = float(args[0])
+        elif len(args) == 2 and misc.is_num(args[1]):
+            side = args[0]
+            fraction = float(args[1])
+        if 0 < fraction <= 1:
+            c = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
+            if c: print(c)
+        else:
+            print('ERROR: Fraction must be between 0 and 1')
 
-    elif command == 'halt':
+    elif command == 'halt' or command == 'stop':
         c = daemons.daemon_function(daemon_ID, 'halt_dome')
         if c: print(c)
+
+    elif command == 'weather':
+        with open('/home/goto/g-tecs-config/overrides_flags', 'r') as f:
+            data = json.load(f)
+        if args[0] == 'on':
+            data['dome_auto'] = 0
+            print('Dome in auto mode: will close in bad weather')
+        elif args[0] == 'off':
+            data['dome_auto'] = 1
+            print('Auto weather override set: Dome will NOT close in bad weather')
+        else:
+            print('ERROR: Invalid arguments')
+        with open('/home/goto/g-tecs-config/overrides_flags', 'w') as f:
+            json.dump(data, f)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -96,7 +129,8 @@ def query(command, args):
 
 def print_info(info):
     print('######## DOME INFO ########')
-    print('Dome:        %s' %info['dome'].capitalize())
+    print('North:       %s' %info['north'].capitalize())
+    print('South:       %s' %info['south'].capitalize())
     print('Hatch:       %s' %info['hatch'].capitalize())
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
@@ -105,25 +139,29 @@ def print_info(info):
     print('###########################')
 
 def print_info_s(info):
-    print('DOME:        [%s]' %info['dome'].capitalize())
-    print('HATCH:       [%s]' %info['hatch'].capitalize())
+    if ('open' in info['north']) or ('open' in info['south']):
+        print('DOME:    [Open]')
+    else:
+        print('DOME:    [%s]' %info['north'].capitalize())
+    print('HATCH:   [%s]' %info['hatch'].capitalize())
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('start') + '                     - start the daemon' + '\n' +\
-    '  dome ' + misc.bold('shutdown') + '                  - shutdown the daemon' + '\n' +\
-    '  dome ' + misc.bold('kill') + '                      - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  dome ' + misc.bold('ping') + '                      - ping the daemon' + '\n' +\
+    '  dome ' + misc.bold('start') + '                       - start the daemon' + '\n' +\
+    '  dome ' + misc.bold('shutdown') + '                    - shutdown the daemon' + '\n' +\
+    '  dome ' + misc.bold('kill') + '                        - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  dome ' + misc.bold('ping') + '                        - ping the daemon' + '\n' +\
     ' ' + misc.undl('Dome commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('open') + ' [east|west] [steps]' + '  - open the dome' + '\n' +\
-    '  dome ' + misc.bold('close') + ' [east|west] [steps]' + ' - close the dome' + '\n' +\
-    '  dome ' + misc.bold('halt') + '                      - stop the dome moving' + '\n' +\
-    '  dome ' + misc.bold('info') + ' [v]' + '                  - report current status' + '\n' +\
+    '  dome ' + misc.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
+    '  dome ' + misc.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
+    '  dome ' + misc.bold('halt') + '/' + misc.bold('stop')+ '                   - stop the dome moving' + '\n' +\
+    '  dome ' + misc.bold('weather') + ' [on|off]            - set weather override' + '\n' +\
+    '  dome ' + misc.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('i') + '                         - enter interactive mode' + '\n' +\
-    '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                    - quit interactive mode' + '\n' +\
-    '  dome ' + misc.bold('?') + '/' + misc.bold('help') + '                    - print these instructions'
+    '  dome ' + misc.bold('i') + '                           - enter interactive mode' + '\n' +\
+    '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                      - quit interactive mode' + '\n' +\
+    '  dome ' + misc.bold('?') + '/' + misc.bold('help') + '                      - print these instructions'
     print(help_str)
 
 ########################################################################
