@@ -89,7 +89,7 @@ class APCPower:
     def snmp_get(self,oid_arr):
         IP = self.IP_address
         command = ['/usr/bin/snmpget', '-v', '1', '-c', 'public', IP] + oid_arr
-        output = subprocess.check_output(command).split('\n')
+        output = subprocess.check_output(command).decode('ascii').split('\n')
         status = ''
         for i in range(len(output)-1):
             status += output[i][-1]
@@ -101,7 +101,7 @@ class APCPower:
         for i in range(len(oid_arr)):
             commands += [oid_arr[i], 'i', value]
        	command	= ['/usr/bin/snmpset', '-v', '1', '-c', 'private', IP] + commands
-        output = subprocess.check_output(command).split('\n')
+        output = subprocess.check_output(command).decode('ascii').split('\n')
        	status = ''
         for i in range(len(output)-1):
             status += output[i][-1]
@@ -122,7 +122,7 @@ class APCPower:
             Array of outlet IDs
         """
         assert outlet in self.outlets, "Unknown outlet"
-        if outlet == 0: # all
+        if outlet == '0': # all
             oid_arr = []
             for i in range(len(self.outlets)):
                 oid_arr += [self.base_oid + '.' + self.outlets[i]]
@@ -131,19 +131,19 @@ class APCPower:
         return oid_arr
 
     def status(self,outlet):
-        oid_arr = self._initialise_oid_array(outlet)
+        oid_arr = self._initialise_oid_array(str(outlet))
         return self.snmp_get(oid_arr)
 
     def on(self,outlet):
-        oid_arr = self._initialise_oid_array(outlet)
+        oid_arr = self._initialise_oid_array(str(outlet))
         return self.snmp_set(oid_arr,self.commands['ON'])
 
     def off(self,outlet):
-        oid_arr = self._initialise_oid_array(outlet)
+        oid_arr = self._initialise_oid_array(str(outlet))
         return self.snmp_set(oid_arr,self.commands['OFF'])
 
     def reboot(self,outlet):
-        oid_arr = self._initialise_oid_array(outlet)
+        oid_arr = self._initialise_oid_array(str(outlet))
         return self.snmp_set(oid_arr,self.commands['REBOOT'])
 
 ########################################################################
