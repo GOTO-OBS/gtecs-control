@@ -125,6 +125,36 @@ for key in WIN_INTERFACES:
     WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != '' else WIN_INTERFACES[key]['HOST']
     WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
 
+
+########################################################################
+# Weather parameters
+
+# We are going to temporarily rely on the ING weather systems until the
+# GOTO Vaisala is up and running.
+WEATHER_SOURCE = config['WEATHER_SOURCE']       # select weather source: html = external ING weather html web page
+                               # (JKT mast); wht = internal ING xml weather file (WHT mast); int =
+                               # internal ING xml weather file (INT mast); jkt = internal ING xml
+                               # weather file (JKT mast)
+BACKUP_WEATHER_SOURCE = config['BACKUP_WEATHER_SOURCE']  # select backup weather source: html = external ING weather html web
+                               # page (JKT mast); wht = internal ING xml weather file (WHT mast); int
+                               # = internal ING xml weather file (INT mast); jkt = internal ING xml
+                               # weather file (JKT mast)
+# Shutdown criteria
+MAX_HUMIDITY = config['MAX_HUMIDITY']          # relative humidity limit in per cent
+MAX_LOCAL_HUMIDITY = config['MAX_LOCAL_HUMIDITY']    # relative humidity limit in per cent, as measured by local sensor
+MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in m/s
+MAX_TEMPERATURE = config['MAX_TEMPERATURE']     # max temperature limit in Celsius
+MIN_TEMPERATURE = config['MIN_TEMPERATURE']       # min temperature limit in Celsius
+WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']     # weather data age limit in seconds
+WEATHER_STATIC = config['WEATHER_STATIC']     # max time that weather parameters can remain unchanged in seconds
+WEATHER_INTERVAL = config['WEATHER_INTERVAL']     # weather monitoring interval in seconds
+
+SUN_ELEVATION_LIMIT = config['SUN_ELEVATION_LIMIT']  # maximum altitude limit of the Sun in degrees
+
+WARWICK_CLOSED = config['WARWICK_CLOSED']       # max time in secs that can elapse without contact with Warwick server when dome closed
+WARWICK_OPEN = config['WARWICK_OPEN']        # max time in secs that can elapse without contact with Warwick server when dome open
+
+
 ########################################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
@@ -155,7 +185,8 @@ POWER_LIST = config['POWER_LIST']
 
 # Dome parameters
 DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
-DOME_LOCATION = '/dev/serial/by-id/usb-FTDI_UC232R_FTWDFJ4H-if00-port0'
+DOME_LOCATION = config['DOME_LOCATION']
+ARDUINO_LOCATION = config['ARDUINO_LOCATION']
 FAKE_DOME = config['FAKE_DOME']
 BIG_RED_BUTTON_PORT = config['BIG_RED_BUTTON_PORT']
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
