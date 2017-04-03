@@ -100,9 +100,9 @@ class APCPower:
         commands = []
         for i in range(len(oid_arr)):
             commands += [oid_arr[i], 'i', value]
-       	command	= ['/usr/bin/snmpset', '-v', '1', '-c', 'private', IP] + commands
+        command = ['/usr/bin/snmpset', '-v', '1', '-c', 'public', IP] + commands
         output = subprocess.check_output(command).decode('ascii').split('\n')
-       	status = ''
+        status = ''
         for i in range(len(output)-1):
             status += output[i][-1]
         return status
@@ -121,7 +121,7 @@ class APCPower:
         oid_arr : list
             Array of outlet IDs
         """
-        assert outlet in self.outlets, "Unknown outlet"
+        assert (outlet in self.outlets or outlet == '0'), "Unknown outlet"
         if outlet == '0': # all
             oid_arr = []
             for i in range(len(self.outlets)):
