@@ -21,6 +21,8 @@ import time
 import serial
 from six.moves import map
 from six.moves import range
+# TeCS modules
+from gtecs.tecs_modules import params
 
 ########################################################################
 # Fake AstroHaven dome class
@@ -118,6 +120,7 @@ class FakeDome:
         elif side == 'east':
             self._move_dome_steps('east_close', steps)
 
+
 ########################################################################
 # New AstroHaven dome class (based on Warwick 1m control)
 class AstroHavenDome:
@@ -168,8 +171,9 @@ class AstroHavenDome:
         '''Check the status as reported by the arduino'''
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
+        loc = params.ARDUINO_LOCATION
         try:
-            curl = getoutput('curl -s dome')
+            curl = getoutput('curl -s %s' %loc)
             ard = remove_html_tags(curl).split()
             for i in range(len(ard)):
                 if ard[i] == 'pin':
@@ -234,7 +238,8 @@ class AstroHavenDome:
 
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = getoutput('curl -s dome?s')
+        loc = params.ARDUINO_LOCATION
+        curl = getoutput('curl -s %s?s' %loc)
         if sleep:
             time.sleep(5)
 
