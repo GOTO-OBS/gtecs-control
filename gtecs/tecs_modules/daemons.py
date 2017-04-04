@@ -219,7 +219,7 @@ def kill_daemon(daemon_ID):
 
 ########################################################################
 # Generic daemon function wrapper
-def daemon_function(daemon_ID, function_name, args=[]):
+def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     if not misc.daemon_is_running(daemon_ID):
         print(misc.ERROR('Daemon not running'))
     elif not misc.daemon_is_alive(daemon_ID):
@@ -228,8 +228,10 @@ def daemon_function(daemon_ID, function_name, args=[]):
         print(misc.ERROR('Required dependencies are not responding'))
     else:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
+        if not timeout:
+            timeout = params.PROXY_TIMEOUT
         with Pyro4.Proxy(address) as proxy:
-            proxy._pyroTimeout = params.PROXY_TIMEOUT
+            proxy._pyroTimeout = timeout
             try:
                 function = getattr(proxy, function_name)
             except AttributeError:
