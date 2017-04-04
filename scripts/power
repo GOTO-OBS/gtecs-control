@@ -56,10 +56,10 @@ def query(command, args):
     # Daemon functions
     elif command == 'info':
         if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info', timeout=1.)
             if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
+            info = daemons.daemon_function(daemon_ID, 'get_info', timeout=1.)
             if info: print_info(info)
 
     elif command == 'on':
