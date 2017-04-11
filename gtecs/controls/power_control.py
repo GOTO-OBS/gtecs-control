@@ -15,6 +15,7 @@ import socket
 import subprocess
 import threading
 import time
+import shutil
 from six.moves import range
 from six import int2byte, byte2int, indexbytes
 
@@ -80,71 +81,70 @@ class FakePower:
 class APCPDU:
     def __init__(self,IP_address):
         self.IP_address = IP_address
-        self.base_oid = '.1.3.6.1.4.1.318.1.1.12.3.3.1.1.4'
-        self.outlets = ['1','2','3','4','5','6','7','8']
         self.commands = {'ON':'1', 'OFF':'2', 'REBOOT':'3'}
         self.count = 8
+        self.outlets = list(range(1, self.count+1))
+        self.on_value = 1
         self.off_value = 2
 
-    def snmp_get(self,oid_arr):
-        IP = self.IP_address
-        command = ['/usr/bin/snmpget', '-v', '1', '-c', 'public', IP] + oid_arr
-        output = subprocess.check_output(command).decode('ascii').split('\n')
-        status = ''
-        for i in range(len(output)-1):
-            status += output[i][-1]
-        return status
-
-    def snmp_set(self,oid_arr,value):
-        IP = self.IP_address
-        commands = []
-        for i in range(len(oid_arr)):
-            commands += [oid_arr[i], 'i', value]
-        command = ['/usr/bin/snmpset', '-v', '1', '-c', 'public', IP] + commands
-        output = subprocess.check_output(command).decode('ascii').split('\n')
-        status = ''
-        for i in range(len(output)-1):
-            status += output[i][-1]
-        return status
-
     def _initialise_oid_array(self, outlet):
-        """
-        Setup the oid array to use with snmp_get and snmp_set
-
-        Parameters
-        ----------
-        outlet : int
-            outlet to change
-
-        Returns
-        --------
-        oid_arr : list
-            Array of outlet IDs
-        """
-        assert (outlet in self.outlets or outlet == '0'), "Unknown outlet"
-        if outlet == '0': # all
-            oid_arr = []
-            for i in range(len(self.outlets)):
-                oid_arr += [self.base_oid + '.' + self.outlets[i]]
+        """ Setup the oid array to use with snmp_get and snmp_set """
+        base = '.1.3.6.1.4.1.318.1.1.12.3.3.1.1.4'
+        if outlet in self.outlets:
+            oid_arr = [base + '.' + str(outlet)]
+        elif outlet == 0: # all
+            oid_arr = [base + '.' + str(outlet) for outlet in self.outlets]
         else:
-            oid_arr = [self.base_oid + '.' + str(outlet)]
+            raise ValueError('Invalid outlet')
         return oid_arr
 
-    def status(self,outlet):
-        oid_arr = self._initialise_oid_array(str(outlet))
-        return self.snmp_get(oid_arr)
+    def _snmp_get(self, oid_arr):
+        """ Get a value using snmpget """
+        snmpget = shutil.which('snmpget')
+        if snmpget is None:
+            raise OSError('SNMP tools not installed')
+        IP = self.IP_address
+        command = [snmpget, '-v 1 -c public', IP] + oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output)-1):
+            status += output[i][-1]
+        return status
 
-    def on(self,outlet):
-        oid_arr = self._initialise_oid_array(str(outlet))
-        return self.snmp_set(oid_arr,self.commands['ON'])
+    def _snmp_set(self, oid_arr, value):
+        """ Set a value using snmpset """
+        snmpget = shutil.which('snmpget')
+        if snmpget is None:
+            raise OSError('SNMP tools not installed')
+        IP = self.IP_address
+        command_oid_arr = [oid + ' i ' + value for oid in oid_arr]
+        command = [snmpset, '-v 1 -c public', IP] + command_oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output)-1):
+            status += output[i][-1]
+        return status
 
-    def off(self,outlet):
-        oid_arr = self._initialise_oid_array(str(outlet))
-        return self.snmp_set(oid_arr,self.commands['OFF'])
+    def status(self, outlet):
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self._snmp_get(oid_arr)
+        return out
 
-    def reboot(self,outlet):
-        oid_arr = self._initialise_oid_array(str(outlet))
-        return self.snmp_set(oid_arr,self.commands['REBOOT'])
+    def on(self, outlet):
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self.snmp_set(oid_arr, self.commands['ON'])
+        return out
+
+    def off(self, outlet):
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self.snmp_set(oid_arr, self.commands['OFF'])
+        return out
+
+    def reboot(self, outlet):
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self.snmp_set(oid_arr, self.commands['REBOOT'])
+        return out
+
 
 ########################################################################
 # Ethernet relay power class (for ETH8020, 20 ports)
