@@ -20,10 +20,11 @@ from six.moves import range
 from six import int2byte, byte2int, indexbytes
 
 ########################################################################
-# Fake power class (8 ports)
-class FakePower:
+# Fake classes
+class FakePDU:
     def __init__(self):
         self.count = 8
+        self.outlets = list(range(1, self.count+1))
         self.off_value = 0
         self.on_value = 1
         # fake stuff
@@ -74,6 +75,22 @@ class FakePower:
         time.sleep(3)
         self.on(outlet)
 
+
+class FakeUPS:
+    def __init__(self):
+        self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
+
+    def status(self):
+        status = self.statuses['2']
+        return status
+
+    def percent_remaining(self):
+        percent = 100.0
+        return percent
+
+    def time_remaining(self):
+        seconds = 65535.0
+        return seconds
 
 ########################################################################
 # APC PDU power class (for AP7921, 8 ports)
