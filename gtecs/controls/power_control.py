@@ -23,6 +23,7 @@ from six import int2byte, byte2int, indexbytes
 # Fake classes
 class FakePDU:
     def __init__(self):
+        self.unit_type = 'PDU'
         self.count = 8
         self.outlets = list(range(1, self.count+1))
         self.off_value = 0
@@ -76,6 +77,7 @@ class FakePDU:
 
 class FakeUPS:
     def __init__(self):
+        self.unit_type = 'UPS'
         self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
 
     def status(self):
@@ -95,6 +97,7 @@ class FakeUPS:
 
 class APCPDU:
     def __init__(self,IP_address):
+        self.unit_type = 'PDU'
         self.IP_address = IP_address
         self.commands = {'ON':'1', 'OFF':'2', 'REBOOT':'3'}
         self.count = 8
@@ -168,6 +171,7 @@ class APCPDU:
 
 class APCUPS:
     def __init__(self,IP_address):
+        self.unit_type = 'UPS'
         self.IP_address = IP_address
         self.command_oids = {'STATUS':'2.1.1.0',
                              'PERCENT':'2.2.1.0',
