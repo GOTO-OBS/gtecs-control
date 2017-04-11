@@ -73,7 +73,7 @@ class PowerDaemon(HardwareDaemon):
         IP = params.POWER_IP
         port = params.POWER_PORT
         if params.POWER_TYPE == 'APCPower':
-            power = power_control.APCPower(IP)
+            power = power_control.APCPDU(IP)
         elif params.POWER_TYPE == 'EthPower':
             power = power_control.EthPower(IP, port)
         else:
