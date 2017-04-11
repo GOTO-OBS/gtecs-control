@@ -88,7 +88,7 @@ class APCPDU:
         self.off_value = 2
 
     def _initialise_oid_array(self, outlet):
-        """ Setup the oid array to use with snmp_get and snmp_set """
+        """ Setup the oid array to use with snmpget and snmpset """
         base = '.1.3.6.1.4.1.318.1.1.12.3.3.1.1.4'
         if outlet in self.outlets:
             oid_arr = [base + '.' + str(outlet)]
@@ -98,7 +98,7 @@ class APCPDU:
             raise ValueError('Invalid outlet')
         return oid_arr
 
-    def _snmp_get(self, oid_arr):
+    def _snmpget(self, oid_arr):
         """ Get a value using snmpget """
         snmpget = shutil.which('snmpget')
         if snmpget is None:
@@ -111,10 +111,10 @@ class APCPDU:
             status += output[i][-1]
         return status
 
-    def _snmp_set(self, oid_arr, value):
+    def _snmpset(self, oid_arr, value):
         """ Set a value using snmpset """
-        snmpget = shutil.which('snmpget')
-        if snmpget is None:
+        snmpset = shutil.which('snmpset')
+        if snmpset is None:
             raise OSError('SNMP tools not installed')
         IP = self.IP_address
         command_oid_arr = []
@@ -129,22 +129,22 @@ class APCPDU:
 
     def status(self, outlet):
         oid_arr = self._initialise_oid_array(outlet)
-        out = self._snmp_get(oid_arr)
+        out = self._snmpget(oid_arr)
         return out
 
     def on(self, outlet):
         oid_arr = self._initialise_oid_array(outlet)
-        out = self.snmp_set(oid_arr, self.commands['ON'])
+        out = self._snmpset(oid_arr, self.commands['ON'])
         return out
 
     def off(self, outlet):
         oid_arr = self._initialise_oid_array(outlet)
-        out = self.snmp_set(oid_arr, self.commands['OFF'])
+        out = self._snmpset(oid_arr, self.commands['OFF'])
         return out
 
     def reboot(self, outlet):
         oid_arr = self._initialise_oid_array(outlet)
-        out = self.snmp_set(oid_arr, self.commands['REBOOT'])
+        out = self._snmpset(oid_arr, self.commands['REBOOT'])
         return out
 
 
