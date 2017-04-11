@@ -77,7 +77,7 @@ class FakePower:
 ########################################################################
 # APC PDU power class (for AP7921, 8 ports)
 
-class APCPower:
+class APCPDU:
     def __init__(self,IP_address):
         self.IP_address = IP_address
         self.base_oid = '.1.3.6.1.4.1.318.1.1.12.3.3.1.1.4'
