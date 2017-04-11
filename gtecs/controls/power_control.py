@@ -22,14 +22,15 @@ from six import int2byte, byte2int, indexbytes
 ########################################################################
 # Fake classes
 class FakePDU:
-    def __init__(self):
+    def __init__(self, IP_address):
         self.unit_type = 'PDU'
+        self.IP_address = IP_address
         self.count = 8
         self.outlets = list(range(1, self.count+1))
         self.off_value = 0
         self.on_value = 1
         # fake stuff
-        self.temp_file = '/tmp/power'
+        self.temp_file = '/tmp/power_'+self.IP_address
         self.outlet_status = [self.off_value]*self.count
         self._read_temp()
 
@@ -76,8 +77,9 @@ class FakePDU:
 
 
 class FakeUPS:
-    def __init__(self):
+    def __init__(self, IP_address):
         self.unit_type = 'UPS'
+        self.IP_address = IP_address
         self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
 
     def status(self):
