@@ -29,6 +29,7 @@ class FakePDU:
         self.on_value = 1
         # fake stuff
         self.temp_file = '/tmp/power'
+        self.outlet_status = [self.off_value]*self.count
         self._read_temp()
 
     def _read_temp(self):
@@ -45,12 +46,9 @@ class FakePDU:
         f.write(''.join(str(i) for i in self.outlet_status))
         f.close()
 
-    def status(self,outlet):
+    def status(self):
         self._read_temp()
-        if outlet == 0: # all
-            return ''.join(self.outlet_status)
-        else:
-            return self.outlet_status[outlet-1]
+        return ''.join(self.outlet_status)
 
     def on(self,outlet):
         if outlet == 0: # all
@@ -144,7 +142,8 @@ class APCPDU:
             status += output[i][-1]
         return status
 
-    def status(self, outlet):
+    def status(self):
+        outlet = 0 # all
         oid_arr = self._initialise_oid_array(outlet)
         out = self._snmpget(oid_arr)
         return out
