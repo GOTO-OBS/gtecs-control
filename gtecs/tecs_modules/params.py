@@ -178,10 +178,7 @@ QUEUE_PATH = CONFIG_PATH
 # Power parameters
 POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
 POWER_CHECK_SCRIPT = '_power_status'
-POWER_TYPE = config['POWER_TYPE']
-POWER_IP = config['POWER_IP']
-POWER_PORT = config['POWER_PORT']
-POWER_LIST = config['POWER_LIST']
+POWER_UNITS = config['POWER_UNITS']
 
 # Dome parameters
 DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
