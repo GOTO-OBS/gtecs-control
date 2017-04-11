@@ -117,7 +117,9 @@ class APCPDU:
         if snmpget is None:
             raise OSError('SNMP tools not installed')
         IP = self.IP_address
-        command_oid_arr = [oid + ' i ' + value for oid in oid_arr]
+        command_oid_arr = []
+        for oid in oid_arr:
+            command_oid_arr += [oid, 'i', value]
         command = [snmpset, '-v', '1', '-c', 'public', IP] + command_oid_arr
         output = subprocess.check_output(command).decode('ascii').split('\n')
         status = ''
