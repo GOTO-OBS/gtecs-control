@@ -147,6 +147,52 @@ class APCPDU:
         out = self._snmpset(oid_arr, self.commands['REBOOT'])
         return out
 
+########################################################################
+# APC UPS power class (for Smart-UPS X 3000)
+
+class APCUPS:
+    def __init__(self,IP_address):
+        self.IP_address = IP_address
+        self.command_oids = {'STATUS':'2.1.1.0',
+                             'PERCENT':'2.2.1.0',
+                             'TIME':'2.2.3.0'}
+        self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
+
+    def _initialise_oid_array(self, command_oid):
+        """ Setup the oid array to use with snmpget and snmpset """
+        base = '.1.3.6.1.4.1.318.1.1.1.'
+        oid_arr = [base + '.' + str(command)]
+        return oid_arr
+
+    def _snmpget(self, oid_arr):
+        """ Get a value using snmpget """
+        snmpget = shutil.which('snmpget')
+        if snmpget is None:
+            raise OSError('SNMP tools not installed')
+        IP = self.IP_address
+        command = [snmpget, '-v', '1', '-c', 'public', IP] + oid_arr
+        output = subprocess.check_output(command).decode('ascii')
+        status = output.split(' ')[-1]
+        return status
+
+    def status(self):
+        oid_arr = self._initialise_oid_array(self.command_oids['STATUS'])
+        out = self._snmpget(oid_arr)
+        status = self.statuses[out]
+        return status
+
+    def percent_remaining(self):
+        oid_arr = self._initialise_oid_array(self.command_oids['PERCENT'])
+        out = self._snmpset(oid_arr)
+        percent = float(out)
+        return percent
+
+    def time_remaining(self, outlet):
+        oid_arr = self._initialise_oid_array(self.command_oids['TIME'])
+        out = self._snmpset(oid_arr)
+        hms = out.split(';')
+        seconds = int(hms[0])*3600 + int(hms[1])*60 + float(hms[2])
+        return seconds
 
 ########################################################################
 # Ethernet relay power class (for ETH8020, 20 ports)
