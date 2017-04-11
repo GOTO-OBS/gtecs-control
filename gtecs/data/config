@@ -54,11 +54,11 @@ BIASEXP = 0.1
 POWER_CHECK_PERIOD = 30
 [POWER_UNITS]
     [[PDU1]]
-        TYPE = FakePDU
+        CLASS = FakePDU
         IP = 0.0.0.0
         NAMES = _1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_
     [[UPS1]]
-        TYPE = FakeUPS
+        CLASS = FakeUPS
         IP = 0.0.0.0
 
 ########################################################################
