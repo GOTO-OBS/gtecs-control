@@ -160,8 +160,8 @@ class APCUPS:
 
     def _initialise_oid_array(self, command_oid):
         """ Setup the oid array to use with snmpget and snmpset """
-        base = '.1.3.6.1.4.1.318.1.1.1.'
-        oid_arr = [base + '.' + str(command)]
+        base = '.1.3.6.1.4.1.318.1.1.1'
+        oid_arr = [base + '.' + str(command_oid)]
         return oid_arr
 
     def _snmpget(self, oid_arr):
@@ -171,8 +171,8 @@ class APCUPS:
             raise OSError('SNMP tools not installed')
         IP = self.IP_address
         command = [snmpget, '-v', '1', '-c', 'public', IP] + oid_arr
-        output = subprocess.check_output(command).decode('ascii')
-        status = output.split(' ')[-1]
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = output[0].split(' ')[-1]
         return status
 
     def status(self):
@@ -183,14 +183,14 @@ class APCUPS:
 
     def percent_remaining(self):
         oid_arr = self._initialise_oid_array(self.command_oids['PERCENT'])
-        out = self._snmpset(oid_arr)
+        out = self._snmpget(oid_arr)
         percent = float(out)
         return percent
 
-    def time_remaining(self, outlet):
+    def time_remaining(self):
         oid_arr = self._initialise_oid_array(self.command_oids['TIME'])
-        out = self._snmpset(oid_arr)
-        hms = out.split(';')
+        out = self._snmpget(oid_arr)
+        hms = out.split(':')
         seconds = int(hms[0])*3600 + int(hms[1])*60 + float(hms[2])
         return seconds
 
