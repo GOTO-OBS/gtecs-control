@@ -60,21 +60,24 @@ def query(command, args):
             if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info = daemons.daemon_function(daemon_ID, 'get_info', timeout=1.)
-            if info: print_info(info)
+            if info: print(info)#print_info(info)
 
     elif command == 'on':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'on', [outlets])
+        unit = args[0]
+        outlets = args[1].split(',')
+        c = daemons.daemon_function(daemon_ID, 'on', [unit, outlets])
         if c: print(c)
 
     elif command == 'off':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'off', [outlets])
+        unit = args[0]
+        outlets = args[1].split(',')
+        c = daemons.daemon_function(daemon_ID, 'off', [unit, outlets])
         if c: print(c)
 
     elif command == 'reboot':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'reboot', [outlets])
+        unit = args[0]
+        outlets = args[1].split(',')
+        c = daemons.daemon_function(daemon_ID, 'reboot', [unit, outlets])
         if c: print(c)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -98,11 +101,22 @@ def print_info(info):
     print('###########################')
 
 def print_info_s(info):
-    for i in range(len(info['status_dict'])):
-        outlet_name = format(params.POWER_LIST[i])
-        outlet_name_b = '({})'.format(outlet_name)
-        outlet_status = info['status_dict'][outlet_name]
-        print('OUTLET {} {: <8} [{}]'.format(i+1, outlet_name_b, outlet_status))
+    for unit in params.POWER_UNITS:
+        ip = params.POWER_UNITS[unit]['IP']
+        print(unit, ip)
+        status = info['status_'+unit]
+        try:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({})'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet]
+                print('  OUTLET {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
+        except:
+            ups_status = status['status']
+            ups_percent = status['percent']
+            ups_time = status['time']
+            print('  STATUS {} ({}%, {}s)'.format(ups_status, ups_percent, ups_time))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
