@@ -62,23 +62,23 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info', timeout=1.)
             if info: print_info(info)
 
-    elif command == 'on':
-        unit = args[0]
-        outlets = args[1].split(',')
-        c = daemons.daemon_function(daemon_ID, 'on', [unit, outlets])
-        if c: print(c)
-
-    elif command == 'off':
-        unit = args[0]
-        outlets = args[1].split(',')
-        c = daemons.daemon_function(daemon_ID, 'off', [unit, outlets])
-        if c: print(c)
-
-    elif command == 'reboot':
-        unit = args[0]
-        outlets = args[1].split(',')
-        c = daemons.daemon_function(daemon_ID, 'reboot', [unit, outlets])
-        if c: print(c)
+    elif command in ['on','off','reboot']:
+        if len(args) == 1:
+            # can only be a list of names, from various units
+            outlets = args[0].split(',')
+            c = daemons.daemon_function(daemon_ID, command, [outlets])
+            if c: print(c)
+        elif len(args) == 2:
+            # only outlets from the given unit
+            unit = args[0]
+            if unit not in params.POWER_UNITS:
+                print(misc.ERROR('Invalid unit name'))
+            else:
+                outlets = args[1].split(',')
+                c = daemons.daemon_function(daemon_ID, command, [outlets, unit])
+                if c: print(c)
+        else:
+            print(misc.ERROR('Invalid arguments'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
