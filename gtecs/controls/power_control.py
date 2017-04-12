@@ -219,17 +219,22 @@ class APCUPS:
 ########################################################################
 # Ethernet relay power class (for ETH8020, 20 ports)
 
-class EthPower:
+class ETH8020:
     def __init__(self, IP_address, port):
+        self.unit_type = 'PDU'
         self.IP_address = IP_address
         self.port = port
         self.commands = {'ON':b'\x20', 'OFF':b'\x21', 'ALL':b'\x23', 'STATUS':b'\x24'}
         self.count = 20
+        self.outlets = list(range(1, self.count+1))
+        self.on_value = 0
         self.off_value = 0
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
-    def tcp_command(self, command):
+    def _tcp_command(self, command):
+        # I think this should be a context manager
+        # which is apparently possible in Python3
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         IP = self.IP_address
         port = self.port
@@ -239,49 +244,45 @@ class EthPower:
         s.close()
         return reply
 
-    def on(self, outlet):
-        num = int(outlet)
-        if num == 0:
-            command = self.commands['ALL'] + b'\xff' + b'\xff' + b'\xff'
-        else:
-            command = self.commands['ON'] + int2byte(num) + b'\x00'
-        return byte2int(self.tcp_command(command))
-
-    def off(self, outlet):
-        num = int(outlet)
-        if num == 0:
-            command = self.commands['ALL'] + b'\x00' + b'\x00' + b'\x00'
-        else:
-            command = self.commands['OFF'] + int2byte(num) + b'\x00'
-        return byte2int(self.tcp_command(command))
-
-    def reboot(self, outlet):
-        num = int(outlet)
-        time = int(self.reboot_time*10)  # relay takes 0.1s intervals
-        if num == 0:
-            cmd_arr = [self.commands['OFF'] + int2byte(n) + int2byte(time)
-                       for n in range(1, self.count + 1)]
-            command = b''.join(cmd_arr)
-        else:
-            command = self.commands['OFF'] + int2byte(num) + int2byte(time)
-        output = self.tcp_command(command)
-        if len(output) == 1:
-            return int2byte(output)
-        elif b'\x01' in output:
-            return 1
-        else:
-            return 0
-
-    def status(self, outlet):
-        num = int(outlet)
-        output = self.tcp_command(self.commands['STATUS'])
+    def status(self):
+        num = 0 # all
+        out = self._tcp_command(self.commands['STATUS'])
         status_ints = [indexbytes(output, x) for x in range(len(output))]
         status_strings = [str(bin(i))[2::] for i in status_ints]
         status_strings[0] = status_strings[0].zfill(8)[::-1]
         status_strings[1] = status_strings[1].zfill(8)[::-1]
         status_strings[2] = status_strings[2].zfill(4)[::-1]
         status_string = ''.join(status_strings)
-        if num == 0:
-            return status_string
+        return status_string
+
+    def on(self, outlet):
+        if outlet == 0:
+            command = self.commands['ALL'] + b'\xff' + b'\xff' + b'\xff'
         else:
-            return status_string[num - 1]
+            command = self.commands['ON'] + int2byte(outlet) + b'\x00'
+        out = byte2int(self._tcp_command(command))
+        return out
+
+    def off(self, outlet):
+        if outlet == 0:
+            command = self.commands['ALL'] + b'\x00' + b'\x00' + b'\x00'
+        else:
+            command = self.commands['OFF'] + int2byte(outlet) + b'\x00'
+        out = byte2int(self._tcp_command(command))
+        return out
+
+    def reboot(self, outlet):
+        time = int(self.reboot_time*10)  # relay takes 0.1s intervals
+        if outlet == 0:
+            cmd_arr = [self.commands['OFF'] + int2byte(n) + int2byte(time)
+                       for n in self.outlets]
+            command = b''.join(cmd_arr)
+        else:
+            command = self.commands['OFF'] + int2byte(outlet) + int2byte(time)
+        out = self._tcp_command(command)
+        if len(out) == 1:
+            return int2byte(out)
+        elif b'\x01' in out:
+            return 1
+        else:
+            return 0
