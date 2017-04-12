@@ -55,7 +55,7 @@ class PowerDaemon(HardwareDaemon):
 
         self.power_status = {}
 
-        self.current_unit = 'none'
+        self.current_units = []
         self.current_outlets = []
 
         self.check_status_flag = 1
@@ -159,36 +159,42 @@ class PowerDaemon(HardwareDaemon):
 
             # power on a specified outlet
             if(self.on_flag):
-                power = power_units[self.current_unit]
-                for outlet in self.current_outlets:
-                    self.logfile.info('Power on outlet ' + str(outlet))
+                for i in range(len(self.current_units)):
+                    unit = self.current_units[i]
+                    outlet = self.current_outlets[i]
+                    power = power_units[unit]
+                    self.logfile.info('Power on unit {} outlet {}'.format(unit,outlet))
                     c = power.on(outlet)
                     if c: self.logfile.info(c)
-                self.current_unit = 'none'
+                self.current_units = []
                 self.current_outlets = []
                 self.on_flag = 0
                 self.check_status_flag = 1
 
             # power off a specified outlet
             if(self.off_flag):
-                power = power_units[self.current_unit]
-                for outlet in self.current_outlets:
-                    self.logfile.info('Power off outlet ' + str(outlet))
+                for i in range(len(self.current_units)):
+                    unit = self.current_units[i]
+                    outlet = self.current_outlets[i]
+                    power = power_units[unit]
+                    self.logfile.info('Power off unit {} outlet {}'.format(unit,outlet))
                     c = power.off(outlet)
                     if c: self.logfile.info(c)
-                self.current_unit = 'none'
+                self.current_units = []
                 self.current_outlets = []
                 self.off_flag = 0
                 self.check_status_flag = 1
 
             # reboot a specified outlet
             if(self.reboot_flag):
-                power = power_units[self.current_unit]
-                for outlet in self.current_outlets:
-                    self.logfile.info('Reboot outlet ' + str(outlet))
+                for i in range(len(self.current_units)):
+                    unit = self.current_units[i]
+                    outlet = self.current_outlets[i]
+                    power = power_units[unit]
+                    self.logfile.info('Reboot unit {} outlet {}'.format(unit,outlet))
                     c = power.reboot(outlet)
                     if c: self.logfile.info(c)
-                self.current_unit = 'none'
+                self.current_units = []
                 self.current_outlets = []
                 self.reboot_flag = 0
                 self.check_status_flag = 1
@@ -207,38 +213,96 @@ class PowerDaemon(HardwareDaemon):
         time.sleep(0.5)
         return self.info
 
-    def on(self, unit, outlet_list):
+    def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
-        self.current_unit = unit
-        self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+        if unit in params.POWER_UNITS:
+            # specific unit given, all outlets should be from that unit
+            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+            self.current_units = [unit]*len(self.current_outlets)
+            print(self.current_outlets,self.current_units)
+        else:
+            # a list of outlet names, we need to find their matching units
+            unit_list = self._units_from_names(outlet_list)
+            self.current_units = []
+            self.current_outlets = []
+            for unit in unit_list:
+                valid_outlets = self._get_valid_outlets(unit, outlet_list)
+                self.current_outlets += valid_outlets
+                self.current_units += [unit]*len(valid_outlets)
+            print(self.current_outlets,self.current_units)
         if len(self.current_outlets) == 0:
-            return 'ERROR: Unknown outlet'
+            return 'ERROR: No valid outlets'
         else:
             self.on_flag = 1
             return 'Turning on power'
 
-    def off(self, unit, outlet_list):
+    def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
-        self.current_unit = unit
-        self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+        if unit in params.POWER_UNITS:
+            # specific unit given, all outlets should be from that unit
+            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+            self.current_units = [unit]*len(self.current_outlets)
+            print(self.current_outlets,self.current_units)
+        else:
+            # a list of outlet names, we need to find their matching units
+            unit_list = self._units_from_names(outlet_list)
+            self.current_units = []
+            self.current_outlets = []
+            for unit in unit_list:
+                valid_outlets = self._get_valid_outlets(unit, outlet_list)
+                self.current_outlets += valid_outlets
+                self.current_units += [unit]*len(valid_outlets)
+            print(self.current_outlets,self.current_units)
         if len(self.current_outlets) == 0:
-            return 'ERROR: Unknown outlet'
+            return 'ERROR: No valid outlets'
         else:
             self.off_flag = 1
             return 'Turning off power'
 
-    def reboot(self, unit, outlet_list):
+    def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
-        self.current_unit = unit
-        self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+        if unit in params.POWER_UNITS:
+            # specific unit given, all outlets should be from that unit
+            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
+            self.current_units = [unit]*len(self.current_outlets)
+            print(self.current_outlets,self.current_units)
+        else:
+            # a list of outlet names, we need to find their matching units
+            unit_list = self._units_from_names(outlet_list)
+            self.current_units = []
+            self.current_outlets = []
+            for unit in unit_list:
+                valid_outlets = self._get_valid_outlets(unit, outlet_list)
+                self.current_outlets += valid_outlets
+                self.current_units += [unit]*len(valid_outlets)
+            print(self.current_outlets,self.current_units)
         if len(self.current_outlets) == 0:
-            return 'ERROR: Unknown outlet'
+            return 'ERROR: No valid outlets'
         else:
             self.reboot_flag = 1
             return 'Rebooting power'
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
+
+    def _units_from_names(self, name_list):
+        unit_list = []
+        for name in name_list:
+            found_units = []
+            for unit in params.POWER_UNITS:
+                try:
+                    if name in params.POWER_UNITS[unit]['NAMES'] or str(name) in ['0','all']:
+                        found_units.append(unit)
+                except:
+                    pass # for UPSs, that don't have NAMES
+            if len(found_units) > 1 and str(name) not in ['0','all']:
+                raise ValueError('Duplicate names defined in params')
+            for unit in found_units:
+                if unit not in unit_list:
+                    unit_list.append(unit)
+        print(unit_list)
+        return unit_list
+
     def _get_valid_outlets(self, unit, outlet_list):
         """Check outlets are valid and convert any names to numbers"""
         names = params.POWER_UNITS[unit]['NAMES']
