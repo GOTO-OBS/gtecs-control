@@ -136,19 +136,19 @@ def print_info_s(info):
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  power ' + misc.bold('start') + '            - start the daemon' + '\n' +\
-    '  power ' + misc.bold('shutdown') + '         - shutdown the daemon' + '\n' +\
-    '  power ' + misc.bold('kill') + '             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  power ' + misc.bold('ping') + '             - ping the daemon' + '\n' +\
+    '  power ' + misc.bold('start') + '                            - start the daemon' + '\n' +\
+    '  power ' + misc.bold('shutdown') + '                         - shutdown the daemon' + '\n' +\
+    '  power ' + misc.bold('kill') + '                             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  power ' + misc.bold('ping') + '                             - ping the daemon' + '\n' +\
     ' ' + misc.undl('Power commands') + ':' + '\n' +\
-    '  power ' + misc.bold('on') + ' [outlets]' + '     - turn on specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('off') + ' [outlets]' + '    - turn off specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('reboot') + ' [outlets]' + ' - reboots specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('info') + ' [v]' + '         - report current status' + '\n' +\
+    '  power ' + misc.bold('on') + ' [names] | [unit] [outlet]' + '     - turn on specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  power ' + misc.bold('i') + '                - enter interactive mode' + '\n' +\
-    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '           - quit interactive mode' + '\n' +\
-    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '           - print these instructions'
+    '  power ' + misc.bold('i') + '                                - enter interactive mode' + '\n' +\
+    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '                           - quit interactive mode' + '\n' +\
+    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '                           - print these instructions'
     print(help_str)
 
 ########################################################################
