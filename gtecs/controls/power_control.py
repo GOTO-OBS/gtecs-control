@@ -80,7 +80,7 @@ class FakeUPS:
     def __init__(self, IP_address):
         self.unit_type = 'UPS'
         self.IP_address = IP_address
-        self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
+        self.statuses = {'1':'UNKNOWN', '2':'Normal', '3':'LOW'}
 
     def status(self):
         status = self.statuses['2']
@@ -178,7 +178,7 @@ class APCUPS:
         self.command_oids = {'STATUS':'2.1.1.0',
                              'PERCENT':'2.2.1.0',
                              'TIME':'2.2.3.0'}
-        self.statuses = {'1':'UNKNOWN', '2':'NORMAL', '3':'LOW'}
+        self.statuses = {'1':'UNKNOWN', '2':'Normal', '3':'LOW'}
 
     def _initialise_oid_array(self, command_oid):
         """ Setup the oid array to use with snmpget and snmpset """
