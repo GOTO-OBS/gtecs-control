@@ -213,21 +213,7 @@ class PowerDaemon(HardwareDaemon):
 
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
-        if unit in params.POWER_UNITS:
-            # specific unit given, all outlets should be from that unit
-            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
-            self.current_units = [unit]*len(self.current_outlets)
-            print(self.current_outlets,self.current_units)
-        else:
-            # a list of outlet names, we need to find their matching units
-            unit_list = self._units_from_names(outlet_list)
-            self.current_units = []
-            self.current_outlets = []
-            for unit in unit_list:
-                valid_outlets = self._get_valid_outlets(unit, outlet_list)
-                self.current_outlets += valid_outlets
-                self.current_units += [unit]*len(valid_outlets)
-            print(self.current_outlets,self.current_units)
+        self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
             return 'ERROR: No valid outlets'
         else:
@@ -236,21 +222,7 @@ class PowerDaemon(HardwareDaemon):
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
-        if unit in params.POWER_UNITS:
-            # specific unit given, all outlets should be from that unit
-            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
-            self.current_units = [unit]*len(self.current_outlets)
-            print(self.current_outlets,self.current_units)
-        else:
-            # a list of outlet names, we need to find their matching units
-            unit_list = self._units_from_names(outlet_list)
-            self.current_units = []
-            self.current_outlets = []
-            for unit in unit_list:
-                valid_outlets = self._get_valid_outlets(unit, outlet_list)
-                self.current_outlets += valid_outlets
-                self.current_units += [unit]*len(valid_outlets)
-            print(self.current_outlets,self.current_units)
+        self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
             return 'ERROR: No valid outlets'
         else:
@@ -259,11 +231,20 @@ class PowerDaemon(HardwareDaemon):
 
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
+        self._parse_input(outlet_list, unit)
+        if len(self.current_outlets) == 0:
+            return 'ERROR: No valid outlets'
+        else:
+            self.reboot_flag = 1
+            return 'Rebooting power'
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Internal functions
+    def _parse_input(self, outlet_list, unit=''):
         if unit in params.POWER_UNITS:
             # specific unit given, all outlets should be from that unit
             self.current_outlets = self._get_valid_outlets(unit, outlet_list)
             self.current_units = [unit]*len(self.current_outlets)
-            print(self.current_outlets,self.current_units)
         else:
             # a list of outlet names, we need to find their matching units
             unit_list = self._units_from_names(outlet_list)
@@ -273,15 +254,7 @@ class PowerDaemon(HardwareDaemon):
                 valid_outlets = self._get_valid_outlets(unit, outlet_list)
                 self.current_outlets += valid_outlets
                 self.current_units += [unit]*len(valid_outlets)
-            print(self.current_outlets,self.current_units)
-        if len(self.current_outlets) == 0:
-            return 'ERROR: No valid outlets'
-        else:
-            self.reboot_flag = 1
-            return 'Rebooting power'
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Internal functions
+        #print(self.current_outlets,self.current_units)
 
     def _units_from_names(self, name_list):
         unit_list = []
@@ -298,7 +271,6 @@ class PowerDaemon(HardwareDaemon):
             for unit in found_units:
                 if unit not in unit_list:
                     unit_list.append(unit)
-        print(unit_list)
         return unit_list
 
     def _get_valid_outlets(self, unit, outlet_list):
