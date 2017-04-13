@@ -163,9 +163,7 @@ class PowerDaemon(HardwareDaemon):
 
             # power on a specified outlet
             if(self.on_flag):
-                for i in range(len(self.current_units)):
-                    unit = self.current_units[i]
-                    outlet = self.current_outlets[i]
+                for unit, outlet in zip(self.current_units, self.current_outlets):
                     power = power_units[unit]
                     self.logfile.info('Power on unit {} outlet {}'.format(unit,outlet))
                     c = power.on(outlet)
@@ -177,9 +175,7 @@ class PowerDaemon(HardwareDaemon):
 
             # power off a specified outlet
             if(self.off_flag):
-                for i in range(len(self.current_units)):
-                    unit = self.current_units[i]
-                    outlet = self.current_outlets[i]
+                for unit, outlet in zip(self.current_units, self.current_outlets):
                     power = power_units[unit]
                     self.logfile.info('Power off unit {} outlet {}'.format(unit,outlet))
                     c = power.off(outlet)
@@ -191,9 +187,7 @@ class PowerDaemon(HardwareDaemon):
 
             # reboot a specified outlet
             if(self.reboot_flag):
-                for i in range(len(self.current_units)):
-                    unit = self.current_units[i]
-                    outlet = self.current_outlets[i]
+                for unit, outlet in zip(self.current_units, self.current_outlets):
                     power = power_units[unit]
                     self.logfile.info('Reboot unit {} outlet {}'.format(unit,outlet))
                     c = power.reboot(outlet)
