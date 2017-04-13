@@ -62,20 +62,23 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info', timeout=1.)
             if info: print_info(info)
 
-    elif command == 'on':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'on', [outlets])
-        if c: print(c)
-
-    elif command == 'off':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'off', [outlets])
-        if c: print(c)
-
-    elif command == 'reboot':
-        outlets = args[0].split(',')
-        c = daemons.daemon_function(daemon_ID, 'reboot', [outlets])
-        if c: print(c)
+    elif command in ['on','off','reboot']:
+        if len(args) == 1:
+            # can only be a list of names, from various units
+            outlets = args[0].split(',')
+            c = daemons.daemon_function(daemon_ID, command, [outlets])
+            if c: print(c)
+        elif len(args) == 2:
+            # only outlets from the given unit
+            unit = args[0]
+            if unit not in params.POWER_UNITS:
+                print(misc.ERROR('Invalid unit name'))
+            else:
+                outlets = args[1].split(',')
+                c = daemons.daemon_function(daemon_ID, command, [outlets, unit])
+                if c: print(c)
+        else:
+            print(misc.ERROR('Invalid arguments'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -87,39 +90,65 @@ def query(command, args):
 
 def print_info(info):
     print('####### POWER INFO ########')
-    for i in range(len(info['status_dict'])):
-        outlet_name = params.POWER_LIST[i]
-        outlet_status = info['status_dict'][outlet_name]
-        print('Power outlet %i (%s):\t%s' %(i+1,outlet_name,outlet_status))
-    print('~~~~~~~')
+    for unit in params.POWER_UNITS:
+        ip = params.POWER_UNITS[unit]['IP']
+        print('UNIT {} ({})'.format(unit, ip))
+        status = info['status_'+unit]
+        try:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({}):'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet]
+                print('Outlet {} {: <10} {}'.format(outlet_no, outlet_name, outlet_status))
+        except:
+            ups_status = status['status']
+            ups_percent = status['percent']
+            ups_time = status['time']
+            print('Status: {}'.format(ups_status))
+            print('Percent remaining: {}%'.format(ups_percent))
+            print('Time remaining:    {}s'.format(ups_time))
+        print('~~~~~~~')
+
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
 
 def print_info_s(info):
-    for i in range(len(info['status_dict'])):
-        outlet_name = format(params.POWER_LIST[i])
-        outlet_name_b = '({})'.format(outlet_name)
-        outlet_status = info['status_dict'][outlet_name]
-        print('OUTLET {} {: <8} [{}]'.format(i+1, outlet_name_b, outlet_status))
+    for unit in params.POWER_UNITS:
+        ip = params.POWER_UNITS[unit]['IP']
+        print('{} ({})'.format(unit, ip))
+        status = info['status_'+unit]
+        try:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({}):'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet]
+                print('   Outlet {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
+        except:
+            ups_status = status['status']
+            ups_percent = status['percent']
+            ups_time = status['time']
+            print('   Remaining: {}% ({}s)   [{}]'.format(ups_percent, ups_time, ups_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  power ' + misc.bold('start') + '            - start the daemon' + '\n' +\
-    '  power ' + misc.bold('shutdown') + '         - shutdown the daemon' + '\n' +\
-    '  power ' + misc.bold('kill') + '             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  power ' + misc.bold('ping') + '             - ping the daemon' + '\n' +\
+    '  power ' + misc.bold('start') + '                            - start the daemon' + '\n' +\
+    '  power ' + misc.bold('shutdown') + '                         - shutdown the daemon' + '\n' +\
+    '  power ' + misc.bold('kill') + '                             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  power ' + misc.bold('ping') + '                             - ping the daemon' + '\n' +\
     ' ' + misc.undl('Power commands') + ':' + '\n' +\
-    '  power ' + misc.bold('on') + ' [outlets]' + '     - turn on specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('off') + ' [outlets]' + '    - turn off specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('reboot') + ' [outlets]' + ' - reboots specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('info') + ' [v]' + '         - report current status' + '\n' +\
+    '  power ' + misc.bold('on') + ' [names] | [unit] [outlet]' + '     - turn on specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  power ' + misc.bold('i') + '                - enter interactive mode' + '\n' +\
-    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '           - quit interactive mode' + '\n' +\
-    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '           - print these instructions'
+    '  power ' + misc.bold('i') + '                                - enter interactive mode' + '\n' +\
+    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '                           - quit interactive mode' + '\n' +\
+    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '                           - print these instructions'
     print(help_str)
 
 ########################################################################
