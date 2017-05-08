@@ -86,6 +86,7 @@ def query(command, args):
     elif command == 'close':
         if len(args) == 0:
             side  = 'both'
+            fraction = 1
         elif len(args) == 1 and not misc.is_num(args[0]):
             side = args[0]
             fraction = 1

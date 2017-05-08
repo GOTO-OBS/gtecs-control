@@ -31,96 +31,117 @@ from gtecs.tecs_modules import params
 class FakeDome:
     def __init__(self):
         self.fake = True
+        self.moving = False
+        self.side = ''
         # fake stuff
-        self.temp_file = '/tmp/dome'
+        self._temp_file = '/tmp/dome'
+        self._status_arr = [0, 0, 0]
+        self._writing = False # had problems with reading and writing overlapping
+
         self._read_temp()
+
+    @property
+    def status(self):
+        return self._check_status()
 
     def _read_temp(self):
-        if not os.path.exists(self.temp_file):
-            self.dome_status = [0, 0, 0]
+        while self._writing:
+            print('gg')
+            time.sleep(0.1)
+        if not os.path.exists(self._temp_file):
+            self._status_arr = [0, 0, 0]
             self._write_temp()
         else:
-            f = open(self.temp_file, 'r')
-            self.dome_status = list(map(int,list(f.read().strip())))
-            f.close()
+            with open(self._temp_file, 'r') as f:
+                string = f.read().strip()
+                print('R: ', string)
+                if not string == '': # I don't know why or how that happens
+                    self._status_arr = list(map(int,list(string)))
 
     def _write_temp(self):
-        f = open(self.temp_file,'w')
-        f.write(''.join(str(i) for i in self.dome_status))
-        f.close()
+        self._writing = True
+        with open(self._temp_file, 'w') as f:
+            string = ''.join(str(i) for i in self._status_arr)
+            print('W: ', string)
+            f.write(string)
+        self._writing = False
 
-    def _move_dome(self, command, timeout=40.):
+    def _move_dome(self, command):
+        if self.moving:
+            print('Already moving!')
+            return
         self._read_temp()
-        if command[:4] == 'west':
+        if self.side == 'north':
             side = 0
-        elif command[:4] == 'east':
+        elif self.side == 'south':
             side = 1
-        if command[5:] == 'open':
-            steps = 9 - self.dome_status[side]
-            time.sleep(3 * steps) # intentionally blocking, like real dome
-            self.dome_status[side] = 9
-        elif command[5:] == 'close':
-            steps = self.dome_status[side]
-            time.sleep(3 * steps) # intentionally blocking, like real dome
-            self.dome_status[side] = 0
-        self._write_temp()
+        self.moving = True
+        while self.moving:
+            print(self._status_arr, side)
+            if command == 'open':
+                if self._status_arr[side] < 9:
+                    time.sleep(3)
+                    self._status_arr[side] += 1
+                    self._write_temp()
+                    if self._status_arr[side] == 9:
+                        self.moving = False
+                else:
+                    self.moving = False
+            elif command == 'close':
+                if self._status_arr[side] > 0:
+                    time.sleep(3)
+                    self._status_arr[side] -= 1
+                    self._write_temp()
+                    if self._status_arr[side] == 0:
+                        self.moving = False
+                else:
+                    self.moving = False
 
-    def _move_dome_steps(self,command,steps):
+    def _check_status(self):
+        status = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
         self._read_temp()
-        if command[:4] == 'west':
-            side = 0
-        elif command[:4] == 'east':
-            side = 1
-        if command[5:] == 'open':
-            finish = self.dome_status[side] + steps
-            if finish > 9:
-                finish = 9
-                steps = 9 - self.dome_status[side]
-            time.sleep(3 * steps) # intentionally blocking, like real dome
-            self.dome_status[side] = finish
-        elif command[5:] == 'close':
-            finish = self.dome_status[side] - steps
-            if finish < 0:
-                finish = 0
-                steps = self.dome_status[side]
-            time.sleep(3 * steps) # intentionally blocking, like real dome
-            self.dome_status[side] = finish
-        self._write_temp()
-
-    def status(self):
-        status = {'dome':'ERROR', 'hatch':'ERROR'}
-        self._read_temp()
-        if self.dome_status[0] == 0 and self.dome_status[1] == 0:
-            status['dome'] = 'closed'
+        # north
+        if self._status_arr[0] == 0:
+            status['north'] = 'closed'
+        elif self._status_arr[0] == 9:
+            status['north'] = 'full_open'
         else:
-            status['dome'] = 'open'
-        if self.dome_status[2] == 0:
+            status['north'] = 'part_open'
+
+        # south
+        if self._status_arr[1] == 0:
+            status['south'] = 'closed'
+        elif self._status_arr[1] == 9:
+            status['south'] = 'full_open'
+        else:
+            status['south'] = 'part_open'
+
+        # hatch (never actually opens...)
+        if self._status_arr[2] == 0:
             status['hatch'] = 'closed'
         else:
             status['hatch'] = 'open'
+
         return status
 
-    def open_full(self):
-        self._move_dome('west_open')
-        time.sleep(2)
-        self._move_dome('east_open')
+    def open_full(self, side, frac=1):
+        #time.sleep(7) # for the alarm
+        print('ALARM', side)
+        self.side = side
+        t = threading.Thread(target=self._move_dome, args = ['open'])
+        t.start()
+        return
 
-    def close_full(self):
-        self._move_dome('west_close')
-        time.sleep(2)
-        self._move_dome('east_close')
+    def close_full(self, side, frac=1):
+        #time.sleep(7) # for the alarm
+        print('ALARM')
+        self.side = side
+        t = threading.Thread(target=self._move_dome, args = ['close'])
+        t.start()
+        return
 
-    def open_side(self, side, steps):
-        if side == 'west':
-            self._move_dome_steps('west_open', steps)
-        elif side == 'east':
-            self._move_dome_steps('east_open', steps)
-
-    def close_side(self, side, steps):
-        if side == 'west':
-            self._move_dome_steps('west_close', steps)
-        elif side == 'east':
-            self._move_dome_steps('east_close', steps)
+    def halt(self):
+        self.moving = False
 
 
 ########################################################################
@@ -395,7 +416,7 @@ class AstroHavenDome:
                 print('Dome moving timed out')
                 self.output_thread_running = 0
                 break
-            elif self.status[side] == 'ERROR'::
+            elif self.status[side] == 'ERROR':
                 print('All sensors failed, stopping movement')
                 self.output_thread_running = 0
                 break
