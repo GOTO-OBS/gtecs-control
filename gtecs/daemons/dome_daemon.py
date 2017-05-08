@@ -134,9 +134,10 @@ class DomeDaemon(HardwareDaemon):
 
                 # WARNING 3: QUICK CLOSE BUTTON
                 # loop through the button to see if it's triggered
-                if misc.loopback_test(params.BIG_RED_BUTTON_PORT,b'bob',chances=3):
-                    self.logfile.info('Emergency shutdown button pressed')
-                    os.system('touch %s' % params.EMERGENCY_FILE)
+                if params.QUICK_CLOSE_BUTTON:
+                    if misc.loopback_test(params.QUICK_CLOSE_BUTTON_PORT,b'bob',chances=3):
+                        self.logfile.info('Quick close button pressed')
+                        os.system('touch %s' % params.EMERGENCY_FILE)
 
                 # Act on an emergency
                 if (self.dome_status['north'] != 'closed' or
