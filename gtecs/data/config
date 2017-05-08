@@ -65,7 +65,8 @@ POWER_CHECK_PERIOD = 30
 # Dome parameters
 DOME_CHECK_PERIOD = 5
 DOME_LOCATION = /dev/ttyS0
-BIG_RED_BUTTON_PORT = N/A
+QUICK_CLOSE_BUTTON = 0
+QUICK_CLOSE_BUTTON_PORT = /dev/ttyUSB0
 
 ########################################################################
 # Observing parameters
