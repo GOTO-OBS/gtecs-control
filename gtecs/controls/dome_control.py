@@ -395,7 +395,7 @@ class AstroHavenDome:
                 print('Dome moving timed out')
                 self.output_thread_running = 0
                 break
-            elif self.status[side] == 'ERROR'::
+            elif self.status[side] == 'ERROR':
                 print('All sensors failed, stopping movement')
                 self.output_thread_running = 0
                 break
