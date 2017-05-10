@@ -118,7 +118,6 @@ class DomeDaemon(HardwareDaemon):
 
             # check warnings
             if(self.check_warnings_flag):
-                print('checking warnings')
                 # WARNING 1: ON UPS POWER
                 # ping the power sources
                 #pinglist = ['power1', 'power2', 'power3', 'scope', 'video', 'reg']
@@ -157,7 +156,7 @@ class DomeDaemon(HardwareDaemon):
                             self.move_frac = 1
 
                 self.warnings_check_time = time.time()
-                self.check_status_flag = 0
+                self.check_warnings_flag = 0
 
             ### control functions
             # request info
