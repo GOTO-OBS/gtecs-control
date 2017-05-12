@@ -333,12 +333,12 @@ class Pilot:
                 self.log.warn('closing and parking')
                 # TODO: discuss what should happen when dome closes in middle of
                 # observing?
-                await self.cancelRunningScript()
-                self.park_scope()
                 execute_command('exq pause')
                 execute_command('cam abort')
                 if self.domeOpen:
                     self.close_dome()
+                await self.cancelRunningScript()
+                self.park_scope()
             elif reason == 'hw':
                 # just pause the queue until fixed
                 execute_command('exq pause')
