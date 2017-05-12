@@ -193,10 +193,11 @@ class MountMonitor(HardwareMonitor):
         if mode == 'tracking':
             self.recoveryProcedure = {}
             self.recoveryProcedure[1] = [60., 'mnt track']
-            self.recoveryProcedure[2] = [120., 'mnt track']
+            self.recoveryProcedure[2] = [70., 'mnt slew']
+            self.recoveryProcedure[3] = [120., 'mnt track']
             self.recoveryProcedure[3] = [180., 'mnt unpark']
             self.recoveryProcedure[4] = [190., 'mnt track']
-            self.recoveryProcedure[5] = [250., 'mnt track']
+            self.recoveryProcedure[5] = [200., 'mnt slew']
             self.recoveryProcedure[6] = [310., 'mnt track']
         else:
             self.recoveryProcedure = {}
