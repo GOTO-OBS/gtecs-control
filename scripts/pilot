@@ -238,7 +238,7 @@ class Pilot:
         Continuously monitor hardware and try to fix any issues.
         """
         # monitor until stopped
-        sleepTime=60
+        sleepTime = 60
         while True:
             errCount = 0
             self.log.info('running hardware checks')
@@ -446,6 +446,9 @@ class Pilot:
                     self.currentID = self.newID
                     self.currentPriority = None
                     self.currentMinTime = None
+                    # in fringe case where we've interrupted a job it needs
+                    # to be cancelled.
+                    await self.cancelRunningScript()
                 else:
                     cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
                            str(self.newID), str(self.newMinTime)]
@@ -701,6 +704,7 @@ class Pilot:
                    cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
                    protocol=SimpleProtocol)
         self.morning_jobs = [en0, en1, en2]
+
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
