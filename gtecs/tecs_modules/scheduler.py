@@ -225,7 +225,8 @@ class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, start, stop, current):
         self.id = int(id)
-        self.coord = coord.SkyCoord(ra, dec, unit=u.deg, frame='icrs')
+        self.ra = ra*u.deg
+        self.dec = dec*u.deg
         self.priority = float(priority)
         self.tileprob = float(tileprob)
         self.too = bool(int(too))
@@ -248,7 +249,8 @@ class Pointing:
 
     def _as_target(self):
         '''Returns a FixedTarget object for the pointing target.'''
-        return FixedTarget(self.coord)
+        coo = coord.SkyCoord(self.ra, self.dec, unit=u.deg, frame='icrs')
+        return FixedTarget(coo)
 
     @classmethod
     def from_file(cls, fname):
@@ -293,6 +295,8 @@ class Queue:
         if pointings is None:
             pointings = []
         self.pointings = pointings
+        self.ra_arr = []
+        self.dec_arr = []
         self.target_arr = []
         self.mintime_arr = []
         self.start_arr = []
@@ -319,7 +323,8 @@ class Queue:
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
         for pointing in self.pointings:
-            self.target_arr.append(pointing._as_target())
+            self.ra_arr.append(pointing.ra)
+            self.dec_arr.append(pointing.dec)
             self.mintime_arr.append(pointing.mintime)
             self.start_arr.append(pointing.start)
             self.stop_arr.append(pointing.stop)
@@ -329,7 +334,8 @@ class Queue:
             self.priority_arr.append(pointing.priority)
             self.tileprob_arr.append(pointing.tileprob)
 
-        self.target_arr = get_icrs_skycoord(self.target_arr)
+        self.target_arr = coord.SkyCoord(self.ra_arr, self.dec_arr,
+                                         unit=u.deg, frame='icrs')
 
         self.constraints = [AtNightConstraint(self.maxsunalt_arr),
                             AltitudeConstraint(self.minalt_arr, None),
