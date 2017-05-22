@@ -376,7 +376,9 @@ class Queue:
                                                 now)
 
         # apply mintime constraints
-        later_arr = [now + mintime for mintime in self.mintime_arr]
+        mintime_arr = self.mintime_arr*u.s # one Quantity object
+        now_arr = Time([now]*len(mintime_arr))
+        later_arr = now_arr + mintime_arr
         min_cons_valid_arr = apply_constraints(self.mintime_constraints,
                                                observer, self.target_arr,
                                                later_arr)
