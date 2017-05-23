@@ -22,8 +22,39 @@ from astropy.time import Time
 from astropy._erfa import ErfaWarning
 
 from astroplan import Observer
-from astroplan.target import get_icrs_skycoord
 import astroplan.constraints as constraints
+
+
+def get_icrs_skycoord(targets):
+    """
+    Return an `~astropy.coordinates.SkyCoord` object, in the ICRS frame.
+
+    When performing calculations it is usually most efficient to have
+    a single `~astropy.coordinates.SkyCoord` object, rather than a
+    list of `FixedTarget` or `~astropy.coordinates.SkyCoord` objects.
+
+    Parameters
+    -----------
+    targets : list, `~astropy.coordinates.SkyCoord`, `Fixedtarget`
+        either a single target or a list of targets
+
+    Returns
+    --------
+    coord : `~astropy.coordinates.SkyCoord`
+        a single SkyCoord object, which may be non-scalar
+    """
+    if not isinstance(targets, list):
+        return getattr(targets, 'coord', targets)
+    coos = [getattr(target, 'coord', target) for target in targets]
+    # it is roughly 20 times faster to get ICRS RAs and DECs first,
+    # rather than initialise directly from list of SkyCoords
+    # (provided target list is all in ICRS frame)
+    ras = []
+    decs = []
+    for coo in coos:
+        ras.append(coo.icrs.ra)
+        decs.append(coo.icrs.dec)
+    return coord.SkyCoord(ras, decs)
 
 def _get_altaz(times, observer, targets, force_zero_pressure=False):
     """
