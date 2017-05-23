@@ -373,7 +373,7 @@ class Queue:
                                  'Moon',
                                  'MoonSep']
 
-        self.time_constraint = [TimeConstraint(self.start_arr, self.stop_arr)]
+        self.time_constraint = [TimeConstraint(Time(self.start_arr), Time(self.stop_arr))]
         self.time_constraint_name = ['Time']
 
         self.mintime_constraints = [AtNightConstraint(self.maxsunalt_arr),
