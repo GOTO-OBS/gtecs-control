@@ -181,42 +181,45 @@ def _two_point_interp(times, altitudes, horizon=0*u.deg):
         time = times[1].jd - ((altitudes[1] - horizon)/slope).value
         return Time(time, format='jd')
 
-def time_to_set(observer, targets, time, horizon=0*u.deg):
+def time_to_set(observer, targets, now, horizon=0*u.deg):
     """
     Time until ``target``s next set below the horizon
     """
 
-    time_grid = np.linspace(0, 1, 150)*u.day
-    times = time + time_grid
+    # Create grid of times
+    time_arr = now + np.linspace(0, 1, 150)*u.day
 
-    cached_altaz = _get_altaz(times, observer, targets)
+    # Find altitudes for every target at every time
+    cached_altaz = _get_altaz(time_arr, observer, targets)
     altaz = cached_altaz['altaz']
-    alts = altaz.alt
-
-    n_targets = alts.shape[0]
+    alt_arr = altaz.alt
 
     # Find index where altitude goes from above to below horizon
-    condition = (alts[:, :-1] > horizon) * (alts[:, 1:] < horizon)
+    # Offset arrays by one to find overlap
+    above = alt_arr[:, :-1] > horizon
+    below = alt_arr[:, 1:] < horizon
+    condition =  above*below
     crossing_target_inds, crossing_time_inds = np.nonzero(condition)
 
-
-    # If some targets never cross the horizon
-    target_inds = np.arange(n_targets)
+    # Find the indexes of times when the targets cross the horizon.
+    # If the target_ind is not in crossing_target_inds then it never crosses
+    # so the time_ind is just NAN.
+    target_inds = np.arange(len(targets))
     time_inds = [crossing_time_inds[np.where(crossing_target_inds==i)][0]
-                   if i in crossing_target_inds
-                   else np.nan
-                   for i in np.arange(n_targets)]
+                 if i in crossing_target_inds else np.nan
+                 for i in target_inds]
 
     # Find the upper and lower time and altitude limits for each target
-    time_lims = [times[i:i+2] if not np.isnan(i) else np.nan
-                 for i in time_inds]
-    alt_lims = [alts[i, j:j+2] if not np.isnan(j) else np.nan
+    time_lims = [time_arr[j:j+2] if not np.isnan(j) else np.nan
+                 for j in time_inds]
+    alt_lims = [alt_arr[i, j:j+2] if not np.isnan(j) else np.nan
                 for i, j in zip(target_inds, time_inds)]
 
+    # Find the set times by interpolating between the upper & lower times
     set_times = Time([_two_point_interp(time_lims, alt_lims, horizon)
                      for time_lims, alt_lims in zip(time_lims, alt_lims)])
 
-    seconds_until_set = (set_times - time).to(u.s)
+    seconds_until_set = (set_times - now).to(u.s)
 
     return seconds_until_set
 
