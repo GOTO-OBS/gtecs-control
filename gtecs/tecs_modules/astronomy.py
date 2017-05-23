@@ -13,6 +13,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 # TeCS modules
 from . import params
+from . import astropy_speedups
 
 # astropy/astroplan
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz, get_sun
