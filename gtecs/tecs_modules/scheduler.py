@@ -437,17 +437,15 @@ def write_queue_file(queue, time, observer):
 
     # save altaz too
     altaz_now = observer.altaz(time, queue.target_arr)
-    altnow_list = [a[0].value for a in altaz_now.alt]
-    aznow_list = [a[0].value for a in altaz_now.az]
-    altaznow_list = list(zip(altnow_list, aznow_list))
+    altaz_now_str = altaz_now.altaz.to_string()
+    altaz_now_list = [[float(i) for i in s.split()] for s in altaz_now_str]
 
-    later_arr = Time([time + mintime for mintime in queue.mintime_arr])
+    later_arr = time + queue.mintime_arr
     altaz_later = observer.altaz(later_arr, queue.target_arr)
-    altlater_list = [a.value for a in np.diag(altaz_later.alt)]
-    azlater_list = [a.value for a in np.diag(altaz_later.az)]
-    altazlater_list = list(zip(altlater_list, azlater_list))
+    altaz_later_str = altaz_later.altaz.to_string()
+    altaz_later_list = [[float(i) for i in s.split()] for s in altaz_later_str]
 
-    combined = list(zip(pointinglist, altaznow_list, altazlater_list))
+    combined = list(zip(pointinglist, altaz_now_list, altaz_later_list))
     combined.sort(key=lambda x: x[0].priority_now)
 
     # now save as json file
