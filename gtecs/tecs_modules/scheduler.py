@@ -53,8 +53,6 @@ airmass_weight = 0.00001
 tts_dp = 5
 tts_weight = 0.00001
 
-tts_horizon = 10*u.deg
-
 # set debug level
 debug = 1
 
@@ -110,53 +108,15 @@ class ArtificialHorizonConstraint(Constraint):
         return altaz.alt > artificial_horizon_alt
 
 
-def _two_point_interp(times, altitudes, horizon=0*u.deg):
-    if not isinstance(times, Time):
-        return Time(-999, format='jd')
-    else:
-        slope = (altitudes[1] - altitudes[0])/(times[1].jd - times[0].jd)
-        time = times[1].jd - ((altitudes[1] - horizon)/slope).value
-        return Time(time, format='jd')
-
-def time_to_set(observer, targets, now, horizon=0*u.deg):
+def time_to_set(observer, targets, now):
     """
     Time until ``target``s next set below the horizon
     """
 
     # Create grid of times
-    time_arr = now + np.linspace(0, 1, 150)*u.day
-
-    # Find altitudes for every target at every time
-    altaz = observer.altaz(time_arr, targets, grid_times_targets=True)
-    alt_arr = altaz.alt
-
-    # Find index where altitude goes from above to below horizon
-    # Offset arrays by one to find overlap
-    above = alt_arr[:, :-1] > horizon
-    below = alt_arr[:, 1:] < horizon
-    condition =  above*below
-    crossing_target_inds, crossing_time_inds = np.nonzero(condition)
-
-    # Find the indexes of times when the targets cross the horizon.
-    # If the target_ind is not in crossing_target_inds then it never crosses
-    # so the time_ind is just NAN.
-    target_inds = np.arange(len(targets))
-    time_inds = [crossing_time_inds[np.where(crossing_target_inds==i)][0]
-                 if i in crossing_target_inds else np.nan
-                 for i in target_inds]
-
-    # Find the upper and lower time and altitude limits for each target
-    time_lims = [time_arr[j:j+2] if not np.isnan(j) else np.nan
-                 for j in time_inds]
-    alt_lims = [alt_arr[i, j:j+2] if not np.isnan(j) else np.nan
-                for i, j in zip(target_inds, time_inds)]
-
-    # Find the set times by interpolating between the upper & lower times
-    set_times = Time([_two_point_interp(time_lims, alt_lims, horizon)
-                     for time_lims, alt_lims in zip(time_lims, alt_lims)])
-
+    set_times = astronomy._rise_set_trig(now, targets, observer.location,
+                                         'next', 'setting')
     seconds_until_set = (set_times - now).to(u.s)
-
     return seconds_until_set
 
 
@@ -380,7 +340,7 @@ class Queue:
         airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
 
         ## Find time to set values (0.00.. to 0.99..)
-        tts_sec_arr = time_to_set(observer, self.target_arr, time, tts_horizon)
+        tts_sec_arr = time_to_set(observer, self.target_arr, time)
         tts_hr_arr = tts_sec_arr.to(u.hour)
         tts_arr = np.around(tts_hr_arr.value/24., decimals = tts_dp)
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
