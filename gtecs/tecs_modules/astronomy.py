@@ -91,7 +91,8 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
     raSun = get_sun(t).ra
 
     # calculate Greenwich Apparent Solar Time, which we will use as ~UTC for now
-    solarTime = LST - raSun + 12*u.hourangle - location.longitude
+    good_mask = ~np.isnan(LST)
+    solarTime = LST[good_mask] - raSun + 12*u.hourangle - location.longitude
 
     # assume this is on the same day as supplied time, and fix later
     first_guess = Time(
@@ -111,7 +112,10 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
         # if 'previous', we want time to be less than given time
         mask = first_guess > t
         rise_set_time = first_guess - mask * u.sday
-    return rise_set_time
+
+    retvals = -999*np.ones_like(LST)
+    retvals[good_mask] = rise_set_time.jd
+    return Time(retvals, format='jd')
 
 
 def _rise_set_trig(t, target, location, prev_next, rise_set):
