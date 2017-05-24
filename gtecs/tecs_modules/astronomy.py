@@ -11,6 +11,7 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
+import warnings
 
 import numpy as np
 from numpy.polynomial.polynomial import polyval
@@ -157,7 +158,9 @@ def _rise_set_trig(t, target, location, prev_next, rise_set):
     dec = target.transform_to(GCRS).dec
     cosHA = -np.tan(dec)*np.tan(location.latitude.radian)
     # find the absolute value of the hour Angle
-    HA = Longitude(np.fabs(np.arccos(cosHA)))
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        HA = Longitude(np.fabs(np.arccos(cosHA)))
     # if rise, HA is -ve and vice versa
     if rise_set == 'rising':
         HA = -HA
