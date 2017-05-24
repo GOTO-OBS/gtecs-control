@@ -18,6 +18,7 @@ from numpy.polynomial.polynomial import polyval
 
 # TeCS modules
 from . import params
+from . import astropy_speedups
 
 # astropy/astroplan
 from astropy.coordinates import (SkyCoord, EarthLocation, AltAz, get_sun,
