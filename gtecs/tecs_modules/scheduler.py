@@ -94,7 +94,7 @@ def apply_constraints(constraints, observer, targets, times):
 
     applied_constraints = np.array([constraint(observer, targets, times)
                                     for constraint in constraints])
-    return np.transpose(applied_constraints)
+    return applied_constraints
 
 
 class ArtificialHorizonConstraint(Constraint):
