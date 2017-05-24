@@ -113,7 +113,7 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
         mask = first_guess > t
         rise_set_time = first_guess - mask * u.sday
 
-    retvals = -999*np.ones_like(LST)
+    retvals = -999*np.ones_like(LST.value)
     retvals[good_mask] = rise_set_time.jd
     return Time(retvals, format='jd')
 
