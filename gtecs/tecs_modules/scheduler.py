@@ -164,17 +164,17 @@ class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, start, stop, current):
         self.id = int(id)
-        self.ra = ra*u.deg
-        self.dec = dec*u.deg
+        self.ra = float(ra)
+        self.dec = float(dec)
         self.priority = float(priority)
         self.tileprob = float(tileprob)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
         self.minalt = float(minalt)
-        self.mintime = float(mintime)*u.s
+        self.mintime = float(mintime)
         self.maxmoon = maxmoon
-        self.start = Time(start, scale='utc')
-        self.stop = Time(stop, scale='utc')
+        self.start = start
+        self.stop = stop
         self.current = bool(current)
 
     def __eq__(self, other):
@@ -272,6 +272,9 @@ class Queue:
         self.maxsunalt_arr = u.Quantity(self.maxsunalt_arr, unit=u.deg)
         self.minalt_arr = u.Quantity(self.minalt_arr, unit=u.deg)
 
+        self.start_arr = Time(self.start_arr, scale='utc', format='datetime')
+        self.stop_arr = Time(self.stop_arr, scale='utc', format='datetime')
+
         self.target_arr = coord.SkyCoord(self.ra_arr, self.dec_arr,
                                          unit=u.deg, frame='icrs')
 
@@ -286,7 +289,7 @@ class Queue:
                                  'Moon',
                                  'MoonSep']
 
-        self.time_constraint = [TimeConstraint(Time(self.start_arr), Time(self.stop_arr))]
+        self.time_constraint = [TimeConstraint(self.start_arr, self.stop_arr)]
         self.time_constraint_name = ['Time']
 
         self.mintime_constraints = [AtNightConstraint(self.maxsunalt_arr),
