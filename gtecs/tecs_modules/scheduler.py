@@ -24,100 +24,7 @@ from astropy._erfa import ErfaWarning
 from astroplan import Observer
 import astroplan.constraints as constraints
 
-
-def get_icrs_skycoord(targets):
-    """
-    Return an `~astropy.coordinates.SkyCoord` object, in the ICRS frame.
-
-    When performing calculations it is usually most efficient to have
-    a single `~astropy.coordinates.SkyCoord` object, rather than a
-    list of `FixedTarget` or `~astropy.coordinates.SkyCoord` objects.
-
-    Parameters
-    -----------
-    targets : list, `~astropy.coordinates.SkyCoord`, `Fixedtarget`
-        either a single target or a list of targets
-
-    Returns
-    --------
-    coord : `~astropy.coordinates.SkyCoord`
-        a single SkyCoord object, which may be non-scalar
-    """
-    if not isinstance(targets, list):
-        return getattr(targets, 'coord', targets)
-    coos = [getattr(target, 'coord', target) for target in targets]
-    # it is roughly 20 times faster to get ICRS RAs and DECs first,
-    # rather than initialise directly from list of SkyCoords
-    # (provided target list is all in ICRS frame)
-    ras = []
-    decs = []
-    for coo in coos:
-        ras.append(coo.icrs.ra)
-        decs.append(coo.icrs.dec)
-    return coord.SkyCoord(ras, decs)
-
-def _get_altaz(times, observer, targets, force_zero_pressure=False):
-    """
-    Calculate alt/az for ``target`` at times linearly spaced between
-    the two times in ``time_range`` with grid spacing ``time_resolution``
-    for ``observer``.
-
-    Cache the result on the ``observer`` object.
-
-    NOTE: New, faster version using get_icrs_skycoord patched in.
-          Can be removed if AstroPlan is updated to include it.
-
-    Parameters
-    ----------
-    times : `~astropy.time.Time`
-        Array of times on which to test the constraint
-
-    targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
-        Target or list of targets
-
-    observer : `~astroplan.Observer`
-        The observer who has constraints ``constraints``
-
-    time_resolution : `~astropy.units.Quantity` (optional)
-        Set the time resolution in calculations of the altitude/azimuth
-
-    Returns
-    -------
-    altaz_dict : dict
-        Dictionary containing two key-value pairs. (1) 'times' contains the
-        times for the alt/az computations, (2) 'altaz' contains the
-        corresponding alt/az coordinates at those times.
-    """
-    if not hasattr(observer, '_altaz_cache'):
-        observer._altaz_cache = {}
-
-    targets = get_icrs_skycoord(targets)
-    if targets.isscalar:
-        targets = coord.SkyCoord([targets])
-
-    # convert times, targets to tuple for hashing
-    aakey = (tuple(times.jd), targets)
-
-    if aakey not in observer._altaz_cache:
-        try:
-            if force_zero_pressure:
-                observer_old_pressure = observer.pressure
-                observer.pressure = 0
-
-            altaz = targets[:, np.newaxis].transform_to(
-                coord.AltAz(obstime=times, location=observer.location)
-                )
-            observer._altaz_cache[aakey] = dict(times=times,
-                                                altaz=altaz)
-        finally:
-            if force_zero_pressure:
-                observer.pressure = observer_old_pressure
-
-    return observer._altaz_cache[aakey]
-
-constraints._get_altaz = _get_altaz # overwrite before importing
-
-from astroplan import (FixedTarget, Constraint, TimeConstraint,
+from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
@@ -198,8 +105,7 @@ class ArtificialHorizonConstraint(Constraint):
                                         fill_value=12.0)
 
     def compute_constraint(self, times, observer, targets):
-        cached_altaz = _get_altaz(times, observer, targets)
-        altaz = cached_altaz['altaz']
+        altaz = observer.altaz(times, targets)
         artificial_horizon_alt = self.alt(altaz.az)*u.deg
         return altaz.alt > artificial_horizon_alt
 
@@ -221,8 +127,7 @@ def time_to_set(observer, targets, now, horizon=0*u.deg):
     time_arr = now + np.linspace(0, 1, 150)*u.day
 
     # Find altitudes for every target at every time
-    cached_altaz = _get_altaz(time_arr, observer, targets)
-    altaz = cached_altaz['altaz']
+    altaz = observer.altaz(time_arr, targets, grid_times_targets=True)
     alt_arr = altaz.alt
 
     # Find index where altitude goes from above to below horizon
@@ -264,8 +169,8 @@ class Pointing:
         self.priority = float(priority)
         self.tileprob = float(tileprob)
         self.too = bool(int(too))
-        self.maxsunalt = float(maxsunalt)*u.deg
-        self.minalt = float(minalt)*u.deg
+        self.maxsunalt = float(maxsunalt)
+        self.minalt = float(minalt)
         self.mintime = float(mintime)*u.s
         self.maxmoon = maxmoon
         self.start = Time(start, scale='utc')
@@ -280,11 +185,6 @@ class Pointing:
 
     def __ne__(self, other):
         return not self == other
-
-    def _as_target(self):
-        '''Returns a FixedTarget object for the pointing target.'''
-        coo = coord.SkyCoord(self.ra, self.dec, unit=u.deg, frame='icrs')
-        return FixedTarget(coo)
 
     @classmethod
     def from_file(cls, fname):
@@ -368,6 +268,10 @@ class Queue:
             self.priority_arr.append(pointing.priority)
             self.tileprob_arr.append(pointing.tileprob)
 
+        self.mintime_arr = u.Quantity(self.mintime_arr, unit=u.s)
+        self.maxsunalt_arr = u.Quantity(self.maxsunalt_arr, unit=u.deg)
+        self.minalt_arr = u.Quantity(self.minalt_arr, unit=u.deg)
+
         self.target_arr = coord.SkyCoord(self.ra_arr, self.dec_arr,
                                          unit=u.deg, frame='icrs')
 
@@ -410,9 +314,7 @@ class Queue:
                                                 now)
 
         # apply mintime constraints
-        mintime_arr = self.mintime_arr*u.s # one Quantity object
-        now_arr = Time([now]*len(mintime_arr))
-        later_arr = now_arr + mintime_arr
+        later_arr = now + self.mintime_arr
         min_cons_valid_arr = apply_constraints(self.mintime_constraints,
                                                observer, self.target_arr,
                                                later_arr)
@@ -424,18 +326,20 @@ class Queue:
             # save constraints to the pointing objects
             pointing.all_constraint_names = self.all_constraint_names
             pointing.constraint_names = list(self.constraint_names)
-            pointing.valid_arr = [x for x in cons_valid_arr[0][i]]
+            pointing.valid_arr = cons_valid_arr[i]
             # the current pointing doesn't apply the time constraint
             if pointing.current != True:
                 pointing.constraint_names += self.time_constraint_name
-                pointing.valid_arr += [x for x in time_cons_valid_arr[0][i]]
+                pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                     time_cons_valid_arr[i]))
             # current pointing and queue fillers don't apply mintime cons
             if pointing.priority < 5 and pointing.current != True:
                 pointing.constraint_names += self.mintime_constraint_names
-                pointing.valid_arr += [x for x in min_cons_valid_arr[i][i]]
+                pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                     min_cons_valid_arr[i]))
 
             # finally find out if it's valid or not
-            pointing.valid = np.logical_and.reduce(pointing.valid_arr)
+            pointing.valid = np.all(pointing.valid_arr)
 
     def calculate_priorities(self, time, observer):
         '''Calculate priorities at a given time for each pointing.'''
@@ -458,18 +362,16 @@ class Queue:
 
         ## Find airmass values (0.00.. to 0.99..)
         # airmass at start
-        cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
-        altaz_now = cached_altaz_now['altaz']
-        secz_now = np.array([x[0].value for x in altaz_now.secz])
+        altaz_now = observer.altaz(time, self.target_arr)
+        secz_now = altaz_now.secz
 
         # airmass at mintime
-        later_arr = Time([time + mintime for mintime in self.mintime_arr])
-        cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
-        altaz_later = cached_altaz_later['altaz']
-        secz_later = np.diag(altaz_later.secz).astype('float')
+        later_arr = time + self.mintime_arr
+        altaz_later = observer.altaz(later_arr, self.target_arr)
+        secz_later = altaz_later.secz
 
         # take average
-        secz_arr = np.array((secz_now + secz_later)/2.)
+        secz_arr = (secz_now + secz_later)/2.
         airmass_arr = np.around(secz_arr/10., decimals = airmass_dp)
         bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr >= 1)
         airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
@@ -570,15 +472,13 @@ def write_queue_file(queue, time, observer):
     pointinglist = list(queue.pointings)
 
     # save altaz too
-    cached_altaz_now = _get_altaz(Time([time]), observer, queue.target_arr)
-    altaz_now = cached_altaz_now['altaz']
+    altaz_now = observer.altaz(time, queue.target_arr)
     altnow_list = [a[0].value for a in altaz_now.alt]
     aznow_list = [a[0].value for a in altaz_now.az]
     altaznow_list = list(zip(altnow_list, aznow_list))
 
     later_arr = Time([time + mintime for mintime in queue.mintime_arr])
-    cached_altaz_later = _get_altaz(later_arr, observer, queue.target_arr)
-    altaz_later = cached_altaz_later['altaz']
+    altaz_later = observer.altaz(later_arr, queue.target_arr)
     altlater_list = [a.value for a in np.diag(altaz_later.alt)]
     azlater_list = [a.value for a in np.diag(altaz_later.az)]
     altazlater_list = list(zip(altlater_list, azlater_list))
