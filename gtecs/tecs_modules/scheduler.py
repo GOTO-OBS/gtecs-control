@@ -22,7 +22,7 @@ from astropy.time import Time
 from astropy._erfa import ErfaWarning
 
 from astroplan import Observer
-import astroplan.constraints as constraints
+from astroplan.constraints import _get_altaz
 
 from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
@@ -104,7 +104,7 @@ class ArtificialHorizonConstraint(Constraint):
                                         fill_value=12.0)
 
     def compute_constraint(self, times, observer, targets):
-        altaz = observer.altaz(times, targets)
+        altaz = _get_altaz(times, observer, targets)['altaz']
         artificial_horizon_alt = self.alt(altaz.az)*u.deg
         return altaz.alt > artificial_horizon_alt
 
@@ -326,12 +326,12 @@ class Queue:
 
         ## Find airmass values (0.00.. to 0.99..)
         # airmass at start
-        altaz_now = observer.altaz(time, self.target_arr)
+        altaz_now = _get_altaz(time, observer, self.target_arr)['altaz']
         secz_now = altaz_now.secz
 
         # airmass at mintime
         later_arr = time + self.mintime_arr
-        altaz_later = observer.altaz(later_arr, self.target_arr)
+        altaz_later = _get_altaz(later_arr, observer, self.target_arr)['altaz']
         secz_later = altaz_later.secz
 
         # take average
@@ -436,12 +436,12 @@ def write_queue_file(queue, time, observer):
     pointinglist = list(queue.pointings)
 
     # save altaz too
-    altaz_now = observer.altaz(time, queue.target_arr)
+    altaz_now = _get_altaz(time, observer, queue.target_arr)['altaz']
     altaz_now_str = altaz_now.altaz.to_string()
     altaz_now_list = [[float(i) for i in s.split()] for s in altaz_now_str]
 
     later_arr = time + queue.mintime_arr
-    altaz_later = observer.altaz(later_arr, queue.target_arr)
+    altaz_later = _get_altaz(later_arr, observer, queue.target_arr)['altaz']
     altaz_later_str = altaz_later.altaz.to_string()
     altaz_later_list = [[float(i) for i in s.split()] for s in altaz_later_str]
 
