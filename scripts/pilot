@@ -156,7 +156,7 @@ class Pilot:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
                 our_watch_has_ended = sun_alt_now < sunAlt
-            await asyncio.sleep(20)
+            await asyncio.sleep(60)
         return True
 
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
@@ -223,15 +223,15 @@ class Pilot:
 
     async def checkSchedule(self):
         """
-        Check sheduler and update current job every 5 seconds
+        Check sheduler and update current job every 10 seconds
         """
         while True:
             if self.paused:
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
                 continue
             self.newID, self.newPriority, self.newMinTime = scheduler()
             self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
 
     async def hardwareChecks(self):
         """
@@ -356,7 +356,7 @@ class Pilot:
             if self.ready_to_observe:
                 await self.unpark_scope()
                 if not self.domeOpen:
-                    # this way we don't start this way we don't
+                    # this way we don't
                     # start until the dome is open
                     await self.open_dome()
                 execute_command('exq resume')
@@ -406,7 +406,7 @@ class Pilot:
 
             # do nothing if paused
             if self.paused:
-                await asyncio.sleep(5)
+                await asyncio.sleep(30)
                 continue
 
             # should we stop for the sun?
@@ -528,7 +528,7 @@ class Pilot:
         # done
         return retcode
 
-    async def waitForNightsEnd(self, stopTime, sleepTime=1):
+    async def waitForNightsEnd(self, stopTime, sleepTime=120):
         """
         Function returns when night is done.
 
@@ -553,7 +553,7 @@ class Pilot:
             self.log.info(status_str)
             if self.paused:
                 self.log.info(self.whypause)
-            await asyncio.sleep(30)
+            await asyncio.sleep(sleepTime)
 
         await self.shutdown()
 
@@ -634,7 +634,7 @@ class Pilot:
         self.hardware['dome'].setMode('open')
         self.domeConfirmedClosed = 0
         while self.domeStatus() != 'open':
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
     def domeStatus(self):
         try:
