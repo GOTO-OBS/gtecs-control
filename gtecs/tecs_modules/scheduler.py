@@ -384,18 +384,18 @@ def import_pointings_from_folder(queue_folder):
 
     Returns
     -------
-    queue : `Queue`
-        An Queue containing Pointings from the queue_folder.
+    pointings : list of `Pointing`
+        An list containing Pointings from the queue_folder.
     """
-    queue = Queue()
-    queue_files = os.listdir(queue_folder)
+    files = os.listdir(queue_folder)
+    pointings = []
 
-    if queue_files is not None:
-        for pointing_file in queue_files:
+    if files is not None:
+        for pointing_file in files:
             path = os.path.join(queue_folder, pointing_file)
-            queue.pointings.append(Pointing.from_file(path))
-    queue.initialise()
-    return queue
+            pointings.append(Pointing.from_file(path))
+
+    return pointings
 
 
 def import_pointings_from_database(time):
@@ -409,24 +409,21 @@ def import_pointings_from_database(time):
 
     Returns
     -------
-    queue : `Queue`
-        An Queue containing Pointings from the database.
+    pointings : list of `Pointing`
+        An list containing Pointings from the database.
     """
-    queue = Queue()
+    pointings = []
+
     with db.open_session() as session:
-        current_dbPointing, pending_pointings = db.get_queue(session, time)
-        if len(pending_pointings) == 0:
-            # current queue empty
-            return None
-        else:
-            for dbPointing in pending_pointings:
-                queue.pointings.append(Pointing.from_database(dbPointing))
-        if current_dbPointing is not None:
-            current_pointing = Pointing.from_database(current_dbPointing)
+        current_dbpointing, pending_dbpointings = db.get_queue(session, time)
+        for dbpointing in pending_dbpointings:
+            pointings.append(Pointing.from_database(dbpointing))
+        if current_dbpointing is not None:
+            current_pointing = Pointing.from_database(current_dbpointing)
             current_pointing.current = True
-            queue.pointings.append(current_pointing)
-    queue.initialise()
-    return queue
+            pointings.append(current_pointing)
+
+    return pointings
 
 
 def write_queue_file(queue, time, observer):
@@ -595,9 +592,12 @@ def check_queue(time, write_html=False):
 
     GOTO = Observer.at_site('lapalma')
 
-    queue = import_pointings_from_database(time)
-    if queue is None:
+    pointings = import_pointings_from_database(time)
+
+    if len(pointings) == 0:
         return None, None, None
+
+    queue = Queue(pointings)
 
     if len(queue) > 0:
         highest_pointing = find_highest_priority(queue, time, GOTO)
