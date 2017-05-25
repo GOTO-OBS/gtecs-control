@@ -207,25 +207,22 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
         lo_lim = Longitude(lst - hourangle_limit*u.hourangle).deg
         up_lim = Longitude(lst + hourangle_limit*u.hourangle).deg
         if up_lim > lo_lim:
-            pending_queue = pending_queue.filter(Pointing.ra < up_lim, Pointing.ra > up_lim)
+            pending_queue = pending_queue.filter(Pointing.ra < up_lim, Pointing.ra > lo_lim)
         else:
             pending_queue = pending_queue.filter(or_(Pointing.ra < up_lim, Pointing.ra > lo_lim))
 
         # is latitude ever greater than limit?
         lat = location.latitude.deg
-        if lat > 0:
-            pending_queue = pending_queue.filter(Pointing.decl > lat - 90 + altitude_limit)
-        else:
-            pending_queue = pending_queue.filter(Pointing.decl < 90 + lat - altitude_limit)
+        pending_queue = pending_queue.filter(Pointing.decl > lat - 90 + altitude_limit, Pointing.decl < lat + 90 - altitude_limit)
 
     pending_queue = pending_queue.order_by('rank')
 
     if rank_limit:
         number_passing_rank = pending_queue.filter(Pointing.rank < rank_limit).count()
 
-    # if there are results which pass the rank limit, filter by rank
-    if number_passing_rank > 0:
-        pending_queue = pending_queue.filter(Pointing.rank < rank_limit)
+        # if there are results which pass the rank limit, filter by rank
+        if number_passing_rank > 0:
+            pending_queue = pending_queue.filter(Pointing.rank < rank_limit)
 
     if limit_number:
         pending_queue = pending_queue.limit(limit_number)
