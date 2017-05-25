@@ -433,6 +433,14 @@ def write_queue_file(queue, time, observer):
     """
     Write any time-dependent pointing infomation to a file
     """
+
+    # The queue should already have priorities calculated
+    try:
+        p = queue.pointings[0].priority_now
+    except AttributeError:
+        message = "{} has not yet had priorities calculated".format(queue)
+        raise ValueError(message)
+
     pointinglist = list(queue.pointings)
 
     # save altaz too
