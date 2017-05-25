@@ -19,7 +19,7 @@ import time
 from astropy.time import Time
 from astropy import units as u
 
-from gtecs.tecs_modules.testScheduler import Scheduler
+from gtecs.tecs_modules import scheduler
 from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
@@ -32,7 +32,6 @@ from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
                                                   FocuserMonitor)
-scheduler = Scheduler()
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
@@ -223,13 +222,25 @@ class Pilot:
 
     async def checkSchedule(self):
         """
-        Check sheduler and update current job every 10 seconds
+        Check sheduler and update current job every 10 seconds.
+
+        Note that checking the schedule can be a long-running, CPU-heavy task.
+        We therefore launch the schedule check in it's own thread, so that the
+        pilot can carry on with other tasks whilst the schedule check is ongoing.
         """
         while True:
             if self.paused:
                 await asyncio.sleep(10)
                 continue
-            self.newID, self.newPriority, self.newMinTime = scheduler()
+
+            # check schedule, update HTML
+            loop = asyncio.get_event_loop()
+            write_html = True
+            scheduler_args = [Time.now(), write_html]
+            self.newID, self.newPriority, self.newMinTime = await loop.run_in_executor(
+                None, scheduler.check_queue, *scheduler_args
+            )
+
             self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
@@ -392,15 +403,6 @@ class Pilot:
             sun altitude at which to stop observing
         """
         self.log.info("observing")
-
-        # start checking Schedule
-        # normally, we'd do this when the pilot starts, but
-        # the fake scheduler only has a few tasks in it, sorted
-        # we leave it until observing starts so we don't run
-        # out of jobs.
-        self.running_tasks.append(
-            asyncio.ensure_future(self.checkSchedule())
-        )
 
         while True:
 
@@ -714,10 +716,11 @@ if __name__ == "__main__":
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
-        asyncio.ensure_future(pilot.nightMarshall()),
-        asyncio.ensure_future(pilot.hardwareChecks()),
-        asyncio.ensure_future(pilot.check_flags()),
-        asyncio.ensure_future(pilot.doubleCheckDome())
+        asyncio.ensure_future(pilot.nightMarshall()),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
+        asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
+        asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
+        asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome
     ])
 
     # keep the pilot runing until the end of the night
@@ -728,6 +731,7 @@ if __name__ == "__main__":
     stopSignal = pilot.waitForNightsEnd(stop_time)
 
     try:
+        # actually start the event loop - nothing happens until this line is reached!
         loop.run_until_complete(stopSignal)
     except asyncio.CancelledError:
         print('Tasks cancelled')
