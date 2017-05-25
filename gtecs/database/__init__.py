@@ -204,8 +204,8 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
     if location is not None:
         # local sidereal time, units of degrees
         lst = time.sidereal_time('mean', location.longitude)
-        lo_lim = Longitude(lst - 6*u.hourangle).deg
-        up_lim = Longitude(lst + 6*u.hourangle).deg
+        lo_lim = Longitude(lst - hourangle_limit*u.hourangle).deg
+        up_lim = Longitude(lst + hourangle_limit*u.hourangle).deg
         if up_lim > lo_lim:
             pending_queue = pending_queue.filter(Pointing.ra < up_lim, Pointing.ra > up_lim)
         else:
@@ -214,9 +214,9 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
         # is latitude ever greater than limit?
         lat = location.latitude.deg
         if lat > 0:
-            pending_queue = pending_queue.filter(Pointing.decl > lat - 70)
+            pending_queue = pending_queue.filter(Pointing.decl > lat - 90 + altitude_limit)
         else:
-            pending_queue = pending_queue.filter(Pointing.decl < 70 + lat)
+            pending_queue = pending_queue.filter(Pointing.decl < 90 + lat - altitude_limit)
 
     pending_queue = pending_queue.order_by('rank')
 
