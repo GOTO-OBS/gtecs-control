@@ -221,7 +221,7 @@ def write_queue_page():
         f.write('%.1f deg' %moon_alt)
 
         f.write('  MoonPhase: ')
-        moon_ill = moon_illumination(time, GOTO.location)
+        moon_ill = moon_illumination(time)
         if 0 <= moon_ill < 0.25:
             moonstring = "D"
         elif 0.25 <= moon_ill < 0.65:
