@@ -61,6 +61,9 @@ debug = 1
 SURVEY_RANK = 999
 INVALID_PRIORITY = 1000
 
+HARD_ALT_LIM = 10
+HARD_HA_LIM = 8
+
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
 
@@ -410,7 +413,7 @@ def import_pointings_from_folder(queue_folder):
     return pointings
 
 
-def import_pointings_from_database(time):
+def import_pointings_from_database(time, observer):
     """
     Creates a list of `Pointing` objects from the GOTO database.
 
@@ -427,7 +430,12 @@ def import_pointings_from_database(time):
     pointings = []
 
     with db.open_session() as session:
-        current_dbpointing, pending_dbpointings = db.get_queue(session, time)
+        current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
+                                                                        time=time,
+                                                                        rank_limit=SURVEY_RANK,
+                                                                        location=observer.location,
+                                                                        altitude_limit=HARD_ALT_LIM,
+                                                                        hourangle_limit=HARD_HA_LIM)
         for dbpointing in pending_dbpointings:
             pointings.append(Pointing.from_database(dbpointing))
         if current_dbpointing is not None:
@@ -609,7 +617,7 @@ def check_queue(time, write_html=False):
 
     GOTO = Observer.at_site('lapalma')
 
-    pointings = import_pointings_from_database(time)
+    pointings = import_pointings_from_database(time, GOTO)
 
     if len(pointings) == 0:
         return None, None, None
