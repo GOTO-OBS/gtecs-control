@@ -442,13 +442,11 @@ def write_queue_file(queue, time, observer):
 
     # save altaz too
     altaz_now = _get_altaz(time, observer, queue.target_arr)['altaz']
-    altaz_now_str = altaz_now.altaz.to_string()
-    altaz_now_list = [[float(i) for i in s.split()] for s in altaz_now_str]
+    altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
 
     later_arr = time + queue.mintime_arr
     altaz_later = _get_altaz(later_arr, observer, queue.target_arr)['altaz']
-    altaz_later_str = altaz_later.altaz.to_string()
-    altaz_later_list = [[float(i) for i in s.split()] for s in altaz_later_str]
+    altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
 
     combined = list(zip(pointinglist, altaz_now_list, altaz_later_list))
     combined.sort(key=lambda x: x[0].priority_now)
