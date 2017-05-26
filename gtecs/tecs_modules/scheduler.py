@@ -449,7 +449,7 @@ def write_queue_file(queue, time, observer):
         message = "{} has not yet had priorities calculated".format(queue)
         raise ValueError(message)
 
-    pointinglist = list(queue.pointings)
+    pointing_list = list(queue.pointings)
 
     # save altaz too
     altaz_now = _get_altaz(time, observer, queue.target_arr)['altaz']
@@ -459,7 +459,7 @@ def write_queue_file(queue, time, observer):
     altaz_later = _get_altaz(later_arr, observer, queue.target_arr)['altaz']
     altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
 
-    combined = list(zip(pointinglist, altaz_now_list, altaz_later_list))
+    combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
     combined.sort(key=lambda x: x[0].priority_now)
 
     # now save as json file
@@ -469,12 +469,19 @@ def write_queue_file(queue, time, observer):
         f.write('\n')
         json.dump(queue.all_constraint_names,f)
         f.write('\n')
-        for pointing, altaznow, altazlater in combined:
-            valid_nonbool = [int(b) for b in pointing.valid_arr]
-            con_list = list(zip(pointing.constraint_names, valid_nonbool))
-            json.dump([pointing.id, pointing.priority_now,
-                       altaznow, altazlater, con_list],f)
-            f.write('\n')
+        found_highest_survey = False
+        for pointing, altaz_now, altaz_later in combined:
+            highest_survey = False
+            if pointing.survey and not found_highest_survey: # already sorted
+                highest_survey = True
+                found_highest_survey = True
+            if (not pointing.survey) or highest_survey:
+                # don't write out all survey tiles, only the highest priority
+                valid_nonbool = [int(b) for b in pointing.valid_arr]
+                con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                json.dump([pointing.id, pointing.priority_now,
+                           altaz_now, altaz_later, con_list],f)
+                f.write('\n')
 
 
 def find_highest_priority(queue, time, observer):
