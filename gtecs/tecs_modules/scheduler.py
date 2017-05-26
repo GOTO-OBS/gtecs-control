@@ -13,6 +13,7 @@ from __future__ import print_function
 import os
 import signal
 from collections import namedtuple
+import json
 
 import numpy as np
 from scipy import interpolate
@@ -399,6 +400,52 @@ class Queue:
         return pointing_list[0]
 
 
+    def write_to_file(self, time, observer, filename):
+        '''Write any time-dependent pointing infomation to a file.'''
+
+        # The queue should already have priorities calculated
+        try:
+            p = self.pointings[0].priority_now
+        except AttributeError:
+            message = "Queue has not yet had priorities calculated"
+            raise ValueError(message)
+
+        # make copy of pointings
+        pointing_list = list(self.pointings)
+
+        # find altaz (should be cached)
+        altaz_now = _get_altaz(time, observer, self.target_arr)['altaz']
+        altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
+
+        later_arr = time + self.mintime_arr
+        altaz_later = _get_altaz(later_arr, observer, self.target_arr)['altaz']
+        altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
+
+        # combine pointings and altaz
+        combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
+        combined.sort(key=lambda x: x[0].priority_now)
+
+        # now save as json file
+        with open(filename, 'w') as f:
+            json.dump(str(time),f)
+            f.write('\n')
+            json.dump(self.all_constraint_names,f)
+            f.write('\n')
+            found_highest_survey = False
+            for pointing, altaz_now, altaz_later in combined:
+                highest_survey = False
+                if pointing.survey and not found_highest_survey: # already sorted
+                    highest_survey = True
+                    found_highest_survey = True
+                if (not pointing.survey) or highest_survey:
+                    # don't write out all survey tiles, only the highest priority
+                    valid_nonbool = [int(b) for b in pointing.valid_arr]
+                    con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                    json.dump([pointing.id, pointing.priority_now,
+                               altaz_now, altaz_later, con_list],f)
+                    f.write('\n')
+
+
 def import_pointings_from_folder(queue_folder):
     """
     Creates a list of `Pointing` objects from a folder
@@ -456,53 +503,6 @@ def import_pointings_from_database(time, observer):
             pointings.append(current_pointing)
 
     return pointings
-
-
-def write_queue_file(queue, time, observer):
-    """
-    Write any time-dependent pointing infomation to a file
-    """
-
-    # The queue should already have priorities calculated
-    try:
-        p = queue.pointings[0].priority_now
-    except AttributeError:
-        message = "{} has not yet had priorities calculated".format(queue)
-        raise ValueError(message)
-
-    pointing_list = list(queue.pointings)
-
-    # save altaz too
-    altaz_now = _get_altaz(time, observer, queue.target_arr)['altaz']
-    altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
-
-    later_arr = time + queue.mintime_arr
-    altaz_later = _get_altaz(later_arr, observer, queue.target_arr)['altaz']
-    altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
-
-    combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
-    combined.sort(key=lambda x: x[0].priority_now)
-
-    # now save as json file
-    import json
-    with open(queue_file, 'w') as f:
-        json.dump(str(time),f)
-        f.write('\n')
-        json.dump(queue.all_constraint_names,f)
-        f.write('\n')
-        found_highest_survey = False
-        for pointing, altaz_now, altaz_later in combined:
-            highest_survey = False
-            if pointing.survey and not found_highest_survey: # already sorted
-                highest_survey = True
-                found_highest_survey = True
-            if (not pointing.survey) or highest_survey:
-                # don't write out all survey tiles, only the highest priority
-                valid_nonbool = [int(b) for b in pointing.valid_arr]
-                con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                json.dump([pointing.id, pointing.priority_now,
-                           altaz_now, altaz_later, con_list],f)
-                f.write('\n')
 
 
 def what_to_do_next(current_pointing, highest_pointing):
@@ -605,7 +605,8 @@ def check_queue(time, write_html=False):
     highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()
 
-    write_queue_file(queue, time, GOTO)
+    queue.write_to_file(time, GOTO, queue_file)
+
     if write_html:
         # since it's now independent, this could be run from elsewhere
         # that would save the scheduler doing it
