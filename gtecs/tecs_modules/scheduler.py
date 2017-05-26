@@ -57,6 +57,9 @@ tts_weight = 0.00001
 # set debug level
 debug = 1
 
+# survey tile pointing rank (should be in params)
+SURVEY_RANK = 999
+
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
 
@@ -123,7 +126,7 @@ def time_to_set(observer, targets, now):
 
 class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
-                 minalt, mintime, maxmoon, start, stop, current):
+                 minalt, mintime, maxmoon, start, stop, current, survey):
         self.id = int(id)
         self.ra = float(ra)
         self.dec = float(dec)
@@ -137,6 +140,7 @@ class Pointing:
         self.start = start
         self.stop = stop
         self.current = bool(current)
+        self.survey = bool(survey)
 
     def __eq__(self, other):
         try:
@@ -158,7 +162,7 @@ class Pointing:
         (id, ra, dec, priority, tileprob, too, sunalt, minalt,
          mintime, moon, start, stop) = lines[0].split()
         pointing = cls(id, ra, dec, priority, tileprob, too, sunalt,
-                       minalt, mintime, moon, start, stop, False)
+                       minalt, mintime, moon, start, stop, False, False)
         return pointing
 
     @classmethod
@@ -168,6 +172,12 @@ class Pointing:
             tileprob = dbPointing.ligoTile.probability
         else:
             tileprob = 0
+        # survey tiles can be told apart by having a specific rank
+        if dbPointing.rank == SURVEY_RANK:
+            survey = True
+        else:
+            survey = False
+
         # create pointing object
         pointing = cls(id        = dbPointing.pointingID,
                        ra        = dbPointing.ra,
@@ -181,7 +191,8 @@ class Pointing:
                        maxmoon   = dbPointing.maxMoon,
                        start     = dbPointing.startUTC,
                        stop      = dbPointing.stopUTC,
-                       current   = False)
+                       current   = False,
+                       survey    = survey)
         return pointing
 
 
