@@ -386,6 +386,18 @@ class Queue:
         for pointing, priority_now in zip(self.pointings, priorities_now):
             pointing.priority_now = priority_now
 
+    def get_highest_priority_pointing(self, time, observer):
+        '''Return the pointing with the highest priority.'''
+
+        if len(self.pointings) == 0:
+            return None
+
+        self.calculate_priorities(time, observer)
+
+        pointing_list = list(self.pointings) # a copy
+        pointing_list.sort(key=lambda p: p.priority_now)
+        return pointing_list[0]
+
 
 def import_pointings_from_folder(queue_folder):
     """
@@ -493,40 +505,6 @@ def write_queue_file(queue, time, observer):
                 f.write('\n')
 
 
-def find_highest_priority(queue, time, observer):
-    """
-    Calculate priorities for pointings in a queue at a given time
-    and return the pointing with the highest priority.
-
-    Parameters
-    ----------
-    queue : `Queue`
-        An Queue containing Pointings to consider.
-
-    time : `~astropy.time.Time`
-        The time to calculate the priorities at.
-
-    write_html : bool
-        A flag to enable writing of html files.
-
-    Returns
-    -------
-    highest_pointing : `Pointing`
-        Pointing with the highest calculated priority at the time given.
-
-    pointinglist : list of `Pointing` objects
-        A list of Pointings sorted by priority (for html queue page).
-    """
-
-    queue.calculate_priorities(time, observer)
-
-    pointinglist = list(queue.pointings)
-    pointinglist.sort(key=lambda x: x.priority_now)
-    highest_pointing = pointinglist[0]
-
-    return highest_pointing
-
-
 def what_to_do_next(current_pointing, highest_pointing):
     """
     Decide whether to slew to a new target, remain on the current target
@@ -624,10 +602,7 @@ def check_queue(time, write_html=False):
 
     queue = Queue(pointings)
 
-    if len(queue) > 0:
-        highest_pointing = find_highest_priority(queue, time, GOTO)
-    else:
-        highest_pointing = None
+    highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()
 
     write_queue_file(queue, time, GOTO)
