@@ -59,6 +59,7 @@ debug = 1
 
 # survey tile pointing rank (should be in params)
 SURVEY_RANK = 999
+INVALID_PRIORITY = 1000
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
@@ -303,12 +304,12 @@ class Queue:
             pointing.constraint_names = list(self.constraint_names)
             pointing.valid_arr = cons_valid_arr[i]
             # the current pointing doesn't apply the time constraint
-            if pointing.current != True:
+            if not pointing.current:
                 pointing.constraint_names += self.time_constraint_name
                 pointing.valid_arr = np.concatenate((pointing.valid_arr,
                                                      time_cons_valid_arr[i]))
-            # current pointing and queue fillers don't apply mintime cons
-            if pointing.priority < 5 and pointing.current != True:
+            # current pointing and survey tiles don't apply mintime cons
+            if not pointing.survey and not pointing.current:
                 pointing.constraint_names += self.mintime_constraint_names
                 pointing.valid_arr = np.concatenate((pointing.valid_arr,
                                                      min_cons_valid_arr[i]))
@@ -366,17 +367,17 @@ class Queue:
         priorities_now += airmass_arr * airmass_weight
         priorities_now += tts_arr * tts_weight
 
-        # check validities, add 10 to invalid pointings
+        # check validities, add INVALID_PRIORITY to invalid pointings
         self.check_validities(time, observer)
         valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
-        priorities_now[invalid_mask] += 100
+        priorities_now[invalid_mask] += INVALID_PRIORITY
 
         # if the current pointing is invalid it must be complete
-        # therefore add 10 to prevent it coming up again
+        # therefore add INVALID_PRIORITY to prevent it coming up again
         current_mask = np.array([p.current for p in self.pointings])
-        current_complete_mask = np.logical_and(current_mask, priorities_now > 100)
-        priorities_now[current_complete_mask] += 100
+        current_complete_mask = np.logical_and(current_mask, priorities_now > INVALID_PRIORITY)
+        priorities_now[current_complete_mask] += INVALID_PRIORITY
 
         # save priority_now to pointing
         for pointing, priority_now in zip(self.pointings, priorities_now):
@@ -548,32 +549,32 @@ def what_to_do_next(current_pointing, highest_pointing):
     if current_pointing is None and highest_pointing is None:
         return current_pointing
     elif current_pointing is None:
-        if highest_pointing.priority_now < 100:
+        if highest_pointing.priority_now < INVALID_PRIORITY:
             return highest_pointing
         else:
             return current_pointing
     elif highest_pointing is None:
-        if current_pointing.priority_now > 100:
+        if current_pointing.priority_now > INVALID_PRIORITY:
             return None
         else:
             return current_pointing
 
     if current_pointing == highest_pointing:
-        if current_pointing.priority_now >= 100 or highest_pointing.priority_now >= 100:
+        if current_pointing.priority_now >= INVALID_PRIORITY or highest_pointing.priority_now >= INVALID_PRIORITY:
             return None  # it's either finished or is now illegal
         else:
             return highest_pointing
 
-    if current_pointing.priority_now >= 100:  # current pointing is illegal (finished)
-        if highest_pointing.priority_now < 100:  # new pointing is legal
+    if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
+        if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
             return highest_pointing
         else:
             return None
     else:  # telescope is observing legally
-        if highest_pointing.priority_now >= 100:  # no legal pointings
+        if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
             return None
         else:  # both are legal
-            if current_pointing.priority_now > 5:  # a filler, always slew
+            if current_pointing.survey:  # a survey tile (filler), always slew
                 return highest_pointing
             elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if current_pointing.too:
