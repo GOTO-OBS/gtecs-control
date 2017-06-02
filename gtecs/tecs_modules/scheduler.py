@@ -233,6 +233,8 @@ class Queue:
         '''Setup the queue and constraints when initialised.'''
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
+
+        # create pointing data arrays
         for pointing in self.pointings:
             self.ra_arr.append(pointing.ra)
             self.dec_arr.append(pointing.dec)
@@ -245,18 +247,29 @@ class Queue:
             self.priority_arr.append(pointing.priority)
             self.tileprob_arr.append(pointing.tileprob)
 
-        self.mintime_arr = u.Quantity(self.mintime_arr, unit=u.s)
-        self.maxsunalt_arr = u.Quantity(self.maxsunalt_arr, unit=u.deg)
-        self.minalt_arr = u.Quantity(self.minalt_arr, unit=u.deg)
+        # convert to numpy arrays so we can mask them
+        self.ra_arr = np.array(self.ra_arr)
+        self.dec_arr = np.array(self.dec_arr)
+        self.target_arr = np.array(self.target_arr)
+        self.mintime_arr = np.array(self.mintime_arr)
+        self.start_arr = np.array(self.start_arr)
+        self.stop_arr = np.array(self.stop_arr)
+        self.maxsunalt_arr = np.array(self.maxsunalt_arr)
+        self.minalt_arr = np.array(self.minalt_arr)
+        self.maxmoon_arr = np.array(self.maxmoon_arr)
+        self.priority_arr = np.array(self.priority_arr)
+        self.tileprob_arr = np.array(self.tileprob_arr)
 
-        self.start_arr = Time(self.start_arr, scale='utc', format='datetime')
-        self.stop_arr = Time(self.stop_arr, scale='utc', format='datetime')
+        # Create normal constraints
+        # Apply to every pointing
+        self.targets = coord.SkyCoord(self.ra_arr, self.dec_arr,
+                                      unit=u.deg, frame='icrs')
+        self.mintimes = u.Quantity(self.mintime_arr, unit=u.s)
+        self.maxsunalts = u.Quantity(self.maxsunalt_arr, unit=u.deg)
+        self.minalts = u.Quantity(self.minalt_arr, unit=u.deg)
 
-        self.target_arr = coord.SkyCoord(self.ra_arr, self.dec_arr,
-                                         unit=u.deg, frame='icrs')
-
-        self.constraints = [AtNightConstraint(self.maxsunalt_arr),
-                            AltitudeConstraint(self.minalt_arr, None),
+        self.constraints = [AtNightConstraint(self.maxsunalts),
+                            AltitudeConstraint(self.minalts, None),
                             ArtificialHorizonConstraint(),
                             MoonIlluminationConstraint(None, self.maxmoon_arr),
                             MoonSeparationConstraint(moondist_limit, None)]
@@ -266,16 +279,56 @@ class Queue:
                                  'Moon',
                                  'MoonSep']
 
-        self.time_constraint = [TimeConstraint(self.start_arr, self.stop_arr)]
+        # Create time constraints
+        # Apply to every pointing EXCEPT the current pointing
+        self.time_mask = np.array([not p.current for p in self.pointings])
+
+        if np.all(self.time_mask):
+            # no current pointing, don't bother making a new SkyCoord
+            self.targets_t = self.targets
+        else:
+            self.targets_t = coord.SkyCoord(self.ra_arr[self.time_mask],
+                                            self.dec_arr[self.time_mask],
+                                            unit=u.deg, frame='icrs')
+
+        self.starts_t = Time(self.start_arr[self.time_mask],
+                             scale='utc', format='datetime')
+        self.stops_t = Time(self.stop_arr[self.time_mask],
+                            scale='utc', format='datetime')
+
+        self.time_constraint = [TimeConstraint(self.starts_t, self.stops_t)]
         self.time_constraint_name = ['Time']
 
-        self.mintime_constraints = [AtNightConstraint(self.maxsunalt_arr),
-                                    AltitudeConstraint(self.minalt_arr, None),
+        # Create mintime constraints
+        # Apply to non-survey, non-current pointings
+        self.mintime_mask = np.array([not(p.current or p.survey)
+                                      for p in self.pointings])
+
+        if np.all(self.mintime_mask):
+            # no current pointing, no survey tiles => use existing objects
+            self.targets_m = self.targets
+            self.mintimes_m = self.mintimes
+            self.maxsunalts_m = self.maxsunalts
+            self.minalts_m = self.minalts
+        else:
+            self.targets_m = coord.SkyCoord(self.ra_arr[self.mintime_mask],
+                                            self.dec_arr[self.mintime_mask],
+                                            unit=u.deg, frame='icrs')
+            self.mintimes_m = u.Quantity(self.mintime_arr[self.mintime_mask],
+                                         unit=u.s)
+            self.maxsunalts_m = u.Quantity(self.maxsunalt_arr[self.mintime_mask],
+                                           unit=u.deg)
+            self.minalts_m = u.Quantity(self.minalt_arr[self.mintime_mask],
+                                        unit=u.deg)
+
+        self.mintime_constraints = [AtNightConstraint(self.maxsunalts_m),
+                                    AltitudeConstraint(self.minalts_m, None),
                                     ArtificialHorizonConstraint()]
         self.mintime_constraint_names = ['SunAlt_mintime',
                                          'MinAlt_mintime',
                                          'ArtHoriz_mintime']
 
+        # Save all names
         self.all_constraint_names = (self.constraint_names +
                                      self.time_constraint_name +
                                      self.mintime_constraint_names)
@@ -285,41 +338,49 @@ class Queue:
 
         # apply normal constraints
         cons_valid_arr = apply_constraints(self.constraints,
-                                           observer, self.target_arr,
+                                           observer,
+                                           self.targets,
                                            now)
 
-        # apply time constraint
-        time_cons_valid_arr = apply_constraints(self.time_constraint,
-                                                observer, self.target_arr,
-                                                now)
+        # apply time constraint to filtered targets
+        if np.any(self.time_mask):
+            time_cons_valid_arr = apply_constraints(self.time_constraint,
+                                                    observer,
+                                                    self.targets_t,
+                                                    now)
+        else:
+            time_cons_valid_arr = np.array([])
 
-        # apply mintime constraints
-        later_arr = now + self.mintime_arr
-        min_cons_valid_arr = apply_constraints(self.mintime_constraints,
-                                               observer, self.target_arr,
-                                               later_arr)
+        # apply mintime constraints to filtered targets
+        if any(self.mintime_mask):
+            later_arr = now + self.mintimes_m
+            min_cons_valid_arr = apply_constraints(self.mintime_constraints,
+                                                   observer,
+                                                   self.targets_m,
+                                                   later_arr)
+        else:
+            min_cons_valid_arr = np.array([])
 
-        for i in range(len(self.pointings)):
-            pointing = self.pointings[i]
-            pointing.valid_time = now
-
-            # save constraints to the pointing objects
-            pointing.all_constraint_names = self.all_constraint_names
+        # save the results on the pointings
+        for i, pointing in enumerate(self.pointings):
             pointing.constraint_names = list(self.constraint_names)
             pointing.valid_arr = cons_valid_arr[i]
-            # the current pointing doesn't apply the time constraint
-            if not pointing.current:
-                pointing.constraint_names += self.time_constraint_name
-                pointing.valid_arr = np.concatenate((pointing.valid_arr,
-                                                     time_cons_valid_arr[i]))
-            # current pointing and survey tiles don't apply mintime cons
-            if not pointing.survey and not pointing.current:
-                pointing.constraint_names += self.mintime_constraint_names
-                pointing.valid_arr = np.concatenate((pointing.valid_arr,
-                                                     min_cons_valid_arr[i]))
 
-            # finally find out if it's valid or not
+        for i, pointing in enumerate(self.pointings[self.time_mask]):
+            pointing.constraint_names += self.time_constraint_name
+            pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                 time_cons_valid_arr[i]))
+
+        for i, pointing in enumerate(self.pointings[self.mintime_mask]):
+            pointing.constraint_names += self.mintime_constraint_names
+            pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                 min_cons_valid_arr[i]))
+
+        # finally find out if each pointing is valid or not
+        for pointing in self.pointings:
+            pointing.all_constraint_names = self.all_constraint_names
             pointing.valid = np.all(pointing.valid_arr)
+            pointing.valid_time = now
 
     def calculate_priorities(self, time, observer):
         '''Calculate priorities at a given time for each pointing.'''
@@ -329,8 +390,7 @@ class Queue:
 
         ## Find ToO values (0 or 1)
         too_mask = np.array([p.too for p in self.pointings])
-        nottoo_mask = np.invert(too_mask)
-        too_arr = np.array(nottoo_mask, dtype = float)
+        too_arr = np.array(np.invert(too_mask), dtype = float)
 
         ## Find probability values (0.00.. to 0.99..)
         prob_arr = np.array([1-prob if prob != 0
@@ -342,12 +402,12 @@ class Queue:
 
         ## Find airmass values (0.00.. to 0.99..)
         # airmass at start
-        altaz_now = _get_altaz(time, observer, self.target_arr)['altaz']
+        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
         secz_now = altaz_now.secz
 
-        # airmass at mintime
-        later_arr = time + self.mintime_arr
-        altaz_later = _get_altaz(later_arr, observer, self.target_arr)['altaz']
+        # airmass at mintime (NB all targets)
+        later_arr = time + self.mintimes
+        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
         secz_later = altaz_later.secz
 
         # take average
@@ -357,9 +417,8 @@ class Queue:
         airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
 
         ## Find time to set values (0.00.. to 0.99..)
-        tts_sec_arr = time_to_set(observer, self.target_arr, time)
-        tts_hr_arr = tts_sec_arr.to(u.hour)
-        tts_arr = np.around(tts_hr_arr.value/24., decimals = tts_dp)
+        tts_arr = time_to_set(observer, self.targets, time).to(u.hour).value
+        tts_arr = np.around(tts_arr/24., decimals = tts_dp)
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
         tts_arr[bad_tts_mask] = float('0.' + '9' * tts_dp)
 
@@ -380,7 +439,7 @@ class Queue:
         # if the current pointing is invalid it must be complete
         # therefore add INVALID_PRIORITY to prevent it coming up again
         current_mask = np.array([p.current for p in self.pointings])
-        current_complete_mask = np.logical_and(current_mask, priorities_now > INVALID_PRIORITY)
+        current_complete_mask = np.logical_and(current_mask, invalid_mask)
         priorities_now[current_complete_mask] += INVALID_PRIORITY
 
         # save priority_now to pointing
@@ -414,11 +473,11 @@ class Queue:
         pointing_list = list(self.pointings)
 
         # find altaz (should be cached)
-        altaz_now = _get_altaz(time, observer, self.target_arr)['altaz']
+        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
         altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
 
-        later_arr = time + self.mintime_arr
-        altaz_later = _get_altaz(later_arr, observer, self.target_arr)['altaz']
+        later_arr = time + self.mintimes
+        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
         altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
 
         # combine pointings and altaz
@@ -491,7 +550,6 @@ def import_pointings_from_database(time, observer):
     with db.open_session() as session:
         current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
                                                                         time=time,
-                                                                        rank_limit=SURVEY_RANK,
                                                                         location=observer.location,
                                                                         altitude_limit=HARD_ALT_LIM,
                                                                         hourangle_limit=HARD_HA_LIM)
@@ -502,7 +560,7 @@ def import_pointings_from_database(time, observer):
             current_pointing.current = True
             pointings.append(current_pointing)
 
-    return pointings
+    return np.array(pointings)
 
 
 def what_to_do_next(current_pointing, highest_pointing):
