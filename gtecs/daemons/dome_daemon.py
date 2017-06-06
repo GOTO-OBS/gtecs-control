@@ -164,6 +164,15 @@ class DomeDaemon(HardwareDaemon):
                 info = {}
                 for key in ['north','south','hatch']:
                     info[key] = self.dome_status[key]
+
+                # general, backwards-compatible open/closed
+                if ('open' in info['north']) or ('open' in info['south']):
+                    info['dome'] = 'open'
+                elif (info['north'] == 'closed') and (info['south'] == 'closed'):
+                    info['dome'] = 'closed'
+                else:
+                    info['dome'] = 'ERROR'
+
                 info['uptime'] = time.time() - self.start_time
                 info['ping'] = time.time() - self.time_check
                 now = datetime.datetime.utcnow()
