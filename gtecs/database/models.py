@@ -397,10 +397,10 @@ class Repeat(Base):
     @validates('waitTime', 'valid_duration')
     def validate_timings(self, key, field):
         if key == 'waitTime' and self.valid_duration is not None:
-            if field < self.valid_duration:
+            if field < self.valid_duration and field > 0:
                 raise AssertionError('waitTime must be > valid_duration')
         elif key == 'valid_duration' and self.waitTime is not None:
-            if self.waitTime < field:
+            if self.waitTime < field and self.waitTime > 0:
                 raise AssertionError('waitTime must be > valid_duration')
         return field
 
@@ -455,11 +455,11 @@ class Mpointing(Base):
         ToO : int
             0 or 1 to indicate if this is a ToO or not
         num_repeats : int
-            number of times to attempt pointing
+            number of times to attempt pointing. less than or equal to zero means repeat infinitely.
         intervals : float or list of float
             intervals between repeats in minutes. This can
             be specified during initialisation along with
-            `valid_durations`.
+            `valid_durations`. If a list, should be one less than `num_repeats`.
         valid_durations : float or list of float
             the amount of time the pointing should be valid in
             the queue. Must be less than the corresponding interval.
@@ -510,8 +510,8 @@ class Mpointing(Base):
         make a more useful Mpointing - repeating on increasing intervals, which stay in the
         queue for 5 minutes.
 
-        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600
-        ... ToO=0, maxMoon='B', num_repeats = 5, userKey=24, intervals=[10,20,30,40,50],
+        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600,
+        ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
         ... valid_durations=5, maxSunAlt=-15)
         >>> mp
         Mpointing(rpID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
@@ -520,11 +520,12 @@ class Mpointing(Base):
         notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
 
         >>> mp.repeats
-        [Repeat(repeatID=None, repeatNum=0, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=1, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=2, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=3, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=4, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        [Repeat(repeatID=None, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
         ]
 
         That is because `num_repeats` and `num_remain` are queried from the database. If we add the Mpointing
@@ -534,21 +535,22 @@ class Mpointing(Base):
         >>> session.commit()
         >>> mp
         Mpointing(rpID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
-        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=5, scheduled=5, eventID=0, userKey=None, ligoTileID=24)
+        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, scheduled=6, eventID=0, userKey=None, ligoTileID=24)
         >>> mp.repeats
-        [Repeat(repeatID=1, repeatNum=0, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=2, repeatNum=1, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=3, repeatNum=2, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=4, repeatNum=3, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=5, repeatNum=4, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
+         Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=3, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=4, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=5, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=6, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
         ]
 
         we can add more repeats directly.
 
-        >>> mp.repeats.append(Repeat(repeatNum=5, waitTime=100, valid_duration=5, status='upcoming'))
+        >>> mp.repeats.append(Repeat(repeatNum=6, waitTime=100, valid_duration=5, status='upcoming'))
         >>> session.commit()
         >>> mp.num_repeats
-        6
+        7
 
         To be useful, an Mpointing should have a set of `Exposures` associated with it. We
         can either add these to the `exposures` attribute directly:
@@ -585,6 +587,7 @@ class Mpointing(Base):
     minTime = Column(Float)
     maxMoon = Column(String(1))
     ToO = Column(Integer)
+    infinite = Column(Integer, default=False)
     scheduled = Column(Integer, default=False)
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
@@ -639,17 +642,26 @@ class Mpointing(Base):
         self.ToO = ToO
         self.rank = self.start_rank
         self.scheduled = False
+        self.infinite = False
 
         # now add repeats and intervals
         if intervals is not None and valid_durations is not None:
 
             # first convert to lists
             try:
-                if len(intervals) != num_repeats:
-                    raise ValueError("number of intervals should match number of repeats or be scalar")
+                if len(intervals) != num_repeats-1:
+                    raise ValueError("number of intervals should be one less than number of repeats or be scalar")
+                intervals = [0] + intervals
             except TypeError:
                 # intervals was scalar
-                intervals = [intervals] * num_repeats
+                if num_repeats <= 0:
+                    self.infinite = True
+                    num_repeats = 1
+
+                if num_repeats == 1:
+                    intervals = [intervals]
+                else:
+                    intervals = [0] + [intervals] * (num_repeats-1)
             try:
                 if len(valid_durations) != num_repeats:
                     raise ValueError("number of durations should match number of repeats or be scalar")
@@ -701,6 +713,8 @@ class Mpointing(Base):
             if there is no suitable pointing remaining, or if there is
             a pointing from this Mpointing already scheduled
         """
+
+        # case A: already scheduled, return None
         if self.scheduled:
             return None
 
@@ -713,11 +727,17 @@ class Mpointing(Base):
         # get the status of the last repeat. If it was completed,
         # schedule the next_repeat for now+waitTime. Otherwise,
         # schedule it now
-        last_repeat_status = session.query(Repeat.status).filter(
+        last_repeat = session.query(Repeat).filter(
             Repeat.mpointingID == self.rpID,
         ).filter(
             ~Repeat.status.in_(['upcoming', 'running'])
         ).order_by(Repeat.repeatNum.desc()).first()
+
+        if last_repeat is None:
+            # no completed or aborted repeats yet
+            last_repeat = self.repeats[0]
+
+        last_repeat_status = last_repeat.status
 
         if last_repeat_status == 'completed':
             startUTC = Time.now() + next_repeat.waitTime * u.minute
