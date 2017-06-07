@@ -485,8 +485,8 @@ class Mpointing(Base):
             True is a pointing is currently in the queue
         num_remain : int
             number of remaining pointings
-        exposures : list of `Exposure`
-            the `Exposure` objects associated with this `Mpointing`, if any
+        exposure_sets : list of `ExposureSet`
+            the `ExposureSet` objects associated with this `Mpointing`, if any
         repeats : list of `Repeat`
             the `Repeat` objects associated with this `Mpointing`, if any
         surveyTile : `SurveyTile`
@@ -552,23 +552,23 @@ class Mpointing(Base):
         >>> mp.num_repeats
         7
 
-        To be useful, an Mpointing should have a set of `Exposures` associated with it. We
-        can either add these to the `exposures` attribute directly:
+        To be useful, an Mpointing should have a list of `ExposureSet`s associated with it. We
+        can either add these to the `exposure_sets` attribute directly:
 
-        >>> e1 = Exposure(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
-        >>> mp.exposures.append(e1)
+        >>> e1 = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
+        >>> mp.exposure_sets.append(e1)
 
-        or create `Exposure` instances with the `mpointingID` attribute set, and the database will take
+        or create `ExposureSet` instances with the `mpointingID` attribute set, and the database will take
         care of the rest:
 
-        >>> e2 = Exposure(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, mpointingID=1)
-        >>> e3 = Exposure(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> e2 = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> e3 = ExposureSet(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, mpointingID=1)
         >>> insert_items(session, [e2, e3])
         >>> session.commit()
-        >>> mp.exposures
-        [Exposure(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         Exposure(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         Exposure(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
+        >>> mp.exposure_sets
+        [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
 
         >>> session.close()
 
@@ -755,7 +755,7 @@ class Mpointing(Base):
             mpointingID=self.rpID, ligoTileID=self.ligoTileID
         )
         # add the exposures
-        p.exposures = self.exposures
+        p.exposure_sets = self.exposure_sets
         return p
 
 
@@ -817,8 +817,8 @@ class Pointing(Base):
     ----------
         pointingID : int
             primary key for mpointings
-        exposures : list of `Exposure`
-            the `Exposure` objects associated with this `Pointing`, if any
+        exposure_sets : list of `ExposureSet`
+            the `ExposureSet` objects associated with this `Pointing`, if any
         ligoTile : `LigoTile`
             the `LigoTile` associated with this `Pointing`, if any
         event : `Event`
@@ -846,23 +846,23 @@ class Pointing(Base):
         >>> p.status, p.pointingID
         ('pending', 17073)
 
-        At the moment, this pointing has no exposures. We can either add these to the `exposures`
+        At the moment, this pointing has no exposure sets. We can either add these to the `exposure_sets`
         attribute directly:
 
-        >>> e1 = Exposure(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
-        >>> p.exposures.append(e1)
+        >>> e1 = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
+        >>> p.exposure_sets.append(e1)
 
-        or create `Exposure` instances with the `pointingID` attribute set, and the database will take
+        or create `ExposureSet` instances with the `pointingID` attribute set, and the database will take
         care of the rest:
 
-        >>> e2 = Exposure(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, pointingID=17073)
-        >>> e3 = Exposure(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, pointingID=17073)
+        >>> e2 = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, pointingID=17073)
+        >>> e3 = ExposureSet(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, pointingID=17073)
         >>> insert_items(session, [e2, e3])
         >>> session.commit()
-        >>> p.exposures
-        [Exposure(expID=126601, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
-         Exposure(expID=126602, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
-         Exposure(expID=126603, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None)]
+        >>> p.exposure_sets
+        [ExposureSet(expID=126601, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
+         ExposureSet(expID=126602, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
+         ExposureSet(expID=126603, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None)]
 
         >>> session.close()
 
@@ -941,16 +941,16 @@ class Pointing(Base):
         )
 
 
-class Exposure(Base):
+class ExposureSet(Base):
 
     """
-    A class to represent an Exposure.
+    A class to represent an Exposure Set: a set of repeated identical exposures.
 
     Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an Exposure, and set its attributes
+    underlying database. You can create an ExposureSet, and set its attributes
     without a database session. Accessing some attributes may require
     an active database session, and some properties (like the expID)
-    will be None until the Exposure is added to the database.
+    will be None until the ExposureSet is added to the database.
 
     The constructor must use keyword arguments and the arguments below
     should be supplied or set before insertion into the database.
@@ -959,17 +959,16 @@ class Exposure(Base):
     Args
     ----
         typeFlag : string
-            indicates the type of exposure.
+            indicates the type of exposure set.
             one of SCIENCE, FOCUS, STD, FLAT, BIAS, DARK
         filt : string
             filter to use
         expTime : float
             exposure time in seconds
         numexp : int
-            number of times to repeat the exposure
+            number of exposures within the set
         binning : int
             binning to apply
-
 
         raoff : float, optional
             the size of the random offset to apply between each exposure
@@ -986,21 +985,21 @@ class Exposure(Base):
         pointingID : int, optional
             unique key linking to an `Pointing`
 
-    An Exposure also has the following properties which are
+    An ExposureSet also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
     Attributes
     ----------
         expID : int
-            primary key for Exposures
+            primary key for ExposureSets
         mpointing : `Mpointing`
-            the `Mpointing` associated with this `Exposure`, if any
+            the `Mpointing` associated with this `ExposureSet`, if any
         pointing : `Pointing`
-            the `Pointing` associated with this `Exposure`, if any
+            the `Pointing` associated with this `ExposureSet`, if any
 
     """
-    __tablename__ = "exposures"
+    __tablename__ = "exposure_sets"
 
     expID = Column(Integer, primary_key=True)
     raoff = Column(Float, server_default='0.0')
@@ -1015,15 +1014,15 @@ class Exposure(Base):
     pointingID = Column('pointings_pointingID', Integer,
                         ForeignKey('pointings.pointingID'),
                         nullable=False)
-    pointing = relationship("Pointing", backref="exposures", uselist=False)
+    pointing = relationship("Pointing", backref="exposure_sets", uselist=False)
 
     mpointingID = Column('mpointings_rpID', Integer,
                          ForeignKey('mpointings.rpID'),
                          nullable=False)
-    mpointing = relationship("Mpointing", backref="exposures", uselist=False)
+    mpointing = relationship("Mpointing", backref="exposure_sets", uselist=False)
 
     def __repr__(self):
-        template = ("Exposure(expID={}, raoff={}, decoff={}, typeFlag={}, " +
+        template = ("ExposureSet(expID={}, raoff={}, decoff={}, typeFlag={}, " +
                     "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
                     "pointingID={}, mpointingID={})")
         return template.format(
@@ -1045,7 +1044,7 @@ class ObslogEntry(Base):
     underlying database. You can create an ObslogEntry, and set its attributes
     without a database session. Accessing some attributes may require
     an active database session, and some properties (like the obsID)
-    will be None until the Exposure is added to the database.
+    will be None until the exposure is added to the database.
 
     The constructor must use keyword arguments and the arguments below
     should be supplied or set before insertion into the database.
@@ -1060,7 +1059,7 @@ class ObslogEntry(Base):
         objectName : string
             the same object name as listed in FITS headers
         frameType : string
-            see `Exposure.typeFlag`
+            see `ExposureSet.typeFlag`
         ra : float
             J2000 right ascension in decimal degrees
         decl : float
