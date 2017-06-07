@@ -2,7 +2,7 @@ import hashlib
 
 from .engine import load_session, open_session
 from .models import (User, Event, SurveyTile, LigoTile,
-                     Pointing, Mpointing, Repeat, Exposure, ObslogEntry)
+                     Pointing, Mpointing, Repeat, ExposureSet, ObslogEntry)
 from sqlalchemy.orm.exc import NoResultFound
 
 from astropy.time import Time
@@ -154,7 +154,7 @@ def get_queue(session, time=None):
     >>> with open_session() as session:
     >>>     current_job, pending_jobs = get_queue(session)
     >>>     njobs = len(pending_jobs)
-    >>>     exposure_list = current_job.exposures
+    >>>     exposure_list = current_job.exposure_sets
     >>>     sorted_ranks = sorted([job.rank for job in pending_jobs])
     >>> current_job
     DetachedInstanceError: Instance <Pointing at 0x10a00ac50> is not bound to a Session; attribute refresh operation cannot proceed
@@ -386,7 +386,7 @@ def _make_random_pointing(userKey, numexps=None, time=None):
     Parameters
     ----------
     numexps : int
-        if None, a random number of exposures between 1 and 5 will be added
+        if None, a random number of exposure_sets between 1 and 5 will be added
 
     time : `~astropy.time.Time`
         The time to centre the pointings around
@@ -416,8 +416,8 @@ def _make_random_pointing(userKey, numexps=None, time=None):
     if numexps is None:
         numexps = np.random.randint(1, 6)
     for i in range(numexps):
-        p.exposures.append(
-            Exposure(
+        p.exposure_sets.append(
+            ExposureSet(
                 raoff=0, decoff=0, typeFlag="SCIENCE",
                 filt=np.random.choice(['L', 'R', 'G', 'B']),
                 expTime=np.random.uniform(10., 360.),
