@@ -13,6 +13,7 @@ from __future__ import print_function
 import os
 import signal
 from collections import namedtuple
+import json
 
 import numpy as np
 from scipy import interpolate
@@ -22,102 +23,9 @@ from astropy.time import Time
 from astropy._erfa import ErfaWarning
 
 from astroplan import Observer
-import astroplan.constraints as constraints
+from astroplan.constraints import _get_altaz
 
-
-def get_icrs_skycoord(targets):
-    """
-    Return an `~astropy.coordinates.SkyCoord` object, in the ICRS frame.
-
-    When performing calculations it is usually most efficient to have
-    a single `~astropy.coordinates.SkyCoord` object, rather than a
-    list of `FixedTarget` or `~astropy.coordinates.SkyCoord` objects.
-
-    Parameters
-    -----------
-    targets : list, `~astropy.coordinates.SkyCoord`, `Fixedtarget`
-        either a single target or a list of targets
-
-    Returns
-    --------
-    coord : `~astropy.coordinates.SkyCoord`
-        a single SkyCoord object, which may be non-scalar
-    """
-    if not isinstance(targets, list):
-        return getattr(targets, 'coord', targets)
-    coos = [getattr(target, 'coord', target) for target in targets]
-    # it is roughly 20 times faster to get ICRS RAs and DECs first,
-    # rather than initialise directly from list of SkyCoords
-    # (provided target list is all in ICRS frame)
-    ras = []
-    decs = []
-    for coo in coos:
-        ras.append(coo.icrs.ra)
-        decs.append(coo.icrs.dec)
-    return coord.SkyCoord(ras, decs)
-
-def _get_altaz(times, observer, targets, force_zero_pressure=False):
-    """
-    Calculate alt/az for ``target`` at times linearly spaced between
-    the two times in ``time_range`` with grid spacing ``time_resolution``
-    for ``observer``.
-
-    Cache the result on the ``observer`` object.
-
-    NOTE: New, faster version using get_icrs_skycoord patched in.
-          Can be removed if AstroPlan is updated to include it.
-
-    Parameters
-    ----------
-    times : `~astropy.time.Time`
-        Array of times on which to test the constraint
-
-    targets : {list, `~astropy.coordinates.SkyCoord`, `~astroplan.FixedTarget`}
-        Target or list of targets
-
-    observer : `~astroplan.Observer`
-        The observer who has constraints ``constraints``
-
-    time_resolution : `~astropy.units.Quantity` (optional)
-        Set the time resolution in calculations of the altitude/azimuth
-
-    Returns
-    -------
-    altaz_dict : dict
-        Dictionary containing two key-value pairs. (1) 'times' contains the
-        times for the alt/az computations, (2) 'altaz' contains the
-        corresponding alt/az coordinates at those times.
-    """
-    if not hasattr(observer, '_altaz_cache'):
-        observer._altaz_cache = {}
-
-    targets = get_icrs_skycoord(targets)
-    if targets.isscalar:
-        targets = coord.SkyCoord([targets])
-
-    # convert times, targets to tuple for hashing
-    aakey = (tuple(times.jd), targets)
-
-    if aakey not in observer._altaz_cache:
-        try:
-            if force_zero_pressure:
-                observer_old_pressure = observer.pressure
-                observer.pressure = 0
-
-            altaz = targets[:, np.newaxis].transform_to(
-                coord.AltAz(obstime=times, location=observer.location)
-                )
-            observer._altaz_cache[aakey] = dict(times=times,
-                                                altaz=altaz)
-        finally:
-            if force_zero_pressure:
-                observer.pressure = observer_old_pressure
-
-    return observer._altaz_cache[aakey]
-
-constraints._get_altaz = _get_altaz # overwrite before importing
-
-from astroplan import (FixedTarget, Constraint, TimeConstraint,
+from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
@@ -130,6 +38,7 @@ from . import misc
 from . import html
 from . import astronomy
 from .. import database as db
+from . import astropy_speedups
 
 ## Setup
 # define paths to directories
@@ -146,10 +55,15 @@ airmass_weight = 0.00001
 tts_dp = 5
 tts_weight = 0.00001
 
-tts_horizon = 10*u.deg
-
 # set debug level
 debug = 1
+
+# survey tile pointing rank (should be in params)
+SURVEY_RANK = 999
+INVALID_PRIORITY = 1000
+
+HARD_ALT_LIM = 10
+HARD_HA_LIM = 8
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
@@ -198,75 +112,40 @@ class ArtificialHorizonConstraint(Constraint):
                                         fill_value=12.0)
 
     def compute_constraint(self, times, observer, targets):
-        cached_altaz = _get_altaz(times, observer, targets)
-        altaz = cached_altaz['altaz']
+        altaz = _get_altaz(times, observer, targets)['altaz']
         artificial_horizon_alt = self.alt(altaz.az)*u.deg
         return altaz.alt > artificial_horizon_alt
 
 
-def _two_point_interp(times, altitudes, horizon=0*u.deg):
-    if not isinstance(times, Time):
-        return Time(-999, format='jd')
-    else:
-        slope = (altitudes[1] - altitudes[0])/(times[1].jd - times[0].jd)
-        time = times[1].jd - ((altitudes[1] - horizon)/slope).value
-        return Time(time, format='jd')
-
-def time_to_set(observer, targets, time, horizon=0*u.deg):
+def time_to_set(observer, targets, now):
     """
     Time until ``target``s next set below the horizon
     """
 
-    time_grid = np.linspace(0, 1, 150)*u.day
-    times = time + time_grid
-
-    cached_altaz = _get_altaz(times, observer, targets)
-    altaz = cached_altaz['altaz']
-    alts = altaz.alt
-
-    n_targets = alts.shape[0]
-
-    # Find index where altitude goes from above to below horizon
-    condition = (alts[:, :-1] > horizon) * (alts[:, 1:] < horizon)
-    crossing_target_inds, crossing_time_inds = np.nonzero(condition)
-
-
-    # If some targets never cross the horizon
-    target_inds = np.arange(n_targets)
-    time_inds = [crossing_time_inds[np.where(crossing_target_inds==i)][0]
-                   if i in crossing_target_inds
-                   else np.nan
-                   for i in np.arange(n_targets)]
-
-    # Find the upper and lower time and altitude limits for each target
-    time_lims = [times[i:i+2] if not np.isnan(i) else np.nan
-                 for i in time_inds]
-    alt_lims = [alts[i, j:j+2] if not np.isnan(j) else np.nan
-                for i, j in zip(target_inds, time_inds)]
-
-    set_times = Time([_two_point_interp(time_lims, alt_lims, horizon)
-                     for time_lims, alt_lims in zip(time_lims, alt_lims)])
-
-    seconds_until_set = (set_times - time).to(u.s)
-
+    # Create grid of times
+    set_times = astronomy._rise_set_trig(now, targets, observer.location,
+                                         'next', 'setting')
+    seconds_until_set = (set_times - now).to(u.s)
     return seconds_until_set
 
 
 class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
-                 minalt, mintime, maxmoon, start, stop, current):
+                 minalt, mintime, maxmoon, start, stop, current, survey):
         self.id = int(id)
-        self.coord = coord.SkyCoord(ra, dec, unit=u.deg, frame='icrs')
+        self.ra = float(ra)
+        self.dec = float(dec)
         self.priority = float(priority)
         self.tileprob = float(tileprob)
         self.too = bool(int(too))
-        self.maxsunalt = float(maxsunalt)*u.deg
-        self.minalt = float(minalt)*u.deg
-        self.mintime = float(mintime)*u.s
+        self.maxsunalt = float(maxsunalt)
+        self.minalt = float(minalt)
+        self.mintime = float(mintime)
         self.maxmoon = maxmoon
-        self.start = Time(start, scale='utc')
-        self.stop = Time(stop, scale='utc')
+        self.start = start
+        self.stop = stop
         self.current = bool(current)
+        self.survey = bool(survey)
 
     def __eq__(self, other):
         try:
@@ -276,10 +155,6 @@ class Pointing:
 
     def __ne__(self, other):
         return not self == other
-
-    def _as_target(self):
-        '''Returns a FixedTarget object for the pointing target.'''
-        return FixedTarget(self.coord)
 
     @classmethod
     def from_file(cls, fname):
@@ -292,7 +167,7 @@ class Pointing:
         (id, ra, dec, priority, tileprob, too, sunalt, minalt,
          mintime, moon, start, stop) = lines[0].split()
         pointing = cls(id, ra, dec, priority, tileprob, too, sunalt,
-                       minalt, mintime, moon, start, stop, False)
+                       minalt, mintime, moon, start, stop, False, False)
         return pointing
 
     @classmethod
@@ -302,6 +177,17 @@ class Pointing:
             tileprob = dbPointing.ligoTile.probability
         else:
             tileprob = 0
+        # survey tiles can be told apart by having a specific rank
+        if dbPointing.surveyTileID is not None:
+            survey = True
+        else:
+            survey = False
+        # the current pointing has running status
+        if dbPointing.status == 'running':
+            current = True
+        else:
+            current = False
+
         # create pointing object
         pointing = cls(id        = dbPointing.pointingID,
                        ra        = dbPointing.ra,
@@ -315,7 +201,8 @@ class Pointing:
                        maxmoon   = dbPointing.maxMoon,
                        start     = dbPointing.startUTC,
                        stop      = dbPointing.stopUTC,
-                       current   = False)
+                       current   = current,
+                       survey    = survey)
         return pointing
 
 
@@ -324,6 +211,8 @@ class Queue:
         if pointings is None:
             pointings = []
         self.pointings = pointings
+        self.ra_arr = []
+        self.dec_arr = []
         self.target_arr = []
         self.mintime_arr = []
         self.start_arr = []
@@ -349,8 +238,11 @@ class Queue:
         '''Setup the queue and constraints when initialised.'''
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
+
+        # create pointing data arrays
         for pointing in self.pointings:
-            self.target_arr.append(pointing._as_target())
+            self.ra_arr.append(pointing.ra)
+            self.dec_arr.append(pointing.dec)
             self.mintime_arr.append(pointing.mintime)
             self.start_arr.append(pointing.start)
             self.stop_arr.append(pointing.stop)
@@ -360,10 +252,29 @@ class Queue:
             self.priority_arr.append(pointing.priority)
             self.tileprob_arr.append(pointing.tileprob)
 
-        self.target_arr = get_icrs_skycoord(self.target_arr)
+        # convert to numpy arrays so we can mask them
+        self.ra_arr = np.array(self.ra_arr)
+        self.dec_arr = np.array(self.dec_arr)
+        self.target_arr = np.array(self.target_arr)
+        self.mintime_arr = np.array(self.mintime_arr)
+        self.start_arr = np.array(self.start_arr)
+        self.stop_arr = np.array(self.stop_arr)
+        self.maxsunalt_arr = np.array(self.maxsunalt_arr)
+        self.minalt_arr = np.array(self.minalt_arr)
+        self.maxmoon_arr = np.array(self.maxmoon_arr)
+        self.priority_arr = np.array(self.priority_arr)
+        self.tileprob_arr = np.array(self.tileprob_arr)
 
-        self.constraints = [AtNightConstraint(self.maxsunalt_arr),
-                            AltitudeConstraint(self.minalt_arr, None),
+        # Create normal constraints
+        # Apply to every pointing
+        self.targets = coord.SkyCoord(self.ra_arr, self.dec_arr,
+                                      unit=u.deg, frame='icrs')
+        self.mintimes = u.Quantity(self.mintime_arr, unit=u.s)
+        self.maxsunalts = u.Quantity(self.maxsunalt_arr, unit=u.deg)
+        self.minalts = u.Quantity(self.minalt_arr, unit=u.deg)
+
+        self.constraints = [AtNightConstraint(self.maxsunalts),
+                            AltitudeConstraint(self.minalts, None),
                             ArtificialHorizonConstraint(),
                             MoonIlluminationConstraint(None, self.maxmoon_arr),
                             MoonSeparationConstraint(moondist_limit, None)]
@@ -373,16 +284,56 @@ class Queue:
                                  'Moon',
                                  'MoonSep']
 
-        self.time_constraint = [TimeConstraint(Time(self.start_arr), Time(self.stop_arr))]
+        # Create time constraints
+        # Apply to every pointing EXCEPT the current pointing
+        self.time_mask = np.array([not p.current for p in self.pointings])
+
+        if np.all(self.time_mask):
+            # no current pointing, don't bother making a new SkyCoord
+            self.targets_t = self.targets
+        else:
+            self.targets_t = coord.SkyCoord(self.ra_arr[self.time_mask],
+                                            self.dec_arr[self.time_mask],
+                                            unit=u.deg, frame='icrs')
+
+        self.starts_t = Time(self.start_arr[self.time_mask],
+                             scale='utc', format='datetime')
+        self.stops_t = Time(self.stop_arr[self.time_mask],
+                            scale='utc', format='datetime')
+
+        self.time_constraint = [TimeConstraint(self.starts_t, self.stops_t)]
         self.time_constraint_name = ['Time']
 
-        self.mintime_constraints = [AtNightConstraint(self.maxsunalt_arr),
-                                    AltitudeConstraint(self.minalt_arr, None),
+        # Create mintime constraints
+        # Apply to non-survey, non-current pointings
+        self.mintime_mask = np.array([not(p.current or p.survey)
+                                      for p in self.pointings])
+
+        if np.all(self.mintime_mask):
+            # no current pointing, no survey tiles => use existing objects
+            self.targets_m = self.targets
+            self.mintimes_m = self.mintimes
+            self.maxsunalts_m = self.maxsunalts
+            self.minalts_m = self.minalts
+        else:
+            self.targets_m = coord.SkyCoord(self.ra_arr[self.mintime_mask],
+                                            self.dec_arr[self.mintime_mask],
+                                            unit=u.deg, frame='icrs')
+            self.mintimes_m = u.Quantity(self.mintime_arr[self.mintime_mask],
+                                         unit=u.s)
+            self.maxsunalts_m = u.Quantity(self.maxsunalt_arr[self.mintime_mask],
+                                           unit=u.deg)
+            self.minalts_m = u.Quantity(self.minalt_arr[self.mintime_mask],
+                                        unit=u.deg)
+
+        self.mintime_constraints = [AtNightConstraint(self.maxsunalts_m),
+                                    AltitudeConstraint(self.minalts_m, None),
                                     ArtificialHorizonConstraint()]
         self.mintime_constraint_names = ['SunAlt_mintime',
                                          'MinAlt_mintime',
                                          'ArtHoriz_mintime']
 
+        # Save all names
         self.all_constraint_names = (self.constraint_names +
                                      self.time_constraint_name +
                                      self.mintime_constraint_names)
@@ -392,39 +343,49 @@ class Queue:
 
         # apply normal constraints
         cons_valid_arr = apply_constraints(self.constraints,
-                                           observer, self.target_arr,
+                                           observer,
+                                           self.targets,
                                            now)
 
-        # apply time constraint
-        time_cons_valid_arr = apply_constraints(self.time_constraint,
-                                                observer, self.target_arr,
-                                                now)
+        # apply time constraint to filtered targets
+        if np.any(self.time_mask):
+            time_cons_valid_arr = apply_constraints(self.time_constraint,
+                                                    observer,
+                                                    self.targets_t,
+                                                    now)
+        else:
+            time_cons_valid_arr = np.array([])
 
-        # apply mintime constraints
-        later_arr = [now + mintime for mintime in self.mintime_arr]
-        min_cons_valid_arr = apply_constraints(self.mintime_constraints,
-                                               observer, self.target_arr,
-                                               later_arr)
+        # apply mintime constraints to filtered targets
+        if any(self.mintime_mask):
+            later_arr = now + self.mintimes_m
+            min_cons_valid_arr = apply_constraints(self.mintime_constraints,
+                                                   observer,
+                                                   self.targets_m,
+                                                   later_arr)
+        else:
+            min_cons_valid_arr = np.array([])
 
-        for i in range(len(self.pointings)):
-            pointing = self.pointings[i]
-            pointing.valid_time = now
-
-            # save constraints to the pointing objects
-            pointing.all_constraint_names = self.all_constraint_names
+        # save the results on the pointings
+        for i, pointing in enumerate(self.pointings):
             pointing.constraint_names = list(self.constraint_names)
-            pointing.valid_arr = [x for x in cons_valid_arr[0][i]]
-            # the current pointing doesn't apply the time constraint
-            if pointing.current != True:
-                pointing.constraint_names += self.time_constraint_name
-                pointing.valid_arr += [x for x in time_cons_valid_arr[0][i]]
-            # current pointing and queue fillers don't apply mintime cons
-            if pointing.priority < 5 and pointing.current != True:
-                pointing.constraint_names += self.mintime_constraint_names
-                pointing.valid_arr += [x for x in min_cons_valid_arr[i][i]]
+            pointing.valid_arr = cons_valid_arr[i]
 
-            # finally find out if it's valid or not
-            pointing.valid = np.logical_and.reduce(pointing.valid_arr)
+        for i, pointing in enumerate(self.pointings[self.time_mask]):
+            pointing.constraint_names += self.time_constraint_name
+            pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                 time_cons_valid_arr[i]))
+
+        for i, pointing in enumerate(self.pointings[self.mintime_mask]):
+            pointing.constraint_names += self.mintime_constraint_names
+            pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                 min_cons_valid_arr[i]))
+
+        # finally find out if each pointing is valid or not
+        for pointing in self.pointings:
+            pointing.all_constraint_names = self.all_constraint_names
+            pointing.valid = np.all(pointing.valid_arr)
+            pointing.valid_time = now
 
     def calculate_priorities(self, time, observer):
         '''Calculate priorities at a given time for each pointing.'''
@@ -434,8 +395,7 @@ class Queue:
 
         ## Find ToO values (0 or 1)
         too_mask = np.array([p.too for p in self.pointings])
-        nottoo_mask = np.invert(too_mask)
-        too_arr = np.array(nottoo_mask, dtype = float)
+        too_arr = np.array(np.invert(too_mask), dtype = float)
 
         ## Find probability values (0.00.. to 0.99..)
         prob_arr = np.array([1-prob if prob != 0
@@ -447,26 +407,23 @@ class Queue:
 
         ## Find airmass values (0.00.. to 0.99..)
         # airmass at start
-        cached_altaz_now = _get_altaz(Time([time]), observer, self.target_arr)
-        altaz_now = cached_altaz_now['altaz']
-        secz_now = np.array([x[0].value for x in altaz_now.secz])
+        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
+        secz_now = altaz_now.secz
 
-        # airmass at mintime
-        later_arr = Time([time + mintime for mintime in self.mintime_arr])
-        cached_altaz_later = _get_altaz(later_arr, observer, self.target_arr)
-        altaz_later = cached_altaz_later['altaz']
-        secz_later = np.diag(altaz_later.secz).astype('float')
+        # airmass at mintime (NB all targets)
+        later_arr = time + self.mintimes
+        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
+        secz_later = altaz_later.secz
 
         # take average
-        secz_arr = np.array((secz_now + secz_later)/2.)
+        secz_arr = (secz_now + secz_later)/2.
         airmass_arr = np.around(secz_arr/10., decimals = airmass_dp)
         bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr >= 1)
         airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
 
         ## Find time to set values (0.00.. to 0.99..)
-        tts_sec_arr = time_to_set(observer, self.target_arr, time, tts_horizon)
-        tts_hr_arr = tts_sec_arr.to(u.hour)
-        tts_arr = np.around(tts_hr_arr.value/24., decimals = tts_dp)
+        tts_arr = time_to_set(observer, self.targets, time).to(u.hour).value
+        tts_arr = np.around(tts_arr/24., decimals = tts_dp)
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
         tts_arr[bad_tts_mask] = float('0.' + '9' * tts_dp)
 
@@ -478,21 +435,79 @@ class Queue:
         priorities_now += airmass_arr * airmass_weight
         priorities_now += tts_arr * tts_weight
 
-        # check validities, add 10 to invalid pointings
+        # check validities, add INVALID_PRIORITY to invalid pointings
         self.check_validities(time, observer)
         valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
-        priorities_now[invalid_mask] += 100
+        priorities_now[invalid_mask] += INVALID_PRIORITY
 
         # if the current pointing is invalid it must be complete
-        # therefore add 10 to prevent it coming up again
+        # therefore add INVALID_PRIORITY to prevent it coming up again
         current_mask = np.array([p.current for p in self.pointings])
-        current_complete_mask = np.logical_and(current_mask, priorities_now > 100)
-        priorities_now[current_complete_mask] += 100
+        current_complete_mask = np.logical_and(current_mask, invalid_mask)
+        priorities_now[current_complete_mask] += INVALID_PRIORITY
 
         # save priority_now to pointing
         for pointing, priority_now in zip(self.pointings, priorities_now):
             pointing.priority_now = priority_now
+
+    def get_highest_priority_pointing(self, time, observer):
+        '''Return the pointing with the highest priority.'''
+
+        if len(self.pointings) == 0:
+            return None
+
+        self.calculate_priorities(time, observer)
+
+        pointing_list = list(self.pointings) # a copy
+        pointing_list.sort(key=lambda p: p.priority_now)
+        return pointing_list[0]
+
+
+    def write_to_file(self, time, observer, filename):
+        '''Write any time-dependent pointing infomation to a file.'''
+
+        # The queue should already have priorities calculated
+        try:
+            p = self.pointings[0].priority_now
+        except AttributeError:
+            message = "Queue has not yet had priorities calculated"
+            raise ValueError(message)
+
+        # make copy of pointings
+        pointing_list = list(self.pointings)
+
+        # find altaz (should be cached)
+        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
+        altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
+
+        later_arr = time + self.mintimes
+        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
+        altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
+
+        # combine pointings and altaz
+        combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
+        combined.sort(key=lambda x: x[0].priority_now)
+
+        # now save as json file
+        with open(filename, 'w') as f:
+            json.dump(str(time),f)
+            f.write('\n')
+            json.dump(self.all_constraint_names,f)
+            f.write('\n')
+            found_highest_survey = False
+            for pointing, altaz_now, altaz_later in combined:
+                highest_survey = False
+                if pointing.survey and not found_highest_survey: # already sorted
+                    highest_survey = True
+                    found_highest_survey = True
+                if (not pointing.survey) or highest_survey:
+                    # don't write out all survey tiles, only the highest priority
+                    valid_nonbool = [int(b) for b in pointing.valid_arr]
+                    con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                    json.dump([pointing.id, pointing.priority_now,
+                               altaz_now, altaz_later, con_list],f)
+                    f.write('\n')
 
 
 def import_pointings_from_folder(queue_folder):
@@ -507,21 +522,21 @@ def import_pointings_from_folder(queue_folder):
 
     Returns
     -------
-    queue : `Queue`
-        An Queue containing Pointings from the queue_folder.
+    pointings : list of `Pointing`
+        An list containing Pointings from the queue_folder.
     """
-    queue = Queue()
-    queue_files = os.listdir(queue_folder)
+    files = os.listdir(queue_folder)
+    pointings = []
 
-    if queue_files is not None:
-        for pointing_file in queue_files:
+    if files is not None:
+        for pointing_file in files:
             path = os.path.join(queue_folder, pointing_file)
-            queue.pointings.append(Pointing.from_file(path))
-    queue.initialise()
-    return queue
+            pointings.append(Pointing.from_file(path))
+
+    return pointings
 
 
-def import_pointings_from_database(time):
+def import_pointings_from_database(time, observer):
     """
     Creates a list of `Pointing` objects from the GOTO database.
 
@@ -532,96 +547,23 @@ def import_pointings_from_database(time):
 
     Returns
     -------
-    queue : `Queue`
-        An Queue containing Pointings from the database.
+    pointings : list of `Pointing`
+        An list containing Pointings from the database.
     """
-    queue = Queue()
+    pointings = []
+
     with db.open_session() as session:
-        current_dbPointing, pending_pointings = db.get_queue(session, time)
-        if len(pending_pointings) == 0:
-            # current queue empty
-            return None
-        else:
-            for dbPointing in pending_pointings:
-                queue.pointings.append(Pointing.from_database(dbPointing))
-        if current_dbPointing is not None:
-            current_pointing = Pointing.from_database(current_dbPointing)
-            current_pointing.current = True
-            queue.pointings.append(current_pointing)
-    queue.initialise()
-    return queue
+        current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
+                                                                        time=time,
+                                                                        location=observer.location,
+                                                                        altitude_limit=HARD_ALT_LIM,
+                                                                        hourangle_limit=HARD_HA_LIM)
+        for dbpointing in pending_dbpointings:
+            pointings.append(Pointing.from_database(dbpointing))
+        if current_dbpointing is not None:
+            pointings.append(Pointing.from_database(current_dbpointing))
 
-
-def write_queue_file(queue, time, observer):
-    """
-    Write any time-dependent pointing infomation to a file
-    """
-    pointinglist = list(queue.pointings)
-
-    # save altaz too
-    cached_altaz_now = _get_altaz(Time([time]), observer, queue.target_arr)
-    altaz_now = cached_altaz_now['altaz']
-    altnow_list = [a[0].value for a in altaz_now.alt]
-    aznow_list = [a[0].value for a in altaz_now.az]
-    altaznow_list = list(zip(altnow_list, aznow_list))
-
-    later_arr = Time([time + mintime for mintime in queue.mintime_arr])
-    cached_altaz_later = _get_altaz(later_arr, observer, queue.target_arr)
-    altaz_later = cached_altaz_later['altaz']
-    altlater_list = [a.value for a in np.diag(altaz_later.alt)]
-    azlater_list = [a.value for a in np.diag(altaz_later.az)]
-    altazlater_list = list(zip(altlater_list, azlater_list))
-
-    combined = list(zip(pointinglist, altaznow_list, altazlater_list))
-    combined.sort(key=lambda x: x[0].priority_now)
-
-    # now save as json file
-    import json
-    with open(queue_file, 'w') as f:
-        json.dump(str(time),f)
-        f.write('\n')
-        json.dump(queue.all_constraint_names,f)
-        f.write('\n')
-        for pointing, altaznow, altazlater in combined:
-            valid_nonbool = [int(b) for b in pointing.valid_arr]
-            con_list = list(zip(pointing.constraint_names, valid_nonbool))
-            json.dump([pointing.id, pointing.priority_now,
-                       altaznow, altazlater, con_list],f)
-            f.write('\n')
-
-
-def find_highest_priority(queue, time, observer):
-    """
-    Calculate priorities for pointings in a queue at a given time
-    and return the pointing with the highest priority.
-
-    Parameters
-    ----------
-    queue : `Queue`
-        An Queue containing Pointings to consider.
-
-    time : `~astropy.time.Time`
-        The time to calculate the priorities at.
-
-    write_html : bool
-        A flag to enable writing of html files.
-
-    Returns
-    -------
-    highest_pointing : `Pointing`
-        Pointing with the highest calculated priority at the time given.
-
-    pointinglist : list of `Pointing` objects
-        A list of Pointings sorted by priority (for html queue page).
-    """
-
-    queue.calculate_priorities(time, observer)
-
-    pointinglist = list(queue.pointings)
-    pointinglist.sort(key=lambda x: x.priority_now)
-    highest_pointing = pointinglist[0]
-
-    return highest_pointing
+    return np.array(pointings)
 
 
 def what_to_do_next(current_pointing, highest_pointing):
@@ -654,32 +596,32 @@ def what_to_do_next(current_pointing, highest_pointing):
     if current_pointing is None and highest_pointing is None:
         return current_pointing
     elif current_pointing is None:
-        if highest_pointing.priority_now < 100:
+        if highest_pointing.priority_now < INVALID_PRIORITY:
             return highest_pointing
         else:
             return current_pointing
     elif highest_pointing is None:
-        if current_pointing.priority_now > 100:
+        if current_pointing.priority_now > INVALID_PRIORITY:
             return None
         else:
             return current_pointing
 
     if current_pointing == highest_pointing:
-        if current_pointing.priority_now >= 100 or highest_pointing.priority_now >= 100:
+        if current_pointing.priority_now >= INVALID_PRIORITY or highest_pointing.priority_now >= INVALID_PRIORITY:
             return None  # it's either finished or is now illegal
         else:
             return highest_pointing
 
-    if current_pointing.priority_now >= 100:  # current pointing is illegal (finished)
-        if highest_pointing.priority_now < 100:  # new pointing is legal
+    if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
+        if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
             return highest_pointing
         else:
             return None
     else:  # telescope is observing legally
-        if highest_pointing.priority_now >= 100:  # no legal pointings
+        if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
             return None
         else:  # both are legal
-            if current_pointing.priority_now > 5:  # a filler, always slew
+            if current_pointing.survey:  # a survey tile (filler), always slew
                 return highest_pointing
             elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if current_pointing.too:
@@ -714,17 +656,18 @@ def check_queue(time, write_html=False):
 
     GOTO = Observer.at_site('lapalma')
 
-    queue = import_pointings_from_database(time)
-    if queue is None:
+    pointings = import_pointings_from_database(time, GOTO)
+
+    if len(pointings) == 0:
         return None, None, None
 
-    if len(queue) > 0:
-        highest_pointing = find_highest_priority(queue, time, GOTO)
-    else:
-        highest_pointing = None
+    queue = Queue(pointings)
+
+    highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()
 
-    write_queue_file(queue, time, GOTO)
+    queue.write_to_file(time, GOTO, queue_file)
+
     if write_html:
         # since it's now independent, this could be run from elsewhere
         # that would save the scheduler doing it
