@@ -489,6 +489,8 @@ class Mpointing(Base):
             True is a pointing is currently in the queue
         num_remain : int
             number of remaining pointings
+        num_completed : int
+            number of successfully completed pointings
         exposure_sets : list of `ExposureSet`
             the `ExposureSet` objects associated with this `Mpointing`, if any
         repeats : list of `Repeat`
@@ -508,7 +510,7 @@ class Mpointing(Base):
         >>> mp
         Mpointing(rpID=None, objectName=None, ra=None, decl=None, rank=None,
         start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
-        ToO=None, num_repeats=None, num_remain=None, scheduled=False, eventID=None,
+        ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
         userKey=None, ligoTileID=None, surveyTile=None)
 
         make a more useful Mpointing - repeating on increasing intervals, which stay in the
@@ -519,7 +521,8 @@ class Mpointing(Base):
         ... valid_durations=5, maxSunAlt=-15)
         >>> mp
         Mpointing(rpID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
-        maxMoon=B, ToO=0, num_repeats=None, scheduled=None, eventID=False, userKey=24, ligoTileID=None, surveyTile=None)
+        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, ligoTileID=None,
+        surveyTile=None)
 
         notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
 
@@ -539,7 +542,8 @@ class Mpointing(Base):
         >>> session.commit()
         >>> mp
         Mpointing(rpID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
-        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, scheduled=6, eventID=0, userKey=24, ligoTileID=None, surveyTile=None)
+        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
+        ligoTileID=None, surveyTile=None)
         >>> mp.repeats
         [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
          Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
@@ -618,16 +622,20 @@ class Mpointing(Base):
         select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
                                                     Repeat.status == 'upcoming')).correlate_except(Repeat)
     )
+    num_completed = column_property(
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+                                                    Repeat.status == 'completed')).correlate_except(Repeat)
+    )
 
     def __repr__(self):
         template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
                     "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
-                    "minTime={}, maxMoon={}, ToO={}, num_repeats={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, num_repeats={}, num_completed={}, " +
                     "num_remain={}, scheduled={}, eventID={}, userKey={}, ligoTileID={}, surveyTile={})")
         return template.format(
             self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
-            self.num_repeats, self.num_remain, self.scheduled, self.eventID,
+            self.num_repeats, self.num_completed, self.num_remain, self.scheduled, self.eventID,
             self.userKey, self.ligoTileID, self.surveyTileID
         )
 
