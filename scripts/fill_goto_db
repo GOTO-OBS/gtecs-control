@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+########################################################################
+#                             fill_goto_db                             #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#        G-TeCS script to fill G-TeCS database using GOTO-tile         #
+#                 Stuart Littlefair, Sheffield, 2017                   #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+from __future__ import print_function
+import getpass
+
+import gtecs.database as db
+import gototile
+
+from sqlalchemy.orm import joinedload
+import time
+
+with db.open_session() as session:
+    try:
+        user_key = db.get_userkey(session, 'goto')
+    except:
+        passwd = getpass.getpass(prompt="Creating 'goto' user - give password: ")
+        db.add_user(session, 'goto', passwd, 'GOTO survey')
+        session.commit()
+        user_key = db.get_userkey(session, 'goto')
+
+survey_settings = dict(userKey=user_key,
+                       objectName='survey',
+                       start_rank=999,
+                       minAlt=35,
+                       minTime=30,
+                       maxSunAlt=-12,
+                       maxMoon='B',
+                       ToO=0,
+                       num_repeats=0,
+                       intervals=1440,
+                       valid_durations=1439)
+
+exp_settings = dict(expTime=120,
+                    raoff=0.,
+                    decoff=0.,
+                    numexp=3,
+                    typeFlag='SCIENCE',
+                    filt='L',
+                    binning=1,
+                    otaMask=None)
+
+
+goto = gototile.telescope.GOTON4()
+overlap = {k: goto.fov[k].value*0.1 for k in goto.fov}
+
+_, _, coords = gototile.grid.tileallsky(goto.fov, 256, overlap)
+
+# loop over coords
+ra, decl = coords.ra.value, coords.dec.value
+tiles = []
+mpointings = []
+with db.open_session() as session:
+    for a, d in zip(ra, decl):
+        tile = db.SurveyTile(ra=float(a), decl=float(d))
+        tiles.append(tile)
+    print('adding tiles to db: ')
+    db.insert_items(session, tiles)
+
+    session.commit()
+
+    for a, d, t in zip(ra, decl, tiles):
+        mp = db.Mpointing(surveyTileID=t.tileID,
+                          ra=float(a), decl=float(d), **survey_settings)
+        mp.exposure_sets.append(db.ExposureSet(**exp_settings))
+        mpointings.append(mp)
+
+    print('adding mpointings to db: ')
+    db.insert_items(session, mpointings)
+
+
+# add first batch of pointings
+with db.open_session() as session:
+    unscheduled_mps = session.query(db.Mpointing).filter(
+        db.Mpointing.scheduled is not True).options(joinedload('repeats')).all()
+
+    print('creating pointings')
+    start = time.time()
+    pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+    print('took {} secs'.format(time.time()-start))
+
+    print('inserting pointings into DB')
+    start = time.time()
+    db.insert_items(session, pointings)
+    print('took {} secs'.format(time.time()-start))
