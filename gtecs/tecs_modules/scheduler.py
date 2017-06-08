@@ -182,6 +182,11 @@ class Pointing:
             survey = True
         else:
             survey = False
+        # the current pointing has running status
+        if dbPointing.status == 'running':
+            current = True
+        else:
+            current = False
 
         # create pointing object
         pointing = cls(id        = dbPointing.pointingID,
@@ -196,7 +201,7 @@ class Pointing:
                        maxmoon   = dbPointing.maxMoon,
                        start     = dbPointing.startUTC,
                        stop      = dbPointing.stopUTC,
-                       current   = False,
+                       current   = current,
                        survey    = survey)
         return pointing
 
@@ -556,9 +561,7 @@ def import_pointings_from_database(time, observer):
         for dbpointing in pending_dbpointings:
             pointings.append(Pointing.from_database(dbpointing))
         if current_dbpointing is not None:
-            current_pointing = Pointing.from_database(current_dbpointing)
-            current_pointing.current = True
-            pointings.append(current_pointing)
+            pointings.append(Pointing.from_database(current_dbpointing))
 
     return np.array(pointings)
 
