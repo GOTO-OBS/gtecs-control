@@ -755,7 +755,7 @@ class Mpointing(Base):
             maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
             startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
             repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
-            mpointingID=self.rpID, ligoTileID=self.ligoTileID
+            mpointingID=self.rpID, ligoTileID=self.ligoTileID, surveyTileID=self.surveyTileID
         )
         # add the exposures
         p.exposure_sets = self.exposure_sets
