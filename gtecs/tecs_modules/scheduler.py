@@ -178,7 +178,7 @@ class Pointing:
         else:
             tileprob = 0
         # survey tiles can be told apart by having a specific rank
-        if dbPointing.rank == SURVEY_RANK:
+        if dbPointing.surveyTileID is not None:
             survey = True
         else:
             survey = False
