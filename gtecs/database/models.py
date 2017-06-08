@@ -1,4 +1,5 @@
 import datetime
+from operator import attrgetter
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import (Column, Integer, String, DateTime, Float,
@@ -697,17 +698,37 @@ class Mpointing(Base):
         if 'ligoTileID' in kwargs:
             self.ligoTileID = kwargs['ligoTileID']
 
-    def get_next_pointing(self, session):
+    def get_next_last_repeats(self):
+        """
+        Return the next repeat to be executed, and the last one executed.
+
+        Assumes this object is still associated to an active session.
+
+        Returns
+        -------
+        next, last : `gtecs.database.Repeat`
+            The next repeat to schedule and the last repeat done (may be None).
+        """
+        sorted_repeats = sorted([rp for rp in self.repeats if rp.status == 'upcoming'], key=attrgetter('repeatNum'))
+        if sorted_repeats:
+            nr = sorted_repeats[0]
+        else:
+            nr = None
+        sorted_repeats = sorted([rp for rp in self.repeats if rp.status not in ['upcoming', 'running']], key=attrgetter('repeatNum'), reverse=True)
+        if sorted_repeats:
+            lr = sorted_repeats[0]
+        else:
+            lr = None
+        return nr, lr
+
+    def get_next_pointing(self):
         """
         Retrieve the next pointing which needs to be scheduled.
 
         The start and stop UTC of the pointing are determined from
         the status of the previous pointing.
 
-        Parameters
-        ----------
-        session : `sqlalchemy.Session.session`
-            the session object
+        Assumes this object is still associated with an active session.
 
         Returns
         -------
@@ -721,20 +742,10 @@ class Mpointing(Base):
         if self.scheduled:
             return None
 
-        next_repeat = session.query(Repeat).filter(
-            Repeat.mpointingID == self.rpID,
-            Repeat.status == 'upcoming').order_by(Repeat.repeatNum).first()
+        next_repeat, last_repeat = self.get_next_last_repeats()
+
         if next_repeat is None:
             return None
-
-        # get the status of the last repeat. If it was completed,
-        # schedule the next_repeat for now+waitTime. Otherwise,
-        # schedule it now
-        last_repeat = session.query(Repeat).filter(
-            Repeat.mpointingID == self.rpID,
-        ).filter(
-            ~Repeat.status.in_(['upcoming', 'running'])
-        ).order_by(Repeat.repeatNum.desc()).first()
 
         if last_repeat is None:
             # no completed or aborted repeats yet
