@@ -240,7 +240,8 @@ class Pilot:
             self.newID, self.newPriority, self.newMinTime = await loop.run_in_executor(
                 None, scheduler.check_queue, *scheduler_args
             )
-
+            if self.newMinTime is not None:
+                self.newMinTime = int(self.newMinTime.value)
             self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
@@ -453,7 +454,7 @@ class Pilot:
                     await self.cancelRunningScript()
                 else:
                     cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
-                           str(self.newID), str(self.newMinTime)]
+                           str(self.newID), str(int(self.newMinTime))]
                     self.log.info('starting Job {}'.format(self.newID))
                     self.obsStartTime = time.time()
                     # start job, will cancel current one automatically

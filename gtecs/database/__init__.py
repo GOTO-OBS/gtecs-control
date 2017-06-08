@@ -4,8 +4,11 @@ from .engine import load_session, open_session
 from .models import (User, Event, SurveyTile, LigoTile,
                      Pointing, Mpointing, Repeat, ExposureSet, ObslogEntry)
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import or_
 
 from astropy.time import Time
+from astropy.coordinates import Longitude
+from astropy import units as u
 import six
 
 
@@ -122,6 +125,114 @@ def validate_user(session, userName, password):
         return False
 
 
+def get_filtered_queue(session, time=None, rank_limit=None, location=None,
+                       altitude_limit=20, hourangle_limit=6, limit_number=None):
+    """
+    Get the currently valid queue, and filter against visibility and rank.
+
+    The queue is defined as all pending pointings with a valid date range. We then filter
+    out tiles that are not visible, order by rank and limit by rank if requested.
+
+    Note that rank limits are designed to not return low rank tiles, but *only* if higher
+    ranked tiles exist. If all tiles are below the rank limit, all tiles are returned.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+
+    time : `~astropy.time.Time`
+        If given, the time to fetch the queue for.
+        Defaults to the current time.
+
+    rank_limit: int or None, default None
+        Only return pointings with rank greater than given value.
+        If all tiles are below the rank limit, all tiles are returned.
+
+    location : `~astropy.coordinates.EarthLocation`
+        Location of observatory. If provided, only visible pointings are returned.
+
+    altitude_limit : float
+        If filtering by visibility, only pointings which ever rise above this altitude are returned
+
+    hourangle_limit : float
+        If filtering by visibility, only pointings with hour angles closer to transit than this
+        limit are returned.
+
+    limit_number : int or None
+        If not None, limit the number of results.
+
+    Returns
+    -------
+    current_pointing : `Pointing`
+        Pointing being observed now
+    pending_pointings : `Pointing`
+        all current pending Pointings, after filtering
+
+    Examples
+    --------
+
+    An example using `open_session`. The items retrieved won't function outside the
+    scope of the with block, since they rely on a session to access the underlying
+    database.
+
+    >>> with open_session() as session:
+    >>>     current_job, pending_jobs = get_filtered_queue(session, limit_results=100)
+    >>>     njobs = len(pending_jobs)
+    >>>     exposure_list = current_job.exposures
+    >>> current_job
+    DetachedInstanceError: Instance <Pointing at 0x10a00ac50> is not bound to a Session; attribute refresh operation cannot proceed
+
+    An example using `load_session`. This will return a session object. With this method
+    you don't have to worry so about about scope, but you do have to be careful about
+    trapping errors and commiting any changes you make to the database. See the help for
+    `load_session` for more details.
+
+    >>> session = load_session()
+    >>> current_job, pending_jobs = get_filtered_queue(session, limit_results=100)
+
+    """
+    if time is None:
+        time = Time.now()
+
+    now = time.iso
+    pending_queue = session.query(Pointing).filter(
+        Pointing.status == 'pending'
+    ).filter(Pointing.startUTC < now, now < Pointing.stopUTC)
+
+    # now limit by RA and Dec
+    if location is not None:
+        # local sidereal time, units of degrees
+        lst = time.sidereal_time('mean', location.longitude)
+        lo_lim = Longitude(lst - hourangle_limit*u.hourangle).deg
+        up_lim = Longitude(lst + hourangle_limit*u.hourangle).deg
+        if up_lim > lo_lim:
+            pending_queue = pending_queue.filter(Pointing.ra < up_lim, Pointing.ra > lo_lim)
+        else:
+            pending_queue = pending_queue.filter(or_(Pointing.ra < up_lim, Pointing.ra > lo_lim))
+
+        # is latitude ever greater than limit?
+        lat = location.latitude.deg
+        pending_queue = pending_queue.filter(Pointing.decl > lat - 90 + altitude_limit, Pointing.decl < lat + 90 - altitude_limit)
+
+    pending_queue = pending_queue.order_by('rank')
+
+    if rank_limit:
+        number_passing_rank = pending_queue.filter(Pointing.rank < rank_limit).count()
+
+        # if there are results which pass the rank limit, filter by rank
+        if number_passing_rank > 0:
+            pending_queue = pending_queue.filter(Pointing.rank < rank_limit)
+
+    if limit_number:
+        pending_queue = pending_queue.limit(limit_number)
+
+    # actually perform queue
+    pending_queue = pending_queue.all()
+    current_pointing = session.query(Pointing).filter(Pointing.status == 'running').one_or_none()
+    return current_pointing, pending_queue
+
+
 def get_queue(session, time=None):
     """
     Get the currently valid queue.
@@ -168,14 +279,8 @@ def get_queue(session, time=None):
     >>> current_job, pending_jobs = get_queue(session)
 
     """
-    if time is None:
-        now = Time.now().iso
-    else:
-        now = time.iso
-    pending_queue = session.query(Pointing).filter(
-        Pointing.status == 'pending'
-    ).filter(Pointing.startUTC < now, now < Pointing.stopUTC).all()
-    current_pointing = session.query(Pointing).filter(Pointing.status == 'running').one_or_none()
+    # call get_filtered_queue with no filtering
+    current_pointing, pending_queue = get_filtered_queue(session, time)
     return current_pointing, pending_queue
 
 
