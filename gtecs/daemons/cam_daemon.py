@@ -42,7 +42,6 @@ class CamDaemon(HardwareDaemon):
     - take_bias(telescopeIDs)
     - abort_exposure(telescopeIDs)
     - set_temperature(target_temp,telescopeIDs)
-    - set_area(area,telescopeIDs)
     - set_spec(target,imgtype)
     """
 
@@ -55,7 +54,6 @@ class CamDaemon(HardwareDaemon):
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
         self.set_bins_flag = 0
-        self.set_area_flag = 0
 
         ### camera variables
         self.info = {}
@@ -71,7 +69,6 @@ class CamDaemon(HardwareDaemon):
         self.exptime = {}
         self.frametype = {}
         self.bins = {}
-        self.area = {}
         self.ccd_temp = {}
         self.base_temp = {}
         self.cooler_power = {}
@@ -85,7 +82,6 @@ class CamDaemon(HardwareDaemon):
             self.exptime[intf] = [1]*nHW
             self.frametype[intf] = ['normal']*nHW
             self.bins[intf] = [[1,1]]*nHW
-            self.area[intf] = [[0,0,0,0]]*nHW
             self.ccd_temp[intf] = [0]*nHW
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
@@ -97,7 +93,6 @@ class CamDaemon(HardwareDaemon):
         self.target_exptime = 0
         self.target_frametype = 0
         self.target_bins = (1, 1)
-        self.target_area = 0
         self.target_temp = 0
         self.finished = 0
         self.saving_flag = 0
@@ -141,6 +136,8 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
+                        c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                        if c: self.logfile.info(c)
                         c = fli.set_exposure(exptime_ms,frametype,HW)
                         if c: self.logfile.info(c)
                         self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -241,28 +238,6 @@ class CamDaemon(HardwareDaemon):
                 self.active_tel = []
                 self.set_bins_flag = 0
 
-            # set active area
-            if(self.set_area_flag):
-                ul_x, ul_y, lr_x, lr_y = self.target_area
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting active area on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.area[intf][HW] = self.target_area
-                        self.logfile.info('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)',
-                                            tel, intf, HW, ul_x, ul_y, lr_x, lr_y)
-                        fli = fli_proxies[intf]
-                        try:
-                            fli._pyroReconnect()
-                            c = fli.set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
-                            if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                self.set_area_flag = 0
-
             time.sleep(0.0001) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
@@ -311,7 +286,6 @@ class CamDaemon(HardwareDaemon):
             info['frametype'+tel] = self.frametype[intf][HW]
             info['exptime'+tel] = self.exptime[intf][HW]
             info['bins'+tel] = tuple(self.bins[intf][HW])
-            info['area'+tel] = tuple(self.area[intf][HW])
             info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
             info['base_temp'+tel] = self.base_temp[intf][HW]
             info['cooler_power'+tel] = self.cooler_power[intf][HW]
@@ -380,19 +354,6 @@ class CamDaemon(HardwareDaemon):
             self.active_tel += [tel]
             s += '\n  Setting image bins on camera %i' %tel
         self.set_bins_flag = 1
-        return s
-
-    def set_area(self,area,tel_list):
-        """Set the active image area"""
-        self.target_area = area
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        s = 'Setting:'
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting active image area on camera %i' %tel
-        self.set_area_flag = 1
         return s
 
     def set_spec(self,target,imgtype):
