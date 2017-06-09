@@ -42,7 +42,6 @@ class CamDaemon(HardwareDaemon):
     - take_bias(telescopeIDs)
     - abort_exposure(telescopeIDs)
     - set_temperature(target_temp,telescopeIDs)
-    - set_flushes(target_flushes,telescopeIDs)
     - set_area(area,telescopeIDs)
     - set_spec(target,imgtype)
     """
@@ -55,7 +54,6 @@ class CamDaemon(HardwareDaemon):
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
-        self.set_flushes_flag = 0
         self.set_bins_flag = 0
         self.set_area_flag = 0
 
@@ -101,7 +99,6 @@ class CamDaemon(HardwareDaemon):
         self.target_bins = (1, 1)
         self.target_area = 0
         self.target_temp = 0
-        self.target_flushes = 0
         self.finished = 0
         self.saving_flag = 0
         self.run_number = 0
@@ -222,26 +219,6 @@ class CamDaemon(HardwareDaemon):
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_temp_flag = 0
-
-            # set number of flushes
-            if(self.set_flushes_flag):
-                target_flushes = self.target_flushes
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting flushes on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.logfile.info('Setting number of flushes on camera %i (%s-%i) to %i', tel, intf, HW, target_flushes)
-                        fli = fli_proxies[intf]
-                        try:
-                            fli._pyroReconnect()
-                            c = fli.set_camera_flushes(target_flushes,HW)
-                            if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                    self.active_tel = []
-                    self.set_flushes_flag = 0
 
             # set bins
             if(self.set_bins_flag):
@@ -390,21 +367,6 @@ class CamDaemon(HardwareDaemon):
             self.active_tel += [tel]
             s += '\n  Setting temperature on camera %i' %tel
         self.set_temp_flag = 1
-        return s
-
-    def set_flushes(self,target_flushes,tel_list):
-        """Set the number of times to flush the CCD before an exposure"""
-        self.target_flushes = target_fliushes
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        if not (0 <= target_flushes <= 16):
-            return 'ERROR: Number of flushes must be between 0 and 16'
-        s = 'Setting:'
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting flushes on camera %i' %tel
-        self.set_flushes_flag = 1
         return s
 
     def set_bins(self,bins,tel_list):
