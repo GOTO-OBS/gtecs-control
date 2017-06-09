@@ -136,21 +136,6 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command == 'flush':
-        if len(args) == 1 and misc.is_num(args[0]):
-            target_flushes = int(args[0])
-            HW_list        = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
-            if c: print(c)
-        elif len(args) == 2 and misc.is_num(args[1]):
-            target_flushes = float(args[1])
-            HW_list        = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
-                if c: print(c)
-        else:
-            print(misc.ERROR('Invalid arguments'))
-
     elif command == 'bin':
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             bins    = [int(args[0]), int(args[1])]
@@ -234,7 +219,6 @@ def print_instructions():
     '  cam ' + misc.bold('abort') + ' [tels]' + '         - abort current exposure' + '\n' +\
     '  cam ' + misc.bold('bin') + ' [tels] h v' + '       - set horiz/vert binning factors' + '\n' +\
     '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
-    '  cam ' + misc.bold('flush') + ' [tels] number' + '  - set no. of flushes before exposing' + '\n' +\
     '  cam ' + misc.bold('area') + ' [tels] x y X Y' + '  - sets the active area of the CCD' + '\n' +\
     '  cam ' + misc.bold('info') + ' [v]' + '        - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\

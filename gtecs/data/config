@@ -45,7 +45,7 @@ FILTER_LIST = L, R, G, B, C
 
 ########################################################################
 # Camera parameters
-FRAMETYPE_LIST = normal, dark, rbi_flush
+FRAMETYPE_LIST = normal, dark
 DARKFILT = C
 BIASEXP = 0.1
 
