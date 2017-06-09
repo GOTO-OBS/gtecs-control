@@ -44,7 +44,7 @@ class CamDaemon(HardwareDaemon):
     - set_temperature(target_temp,telescopeIDs)
     - set_flushes(target_flushes,telescopeIDs)
     - set_area(area,telescopeIDs)
-    - set_spec(run_ID,target,imgtype):
+    - set_spec(target,imgtype)
     """
 
     def __init__(self):
@@ -104,8 +104,7 @@ class CamDaemon(HardwareDaemon):
         self.target_flushes = 0
         self.finished = 0
         self.saving_flag = 0
-        self.spec_flag = 0
-        self.run_ID = 0
+        self.run_number = 0
         self.target = 'N/A'
         self.imgtype = 'MANUAL'
 
@@ -341,7 +340,7 @@ class CamDaemon(HardwareDaemon):
             info['cooler_power'+tel] = self.cooler_power[intf][HW]
             info['serial_number'+tel] = self.serial_number[intf][HW]
 
-        info['run_ID'] = self.run_ID
+        info['run_number'] = self.run_number
         info['uptime'] = time.time()-self.start_time
         info['ping'] = time.time()-self.time_check
         now = datetime.datetime.utcnow()
@@ -434,17 +433,14 @@ class CamDaemon(HardwareDaemon):
         self.set_area_flag = 1
         return s
 
-    def set_spec(self,run_ID,target,imgtype):
+    def set_spec(self,target,imgtype):
         """Save the run details if given by the queue daemon"""
-        self.run_ID = run_ID
         self.target = target
         self.imgtype = imgtype
-        self.spec_flag = 1
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
-    def _take_frame(self, exptime, exp_type,
-                    tel_list):
+    def _take_frame(self, exptime, exp_type, tel_list):
         """
         Take a frame with camera.
 
@@ -462,26 +458,41 @@ class CamDaemon(HardwareDaemon):
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+
         self.target_exptime = exptime
+
         if exp_type == 'image':
             self.target_frametype = 'normal'
         elif exp_type == 'dark' or exp_type == 'bias':
             self.target_frametype = 'dark'
         else:
             raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
+
         time.sleep(0.1)
+
         occupied = False
         for tel in self.active_tel:
             intf, HW = self.tel_dict[tel]
             if self.exposing_flag[intf][HW] == 1:
                 s = 'ERROR: Cameras are already exposing'
                 occupied = True
+
         if not occupied:
-            s = 'Exposing:'
+            # find and update run number
+            with open(self.run_number_file, 'r') as f:
+                lines = f.readlines()
+                self.run_number = int(lines[0]) + 1
+            with open(self.run_number_file, 'w') as f:
+                f.write(str(self.run_number))
+
+            s = 'Exposing run {:06d}:'.format(self.run_number)
             for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking %s on camera %i' % (exp_type, tel)
+                s += '\n  Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
+                                                                     exp_type,
+                                                                     tel)
             self.take_exposure_flag = 1
+
         return s
 
     def _image_fetch(self, tel):
@@ -499,16 +510,15 @@ class CamDaemon(HardwareDaemon):
         return future_image
 
     def _image_location(self,tel):
-        # Find the date the observing night began, for the directory
+        # Find the directory, using the date the observing night began
         night = nightStarting()
-        if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
         direc = params.IMAGE_PATH + night
-        if not os.path.exists(direc): os.mkdir(direc)
-        # Find the run number, for the file name
-        if self.run_ID != 0:
-            filename = '/r%05i_ut%i.fits'%(self.run_ID,tel)
-        else:
-            filename = '/man_ut%i.fits'%tel
+        if not os.path.exists(direc):
+            os.mkdir(direc)
+
+        # Find the file name, using the run number and UT number
+        filename = '/r{:06d}_ut{:d}.fits'.format(self.run_number, tel)
+
         return direc + filename
 
     def _write_fits(self,image,filename,tel):
@@ -523,7 +533,7 @@ class CamDaemon(HardwareDaemon):
         now = datetime.datetime.utcnow()
         hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
         header.set("DATE",     value = hdu_date,                        comment = "Date HDU created")
-        header.set("RUN_ID",   value = self.run_ID,                     comment = "GOTO Observation ID number")
+        header.set("RUN_ID",   value = self.run_number,                 comment = "GOTO Observation ID number")
         header.set("OBJECT",   value = self.target,                     comment = "Object name")
 
         # Origin data

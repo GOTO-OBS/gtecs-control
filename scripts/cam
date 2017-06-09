@@ -196,7 +196,7 @@ def print_info(info):
         if info['status'+str(tel)] != 'Exposing':
             print('Status: %s' %info['status'+str(tel)])
         else:
-            print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+            print('Status: %s %06d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
         print('Frame type:       %s' %info['frametype'+str(tel)])
         print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
         print('Active area:      %s' %str(info['area'+str(tel)]))
@@ -218,7 +218,7 @@ def print_info_s(info):
             print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
             print('  [%s]' %info['status'+str(tel)])
         else:
-            print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+            print('  %s %06d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
