@@ -59,7 +59,7 @@ class FLIDaemon(InterfaceDaemon):
     - abort_exposure(HW)
     - set_camera_temp(target_temp, HW)
     - set_camera_flushes(target_flushes, HW)
-    - set_camera_bins(hbin, vbin, HW)
+    - set_camera_binning(hbin, vbin, HW)
     - set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
     - get_camera_info(HW)
     - get_camera_time_remaining(HW)
@@ -202,7 +202,7 @@ class FLIDaemon(InterfaceDaemon):
         """Set the number of times to flush the CCD before an exposure"""
         self.cams[int(HW)].set_flushes(target_flushes)
 
-    def set_camera_bins(self, hbin, vbin, HW):
+    def set_camera_binning(self, hbin, vbin, HW):
         """Set the image binning"""
         self.cams[int(HW)].set_image_binning(hbin,vbin)
 
