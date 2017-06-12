@@ -42,17 +42,17 @@ class ExposureSpec:
     - tel_list    [lst] -- REQUIRED --
     - exptime     [int] -- REQUIRED --
     - filter      [str] -- REQUIRED --
-    - bin factor  [int] <default = 1>
+    - binning     [int] <default = 1>
     - frame type  [str] <default = 'normal'>
     - target      [str] <default = 'N/A'>
     - image type  [str] <default = 'SCIENCE'>
     """
-    def __init__(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def __init__(self,tel_list,exptime,filt,binning=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
         self.exptime = exptime
         self.filt = filt
-        self.bins = bins
+        self.binning = binning
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype
@@ -65,17 +65,17 @@ class ExposureSpec:
         tel_list = ast.literal_eval(ls[1])
         exptime = float(ls[2])
         filt = ls[3]
-        bins = int(ls[4])
+        binning = int(ls[4])
         frametype = ls[5]
         target = ls[6]
         imgtype = ls[7]
-        exp = cls(tel_list,exptime,filt,bins,frametype,target,imgtype)
+        exp = cls(tel_list,exptime,filt,binning,frametype,target,imgtype)
         return exp
 
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
         line = '%s;%.1f;%s;%i;%s;%s;%s\n'\
-           %(self.tel_list,self.exptime,self.filt,self.bins,self.frametype,self.target,self.imgtype)
+           %(self.tel_list,self.exptime,self.filt,self.binning,self.frametype,self.target,self.imgtype)
         return line
 
     def info(self):
@@ -85,7 +85,7 @@ class ExposureSpec:
         s += '  Unit telescope(s): %s\n' %self.tel_list
         s += '  Exposure time: %is\n' %self.exptime
         s += '  Filter: %s\n' %self.filt
-        s += '  Bins: %i\n' %self.bins
+        s += '  Binning: %i\n' %self.binning
         s += '  Frame type: %s\n' %self.frametype
         s += '  Target: %s\n' %self.target
         s += '  Image type: %s\n' %self.imgtype
@@ -169,7 +169,7 @@ class ExqDaemon(HardwareDaemon):
 
     Contains 6 functions:
     - get_info()
-    - add(exptime,filt,tel,bins,frametype,target,imgtype)
+    - add(exptime,filt,tel,binning,frametype,target,imgtype)
     - clear()
     - get()
     - pause()
@@ -253,7 +253,7 @@ class ExqDaemon(HardwareDaemon):
             info['current_tel_list'] = self.exp_spec.tel_list
             info['current_exptime'] = self.exp_spec.exptime
             info['current_filter'] = self.exp_spec.filt
-            info['current_bins'] = self.exp_spec.bins
+            info['current_binning'] = self.exp_spec.binning
             info['current_frametype'] = self.exp_spec.frametype
             info['current_target'] = self.exp_spec.target
             info['current_imgtype'] = self.exp_spec.imgtype
@@ -263,13 +263,13 @@ class ExqDaemon(HardwareDaemon):
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
         return info
 
-    def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def add(self,tel_list,exptime,filt,binning=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
         """Add an exposure to the queue"""
         # check if valid
         if filt.upper() not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
 
-        self.exp_queue.append(ExposureSpec(tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
+        self.exp_queue.append(ExposureSpec(tel_list,exptime,filt.upper(),binning,frametype,target.replace(';',''),imgtype.replace(';','')))
         if(self.paused):
             return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
         else:
@@ -325,12 +325,12 @@ class ExqDaemon(HardwareDaemon):
             self.time_check = time.time()
 
     def _take_image(self, cam):
-        bins = self.exp_spec.bins
+        binning = self.exp_spec.binning
         exptime = self.exp_spec.exptime
         tel_list = self.exp_spec.tel_list
         try:
             cam._pyroReconnect()
-            cam.set_bins([bins, bins], tel_list)  # Assumes symmetric for now
+            cam.set_binning(binning, tel_list)
             cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype)
             time.sleep(0.1)
             if self.exp_spec.frametype == 'normal':

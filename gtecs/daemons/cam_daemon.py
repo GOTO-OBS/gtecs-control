@@ -53,7 +53,7 @@ class CamDaemon(HardwareDaemon):
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
-        self.set_bins_flag = 0
+        self.set_binning_flag = 0
 
         ### camera variables
         self.info = {}
@@ -68,7 +68,7 @@ class CamDaemon(HardwareDaemon):
         self.exposing_flag = {}
         self.exptime = {}
         self.frametype = {}
-        self.bins = {}
+        self.binning = {}
         self.ccd_temp = {}
         self.base_temp = {}
         self.cooler_power = {}
@@ -81,7 +81,7 @@ class CamDaemon(HardwareDaemon):
             self.exposing_flag[intf] = [0]*nHW
             self.exptime[intf] = [1]*nHW
             self.frametype[intf] = ['normal']*nHW
-            self.bins[intf] = [[1,1]]*nHW
+            self.binning[intf] = [1]*nHW
             self.ccd_temp[intf] = [0]*nHW
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
@@ -92,7 +92,7 @@ class CamDaemon(HardwareDaemon):
         self.obs_times = {}
         self.target_exptime = 0
         self.target_frametype = 0
-        self.target_bins = (1, 1)
+        self.target_binning = 1
         self.target_temp = 0
         self.finished = 0
         self.saving_flag = 0
@@ -217,26 +217,26 @@ class CamDaemon(HardwareDaemon):
                 self.active_tel = []
                 self.set_temp_flag = 0
 
-            # set bins
-            if(self.set_bins_flag):
-                hbin, vbin = self.target_bins
+            # set binning
+            if(self.set_binning_flag):
+                binning = self.target_binning
                 for tel in self.active_tel:
                     intf, HW = self.tel_dict[tel]
                     if self.exposing_flag[intf][HW] == 1:
                         self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
                     else:
-                        self.bins[intf][HW] = self.target_bins
-                        self.logfile.info('Setting bins on camera %i (%s-%i) to (%i,%i)', tel, intf, HW, hbin, vbin)
+                        self.binning[intf][HW] = self.target_binning
+                        self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
-                            c = fli.set_camera_bins(hbin,vbin,HW)
+                            c = fli.set_camera_binning(binning,binning,HW)
                             if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
                 self.active_tel = []
-                self.set_bins_flag = 0
+                self.set_binning_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
 
@@ -285,7 +285,7 @@ class CamDaemon(HardwareDaemon):
 
             info['frametype'+tel] = self.frametype[intf][HW]
             info['exptime'+tel] = self.exptime[intf][HW]
-            info['bins'+tel] = tuple(self.bins[intf][HW])
+            info['binning'+tel] = self.binning[intf][HW]
             info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
             info['base_temp'+tel] = self.base_temp[intf][HW]
             info['cooler_power'+tel] = self.cooler_power[intf][HW]
@@ -343,17 +343,17 @@ class CamDaemon(HardwareDaemon):
         self.set_temp_flag = 1
         return s
 
-    def set_bins(self,bins,tel_list):
+    def set_binning(self,binning,tel_list):
         """Set the image binning"""
-        self.target_bins = bins
+        self.target_binning = binning
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
-            s += '\n  Setting image bins on camera %i' %tel
-        self.set_bins_flag = 1
+            s += '\n  Setting image binning on camera %i' %tel
+        self.set_binning_flag = 1
         return s
 
     def set_spec(self,target,imgtype):
@@ -472,8 +472,8 @@ class CamDaemon(HardwareDaemon):
         header.set("EXPTIME",  value = self.target_exptime,             comment = "Exposure time, seconds")
         header.set("FRMTYPE",  value = self.target_frametype,           comment = "Exposure type")
         header.set("IMGTYPE",  value = self.imgtype,                    comment = "Type of image")
-        x_bin = self.target_bins[0]
-        y_bin = self.target_bins[1]
+        x_bin = self.target_binning
+        y_bin = self.target_binning
         header.set("XBINNING", value = x_bin,                           comment = "Width bin factor")
         header.set("YBINNING", value = y_bin,                           comment = "Height bin factor")
         x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*x_bin*1000000 #in microns
