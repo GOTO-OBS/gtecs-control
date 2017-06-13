@@ -20,11 +20,15 @@ import threading
 from concurrent import futures
 import os
 import astropy.io.fits as pyfits
+from astropy.time import Time
+import astropy.units as u
 import numpy
+import math
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy
 from gtecs.tecs_modules.time_date import nightStarting
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
@@ -97,7 +101,7 @@ class CamDaemon(HardwareDaemon):
         self.finished = 0
         self.saving_flag = 0
         self.run_number = 0
-        self.target = 'N/A'
+        self.target = 'NA'
         self.imgtype = 'MANUAL'
 
         ### start control thread
@@ -452,95 +456,221 @@ class CamDaemon(HardwareDaemon):
         hdulist.writeto(filename)
 
     def _update_header(self,header,tel):
-        # File data
+        """Add observation, exposure and hardware info to the FITS header"""
+
+        # These cards are set automatically by AstroPy, we just give them
+        # better comments
+        header.comments["SIMPLE  "] = "Standard FITS"
+        header.comments["BITPIX  "] = "Bits per pixel"
+        header.comments["NAXIS   "] = "Number of dimensions"
+        header.comments["NAXIS1  "] = "Number of columns"
+        header.comments["NAXIS2  "] = "Number of rows"
+        header.comments["EXTEND  "] = "Can contain extensions"
+        header.comments["BSCALE  "] = "Pixel scale factor"
+        header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
+
+
+        # Observation info
+        header["RUN     "] = (self.run_number, "GOTO run number")
+
         now = datetime.datetime.utcnow()
         hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
-        header.set("DATE",     value = hdu_date,                        comment = "Date HDU created")
-        header.set("RUN_ID",   value = self.run_number,                 comment = "GOTO Observation ID number")
-        header.set("OBJECT",   value = self.target,                     comment = "Object name")
+        header["DATE    "] = (hdu_date, "Date HDU created")
 
-        # Origin data
+        header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
+        header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
+
         intf, HW = self.tel_dict[tel]
-        tel_str = "-%i (%s-%i)" %(tel,intf,HW)
-        header.set("ORIGIN",   value = params.ORIGIN,                   comment = "Origin organization")
-        header.set("TELESCOP", value = params.TELESCOP+tel_str,         comment = "Origin telescope")
-        cam_ID = self.cam_info[intf][HW]['serial_number']
-        header.set("INSTRUME", value = cam_ID,                          comment = "Camera serial number")
+        header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
+        header["UT      "] = (tel, "Integer UT number")
+        header["UTMASK  "] = (str(self.active_tel), "Run binary UT mask")
+        header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
 
-        # Camera data
-        header.set("DATE-OBS", value = self.obs_times[tel],             comment = "Observation start time, UTC")
-        header.set("EXPTIME",  value = self.target_exptime,             comment = "Exposure time, seconds")
-        header.set("FRMTYPE",  value = self.target_frametype,           comment = "Exposure type")
-        header.set("IMGTYPE",  value = self.imgtype,                    comment = "Type of image")
-        x_bin = self.target_binning
-        y_bin = self.target_binning
-        header.set("XBINNING", value = x_bin,                           comment = "Width bin factor")
-        header.set("YBINNING", value = y_bin,                           comment = "Height bin factor")
-        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*x_bin*1000000 #in microns
-        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*y_bin*1000000
-        header.set("XPIXLSZ",  value = x_pixel_size,                    comment = "Binned pixel size, microns")
-        header.set("YPIXLSZ",  value = y_pixel_size,                    comment = "Binned pixel size, microns")
-        header.set("CCDTEMP",  value = self.ccd_temp[intf][HW],          comment = "CCD temperature, C")
-        header.set("CCDTEMPS", value = self.target_temp,                comment = "Set CCD temperature, C")
-        header.set("BASETEMP", value = self.base_temp[intf][HW],         comment = "Peltier base temperature, C")
+        header["SWVN    "] = ('0.1', "Software version number")
 
-        # Mount data
-        mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
-        mnt._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = mnt.get_info()
-            mount_alt = info['mount_alt']
-            mount_az = info['mount_az']
-            mount_ra = info['mount_ra']
-            mount_dec = info['mount_dec']
-            target_ra = info['target_ra']
-            target_dec = info['target_dec']
-        except:
-            mount_alt = 'N/A'
-            mount_az = 'N/A'
-            mount_ra = 'N/A'
-            mount_dec = 'N/A'
-            target_ra = 'N/A'
-            target_dec = 'N/A'
-        header.set("ALT", value = mount_alt,                            comment = "Mount altitude")
-        header.set("AZ", value = mount_az,                              comment = "Mount azimuth")
-        header.set("RA", value = target_ra,                              comment = "RA requested")
-        header.set("DEC", value = target_dec,                             comment = "Dec requested")
-        header.set("RA_TEL", value = mount_ra,                          comment = "Telescope RA")
-        header.set("DEC_TEL", value = mount_dec,                         comment = "Telescope Dec")
+        header["OBSERVER"] = ('Martin Dyer', "Who started the exposure")
+        header["OBJECT  "] = (self.target, "Observed object name")
 
-        # Focuser data
+        header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
+        header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
+        header["SITE-ALT"] = (params.SITE_ALTITUDE, "Site elevation, m above sea level")
+        header["SITE-LOC"] = (params.SITE_LOCATION, "Site location")
+
+
+        # Exposure data
+        header["EXPTIME "] = (self.target_exptime, "Exposure time, seconds")
+
+        start_time = Time(self.obs_times[tel])
+        start_time.precision = 0
+        mid_time = start_time + self.target_exptime*u.second
+        header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
+        header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
+
+        mid_jd = mid_time.jd
+        header["JD      "] = (mid_jd, "Exposure midpoint, Julian Date")
+
+        lst = astronomy.find_lst(mid_time)
+        lst_m, lst_s = divmod(abs(lst)*3600,60)
+        lst_h, lst_m = divmod(lst_m,60)
+        if lst < 0: lst_h = -lst_h
+        mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
+        header["LST     "] = (mid_lst, "Exposure midpoint, Local Sidereal Time")
+
+
+        # Frame info
+        header["FRMTYPE "] = (self.target_frametype, "Frame type (shutter open/closed)")
+        header["IMGTYPE "] = (self.imgtype, "Image type")
+
+        header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
+        header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
+
+        header["CHANNELS"] = (2, "Number of CCD channels")
+
+        header["TRIMSEC1"] = ('[65:4152,46:6177]', "Data section for left channel")
+        header["TRIMSEC2"] = ('[4153:8240,46:6177]', "Data section for right channel")
+        header["BIASSEC1"] = ('[3:10,3:6218]', "Recommended bias section for left channel")
+        header["BIASSEC2"] = ('[8295:8302,3:6218]', "Recommended bias section for right channel")
+        header["DARKSEC1"] = ('[26:41,500:5721]', "Recommended dark section for left channel")
+        header["DARKSEC2"] = ('[8264:8279,500:5721]', "Recommended dark section for right channel")
+
+
+        # Database info
+        from_db = False
+        header["FROMDB  "] = (from_db, "True if originated from database, False if manual")
+
+
+        # Camera info
+        cam_serial = self.cam_info[intf][HW]['serial_number']
+        header["CAMERA  "] = (cam_serial, "Camera serial number")
+
+        header["XBINNING"] = (self.target_binning, "CCD x binning factor")
+        header["YBINNING"] = (self.target_binning, "CCD y binning factor")
+
+        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*self.target_binning
+        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*self.target_binning
+        header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
+        header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
+
+        header["CCDTEMP "] = (self.ccd_temp[intf][HW], "CCD temperature, C")
+        header["CCDTEMPS"] = (self.target_temp, "Requested CCD temperature, C")
+        header["BASETEMP"] = (self.base_temp[intf][HW], "Peltier base temperature, C")
+
+
+        # Focuser info
         foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])
         foc._pyroTimeout = params.PROXY_TIMEOUT
         try:
             info = foc.get_info()
+            foc_serial = info['serial_number'+str(tel)]
             foc_pos = info['current_pos'+str(tel)]
             foc_temp_int = info['int_temp'+str(tel)]
             foc_temp_ext = info['ext_temp'+str(tel)]
-            foc_ID = info['serial_number'+str(tel)]
         except:
-            foc_pos = 'N/A'
-            foc_temp_int = 'N/A'
-            foc_temp_ext = 'N/A'
-            foc_ID = 'N/A'
-        header.set("FOCUSER",  value = foc_ID,                          comment = "Focuser serial number")
-        header.set("FOCPOS",   value = foc_pos,                         comment = "Focuser motor position")
-        header.set("FOCTEMPI", value = foc_temp_int,                    comment = "Focuser internal temperature, C")
-        header.set("FOCTEMPX", value = foc_temp_ext,                    comment = "Focuser external temperature, C")
+            foc_serial = 'NA'
+            foc_pos = 'NA'
+            foc_temp_int = 'NA'
+            foc_temp_ext = 'NA'
 
-        #Filter wheel data
+        header["FOCUSER "] = (foc_serial, "Focuser serial number")
+        header["FOCPOS  "] = (foc_pos, "Focuser motor position")
+        header["FOCTEMPI"] = (foc_temp_int, "Focuser internal temperature, C")
+        header["FOCTEMPX"] = (foc_temp_ext, "Focuser external temperature, C")
+
+
+        #Filter wheel info
         flist = params.FILTER_LIST
         filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
         filt._pyroTimeout = params.PROXY_TIMEOUT
         try:
             info = filt.get_info()
-            filt = flist[info['current_filter_num'+str(tel)]]
-            filt_ID = info['serial_number'+str(tel)]
+            filt_serial = info['serial_number'+str(tel)]
+            filt_filter = flist[info['current_filter_num'+str(tel)]]
         except:
-            filt = 'N/A'
-            filt_ID = 'N/A'
-        header.set("FILTW",     value = filt_ID,                        comment = "Filter wheel serial number")
-        header.set("FILTER",    value = filt,                           comment = "Filter used for exposure")
+            filt_serial = 'NA'
+            filt_filter = 'NA'
+        flist_str = ''.join(flist)
+
+        header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
+        header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(flist_str))
+
+
+        # Mount info
+        mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = mnt.get_info()
+            targ_ra = info['target_ra']
+            if targ_ra:
+                ra_m, ra_s = divmod(abs(targ_ra)*3600,60)
+                ra_h, ra_m = divmod(ra_m,60)
+                if targ_ra < 0: ra_h = -ra_h
+                targ_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+            else:
+                targ_ra_str = 'NA'
+
+            targ_dec = info['target_dec']
+            if targ_dec:
+                dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+                dec_d, dec_m = divmod(dec_m,60)
+                if targ_dec < 0: dec_d = -dec_d
+                targ_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+            else:
+                targ_dec_str = 'NA'
+
+            targ_dist_a = info['target_dist']
+            if targ_dist_a:
+                targ_dist = numpy.around(targ_dist_a, decimals=1)
+            else:
+                targ_dist = 'NA'
+
+            mnt_ra = info['mount_ra']
+            ra_m, ra_s = divmod(abs(mnt_ra)*3600,60)
+            ra_h, ra_m = divmod(ra_m,60)
+            if mnt_ra < 0: ra_h = -ra_h
+            mnt_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+
+            mnt_dec = info['mount_dec']
+            dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+            dec_d, dec_m = divmod(dec_m,60)
+            if mnt_dec < 0: dec_d = -dec_d
+            mnt_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+
+            mnt_alt = numpy.around(info['mount_alt'], decimals=2)
+            mnt_az = numpy.around(info['mount_az'], decimals=2)
+
+            zen_dist = numpy.around(90-mnt_alt, decimals=1)
+            airmass = 1/(math.cos(math.pi/2-(mnt_alt*math.pi/180)))
+            airmass = numpy.around(airmass, decimals=2)
+            equinox = 2000
+        except:
+            targ_ra_str = 'NA'
+            targ_dec_str = 'NA'
+            targ_dist = 'NA'
+            mnt_ra_str = 'NA'
+            mnt_dec_str = 'NA'
+            mnt_alt = 'NA'
+            mnt_az = 'NA'
+            zen_dist = 'NA'
+            airmass = 'NA'
+            equinox = 'NA'
+
+        header["RA      "] = (targ_ra_str, "Requested pointing RA")
+        header["DEC     "] = (targ_dec_str, "Requested pointing Dec")
+
+        header["RA_TEL  "] = (mnt_ra_str, "Reported mount pointing RA")
+        header["DEC_TEL "] = (mnt_dec_str, "Reported mount pointing Dec")
+
+        header["EQUINOX "] = (equinox, "RA/Dec equinox, years")
+
+        header["TARGDIST"] = (targ_dist, "Distance from target, degrees")
+
+        header["ALT     "] = (mnt_alt, "Mount altitude")
+        header["AZ      "] = (mnt_az, "Mount azimuth")
+
+        header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
+
+        header["AIRMASS "] = (airmass, "Airmass")
+
 
 ########################################################################
 
