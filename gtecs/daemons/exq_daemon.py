@@ -44,10 +44,14 @@ class ExposureSpec:
     - filter      [str] -- REQUIRED --
     - binning     [int] <default = 1>
     - frame type  [str] <default = 'normal'>
-    - target      [str] <default = 'N/A'>
+    - target      [str] <default = 'NA'>
     - image type  [str] <default = 'SCIENCE'>
+    - set_pos     [int] <default = 1>
+    - set_total   [int] <default = 1>
     """
-    def __init__(self,tel_list,exptime,filt,binning=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def __init__(self, tel_list, exptime, filt,
+                 binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                 set_pos = 1, set_total = 1):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
         self.exptime = exptime
@@ -56,11 +60,13 @@ class ExposureSpec:
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype
+        self.set_pos = set_pos
+        self.set_total = set_total
 
     @classmethod
-    def line_to_spec(cls,line):
+    def line_to_spec(cls, line):
         """Convert a line of data to exposure spec object"""
-        # eg '[1, 2, 4];20;R;2;normal;N/A;SCIENCE'
+        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3'
         ls = line.split(';')
         tel_list = ast.literal_eval(ls[1])
         exptime = float(ls[2])
@@ -69,13 +75,19 @@ class ExposureSpec:
         frametype = ls[5]
         target = ls[6]
         imgtype = ls[7]
-        exp = cls(tel_list,exptime,filt,binning,frametype,target,imgtype)
+        set_pos = ls[8]
+        set_total = ls[9]
+        exp = cls(tel_list, exptime, filt,
+                  binning, frametype, target, imgtype,
+                  set_pos, set_total)
         return exp
 
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
-        line = '%s;%.1f;%s;%i;%s;%s;%s\n'\
-           %(self.tel_list,self.exptime,self.filt,self.binning,self.frametype,self.target,self.imgtype)
+        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i\n'\
+           %(self.tel_list, self.exptime, self.filt,
+             self.binning, self.frametype, self.target, self.imgtype,
+             self.set_pos, self.set_total)
         return line
 
     def info(self):
@@ -89,6 +101,8 @@ class ExposureSpec:
         s += '  Frame type: %s\n' %self.frametype
         s += '  Target: %s\n' %self.target
         s += '  Image type: %s\n' %self.imgtype
+        s += '  Position in set: %i\n' %self.set_pos
+        s += '  Total in set: %i\n' %self.set_total
         return s
 
 class Queue(MutableSequence):
@@ -263,17 +277,49 @@ class ExqDaemon(HardwareDaemon):
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
         return info
 
-    def add(self,tel_list,exptime,filt,binning=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def add(self, tel_list, exptime, filt,
+            binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
+        filt = filt.upper()
+        target = target.replace(';', '')
+        imgtype = imgtype.replace(';', '')
+
         # check if valid
         if filt.upper() not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
 
-        self.exp_queue.append(ExposureSpec(tel_list,exptime,filt.upper(),binning,frametype,target.replace(';',''),imgtype.replace(';','')))
-        if(self.paused):
+        exposure = ExposureSpec(tel_list, exptime, filt,
+                                binning, frametype, target, imgtype)
+        self.exp_queue.append(exposure)
+
+        if self.paused:
             return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
         else:
             return 'Added exposure, now %i items in queue' %len(self.exp_queue)
+
+    def add_multi(self, Nexp, tel_list, exptime, filt,
+                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
+        """Add multiple exposures to the queue as a set"""
+        filt = filt.upper()
+        target = target.replace(';', '')
+        imgtype = imgtype.replace(';', '')
+
+        # check if valid
+        if filt.upper() not in self.flist:
+            return 'ERROR: Filter not in list %s' %str(self.flist)
+
+        s = ''
+        for i in range(Nexp):
+            exposure = ExposureSpec(tel_list, exptime, filt,
+                                    binning, frametype, target, imgtype,
+                                    set_pos = i+1, set_total = Nexp)
+            self.exp_queue.append(exposure)
+
+            if self.paused:
+                s += 'Added exposure, now %i items in queue [paused]\n' %len(self.exp_queue)
+            else:
+                s += 'Added exposure, now %i items in queue\n' %len(self.exp_queue)
+        return s[:-1]
 
     def clear(self):
         """Empty the exposure queue"""
@@ -331,7 +377,8 @@ class ExqDaemon(HardwareDaemon):
         try:
             cam._pyroReconnect()
             cam.set_binning(binning, tel_list)
-            cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype)
+            cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype,
+                         self.exp_spec.set_pos, self.exp_spec.set_total)
             time.sleep(0.1)
             if self.exp_spec.frametype == 'normal':
                 cam.take_image(exptime, tel_list)
