@@ -179,7 +179,7 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
     >>> with open_session() as session:
     >>>     current_job, pending_jobs = get_filtered_queue(session, limit_results=100)
     >>>     njobs = len(pending_jobs)
-    >>>     exposure_list = current_job.exposures
+    >>>     exposure_list = current_job.exposure_sets
     >>> current_job
     DetachedInstanceError: Instance <Pointing at 0x10a00ac50> is not bound to a Session; attribute refresh operation cannot proceed
 
