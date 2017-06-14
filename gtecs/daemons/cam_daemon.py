@@ -103,6 +103,8 @@ class CamDaemon(HardwareDaemon):
         self.run_number = 0
         self.target = 'NA'
         self.imgtype = 'MANUAL'
+        self.set_pos = 1
+        self.set_total = 1
 
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -360,10 +362,12 @@ class CamDaemon(HardwareDaemon):
         self.set_binning_flag = 1
         return s
 
-    def set_spec(self,target,imgtype):
+    def set_spec(self,target,imgtype,set_pos,set_total):
         """Save the run details if given by the queue daemon"""
         self.target = target
         self.imgtype = imgtype
+        self.set_pos = set_pos
+        self.set_total = set_total
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
@@ -490,6 +494,9 @@ class CamDaemon(HardwareDaemon):
 
         header["OBSERVER"] = ('Martin Dyer', "Who started the exposure")
         header["OBJECT  "] = (self.target, "Observed object name")
+
+        header["SET-POS "] = (self.set_pos, "Position of this exposure in this set")
+        header["SET-TOT "] = (self.set_total, "Total number of exposures in this set")
 
         header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
         header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")

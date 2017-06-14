@@ -75,7 +75,7 @@ def query(command, args):
             binning   = int(args[2])
             frametype = 'normal'
             if len(args) == 3:
-                target  = 'N/A'
+                target  = 'NA'
                 imgtype = 'SCIENCE'
             elif len(args) == 4:
                 target  = args[3]
@@ -94,7 +94,7 @@ def query(command, args):
             binning   = int(args[3])
             frametype = 'normal'
             if len(args) == 4:
-                target  = 'N/A'
+                target  = 'NA'
                 imgtype = 'SCIENCE'
             elif len(args) == 5:
                 target  = args[4]
@@ -121,7 +121,7 @@ def query(command, args):
             binning   = int(args[3])
             frametype = 'normal'
             if len(args) == 4:
-                target  = 'N/A'
+                target  = 'NA'
                 imgtype = 'SCIENCE'
             elif len(args) == 5:
                 target  = args[4]
@@ -129,10 +129,9 @@ def query(command, args):
             elif len(args) == 6:
                 target  = args[4]
                 imgtype = args[5]
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
-            for i in range(Nexp):
-                c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                if c: print(c)
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
+            c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+            if c: print(c)
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter binning [object] [imgtype]
             Nexp      = int(args[0])
@@ -142,7 +141,7 @@ def query(command, args):
             binning   = int(args[4])
             frametype = 'normal'
             if len(args) == 5:
-                target  = 'N/A'
+                target  = 'NA'
                 imgtype = 'SCIENCE'
             elif len(args) == 6:
                 target  = args[5]
@@ -150,11 +149,10 @@ def query(command, args):
             elif len(args) == 7:
                 target  = args[5]
                 imgtype = args[6]
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
             if len(tel_list) > 0:
-                for i in range(Nexp):
-                    c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                    if c: print(c)
+                c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -168,7 +166,7 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[1])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'DARK'
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
             c = daemons.daemon_function(daemon_ID, 'add', arg_list)
@@ -180,7 +178,7 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[2])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'DARK'
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
             if len(tel_list) > 0:
@@ -200,12 +198,11 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[2])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'DARK'
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
-            for i in range(Nexp):
-                c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                if c: print(c)
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
+            c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+            if c: print(c)
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # Nexp tels exptime binning
             Nexp      = int(args[0])
@@ -214,13 +211,12 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[3])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'DARK'
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
             if len(tel_list) > 0:
-                for i in range(Nexp):
-                    c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                    if c: print(c)
+                c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -234,7 +230,7 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[0])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'BIAS'
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
             c = daemons.daemon_function(daemon_ID, 'add', arg_list)
@@ -246,7 +242,7 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[1])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'BIAS'
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
             if len(tel_list) > 0:
@@ -266,12 +262,11 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[1])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'BIAS'
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
-            for i in range(Nexp):
-                c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                if c: print(c)
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
+            c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+            if c: print(c)
         elif misc.is_num(args[2]) and len(args) == 3:
             # Nexp tels binning
             Nexp      = int(args[0])
@@ -280,13 +275,12 @@ def query(command, args):
             filt      = params.DARKFILT
             binning   = int(args[2])
             frametype = 'dark'
-            target    = 'N/A'
+            target    = 'NA'
             imgtype   = 'BIAS'
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+            arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype]
             if len(tel_list) > 0:
-                for i in range(Nexp):
-                    c = daemons.daemon_function(daemon_ID, 'add', arg_list)
-                    if c: print(c)
+                c = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
