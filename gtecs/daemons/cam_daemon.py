@@ -105,6 +105,7 @@ class CamDaemon(HardwareDaemon):
         self.imgtype = 'MANUAL'
         self.set_pos = 1
         self.set_total = 1
+        self.stored_tel_list = []
 
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -390,6 +391,7 @@ class CamDaemon(HardwareDaemon):
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
 
+        self.stored_tel_list = tel_list
         self.target_exptime = exptime
 
         if exp_type == 'image':
@@ -485,9 +487,10 @@ class CamDaemon(HardwareDaemon):
         header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
 
         intf, HW = self.tel_dict[tel]
+        ut_mask = misc.ut_list_to_mask(self.stored_tel_list)
         header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
         header["UT      "] = (tel, "Integer UT number")
-        header["UTMASK  "] = (str(self.active_tel), "Run binary UT mask")
+        header["UTMASK  "] = (ut_mask, "Run UT mask integer")
         header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
 
         header["SWVN    "] = ('0.1', "Software version number")
