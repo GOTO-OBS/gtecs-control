@@ -493,7 +493,7 @@ class CamDaemon(HardwareDaemon):
         header["UTMASK  "] = (ut_mask, "Run UT mask integer")
         header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
 
-        header["SWVN    "] = ('0.1', "Software version number")
+        header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
         header["OBSERVER"] = ('Martin Dyer', "Who started the exposure")
         header["OBJECT  "] = (self.target, "Observed object name")
