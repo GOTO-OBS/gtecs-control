@@ -353,3 +353,25 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
     server.quit()
     print('Sent mail to',recipients)
+
+
+def ut_list_to_mask(ut_list):
+    """Converts a UT list to a mask integer"""
+    ut_mask = 0
+    all_tels = sorted(list(params.TEL_DICT))
+    for i in all_tels:
+        if i in ut_list:
+            ut_mask += 2**(i-1)
+    return ut_mask
+
+
+def ut_mask_to_list(ut_mask):
+    """Converts a UT mask integer to a list of telescope numbers"""
+    ut_list = []
+    all_tels = sorted(list(params.TEL_DICT))
+    for i in reversed(all_tels):
+        if ut_mask - 2**(i-1) >= 0:
+            ut_list.append(i)
+            ut_mask -= 2**(i-1)
+    ut_list.sort()
+    return ut_list
