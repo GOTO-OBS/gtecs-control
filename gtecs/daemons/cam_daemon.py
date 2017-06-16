@@ -519,7 +519,7 @@ class CamDaemon(HardwareDaemon):
 
         start_time = Time(self.obs_times[tel])
         start_time.precision = 0
-        mid_time = start_time + self.target_exptime*u.second
+        mid_time = start_time + (self.target_exptime*u.second)/2.
         header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
         header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
 
