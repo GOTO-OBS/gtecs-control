@@ -416,9 +416,9 @@ class CamDaemon(HardwareDaemon):
                 lines = f.readlines()
                 self.run_number = int(lines[0]) + 1
             with open(self.run_number_file, 'w') as f:
-                f.write(str(self.run_number))
+                f.write('{:07d}'.format(self.run_number))
 
-            s = 'Exposing run {:06d}:'.format(self.run_number)
+            s = 'Exposing r{:07d}:'.format(self.run_number)
             for tel in tel_list:
                 self.active_tel += [tel]
                 s += '\n  Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
@@ -450,7 +450,7 @@ class CamDaemon(HardwareDaemon):
             os.mkdir(direc)
 
         # Find the file name, using the run number and UT number
-        filename = '/r{:06d}_ut{:d}.fits'.format(self.run_number, tel)
+        filename = '/r{:07d}_UT{:d}.fits'.format(self.run_number, tel)
 
         return direc + filename
 
@@ -477,7 +477,9 @@ class CamDaemon(HardwareDaemon):
 
 
         # Observation info
+        run_id = 'r{:07d}'.format(self.run_number)
         header["RUN     "] = (self.run_number, "GOTO run number")
+        header["RUN-ID  "] = (run_id, "Padded run ID string")
 
         now = datetime.datetime.utcnow()
         hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
