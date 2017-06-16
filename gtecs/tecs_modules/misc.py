@@ -28,6 +28,7 @@ import smtplib
 
 # TeCS modules
 from . import params
+from . import flags
 from six.moves import range
 
 ########################################################################
@@ -375,3 +376,17 @@ def ut_mask_to_list(ut_mask):
             ut_mask -= 2**(i-1)
     ut_list.sort()
     return ut_list
+
+
+def get_observer():
+    """Find the name of the current observer"""
+    override_flags = flags.Overrides()
+    if not override_flags.robotic:
+        # The pilot is in control
+        return 'GOTO-pilot'
+    elif os.path.exists(params.CONFIG_PATH + 'observer'):
+        with open(params.CONFIG_PATH + 'observer', 'r') as f:
+            lines = f.readlines()
+            return lines[0]
+    else:
+        return 'Unknown'
