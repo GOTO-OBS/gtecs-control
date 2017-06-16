@@ -48,10 +48,11 @@ class ExposureSpec:
     - image type  [str] <default = 'SCIENCE'>
     - set_pos     [int] <default = 1>
     - set_total   [int] <default = 1>
+    - expID       [int] <default = None>
     """
     def __init__(self, tel_list, exptime, filt,
                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
-                 set_pos = 1, set_total = 1):
+                 set_pos = 1, set_total = 1, expID = None):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
         self.exptime = exptime
@@ -62,32 +63,37 @@ class ExposureSpec:
         self.imgtype = imgtype
         self.set_pos = set_pos
         self.set_total = set_total
+        if expID:
+            self.expID = expID
+        else:
+            self.expID = 0
 
     @classmethod
     def line_to_spec(cls, line):
         """Convert a line of data to exposure spec object"""
-        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3'
+        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3;126598'
         ls = line.split(';')
-        tel_list = ast.literal_eval(ls[1])
-        exptime = float(ls[2])
-        filt = ls[3]
-        binning = int(ls[4])
-        frametype = ls[5]
-        target = ls[6]
-        imgtype = ls[7]
-        set_pos = ls[8]
-        set_total = ls[9]
+        tel_list = ast.literal_eval(ls[0])
+        exptime = float(ls[1])
+        filt = ls[2]
+        binning = int(ls[3])
+        frametype = ls[4]
+        target = ls[5]
+        imgtype = ls[6]
+        set_pos = int(ls[7])
+        set_total = int(ls[8])
+        expID = int(ls[9])
         exp = cls(tel_list, exptime, filt,
                   binning, frametype, target, imgtype,
-                  set_pos, set_total)
+                  set_pos, set_total, expID)
         return exp
 
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
-        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i\n'\
+        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
            %(self.tel_list, self.exptime, self.filt,
              self.binning, self.frametype, self.target, self.imgtype,
-             self.set_pos, self.set_total)
+             self.set_pos, self.set_total, self.expID)
         return line
 
     def info(self):
@@ -103,6 +109,7 @@ class ExposureSpec:
         s += '  Image type: %s\n' %self.imgtype
         s += '  Position in set: %i\n' %self.set_pos
         s += '  Total in set: %i\n' %self.set_total
+        s += '  ExposureSet database ID (if any): %i\n' %self.expID
         return s
 
 class Queue(MutableSequence):
@@ -298,7 +305,8 @@ class ExqDaemon(HardwareDaemon):
             return 'Added exposure, now %i items in queue' %len(self.exp_queue)
 
     def add_multi(self, Nexp, tel_list, exptime, filt,
-                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
+                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                  expID = 0):
         """Add multiple exposures to the queue as a set"""
         filt = filt.upper()
         target = target.replace(';', '')
@@ -310,9 +318,11 @@ class ExqDaemon(HardwareDaemon):
 
         s = ''
         for i in range(Nexp):
+            set_pos = i+1
+            set_total = Nexp
             exposure = ExposureSpec(tel_list, exptime, filt,
                                     binning, frametype, target, imgtype,
-                                    set_pos = i+1, set_total = Nexp)
+                                    set_pos, set_total, expID)
             self.exp_queue.append(exposure)
 
             if self.paused:
@@ -378,7 +388,8 @@ class ExqDaemon(HardwareDaemon):
             cam._pyroReconnect()
             cam.set_binning(binning, tel_list)
             cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype,
-                         self.exp_spec.set_pos, self.exp_spec.set_total)
+                         self.exp_spec.set_pos, self.exp_spec.set_total,
+                         self.exp_spec.expID)
             time.sleep(0.1)
             if self.exp_spec.frametype == 'normal':
                 cam.take_image(exptime, tel_list)

@@ -105,6 +105,7 @@ class CamDaemon(HardwareDaemon):
         self.imgtype = 'MANUAL'
         self.set_pos = 1
         self.set_total = 1
+        self.expID = 0
         self.stored_tel_list = []
 
         ### start control thread
@@ -363,12 +364,13 @@ class CamDaemon(HardwareDaemon):
         self.set_binning_flag = 1
         return s
 
-    def set_spec(self,target,imgtype,set_pos,set_total):
+    def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
         """Save the run details if given by the queue daemon"""
         self.target = target
         self.imgtype = imgtype
         self.set_pos = set_pos
         self.set_total = set_total
+        self.expID = expID
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
@@ -551,8 +553,85 @@ class CamDaemon(HardwareDaemon):
 
         # Database info
         from_db = False
-        header["FROMDB  "] = (from_db, "True if originated from database, False if manual")
+        expsetID = 'NA'
+        pointingID = 'NA'
+        ToO_flag = 'NA'
+        rank = 'NA'
+        userID = 'NA'
+        userName = 'NA'
+        mpointingID = 'NA'
+        repeatID = 'NA'
+        repeatNum = 'NA'
+        ligoTileID = 'NA'
+        ligoTileProb = 'NA'
+        surveyTileID = 'NA'
+        eventID = 'NA'
+        eventName = 'NA'
+        eventIVO = 'NA'
+        eventSource = 'NA'
 
+        if self.expID != 0:
+            from_db = True
+            from gtecs import database as db
+            with db.open_session() as session:
+                expsetID = self.expID
+                expset = session.query(db.ExposureSet).filter(
+                         db.ExposureSet.expID == expsetID).one_or_none()
+
+                if expset.pointingID:
+                    pointingID = expset.pointingID
+                    pointing = session.query(db.Pointing).filter(
+                               db.Pointing.pointingID == pointingID).one_or_none()
+                    rank = pointing.rank
+                    ToO_flag = bool(pointing.ToO)
+                    userID = pointing.userKey
+                    user = session.query(db.User).filter(
+                           db.User.userKey == userID).one_or_none()
+                    userName = user.fullName
+
+                    if pointing.mpointingID:
+                        mpointingID = expset.mpointingID
+
+                    if pointing.repeatID:
+                        repeatID = pointing.repeatID
+                        repeat = session.query(db.Repeat).filter(
+                                   db.Repeat.repeatID == repeatID).one_or_none()
+                        repeatNum = repeat.repeatNum
+
+                    if pointing.ligoTileID:
+                        ligoTileID = pointing.ligoTileID
+                        ligoTile = session.query(db.LigoTile).filter(
+                                   db.LigoTile.ligoTileID == pointingID).one_or_none()
+                        ligoTileProb = ligoTile.probability
+
+                    if pointing.surveyTileID:
+                        surveyTileID = pointing.surveyTileID
+
+                    if pointing.eventID:
+                        eventID = pointing.eventID
+                        event = session.query(db.Event).filter(
+                                   db.Event.eventID == eventID).one_or_none()
+                        eventName = event.name
+                        eventIVO = event.ivo
+                        eventSource = event.source
+
+        header["FROMDB  "] = (from_db, "True if originated from database, False if manual")
+        header["EXPS-ID "] = (expsetID, "Database ExposureSet ID")
+        header["PNT-ID  "] = (pointingID, "Database Pointing ID")
+        header["TOO     "] = (ToO_flag, "ToO flag for this Pointing")
+        header["RANK    "] = (rank, "Rank of this Pointing")
+        header["USER-ID "] = (userID, "Database User ID who submitted this Pointing")
+        header["USER    "] = (userName, "User who submitted this Pointing")
+        header["MPNT-ID "] = (mpointingID, "Database Mpointing ID")
+        header["REP-ID  "] = (repeatID, "Database Repeat ID")
+        header["REP-N   "] = (repeatNum, "Number of this Repeat")
+        header["GW-ID   "] = (ligoTileID, "Database LIGO tile ID")
+        header["GW-PROB "] = (ligoTileProb, "LIGO tile contained probability")
+        header["SVY-ID  "] = (surveyTileID, "Database Survey tile ID")
+        header["EVENT-ID"] = (eventID, "Database Event ID")
+        header["EVENT   "] = (eventName, "Event name for this Pointing")
+        header["IVO     "] = (eventIVO, "IVOA identifier for this event")
+        header["SOURCE  "] = (eventSource, "Source of this event")
 
         # Camera info
         cam_serial = self.cam_info[intf][HW]['serial_number']
