@@ -495,7 +495,8 @@ class CamDaemon(HardwareDaemon):
 
         header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
-        header["OBSERVER"] = ('Martin Dyer', "Who started the exposure")
+        observer = misc.get_observer()
+        header["OBSERVER"] = (observer, "Who started the exposure")
         header["OBJECT  "] = (self.target, "Observed object name")
 
         header["SET-POS "] = (self.set_pos, "Position of this exposure in this set")
