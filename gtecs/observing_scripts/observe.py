@@ -40,7 +40,7 @@ def get_position(pointingID):
 
 
 def get_exq_commands(pointingID):
-    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE"
+    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE {expID}"
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
