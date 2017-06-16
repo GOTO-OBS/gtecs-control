@@ -615,7 +615,7 @@ class CamDaemon(HardwareDaemon):
                         eventIVO = event.ivo
                         eventSource = event.source
 
-        header["FROMDB  "] = (from_db, "True if originated from database, False if manual")
+        header["FROMDB  "] = (from_db, "Exposure linked to database set")
         header["EXPS-ID "] = (expsetID, "Database ExposureSet ID")
         header["PNT-ID  "] = (pointingID, "Database Pointing ID")
         header["TOO     "] = (ToO_flag, "ToO flag for this Pointing")
