@@ -50,7 +50,7 @@ def get_process_ID(process_name, host):
     elif 'LOGNAME' in os.environ:
         username = os.environ['LOGNAME']
 
-    if host == get_hostname():
+    if host == 'localhost' or host == get_hostname():
         all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
     else:
         all_processes = getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
@@ -113,7 +113,7 @@ def kill_processes(process, host):
     local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
 
-    if local_host == host:
+    if local_host == host or host == 'localhost':
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
             print('Killed process', process_ID)
