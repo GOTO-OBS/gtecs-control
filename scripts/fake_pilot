@@ -118,7 +118,7 @@ def estimate_completion_time(newID, currentID, session):
     """
     total_exptime = 0*u.s
     new_pointing = db.get_pointing_by_id(session, newID)
-    for exp in new_pointing.exposures:
+    for exp in new_pointing.exposure_sets:
         total_exptime += ((exp.expTime*u.s + readouttime) * exp.numexp)
 
     if currentID is not None:

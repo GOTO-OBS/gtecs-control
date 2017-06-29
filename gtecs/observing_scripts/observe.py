@@ -40,13 +40,13 @@ def get_position(pointingID):
 
 
 def get_exq_commands(pointingID):
-    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE"
+    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE {expID}"
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
-        for exposure in pointing.exposures:
+        for exposure_set in pointing.exposure_sets:
             keywords = pointing.__dict__.copy()
-            keywords.update(exposure.__dict__)
+            keywords.update(exposure_set.__dict__)
             commands.append(command_template.format(**keywords))
     return commands
 
