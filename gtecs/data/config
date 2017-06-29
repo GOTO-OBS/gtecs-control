@@ -157,4 +157,4 @@ PROXY_TIMEOUT = 0.5
         PORT = 9000
         PROCESS = sitech_interface.py
         PYROID = sitech_interface
-        HOST = goto_mount
+        HOST = mount_control
