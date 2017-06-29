@@ -18,6 +18,13 @@ import pkg_resources
 import configobj
 import validate
 
+
+########################################################################
+# Module parameters
+GTECS_VERSION = '0.1.0'
+
+########################################################################
+
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
     # we are running in install dir, during installation

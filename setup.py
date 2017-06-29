@@ -1,9 +1,10 @@
 from __future__ import print_function
 from setuptools import setup
 import glob
+from gtecs.tecs_modules.params import GTECS_VERSION
 
 setup(name='gtecs',
-      version='0.1',
+      version=GTECS_VERSION,
       description='G-TECS control system for GOTO',
       url='http://github.com/GOTO/g-tecs',
       author='Martin Dyer',
