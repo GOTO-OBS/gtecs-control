@@ -28,6 +28,7 @@ import smtplib
 
 # TeCS modules
 from . import params
+from . import flags
 from six.moves import range
 
 ########################################################################
@@ -50,7 +51,7 @@ def get_process_ID(process_name, host):
     elif 'LOGNAME' in os.environ:
         username = os.environ['LOGNAME']
 
-    if host == get_hostname():
+    if host == 'localhost' or host == get_hostname():
         all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
     else:
         all_processes = getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
@@ -113,7 +114,7 @@ def kill_processes(process, host):
     local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
 
-    if local_host == host:
+    if local_host == host or host == 'localhost':
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
             print('Killed process', process_ID)
@@ -353,3 +354,39 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
     server.quit()
     print('Sent mail to',recipients)
+
+
+def ut_list_to_mask(ut_list):
+    """Converts a UT list to a mask integer"""
+    ut_mask = 0
+    all_tels = sorted(list(params.TEL_DICT))
+    for i in all_tels:
+        if i in ut_list:
+            ut_mask += 2**(i-1)
+    return ut_mask
+
+
+def ut_mask_to_list(ut_mask):
+    """Converts a UT mask integer to a list of telescope numbers"""
+    ut_list = []
+    all_tels = sorted(list(params.TEL_DICT))
+    for i in reversed(all_tels):
+        if ut_mask - 2**(i-1) >= 0:
+            ut_list.append(i)
+            ut_mask -= 2**(i-1)
+    ut_list.sort()
+    return ut_list
+
+
+def get_observer():
+    """Find the name of the current observer"""
+    override_flags = flags.Overrides()
+    if not override_flags.robotic:
+        # The pilot is in control
+        return 'GOTO-pilot'
+    elif os.path.exists(params.CONFIG_PATH + 'observer'):
+        with open(params.CONFIG_PATH + 'observer', 'r') as f:
+            lines = f.readlines()
+            return lines[0]
+    else:
+        return 'Unknown'

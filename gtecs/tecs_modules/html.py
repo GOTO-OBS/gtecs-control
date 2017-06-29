@@ -255,8 +255,8 @@ def write_queue_page():
             # find database info
             session = db.load_session()
             dbPointing = db.get_pointing_by_id(session, pointingID)
-            if dbPointing.exposures is not None:
-                dbExps = dbPointing.exposures
+            if dbPointing.exposure_sets is not None:
+                dbExps = dbPointing.exposure_sets
             username = db.get_username(session, dbPointing.userKey)
             session.close()
 

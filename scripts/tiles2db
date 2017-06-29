@@ -121,9 +121,9 @@ def save_pointing(session, ra, dec, num, event, event_time, tile):
                         ligoTile=tile)
     session.add(pointing)
 
-    save_exposure(session, pointing)
+    save_exposure_set(session, pointing)
 
-def save_exposure(session, pointing):
+def save_exposure_set(session, pointing):
     exptime = 120
     numexp = 3
     exptype = 'SCIENCE'
@@ -133,7 +133,7 @@ def save_exposure(session, pointing):
     raoff = 0
     decoff = 0
 
-    exposure = db.Exposure(expTime=exptime,
+    exposure_set = db.ExposureSet(expTime=exptime,
                         numexp=numexp,
                         typeFlag=exptype,
                         filt=filt,
@@ -142,7 +142,7 @@ def save_exposure(session, pointing):
                         raoff=raoff,
                         decoff=decoff,
                         pointing=pointing)
-    session.add(exposure)
+    session.add(exposure_set)
 
 def run(filename, event_name):
     tile_list, event_time = read_tile_file(filename)

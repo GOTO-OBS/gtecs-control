@@ -68,6 +68,8 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             exptime = float(args[0])
             HW_list = list(params.TEL_DICT)
+            spec = ['NA', 'SCIENCE', 1, 1]
+            daemons.daemon_function(daemon_ID, 'set_spec', spec)
             c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
             if c: print(c)
 
@@ -75,6 +77,8 @@ def query(command, args):
             exptime = float(args[1])
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
+                spec = ['NA', 'SCIENCE', 1, 1]
+                daemons.daemon_function(daemon_ID, 'set_spec', spec)
                 c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
                 if c: print(c)
         else:
@@ -84,12 +88,16 @@ def query(command, args):
         if len(args) == 1 and misc.is_num(args[0]):
             exptime = float(args[0])
             HW_list = list(params.TEL_DICT)
+            spec = ['NA', 'DARK', 1, 1]
+            daemons.daemon_function(daemon_ID, 'set_spec', spec)
             c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
             if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
             exptime = float(args[1])
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
+                spec = ['NA', 'DARK', 1, 1]
+                daemons.daemon_function(daemon_ID, 'set_spec', spec)
                 c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
                 if c: print(c)
         else:
@@ -98,11 +106,15 @@ def query(command, args):
     elif command == 'bias':
         if len(args) == 0:
             HW_list = list(params.TEL_DICT)
+            spec = ['NA', 'BIAS', 1, 1]
+            daemons.daemon_function(daemon_ID, 'set_spec', spec)
             c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
             if c: print(c)
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
+                spec = ['NA', 'BIAS', 1, 1]
+                daemons.daemon_function(daemon_ID, 'set_spec', spec)
                 c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
                 if c: print(c)
         else:
@@ -136,47 +148,17 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
 
-    elif command == 'flush':
+    elif command in ['bin', 'bins', 'binning']:
         if len(args) == 1 and misc.is_num(args[0]):
-            target_flushes = int(args[0])
-            HW_list        = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
+            binning = int(args[0])
+            HW_list = list(params.TEL_DICT)
+            c = daemons.daemon_function(daemon_ID, 'set_binning', [binning, HW_list])
             if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
-            target_flushes = float(args[1])
-            HW_list        = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_flushes', [target_flushes, HW_list])
-                if c: print(c)
-        else:
-            print(misc.ERROR('Invalid arguments'))
-
-    elif command == 'bin':
-        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            bins    = [int(args[0]), int(args[1])]
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
-            if c: print(c)
-        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            bins    = [int(args[1]), int(args[2])]
+            binning = int(args[1])
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_bins', [bins, HW_list])
-                if c: print(c)
-        else:
-            print(misc.ERROR('Invalid arguments'))
-
-    elif command == 'area':
-        if len(args) == 4 and misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]):
-            area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_area', [area, HW_list])
-            if c: print(c)
-        elif len(args) == 5 and misc.is_num(args[1]) and misc.is_num(args[2]) and misc.is_num(args[3]) and misc.is_num(args[4]):
-            area = [int(args[0]), int(args[1]), int(args[2]), int(args[3])]
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_area', [area, HW_list])
+                c = daemons.daemon_function(daemon_ID, 'set_binning', [binning, HW_list])
                 if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -196,11 +178,10 @@ def print_info(info):
         if info['status'+str(tel)] != 'Exposing':
             print('Status: %s' %info['status'+str(tel)])
         else:
-            print('Status: %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+            print('Status: %s r%07d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
         print('Frame type:       %s' %info['frametype'+str(tel)])
         print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
-        print('Active area:      %s' %str(info['area'+str(tel)]))
-        print('Bin factors:      %i,%i' %(info['bins'+str(tel)][0],info['bins'+str(tel)][1]))
+        print('Binning:          %i' %(info['binning'+str(tel)]))
         print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
         print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
         print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
@@ -218,7 +199,7 @@ def print_info_s(info):
             print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
             print('  [%s]' %info['status'+str(tel)])
         else:
-            print('  %s %s (%.2f)' %(info['status'+str(tel)],info['run_ID'],info['remaining'+str(tel)]))
+            print('  %s r%07d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
@@ -232,15 +213,13 @@ def print_instructions():
     '  cam ' + misc.bold('dark') + ' [tels] exptime' + '  - take a dark frame' + '\n' +\
     '  cam ' + misc.bold('bias') + ' [tels]' + '          - take a bias frame' + '\n' +\
     '  cam ' + misc.bold('abort') + ' [tels]' + '         - abort current exposure' + '\n' +\
-    '  cam ' + misc.bold('bin') + ' [tels] h v' + '       - set horiz/vert binning factors' + '\n' +\
+    '  cam ' + misc.bold('bin') + ' [tels] binning' + '   - set binning factor' + '\n' +\
     '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
-    '  cam ' + misc.bold('flush') + ' [tels] number' + '  - set no. of flushes before exposing' + '\n' +\
-    '  cam ' + misc.bold('area') + ' [tels] x y X Y' + '  - sets the active area of the CCD' + '\n' +\
-    '  cam ' + misc.bold('info') + ' [v]' + '        - report current status' + '\n' +\
+    '  cam ' + misc.bold('info') + ' [v]' + '             - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('i') + '               - enter interactive mode' + '\n' +\
-    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '          - quit interactive mode' + '\n' +\
-    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '          - print these instructions'
+    '  cam ' + misc.bold('i') + '                    - enter interactive mode' + '\n' +\
+    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '               - quit interactive mode' + '\n' +\
+    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '               - print these instructions'
     print(help_str)
 
 ########################################################################

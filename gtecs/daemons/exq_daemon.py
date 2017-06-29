@@ -39,59 +39,77 @@ class ExposureSpec:
     - info()
 
     Exposures contain the folowing infomation:
-    - run ID      [int] <automatically assigned>
     - tel_list    [lst] -- REQUIRED --
     - exptime     [int] -- REQUIRED --
     - filter      [str] -- REQUIRED --
-    - bin factor  [int] <default = 1>
+    - binning     [int] <default = 1>
     - frame type  [str] <default = 'normal'>
-    - target      [str] <default = 'N/A'>
+    - target      [str] <default = 'NA'>
     - image type  [str] <default = 'SCIENCE'>
+    - set_pos     [int] <default = 1>
+    - set_total   [int] <default = 1>
+    - expID       [int] <default = None>
     """
-    def __init__(self,run_ID,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def __init__(self, tel_list, exptime, filt,
+                 binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                 set_pos = 1, set_total = 1, expID = None):
         self.creation_time = time.gmtime()
-        self.run_ID = run_ID
         self.tel_list = tel_list
         self.exptime = exptime
         self.filt = filt
-        self.bins = bins
+        self.binning = binning
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype
+        self.set_pos = set_pos
+        self.set_total = set_total
+        if expID:
+            self.expID = expID
+        else:
+            self.expID = 0
 
     @classmethod
-    def line_to_spec(cls,line):
+    def line_to_spec(cls, line):
         """Convert a line of data to exposure spec object"""
-        # eg '00033;[1, 2, 4];20;R;2;normal;N/A;SCIENCE'
+        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3;126598'
         ls = line.split(';')
-        run_ID = int(ls[0])
-        tel_list = ast.literal_eval(ls[1])
-        exptime = float(ls[2])
-        filt = ls[3]
-        bins = int(ls[4])
-        frametype = ls[5]
-        target = ls[6]
-        imgtype = ls[7]
-        exp = cls(run_ID,tel_list,exptime,filt,bins,frametype,target,imgtype)
+        tel_list = ast.literal_eval(ls[0])
+        exptime = float(ls[1])
+        filt = ls[2]
+        binning = int(ls[3])
+        frametype = ls[4]
+        target = ls[5]
+        imgtype = ls[6]
+        set_pos = int(ls[7])
+        set_total = int(ls[8])
+        expID = int(ls[9])
+        exp = cls(tel_list, exptime, filt,
+                  binning, frametype, target, imgtype,
+                  set_pos, set_total, expID)
         return exp
 
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
-        line = '%05d;%s;%.1f;%s;%i;%s;%s;%s\n'\
-           %(self.run_ID,self.tel_list,self.exptime,self.filt,self.bins,self.frametype,self.target,self.imgtype)
+        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
+           %(self.tel_list, self.exptime, self.filt,
+             self.binning, self.frametype, self.target, self.imgtype,
+             self.set_pos, self.set_total, self.expID)
         return line
 
     def info(self):
         """Return a readable string of summary infomation about the exposure"""
-        s = 'RUN NUMBER %05d\n' %self.run_ID
+        s = 'EXPOSURE \n'
         s += '  '+time.strftime('%Y-%m-%d %H:%M:%S UT',self.creation_time)+'\n'
         s += '  Unit telescope(s): %s\n' %self.tel_list
         s += '  Exposure time: %is\n' %self.exptime
         s += '  Filter: %s\n' %self.filt
-        s += '  Bins: %i\n' %self.bins
+        s += '  Binning: %i\n' %self.binning
         s += '  Frame type: %s\n' %self.frametype
         s += '  Target: %s\n' %self.target
         s += '  Image type: %s\n' %self.imgtype
+        s += '  Position in set: %i\n' %self.set_pos
+        s += '  Total in set: %i\n' %self.set_total
+        s += '  ExposureSet database ID (if any): %i\n' %self.expID
         return s
 
 class Queue(MutableSequence):
@@ -152,15 +170,15 @@ class Queue(MutableSequence):
     def get(self):
         """Return info() for all exposures in the queue"""
         s ='%i items in queue:\n' %len(self.data)
-        for x in self.data:
-            s += x.info()
+        for i,x in enumerate(self.data):
+            s += str(i+1) + ': ' + x.info()
         return s.rstrip()
 
     def get_simple(self):
         """Return string for all exposures in the queue"""
         s ='%i items in queue:\n' %len(self.data)
-        for x in self.data:
-            s += x.spec_to_line()
+        for i,x in enumerate(self.data):
+            s += str(i+1) + ': ' + x.spec_to_line()
         return s.rstrip()
 
 ########################################################################
@@ -172,7 +190,7 @@ class ExqDaemon(HardwareDaemon):
 
     Contains 6 functions:
     - get_info()
-    - add(exptime,filt,tel,bins,frametype,target,imgtype)
+    - add(exptime,filt,tel,binning,frametype,target,imgtype)
     - clear()
     - get()
     - pause()
@@ -188,10 +206,8 @@ class ExqDaemon(HardwareDaemon):
         self.info = {}
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
-        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.exp_queue = Queue()
         self.exp_spec = None
-        self.current_ID = None
         self.current_filter = None
         self.abort = 0
         self.working = 0
@@ -223,20 +239,17 @@ class ExqDaemon(HardwareDaemon):
 
             # check the queue, take off the first entry (if not paused)
             self.queue_len = len(self.exp_queue)
-            if (self.queue_len > 0) and not self.paused and self.current_ID == None:
-                if not self.working:
-                    # OK - time to add a new exposure
-                    self.exp_spec = self.exp_queue.pop(0)
-                    self.current_ID = self.exp_spec.run_ID
-                    self.logfile.info('Taking exposure %s', str(self.current_ID))
-                    self.working = 1
-                    # we need to set filter and take image
-                    self._set_filter(filt)
-                    self._take_image(cam)
-                    self.working = 0
-                    self.current_ID = None
+            if (self.queue_len > 0) and not self.paused and not self.working:
+                # OK - time to add a new exposure
+                self.exp_spec = self.exp_queue.pop(0)
+                self.logfile.info('Taking exposure')
+                self.working = 1
+                # we need to set filter and take image
+                self._set_filter(filt)
+                self._take_image(cam)
+                self.working = 0
 
-            elif self.current_ID == None:
+            elif self.queue_len == 0 or self.paused:
                 # either we are paused, or nothing in the queue
                 time.sleep(1.0)
 
@@ -258,11 +271,10 @@ class ExqDaemon(HardwareDaemon):
             info['status'] = 'Ready'
         info['queue_length'] = self.queue_len
         if self.working and self.exp_spec != None:
-            info['current_run_ID'] = self.exp_spec.run_ID
             info['current_tel_list'] = self.exp_spec.tel_list
             info['current_exptime'] = self.exp_spec.exptime
             info['current_filter'] = self.exp_spec.filt
-            info['current_bins'] = self.exp_spec.bins
+            info['current_binning'] = self.exp_spec.binning
             info['current_frametype'] = self.exp_spec.frametype
             info['current_target'] = self.exp_spec.target
             info['current_imgtype'] = self.exp_spec.imgtype
@@ -272,24 +284,52 @@ class ExqDaemon(HardwareDaemon):
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
         return info
 
-    def add(self,tel_list,exptime,filt,bins=1,frametype='normal',target='N/A',imgtype='SCIENCE'):
+    def add(self, tel_list, exptime, filt,
+            binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
+        filt = filt.upper()
+        target = target.replace(';', '')
+        imgtype = imgtype.replace(';', '')
+
         # check if valid
         if filt.upper() not in self.flist:
             return 'ERROR: Filter not in list %s' %str(self.flist)
 
-        # find and update run number
-        with open(self.run_number_file,) as f:
-            lines = f.readlines()
-            new_run_ID = int(lines[0]) + 1
-        with open(self.run_number_file,'w') as f:
-            f.write(str(new_run_ID))
+        exposure = ExposureSpec(tel_list, exptime, filt,
+                                binning, frametype, target, imgtype)
+        self.exp_queue.append(exposure)
 
-        self.exp_queue.append(ExposureSpec(new_run_ID,tel_list,exptime,filt.upper(),bins,frametype,target.replace(';',''),imgtype.replace(';','')))
-        if(self.paused):
+        if self.paused:
             return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
         else:
             return 'Added exposure, now %i items in queue' %len(self.exp_queue)
+
+    def add_multi(self, Nexp, tel_list, exptime, filt,
+                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                  expID = 0):
+        """Add multiple exposures to the queue as a set"""
+        filt = filt.upper()
+        target = target.replace(';', '')
+        imgtype = imgtype.replace(';', '')
+
+        # check if valid
+        if filt.upper() not in self.flist:
+            return 'ERROR: Filter not in list %s' %str(self.flist)
+
+        s = ''
+        for i in range(Nexp):
+            set_pos = i+1
+            set_total = Nexp
+            exposure = ExposureSpec(tel_list, exptime, filt,
+                                    binning, frametype, target, imgtype,
+                                    set_pos, set_total, expID)
+            self.exp_queue.append(exposure)
+
+            if self.paused:
+                s += 'Added exposure, now %i items in queue [paused]\n' %len(self.exp_queue)
+            else:
+                s += 'Added exposure, now %i items in queue\n' %len(self.exp_queue)
+        return s[:-1]
 
     def clear(self):
         """Empty the exposure queue"""
@@ -341,14 +381,15 @@ class ExqDaemon(HardwareDaemon):
             self.time_check = time.time()
 
     def _take_image(self, cam):
-        bins = self.exp_spec.bins
+        binning = self.exp_spec.binning
         exptime = self.exp_spec.exptime
         tel_list = self.exp_spec.tel_list
         try:
             cam._pyroReconnect()
-            cam.set_bins([bins, bins], tel_list)  # Assumes symmetric for now
-            cam.set_spec(self.exp_spec.run_ID, self.exp_spec.target,
-                         self.exp_spec.imgtype)
+            cam.set_binning(binning, tel_list)
+            cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype,
+                         self.exp_spec.set_pos, self.exp_spec.set_total,
+                         self.exp_spec.expID)
             time.sleep(0.1)
             if self.exp_spec.frametype == 'normal':
                 cam.take_image(exptime, tel_list)

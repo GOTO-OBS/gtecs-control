@@ -20,11 +20,15 @@ import threading
 from concurrent import futures
 import os
 import astropy.io.fits as pyfits
+from astropy.time import Time
+import astropy.units as u
 import numpy
+import math
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy
 from gtecs.tecs_modules.time_date import nightStarting
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
@@ -42,9 +46,7 @@ class CamDaemon(HardwareDaemon):
     - take_bias(telescopeIDs)
     - abort_exposure(telescopeIDs)
     - set_temperature(target_temp,telescopeIDs)
-    - set_flushes(target_flushes,telescopeIDs)
-    - set_area(area,telescopeIDs)
-    - set_spec(run_ID,target,imgtype):
+    - set_spec(target,imgtype)
     """
 
     def __init__(self):
@@ -55,9 +57,7 @@ class CamDaemon(HardwareDaemon):
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
-        self.set_flushes_flag = 0
-        self.set_bins_flag = 0
-        self.set_area_flag = 0
+        self.set_binning_flag = 0
 
         ### camera variables
         self.info = {}
@@ -72,8 +72,7 @@ class CamDaemon(HardwareDaemon):
         self.exposing_flag = {}
         self.exptime = {}
         self.frametype = {}
-        self.bins = {}
-        self.area = {}
+        self.binning = {}
         self.ccd_temp = {}
         self.base_temp = {}
         self.cooler_power = {}
@@ -86,8 +85,7 @@ class CamDaemon(HardwareDaemon):
             self.exposing_flag[intf] = [0]*nHW
             self.exptime[intf] = [1]*nHW
             self.frametype[intf] = ['normal']*nHW
-            self.bins[intf] = [[1,1]]*nHW
-            self.area[intf] = [[0,0,0,0]]*nHW
+            self.binning[intf] = [1]*nHW
             self.ccd_temp[intf] = [0]*nHW
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
@@ -98,16 +96,17 @@ class CamDaemon(HardwareDaemon):
         self.obs_times = {}
         self.target_exptime = 0
         self.target_frametype = 0
-        self.target_bins = (1, 1)
-        self.target_area = 0
+        self.target_binning = 1
         self.target_temp = 0
-        self.target_flushes = 0
         self.finished = 0
         self.saving_flag = 0
-        self.spec_flag = 0
-        self.run_ID = 0
-        self.target = 'N/A'
+        self.run_number = 0
+        self.target = 'NA'
         self.imgtype = 'MANUAL'
+        self.set_pos = 1
+        self.set_total = 1
+        self.expID = 0
+        self.stored_tel_list = []
 
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -145,6 +144,8 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
+                        c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                        if c: self.logfile.info(c)
                         c = fli.set_exposure(exptime_ms,frametype,HW)
                         if c: self.logfile.info(c)
                         self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -224,68 +225,26 @@ class CamDaemon(HardwareDaemon):
                 self.active_tel = []
                 self.set_temp_flag = 0
 
-            # set number of flushes
-            if(self.set_flushes_flag):
-                target_flushes = self.target_flushes
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting flushes on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.logfile.info('Setting number of flushes on camera %i (%s-%i) to %i', tel, intf, HW, target_flushes)
-                        fli = fli_proxies[intf]
-                        try:
-                            fli._pyroReconnect()
-                            c = fli.set_camera_flushes(target_flushes,HW)
-                            if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                    self.active_tel = []
-                    self.set_flushes_flag = 0
-
-            # set bins
-            if(self.set_bins_flag):
-                hbin, vbin = self.target_bins
+            # set binning
+            if(self.set_binning_flag):
+                binning = self.target_binning
                 for tel in self.active_tel:
                     intf, HW = self.tel_dict[tel]
                     if self.exposing_flag[intf][HW] == 1:
                         self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
                     else:
-                        self.bins[intf][HW] = self.target_bins
-                        self.logfile.info('Setting bins on camera %i (%s-%i) to (%i,%i)', tel, intf, HW, hbin, vbin)
+                        self.binning[intf][HW] = self.target_binning
+                        self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
-                            c = fli.set_camera_bins(hbin,vbin,HW)
+                            c = fli.set_camera_binning(binning,binning,HW)
                             if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
                 self.active_tel = []
-                self.set_bins_flag = 0
-
-            # set active area
-            if(self.set_area_flag):
-                ul_x, ul_y, lr_x, lr_y = self.target_area
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting active area on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.area[intf][HW] = self.target_area
-                        self.logfile.info('Setting active area on camera %i (%s-%i) to (%i,%i,%i,%i)',
-                                            tel, intf, HW, ul_x, ul_y, lr_x, lr_y)
-                        fli = fli_proxies[intf]
-                        try:
-                            fli._pyroReconnect()
-                            c = fli.set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
-                            if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                self.set_area_flag = 0
+                self.set_binning_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
 
@@ -334,14 +293,13 @@ class CamDaemon(HardwareDaemon):
 
             info['frametype'+tel] = self.frametype[intf][HW]
             info['exptime'+tel] = self.exptime[intf][HW]
-            info['bins'+tel] = tuple(self.bins[intf][HW])
-            info['area'+tel] = tuple(self.area[intf][HW])
+            info['binning'+tel] = self.binning[intf][HW]
             info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
             info['base_temp'+tel] = self.base_temp[intf][HW]
             info['cooler_power'+tel] = self.cooler_power[intf][HW]
             info['serial_number'+tel] = self.serial_number[intf][HW]
 
-        info['run_ID'] = self.run_ID
+        info['run_number'] = self.run_number
         info['uptime'] = time.time()-self.start_time
         info['ping'] = time.time()-self.time_check
         now = datetime.datetime.utcnow()
@@ -393,58 +351,30 @@ class CamDaemon(HardwareDaemon):
         self.set_temp_flag = 1
         return s
 
-    def set_flushes(self,target_flushes,tel_list):
-        """Set the number of times to flush the CCD before an exposure"""
-        self.target_flushes = target_fliushes
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        if not (0 <= target_flushes <= 16):
-            return 'ERROR: Number of flushes must be between 0 and 16'
-        s = 'Setting:'
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting flushes on camera %i' %tel
-        self.set_flushes_flag = 1
-        return s
-
-    def set_bins(self,bins,tel_list):
+    def set_binning(self,binning,tel_list):
         """Set the image binning"""
-        self.target_bins = bins
+        self.target_binning = binning
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
-            s += '\n  Setting image bins on camera %i' %tel
-        self.set_bins_flag = 1
+            s += '\n  Setting image binning on camera %i' %tel
+        self.set_binning_flag = 1
         return s
 
-    def set_area(self,area,tel_list):
-        """Set the active image area"""
-        self.target_area = area
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        s = 'Setting:'
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting active image area on camera %i' %tel
-        self.set_area_flag = 1
-        return s
-
-    def set_spec(self,run_ID,target,imgtype):
+    def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
         """Save the run details if given by the queue daemon"""
-        self.run_ID = run_ID
         self.target = target
         self.imgtype = imgtype
-        self.spec_flag = 1
+        self.set_pos = set_pos
+        self.set_total = set_total
+        self.expID = expID
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
-    def _take_frame(self, exptime, exp_type,
-                    tel_list):
+    def _take_frame(self, exptime, exp_type, tel_list):
         """
         Take a frame with camera.
 
@@ -462,32 +392,48 @@ class CamDaemon(HardwareDaemon):
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+
+        self.stored_tel_list = tel_list
         self.target_exptime = exptime
+
         if exp_type == 'image':
             self.target_frametype = 'normal'
         elif exp_type == 'dark' or exp_type == 'bias':
             self.target_frametype = 'dark'
         else:
             raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
+
         time.sleep(0.1)
+
         occupied = False
         for tel in self.active_tel:
             intf, HW = self.tel_dict[tel]
             if self.exposing_flag[intf][HW] == 1:
                 s = 'ERROR: Cameras are already exposing'
                 occupied = True
+
         if not occupied:
-            s = 'Exposing:'
+            # find and update run number
+            with open(self.run_number_file, 'r') as f:
+                lines = f.readlines()
+                self.run_number = int(lines[0]) + 1
+            with open(self.run_number_file, 'w') as f:
+                f.write('{:07d}'.format(self.run_number))
+
+            s = 'Exposing r{:07d}:'.format(self.run_number)
             for tel in tel_list:
                 self.active_tel += [tel]
-                s += '\n  Taking %s on camera %i' % (exp_type, tel)
+                s += '\n  Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
+                                                                     exp_type,
+                                                                     tel)
             self.take_exposure_flag = 1
+
         return s
 
     def _image_fetch(self, tel):
         intf, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
-        fli._pyroTimeout = params.PROXY_TIMEOUT
+        fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
         try:
             future_image = fli.fetch_exposure(HW)
         except:
@@ -499,16 +445,15 @@ class CamDaemon(HardwareDaemon):
         return future_image
 
     def _image_location(self,tel):
-        # Find the date the observing night began, for the directory
+        # Find the directory, using the date the observing night began
         night = nightStarting()
-        if not os.path.exists(params.IMAGE_PATH): os.mkdir(params.IMAGE_PATH)
         direc = params.IMAGE_PATH + night
-        if not os.path.exists(direc): os.mkdir(direc)
-        # Find the run number, for the file name
-        if self.run_ID != 0:
-            filename = '/r%05i_ut%i.fits'%(self.run_ID,tel)
-        else:
-            filename = '/man_ut%i.fits'%tel
+        if not os.path.exists(direc):
+            os.mkdir(direc)
+
+        # Find the file name, using the run number and UT number
+        filename = '/r{:07d}_UT{:d}.fits'.format(self.run_number, tel)
+
         return direc + filename
 
     def _write_fits(self,image,filename,tel):
@@ -519,95 +464,307 @@ class CamDaemon(HardwareDaemon):
         hdulist.writeto(filename)
 
     def _update_header(self,header,tel):
-        # File data
+        """Add observation, exposure and hardware info to the FITS header"""
+
+        # These cards are set automatically by AstroPy, we just give them
+        # better comments
+        header.comments["SIMPLE  "] = "Standard FITS"
+        header.comments["BITPIX  "] = "Bits per pixel"
+        header.comments["NAXIS   "] = "Number of dimensions"
+        header.comments["NAXIS1  "] = "Number of columns"
+        header.comments["NAXIS2  "] = "Number of rows"
+        header.comments["EXTEND  "] = "Can contain extensions"
+        header.comments["BSCALE  "] = "Pixel scale factor"
+        header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
+
+
+        # Observation info
+        run_id = 'r{:07d}'.format(self.run_number)
+        header["RUN     "] = (self.run_number, "GOTO run number")
+        header["RUN-ID  "] = (run_id, "Padded run ID string")
+
         now = datetime.datetime.utcnow()
         hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
-        header.set("DATE",     value = hdu_date,                        comment = "Date HDU created")
-        header.set("RUN_ID",   value = self.run_ID,                     comment = "GOTO Observation ID number")
-        header.set("OBJECT",   value = self.target,                     comment = "Object name")
+        header["DATE    "] = (hdu_date, "Date HDU created")
 
-        # Origin data
+        header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
+        header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
+
         intf, HW = self.tel_dict[tel]
-        tel_str = "-%i (%s-%i)" %(tel,intf,HW)
-        header.set("ORIGIN",   value = params.ORIGIN,                   comment = "Origin organization")
-        header.set("TELESCOP", value = params.TELESCOP+tel_str,         comment = "Origin telescope")
-        cam_ID = self.cam_info[intf][HW]['serial_number']
-        header.set("INSTRUME", value = cam_ID,                          comment = "Camera serial number")
+        ut_mask = misc.ut_list_to_mask(self.stored_tel_list)
+        ut_mask_bin = str(bin(ut_mask))[2:]
+        header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
+        header["UT      "] = (tel, "Integer UT number")
+        header["UTMASK  "] = (ut_mask, "Run UT mask integer")
+        header["UTMASKBN"] = (ut_mask_bin, "Run UT mask binary string")
+        header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
 
-        # Camera data
-        header.set("DATE-OBS", value = self.obs_times[tel],             comment = "Observation start time, UTC")
-        header.set("EXPTIME",  value = self.target_exptime,             comment = "Exposure time, seconds")
-        header.set("FRMTYPE",  value = self.target_frametype,           comment = "Exposure type")
-        header.set("IMGTYPE",  value = self.imgtype,                    comment = "Type of image")
-        x_bin = self.target_bins[0]
-        y_bin = self.target_bins[1]
-        header.set("XBINNING", value = x_bin,                           comment = "Width bin factor")
-        header.set("YBINNING", value = y_bin,                           comment = "Height bin factor")
-        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*x_bin*1000000 #in microns
-        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*y_bin*1000000
-        header.set("XPIXLSZ",  value = x_pixel_size,                    comment = "Binned pixel size, microns")
-        header.set("YPIXLSZ",  value = y_pixel_size,                    comment = "Binned pixel size, microns")
-        header.set("CCDTEMP",  value = self.ccd_temp[intf][HW],          comment = "CCD temperature, C")
-        header.set("CCDTEMPS", value = self.target_temp,                comment = "Set CCD temperature, C")
-        header.set("BASETEMP", value = self.base_temp[intf][HW],         comment = "Peltier base temperature, C")
+        header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
-        # Mount data
-        mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
-        mnt._pyroTimeout = params.PROXY_TIMEOUT
-        try:
-            info = mnt.get_info()
-            mount_alt = info['mount_alt']
-            mount_az = info['mount_az']
-            mount_ra = info['mount_ra']
-            mount_dec = info['mount_dec']
-            target_ra = info['target_ra']
-            target_dec = info['target_dec']
-        except:
-            mount_alt = 'N/A'
-            mount_az = 'N/A'
-            mount_ra = 'N/A'
-            mount_dec = 'N/A'
-            target_ra = 'N/A'
-            target_dec = 'N/A'
-        header.set("ALT", value = mount_alt,                            comment = "Mount altitude")
-        header.set("AZ", value = mount_az,                              comment = "Mount azimuth")
-        header.set("RA", value = target_ra,                              comment = "RA requested")
-        header.set("DEC", value = target_dec,                             comment = "Dec requested")
-        header.set("RA_TEL", value = mount_ra,                          comment = "Telescope RA")
-        header.set("DEC_TEL", value = mount_dec,                         comment = "Telescope Dec")
+        observer = misc.get_observer()
+        header["OBSERVER"] = (observer, "Who started the exposure")
+        header["OBJECT  "] = (self.target, "Observed object name")
 
-        # Focuser data
+        header["SET-POS "] = (self.set_pos, "Position of this exposure in this set")
+        header["SET-TOT "] = (self.set_total, "Total number of exposures in this set")
+
+        header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
+        header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
+        header["SITE-ALT"] = (params.SITE_ALTITUDE, "Site elevation, m above sea level")
+        header["SITE-LOC"] = (params.SITE_LOCATION, "Site location")
+
+
+        # Exposure data
+        header["EXPTIME "] = (self.target_exptime, "Exposure time, seconds")
+
+        start_time = Time(self.obs_times[tel])
+        start_time.precision = 0
+        mid_time = start_time + (self.target_exptime*u.second)/2.
+        header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
+        header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
+
+        mid_jd = mid_time.jd
+        header["JD      "] = (mid_jd, "Exposure midpoint, Julian Date")
+
+        lst = astronomy.find_lst(mid_time)
+        lst_m, lst_s = divmod(abs(lst)*3600,60)
+        lst_h, lst_m = divmod(lst_m,60)
+        if lst < 0: lst_h = -lst_h
+        mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
+        header["LST     "] = (mid_lst, "Exposure midpoint, Local Sidereal Time")
+
+
+        # Frame info
+        header["FRMTYPE "] = (self.target_frametype, "Frame type (shutter open/closed)")
+        header["IMGTYPE "] = (self.imgtype, "Image type")
+
+        header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
+        header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
+
+        header["CHANNELS"] = (2, "Number of CCD channels")
+
+        header["TRIMSEC1"] = ('[65:4152,46:6177]', "Data section for left channel")
+        header["TRIMSEC2"] = ('[4153:8240,46:6177]', "Data section for right channel")
+        header["BIASSEC1"] = ('[3:10,3:6218]', "Recommended bias section for left channel")
+        header["BIASSEC2"] = ('[8295:8302,3:6218]', "Recommended bias section for right channel")
+        header["DARKSEC1"] = ('[26:41,500:5721]', "Recommended dark section for left channel")
+        header["DARKSEC2"] = ('[8264:8279,500:5721]', "Recommended dark section for right channel")
+
+
+        # Database info
+        from_db = False
+        expsetID = 'NA'
+        pointingID = 'NA'
+        ToO_flag = 'NA'
+        rank = 'NA'
+        userID = 'NA'
+        userName = 'NA'
+        mpointingID = 'NA'
+        repeatID = 'NA'
+        repeatNum = 'NA'
+        ligoTileID = 'NA'
+        ligoTileProb = 'NA'
+        surveyTileID = 'NA'
+        eventID = 'NA'
+        eventName = 'NA'
+        eventIVO = 'NA'
+        eventSource = 'NA'
+
+        if self.expID != 0:
+            from_db = True
+            from gtecs import database as db
+            with db.open_session() as session:
+                expsetID = self.expID
+                expset = session.query(db.ExposureSet).filter(
+                         db.ExposureSet.expID == expsetID).one_or_none()
+
+                if expset.pointingID:
+                    pointingID = expset.pointingID
+                    pointing = session.query(db.Pointing).filter(
+                               db.Pointing.pointingID == pointingID).one_or_none()
+                    rank = pointing.rank
+                    ToO_flag = bool(pointing.ToO)
+                    userID = pointing.userKey
+                    user = session.query(db.User).filter(
+                           db.User.userKey == userID).one_or_none()
+                    userName = user.fullName
+
+                    if pointing.mpointingID:
+                        mpointingID = expset.mpointingID
+
+                    if pointing.repeatID:
+                        repeatID = pointing.repeatID
+                        repeat = session.query(db.Repeat).filter(
+                                   db.Repeat.repeatID == repeatID).one_or_none()
+                        repeatNum = repeat.repeatNum
+
+                    if pointing.ligoTileID:
+                        ligoTileID = pointing.ligoTileID
+                        ligoTile = session.query(db.LigoTile).filter(
+                                   db.LigoTile.ligoTileID == pointingID).one_or_none()
+                        ligoTileProb = ligoTile.probability
+
+                    if pointing.surveyTileID:
+                        surveyTileID = pointing.surveyTileID
+
+                    if pointing.eventID:
+                        eventID = pointing.eventID
+                        event = session.query(db.Event).filter(
+                                   db.Event.eventID == eventID).one_or_none()
+                        eventName = event.name
+                        eventIVO = event.ivo
+                        eventSource = event.source
+
+        header["FROMDB  "] = (from_db, "Exposure linked to database set")
+        header["EXPS-ID "] = (expsetID, "Database ExposureSet ID")
+        header["PNT-ID  "] = (pointingID, "Database Pointing ID")
+        header["TOO     "] = (ToO_flag, "ToO flag for this Pointing")
+        header["RANK    "] = (rank, "Rank of this Pointing")
+        header["USER-ID "] = (userID, "Database User ID who submitted this Pointing")
+        header["USER    "] = (userName, "User who submitted this Pointing")
+        header["MPNT-ID "] = (mpointingID, "Database Mpointing ID")
+        header["REP-ID  "] = (repeatID, "Database Repeat ID")
+        header["REP-N   "] = (repeatNum, "Number of this Repeat")
+        header["GW-ID   "] = (ligoTileID, "Database LIGO tile ID")
+        header["GW-PROB "] = (ligoTileProb, "LIGO tile contained probability")
+        header["SVY-ID  "] = (surveyTileID, "Database Survey tile ID")
+        header["EVENT-ID"] = (eventID, "Database Event ID")
+        header["EVENT   "] = (eventName, "Event name for this Pointing")
+        header["IVO     "] = (eventIVO, "IVOA identifier for this event")
+        header["SOURCE  "] = (eventSource, "Source of this event")
+
+        # Camera info
+        cam_serial = self.cam_info[intf][HW]['serial_number']
+        header["CAMERA  "] = (cam_serial, "Camera serial number")
+
+        header["XBINNING"] = (self.target_binning, "CCD x binning factor")
+        header["YBINNING"] = (self.target_binning, "CCD y binning factor")
+
+        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*self.target_binning
+        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*self.target_binning
+        header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
+        header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
+
+        header["CCDTEMP "] = (self.ccd_temp[intf][HW], "CCD temperature, C")
+        header["CCDTEMPS"] = (self.target_temp, "Requested CCD temperature, C")
+        header["BASETEMP"] = (self.base_temp[intf][HW], "Peltier base temperature, C")
+
+
+        # Focuser info
         foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])
         foc._pyroTimeout = params.PROXY_TIMEOUT
         try:
             info = foc.get_info()
+            foc_serial = info['serial_number'+str(tel)]
             foc_pos = info['current_pos'+str(tel)]
             foc_temp_int = info['int_temp'+str(tel)]
             foc_temp_ext = info['ext_temp'+str(tel)]
-            foc_ID = info['serial_number'+str(tel)]
         except:
-            foc_pos = 'N/A'
-            foc_temp_int = 'N/A'
-            foc_temp_ext = 'N/A'
-            foc_ID = 'N/A'
-        header.set("FOCUSER",  value = foc_ID,                          comment = "Focuser serial number")
-        header.set("FOCPOS",   value = foc_pos,                         comment = "Focuser motor position")
-        header.set("FOCTEMPI", value = foc_temp_int,                    comment = "Focuser internal temperature, C")
-        header.set("FOCTEMPX", value = foc_temp_ext,                    comment = "Focuser external temperature, C")
+            foc_serial = 'NA'
+            foc_pos = 'NA'
+            foc_temp_int = 'NA'
+            foc_temp_ext = 'NA'
 
-        #Filter wheel data
+        header["FOCUSER "] = (foc_serial, "Focuser serial number")
+        header["FOCPOS  "] = (foc_pos, "Focuser motor position")
+        header["FOCTEMPI"] = (foc_temp_int, "Focuser internal temperature, C")
+        header["FOCTEMPX"] = (foc_temp_ext, "Focuser external temperature, C")
+
+
+        #Filter wheel info
         flist = params.FILTER_LIST
         filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
         filt._pyroTimeout = params.PROXY_TIMEOUT
         try:
             info = filt.get_info()
-            filt = flist[info['current_filter_num'+str(tel)]]
-            filt_ID = info['serial_number'+str(tel)]
+            filt_serial = info['serial_number'+str(tel)]
+            filt_filter = flist[info['current_filter_num'+str(tel)]]
         except:
-            filt = 'N/A'
-            filt_ID = 'N/A'
-        header.set("FILTW",     value = filt_ID,                        comment = "Filter wheel serial number")
-        header.set("FILTER",    value = filt,                           comment = "Filter used for exposure")
+            filt_serial = 'NA'
+            filt_filter = 'NA'
+        flist_str = ''.join(flist)
+
+        header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
+        header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(flist_str))
+
+
+        # Mount info
+        mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
+        mnt._pyroTimeout = params.PROXY_TIMEOUT
+        try:
+            info = mnt.get_info()
+            targ_ra = info['target_ra']
+            if targ_ra:
+                ra_m, ra_s = divmod(abs(targ_ra)*3600,60)
+                ra_h, ra_m = divmod(ra_m,60)
+                if targ_ra < 0: ra_h = -ra_h
+                targ_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+            else:
+                targ_ra_str = 'NA'
+
+            targ_dec = info['target_dec']
+            if targ_dec:
+                dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+                dec_d, dec_m = divmod(dec_m,60)
+                if targ_dec < 0: dec_d = -dec_d
+                targ_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+            else:
+                targ_dec_str = 'NA'
+
+            targ_dist_a = info['target_dist']
+            if targ_dist_a:
+                targ_dist = numpy.around(targ_dist_a, decimals=1)
+            else:
+                targ_dist = 'NA'
+
+            mnt_ra = info['mount_ra']
+            ra_m, ra_s = divmod(abs(mnt_ra)*3600,60)
+            ra_h, ra_m = divmod(ra_m,60)
+            if mnt_ra < 0: ra_h = -ra_h
+            mnt_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+
+            mnt_dec = info['mount_dec']
+            dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+            dec_d, dec_m = divmod(dec_m,60)
+            if mnt_dec < 0: dec_d = -dec_d
+            mnt_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+
+            mnt_alt = numpy.around(info['mount_alt'], decimals=2)
+            mnt_az = numpy.around(info['mount_az'], decimals=2)
+
+            zen_dist = numpy.around(90-mnt_alt, decimals=1)
+            airmass = 1/(math.cos(math.pi/2-(mnt_alt*math.pi/180)))
+            airmass = numpy.around(airmass, decimals=2)
+            equinox = 2000
+        except:
+            targ_ra_str = 'NA'
+            targ_dec_str = 'NA'
+            targ_dist = 'NA'
+            mnt_ra_str = 'NA'
+            mnt_dec_str = 'NA'
+            mnt_alt = 'NA'
+            mnt_az = 'NA'
+            zen_dist = 'NA'
+            airmass = 'NA'
+            equinox = 'NA'
+
+        header["RA      "] = (targ_ra_str, "Requested pointing RA")
+        header["DEC     "] = (targ_dec_str, "Requested pointing Dec")
+
+        header["RA-TEL  "] = (mnt_ra_str, "Reported mount pointing RA")
+        header["DEC-TEL "] = (mnt_dec_str, "Reported mount pointing Dec")
+
+        header["EQUINOX "] = (equinox, "RA/Dec equinox, years")
+
+        header["TARGDIST"] = (targ_dist, "Distance from target, degrees")
+
+        header["ALT     "] = (mnt_alt, "Mount altitude")
+        header["AZ      "] = (mnt_az, "Mount azimuth")
+
+        header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
+
+        header["AIRMASS "] = (airmass, "Airmass")
+
 
 ########################################################################
 
