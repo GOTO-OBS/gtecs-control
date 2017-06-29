@@ -129,15 +129,21 @@ def kill_processes_windows(process, host, username=None):
         getoutput('ssh {}@{}'.format(username, host)
                  +' taskkill /F /PID {}'.format(process_ID))
 
-def python_command(filename, command, host='localhost'):
+def python_command(filename, command, host='localhost',
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                   in_background=False):
     '''Send a command to a control script as if using the terminal'''
     if host == 'localhost' or host == get_hostname():
         command_string = ' '.join((sys.executable, filename, command))
     else:
         command_string = ' '.join(('ssh', host, sys.executable, filename, command))
-    proc = subprocess.Popen(command_string, shell=True, stdout=subprocess.PIPE)
-    output = proc.communicate()[0]
-    return output.decode()
+    if not in_background:
+        proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
+        output = proc.communicate()[0]
+        return output.decode()
+    else:
+        proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
+        return ''
 
 def execute_command(cmd):
     print(cmd)
