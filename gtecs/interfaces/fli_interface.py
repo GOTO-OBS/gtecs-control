@@ -253,7 +253,10 @@ def start():
     '''
     # find which interface this is
     hostname = socket.gethostname()
-    intf = misc.find_interface_ID(hostname)
+    try:
+        intf = misc.find_interface_ID(hostname)
+    except ValueError:
+        intf = misc.find_interface_ID('localhost')
 
     host = params.FLI_INTERFACES[intf]['HOST']
     port = params.FLI_INTERFACES[intf]['PORT']
