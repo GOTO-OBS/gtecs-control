@@ -457,12 +457,12 @@ class AstroHavenDome:
             return
 
     def open_full(self, side, frac=1):
-        self.sound_alarm(7)
+        self.sound_alarm(3)
         self._move_dome(side, 'open', frac)
         return
 
     def close_full(self, side, frac=1):
-        self.sound_alarm(7)
+        self.sound_alarm(3)
         self._move_dome(side, 'close', frac)
         return
 
