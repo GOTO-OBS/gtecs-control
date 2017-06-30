@@ -253,6 +253,11 @@ def start():
     '''
     # find which interface this is
     hostname = socket.gethostname()
+    if hostname == 'nuc-east.warwick.ac.uk':
+        hostname = '10.2.6.14'
+    elif hostname == 'nuc-west.warwick.ac.uk':
+        hostname = '10.2.6.16'
+
     intf = misc.find_interface_ID(hostname)
 
     host = params.FLI_INTERFACES[intf]['HOST']
