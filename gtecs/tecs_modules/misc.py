@@ -285,8 +285,7 @@ def find_interface_ID(hostname):
     for intf in params.FLI_INTERFACES:
         if params.FLI_INTERFACES[intf]['HOST'] == hostname:
             return intf
-        else:
-            raise ValueError('Host {} does not have an associated interface'.format(hostname))
+    raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
 ########################################################################
 ## Text formatting functions
