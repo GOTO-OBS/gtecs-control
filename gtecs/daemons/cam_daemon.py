@@ -165,20 +165,20 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
-                        remaining = fli.get_camera_time_remaining(HW)
+                        ready = fli.exposure_ready(HW)
+                        if ready:
+                            self.exposing_flag[intf][HW] = 2
+                            self.images[tel] =  fli.fetch_exposure(HW)
                     except:
                         self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
-                    if remaining == 0:
-                        self.exposing_flag[intf][HW] = 2
-                        self.images[tel] = self._image_fetch(tel) # store a future image
 
             # take exposure part three - save
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
-                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None and self.images[tel].done():
+                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
                     # image available
-                    image = self.images[tel].result()
+                    image = self.images[tel]
                     # reset entry
                     self.images[tel] = None
 
