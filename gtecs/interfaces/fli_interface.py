@@ -179,15 +179,14 @@ class FLIDaemon(InterfaceDaemon):
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
 
-    def fetch_process(self, HW):
-        return self.cams[int(HW)].fetch_image()
+    def exposure_ready(self, HW):
+        """Check if an exposure is ready"""
+        return self.cams[int(HW)].image_ready
 
     def fetch_exposure(self, HW):
         """Fetch the image"""
         self.logfile.info('Camera %d saving image', HW)
-        with futures.ProcessPoolExecutor() as executor:
-            future = executor.submit(self.fetch_process, HW)
-        return future
+        return self.cams[int(HW)].fetch_image()
 
     def abort_exposure(self, HW):
         """Abort current exposure"""
