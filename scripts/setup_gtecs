@@ -27,12 +27,13 @@ gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'html')
 try:
     if not os.path.exists(params.CONFIG_PATH):
         os.mkdir(params.CONFIG_PATH)
+
+    if not os.path.exists(params.IMAGE_PATH):
+        os.mkdir(params.IMAGE_PATH)
+
     logpath = os.path.join(params.CONFIG_PATH, 'logs')
     if not os.path.exists(logpath):
         os.mkdir(logpath)
-    imagepath = os.path.join(params.CONFIG_PATH, 'images')
-    if not os.path.exists(imagepath):
-        os.mkdir(imagepath)
     htmlpath = os.path.join(params.CONFIG_PATH, 'html')
     if not os.path.exists(htmlpath):
         os.mkdir(htmlpath)
