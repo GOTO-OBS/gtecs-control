@@ -247,7 +247,7 @@ class ETH8020:
     def status(self):
         num = 0 # all
         out = self._tcp_command(self.commands['STATUS'])
-        status_ints = [indexbytes(output, x) for x in range(len(output))]
+        status_ints = [indexbytes(out, x) for x in range(len(out))]
         status_strings = [str(bin(i))[2::] for i in status_ints]
         status_strings[0] = status_strings[0].zfill(8)[::-1]
         status_strings[1] = status_strings[1].zfill(8)[::-1]
@@ -279,10 +279,5 @@ class ETH8020:
             command = b''.join(cmd_arr)
         else:
             command = self.commands['OFF'] + int2byte(outlet) + int2byte(time)
-        out = self._tcp_command(command)
-        if len(out) == 1:
-            return int2byte(out)
-        elif b'\x01' in out:
-            return 1
-        else:
-            return 0
+        out = byte2int(self._tcp_command(command))
+        return out
