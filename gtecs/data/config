@@ -85,7 +85,7 @@ DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters
-PROXY_TIMEOUT = 0.5
+PROXY_TIMEOUT = 5
 
 [DAEMONS]
     [[foc]]
