@@ -13,7 +13,8 @@ EMAIL_ADDRESS = goto-observatory@gmail.com
 EMAIL_SERVER = smtp.gmail.com:587
 
 # Paths for log files, images etc
-CONFIG_PATH = /home/goto/g-tecs/
+CONFIG_PATH = /home/goto/g-tecs-config/
+IMAGE_PATH = /home/goto/images/
 
 # Specific Windows params
 WIN_USER = goto
@@ -84,7 +85,7 @@ DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters
-PROXY_TIMEOUT = 0.5
+PROXY_TIMEOUT = 5
 
 [DAEMONS]
     [[foc]]

@@ -144,6 +144,7 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
+                        fli.clear_exposure_queue()
                         c = fli.set_camera_area(0, 0, 8304, 6220, HW)
                         if c: self.logfile.info(c)
                         c = fli.set_exposure(exptime_ms,frametype,HW)
@@ -724,7 +725,7 @@ class CamDaemon(HardwareDaemon):
             mnt_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
 
             mnt_dec = info['mount_dec']
-            dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+            dec_m, dec_s = divmod(abs(mnt_dec)*3600,60)
             dec_d, dec_m = divmod(dec_m,60)
             if mnt_dec < 0: dec_d = -dec_d
             mnt_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
