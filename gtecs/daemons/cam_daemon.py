@@ -144,6 +144,7 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
+                        fli.clear_exposure_queue()
                         c = fli.set_camera_area(0, 0, 8304, 6220, HW)
                         if c: self.logfile.info(c)
                         c = fli.set_exposure(exptime_ms,frametype,HW)
