@@ -89,8 +89,12 @@ class PowerDaemon(HardwareDaemon):
                 power_units[unit_name] = power_control.APCUPS(unit_ip)
             # Ethernet power unit
             elif unit_class == 'ETH8020':
-                unit_port = params.POWER_UNITS[unit_name]['PORT']
-                power_class[unit_name] = power_control.APCUPS(unit_ip, unit_port)
+                unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
+                try:
+                    nc = params.POWER_UNITS[unit_name]['NC']
+                except:
+                    nc = 0
+                power_units[unit_name] = power_control.ETH8020(unit_ip, unit_port, nc)
 
         while(self.running):
             self.time_check = time.time()
