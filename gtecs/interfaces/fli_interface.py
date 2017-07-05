@@ -193,6 +193,10 @@ class FLIDaemon(InterfaceDaemon):
         self.logfile.info('Camera %d aborting exposure', HW)
         self.cams[int(HW)].cancel_exposure()
 
+    def clear_exposure_queue(self, HW):
+        """Clear exposure queue"""
+        self.cams[int(HW)].image_queue.clear()
+
     def set_camera_temp(self, target_temp, HW):
         """Set the camera's temperature"""
         self.cams[int(HW)].set_temperature(target_temp)
