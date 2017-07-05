@@ -220,15 +220,20 @@ class APCUPS:
 # Ethernet relay power class (for ETH8020, 20 ports)
 
 class ETH8020:
-    def __init__(self, IP_address, port):
+    def __init__(self, IP_address, port, normally_closed=False):
         self.unit_type = 'PDU'
         self.IP_address = IP_address
         self.port = port
-        self.commands = {'ON':b'\x20', 'OFF':b'\x21', 'ALL':b'\x23', 'STATUS':b'\x24'}
+        if not normally_closed:
+            self.commands = {'ON':b'\x20', 'OFF':b'\x21', 'ALL':b'\x23', 'STATUS':b'\x24'}
+            self.on_value = 1
+            self.off_value = 0
+        else:
+            self.commands = {'ON':b'\x21', 'OFF':b'\x20', 'ALL':b'\x23', 'STATUS':b'\x24'}
+            self.on_value = 0
+            self.off_value = 1
         self.count = 20
         self.outlets = list(range(1, self.count+1))
-        self.on_value = 0
-        self.off_value = 0
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
