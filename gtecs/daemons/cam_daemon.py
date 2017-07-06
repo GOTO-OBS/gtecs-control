@@ -679,7 +679,10 @@ class CamDaemon(HardwareDaemon):
         try:
             info = filt.get_info()
             filt_serial = info['serial_number'+str(tel)]
-            filt_filter = flist[info['current_filter_num'+str(tel)]]
+            if info['current_filter_num'+str(tel)] != -1:
+                filt_filter = flist[info['current_filter_num'+str(tel)]]
+            else:
+                filt_filter = 'UNHOMED'
             filt_num = info['current_filter_num'+str(tel)]
             filt_pos = info['current_pos'+str(tel)]
         except:
