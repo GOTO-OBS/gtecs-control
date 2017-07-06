@@ -680,14 +680,19 @@ class CamDaemon(HardwareDaemon):
             info = filt.get_info()
             filt_serial = info['serial_number'+str(tel)]
             filt_filter = flist[info['current_filter_num'+str(tel)]]
+            filt_num = info['current_filter_num'+str(tel)]
+            filt_pos = info['current_pos'+str(tel)]
         except:
             filt_serial = 'NA'
             filt_filter = 'NA'
+            filt_num = 'NA'
+            filt_pos = 'NA'
         flist_str = ''.join(flist)
 
         header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
         header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(flist_str))
-
+        header["FILTNUM "] = (filt_num, "Filter wheel position number".format(flist_str))
+        header["FILTPOS "] = (filt_pos, "Filter wheel motor position".format(flist_str))
 
         # Mount info
         mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
