@@ -193,6 +193,10 @@ class FLIDaemon(InterfaceDaemon):
         self.logfile.info('Camera %d aborting exposure', HW)
         self.cams[int(HW)].cancel_exposure()
 
+    def clear_exposure_queue(self, HW):
+        """Clear exposure queue"""
+        self.cams[int(HW)].image_queue.clear()
+
     def set_camera_temp(self, target_temp, HW):
         """Set the camera's temperature"""
         self.cams[int(HW)].set_temperature(target_temp)
@@ -252,6 +256,11 @@ def start():
     '''
     # find which interface this is
     hostname = socket.gethostname()
+    if hostname == 'nuc-east.warwick.ac.uk':
+        hostname = '10.2.6.14'
+    elif hostname == 'nuc-west.warwick.ac.uk':
+        hostname = '10.2.6.16'
+
     intf = misc.find_interface_ID(hostname)
 
     host = params.FLI_INTERFACES[intf]['HOST']

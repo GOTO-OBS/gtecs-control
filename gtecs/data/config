@@ -85,7 +85,7 @@ DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters
-PROXY_TIMEOUT = 0.5
+PROXY_TIMEOUT = 5
 
 [DAEMONS]
     [[foc]]
@@ -158,4 +158,4 @@ PROXY_TIMEOUT = 0.5
         PORT = 9000
         PROCESS = sitech_interface.py
         PYROID = sitech_interface
-        HOST = goto_mount
+        HOST = mount_control
