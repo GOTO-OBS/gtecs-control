@@ -371,7 +371,7 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Invalid direction'
         else:
             step_deg = self.step/3600.
-            step_ra = (step_deg*24./360.)*cos(self.mount_dec*pi/180.)
+            step_ra = (step_deg*24./360.)/cos(self.mount_dec*pi/180.)
             step_dec = step_deg
             if direction == 'north':
                 ra = self.mount_ra
