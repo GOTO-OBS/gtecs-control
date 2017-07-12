@@ -134,7 +134,7 @@ def start_daemon(daemon_ID):
     elif len(process_ID) == 1:
         print('ERROR: Daemon already running on {} (PID {})'.format(host, process_ID[0]))
     else:
-        print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID))
 
 
 def ping_daemon(daemon_ID):
@@ -158,7 +158,7 @@ def ping_daemon(daemon_ID):
     elif len(process_ID) == 0:
         print('ERROR: No response, daemon not running on {}'.format(host))
     else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID))
 
 
 def shutdown_daemon(daemon_ID):
@@ -193,7 +193,7 @@ def shutdown_daemon(daemon_ID):
     elif len(process_ID) == 0:
         print('ERROR: No response, daemon not running on {}'.format(host))
     else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID))
 
 
 def kill_daemon(daemon_ID):
