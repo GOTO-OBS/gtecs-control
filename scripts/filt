@@ -43,6 +43,8 @@ def query(command, args):
         daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
         daemons.shutdown_daemon(daemon_ID)
+    elif command == 'restart':
+        daemons.restart_daemon(daemon_ID)
     elif command == 'kill':
         daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
@@ -145,6 +147,7 @@ def print_instructions():
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
     '  filt ' + misc.bold('start') + '             - start the daemon' + '\n' +\
     '  filt ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  filt ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
     '  filt ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  filt ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
     ' ' + misc.undl('Filter wheel commands') + ':' + '\n' +\
