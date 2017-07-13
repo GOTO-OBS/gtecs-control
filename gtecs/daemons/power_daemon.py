@@ -303,6 +303,11 @@ def start():
     port = params.DAEMONS['power']['PORT']
     pyroID = params.DAEMONS['power']['PYROID']
 
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one('power'):
+        sys.exit()
+
+    # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         power_daemon = PowerDaemon()
         uri = pyro_daemon.register(power_daemon, objectId=pyroID)
