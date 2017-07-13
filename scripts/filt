@@ -110,7 +110,10 @@ def print_info(info):
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
         if info['status'+str(tel)] != 'Moving':
             print('Status: %s' %info['status'+str(tel)])
-            print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+            if info['current_filter_num'+str(tel)] != -1:
+                print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+            else:
+                print('Current filter: UNHOMED')
         else:
             print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
             print('Current filter:     N/A')
@@ -128,7 +131,11 @@ def print_info_s(info):
     for tel in params.TEL_DICT:
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
         if info['status'+str(tel)] != 'Moving':
-            print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+            if info['current_filter_num'+str(tel)] != -1:
+                print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+            else:
+                print('  Current filter: UNHOMED', end=' ')
+            print('(%i)' %info['current_filter_num'+str(tel)], end=' ')
             print('  [%s]' %info['status'+str(tel)])
         else:
             print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))

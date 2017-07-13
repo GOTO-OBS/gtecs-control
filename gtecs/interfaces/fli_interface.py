@@ -179,20 +179,23 @@ class FLIDaemon(InterfaceDaemon):
         """Begin exposure"""
         self.cams[int(HW)].start_exposure()
 
-    def fetch_process(self, HW):
-        return self.cams[int(HW)].fetch_image()
+    def exposure_ready(self, HW):
+        """Check if an exposure is ready"""
+        return self.cams[int(HW)].image_ready
 
     def fetch_exposure(self, HW):
         """Fetch the image"""
         self.logfile.info('Camera %d saving image', HW)
-        with futures.ProcessPoolExecutor() as executor:
-            future = executor.submit(self.fetch_process, HW)
-        return future
+        return self.cams[int(HW)].fetch_image()
 
     def abort_exposure(self, HW):
         """Abort current exposure"""
         self.logfile.info('Camera %d aborting exposure', HW)
         self.cams[int(HW)].cancel_exposure()
+
+    def clear_exposure_queue(self, HW):
+        """Clear exposure queue"""
+        self.cams[int(HW)].image_queue.clear()
 
     def set_camera_temp(self, target_temp, HW):
         """Set the camera's temperature"""
@@ -253,6 +256,12 @@ def start():
     '''
     # find which interface this is
     hostname = socket.gethostname()
+
+    if hostname == 'nuc-east.warwick.ac.uk':
+        hostname = '10.2.6.14'
+    elif hostname == 'nuc-west.warwick.ac.uk':
+        hostname = '10.2.6.16'
+
     try:
         intf = misc.find_interface_ID(hostname)
     except ValueError:
