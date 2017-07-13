@@ -280,10 +280,16 @@ def there_can_only_be_one(daemon_ID):
     of this daemon already running.
     '''
 
-    host = params.DAEMONS[daemon_ID]['HOST']
-    port = params.DAEMONS[daemon_ID]['PORT']
-    pyroID = params.DAEMONS[daemon_ID]['PYROID']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
+    if daemon_ID in params.DAEMONS:
+        host = params.DAEMONS[daemon_ID]['HOST']
+        port = params.DAEMONS[daemon_ID]['PORT']
+        process = params.DAEMONS[daemon_ID]['PROCESS']
+    elif daemon_ID in params.FLI_INTERFACES:
+        host = params.FLI_INTERFACES[daemon_ID]['HOST']
+        port = params.FLI_INTERFACES[daemon_ID]['PORT']
+        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
+    else:
+        raise ValueError('Invalid daemon ID')
 
     # Check if daemon process is already running
     process_ID = get_process_ID(process, host)
