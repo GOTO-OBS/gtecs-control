@@ -13,7 +13,7 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
-from math import cos
+from math import cos, pi
 import Pyro4
 import threading
 import time
@@ -371,7 +371,7 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Invalid direction'
         else:
             step_deg = self.step/3600.
-            step_ra = (step_deg*24./360.)/cos(self.mount_dec)
+            step_ra = (step_deg*24./360.)/cos(self.mount_dec*pi/180.)
             step_dec = step_deg
             if direction == 'north':
                 ra = self.mount_ra
