@@ -216,6 +216,11 @@ def start():
     port = params.WIN_INTERFACES['sitech']['PORT']
     pyroID = params.WIN_INTERFACES['sitech']['PYROID']
 
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one('sitech'):
+        sys.exit()
+
+    # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         sitech_daemon = SiTechDaemon()
         uri = pyro_daemon.register(sitech_daemon, objectId=pyroID)

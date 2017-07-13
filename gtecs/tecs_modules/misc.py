@@ -288,11 +288,18 @@ def there_can_only_be_one(daemon_ID):
         host = params.FLI_INTERFACES[daemon_ID]['HOST']
         port = params.FLI_INTERFACES[daemon_ID]['PORT']
         process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
+    elif daemon_ID in params.WIN_INTERFACES:
+        host = params.WIN_INTERFACES[daemon_ID]['HOST']
+        port = params.WIN_INTERFACES[daemon_ID]['PORT']
+        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
     else:
         raise ValueError('Invalid daemon ID')
 
     # Check if daemon process is already running
-    process_ID = get_process_ID(process, host)
+    if daemon_ID in params.WIN_INTERFACES:
+        process_ID = get_process_ID_windows(process, host, params.WIN_USER)
+    else:
+        process_ID = get_process_ID(process, host)
     if len(process_ID) > 1:
         print('ERROR: Daemon already running')
         return False
