@@ -101,10 +101,6 @@ def start_daemon(daemon_ID):
     host    = params.DAEMONS[daemon_ID]['HOST']
     pyroid  = params.DAEMONS[daemon_ID]['PYROID']
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
-    if params.REDIRECT_STDOUT:
-        output = params.LOG_PATH + pyroid + '-stdout.log'
-    else:
-        output = '/dev/stdout'
 
     if depends[0] != 'None':
         fail = 0
@@ -116,12 +112,19 @@ def start_daemon(daemon_ID):
             return
 
     process_path = os.path.join(params.DAEMON_PATH, process)
-    out_cmd = ' '.join(('>', output, '2>&1 &'))
+
+    process_options = {'in_background': True,
+                       'host': host}
+    if params.REDIRECT_STDOUT:
+        fpipe = open(params.LOG_PATH + pyroid + '-stdout.log', 'a')
+        process_options.update({
+            'stdout': fpipe, 'stderr': fpipe
+        })
 
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 0:
         # Run script
-        misc.python_command(process_path, out_cmd, host)
+        misc.python_command(process_path, '', **process_options)
 
         # See if it started
         process_ID_n = misc.get_process_ID(process, host)
