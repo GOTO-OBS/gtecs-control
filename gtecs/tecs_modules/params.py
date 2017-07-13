@@ -71,8 +71,9 @@ else:
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
-IMAGE_PATH = CONFIG_PATH + 'images/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
+
+IMAGE_PATH = config['IMAGE_PATH']
 
 # Specific Windows params
 WIN_USER = config['WIN_USER']

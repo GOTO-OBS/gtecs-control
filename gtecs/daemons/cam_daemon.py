@@ -144,6 +144,7 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
+                        fli.clear_exposure_queue(HW)
                         c = fli.set_camera_area(0, 0, 8304, 6220, HW)
                         if c: self.logfile.info(c)
                         c = fli.set_exposure(exptime_ms,frametype,HW)
@@ -165,20 +166,20 @@ class CamDaemon(HardwareDaemon):
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()
-                        remaining = fli.get_camera_time_remaining(HW)
+                        ready = fli.exposure_ready(HW)
+                        if ready:
+                            self.exposing_flag[intf][HW] = 2
+                            self.images[tel] =  fli.fetch_exposure(HW)
                     except:
                         self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
-                    if remaining == 0:
-                        self.exposing_flag[intf][HW] = 2
-                        self.images[tel] = self._image_fetch(tel) # store a future image
 
             # take exposure part three - save
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
-                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None and self.images[tel].done():
+                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
                     # image available
-                    image = self.images[tel].result()
+                    image = self.images[tel]
                     # reset entry
                     self.images[tel] = None
 
@@ -678,15 +679,23 @@ class CamDaemon(HardwareDaemon):
         try:
             info = filt.get_info()
             filt_serial = info['serial_number'+str(tel)]
-            filt_filter = flist[info['current_filter_num'+str(tel)]]
+            if info['current_filter_num'+str(tel)] != -1:
+                filt_filter = flist[info['current_filter_num'+str(tel)]]
+            else:
+                filt_filter = 'UNHOMED'
+            filt_num = info['current_filter_num'+str(tel)]
+            filt_pos = info['current_pos'+str(tel)]
         except:
             filt_serial = 'NA'
             filt_filter = 'NA'
+            filt_num = 'NA'
+            filt_pos = 'NA'
         flist_str = ''.join(flist)
 
         header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
         header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(flist_str))
-
+        header["FILTNUM "] = (filt_num, "Filter wheel position number".format(flist_str))
+        header["FILTPOS "] = (filt_pos, "Filter wheel motor position".format(flist_str))
 
         # Mount info
         mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
@@ -724,7 +733,7 @@ class CamDaemon(HardwareDaemon):
             mnt_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
 
             mnt_dec = info['mount_dec']
-            dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
+            dec_m, dec_s = divmod(abs(mnt_dec)*3600,60)
             dec_d, dec_m = divmod(dec_m,60)
             if mnt_dec < 0: dec_d = -dec_d
             mnt_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
