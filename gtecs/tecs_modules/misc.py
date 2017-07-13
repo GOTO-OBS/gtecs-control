@@ -287,7 +287,7 @@ def there_can_only_be_one(daemon_ID):
 
     # Check if daemon process is already running
     process_ID = get_process_ID(process, host)
-    if len(process_ID) > 0:
+    if len(process_ID) > 1:
         print('ERROR: Daemon already running')
         return False
 
