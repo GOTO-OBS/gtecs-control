@@ -273,6 +273,38 @@ def dependencies_are_alive(daemon_ID):
     else:
         return True
 
+def there_can_only_be_one(daemon_ID):
+    '''Ensure the current daemon script isn't already running.
+
+    Returns `True` if it's OK to start, `False` if there is annother instance
+    of this daemon already running.
+    '''
+
+    host = params.DAEMONS[daemon_ID]['HOST']
+    port = params.DAEMONS[daemon_ID]['PORT']
+    pyroID = params.DAEMONS[daemon_ID]['PYROID']
+    process = params.DAEMONS[daemon_ID]['PROCESS']
+
+    # Check if daemon process is already running
+    process_ID = get_process_ID(process, host)
+    if len(process_ID) > 0:
+        print('ERROR: Daemon already running')
+        return False
+
+    # Also check the Pyro address is available
+    try:
+        pyro_daemon = Pyro4.Daemon(host=host, port=port)
+    except IOError as err:
+        if err.args[1] == 'Address already in use':
+            print('ERROR: Daemon tried to start but was already registered')
+            return False
+        else:
+            raise
+    else:
+        pyro_daemon.close()
+
+    return True
+
 def find_interface_ID(hostname):
     '''Find what interface should be running on a given host.
 
