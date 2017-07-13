@@ -121,6 +121,7 @@ def kill_processes(process, host):
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
+            print('Killed remote process', process_ID)
 
 def kill_processes_windows(process, host, username=None):
     '''Kill any specified processes on a remote Windows machine'''
@@ -129,6 +130,7 @@ def kill_processes_windows(process, host, username=None):
     for process_ID in process_ID_list:
         getoutput('ssh {}@{}'.format(username, host)
                  +' taskkill /F /PID {}'.format(process_ID))
+        print('Killed remote process', process_ID)
 
 def python_command(filename, command, host='localhost',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
