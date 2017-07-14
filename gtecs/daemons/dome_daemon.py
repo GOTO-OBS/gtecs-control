@@ -391,6 +391,11 @@ def start():
     port = params.DAEMONS['dome']['PORT']
     pyroID = params.DAEMONS['dome']['PYROID']
 
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one('dome'):
+        sys.exit()
+
+    # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         dome_daemon = DomeDaemon()
         uri = pyro_daemon.register(dome_daemon, objectId=pyroID)

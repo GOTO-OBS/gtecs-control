@@ -14,6 +14,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from math import *
+import sys
 import time, datetime
 import Pyro4
 import threading
@@ -266,6 +267,11 @@ def start():
     port = params.DAEMONS['foc']['PORT']
     pyroID = params.DAEMONS['foc']['PYROID']
 
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one('foc'):
+        sys.exit()
+
+    # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         foc_daemon = FocDaemon()
         uri = pyro_daemon.register(foc_daemon, objectId=pyroID)
