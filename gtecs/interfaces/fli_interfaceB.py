@@ -14,8 +14,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import time
+import sys
 import Pyro4
 # TeCS modules
+from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
@@ -36,6 +38,11 @@ def start():
     port = params.FLI_INTERFACES[intf]['PORT']
     pyroID = params.FLI_INTERFACES[intf]['PYROID']
 
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one(intf):
+        sys.exit()
+
+    # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         fli_daemon = FLIDaemon(intf)
         uri = pyro_daemon.register(fli_daemon, objectId=pyroID)

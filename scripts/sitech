@@ -54,7 +54,7 @@ def start_win_interface(interface):
     elif len(process_ID) == 1:
         print('ERROR: Interface already running on {} (PID {})'.format(host, process_ID[0]))
     else:
-        print('ERROR: Multiple interfaces already running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple interfaces already running on {} (PID {})'.format(host, process_ID))
 
 
 def ping_win_interface(interface):
@@ -78,7 +78,7 @@ def ping_win_interface(interface):
     elif len(process_ID) == 0:
         print('ERROR: No response, interface not running on {}'.format(host))
     else:
-        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID))
 
 
 def shutdown_win_interface(interface):
@@ -113,7 +113,7 @@ def shutdown_win_interface(interface):
     elif len(process_ID) == 0:
         print('ERROR: No response, interface not running on {}'.format(host))
     else:
-        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID_n))
+        print('ERROR: Multiple interfaces running on {} (PID {})'.format(host, process_ID))
 
 
 def kill_win_interface(interface):

@@ -121,6 +121,7 @@ def kill_processes(process, host):
     else:
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
+            print('Killed remote process', process_ID)
 
 def kill_processes_windows(process, host, username=None):
     '''Kill any specified processes on a remote Windows machine'''
@@ -129,6 +130,7 @@ def kill_processes_windows(process, host, username=None):
     for process_ID in process_ID_list:
         getoutput('ssh {}@{}'.format(username, host)
                  +' taskkill /F /PID {}'.format(process_ID))
+        print('Killed remote process', process_ID)
 
 def python_command(filename, command, host='localhost',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -278,6 +280,51 @@ def dependencies_are_alive(daemon_ID):
             return True
     else:
         return True
+
+def there_can_only_be_one(daemon_ID):
+    '''Ensure the current daemon script isn't already running.
+
+    Returns `True` if it's OK to start, `False` if there is annother instance
+    of this daemon already running.
+    '''
+
+    if daemon_ID in params.DAEMONS:
+        host = params.DAEMONS[daemon_ID]['HOST']
+        port = params.DAEMONS[daemon_ID]['PORT']
+        process = params.DAEMONS[daemon_ID]['PROCESS']
+    elif daemon_ID in params.FLI_INTERFACES:
+        host = params.FLI_INTERFACES[daemon_ID]['HOST']
+        port = params.FLI_INTERFACES[daemon_ID]['PORT']
+        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
+    elif daemon_ID in params.WIN_INTERFACES:
+        host = params.WIN_INTERFACES[daemon_ID]['HOST']
+        port = params.WIN_INTERFACES[daemon_ID]['PORT']
+        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
+    else:
+        raise ValueError('Invalid daemon ID')
+
+    # Check if daemon process is already running
+    if daemon_ID in params.WIN_INTERFACES:
+        process_ID = get_process_ID_windows(process, host, params.WIN_USER)
+    else:
+        process_ID = get_process_ID(process, host)
+    if len(process_ID) > 1:
+        print('ERROR: Daemon already running')
+        return False
+
+    # Also check the Pyro address is available
+    try:
+        pyro_daemon = Pyro4.Daemon(host=host, port=port)
+    except IOError as err:
+        if err.args[1] == 'Address already in use':
+            print('ERROR: Daemon tried to start but was already registered')
+            return False
+        else:
+            raise
+    else:
+        pyro_daemon.close()
+
+    return True
 
 def find_interface_ID(hostname):
     '''Find what interface should be running on a given host.
