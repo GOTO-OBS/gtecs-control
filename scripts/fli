@@ -140,6 +140,13 @@ def kill_fli_interface(interface):
         print('ERROR: Interface not running on {}'.format(host))
 
 
+def restart_fli_interface(interface, wait_time=2):
+    '''Shut down an interface and then start it again after `wait_time` seconds'''
+    shutdown_fli_interface(interface)
+    time.sleep(wait_time)
+    start_fli_interface(interface)
+
+
 ########################################################################
 # Interactive functions
 
@@ -162,6 +169,9 @@ def query(command, args):
     elif command == 'shutdown':
         for interface in params.FLI_INTERFACES:
             shutdown_fli_interface(interface)
+    elif command == 'restart':
+        for interface in params.FLI_INTERFACES:
+            restart_fli_interface(interface)
     elif command == 'kill':
         for interface in params.FLI_INTERFACES:
             kill_fli_interface(interface)
@@ -186,6 +196,7 @@ def print_instructions():
     ' ' + misc.undl('Interface commands') + ':' + '\n' +\
     '  fli ' + misc.bold('start') + '             - start the interfaces' + '\n' +\
     '  fli ' + misc.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
+    '  fli ' + misc.bold('restart') + '           - restart the interfaces' + '\n' +\
     '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\

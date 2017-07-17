@@ -148,6 +148,7 @@ def print_instructions():
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
     '  foc ' + misc.bold('start') + '             - start the daemon' + '\n' +\
     '  foc ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  foc ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
     '  foc ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  foc ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
     ' ' + misc.undl('Focuser commands') + ':' + '\n' +\

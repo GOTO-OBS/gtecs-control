@@ -220,6 +220,12 @@ def kill_daemon(daemon_ID):
         print('ERROR: Daemon not running on {}'.format(host))
 
 
+def restart_daemon(daemon_ID, wait_time=2):
+    '''Shut down a daemon and then start it again after `wait_time` seconds'''
+    shutdown_daemon(daemon_ID)
+    time.sleep(wait_time)
+    start_daemon(daemon_ID)
+
 ########################################################################
 # Generic daemon function wrapper
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
