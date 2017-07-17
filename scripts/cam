@@ -43,6 +43,8 @@ def query(command, args):
         daemons.start_daemon(daemon_ID)
     elif command == 'shutdown':
         daemons.shutdown_daemon(daemon_ID)
+    elif command == 'restart':
+        daemons.restart_daemon(daemon_ID)
     elif command == 'kill':
         daemons.kill_daemon(daemon_ID)
     elif command == 'ping':
@@ -206,6 +208,7 @@ def print_instructions():
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
     '  cam ' + misc.bold('start') + '                - start the daemon' + '\n' +\
     '  cam ' + misc.bold('shutdown') + '             - shutdown the daemon' + '\n' +\
+    '  cam ' + misc.bold('restart') + '              - restart the daemon' + '\n' +\
     '  cam ' + misc.bold('kill') + '                 - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  cam ' + misc.bold('ping') + '                 - ping the daemon' + '\n' +\
     ' ' + misc.undl('Camera commands') + ':' + '\n' +\

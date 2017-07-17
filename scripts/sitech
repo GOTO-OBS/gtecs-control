@@ -136,6 +136,12 @@ def kill_win_interface(interface):
     else:
         print('ERROR: Interface not running on {}'.format(host))
 
+def restart_win_interface(interface, wait_time=2):
+    '''Shut down an interface on Windows and then start it again after `wait_time` seconds'''
+    shutdown_win_interface(interface)
+    time.sleep(wait_time)
+    start_win_interface(interface)
+
 
 ########################################################################
 # Interactive functions
@@ -157,6 +163,8 @@ def query(command, args):
         start_win_interface('sitech')
     elif command == 'shutdown':
         shutdown_win_interface('sitech')
+    elif command == 'restart':
+        restart_win_interface('sitech')
     elif command == 'kill':
         kill_win_interface('sitech')
     elif command == 'ping':
@@ -179,6 +187,7 @@ def print_instructions():
     ' ' + misc.undl('Interface commands') + ':' + '\n' +\
     '  sitech ' + misc.bold('start') + '             - start the interface' + '\n' +\
     '  sitech ' + misc.bold('shutdown') + '          - shutdown the interface' + '\n' +\
+    '  sitech ' + misc.bold('restart') + '           - restart the interface' + '\n' +\
     '  sitech ' + misc.bold('kill') + '              - kill the interface (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  sitech ' + misc.bold('ping') + '              - ping the interface' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
