@@ -67,33 +67,33 @@ class SiTech:
 
         # parse boolian flags
         bools = int(reply[0])
-        self.initialized = (bools & 1) > 0
-        self.tracking = (bools & 2) > 0
-        self.slewing = (bools & 4) > 0
-        self.parking = (bools & 8) > 0
-        self.parked = (bools & 16) > 0
-        self.direction = 'east' if (bools & 32) > 0 else 'west'
-        self.blinky = (bools & 64) > 0
-        self.connection_error = (bools & 128) > 0
-        self.limit_switches = {'primary_plus' : (bools & 256) > 0,
+        self._initialized = (bools & 1) > 0
+        self._tracking = (bools & 2) > 0
+        self._slewing = (bools & 4) > 0
+        self._parking = (bools & 8) > 0
+        self._parked = (bools & 16) > 0
+        self._direction = 'east' if (bools & 32) > 0 else 'west'
+        self._blinky = (bools & 64) > 0
+        self._connection_error = (bools & 128) > 0
+        self._limit_switches = {'primary_plus' : (bools & 256) > 0,
                                'primary_minus' : (bools & 512) > 0,
                                'secondary_plus' : (bools & 1024) > 0,
                                'secondary_minus' : (bools & 2048) > 0,
                                }
-        self.homing_switches = {'primary' : (bools & 4096) > 0,
+        self._homing_switches = {'primary' : (bools & 4096) > 0,
                                 'secondary' : (bools & 8192) > 0,
                                 }
 
         # parse values
-        self.ra = float(reply[1])
-        self.dec = float(reply[2])
-        self.alt = float(reply[3])
-        self.az = float(reply[4])
-        self.secondary_angle = float(reply[5])
-        self.primary_angle = float(reply[6])
-        self.sidereal_time = float(reply[7])
-        self.jd = float(reply[8])
-        self.hours = float(reply[9])
+        self._ra = float(reply[1])
+        self._dec = float(reply[2])
+        self._alt = float(reply[3])
+        self._az = float(reply[4])
+        self._secondary_angle = float(reply[5])
+        self._primary_angle = float(reply[6])
+        self._sidereal_time = float(reply[7])
+        self._jd = float(reply[8])
+        self._hours = float(reply[9])
 
         # find the message and return it
         message = reply[10][1:-1] # strip leading '_' and trailing '\n'
@@ -102,27 +102,121 @@ class SiTech:
         else:
             return message
 
-    def status(self):
-        '''Read and store status values.
-
-        Return a string for the current mount status.
-        '''
+    def _update_status(self):
+        '''Read and store status values'''
         command = self.commands['GET_STATUS']
         reply_string = self._tcp_command(command)
         self._parse_reply_string(reply_string) # no message
 
-        if self.tracking and not self.slewing:
+    @property
+    def status(self):
+        self._update_status()
+        if self._tracking and not self._slewing:
             status = 'Tracking'
-        elif self.slewing:
+        elif self._slewing:
             status = 'Slewing'
-        elif self.parking:
+        elif self._parking:
             status = 'Parking'
-        elif self.parked:
+        elif self._parked:
             status = 'Parked'
         else:
             status = 'Stopped'
-
         return status
+
+    @property
+    def tracking(self):
+        self._update_status()
+        return self._tracking
+
+    @property
+    def slewing(self):
+        self._update_status()
+        return self._slewing
+
+    @property
+    def parking(self):
+        self._update_status()
+        return self._parking
+
+    @property
+    def parked(self):
+        self._update_status()
+        return self._parked
+
+    @property
+    def direction(self):
+        self._update_status()
+        return self._direction
+
+    @property
+    def direction(self):
+        self._update_status()
+        return self._direction
+
+    @property
+    def blinky(self):
+        self._update_status()
+        return self._blinky
+
+    @property
+    def connection_error(self):
+        self._update_status()
+        return self._connection_error
+
+    @property
+    def limit_switches(self):
+        self._update_status()
+        return self._limit_switches
+
+    @property
+    def homing_switches(self):
+        self._update_status()
+        return self._homing_switches
+
+    @property
+    def ra(self):
+        self._update_status()
+        return self._ra
+
+    @property
+    def dec(self):
+        self._update_status()
+        return self._dec
+
+    @property
+    def alt(self):
+        self._update_status()
+        return self._alt
+
+    @property
+    def az(self):
+        self._update_status()
+        return self._az
+
+    @property
+    def secondary_angle(self):
+        self._update_status()
+        return self._secondary_angle
+
+    @property
+    def primary_angle(self):
+        self._update_status()
+        return self._primary_angle
+
+    @property
+    def sidereal_time(self):
+        self._update_status()
+        return self._sidereal_time
+
+    @property
+    def jd(self):
+        self._update_status()
+        return self._jd
+
+    @property
+    def hours(self):
+        self._update_status()
+        return self._hours
 
     def slew_to_radec(self, ra, dec):
         '''Slew to given RA and Dec coordinates
