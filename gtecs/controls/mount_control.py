@@ -203,7 +203,7 @@ class SiTech:
         message = self._parse_reply_string(reply_string)
         return message
 
-    def blinky_mode(self, activate):
+    def set_blinky_mode(self, activate):
         '''Activate or deactivate "blinky" (manual) mode,
         cutting power to the motors
         '''
