@@ -139,7 +139,8 @@ class SiTech:
         '''Slew mount to given Alt/Az'''
         self.target_altaz = (alt, az)
 
-        command = self.commands['SLEW_ALTAZ'].format(float(alt), float(az))
+        # NB SiTech takes Az first, then Alt
+        command = self.commands['SLEW_ALTAZ'].format(float(az), float(alt))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -155,7 +156,8 @@ class SiTech:
 
     def sync_altaz(self, alt, az):
         '''Set current pointing to given Alt/Az'''
-        command = self.commands['SYNC_ALTAZ'].format(float(alt), float(az))
+        # NB SiTech takes Az first, then Alt
+        command = self.commands['SYNC_ALTAZ'].format(float(az), float(alt))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
