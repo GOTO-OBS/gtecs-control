@@ -162,6 +162,13 @@ class SiTech:
         message = self._parse_reply_string(reply_string)
         return message
 
+    def track(self):
+        '''Start tracking at the siderial rate'''
+        command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
+        reply_string = self._tcp_command(command)
+        message = self._parse_reply_string(reply_string)
+        return message
+
     def park(self):
         '''Move mount to park position'''
         command = self.commands['PARK']
