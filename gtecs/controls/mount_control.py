@@ -111,7 +111,7 @@ class SiTech:
         reply_string = self._tcp_command(command)
         self._parse_reply_string(reply_string) # no message
 
-        if self.tracking:
+        if self.tracking and not self.slewing:
             status = 'Tracking'
         elif self.slewing:
             status = 'Slewing'
