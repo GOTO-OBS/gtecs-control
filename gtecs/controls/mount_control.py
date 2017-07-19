@@ -24,18 +24,18 @@ class SiTech:
         self.IP_address = IP_address
         self.port = port
         self.buffer_size = 1024
-        self.commands = {'GET_STATUS' : b'ReadScopeStatus\n',
-                         'SLEW_RADEC' : b'GoTo %.5f %.5f\n',
-                         'SLEW_ALTAZ' : b'GoToAltAz %.5f %.5f\n',
-                         'SYNC_RADEC' : b'Sync %.5f %.5f\n',
-                         'SYNC_ALTAZ' : b'SyncToAltAz %.5f %.5f\n',
-                         'PARK' : b'Park\n',
-                         'UNPARK' : b'UnPark\n',
-                         'HALT' : b'Abort\n',
-                         'SET_TRACKMODE' : b'SetTrackMode %i %i %.5f %.5f\n',
-                         'PULSEGUIDE' : b'PulseGuide %i %i\n',
-                         'BLINKY_ON' : b'MotorsToBlinky\n',
-                         'BLINKY_OFF' : b'MotorsToAuto\n',
+        self.commands = {'GET_STATUS' : 'ReadScopeStatus\n',
+                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f}\n',
+                         'SLEW_ALTAZ' : 'GoToAltAz {:.5f} {:.5f}\n',
+                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f}\n',
+                         'SYNC_ALTAZ' : 'SyncToAltAz {:.5f} {:.5f}\n',
+                         'PARK' : 'Park\n',
+                         'UNPARK' : 'UnPark\n',
+                         'HALT' : 'Abort\n',
+                         'SET_TRACKMODE' : 'SetTrackMode {:d} {:d} {:.5f} {:.5f}\n',
+                         'PULSEGUIDE' : 'PulseGuide {:d} {:d}\n',
+                         'BLINKY_ON' : 'MotorsToBlinky\n',
+                         'BLINKY_OFF' : 'MotorsToAuto\n',
                          }
 
     def _tcp_command(self, command_str):
@@ -130,7 +130,7 @@ class SiTech:
         '''
         self.target_radec = (ra, dec)
 
-        command = self.commands['SLEW_RADEC'] %(ra, dec)
+        command = self.commands['SLEW_RADEC'].format(float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -139,7 +139,7 @@ class SiTech:
         '''Slew mount to given Alt/Az'''
         self.target_altaz = (alt, az)
 
-        command = self.commands['SLEW_ALTAZ'] %(alt, az)
+        command = self.commands['SLEW_ALTAZ'].format(float(alt), float(az))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -148,14 +148,14 @@ class SiTech:
         '''Set current pointing to given RA and Dec coordinates
         NOTE: RA and Dec must be in JNow, not J2000
         '''
-        command = self.commands['SYNC_RADEC'] %(ra, dec)
+        command = self.commands['SYNC_RADEC'].format(float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def sync_altaz(self, alt, az):
         '''Set current pointing to given Alt/Az'''
-        command = self.commands['SYNC_ALTAZ'] %(alt, az)
+        command = self.commands['SYNC_ALTAZ'].format(float(alt), float(az))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -187,9 +187,9 @@ class SiTech:
         to the siderial rate.
         '''
         if ra == 0 and dec == 0:
-            command = self.commands['SET_TRACKMODE'] %(1, 0, 0, 0)
+            command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
         else:
-            command = self.commands['SET_TRACKMODE'] %(1, 1, ra, dec)
+            command = self.commands['SET_TRACKMODE'].format(1, 1, float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
