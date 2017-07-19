@@ -48,7 +48,7 @@ class SiTech:
             reply = s.recv(self.buffer_size)
         return reply.decode()
 
-    def _parse_reply_str(self, reply_string):
+    def _parse_reply_string(self, reply_string):
         '''Parse the return string from a SiTech command.
 
         The status  values are saved on on the SiTech object, and any attached
