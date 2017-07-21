@@ -84,16 +84,17 @@ if __name__ == "__main__":
         wait_for_telescope(480)  # 480s timeout
     except:
         # for now, just carry on regardless
+        # FUDGE: remove when dec is operational
         print('WARNING: did not reach target successfully')
 
     # set exposure order and check for sky brightness
     if eve:
-        expT = 20.0
+        expT = 5.0
         filt_order = ['B', 'G', 'R', 'L']
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 15.0
+        expT = 5.0
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
         skyMeanCheck = lambda x: x < 25000.0
