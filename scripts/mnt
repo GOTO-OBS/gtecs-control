@@ -74,7 +74,7 @@ def query(command, args):
         c = daemons.daemon_function(daemon_ID, 'start_tracking')
         if c: print(c)
 
-    elif command == 'stop':
+    elif command in ['stop', 'halt', 'abort']:
         c = daemons.daemon_function(daemon_ID, 'full_stop')
         if c: print(c)
 
