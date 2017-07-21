@@ -143,7 +143,6 @@ def wait_for_telescope(timeout=None):
                 cmd('mnt track')
 
         if timeout and (time.time() - start_time) > timeout:
-            print('Bum')
             timed_out = True
 
         # don't hammer the daemons
