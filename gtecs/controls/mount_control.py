@@ -59,6 +59,9 @@ class SiTech:
         e.g. from just reading the status rather than sending a command.
         '''
 
+        # save reply string
+        self._reply_string = reply_string
+
         # split the parameters from the reply string
         reply = reply_string.split(';')
 
