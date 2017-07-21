@@ -319,7 +319,7 @@ class CamDaemon(HardwareDaemon):
 
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
-        return self._take_frame(0, 'bias', tel_list)
+        return self._take_frame(params.BIASEXP, 'bias', tel_list)
 
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
