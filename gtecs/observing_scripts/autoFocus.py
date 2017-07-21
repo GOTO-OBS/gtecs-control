@@ -17,6 +17,7 @@ import argparse
 import time
 
 import numpy as np
+import pandas as pd
 
 from astropy.time import Time
 from astropy.io import fits
@@ -146,23 +147,21 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
 
 def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
     """
-    Measure the HFD diameter from multiple files and take a weighted mean.
+    Measure the HFD diameter from multiple files.
+
+    Returns a dictionary of telescope ID and a tuple of HFD and std dev
 
     Parameters are passed straight to `measure_hfd`
     """
-    medians = []
-    stds = []
-    for fname in fnames:
-        median, std = measure_hfd(fname)
+    ret_dict = {}
+    for tel_key in fnames:
+        median, std = measure_hfd(fnames[tel_key])
         if std > 0.0:
-            medians.append(median)
-            stds.append(std)
-    medians = np.array(medians)
-    stds = np.array(stds)
-    if medians.size > 0:
-        return np.average(medians, weights=1/std**2)
-    else:
-        return 0.0
+            ret_dict[tel_key] = (median, std)
+        else:
+            ret_dict[tel_key] = (0.0, 0.0)
+    return ret_dict
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -179,8 +178,8 @@ if __name__ == "__main__":
     if np.fabs(nfv - 20) > 5:
         raise ValueError('near near focus value should be between 15 and 25')
 
-    bigstep = 20
-    smallstep = 5
+    bigstep = 300
+    smallstep = 50
     expT = 2
 
     print('Starting focus routine')
@@ -188,10 +187,10 @@ if __name__ == "__main__":
     print('Slewing to star', star)
     name = star.name
 
-    coordinate = star.coord_now()
-    goto(coordinate.ra.deg, coordinate.dec.deg)
-    time.sleep(10)
-    wait_for_telescope(480)  # 480s timeout
+    #coordinate = star.coord_now()
+    #goto(coordinate.ra.deg, coordinate.dec.deg)
+    #time.sleep(10)
+    #wait_for_telescope(480)  # 480s timeout
 
     # get the parameters of the focus curves. Should be arrays, one entry per OTA
     m2 = np.array(params.FOCUS_SLOPE_ABOVE)
@@ -200,8 +199,8 @@ if __name__ == "__main__":
 
     # start where we are now.
     fnames = take_frame(expT, filt, star.name)
-    hfd_values = get_hfd(fnames)
-    orig_focus = get_current_focus()
+    hfd_values = pd.Series(get_hfd(fnames))
+    orig_focus = pd.Series(get_current_focus())
     print('Previous focus: {!r}'.format(orig_focus))
     print('Half-flux-diameters: {!r}'.format(hfd_values))
 
@@ -218,17 +217,20 @@ if __name__ == "__main__":
     hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters: {!r}'.format(hfd_values))
-    if np.any(hfd_values/old_hfd < 2):
+
+    # use pandas to perform maths based on keys
+    ratio = pd.Series(hfd_values) / pd.Series(old_hfd)
+    if np.any(ratio < 2):
         print(hfd_values, old_hfd)
         set_new_focus(orig_focus)
         raise Exception('image quality estimate not changing with focus position')
 
     # check we are actually on the +ve side of best focus by moving towards best focus
-    set_focus_carefully(get_current_focus() - smallstep, orig_focus)
+    set_focus_carefully(pd.Series(get_current_focus()) - smallstep, orig_focus)
 
     # check the IQ has got better
-    old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
+    old_hfd = pd.Series(hfd_values)
+    hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus))
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters: {!r}'.format(hfd_values))
     if np.any(old_hfd < hfd_values):
@@ -238,32 +240,40 @@ if __name__ == "__main__":
     # while we are > than twice the near focus value, keep halving the hfd_values
     while np.any(hfd_values > nfv):
         print('stepping towards near focus')
-        new_focus_values = estimate_focus(0.5*hfd_values, hfd_values,
-                                          get_current_focus(), m2)
+        mask = hfd_values > nfv
+        # move the focusers that need it
+        target_hfds = (0.5*hfd_values).where(mask, hfd_values)
+        new_focus_values = estimate_focus(target_hfds, hfd_values,
+                                          pd.Series(get_current_focus()), m2)
         set_focus_carefully(new_focus_values, orig_focus)
-        hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
+        hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus))
         print('Focus: {!r}'.format(get_current_focus()))
         print('Half-flux-diameters: {!r}'.format(hfd_values))
 
     # close enough. Make the step to the focus position that should give HFV
     print('Starting near focus measurements')
     near_focus_pos = estimate_focus(nfv, hfd_values,
-                                    get_current_focus(), m2)
+                                    pd.Series(get_current_focus()), m2)
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus: {!r}'.format(near_focus_pos))
     # measure NFV five times and take average
-    hfd_measurements = []
+    hfd_measurements = None
     for i in range(5):
         hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
-        hfd_measurements.append(hfd_values)
+        if hfd_measurements is not None:
+            hfd_measurements.append(pd.Series(hfd_values))
         print('Half-flux-diameters: {!r}'.format(hfd_values))
-    hfd_measurements = np.asarray(hfd_measurements)
-    hfd_values = hfd_measurements.mean(axis=0)
-    hfd_stddev = hfd_measurements.std(axis=0)
+    hfd_measurements = hfd_measurements.group_by(level=0)
+    hfd_values = hfd_measurements.mean()
+    hfd_stddev = hfd_measurements.std()
 
     # find best focus
-    hfd_samples = np.random.normal(size=(1e4, len(hfd_values)),
-                                   loc=hfd_values, scale=hfd_stddev)
+    hfd_samples = pd.Dataframe()
+    for key in hfd_values.keys():
+        hfd_samples[key] = np.random.normal(size=10,
+                                            loc=hfd_values[key],
+                                            scale=hfd_stddev[key])
+
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, hfd_samples)
     best_focus_mean = best_focus.mean(axis=0)
     best_focus_std = best_focus.std(axis=0)

@@ -35,13 +35,13 @@ def set_new_focus(values):
     """
     try:
         # will raise if not a dict, or keys not valid
-        assert all(key in params.TEL_DICT for key in values)
+        assert all(key in params.TEL_DICT for key in values.keys())
     except:
         # same value for all
         values = {key: values for key in params.TEL_DICT}
 
     current_values = get_current_focus()
-    difference = {key: current_values[key] - values[key] for key in values}
+    difference = {key: current_values[key] - values[key] for key in values.keys()}
     for tel in difference:
         cmd('foc move {} {}'.format(tel, int(difference[tel])))
 
