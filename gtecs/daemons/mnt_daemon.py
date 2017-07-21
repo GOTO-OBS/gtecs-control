@@ -3,7 +3,7 @@
 ########################################################################
 #                            mnt_daemon.py                             #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#        G-TeCS daemon to access SiTech mount control via ASCOM        #
+#              G-TeCS daemon to access SiTech mount control            #
 #                     Martin Dyer, Sheffield, 2015                     #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #                   Based on the SLODAR/pt5m system                    #
@@ -23,6 +23,7 @@ from astropy.time import Time
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.controls import mnt_control
 from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
@@ -74,7 +75,6 @@ class MntDaemon(HardwareDaemon):
         self.mount_dec = 0
         self.target_ra = None
         self.target_dec = None
-        self.target_distance = None
         self.lst = 0
         self.utc = Time.now()
         self.utc.precision = 0  # only integer seconds
@@ -92,46 +92,34 @@ class MntDaemon(HardwareDaemon):
     def mnt_control(self):
         self.logfile.info('Daemon control thread started')
 
-        sitech_address = params.WIN_INTERFACES['sitech']['ADDRESS']
-        sitech = Pyro4.Proxy(sitech_address)
-        sitech._pyroTimeout = params.PROXY_TIMEOUT
+        ### connect to SiTechExe
+        IP_address = params.SITECH_HOST
+        port = params.SITECH_PORT
+        self.sitech = mnt_control.SiTech(IP_address, port)
 
         while(self.running):
             self.time_check = time.time()
 
-            ### connect to sitech daemon
-
             ### control functions
             # request info
             if(self.get_info_flag):
-                # update variables
-                try:
-                    sitech._pyroReconnect()
-                    self.mount_status = sitech.get_mount_status()
-                    self.mount_alt, self.mount_az = sitech.get_mount_altaz()
-                    self.mount_ra, self.mount_dec = sitech.get_mount_radec()
-                    self.target_ra, self.target_dec = sitech.get_target_radec()
-                    self.target_distance = sitech.get_target_distance()
-                    self.lst = sitech.get_lst()
-                    self.utc = Time.now()
-                    self.utc.precision = 0  # only integer seconds
-                    self.utc_str = self.utc.iso
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
                 # save info
                 info = {}
-                info['status'] = self.mount_status
-                info['mount_alt'] = self.mount_alt
-                info['mount_az'] = self.mount_az
-                info['mount_ra'] = self.mount_ra
-                info['mount_dec'] = self.mount_dec
+                info['status'] = self.sitech.status
+                info['mount_alt'] = self.sitech.alt
+                info['mount_az'] = self.sitech.az
+                info['mount_ra'] = self.sitech.ra
+                info['mount_dec'] = self.sitech.dec
                 info['target_ra'] = self.target_ra
                 info['target_dec'] = self.target_dec
-                info['target_dist'] = self.target_distance
-                info['lst'] = self.lst
-                info['ha'] = find_ha(self.mount_ra,self.lst)
-                info['utc'] = self.utc_str
+                info['target_dist'] = self._get_target_distance()
+                info['blinky'] = self.sitech.blinky
+                info['lst'] = self.sitech.sidereal_time
+                info['ha'] = find_ha(info['mount_ra'], info['lst'])
+
+                self.utc = Time.now()
+                self.utc.precision = 0  # only integer seconds
+                info['utc'] = self.utc.iso
                 info['step'] = self.step
                 info['uptime'] = time.time()-self.start_time
                 info['ping'] = time.time()-self.time_check
@@ -145,13 +133,8 @@ class MntDaemon(HardwareDaemon):
             if(self.slew_radec_flag):
                 self.logfile.info('Slewing to %.2f,%.2f',
                                   self.temp_ra, self.temp_dec)
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.slew_to_radec(self.temp_ra,self.temp_dec)
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
+                if c: self.logfile.info(c)
                 self.slew_radec_flag = 0
                 self.temp_ra = None
                 self.temp_dec = None
@@ -159,98 +142,33 @@ class MntDaemon(HardwareDaemon):
             # slew to target
             if(self.slew_target_flag):
                 self.logfile.info('Slewing to target')
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.slew_to_target()
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
+                if c: self.logfile.info(c)
                 self.slew_target_flag = 0
 
             # start tracking
             if(self.start_tracking_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.start_tracking()
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.track()
+                if c: self.logfile.info(c)
                 self.start_tracking_flag = 0
 
             # stop all motion (tracking or slewing)
             if(self.full_stop_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.full_stop()
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.halt()
+                if c: self.logfile.info(c)
                 self.full_stop_flag = 0
 
             # park the mount
             if(self.park_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.park()
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.park()
+                if c: self.logfile.info(c)
                 self.park_flag = 0
 
             # unpark the mount
             if(self.unpark_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.unpark()
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
+                c = self.sitech.unpark()
+                if c: self.logfile.info(c)
                 self.unpark_flag = 0
-
-            # Set target RA
-            if(self.set_target_ra_flag):
-                try:
-                    sitech._pyroReconnect()
-                    self.logfile.info('set ra to %.4f', self.temp_ra)
-                    c = sitech.set_target_ra(self.temp_ra)
-                    if c: self.logfile.info(c)
-                    self.logfile.info('again, set ra to %.4f', self.temp_ra)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
-                self.set_target_ra_flag = 0
-                self.temp_ra = None
-
-            # Set target Dec
-            if(self.set_target_dec_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.set_target_dec(self.temp_dec)
-                    if c: self.logfile.info(c)
-                    self.logfile.info('set dec to %.4f', self.temp_dec)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
-                self.set_target_dec_flag = 0
-                self.temp_dec = None
-
-            # Set target
-            if(self.set_target_flag):
-                try:
-                    sitech._pyroReconnect()
-                    c = sitech.set_target(self.temp_ra,self.temp_dec)
-                    if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('No response from sitech daemon')
-                    self.logfile.debug('', exc_info=True)
-                self.set_target_flag = 0
-                self.temp_ra = None
-                self.temp_dec = None
 
             time.sleep(0.0001) # To save 100% CPU usage
 
@@ -343,21 +261,18 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_ra(self,ra):
         """Set the target RA"""
-        self.temp_ra = ra
-        self.set_target_ra_flag = 1
+        self.target_ra = ra
         return """Setting target RA"""
 
     def set_target_dec(self,dec):
         """Set the target Dec"""
-        self.temp_dec = dec
-        self.set_target_dec_flag = 1
+        self.target_dec = dec
         return """Setting target Dec"""
 
     def set_target(self,ra,dec):
         """Set the target location"""
-        self.temp_ra = ra
-        self.temp_dec = dec
-        self.set_target_flag = 1
+        self.target_ra = ra
+        self.target_dec = dec
         return """Setting target"""
 
     def offset(self,direction):
@@ -397,6 +312,25 @@ class MntDaemon(HardwareDaemon):
     def set_step(self,offset):
         self.step = offset
         return 'New offset step set'
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Internal functions
+    def _get_target_distance(self):
+        """Return the distance to the current target"""
+        # Need to catch error if target not yet set
+        if self.target_ra == None or self.dec_ra == None:
+            return None
+        t_ra = self.target_ra
+        t_dec = self.target_dec
+        m_ra = self.sitech.ra
+        m_dec = self.sitech.dec
+        t_alt = 90 - t_dec
+        m_alt = 90 - m_dec
+        D_ra = (t_ra - m_ra)*360./24.
+        S1 = cos(radians(t_alt))*cos(radians(m_alt))
+        S2 = sin(radians(t_alt))*sin(radians(m_alt))*cos(radians(D_ra))
+        S = degrees(acos(S1+S2))
+        return S
 
 ########################################################################
 
