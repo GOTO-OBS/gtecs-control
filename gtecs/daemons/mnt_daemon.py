@@ -59,6 +59,7 @@ class MntDaemon(HardwareDaemon):
         self.slew_target_flag = 0
         self.start_tracking_flag = 0
         self.full_stop_flag = 0
+        self.set_blinky_mode_flag = 0
         self.park_flag = 0
         self.unpark_flag = 0
         self.set_target_ra_flag = 0
@@ -81,6 +82,7 @@ class MntDaemon(HardwareDaemon):
         self.utc_str = self.utc.iso
         self.temp_ra = None
         self.temp_dec = None
+        self.set_blinky = False
 
         ### start control thread
         t = threading.Thread(target=self.mnt_control)
@@ -157,6 +159,13 @@ class MntDaemon(HardwareDaemon):
                 c = self.sitech.halt()
                 if c: self.logfile.info(c)
                 self.full_stop_flag = 0
+
+            # turn blinky mode on or off
+            if(self.set_blinky_mode_flag):
+                c = self.sitech.set_blinky_mode(self.set_blinky)
+                if c: self.logfile.info(c)
+                self.set_blinky = False
+                self.set_blinky_mode_flag = 0
 
             # park the mount
             if(self.park_flag):
@@ -238,6 +247,20 @@ class MntDaemon(HardwareDaemon):
         else:
             self.full_stop_flag = 1
             return 'Stopping mount'
+
+    def blinky(self, activate):
+        """Turn on or off blinky mode"""
+        if activate and self.sitech.blinky:
+            return 'ERROR: Already in blinky mode'
+        elif not activate and not self.sitech.blinky:
+            return 'ERROR: Already not in blinky mode'
+        else:
+            self.set_blinky = activate
+            self.set_blinky_mode_flag = 1
+            if activate:
+                return 'Turning on blinky mode'
+            else:
+                return 'Turning off blinky mode'
 
     def park(self):
         """Moves the mount to the park position"""
