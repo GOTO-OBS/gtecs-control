@@ -13,7 +13,7 @@ from astropy.coordinates import Longitude
 from astropy import units as u
 
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.astronomy import find_lst, tel_str
+from gtecs.tecs_modules.astronomy import find_lst
 from gtecs.tecs_modules.observing import wait_for_telescope, goto
 
 
@@ -28,6 +28,7 @@ def run():
 
     time.sleep(5)
     cmd('mnt info')
+
 
 if __name__ == "__main__":
     run()

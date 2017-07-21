@@ -16,6 +16,7 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           wait_for_telescope)
 import gtecs.tecs_modules.astronomy as ast
 from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules import params
 
 import time
 import sys
@@ -23,8 +24,8 @@ import sys
 
 def mean_sky_brightness(fnames):
     means = []
-    for fname in fnames:
-        data = fits.getdata(fname)
+    for tel in params.TEL_DICT:
+        data = fits.getdata(fnames[tel])
         mean, median, std = sigma_clipped_stats(data, iters=3)
         means.append(mean)
     return np.mean(means)
@@ -79,7 +80,11 @@ if __name__ == "__main__":
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    wait_for_telescope(480)  # 480s timeout
+    try:
+        wait_for_telescope(480)  # 480s timeout
+    except:
+        # for now, just carry on regardless
+        print('WARNING: did not reach target successfully')
 
     # set exposure order and check for sky brightness
     if eve:
