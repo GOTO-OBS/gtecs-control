@@ -262,17 +262,21 @@ class MntDaemon(HardwareDaemon):
     def set_target_ra(self,ra):
         """Set the target RA"""
         self.target_ra = ra
+        self.logfile.info('set ra to %.4f', self.target_ra)
         return """Setting target RA"""
 
     def set_target_dec(self,dec):
         """Set the target Dec"""
         self.target_dec = dec
+        self.logfile.info('set dec to %.4f', self.target_dec)
         return """Setting target Dec"""
 
     def set_target(self,ra,dec):
         """Set the target location"""
         self.target_ra = ra
+        self.logfile.info('set ra to %.4f', self.target_ra)
         self.target_dec = dec
+        self.logfile.info('set dec to %.4f', self.target_dec)
         return """Setting target"""
 
     def offset(self,direction):
