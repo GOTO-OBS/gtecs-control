@@ -14,6 +14,7 @@ from __future__ import print_function
 import os, sys, subprocess
 import time
 import serial
+import socket
 # TeCS modules
 from gtecs.tecs_modules import params
 
