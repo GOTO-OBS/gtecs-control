@@ -13,7 +13,7 @@
 # Python modules
 from __future__ import absolute_import
 from __future__ import print_function
-from math import cos, pi
+from math import sin, cos, acos, pi, radians, degrees
 import sys
 import Pyro4
 import threading
@@ -318,7 +318,7 @@ class MntDaemon(HardwareDaemon):
     def _get_target_distance(self):
         """Return the distance to the current target"""
         # Need to catch error if target not yet set
-        if self.target_ra == None or self.dec_ra == None:
+        if self.target_ra == None or self.target_dec == None:
             return None
         t_ra = self.target_ra
         t_dec = self.target_dec
