@@ -84,6 +84,7 @@ if __name__ == "__main__":
         wait_for_telescope(480)  # 480s timeout
     except:
         # for now, just carry on regardless
+        # FUDGE: remove when dec is operational
         print('WARNING: did not reach target successfully')
 
     # set exposure order and check for sky brightness
