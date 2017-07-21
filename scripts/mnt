@@ -78,6 +78,16 @@ def query(command, args):
         c = daemons.daemon_function(daemon_ID, 'full_stop')
         if c: print(c)
 
+    elif command == 'blinky':
+        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
+            c = daemons.daemon_function(daemon_ID, 'blinky', [True])
+            if c: print(c)
+        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
+            c = daemons.daemon_function(daemon_ID, 'blinky', [False])
+            if c: print(c)
+        else:
+            print(misc.ERROR('Invalid arguments'))
+
     elif command == 'park':
         c = daemons.daemon_function(daemon_ID, 'park')
         if c: print(c)
@@ -325,6 +335,7 @@ def print_instructions():
     '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
     '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
     '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
+    '  mnt ' + misc.bold('blinky') + ' on|off' + '  - turn on or off blinky mode' + '\n' +\
     '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  mnt ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
