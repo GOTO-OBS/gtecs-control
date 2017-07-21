@@ -137,7 +137,7 @@ class FLIDaemon(InterfaceDaemon):
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
         self.logfile.info('Moving filter wheel %d to position %d', HW, new_filter)
-        pool = ThreadPoolExecutor(max_workers=1)
+        pool = ThreadPoolExecutor(max_workers=4)
         ignored_future = pool.submit(self.filts[int(HW)].set_filter_pos, new_filter)
 
     def home_filter(self, HW):
