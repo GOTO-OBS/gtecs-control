@@ -180,7 +180,7 @@ class MntDaemon(HardwareDaemon):
     def get_info(self):
         """Return mount status info"""
         self.get_info_flag = 1
-        time.sleep(0.1)
+        time.sleep(0.5)
         return self.info
 
     def slew_to_radec(self,ra,dec):
