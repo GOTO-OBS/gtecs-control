@@ -294,17 +294,17 @@ class MntDaemon(HardwareDaemon):
             step_ra = (step_deg*24./360.)/cos(self.mount_dec*pi/180.)
             step_dec = step_deg
             if direction == 'north':
-                ra = self.mount_ra
-                dec = self.mount_dec + step_dec
+                ra = self.sitech.ra
+                dec = self.sitech.dec + step_dec
             elif direction == 'south':
-                ra = self.mount_ra
-                dec = self.mount_dec - step_dec
+                ra = self.sitech.ra
+                dec = self.sitech.dec - step_dec
             elif direction == 'east':
-                ra = self.mount_ra + step_ra
-                dec = self.mount_dec
+                ra = self.sitech.ra + step_ra
+                dec = self.sitech.dec
             elif direction == 'west':
-                ra = self.mount_ra - step_ra
-                dec = self.mount_dec
+                ra = self.sitech.ra - step_ra
+                dec = self.sitech.dec
             if check_alt_limit(ra*360./24.,dec,self.utc):
                 return 'ERROR: Target too low, cannot slew'
             else:
