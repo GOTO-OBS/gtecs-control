@@ -20,6 +20,7 @@ import Pyro4
 from concurrent import futures
 import socket
 from six.moves import range
+from concurrent.futures import ThreadPoolExecutor
 # FLI modules
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
@@ -136,7 +137,8 @@ class FLIDaemon(InterfaceDaemon):
     def set_filter_pos(self, new_filter, HW):
         """Move filter wheel to position"""
         self.logfile.info('Moving filter wheel %d to position %d', HW, new_filter)
-        self.filts[int(HW)].set_filter_pos(new_filter)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(self.filts[int(HW)].set_filter_pos, new_filter)
 
     def home_filter(self, HW):
         """Move filter wheel to home position"""
