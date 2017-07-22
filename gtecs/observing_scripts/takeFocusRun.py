@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import numpy as np
 import pandas as pd
 
@@ -52,6 +53,7 @@ if __name__ == "__main__":
 
     # from here any exception or attempt to close should move to old focus
     close_signal_handler = RestoreFocus(orig_focus)
+    series_list = []
 
     for runno, row in pos_master_list.iterrows():
 
@@ -63,8 +65,15 @@ if __name__ == "__main__":
         fnames = take_frame(expT, filt, 'FocusRun')
         hfd_values = get_hfd(fnames, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
+        hfd_values['pos'] = pd.Series(get_current_focus())
+        series_list.append(hfd_values)
     print('Exposures finished')
 
+    # write out data
+    path = os.path.join(params.CONFIG_PATH, 'focus_data')
+    df = pd.concat(series_list)
+    ofname = 'focusdata_{}.csv'.format(Time.now().isot)
+    df.to_csv(os.path.join(path, ofname))
     # and finish by restoring the origional focus
     print('############')
     print('Restoring original focus')
