@@ -16,9 +16,9 @@ def run():
     print('End of night power down')
 
     for tel in params.TEL_DICT:
-        cmd('power on filt{}'.format(tel))
-        cmd('power on foc{}'.format(tel))
-        cmd('power on cam{}'.format(tel))
+        cmd('power off filt{}'.format(tel))
+        cmd('power off foc{}'.format(tel))
+        cmd('power off cam{}'.format(tel))
 
     cmd('mnt park')
 
