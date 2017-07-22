@@ -126,7 +126,9 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     xslice = kwargs.pop('xslice', slice(None))
     yslice = kwargs.pop('yslice', slice(None))
 
-    data = fits.getdata(fname).astype('float')[yslice, xslice]
+    data = fits.getdata(fname).astype('float')
+    data = np.ascontiguousarray(data[yslice, xslice])
+
     # measure spatially varying background
     bkg = sep.Background(data)
     bkg.subfrom(data)
