@@ -186,7 +186,7 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    bigstep = 4000
+    bigstep = 5000
     smallstep = 500
     expT = 30
     nfv = 3.5
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     # use pandas to perform maths based on keys
     ratio = hfd_values / old_hfd
-    if np.any(ratio < 1.3):
+    if np.any(ratio < 1.2):
         print('Current HFD:\n{!r}'.format(hfd_values))
         print('Original HFD:\n{!r}'.format(old_hfd))
         set_new_focus(orig_focus)
