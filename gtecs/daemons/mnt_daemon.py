@@ -70,18 +70,13 @@ class MntDaemon(HardwareDaemon):
         self.info = {}
         self.step = params.DEFAULT_OFFSET_STEP
         self.mount_status = 'Unknown'
-        self.mount_alt = 0
-        self.mount_az = 0
-        self.mount_ra = 0
-        self.mount_dec = 0
         self.target_ra = None
         self.target_dec = None
-        self.lst = 0
+        self.temp_ra = None
+        self.temp_dec = None
         self.utc = Time.now()
         self.utc.precision = 0  # only integer seconds
         self.utc_str = self.utc.iso
-        self.temp_ra = None
-        self.temp_dec = None
         self.set_blinky = False
 
         ### start control thread
