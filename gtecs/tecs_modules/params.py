@@ -179,18 +179,23 @@ FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 DARKFILT = config['DARKFILT'] #as an example
 BIASEXP = config['BIASEXP'] #seconds, as an example
 
+# cant add these to validation without adding unwanted defaults
+# enforce type here instead.
 if 'FOCUS_SLOPE_ABOVE' in config:
-    FOCUS_SLOPE_ABOVE = config['FOCUS_SLOPE_ABOVE']
+    FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
+                         for key in config['FOCUS_SLOPE_ABOVE']}
 else:
     FOCUS_SLOPE_ABOVE = {key: 12.0 for key in TEL_DICT}
 
 if 'FOCUS_SLOPE_BELOW' in config:
-    FOCUS_SLOPE_BELOW = config['FOCUS_SLOPE_BELOW']
+    FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
+                         for key in config['FOCUS_SLOPE_BELOW']}
 else:
     FOCUS_SLOPE_BELOW = {key: -12.0 for key in TEL_DICT}
 
 if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
-    FOCUS_INTERCEPT_DIFFERENCE = config['FOCUS_INTERCEPT_DIFFERENCE']
+    FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
+                                  for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
 else:
     FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
 
