@@ -39,16 +39,20 @@ class SiTech:
                          'BLINKY_OFF' : 'MotorsToAuto\n',
                          }
 
+        # Create one persistent socket
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.IP_address, self.port))
+
+    def __del__(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.close()
+
     def _tcp_command(self, command_str):
         '''Send a command string to the device, then fetch the reply
         and return it as a string.
         '''
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.IP_address, self.port))
-            s.send(command_str.encode())
-            reply = s.recv(self.buffer_size)
-            s.shutdown(socket.SHUT_RDWR)
-            s.close()
+        self.socket.send(command_str.encode())
+        reply = self.socket.recv(self.buffer_size)
         return reply.decode()
 
     def _parse_reply_string(self, reply_string):
