@@ -74,7 +74,7 @@ def set_focus_carefully(new_focus_values, orig_focus):
 def measure_focus_carefully(expT, filt, name, orig_focus):
     try:
         fnames = take_frame(expT, filt, name)
-        return get_hfd(fnames)
+        return get_hfd(fnames)['median']
     except:
         set_new_focus(orig_focus)
         raise
@@ -149,18 +149,22 @@ def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
     """
     Measure the HFD diameter from multiple files.
 
-    Returns a dictionary of telescope ID and a tuple of HFD and std dev
+    Returns a Pandas dataframe with an index of telescope ID
+    and columns of HFD and std dev
 
     Parameters are passed straight to `measure_hfd`
     """
-    ret_dict = {}
+    median_dict = {}
+    std_dict = {}
     for tel_key in fnames:
         median, std = measure_hfd(fnames[tel_key])
         if std > 0.0:
-            ret_dict[tel_key] = (median, std)
+            median_dict[tel_key] = median
+            std_dict[tel_key] = std
         else:
-            ret_dict[tel_key] = (0.0, 0.0)
-    return ret_dict
+            median_dict[tel_key] = np.nan
+            std_dict[tel_key] = np.nan
+    return pd.DataFrame({'median': median_dict, 'std': std_dict})
 
 
 if __name__ == "__main__":
@@ -193,16 +197,16 @@ if __name__ == "__main__":
     #wait_for_telescope(480)  # 480s timeout
 
     # get the parameters of the focus curves. Should be arrays, one entry per OTA
-    m2 = np.array(params.FOCUS_SLOPE_ABOVE)
-    m1 = np.array(params.FOCUS_SLOPE_BELOW)
-    delta = np.array(params.FOCUS_INTERCEPT_DIFFERENCE)
+    m2 = pd.Series(params.FOCUS_SLOPE_ABOVE, dtype='float')
+    m1 = pd.Series(params.FOCUS_SLOPE_BELOW, dtype='float')
+    delta = pd.Series(params.FOCUS_INTERCEPT_DIFFERENCE, dtype='float')
 
     # start where we are now.
     fnames = take_frame(expT, filt, star.name)
-    hfd_values = pd.Series(get_hfd(fnames))
+    hfd_values = get_hfd(fnames)['median']
     orig_focus = pd.Series(get_current_focus())
-    print('Previous focus: {!r}'.format(orig_focus))
-    print('Half-flux-diameters: {!r}'.format(hfd_values))
+    print('Previous focus:\n{!r}'.format(orig_focus))
+    print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     # from here any exception or attempt to close should move to old focus
     close_signal_handler = RestoreFocus(orig_focus)
@@ -216,12 +220,13 @@ if __name__ == "__main__":
     old_hfd = hfd_values
     hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
     print('Focus: {!r}'.format(get_current_focus()))
-    print('Half-flux-diameters: {!r}'.format(hfd_values))
+    print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     # use pandas to perform maths based on keys
-    ratio = pd.Series(hfd_values) / pd.Series(old_hfd)
+    ratio = hfd_values / old_hfd
     if np.any(ratio < 2):
-        print(hfd_values, old_hfd)
+        print('Current HFD:\n{!r}'.format(hfd_values))
+        print('Original HFD:\n{!r}'.format(old_hfd))
         set_new_focus(orig_focus)
         raise Exception('image quality estimate not changing with focus position')
 
@@ -229,10 +234,10 @@ if __name__ == "__main__":
     set_focus_carefully(pd.Series(get_current_focus()) - smallstep, orig_focus)
 
     # check the IQ has got better
-    old_hfd = pd.Series(hfd_values)
-    hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus))
+    old_hfd = hfd_values
+    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
     print('Focus: {!r}'.format(get_current_focus()))
-    print('Half-flux-diameters: {!r}'.format(hfd_values))
+    print('Half-flux-diameters:\n{!r}'.format(hfd_values))
     if np.any(old_hfd < hfd_values):
         set_new_focus(orig_focus)
         raise Exception('cannot be sure we are on the correct side of best focus')
@@ -261,27 +266,29 @@ if __name__ == "__main__":
     for i in range(5):
         hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
         if hfd_measurements is not None:
-            hfd_measurements.append(pd.Series(hfd_values))
-        print('Half-flux-diameters: {!r}'.format(hfd_values))
-    hfd_measurements = hfd_measurements.group_by(level=0)
+            hfd_measurements = hfd_measurements.append(hfd_values)
+        else:
+            hfd_measurements = hfd_values
+        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.mean()
     hfd_stddev = hfd_measurements.std()
 
     # find best focus
-    hfd_samples = pd.Dataframe()
+    hfd_samples = pd.DataFrame()
     for key in hfd_values.keys():
-        hfd_samples[key] = np.random.normal(size=10,
+        hfd_samples[key] = np.random.normal(size=10**4,
                                             loc=hfd_values[key],
                                             scale=hfd_stddev[key])
 
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, hfd_samples)
     best_focus_mean = best_focus.mean(axis=0)
     best_focus_std = best_focus.std(axis=0)
-    print("Best focus at {!r}".format(best_focus_mean))
-    print('With uncertainty {!r}'.format(best_focus_std))
+    df = pd.DataFrame({'mean': best_focus_mean, 'std_dev': best_focus_std})
+    print("Best focus at\n{!r}".format(df))
 
     set_focus_carefully(best_focus_mean, orig_focus)
     best_focus_values = measure_focus_carefully(expT, filt, name, orig_focus)
-    print('HFD at best focus = {!r}'.format(best_focus_values))
+    print('HFD at best focus =\n{!r}'.format(best_focus_values))
 
     print("Done")
