@@ -30,7 +30,7 @@ if __name__ == "__main__":
     total_diff = 5000
     large_step = 1000
     small_step = 100
-    expT = 10
+    expT = 30
     filt = 'L'
 
     xslice = slice(3300, 5100)
