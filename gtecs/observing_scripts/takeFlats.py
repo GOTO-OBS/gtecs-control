@@ -6,7 +6,6 @@ import numpy as np
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
-from astropy.stats.sigma_clipping import sigma_clipped_stats
 
 from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import flats
@@ -26,7 +25,7 @@ def mean_sky_brightness(fnames):
     means = []
     for tel in params.TEL_DICT:
         data = fits.getdata(fnames[tel])
-        mean, median, std = sigma_clipped_stats(data, iters=3)
+        mean = np.median(data)
         means.append(mean)
     return np.mean(means)
 
@@ -54,7 +53,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if sys.argv[1].upper() == 'EVE':
         eve = True
-        alt = -1.0*u.deg
+        alt = -5*u.deg
     else:
         eve = False
         alt = -5.5*u.deg
