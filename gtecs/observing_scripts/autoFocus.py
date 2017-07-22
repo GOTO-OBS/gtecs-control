@@ -147,7 +147,7 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     mask = np.logical_and(mask, objects['peak'] > 100)
 
     hfd = 2*hfr[mask]
-    fwhm = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b'**2]))
+    fwhm = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
     fwhm = fwhm[mask]
     if hfd.size > 3:
         mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
