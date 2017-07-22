@@ -80,12 +80,7 @@ if __name__ == "__main__":
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    try:
-        wait_for_telescope(480)  # 480s timeout
-    except:
-        # for now, just carry on regardless
-        # FUDGE: remove when dec is operational
-        print('WARNING: did not reach target successfully')
+    wait_for_telescope(480)  # 480s timeout
 
     # set exposure order and check for sky brightness
     if eve:
