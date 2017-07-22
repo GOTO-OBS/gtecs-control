@@ -178,19 +178,16 @@ if __name__ == "__main__":
             description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter
         )
-    parser.add_argument('nearfocusvalue', type=float)
     parser.add_argument('filter')
     args = parser.parse_args()
-    nfv = args.nearfocusvalue
     filt = args.filter
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
-    if np.fabs(nfv - 20) > 5:
-        raise ValueError('near near focus value should be between 15 and 25')
 
     bigstep = 300
     smallstep = 50
     expT = 2
+    nfv = 5
 
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
