@@ -215,6 +215,8 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Mount is parked, need to unpark before slewing'
         elif self.mount_status == 'IN BLINKY MODE':
             return 'ERROR: Mount is in blinky mode, motors disabled'
+        elif self.target_ra == None or self.target_dec == None:
+            return 'ERROR: Target not set'
         elif check_alt_limit(self.target_ra*360./24., self.target_dec, self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
