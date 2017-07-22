@@ -184,10 +184,10 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    bigstep = 300
-    smallstep = 50
+    bigstep = 1500
+    smallstep = 200
     expT = 2
-    nfv = 5
+    nfv = 3.5
 
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
