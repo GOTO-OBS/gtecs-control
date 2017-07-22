@@ -395,17 +395,21 @@ class MntDaemon(HardwareDaemon):
         self.sitech = mnt_control.SiTech(IP_address, port)
 
         ra_distance = 0
+        i = 0
         while True:
             if self.sitech.slewing:
                 sleep_time = 0.1
                 ra_distance_new = self._get_target_distance()
-                print(ra_distance_new, abs(ra_distance_new - ra_distance))
-                if ra_distance_new < 0.001 and abs(ra_distance_new - ra_distance) < 0.0001:
+                print(ra_distance_new, abs(ra_distance_new - ra_distance), i)
+                if ra_distance_new < 0.0015 and abs(ra_distance_new - ra_distance) < 0.0001:
+                    i += 1
+                if i > 10:
                     self.logfile.info('Reached RA target, stopping slew')
                     self.sitech.halt()
                     time.sleep(0.1)
                     self.sitech.track()
                     ra_distance = 0
+                    i = 0
                 else:
                     ra_distance = ra_distance_new
                 time.sleep(0.1)
