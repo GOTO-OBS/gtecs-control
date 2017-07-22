@@ -147,9 +147,12 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     mask = np.logical_and(mask, objects['peak'] > 100)
 
     hfd = 2*hfr[mask]
+    fwhm = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b'**2]))
+    fwhm = fwhm[mask]
     if hfd.size > 3:
-        mean, median, std = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
-        return median, std
+        mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
+        mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhm, sigma=2.5, iters=10)
+        return median_hfd, std_hfd, median_fwhm, std_fwhm
     return 0.0, 0.0
 
 
@@ -164,15 +167,25 @@ def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
     """
     median_dict = {}
     std_dict = {}
+    fwhm_dict = {}
+    stdf_dict = {}
     for tel_key in fnames:
-        median, std = measure_hfd(fnames[tel_key], filter_width, threshold, **kwargs)
+        median, std, fwhm, f_std = measure_hfd(fnames[tel_key],
+                                               filter_width, threshold, **kwargs)
         if std > 0.0:
             median_dict[tel_key] = median
             std_dict[tel_key] = std
         else:
             median_dict[tel_key] = np.nan
             std_dict[tel_key] = np.nan
-    return pd.DataFrame({'median': median_dict, 'std': std_dict})
+        if f_std > 0.0:
+            fwhm_dict[tel_key] = fwhm
+            stdf_dict[tel_key] = f_std
+        else:
+            fwhm_dict[tel_key] = np.nan
+            stdf_dict[tel_key] = np.nan
+    return pd.DataFrame({'median': median_dict, 'std': std_dict,
+                         'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
 
 
 if __name__ == "__main__":

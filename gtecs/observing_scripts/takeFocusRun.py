@@ -61,8 +61,8 @@ if __name__ == "__main__":
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
         fnames = take_frame(expT, filt, 'FocusRun')
-        hfd_values = get_hfd(fnames, **kwargs)['median']
-        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+        hfd_values = get_hfd(fnames, **kwargs)
+        print('Focus Data:\n{!r}'.format(hfd_values))
     print('Exposures finished')
 
     # and finish by restoring the origional focus
