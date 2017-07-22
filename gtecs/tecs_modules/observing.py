@@ -121,7 +121,6 @@ def wait_for_telescope(timeout=None):
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
     still_moving = True
     timed_out = False
-    slew_timer = None
     while still_moving and not timed_out:
         try:
             with Pyro4.Proxy(MNT_DAEMON_ADDRESS) as mnt:
@@ -131,16 +130,6 @@ def wait_for_telescope(timeout=None):
             pass
         if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.0014:
             still_moving = False
-        elif mnt_info['status'] == 'Slewing' and mnt_info['target_dist'] < 0.0014:
-            # THIS IS A FUDGE TO STOP SLEW IF WE'VE BEEN CLOSE TO TARGET
-            # FOR SOME TIME, BUT REMAIN SLEWING.
-            if not slew_timer:
-                slew_timer = time.time()
-            if slew_timer - time.time() > 60:
-                # OK, fudge. assume we're there
-                cmd('mnt stop')
-                time.sleep(0.5)
-                cmd('mnt track')
 
         if timeout and (time.time() - start_time) > timeout:
             timed_out = True
