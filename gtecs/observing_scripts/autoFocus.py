@@ -71,10 +71,10 @@ def set_focus_carefully(new_focus_values, orig_focus):
         raise
 
 
-def measure_focus_carefully(expT, filt, name, orig_focus):
+def measure_focus_carefully(expT, filt, name, orig_focus, **kwargs):
     try:
         fnames = take_frame(expT, filt, name)
-        return get_hfd(fnames)['median']
+        return get_hfd(fnames, **kwargs)['median']
     except:
         set_new_focus(orig_focus)
         raise
@@ -189,6 +189,10 @@ if __name__ == "__main__":
     expT = 30
     nfv = 3.5
 
+    xslice = slice(3300, 5100)
+    yslice = slice(2800, 4100)
+    kwargs = {'xslice': xslice, 'yslice': yslice}
+
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
     print('Slewing to star', star)
@@ -206,7 +210,7 @@ if __name__ == "__main__":
 
     # start where we are now.
     fnames = take_frame(expT, filt, star.name)
-    hfd_values = get_hfd(fnames)['median']
+    hfd_values = get_hfd(fnames, **kwargs)['median']
     orig_focus = pd.Series(get_current_focus())
     print('Previous focus:\n{!r}'.format(orig_focus))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
@@ -221,7 +225,7 @@ if __name__ == "__main__":
     # hfd should have increased substantially
     # if it hasn't focus measurement is not reliable (dominated by CRs or BPs)?
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
+    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -238,7 +242,7 @@ if __name__ == "__main__":
 
     # check the IQ has got better
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
+    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
     if np.any(old_hfd < hfd_values):
@@ -254,7 +258,7 @@ if __name__ == "__main__":
         new_focus_values = estimate_focus(target_hfds, hfd_values,
                                           pd.Series(get_current_focus()), m2)
         set_focus_carefully(new_focus_values, orig_focus)
-        hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus))
+        hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus, **kwargs))
         print('Focus: {!r}'.format(get_current_focus()))
         print('Half-flux-diameters: {!r}'.format(hfd_values))
 
@@ -267,7 +271,7 @@ if __name__ == "__main__":
     # measure NFV five times and take average
     hfd_measurements = None
     for i in range(5):
-        hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
+        hfd_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
@@ -291,7 +295,7 @@ if __name__ == "__main__":
     print("Best focus at\n{!r}".format(df))
 
     set_focus_carefully(best_focus_mean, orig_focus)
-    best_focus_values = measure_focus_carefully(expT, filt, name, orig_focus)
+    best_focus_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
     print('HFD at best focus =\n{!r}'.format(best_focus_values))
 
     print("Done")
