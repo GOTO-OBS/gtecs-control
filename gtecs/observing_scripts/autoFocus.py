@@ -186,7 +186,7 @@ if __name__ == "__main__":
 
     bigstep = 1500
     smallstep = 200
-    expT = 2
+    expT = 30
     nfv = 3.5
 
     print('Starting focus routine')
@@ -194,10 +194,10 @@ if __name__ == "__main__":
     print('Slewing to star', star)
     name = star.name
 
-    #coordinate = star.coord_now()
-    #goto(coordinate.ra.deg, coordinate.dec.deg)
-    #time.sleep(10)
-    #wait_for_telescope(480)  # 480s timeout
+    coordinate = star.coord_now()
+    goto(coordinate.ra.deg, coordinate.dec.deg)
+    time.sleep(10)
+    wait_for_telescope(480)  # 480s timeout
 
     # get the parameters of the focus curves. Should be arrays, one entry per OTA
     m2 = pd.Series(params.FOCUS_SLOPE_ABOVE, dtype='float')
