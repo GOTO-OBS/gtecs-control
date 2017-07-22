@@ -192,21 +192,14 @@ class MountMonitor(HardwareMonitor):
         val = super(MountMonitor, self).setMode(mode)
         if mode == 'tracking':
             self.recoveryProcedure = {}
-            # this is a FUDGE to avoid the issue arising because the dec motor
-            # encoder is broken. We assume all slews take less than a minute
-            # after one minute, we abort slew and start tracking.
-            # if target is not close enough, we'll still be in error,
-            # so we slew again, wait 120, then abort slew and track again
-            self.recoveryProcedure[1] = [60., 'mnt stop']
-            self.recoveryProcedure[2] = [70., 'mnt track']
-            self.recoveryProcedure[3] = [120., 'mnt slew']
-            self.recoveryProcedure[4] = [240., 'mnt stop']
-            self.recoveryProcedure[5] = [250., 'mnt track']
-            self.recoveryProcedure[6] = [270., 'mnt unpark']
-            self.recoveryProcedure[7] = [290., 'mnt track']
-            self.recoveryProcedure[8] = [320., 'mnt slew']
-            self.recoveryProcedure[9] = [320., 'mnt slew']
-            self.recoveryProcedure[10] = [360., 'mnt track']
+            self.recoveryProcedure[1] = [60., 'mnt track']
+            self.recoveryProcedure[2] = [120., 'mnt slew']
+            self.recoveryProcedure[3] = [240., 'mnt track']
+            self.recoveryProcedure[4] = [270., 'mnt unpark']
+            self.recoveryProcedure[5] = [290., 'mnt track']
+            self.recoveryProcedure[6] = [320., 'mnt slew']
+            self.recoveryProcedure[7] = [320., 'mnt slew']
+            self.recoveryProcedure[8] = [360., 'mnt track']
         else:
             self.recoveryProcedure = {}
             self.recoveryProcedure[1] = [60., 'mnt park']
