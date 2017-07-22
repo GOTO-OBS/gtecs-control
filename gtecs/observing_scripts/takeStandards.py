@@ -13,6 +13,7 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
                                           wait_for_telescope)
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy as ast
 
 
 def take_image_set(expT, name):
@@ -33,10 +34,16 @@ if __name__ == "__main__":
                  for airmass, colour in zip(airmasses, colours)])
     print('Starting standard star routine')
     for star in stars:
+        coordinate = star.coord_now()
+
+        if ast.check_alt_limit(coordinate.ra.deg,
+                               coordinate.dec.deg,
+                               Time.now()):
+            print('Star ', star, ' is below limit')
+            continue
+
         print('Slewing to star', star)
         name = star.name
-
-        coordinate = star.coord_now()
         goto(coordinate.ra.deg, coordinate.dec.deg)
         time.sleep(10)
         wait_for_telescope(480)  # 480s timeout
