@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
         print('############')
         print('## RUN {} of {}'.format(runno+1, len(pos_master_list)))
-        set_focus_carefully(row, orig_focus)
+        set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
         fnames = take_frame(expT, filt, 'FocusRun')

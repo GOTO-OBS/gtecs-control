@@ -59,13 +59,13 @@ class RestoreFocus(neatCloser):
         set_new_focus(self.focusVals)
 
 
-def set_focus_carefully(new_focus_values, orig_focus):
+def set_focus_carefully(new_focus_values, orig_focus, timeout=10):
     """
     Move to focus, but restore old values if we fail
     """
     try:
         set_new_focus(new_focus_values)
-        wait_for_focuser(10)
+        wait_for_focuser(timeout)
     except:
         set_new_focus(orig_focus)
         raise
