@@ -115,10 +115,14 @@ class SiTech:
     @property
     def status(self):
         self._update_status()
-        if self._tracking and not self._slewing:
-            status = 'Tracking'
+        if self._connection_error:
+            status = 'CONNECTION ERROR'
+        elif self._blinky:
+            status = 'IN BLINKY MODE'
         elif self._slewing:
             status = 'Slewing'
+        elif self._tracking:
+            status = 'Tracking'
         elif self._parking:
             status = 'Parking'
         elif self._parked:
