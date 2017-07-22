@@ -55,10 +55,8 @@ def set_new_focus(values):
         # same value for all
         values = {key: values for key in params.TEL_DICT}
 
-    current_values = get_current_focus()
-    difference = {key: current_values[key] - values[key] for key in values.keys()}
-    for tel in difference:
-        cmd('foc move {} {}'.format(tel, int(difference[tel])))
+    for tel in values:
+        cmd('foc set {} {}'.format(tel, values[tel]))
 
 
 def get_current_focus():

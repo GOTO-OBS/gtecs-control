@@ -184,8 +184,8 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    bigstep = 1500
-    smallstep = 200
+    bigstep = 3000
+    smallstep = 500
     expT = 30
     nfv = 3.5
 
