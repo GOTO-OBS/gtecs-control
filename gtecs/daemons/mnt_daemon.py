@@ -102,7 +102,8 @@ class MntDaemon(HardwareDaemon):
             if(self.get_info_flag):
                 # save info
                 info = {}
-                info['status'] = self.sitech.status
+                self.mount_status = self.sitech.status
+                info['status'] = self.mount_status
                 info['mount_alt'] = self.sitech.alt
                 info['mount_az'] = self.sitech.az
                 info['mount_ra'] = self.sitech.ra
@@ -110,7 +111,6 @@ class MntDaemon(HardwareDaemon):
                 info['target_ra'] = self.target_ra
                 info['target_dec'] = self.target_dec
                 info['target_dist'] = self._get_target_distance()
-                info['blinky'] = self.sitech.blinky
                 info['lst'] = self.sitech.sidereal_time
                 info['ha'] = find_ha(info['mount_ra'], info['lst'])
 
@@ -195,6 +195,8 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
+        elif self.mount_status == 'IN BLINKY MODE':
+            return 'ERROR: Mount is in blinky mode, motors disabled'
         elif check_alt_limit(ra*360./24., dec, self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
@@ -211,6 +213,8 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked, need to unpark before slewing'
+        elif self.mount_status == 'IN BLINKY MODE':
+            return 'ERROR: Mount is in blinky mode, motors disabled'
         elif check_alt_limit(self.target_ra*360./24., self.target_dec, self.utc):
             return 'ERROR: Target too low, cannot slew'
         else:
@@ -227,6 +231,8 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Currently slewing, will track when reached target'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked'
+        elif self.mount_status == 'IN BLINKY MODE':
+            return 'ERROR: Mount is in blinky mode, motors disabled'
         else:
             self.start_tracking_flag = 1
             return 'Started tracking'
@@ -263,6 +269,8 @@ class MntDaemon(HardwareDaemon):
         time.sleep(0.1)
         if self.mount_status == 'Parked':
             return 'ERROR: Already parked'
+        elif self.mount_status == 'IN BLINKY MODE':
+            return 'ERROR: Mount is in Blinky Mode, motors disabled'
         else:
             self.park_flag = 1
             return 'Parking mount'
@@ -305,6 +313,8 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Already slewing'
         elif self.mount_status == 'Parked':
             return 'ERROR: Mount is parked'
+        elif self.mount_status == 'IN BLINKY MODE':
+            return 'ERROR: Mount is in Blinky Mode, motors disabled'
         elif direction not in ['north','south','east','west']:
             return 'ERROR: Invalid direction'
         else:
