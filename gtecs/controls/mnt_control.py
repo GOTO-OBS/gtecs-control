@@ -47,6 +47,8 @@ class SiTech:
             s.connect((self.IP_address, self.port))
             s.send(command_str.encode())
             reply = s.recv(self.buffer_size)
+            s.shutdown(socket.SHUT_RDWR)
+            s.close()
         return reply.decode()
 
     def _parse_reply_string(self, reply_string):
