@@ -30,7 +30,7 @@ def run(nexp=5):
     cmd('cam temp -25')
     cool = False
     while not cool:
-        cool = np.any(pd.Series(get_cam_temps()) > -24.5)
+        cool = np.all(pd.Series(get_cam_temps()) < -24.5)
         time.sleep(1)
 
     cmd('exq multbias {} 1'.format(nexp))  # 1x1 binning
