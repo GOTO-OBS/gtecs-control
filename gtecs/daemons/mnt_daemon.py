@@ -84,6 +84,12 @@ class MntDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
+        # start ra check thread
+        if params.FREEZE_DEC:
+            t2 = threading.Thread(target=self._ra_check_thread)
+            t2.daemon = True
+            t2.start()
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
     def mnt_control(self):
@@ -354,17 +360,57 @@ class MntDaemon(HardwareDaemon):
         # Need to catch error if target not yet set
         if self.target_ra == None or self.target_dec == None:
             return None
-        t_ra = self.target_ra
-        t_dec = self.target_dec
-        m_ra = self.sitech.ra
-        m_dec = self.sitech.dec
-        t_alt = 90 - t_dec
-        m_alt = 90 - m_dec
-        D_ra = (t_ra - m_ra)*360./24.
-        S1 = cos(radians(t_alt))*cos(radians(m_alt))
-        S2 = sin(radians(t_alt))*sin(radians(m_alt))*cos(radians(D_ra))
-        S = degrees(acos(S1+S2))
-        return S
+        if not params.FREEZE_DEC:
+            t_ra = self.target_ra
+            t_dec = self.target_dec
+            m_ra = self.sitech.ra
+            m_dec = self.sitech.dec
+            t_alt = 90 - t_dec
+            m_alt = 90 - m_dec
+            D_ra = (t_ra - m_ra)*360./24.
+            S1 = cos(radians(t_alt))*cos(radians(m_alt))
+            S2 = sin(radians(t_alt))*sin(radians(m_alt))*cos(radians(D_ra))
+            S = degrees(acos(S1+S2))
+            return S
+        else:
+            t_ra = self.target_ra
+            m_ra = self.sitech.ra
+            D_ra = (t_ra - m_ra)*360./24.
+            return abs(D_ra)
+
+    def _ra_check_thread(self):
+        '''A thread to check the ra distance and cancel slewing when it's
+        reached the target.
+
+        Required for when the FREEZE_DEC is set, so the mount doesn't keep
+        trying to slew to the dec target.
+
+        If activated it will check the telescope when slewing, and if it's
+        reached the RA target then stop the slewing and start tracking.
+        '''
+
+        ### connect to SiTechExe
+        IP_address = params.SITECH_HOST
+        port = params.SITECH_PORT
+        self.sitech = mnt_control.SiTech(IP_address, port)
+
+        ra_distance = 0
+        while True:
+            if self.sitech.slewing:
+                sleep_time = 0.1
+                ra_distance_new = self._get_target_distance()
+                print(ra_distance_new, abs(ra_distance_new - ra_distance))
+                if ra_distance_new < 0.001 and abs(ra_distance_new - ra_distance) < 0.0001:
+                    self.logfile.info('Reached RA target, stopping slew')
+                    self.sitech.halt()
+                    time.sleep(0.1)
+                    self.sitech.track()
+                    ra_distance = 0
+                else:
+                    ra_distance = ra_distance_new
+                time.sleep(0.1)
+            else:
+                time.sleep(1)
 
 ########################################################################
 
