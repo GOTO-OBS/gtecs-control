@@ -187,9 +187,9 @@ if __name__ == "__main__":
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
     bigstep = 5000
-    smallstep = 500
+    smallstep = 1000
     expT = 30
-    nfv = 3.5
+    nfv = 3
 
     xslice = slice(3300, 5100)
     yslice = slice(2800, 4100)
