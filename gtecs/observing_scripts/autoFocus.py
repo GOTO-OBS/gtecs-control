@@ -121,7 +121,10 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
         standard deviation of measurements
     """
 
-    data = fits.getdata(fname).astype('float')
+    xslice = kwargs.pop('xslice', slice(None))
+    yslice = kwargs.pop('yslice', slice(None))
+
+    data = fits.getdata(fname).astype('float')[yslice, xslice]
     # measure spatially varying background
     bkg = sep.Background(data)
     bkg.subfrom(data)
@@ -137,6 +140,7 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
                                 30*np.ones_like(objects['x']),
                                 0.5, normflux=objects['cflux'])
     mask = np.logical_and(mask == 0, objects['peak'] < 40000)
+    mask = np.logical_and(mask, objects['peak'] > 100)
 
     hfd = 2*hfr[mask]
     if hfd.size > 3:
