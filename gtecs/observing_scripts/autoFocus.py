@@ -240,8 +240,8 @@ if __name__ == "__main__":
     set_focus_carefully(pd.Series(get_current_focus()) - smallstep, orig_focus)
 
     # check the IQ has got better
-    old_hfd = pd.Series(hfd_values)
-    hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus))
+    old_hfd = hfd_values
+    hfd_values = measure_focus_carefully(expT, filt, name, orig_focus)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
     if np.any(old_hfd < hfd_values):
