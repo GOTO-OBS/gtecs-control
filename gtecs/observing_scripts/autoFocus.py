@@ -63,8 +63,8 @@ def set_focus_carefully(new_focus_values, orig_focus):
     """
     Move to focus, but restore old values if we fail
     """
-    set_new_focus(new_focus_values)
     try:
+        set_new_focus(new_focus_values)
         wait_for_focuser(10)
     except:
         set_new_focus(orig_focus)
