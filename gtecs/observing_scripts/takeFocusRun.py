@@ -27,9 +27,9 @@ import sys
 if __name__ == "__main__":
     print("Starting focus run")
 
-    total_diff = 20000
-    large_step = 2000
-    small_step = 500
+    total_diff = 5000
+    large_step = 1000
+    small_step = 100
     expT = 10
     filt = 'L'
 
