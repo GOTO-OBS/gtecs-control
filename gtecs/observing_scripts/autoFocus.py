@@ -111,7 +111,9 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     threshold : float
         if set to, e.g. 5, objects 5sigma above the background are detected
     kwargs : dict
-        all remaining keyword arguments are passed to SEP's `extract` method
+        all remaining keyword arguments are passed to SEP's `extract` method,
+        apart from `xslice` and `yslice` which can be used to select a subset
+        of the data.
 
     Returns
     -------
@@ -161,7 +163,7 @@ def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
     median_dict = {}
     std_dict = {}
     for tel_key in fnames:
-        median, std = measure_hfd(fnames[tel_key])
+        median, std = measure_hfd(fnames[tel_key], filter_width, threshold, **kwargs)
         if std > 0.0:
             median_dict[tel_key] = median
             std_dict[tel_key] = std
