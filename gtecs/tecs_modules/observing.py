@@ -24,6 +24,21 @@ from .astronomy import tel_str
 from .misc import execute_command as cmd
 
 
+def get_cam_temps():
+    """
+    Get a dict of camera temps
+    """
+    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
+    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam_info = cam.get_info()
+    values = {}
+    for tel in params.TEL_DICT:
+        key = 'ccd_temp{}'.format(tel)
+        values[tel] = cam_info[key]
+    return values
+
+
 def set_new_focus(values):
     """
     Move each telescope to the requested focus
