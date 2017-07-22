@@ -167,6 +167,9 @@ WARWICK_OPEN = config['WARWICK_OPEN']        # max time in secs that can elapse 
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
+SITECH_HOST = config['SITECH_HOST']
+SITECH_PORT = config['SITECH_PORT']
+FREEZE_DEC = config['FREEZE_DEC']
 
 # Filter wheel parameters
 FILTER_LIST = config['FILTER_LIST']
