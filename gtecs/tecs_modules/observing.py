@@ -56,7 +56,7 @@ def set_new_focus(values):
         values = {key: values for key in params.TEL_DICT}
 
     for tel in params.TEL_DICT:
-        cmd('foc set {} {}'.format(tel, values[tel]))
+        cmd('foc set {} {}'.format(tel, int(values[tel])))
 
 
 def get_current_focus():
