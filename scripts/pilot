@@ -209,6 +209,9 @@ class Pilot:
         if not restart:
             await self.runThroughJobList(self.evening_jobs, rising=False)
 
+        # got here as soon as last evening_job scheduled. wait for darkness
+        await self.waitingForTheSun(-15)
+
         # evening tasks over. Start observing. Will automatically stop at sunAlt
         if self.testing:
             await self.observe(until_sun_alt=90)
@@ -690,10 +693,10 @@ class Pilot:
         sn4 = dict(name='FLATS', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
                    protocol=SimpleProtocol)
-        sn5 = dict(name='FOC', sunAlt=-7,
-                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), '20', 'G'],
+        sn5 = dict(name='FOC', sunAlt=-10,
+                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), 'L'],
                    protocol=SimpleProtocol)
-        sn6 = dict(name='STD', sunAlt=-12,
+        sn6 = dict(name='STD', sunAlt=-13,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
         self.evening_jobs = [sn4, sn5, sn6]
