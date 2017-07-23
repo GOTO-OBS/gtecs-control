@@ -24,6 +24,7 @@ import threading
 from six.moves import map
 from six.moves import range
 # TeCS modules
+from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import params
 
 ########################################################################
@@ -492,7 +493,10 @@ class AstroHavenDome:
             default = True
         '''
         loc = params.ARDUINO_LOCATION
-        curl = getoutput('curl -s {}?s{}'.format(loc, duration))
+        overrides = flags.Overrides()
+        if not (params.SILENCE_ALARM_IN_MANUAL_MODE and self.overrides.robotic):
+            # give the option to silence the alarm, but only in manual mode
+            curl = getoutput('curl -s {}?s{}'.format(loc, duration))
         if sleep:
             time.sleep(duration)
         return
