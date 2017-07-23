@@ -327,7 +327,7 @@ class MntDaemon(HardwareDaemon):
             return 'ERROR: Invalid direction'
         else:
             step_deg = self.step/3600.
-            step_ra = (step_deg*24./360.)/cos(self.mount_dec*pi/180.)
+            step_ra = (step_deg*24./360.)/cos(self.sitech.dec*pi/180.)
             step_dec = step_deg
             if direction == 'north':
                 ra = self.sitech.ra
@@ -344,9 +344,9 @@ class MntDaemon(HardwareDaemon):
             if check_alt_limit(ra*360./24.,dec,self.utc):
                 return 'ERROR: Target too low, cannot slew'
             else:
-                self.temp_ra = ra
-                self.temp_dec = dec
-                self.slew_radec_flag = 1
+                self.target_ra = ra
+                self.target_dec = dec
+                self.slew_target_flag = 1
                 return 'Slewing to offset coordinates'
 
     def set_step(self,offset):
