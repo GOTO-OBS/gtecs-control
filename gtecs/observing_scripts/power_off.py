@@ -9,18 +9,19 @@ from __future__ import absolute_import
 from __future__ import print_function
 import time
 from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.tecs_modules import params
+
 
 def run():
     print('End of night power down')
 
-    cmd('power off filt')
-    cmd('power off foc')
-    cmd('power off cam')
+    for tel in params.TEL_DICT:
+        cmd('power off filt{}'.format(tel))
+        cmd('power off foc{}'.format(tel))
+        cmd('power off cam{}'.format(tel))
 
     cmd('mnt park')
-    time.sleep(10)  # TODO: drastically increase this on deployment
 
-    cmd('power off mnt')
 
 if __name__ == "__main__":
     run()

@@ -6,7 +6,6 @@ import numpy as np
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
-from astropy.stats.sigma_clipping import sigma_clipped_stats
 
 from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import flats
@@ -16,6 +15,7 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           wait_for_telescope)
 import gtecs.tecs_modules.astronomy as ast
 from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules import params
 
 import time
 import sys
@@ -23,9 +23,9 @@ import sys
 
 def mean_sky_brightness(fnames):
     means = []
-    for fname in fnames:
-        data = fits.getdata(fname)
-        mean, median, std = sigma_clipped_stats(data, iters=3)
+    for tel in params.TEL_DICT:
+        data = fits.getdata(fnames[tel])
+        mean = np.median(data)
         means.append(mean)
     return np.mean(means)
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if sys.argv[1].upper() == 'EVE':
         eve = True
-        alt = -1.0*u.deg
+        alt = -5*u.deg
     else:
         eve = False
         alt = -5.5*u.deg
@@ -83,12 +83,12 @@ if __name__ == "__main__":
 
     # set exposure order and check for sky brightness
     if eve:
-        expT = 20.0
+        expT = 5.0
         filt_order = ['B', 'G', 'R', 'L']
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 15.0
+        expT = 5.0
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
         skyMeanCheck = lambda x: x < 25000.0

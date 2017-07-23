@@ -6,9 +6,13 @@ This script should perform the following simple tasks:
 """
 from __future__ import absolute_import
 from __future__ import print_function
+import time
+
+import pandas as pd
+import numpy as np
 
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import wait_for_exposure_queue
+from gtecs.tecs_modules.observing import wait_for_exposure_queue, get_cam_temps
 
 
 def run(nexp=5):
@@ -21,6 +25,13 @@ def run(nexp=5):
         number of each type of frame to take
     """
     print('Start of Night Phase 3')
+
+    print('Cooling CCDs')
+    cmd('cam temp -25')
+    cool = False
+    while not cool:
+        cool = np.all(pd.Series(get_cam_temps()) < -24.5)
+        time.sleep(1)
 
     cmd('exq multbias {} 1'.format(nexp))  # 1x1 binning
     cmd('exq multbias {} 2'.format(nexp))  # 2x2 binning

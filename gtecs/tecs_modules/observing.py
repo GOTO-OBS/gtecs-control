@@ -24,26 +24,39 @@ from .astronomy import tel_str
 from .misc import execute_command as cmd
 
 
+def get_cam_temps():
+    """
+    Get a dict of camera temps
+    """
+    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
+    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam_info = cam.get_info()
+    values = {}
+    for tel in params.TEL_DICT:
+        key = 'ccd_temp{}'.format(tel)
+        values[tel] = cam_info[key]
+    return values
+
+
 def set_new_focus(values):
     """
     Move each telescope to the requested focus
 
     Parameters
     ----------
-    values : float, list or np.ndarray
+    values : float, dict
+        a dictionary of telescope IDs and focus values
     """
     try:
-        len(values)
+        # will raise if not a dict, or keys not valid
+        assert all(key in params.TEL_DICT for key in values.keys())
     except:
-        values = [values] * len(params.TEL_DICT)
-    if len(values) != len(params.TEL_DICT):
-        raise ValueError("values should either be a float or same length as number of OTAs")
+        # same value for all
+        values = {key: values for key in params.TEL_DICT}
 
-    current_values = get_current_focus()
-    difference = np.array(values) - current_values
-    for i, delta in enumerate(difference):
-        tel = i+1
-        cmd('foc move {} {}'.format(tel, int(delta)))
+    for tel in params.TEL_DICT:
+        cmd('foc set {} {}'.format(tel, int(values[tel])))
 
 
 def get_current_focus():
@@ -54,8 +67,11 @@ def get_current_focus():
     with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
         foc._pyroTimeout = params.PROXY_TIMEOUT
         foc_info = foc.get_info()
-    keys = ['current_pos{}'.format(i+1) for i in range(4)]
-    return np.array([foc_info[key] for key in keys])
+    values = {}
+    for tel in params.TEL_DICT:
+        key = 'current_pos{}'.format(tel)
+        values[tel] = foc_info[key]
+    return values
 
 
 def wait_for_focuser(timeout):
@@ -71,7 +87,7 @@ def wait_for_focuser(timeout):
     start_time = time.time()
     still_moving = True
     timed_out = False
-    status_keys = ['status{}'.format(i+1) for i in range(4)]
+    status_keys = ['status{}'.format(tel) for tel in params.TEL_DICT]
     while still_moving and not timed_out:
         try:
             with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
@@ -125,11 +141,10 @@ def wait_for_telescope(timeout=None):
                 mnt_info = mnt.get_info()
         except Pyro4.errors.ConnectionClosedError:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.1:
+        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.0014:
             still_moving = False
 
         if timeout and (time.time() - start_time) > timeout:
-            print('Bum')
             timed_out = True
 
         # don't hammer the daemons
@@ -167,11 +182,11 @@ def last_written_image():
         a list of the image files
     """
     path = os.path.join(params.IMAGE_PATH + nightStarting())
-    newest = max(glob.iglob(os.path.join(path,'*.fits')), key=os.path.getctime)
-    root = newest.split('_ut')[0]
+    newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
+    root = newest.split('_UT')[0]
 
-    fnames = [root+'_ut{}.fits'.format(key) for key in params.TEL_DICT.keys()]
-    return [os.path.join(path, fname) for fname in fnames]
+    fnames = {key: root+'_UT{}.fits'.format(key) for key in params.TEL_DICT.keys()}
+    return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
 
 
 def wait_for_exposure_queue(timeout=None):

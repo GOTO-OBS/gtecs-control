@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import numpy as np
+import pandas as pd
 
 from astropy import units as u
 from astropy.time import Time
@@ -10,10 +12,12 @@ from astropy.io import fits
 from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           get_current_focus, set_new_focus,
-                                          wait_for_focuser)
+                                          wait_for_focuser, last_written_image)
 import gtecs.tecs_modules.astronomy as ast
+from gtecs.tecs_modules import params
 from gtecs.tecs_modules.time_date import nightStarting
-
+from gtecs.observing_scripts.autoFocus import (take_frame, RestoreFocus,
+                                               set_focus_carefully, get_hfd)
 import time
 import sys
 
@@ -21,92 +25,58 @@ import sys
 # It assumes you're already on a reasonable patch of sky and that you're
 # already focused (see autoFocus script)
 
-def take_frame(expT, current_filter):
-    cmd('exq image {} {} 1 "NA" FOCUS'.format(expT, current_filter))
-    time.sleep(0.1)
-    wait_for_exposure_queue()
-    time.sleep(0.1)
-    return
-
-class RestoreFocus(neatCloser):
-    def __init__(self, focusVals):
-        super(RestoreFocus, self).__init__('autofocus')
-        self.focusVals = focusVals
-
-    def tidyUp(self):
-        print('Restoring original focus')
-        set_new_focus(self.focusVals)
-
-def set_focus_carefully(new_focus_values, orig_focus):
-    """
-    Move to focus, but restore old values if we fail
-    """
-    set_new_focus(new_focus_values)
-    try:
-        wait_for_focuser(30)
-    except:
-        set_new_focus(orig_focus)
-        raise
-
 if __name__ == "__main__":
     print("Starting focus run")
 
-    total_diff = 20000
-    large_step = 2000
-    small_step = 500
-    expT = 10
+    total_diff = 5000
+    large_step = 1000
+    small_step = 100
+    expT = 30
     filt = 'L'
 
-    orig_focus_list = get_current_focus() # list length of number of focs
-    pos_master_list = []
-    for i, orig_focus in enumerate(orig_focus_list):
-        print('UT{}:'.format(i+1))
-        print('    Current focus: {!r}'.format(orig_focus))
+    xslice = slice(3300, 5100)
+    yslice = slice(2800, 4100)
+    kwargs = {'xslice': xslice, 'yslice': yslice}
 
-        # Find focus position list
-        out_small_list = list(range(orig_focus,
-                                    orig_focus+large_step,
-                                    small_step))
-        out_large_list = list(range(orig_focus+large_step,
-                                    orig_focus+total_diff+1,
-                                    large_step))
-
-        in_small_list = list(range(orig_focus-large_step,
-                                   orig_focus,
-                                   small_step))
-        in_large_list = list(range(orig_focus-total_diff,
-                                   orig_focus-large_step-1,
-                                   large_step))
-
-        pos_list = in_large_list+in_small_list+out_small_list+out_large_list
-        #print(pos_list)
-
-        print('    Taking {} frames'.format(len(pos_list)))
-        print('    Focus varying from {} to {}'.format(orig_focus-total_diff,
-                                                       orig_focus+total_diff))
-
-        pos_master_list += [pos_list]
-
-    positions = list(zip(*pos_master_list))
+    orig_focus = get_current_focus()
+    pos_master_list = {
+        tel: np.arange(orig_focus[tel]-total_diff, orig_focus[tel]+total_diff, large_step)
+        for tel in params.TEL_DICT
+    }
+    for tel in params.TEL_DICT:
+        foc = orig_focus[tel]
+        fine_grid = np.arange(foc-large_step, foc+large_step, small_step)
+        new_array = np.unique(np.concatenate((pos_master_list[tel], fine_grid)))
+        new_array.sort()
+        pos_master_list[tel] = new_array
+    pos_master_list = pd.DataFrame(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
-    close_signal_handler = RestoreFocus(orig_focus_list)
+    close_signal_handler = RestoreFocus(orig_focus)
+    series_list = []
 
-    for runno, pos_list in enumerate(positions):
+    for runno, row in pos_master_list.iterrows():
+
         print('############')
-        print('## RUN {} of {}'.format(runno+1, len(positions)))
-        for i, pos in enumerate(pos_list):
-            print('Setting UT{} to focus position {}'.format(i+1,pos))
-        print('~~~~~~~~~~~~')
-        set_focus_carefully(list(pos_list), orig_focus_list)
-        print('~~~~~~~~~~~~')
+        print('## RUN {} of {}'.format(runno+1, len(pos_master_list)))
+        set_focus_carefully(row, orig_focus, 100)
+        print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
-        fnames = take_frame(expT, filt)
-        print('Exposures finished')
+        fnames = take_frame(expT, filt, 'FocusRun')
+        hfd_values = get_hfd(fnames, **kwargs)
+        print('Focus Data:\n{!r}'.format(hfd_values))
+        hfd_values['pos'] = pd.Series(get_current_focus())
+        series_list.append(hfd_values)
+    print('Exposures finished')
 
+    # write out data
+    path = os.path.join(params.CONFIG_PATH, 'focus_data')
+    df = pd.concat(series_list)
+    ofname = 'focusdata_{}.csv'.format(Time.now().isot)
+    df.to_csv(os.path.join(path, ofname))
     # and finish by restoring the origional focus
     print('############')
     print('Restoring original focus')
-    set_new_focus(orig_focus_list)
+    set_new_focus(orig_focus)
 
     print("Done")
