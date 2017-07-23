@@ -220,8 +220,8 @@ class DomeDaemon(HardwareDaemon):
                     except:
                         self.logfile.error('Failed to open dome')
                         self.logfile.debug('', exc_info=True)
-                elif (self.moving and
-                      self.dome_status[side] == 'full_open'):
+                elif (self.dome_status[side] == 'full_open' and
+                      not dome.output_thread_running):
                         self.logfile.info('The {} side is open'.format(side))
                         self.moving = 0
                         self.moving_time = 0
@@ -232,7 +232,7 @@ class DomeDaemon(HardwareDaemon):
                 elif (self.moving and
                       self.dome_status[side] != 'full_open' and
                       self.move_frac != 1 and
-                      dome.output_thread_running == 0):
+                      not dome.output_thread_running):
                         self.logfile.info('The {} side moved requested fraction'.format(side))
                         self.moving = 0
                         self.moving_time = 0
@@ -279,8 +279,8 @@ class DomeDaemon(HardwareDaemon):
                     except:
                         self.logfile.error('Failed to close dome')
                         self.logfile.debug('', exc_info=True)
-                elif (self.moving and
-                      self.dome_status[side] == 'closed'):
+                elif (self.dome_status[side] == 'closed' and
+                      not dome.output_thread_running):
                         self.logfile.info('The {} side is closed'.format(side))
                         self.moving = 0
                         self.moving_time = 0
@@ -292,7 +292,7 @@ class DomeDaemon(HardwareDaemon):
                 elif (self.moving and
                       self.dome_status[side] != 'closed' and
                       self.move_frac != 1 and
-                      dome.output_thread_running == 0):
+                      not dome.output_thread_running):
                         self.logfile.info('The {} side moved requested fraction'.format(side))
                         self.moving = 0
                         self.moving_time = 0
