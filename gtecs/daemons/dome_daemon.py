@@ -208,7 +208,7 @@ class DomeDaemon(HardwareDaemon):
                     self.check_status_flag = 1
                     self.check_warnings_flag = 1
 
-                if not self.move_started:
+                if self.open_flag and not self.move_started:
                     # before we start check if it's already there
                     if self.dome_status[side] == 'full_open':
                         self.logfile.info('The {} side is already open'.format(side))
@@ -274,7 +274,7 @@ class DomeDaemon(HardwareDaemon):
                     self.check_status_flag = 1
                     self.check_warnings_flag = 1
 
-                if not self.move_started:
+                if self.close_flag and not self.move_started:
                     # before we start check if it's already there
                     if self.dome_status[side] == 'closed':
                         self.logfile.info('The {} side is already closed'.format(side))
