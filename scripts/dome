@@ -142,7 +142,8 @@ def print_info(info):
     print('###########################')
 
 def print_info_s(info):
-    if ('open' in info['north']) or ('open' in info['south']):
+    if (('open' in info['north']) or ('open' in info['south']) or
+        ('ing'  in info['north']) or ('ing' in info['south'])):
         print('DOME:    [Open]')
     else:
         print('DOME:    [%s]' %info['north'].capitalize())
