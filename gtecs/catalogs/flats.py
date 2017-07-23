@@ -119,7 +119,7 @@ def exposure_sequence(date, binning, startExp, nflats=5, eve=True):
     exp_times : list of float
         suggested exposure times
     """
-    readout_times = [8, 5, 5]  # TODO: replace with real numbers!
+    readout_times = [30, 30, 30]
     try:
         read = readout_times[binning-1]
     except:

@@ -13,21 +13,20 @@ from astropy.coordinates import Longitude
 from astropy import units as u
 
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.astronomy import find_lst, tel_str
+from gtecs.tecs_modules.astronomy import find_lst
 from gtecs.tecs_modules.observing import wait_for_telescope, goto
 
 
 def run():
     print('Start of Night Phase 2')
-    cmd('mnt info')
-    print('Setting RA to LST+4')
-    ra_deg = Longitude(u.hour * (4 + find_lst(Time.now()))).deg
+    print('Moving telescope to safe position')
 
-    goto(ra_deg, 23)
-    wait_for_telescope(240)
+    # cmd('mnt park')
+    # cannot park while dec motor is broken
 
     time.sleep(5)
     cmd('mnt info')
+
 
 if __name__ == "__main__":
     run()
