@@ -59,7 +59,7 @@ class RestoreFocus(neatCloser):
         set_new_focus(self.focusVals)
 
 
-def set_focus_carefully(new_focus_values, orig_focus, timeout=10):
+def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
     """
     Move to focus, but restore old values if we fail
     """
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    bigstep = 7000
+    bigstep = 5000
     smallstep = 300
     expT = 30
     nfv = 7
@@ -271,7 +271,7 @@ if __name__ == "__main__":
         print('stepping towards near focus')
         mask = hfd_values > nfv
         # move the focusers that need it
-        target_hfds = (0.5*hfd_values).where(mask, nfv)
+        target_hfds = (0.5*hfd_values).where(mask, hfd_values)
         new_focus_values = estimate_focus(target_hfds, hfd_values,
                                           pd.Series(get_current_focus()), m2)
         set_focus_carefully(new_focus_values, orig_focus)
