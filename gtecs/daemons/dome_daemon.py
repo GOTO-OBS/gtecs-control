@@ -194,6 +194,7 @@ class DomeDaemon(HardwareDaemon):
                 elif os.path.isfile(params.EMERGENCY_FILE):
                     self.logfile.error('In emergency locked state, dome will not open')
 
+                self.logfile.info('Starting: Opening dome')
                 # chose the side to move
                 elif self.move_side == 'south':
                     side = 'south'
@@ -202,7 +203,7 @@ class DomeDaemon(HardwareDaemon):
                 elif self.move_side == 'both':
                     side = 'south'
                 elif self.move_side == 'none':
-                    self.logfile.info('Dome open')
+                    self.logfile.info('Finished: Dome is open')
                     self.move_frac = 1
                     self.open_flag = 0
                     self.check_status_flag = 1
@@ -260,6 +261,7 @@ class DomeDaemon(HardwareDaemon):
 
             # close dome
             if(self.close_flag):
+                self.logfile.info('Starting: Closing dome')
                 # chose the side to move
                 if self.move_side == 'south':
                     side = 'south'
@@ -268,7 +270,7 @@ class DomeDaemon(HardwareDaemon):
                 elif self.move_side == 'both':
                     side = 'north'
                 elif self.move_side == 'none':
-                    self.logfile.info('Dome closed')
+                    self.logfile.info('Finished: Dome is closed')
                     self.move_frac = 1
                     self.close_flag = 0
                     self.check_status_flag = 1
