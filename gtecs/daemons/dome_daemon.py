@@ -105,7 +105,7 @@ class DomeDaemon(HardwareDaemon):
                     time.sleep(1)
                     self.dome_status = dome.status
 
-                print(self.dome_status, self.moving, self.move_side,
+                print(self.dome_status, self.move_started, self.move_side,
                       self.open_flag, self.close_flag)
 
                 self.status_check_time = time.time()
@@ -338,7 +338,8 @@ class DomeDaemon(HardwareDaemon):
                 self.close_flag = 0
                 self.move_side = 'none'
                 self.move_frac = 1
-                self.moving = 0
+                self.move_started = 0
+                self.move_start_time = 0
                 self.halt_flag = 0
                 self.check_status_flag = 1
 
