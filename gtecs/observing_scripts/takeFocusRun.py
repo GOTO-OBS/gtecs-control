@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import pandas as pd
+import argparse
 from matplotlib import pyplot as plt
 from astropy import units as u
 from astropy.time import Time
@@ -75,7 +76,7 @@ if __name__ == "__main__":
 
     print("Starting focus run")
 
-    total_diff = 1050
+    total_diff = 1500
     step = 150
     expT = 30
 
