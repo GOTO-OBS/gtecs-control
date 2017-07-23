@@ -52,6 +52,7 @@ FILTER_LIST = L, R, G, B, C
 FRAMETYPE_LIST = normal, dark
 DARKFILT = L
 BIASEXP = 0.0
+CCD_TEMP = -25
 
 ########################################################################
 # Power parameters
