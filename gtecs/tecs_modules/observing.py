@@ -20,7 +20,7 @@ import numpy as np
 # TeCS modules
 from . import params
 from .time_date import nightStarting
-from .astronomy import tel_str
+from .astronomy import tel_str, check_alt_limit
 from .misc import execute_command as cmd
 
 
@@ -114,6 +114,8 @@ def goto(ra, dec):
     dec : float
         J2000 dec in decimal degrees
     """
+    if check_alt_limit(ra, dec):
+        raise ValueError('target too low, cannot set target')
     ra_string, dec_string = tel_str(ra, dec)
     cmd("mnt ra " + ra_string)
     cmd("mnt dec " + dec_string)
