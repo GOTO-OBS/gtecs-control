@@ -97,7 +97,7 @@ def estimate_focus(targetHFD, currentHFD, currentPos, slope):
     return currentPos + (targetHFD-currentHFD)/slope
 
 
-def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
+def measure_hfd(fname, filter_width=3, threshold=10, **kwargs):
     """
     Crude measure of half-flux-diameter.
 
@@ -134,17 +134,18 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     bkg.subfrom(data)
     # make a Gaussian kernel for smoothing before detection
     sigma = filter_width * gaussian_fwhm_to_sigma
-    kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
+    size = int(filter_width) if filter_width <= 15 else 15
+    kernel = Gaussian2DKernel(sigma, x_size=size, y_size=size)
     kernel.normalize()
     # find sources
     objects = sep.extract(data, threshold, bkg.globalrms, clean=True,
                           filter_kernel=kernel.array, **kwargs)
     # get half flux radius
     hfr, mask = sep.flux_radius(data, objects['x'], objects['y'],
-                                30*np.ones_like(objects['x']),
+                                40*np.ones_like(objects['x']),
                                 0.5, normflux=objects['cflux'])
     mask = np.logical_and(mask == 0, objects['peak'] < 40000)
-    mask = np.logical_and(mask, objects['peak'] > 100)
+    #mask = np.logical_and(mask, objects['peak'] > 100)
 
     hfd = 2*hfr[mask]
     fwhm = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
@@ -156,7 +157,7 @@ def measure_hfd(fname, filter_width=3, threshold=15, **kwargs):
     return 0.0, 0.0, 0.0, 0.0
 
 
-def get_hfd(fnames, filter_width=3, threshold=15, **kwargs):
+def get_hfd(fnames, filter_width=3, threshold=10, **kwargs):
     """
     Measure the HFD diameter from multiple files.
 
@@ -199,14 +200,15 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    bigstep = 5000
-    smallstep = 1000
+    bigstep = 7000
+    smallstep = 300
     expT = 30
-    nfv = 3
+    nfv = 7
 
     xslice = slice(3300, 5100)
     yslice = slice(2800, 4100)
-    kwargs = {'xslice': xslice, 'yslice': yslice}
+    kwargs = {'xslice': xslice, 'yslice': yslice,
+              'filter_width': 20}
 
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
@@ -269,7 +271,7 @@ if __name__ == "__main__":
         print('stepping towards near focus')
         mask = hfd_values > nfv
         # move the focusers that need it
-        target_hfds = (0.5*hfd_values).where(mask, hfd_values)
+        target_hfds = (0.5*hfd_values).where(mask, nfv)
         new_focus_values = estimate_focus(target_hfds, hfd_values,
                                           pd.Series(get_current_focus()), m2)
         set_focus_carefully(new_focus_values, orig_focus)
