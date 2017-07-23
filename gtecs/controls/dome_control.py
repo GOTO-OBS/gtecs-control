@@ -177,10 +177,16 @@ class AstroHavenDome:
         self.output_thread_running = 0
         self.status_thread_running = 0
 
+        # create one serial connection to the dome
+        self.serial = serial.Serial(self.serial_port, **self.port_props)
+
+    def __del__(self):
+        self.serial.close()
+
     def _read_heartbeat(self):
         try:
-            if self.status_serial_port.in_waiting:
-                out = self.status_serial_port.read(self.status_serial_port.in_waiting)
+            if self.serial.in_waiting:
+                out = self.serial.read(self.serial.in_waiting)
                 x = out.decode('ascii')[-1]
                 self._parse_heartbeat_status(x)
             return 0
@@ -389,15 +395,9 @@ class AstroHavenDome:
     def _status_thread(self):
         start_time = time.time()
 
-        # create one serial connection to the dome
-        self.status_serial_port = serial.Serial(self.serial_port, **self.port_props)
-
         while self.status_thread_running:
             self.status = self._read_status()
             time.sleep(0.5)
-
-        # close the port when the thread is done
-        self.status_serial_port.close()
 
 
     def _output_thread(self):
@@ -406,9 +406,6 @@ class AstroHavenDome:
         command = self.command
         timeout = self.timeout
         start_time = time.time()
-
-        # create one serial connection to the dome
-        self.output_serial_port = serial.Serial(self.serial_port, **self.port_props)
 
         while self.output_thread_running:
             # store running time for timeout
@@ -438,7 +435,7 @@ class AstroHavenDome:
                 break
 
             # if we're still going, send the command to the serial port
-            l = self.output_serial_port.write(self.move_code[side][command])
+            l = self.serial.write(self.move_code[side][command])
             #print(side, frac, 'o:', self.move_code[side][command])
 
             time.sleep(0.5)
@@ -447,9 +444,6 @@ class AstroHavenDome:
         self.side = ''
         self.command = ''
         self.timeout = 40.
-
-        # close the port when the thread is done
-        self.status_serial_port.close()
 
     def halt(self):
         '''To stop the output thread'''
