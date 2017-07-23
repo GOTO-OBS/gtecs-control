@@ -384,7 +384,7 @@ class DomeDaemon(HardwareDaemon):
         return 'Closing dome'
 
     def halt_dome(self):
-        """Stope the dome moving"""
+        """Stop the dome moving"""
         self.halt_flag = 1
         return 'Halting dome'
 
