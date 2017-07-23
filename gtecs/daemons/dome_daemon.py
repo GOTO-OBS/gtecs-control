@@ -186,17 +186,9 @@ class DomeDaemon(HardwareDaemon):
 
             # open dome
             if(self.open_flag):
-                # only open if allowed
-                if override_flags.dome_auto <1 and condition_flags.summary > 0:
-                    self.logfile.error('Conditions bad, dome will not open')
-                #elif self.power_status:
-                #    self.logfile.error('No external power, dome will not open')
-                elif os.path.isfile(params.EMERGENCY_FILE):
-                    self.logfile.error('In emergency locked state, dome will not open')
-
                 self.logfile.info('Starting: Opening dome')
                 # chose the side to move
-                elif self.move_side == 'south':
+                if self.move_side == 'south':
                     side = 'south'
                 elif self.move_side == 'north':
                     side = 'north'
