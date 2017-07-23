@@ -17,6 +17,8 @@ import glob
 import os
 import numpy as np
 
+from astropy.time import Time
+
 # TeCS modules
 from . import params
 from .time_date import nightStarting
@@ -114,7 +116,7 @@ def goto(ra, dec):
     dec : float
         J2000 dec in decimal degrees
     """
-    if check_alt_limit(ra, dec):
+    if check_alt_limit(ra, dec, Time.now()):
         raise ValueError('target too low, cannot set target')
     ra_string, dec_string = tel_str(ra, dec)
     cmd("mnt ra " + ra_string)
