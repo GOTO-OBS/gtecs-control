@@ -186,7 +186,6 @@ class DomeDaemon(HardwareDaemon):
 
             # open dome
             if(self.open_flag):
-                self.logfile.info('Starting: Opening dome')
                 # chose the side to move
                 if self.move_side == 'south':
                     side = 'south'
@@ -253,7 +252,6 @@ class DomeDaemon(HardwareDaemon):
 
             # close dome
             if(self.close_flag):
-                self.logfile.info('Starting: Closing dome')
                 # chose the side to move
                 if self.move_side == 'south':
                     side = 'south'
@@ -374,6 +372,7 @@ class DomeDaemon(HardwareDaemon):
             self.open_flag = 1
             self.move_side = side
             self.move_frac = frac
+            self.logfile.info('Starting: Opening dome')
             return 'Opening dome'
 
     def close_dome(self,side='both',frac=1):
@@ -381,6 +380,7 @@ class DomeDaemon(HardwareDaemon):
         self.close_flag = 1
         self.move_side = side
         self.move_frac = frac
+        self.logfile.info('Starting: Closing dome')
         return 'Closing dome'
 
     def halt_dome(self):
