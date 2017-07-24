@@ -723,7 +723,7 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
-    pilot = Pilot(testing=args.testing)
+    pilot = Pilot(testing=args.test)
     pilot.assignJobs()
 
     # start the recurrent tasks
