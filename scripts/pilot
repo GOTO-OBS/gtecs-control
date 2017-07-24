@@ -362,9 +362,15 @@ class Pilot:
                 await self.cancelRunningScript()
                 self.park_scope()
             elif reason == 'hw':
-                # just pause the queue until fixed
-                execute_command('exq pause')
-                execute_command('cam abort')
+                if self.runningScriptProtocol.jobName == 'OBS':
+                    # just pause the queue until fixed
+                    execute_command('exq pause')
+                    execute_command('cam abort')
+                else:
+                    # other scripts cannot handle losing frames
+                    execute_command('exq clear')
+                    execute_command('cam abort')
+                    await self.cancelRunningScript()
             else:
                 self.log.info('pausing for pilot for manual override')
                 self.log.info('current job will continue')
@@ -495,11 +501,11 @@ class Pilot:
             if self.runningScriptTransport.get_returncode() is None:
                 self.log.info("killing {}".format(self.runningScriptProtocol.jobName))
 
+                execute_command('exq clear')
+                execute_command('cam abort')
                 # if we were observing, mark as aborted and clear queue
                 if self.runningScriptProtocol.jobName == 'OBS' and self.currentID is not None:
                     markJobAborted(self.currentID)
-                    execute_command('exq clear')
-                    execute_command('cam abort')
                 self.runningScriptTransport.terminate()
                 await self.runningScriptResult
 
@@ -705,7 +711,7 @@ class Pilot:
                    protocol=SimpleProtocol)
         self.daytime_jobs = [sn0, sn1, sn2, sn3]
 
-        sn4 = dict(name='FLATS', sunAlt=0,
+        sn4 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
                    protocol=SimpleProtocol)
         sn5 = dict(name='FOC', sunAlt=-10,
