@@ -249,7 +249,8 @@ class ExposureQueueMonitor(HardwareMonitor):
         self.daemonID = 'exq'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'exq start']
-        self.recoveryProcedure[2] = [120., 'exq kill; exq start']
+        self.recoveryProcedure[2] = [120., 'exq kill']
+        self.recoveryProcedure[3] = [130., 'exq start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
