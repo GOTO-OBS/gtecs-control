@@ -201,6 +201,7 @@ class Pilot:
                                          respect_pause=False)
 
         # done the daytime jobs. Set flag to allow open dome
+        await self.waitingForTheSun(-2)
         self.ready_to_observe = True
         await self.open_dome()
         await self.unpark_scope()

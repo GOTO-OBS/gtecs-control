@@ -182,7 +182,7 @@ class MountMonitor(HardwareMonitor):
 
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
-            if (self.info['target_dist'] is None or float(self.info['target_dist']) > 0.00056 or self.info['status'] != 'Tracking'):
+            if (self.info['target_dist'] is not None and (float(self.info['target_dist']) > 0.00056 or self.info['status'] != 'Tracking')):
                 self.errors.append('Not on target')
         elif obsMode == 'parked' and params.FREEZE_DEC:
             if self.info['status'] != 'Stopped':
