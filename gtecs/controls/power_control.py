@@ -175,10 +175,24 @@ class APCUPS:
     def __init__(self,IP_address):
         self.unit_type = 'UPS'
         self.IP_address = IP_address
-        self.command_oids = {'STATUS':'2.1.1.0',
+        self.command_oids = {'STATUS':'4.1.1.0',
                              'PERCENT':'2.2.1.0',
                              'TIME':'2.2.3.0'}
-        self.statuses = {'1':'UNKNOWN', '2':'Normal', '3':'LOW'}
+        self.statuses = {'1':'UNKNOWN',
+                         '2':'Normal',
+                         '3':'ON BATTERY',
+                         '4':'onSmartBoost',
+                         '5':'timedSleeping',
+                         '6':'softwareBypass',
+                         '7':'off',
+                         '8':'rebooting',
+                         '9':'switchedBypass',
+                         '10':'hardwareFailureBypass',
+                         '11':'sleepingUntilPowerReturn',
+                         '12':'onSmartTrim',
+                         '13':'ecoMode',
+                         '14':'hotStandby',
+                         '15':'onBatteryTest'}
 
     def _initialise_oid_array(self, command_oid):
         """ Setup the oid array to use with snmpget and snmpset """
