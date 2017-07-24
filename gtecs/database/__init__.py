@@ -203,7 +203,7 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
     # now limit by RA and Dec
     if location is not None:
         # local sidereal time, units of degrees
-        lst = time.sidereal_time('mean', location.longitude)
+        lst = time.sidereal_time('mean', location.lon)
         lo_lim = Longitude(lst - hourangle_limit*u.hourangle).deg
         up_lim = Longitude(lst + hourangle_limit*u.hourangle).deg
         if up_lim > lo_lim:
@@ -212,7 +212,7 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
             pending_queue = pending_queue.filter(or_(Pointing.ra < up_lim, Pointing.ra > lo_lim))
 
         # is latitude ever greater than limit?
-        lat = location.latitude.deg
+        lat = location.lat.deg
         pending_queue = pending_queue.filter(Pointing.decl > lat - 90 + altitude_limit, Pointing.decl < lat + 90 - altitude_limit)
 
     pending_queue = pending_queue.order_by('rank')
@@ -504,7 +504,7 @@ def _make_random_pointing(userKey, numexps=None, time=None):
     if time is None:
         time = Time.now()
     # LST in degrees
-    lst = time.sidereal_time('mean', longitude=lapalma.longitude).deg
+    lst = time.sidereal_time('mean', longitude=lapalma.lon).deg
     t1 = time + np.random.randint(-5, 2) * u.day
     t2 = t1 + np.random.randint(1, 10) * u.day
     p = Pointing(objectName='randObj', ra=np.random.uniform(lst-3, lst+3),
