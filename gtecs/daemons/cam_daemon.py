@@ -129,7 +129,6 @@ class CamDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-            print('cam control alive')
             ### control functions
             # take exposure part one - start
             if(self.take_exposure_flag):
