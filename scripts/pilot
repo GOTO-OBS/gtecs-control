@@ -545,7 +545,7 @@ class Pilot:
         # done
         return retcode
 
-    async def waitForNightsEnd(self, stopTime, sleepTime=20):
+    async def waitForNightsEnd(self, stopTime, sleepTime=120):
         """
         Function returns when night is done.
 
@@ -566,11 +566,7 @@ class Pilot:
         while Time.now() < stopTime:
             status_str = Time.now().iso
             if self.paused:
-                status_str += " (paused, "
-            if self.domeOpen:
-                status_str += " dome open)"
-            else:
-                status_str += " dome closed)"
+                status_str += " (paused)"
             self.log.info(status_str)
             if self.paused:
                 self.log.info(self.whypause)
