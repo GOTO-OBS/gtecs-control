@@ -221,12 +221,10 @@ class APCUPS:
             raise OSError('SNMP tools not installed')
         IP = self.IP_address
         command = [snmpget, '-v', '1', '-c', 'public', IP] + oid_arr
-        print(command)
         output = subprocess.check_output(command).decode('ascii').split('\n')
-        print(output)
         status = ''
         for i in range(len(output)-1):
-            status += output[i][-1]
+            status += output[i].split(' ')[-1]
         return status
 
     def _snmpset(self, oid_arr, value):
