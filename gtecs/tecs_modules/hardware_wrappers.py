@@ -221,7 +221,8 @@ class CameraMonitor(HardwareMonitor):
         self.daemonID = 'cam'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'cam start']
-        self.recoveryProcedure[2] = [120., 'cam kill; cam start']
+        self.recoveryProcedure[2] = [120., 'cam kill']
+        self.recoveryProcedure[3] = [130., 'cam start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
@@ -235,7 +236,8 @@ class FilterWheelMonitor(HardwareMonitor):
         self.daemonID = 'filt'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'filt start']
-        self.recoveryProcedure[2] = [120., 'filt kill; filt start']
+        self.recoveryProcedure[2] = [120., 'filt kill']
+        self.recoveryProcedure[3] = [130., 'filt start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
@@ -264,7 +266,8 @@ class FocuserMonitor(HardwareMonitor):
         self.daemonID = 'foc'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'foc start']
-        self.recoveryProcedure[2] = [120., 'foc kill; foc start']
+        self.recoveryProcedure[2] = [120., 'foc kill']
+        self.recoveryProcedure[3] = [130., 'foc start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
