@@ -98,8 +98,8 @@ class Pilot:
         )
 
         # override and conditions flags
-        self.overrides = None
-        self.conditions = None
+        self.overrides = Overrides()
+        self.conditions = Conditions()
 
         # dictionary of reasons to pause
         self.whypause = dict(hw=False, cond=False, manual=False)
