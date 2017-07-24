@@ -109,7 +109,7 @@ def print_info(info):
             ups_time = status['time']
             ups_load = status['load']
             print('Status: {}'.format(ups_status))
-            print('Current load: {}%'.format(ups_load))
+            print('Current load:      {}%'.format(ups_load))
             print('Percent remaining: {}%'.format(ups_percent))
             print('Time remaining:    {}s'.format(ups_time))
         print('~~~~~~~')
@@ -136,7 +136,8 @@ def print_info_s(info):
             ups_percent = status['percent']
             ups_time = status['time']
             ups_load = status['load']
-            print('   Load: {}%   Remaining: {}% ({}s)   [{}]'.format(ups_load, ups_percent, ups_time, ups_status))
+            print('   Load: {: >5}%'.format(ups_load))
+            print('   Remaining: {}% ({}s)   [{}]'.format(ups_percent, ups_time, ups_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
