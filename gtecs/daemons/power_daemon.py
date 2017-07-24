@@ -123,7 +123,8 @@ class PowerDaemon(HardwareDaemon):
                             percent_remaining = power.percent_remaining()
                             time_remaining = power.time_remaining()
                             load = power.load()
-                            self.power_status[unit] = (status, percent_remaining, time_remaining, load)
+                            outlet_status = power.outlet_status()
+                            self.power_status[unit] = (status, percent_remaining, time_remaining, load, outlet_status)
                         except:
                             self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
                             self.logfile.debug('', exc_info=True)
@@ -152,13 +153,23 @@ class PowerDaemon(HardwareDaemon):
                             else:
                                 info['status_'+unit][names[i]] = 'ERROR'
                     elif power.unit_type == 'UPS':
-                        status, percent_remaining, time_remaining, load = self.power_status[unit]
+                        status, percent_remaining, time_remaining, load, outlet_status = self.power_status[unit]
 
                         info['status_'+unit] = {}
                         info['status_'+unit]['status'] = status
                         info['status_'+unit]['percent'] = percent_remaining
                         info['status_'+unit]['time'] = time_remaining
                         info['status_'+unit]['load'] = load
+
+                        names = params.POWER_UNITS[unit]['NAMES']
+
+                        for i in range(len(names)):
+                            if outlet_status[i] == str(power.on_value):
+                                info['status_'+unit][names[i]] = 'On'
+                            elif outlet_status[i] == str(power.off_value):
+                                info['status_'+unit][names[i]] = 'Off'
+                            else:
+                                info['status_'+unit][names[i]] = 'ERROR'
 
                 info['uptime'] = time.time() - self.start_time
                 info['ping'] = time.time() - self.time_check
