@@ -110,7 +110,7 @@ def print_info(info):
             outlet_name = '({}):'.format(outlet)
             outlet_no = names.index(outlet) + 1
             outlet_status = status[outlet]
-            print('Outlet {} {: <10} {}'.format(outlet_no, outlet_name, outlet_status))
+            print('Outlet {: <2} {: <15} {}'.format(outlet_no, outlet_name, outlet_status))
         print('~~~~~~~')
 
     print('Uptime: %.1fs' %info['uptime'])
@@ -133,19 +133,12 @@ def print_info_s(info):
             ups_load = status['load']
             print('   Load: {: >5}%'.format(ups_load))
             print('   Remaining: {}% ({}s)'.format(ups_percent, ups_time))
-            names = params.POWER_UNITS[unit]['NAMES']
-            for outlet in names:
-                outlet_name = '({}):'.format(outlet)
-                outlet_no = names.index(outlet) + 1
-                outlet_status = status[outlet]
-                print('   Outlet {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
-        else:
-            names = params.POWER_UNITS[unit]['NAMES']
-            for outlet in names:
-                outlet_name = '({}):'.format(outlet)
-                outlet_no = names.index(outlet) + 1
-                outlet_status = status[outlet]
-                print('   Outlet {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
+        names = params.POWER_UNITS[unit]['NAMES']
+        for outlet in names:
+            outlet_name = '({}):'.format(outlet)
+            outlet_no = names.index(outlet) + 1
+            outlet_status = status[outlet]
+            print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
