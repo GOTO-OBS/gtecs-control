@@ -116,7 +116,8 @@ class PowerDaemon(HardwareDaemon):
                         except:
                             self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
                             self.logfile.debug('', exc_info=True)
-                            self.power_status[unit] = 'ERROR'
+                            names = params.POWER_UNITS[unit]['NAMES']
+                            self.power_status[unit] = 'X'*len(names)
                     elif power.unit_type == 'UPS':
                         try:
                             status = power.status()
@@ -128,7 +129,9 @@ class PowerDaemon(HardwareDaemon):
                         except:
                             self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
                             self.logfile.debug('', exc_info=True)
-                            self.power_status[unit] = ('ERROR','ERROR','ERROR')
+                            names = params.POWER_UNITS[unit]['NAMES']
+                            outlet_status = 'X'*len(names)
+                            self.power_status[unit] = ('ERROR','ERROR','ERROR','ERROR',outlet_status)
 
                 self.status_check_time = time.time()
                 self.check_status_flag = 0
