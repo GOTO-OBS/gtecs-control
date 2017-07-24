@@ -186,7 +186,7 @@ class MountMonitor(HardwareMonitor):
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
             not_on_target = (self.info['target_dist'] is not None and
-                             (float(self.info['target_dist']) > 0.00056 or self.info['status'] != 'Tracking'))
+                             (float(self.info['target_dist']) > 0.0015 or self.info['status'] != 'Tracking'))
             if not_on_target:
                 if self.info['status'] == 'Slewing':
                     if not self.currently_slewing:
