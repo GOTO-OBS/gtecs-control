@@ -11,6 +11,7 @@ from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import landolt
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
+                                          filters_are_homed,
                                           wait_for_telescope)
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules import astronomy as ast
@@ -27,6 +28,13 @@ def take_image_set(expT, name):
 
 
 if __name__ == "__main__":
+
+    if not filters_are_homed():
+        print('homing filters')
+        time.sleep(1)
+        while not filters_are_homed():
+            time.sleep(1)
+
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
     # use set so we don't duplicate observations

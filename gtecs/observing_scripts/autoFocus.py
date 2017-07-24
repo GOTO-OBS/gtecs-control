@@ -34,6 +34,7 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
                                           get_current_focus, set_new_focus,
                                           wait_for_focuser,
+                                          filters_are_homed,
                                           wait_for_telescope)
 from gtecs.tecs_modules import params
 
@@ -210,6 +211,12 @@ if __name__ == "__main__":
     yslice = slice(2800, 4100)
     kwargs = {'xslice': xslice, 'yslice': yslice,
               'filter_width': 20}
+
+    if not filters_are_homed():
+        print('homing filters')
+        time.sleep(1)
+        while not filters_are_homed():
+            time.sleep(1)
 
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
