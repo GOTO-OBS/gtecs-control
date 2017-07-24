@@ -12,17 +12,34 @@
 from __future__ import absolute_import
 from astropy.time import Time
 import json
+import time
 import copy
 from six import iteritems
 # TeCS modules
 from . import params
 
+
+def load_json(fname):
+    attemps_remaining = 3
+    while attemps_remaining:
+        try:
+            with open(fname, 'r') as fh:
+                data_dict = json.load(fh)
+            assert(len(data_dict) != 0)
+            break
+        except:
+            time.sleep(0.001)
+            attemps_remaining -= 1
+            pass
+    if attemps_remaining:
+        return data_dict
+    else:
+        raise IOError('cannot read {}'.format(fname))
+
+
 class Conditions:
     def __init__(self):
-        with open(params.CONFIG_PATH + 'conditions_flags', 'r') as fh:
-            # we will use JSON to store conditions, since it's easier
-            # to write and parse than the pt5m format
-            conditions_dict = json.load(fh)
+        conditions_dict = load_json(params.CONFIG_PATH + 'conditions_flags')
 
         # store update time and remove from dictionary
         update_time = int(Time(conditions_dict['update_time']).unix)
@@ -36,13 +53,18 @@ class Conditions:
         self.update_time = update_time
 
         # and the summary
-        self.summary = 0 # sum of flags, excluding dark
+        self.summary = 0  # sum of flags, excluding dark
         for key, value in iteritems(conditions_dict):
             if key != 'dark':
                 self.summary += value
 
     def age(self):
         return int(Time.now().unix - self.update_time)
+
+    def __repr__(self):
+        class_name = type(self).__name__
+        repr_str = ', '.join(['='.join((k, str(v))) for k, v in self.__dict__.items()])
+        return '{}({})'.format(class_name, repr_str)
 
     @property
     def bad(self):
@@ -57,9 +79,13 @@ class Conditions:
             tooOld = 0
         return self.summary + tooOld
 
+
 class Overrides:
     def __init__(self):
-        with open(params.CONFIG_PATH + 'overrides_flags','r') as fh:
-            data = json.load(fh)
+        data = load_json(params.CONFIG_PATH + 'overrides_flags')
         self.__dict__ = copy.copy(data)
 
+    def __repr__(self):
+        class_name = type(self).__name__
+        repr_str = ', '.join(['='.join((k, str(v))) for k, v in self.__dict__.items()])
+        return '{}({})'.format(class_name, repr_str)
