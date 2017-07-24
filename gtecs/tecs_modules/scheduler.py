@@ -654,7 +654,7 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    GOTO = Observer.at_site('lapalma')
+    GOTO = Observer(astronomy.obseratory_location())
 
     pointings = import_pointings_from_database(time, GOTO)
 
