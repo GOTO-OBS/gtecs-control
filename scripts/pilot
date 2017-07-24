@@ -249,7 +249,7 @@ class Pilot:
                 None, scheduler.check_queue, *scheduler_args
             )
             if self.newMinTime is not None:
-                self.newMinTime = int(self.newMinTime.value)
+                self.newMinTime = int(self.newMinTime)
             self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
