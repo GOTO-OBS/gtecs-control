@@ -54,7 +54,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if sys.argv[1].upper() == 'EVE':
         eve = True
-        alt = -5*u.deg
+        alt = -3*u.deg
     else:
         eve = False
         alt = -5.5*u.deg
@@ -90,12 +90,12 @@ if __name__ == "__main__":
 
     # set exposure order and check for sky brightness
     if eve:
-        expT = 5.0
+        expT = 3.0
         filt_order = ['B', 'G', 'R', 'L']
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 5.0
+        expT = 10.0
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
         skyMeanCheck = lambda x: x < 25000.0
