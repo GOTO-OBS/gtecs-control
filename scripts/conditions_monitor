@@ -147,6 +147,7 @@ def get_ing_weather_html():
         wind_now = -999
         humidity_now = -999
         temp_now = -999
+        dry = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
 
@@ -271,6 +272,7 @@ def get_ing_weather_xml(weather_source):
         wind_now = -999
         humidity_now = -999
         temp_now = -999
+        dry = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
 
