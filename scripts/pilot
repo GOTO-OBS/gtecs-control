@@ -714,14 +714,21 @@ class Pilot:
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-t', '--test', action="store_true", default=False)
+    parser.add_argument('-r', '--restart', action="store_true", default=False)
+    args = parser.parse_args()
+
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
-    pilot = Pilot(testing=False)
+    pilot = Pilot(testing=args.testing)
     pilot.assignJobs()
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
-        asyncio.ensure_future(pilot.nightMarshall()),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
