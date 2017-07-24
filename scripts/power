@@ -138,7 +138,8 @@ def print_info_s(info):
             outlet_name = '({}):'.format(outlet)
             outlet_no = names.index(outlet) + 1
             outlet_status = status[outlet]
-            print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
+            if outlet[0] != '_':
+                print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
