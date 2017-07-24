@@ -43,7 +43,8 @@ def take_frame(expT, current_filter, name):
         expT, current_filter, name
     ))
     time.sleep(0.1)
-    wait_for_exposure_queue()
+    wait_time = 1.5*(expT + 30)
+    wait_for_exposure_queue(wait_time)
     time.sleep(0.1)
     fnames = last_written_image()
     return fnames

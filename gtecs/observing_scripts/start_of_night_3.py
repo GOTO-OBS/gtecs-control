@@ -41,7 +41,10 @@ def run(nexp=5):
     cmd('exq multdark {} 120 1'.format(nexp))
     cmd('exq resume')  # just in case
 
-    wait_for_exposure_queue()
+    readout = 30*nexp
+    total_exp = 120*nexp
+    total_time = 1.5*(readout + total_exp)
+    wait_for_exposure_queue(total_time)
 
 if __name__ == "__main__":
     import sys
