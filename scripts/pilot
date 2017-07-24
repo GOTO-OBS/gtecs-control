@@ -28,6 +28,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt
+from gtecs.tecs_modules.observing import filters_are_homed
 from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
@@ -160,6 +161,11 @@ class Pilot:
 
         return True
 
+    async def homeFilters(self):
+        execute_command('filt home')
+        while not filters_are_homed():
+            asyncio.sleep(1)
+
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
         """
         Just pop jobs off a list and run them at correct sun_alt
@@ -203,6 +209,7 @@ class Pilot:
                                          respect_pause=False)
 
         # done the daytime jobs. Set flag to allow open dome
+        await self.homeFilters()
         await self.waitingForTheSun(0.5)
         self.ready_to_observe = True
         await self.open_dome()
