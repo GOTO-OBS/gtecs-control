@@ -670,14 +670,18 @@ class Pilot:
 
     def park_scope(self):
         self.log.warn('parking scope')
-        execute_command('mnt park')
+        if params.FREEZE_DEC:
+            execute_command('mnt stop')
+        else:
+            execute_command('mnt park')
         self.hardware['mnt'].setMode('parked')
 
     async def unpark_scope(self):
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] == 'Parked':
             self.log.warn('unparking scope')
-            execute_command('mnt unpark')
+            if not params.FREEZE_DEC:
+                execute_command('mnt unpark')
             await asyncio.sleep(5)
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] != 'Tracking':
