@@ -432,7 +432,7 @@ class Queue:
 
         priorities_now += too_arr * too_weight
         priorities_now += prob_arr * prob_weight
-        priorities_now += airmass_arr * airmass_weight
+        priorities_now += airmass_arr.value * airmass_weight
         priorities_now += tts_arr * tts_weight
 
         # check validities, add INVALID_PRIORITY to invalid pointings
