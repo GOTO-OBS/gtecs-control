@@ -176,7 +176,7 @@ class APCUPS:
         self.unit_type = 'UPS'
         self.IP_address = IP_address
         self.command_oids = {'STATUS':'4.1.1.0',
-                             'PERCENT':'2.2.1.0',
+                             'PERCENT':'2.3.1.0',
                              'TIME':'2.2.3.0',
                              'LOAD':'4.3.3.0'}
         self.statuses = {'1':'UNKNOWN',
@@ -221,7 +221,7 @@ class APCUPS:
     def percent_remaining(self):
         oid_arr = self._initialise_oid_array(self.command_oids['PERCENT'])
         out = self._snmpget(oid_arr)
-        percent = float(out)
+        percent = float(out)/10.
         return percent
 
     def time_remaining(self):
