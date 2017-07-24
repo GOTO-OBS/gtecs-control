@@ -96,22 +96,21 @@ def print_info(info):
         ip = params.POWER_UNITS[unit]['IP']
         print('UNIT {} ({})'.format(unit, ip))
         status = info['status_'+unit]
-        try:
-            names = params.POWER_UNITS[unit]['NAMES']
-            for outlet in names:
-                outlet_name = '({}):'.format(outlet)
-                outlet_no = names.index(outlet) + 1
-                outlet_status = status[outlet]
-                print('Outlet {} {: <10} {}'.format(outlet_no, outlet_name, outlet_status))
-        except:
+        if 'UPS' in unit:
             ups_status = status['status']
             ups_percent = status['percent']
             ups_time = status['time']
             ups_load = status['load']
             print('Status: {}'.format(ups_status))
-            print('Current load:      {}%'.format(ups_load))
-            print('Percent remaining: {}%'.format(ups_percent))
-            print('Time remaining:    {}s'.format(ups_time))
+            print('Current load:       {}%'.format(ups_load))
+            print('Percent remaining:  {}%'.format(ups_percent))
+            print('Time remaining:     {}s'.format(ups_time))
+        names = params.POWER_UNITS[unit]['NAMES']
+        for outlet in names:
+            outlet_name = '({}):'.format(outlet)
+            outlet_no = names.index(outlet) + 1
+            outlet_status = status[outlet]
+            print('Outlet {} {: <10} {}'.format(outlet_no, outlet_name, outlet_status))
         print('~~~~~~~')
 
     print('Uptime: %.1fs' %info['uptime'])
@@ -122,22 +121,31 @@ def print_info(info):
 def print_info_s(info):
     for unit in params.POWER_UNITS:
         ip = params.POWER_UNITS[unit]['IP']
-        print('{} ({})'.format(unit, ip))
         status = info['status_'+unit]
-        try:
+        if 'status' in status:
+            unit_status = status['status']
+            print('{} ({})       [{}]'.format(unit, ip, unit_status))
+        else:
+            print('{} ({})'.format(unit, ip))
+        if 'UPS' in unit:
+            ups_percent = status['percent']
+            ups_time = status['time']
+            ups_load = status['load']
+            print('   Load: {: >5}%'.format(ups_load))
+            print('   Remaining: {}% ({}s)'.format(ups_percent, ups_time))
             names = params.POWER_UNITS[unit]['NAMES']
             for outlet in names:
                 outlet_name = '({}):'.format(outlet)
                 outlet_no = names.index(outlet) + 1
                 outlet_status = status[outlet]
                 print('   Outlet {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
-        except:
-            ups_status = status['status']
-            ups_percent = status['percent']
-            ups_time = status['time']
-            ups_load = status['load']
-            print('   Load: {: >5}%'.format(ups_load))
-            print('   Remaining: {}% ({}s)   [{}]'.format(ups_percent, ups_time, ups_status))
+        else:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({}):'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet]
+                print('   Outlet {} {: <10} [{}]'.format(outlet_no, outlet_name, outlet_status))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
