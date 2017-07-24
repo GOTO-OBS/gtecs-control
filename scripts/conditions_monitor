@@ -11,7 +11,7 @@ from gtecs.tecs_modules import params
 # function to trap ctrl-c and exit cleanly by closing open files
 def signal_handler(signal, frame):
         print ('...ctrl+c detected - stopping the conditions monitor...')
-        f.close()        
+        f.close()
         sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -36,109 +36,116 @@ def get_sun_alt():
 def get_ing_weather_html():
     curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.html http://catserver.ing.iac.es/weather/"
     os.popen(curl_command)
-    f = open(monitor_folder+"weather.html", 'r',encoding='ISO-8859-1')
+    try:
+        f = open(monitor_folder+"weather.html", 'r',encoding='ISO-8859-1')
 
-    deltat_set = 1 # these _set variables added to make function more robust to 
-    temp_set = 1   # changes/errors in the ING weather page
-    pressure_set = 1
-    wind_set = 1
-    winddir_set = 1
-    windgust_set = 1
-    humidity_set = 1
-    rain_set = 1
+        deltat_set = 1 # these _set variables added to make function more robust to
+        temp_set = 1   # changes/errors in the ING weather page
+        pressure_set = 1
+        wind_set = 1
+        winddir_set = 1
+        windgust_set = 1
+        humidity_set = 1
+        rain_set = 1
 
-    for line in f:
-        html_stripped = remove_html_tags(line)
-        columns = html_stripped.split()
-        if not columns:
-            continue
-        if columns[0].split(":")[0] == 'Temperature':
-            try:
-                temp_now = float(columns[0].split(":")[1])
-                temp_set = 0
-            except:
-                temp_set = 1
-        elif columns[0].split(":")[0] == 'Pressure':
-            try:
-                pressure = float(columns[0].split(":")[1])
-                pressure_set = 0
-            except:
-                pressure_set = 1
-        elif columns[0].split(":")[0] == 'Wind':
-            try:
-                if columns[1].split(":")[0] == 'Speed':
-                    #wind_now = float(columns[1].split(":")[1])        #old version - gives speed in km/h
-                    wind_now = float(columns[1].split(":")[1]) / 3.6   #convert from km/h to m/s
-                    wind_set = 0
-            except:
-                wind_set = 1
-            try:
-                if columns[1].split(":")[0] == 'Direction':
-                    winddir = float(columns[1].split(":")[1])
-                    winddir_set = 0
-            except:
-                winddir_set = 1
-            try:
-                if columns[1].split(":")[0] == 'Gust':
-                    windgust = float(columns[1].split(":")[1]) / 3.6
-                    windgust_set = 0
-            except:
-                windgust_set = 1
-        elif columns[0].split(":")[0] == 'Humidity':
-            try:
-                humidity_now = float(columns[0].split(":")[1])
-                humidity_set = 0
-            except:
-                humidity_set = 1
-        elif columns[0].split(":")[0] == 'Rain':
-            try:
-                rain = columns[0].split(":")[1]
-                if rain == "DRY":
-                    dry = 0
-                elif rain == "WET":
-                    dry = 1
-                else:
-                    dry = 2
-                rain_set = 0
-            except:
-                rain_set = 1
-        elif len(columns) == 3:
-                if columns[2].split(":")[0] == 'UT':
-                        try:
-                                update = time.strptime(columns[0] + columns[1] + "GMT","%Y/%m/%d%H:%M%Z")
-                                deltat = time.mktime(now)-time.mktime(update)
-                                deltat_set = 0
-                        except:
-                                deltat_set = 1
+        for line in f:
+            html_stripped = remove_html_tags(line)
+            columns = html_stripped.split()
+            if not columns:
+                continue
+            if columns[0].split(":")[0] == 'Temperature':
+                try:
+                    temp_now = float(columns[0].split(":")[1])
+                    temp_set = 0
+                except:
+                    temp_set = 1
+            elif columns[0].split(":")[0] == 'Pressure':
+                try:
+                    pressure = float(columns[0].split(":")[1])
+                    pressure_set = 0
+                except:
+                    pressure_set = 1
+            elif columns[0].split(":")[0] == 'Wind':
+                try:
+                    if columns[1].split(":")[0] == 'Speed':
+                        #wind_now = float(columns[1].split(":")[1])        #old version - gives speed in km/h
+                        wind_now = float(columns[1].split(":")[1]) / 3.6   #convert from km/h to m/s
+                        wind_set = 0
+                except:
+                    wind_set = 1
+                try:
+                    if columns[1].split(":")[0] == 'Direction':
+                        winddir = float(columns[1].split(":")[1])
+                        winddir_set = 0
+                except:
+                    winddir_set = 1
+                try:
+                    if columns[1].split(":")[0] == 'Gust':
+                        windgust = float(columns[1].split(":")[1]) / 3.6
+                        windgust_set = 0
+                except:
+                    windgust_set = 1
+            elif columns[0].split(":")[0] == 'Humidity':
+                try:
+                    humidity_now = float(columns[0].split(":")[1])
+                    humidity_set = 0
+                except:
+                    humidity_set = 1
+            elif columns[0].split(":")[0] == 'Rain':
+                try:
+                    rain = columns[0].split(":")[1]
+                    if rain == "DRY":
+                        dry = 0
+                    elif rain == "WET":
+                        dry = 1
+                    else:
+                        dry = 2
+                    rain_set = 0
+                except:
+                    rain_set = 1
+            elif len(columns) == 3:
+                    if columns[2].split(":")[0] == 'UT':
+                            try:
+                                    update = time.strptime(columns[0] + columns[1] + "GMT","%Y/%m/%d%H:%M%Z")
+                                    deltat = time.mktime(now)-time.mktime(update)
+                                    deltat_set = 0
+                            except:
+                                    deltat_set = 1
 
-    if deltat_set == 1:
+        if deltat_set == 1:
+                deltat = -999
+        if temp_set == 1:
+                temp_now = -999
+        if pressure_set == 1:
+                pressure = -999
+        if wind_set == 1:
+                wind_now = -999
+        if winddir_set == 1:
+                winddir = -999
+        if windgust_set == 1:
+                windgust = -999
+        if humidity_set == 1:
+                humidity_now = -999
+        if rain_set == 1:
+                dry = 2
+
+        if deltat < -999:    # add some checks to pick up weird negative numbers being returned by the ING weather system
             deltat = -999
-    if temp_set == 1:
-            temp_now = -999
-    if pressure_set == 1:
-            pressure = -999
-    if wind_set == 1:
-            wind_now = -999
-    if winddir_set == 1:
+        if winddir < -999:
             winddir = -999
-    if windgust_set == 1:
+        if wind_now < -999:
+            wind_now = -999
+        if windgust < -999:
             windgust = -999
-    if humidity_set == 1:
+        if humidity_now < -999:
             humidity_now = -999
-    if rain_set == 1:
-            dry = 2
-
-    if deltat < -999:    # add some checks to pick up weird negative numbers being returned by the ING weather system
+        if temp_now < -999:
+            temp_now = -999
+    except:
         deltat = -999
-    if winddir < -999:
         winddir = -999
-    if wind_now < -999:
         wind_now = -999
-    if windgust < -999:
-        windgust = -999
-    if humidity_now < -999:
         humidity_now = -999
-    if temp_now < -999:
         temp_now = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
@@ -148,114 +155,121 @@ def get_ing_weather_xml(weather_source):
 
     if weather_source == 'wht':
         # WHT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
     elif weather_source == 'int':
         # INT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml" 
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
     elif weather_source == 'jkt':
         # JKT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml" 
+        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
 
-    os.popen(curl_command)
-    f = open(monitor_folder+"weather.xml", 'r')
+    try:
+        os.popen(curl_command)
+        f = open(monitor_folder+"weather.xml", 'r')
 
-    deltat_set = 1 # these _set variables added to make function more robust to 
-    temp_set = 1   # changes/errors in the ING weather page
-    pressure_set = 1
-    wind_set = 1
-    winddir_set = 1
-    windgust_set = 1
-    humidity_set = 1
-    rain_set = 1
+        deltat_set = 1 # these _set variables added to make function more robust to
+        temp_set = 1   # changes/errors in the ING weather page
+        pressure_set = 1
+        wind_set = 1
+        winddir_set = 1
+        windgust_set = 1
+        humidity_set = 1
+        rain_set = 1
 
-    for line in f:
-        columns = line.split()
-        try:
-            label = columns[1].split("\"")[1].split(".")[2] 
-        except:
-            continue
-        if label == 'date':
+        for line in f:
+            columns = line.split()
             try:
-                update = float(columns[2].split("\"")[1])
-                deltat = time.mktime(now)-update
-                deltat_set = 0
+                label = columns[1].split("\"")[1].split(".")[2]
             except:
-                deltat_set = 1
-        elif label == 'LocalMastAirTemp' or label == 'MainMastAirTemp':
-            try:
-                temp_now = float(columns[2].split("\"")[1])
-                temp_set = 0
-            except:
-                temp_set = 1
-        elif label == 'LocalMastPressure' or label == 'MainMastPressure':
-            try:
-                pressure = float(columns[2].split("\"")[1])
-                pressure_set = 0
-            except:
-                pressure_set = 1
-        elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
-            try:
-                wind_now = float(columns[2].split("\"")[1]) / 3.6   #convert from km/h to m/s
-                wind_set = 0
-            except:
-                wind_set = 1
-        elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
-            try:
-                winddir = float(columns[2].split("\"")[1])
-                winddir_set = 0
-            except:
-                winddir_set = 1
-        elif label == 'LocalMastGust' or label == 'MainMastGust':
-            try:
-                windgust = float(columns[2].split("\"")[1]) / 3.6
-                windgust_set = 0
-            except:
-                windgust_set = 1
-        elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
-            try:
-                humidity_now = float(columns[2].split("\"")[1])
-                humidity_set = 0
-            except:
-                humidity_set = 1
-        elif label == 'LocalMastWetness' or label == 'MainMastWetness':
-            try:
-                rain = float(columns[2].split("\"")[1])
-                if rain <= 0.:
-                    dry = 0
-                elif rain >= 1.:
-                    dry = 1
-                else:
-                    dry = 2
-                rain_set = 0
-            except:
-                rain_set = 1
+                continue
+            if label == 'date':
+                try:
+                    update = float(columns[2].split("\"")[1])
+                    deltat = time.mktime(now)-update
+                    deltat_set = 0
+                except:
+                    deltat_set = 1
+            elif label == 'LocalMastAirTemp' or label == 'MainMastAirTemp':
+                try:
+                    temp_now = float(columns[2].split("\"")[1])
+                    temp_set = 0
+                except:
+                    temp_set = 1
+            elif label == 'LocalMastPressure' or label == 'MainMastPressure':
+                try:
+                    pressure = float(columns[2].split("\"")[1])
+                    pressure_set = 0
+                except:
+                    pressure_set = 1
+            elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
+                try:
+                    wind_now = float(columns[2].split("\"")[1]) / 3.6   #convert from km/h to m/s
+                    wind_set = 0
+                except:
+                    wind_set = 1
+            elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
+                try:
+                    winddir = float(columns[2].split("\"")[1])
+                    winddir_set = 0
+                except:
+                    winddir_set = 1
+            elif label == 'LocalMastGust' or label == 'MainMastGust':
+                try:
+                    windgust = float(columns[2].split("\"")[1]) / 3.6
+                    windgust_set = 0
+                except:
+                    windgust_set = 1
+            elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
+                try:
+                    humidity_now = float(columns[2].split("\"")[1])
+                    humidity_set = 0
+                except:
+                    humidity_set = 1
+            elif label == 'LocalMastWetness' or label == 'MainMastWetness':
+                try:
+                    rain = float(columns[2].split("\"")[1])
+                    if rain <= 0.:
+                        dry = 0
+                    elif rain >= 1.:
+                        dry = 1
+                    else:
+                        dry = 2
+                    rain_set = 0
+                except:
+                    rain_set = 1
 
-    if deltat_set == 1:
+        if deltat_set == 1:
+                deltat = -999
+        if temp_set == 1:
+                temp_now = -999
+        if pressure_set == 1:
+                pressure = -999
+        if wind_set == 1:
+                wind_now = -999
+        if winddir_set == 1:
+                winddir = -999
+        if windgust_set == 1:
+                windgust = -999
+        if humidity_set == 1:
+                humidity_now = -999
+        if rain_set == 1:
+                dry = 2
+
+        if deltat < -999:     # add some checks to pick up weird negative numbers being returned by the ING weather system
             deltat = -999
-    if temp_set == 1:
-            temp_now = -999
-    if pressure_set == 1:
-            pressure = -999
-    if wind_set == 1:
-            wind_now = -999
-    if winddir_set == 1:
+        if winddir < -999:
             winddir = -999
-    if windgust_set == 1:
-            windgust = -999
-    if humidity_set == 1:
+        if wind_now < -999:
+            wind_now = -999
+        if humidity_now < -999:
             humidity_now = -999
-    if rain_set == 1:
-            dry = 2
-
-    if deltat < -999:     # add some checks to pick up weird negative numbers being returned by the ING weather system
+        if temp_now < -999:
+            temp_now = -999
+    except:
         deltat = -999
-    if winddir < -999:
         winddir = -999
-    if wind_now < -999:
         wind_now = -999
-    if humidity_now < -999:
         humidity_now = -999
-    if temp_now < -999:
         temp_now = -999
 
     return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
@@ -265,7 +279,7 @@ def remove_html_tags(data):
     p = re.compile(r'<.*?>')
     return p.sub('', data)
 
-# function to check the connection between GOTO dome NUC and the GOTO head 
+# function to check the connection between GOTO dome NUC and the GOTO head
 # (the server in Warwick)
 def checkWarwickConnection():
     link=os.popen('ping -c 3 ngtshead.warwick.ac.uk | grep "ttl="').read()
@@ -297,18 +311,18 @@ def ThereCanOnlyBeOne():
 
 # def SendStartupEmail():
 #     recipients=['timothy.butterley@durham.ac.uk','vik.dhillon@sheffield.ac.uk']
-#     fromaddr = 'pt5m.lapalma@gmail.com'  
-#     msg = 'conditions_monitor.py started on ron: '+time.strftime('%Y-%m-%d %H:%M:%S\n', time.gmtime()) 
+#     fromaddr = 'pt5m.lapalma@gmail.com'
+#     msg = 'conditions_monitor.py started on ron: '+time.strftime('%Y-%m-%d %H:%M:%S\n', time.gmtime())
 #     # Credentials
 #     username = 'pt5m.lapalma@gmail.com'
 #     password = 'lp!slodar'
-#     
+#
 #     # The actual mail send
 #     for toaddrs in recipients:
-#         server = smtplib.SMTP('smtp.gmail.com:587')  
-#         server.starttls()  
-#         server.login(username,password)  
-#         server.sendmail(fromaddr, toaddrs, msg)  
+#         server = smtplib.SMTP('smtp.gmail.com:587')
+#         server.starttls()
+#         server.login(username,password)
+#         server.sendmail(fromaddr, toaddrs, msg)
 #         server.quit()
 #         print 'Sent mail to',toaddrs
 
@@ -316,7 +330,7 @@ def ThereCanOnlyBeOne():
 #    # Message
 #    recipients = ['timothy.butterley@durham.ac.uk','vik.dhillon@sheffield.ac.uk']
 #    toaddrs = ', '.join( recipients )
-#    fromaddr = 'pt5m.lapalma@gmail.com'  
+#    fromaddr = 'pt5m.lapalma@gmail.com'
 #    subject = 'pt5m: conditions monitor'
 #    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (toaddrs,fromaddr,subject)
 #    msg = 'conditions_monitor.py started on ron: '+time.strftime('%Y-%m-%d %H:%M:%S\n', time.gmtime())
@@ -324,12 +338,12 @@ def ThereCanOnlyBeOne():
 #    # Credentials
 #    username = 'pt5m.lapalma@gmail.com'
 #    password = 'lp!slodar'
-#    
+#
 #    # The actual mail send
-#    server = smtplib.SMTP('smtp.gmail.com:587')  
-#    server.starttls()  
-#    server.login(username,password)  
-#    server.sendmail(fromaddr, recipients, header + '\n' + msg + '\n\n')  
+#    server = smtplib.SMTP('smtp.gmail.com:587')
+#    server.starttls()
+#    server.login(username,password)
+#    server.sendmail(fromaddr, recipients, header + '\n' + msg + '\n\n')
 #    server.quit()
 #    print 'Sent mail to',recipients
 
@@ -367,7 +381,7 @@ warwick_interval_open = params.WARWICK_OPEN                          # max time 
 # longitude east = +ve
 
 goto = ephem.Observer()
-goto.lat = str(params.SITE_LATITUDE)     
+goto.lat = str(params.SITE_LATITUDE)
 goto.long = str(params.SITE_LONGITUDE)
 goto.elevation = params.SITE_ALTITUDE
 
@@ -488,7 +502,7 @@ while True:
             humidity = 0
     else:
         humidity = 2
- 
+
     if temp_now == -999:
         temp = 2
     elif temp_now < min_temp_limit:
@@ -511,7 +525,7 @@ while True:
         wind = 2
         humidity = 2
         temp = 2
-    
+
     if dome_status == 0:
         if dt >= warwick_interval_closed:
             link = 1
@@ -542,7 +556,7 @@ while True:
         wind = 2
         humidity = 2
         temp = 2
-                        
+
 # now write all the values to the conditions flags file in JSON format
 
     time_flag = time.strftime('%Y-%m-%d %H:%M:%S', now)
