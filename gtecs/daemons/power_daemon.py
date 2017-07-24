@@ -122,7 +122,8 @@ class PowerDaemon(HardwareDaemon):
                             status = power.status()
                             percent_remaining = power.percent_remaining()
                             time_remaining = power.time_remaining()
-                            self.power_status[unit] = (status, percent_remaining, time_remaining)
+                            load = power.load()
+                            self.power_status[unit] = (status, percent_remaining, time_remaining, load)
                         except:
                             self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
                             self.logfile.debug('', exc_info=True)
@@ -151,12 +152,13 @@ class PowerDaemon(HardwareDaemon):
                             else:
                                 info['status_'+unit][names[i]] = 'ERROR'
                     elif power.unit_type == 'UPS':
-                        status, percent_remaining, time_remaining = self.power_status[unit]
+                        status, percent_remaining, time_remaining, load = self.power_status[unit]
 
                         info['status_'+unit] = {}
                         info['status_'+unit]['status'] = status
                         info['status_'+unit]['percent'] = percent_remaining
                         info['status_'+unit]['time'] = time_remaining
+                        info['status_'+unit]['load'] = load
 
                 info['uptime'] = time.time() - self.start_time
                 info['ping'] = time.time() - self.time_check
