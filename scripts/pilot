@@ -256,6 +256,11 @@ class Pilot:
         # monitor until stopped
         sleepTime = 60
         while True:
+            if self.overrides.robotic:
+                self.log.info('hardware checks suspended in manual mode')
+                await asyncio.sleep(sleepTime)
+                continue
+
             errCount = 0
             self.log.info('running hardware checks')
             log_str = 'hardware check results: '
