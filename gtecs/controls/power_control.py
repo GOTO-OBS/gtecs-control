@@ -177,7 +177,8 @@ class APCUPS:
         self.IP_address = IP_address
         self.command_oids = {'STATUS':'4.1.1.0',
                              'PERCENT':'2.2.1.0',
-                             'TIME':'2.2.3.0'}
+                             'TIME':'2.2.3.0',
+                             'LOAD':'4.3.3.0'}
         self.statuses = {'1':'UNKNOWN',
                          '2':'Normal',
                          '3':'ON BATTERY',
@@ -229,6 +230,12 @@ class APCUPS:
         hms = out.split(':')
         seconds = int(hms[0])*3600 + int(hms[1])*60 + float(hms[2])
         return seconds
+
+    def load(self):
+        oid_arr = self._initialise_oid_array(self.command_oids['LOAD'])
+        out = self._snmpget(oid_arr)
+        percent = float(out)/10.
+        return percent
 
 ########################################################################
 # Ethernet relay power class (for ETH8020, 20 ports)
