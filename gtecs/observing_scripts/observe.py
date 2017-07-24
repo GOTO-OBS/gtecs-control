@@ -57,10 +57,10 @@ if __name__ == "__main__":
     closer = Closer(pID, pID)
 
     if not filters_are_homed():
-    print('homing filters')
-    time.sleep(1)
-    while not filters_are_homed():
+        print('homing filters')
         time.sleep(1)
+        while not filters_are_homed():
+            time.sleep(1)
 
     print('Observing pointingID: ', pID)
 
