@@ -159,7 +159,7 @@ class DomeMonitor(HardwareMonitor):
     def _check(self, obsMode=None):
         if obsMode == 'open' and self.info['dome'] != 'open':
             self.errors.append('Dome closed')
-        elif obsMode is None:
+        elif obsMode is None and self.info['dome'] == 'open':
             self.errors.append('Dome open')
 
     def setMode(self, mode):
