@@ -184,6 +184,9 @@ class MountMonitor(HardwareMonitor):
         if obsMode == 'tracking':
             if (self.info['target_dist'] is None or float(self.info['target_dist']) > 0.00056 or self.info['status'] != 'Tracking'):
                 self.errors.append('Not on target')
+        elif obsMode == 'parked' and params.FREEZE_DEC:
+            if self.info['status'] != 'Stopped':
+                self.errors.append('Not parked')
         elif obsMode == 'parked':
             if self.info['status'] != 'Parked':
                 self.errors.append('Not parked')
@@ -204,9 +207,9 @@ class MountMonitor(HardwareMonitor):
             self.recoveryProcedure[8] = [360., 'mnt track']
         else:
             self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [60., 'mnt park']
-            self.recoveryProcedure[2] = [120., 'mnt park']
-            self.recoveryProcedure[3] = [180., 'mnt park']
+            self.recoveryProcedure[1] = [60., 'mnt stop']
+            self.recoveryProcedure[2] = [120., 'mnt stop']
+            self.recoveryProcedure[3] = [180., 'mnt stop']
             self.recoveryProcedure[4] = [360., 'mnt stop']
         return val
 
