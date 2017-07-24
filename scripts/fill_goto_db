@@ -79,7 +79,7 @@ with db.open_session() as session:
 # add first batch of pointings
 with db.open_session() as session:
     unscheduled_mps = session.query(db.Mpointing).filter(
-        db.Mpointing.scheduled is not True).options(joinedload('repeats')).all()
+        db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
 
     print('creating pointings')
     start = time.time()
