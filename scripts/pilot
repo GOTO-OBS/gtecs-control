@@ -383,11 +383,11 @@ class Pilot:
             # OK, we can resume
             self.log.warn('resuming operations')
             if self.ready_to_observe:
-                await self.unpark_scope()
                 if not self.domeOpen:
                     # this way we don't
                     # start until the dome is open
                     await self.open_dome()
+                await self.unpark_scope()
                 execute_command('exq resume')
 
         # finally, change global pause status by updating flag
