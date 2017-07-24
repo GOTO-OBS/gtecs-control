@@ -149,13 +149,14 @@ class Pilot:
 
         our_watch_has_ended = False
         while not our_watch_has_ended:
+            await asyncio.sleep(60)
             sun_alt_now = sun_alt(Time.now())
             self.log.info('waiting: sun altitude = {}'.format(sun_alt_now))
             if rising:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
                 our_watch_has_ended = sun_alt_now < sunAlt
-            await asyncio.sleep(60)
+
         return True
 
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
@@ -690,10 +691,12 @@ class Pilot:
             if not params.FREEZE_DEC:
                 execute_command('mnt unpark')
             await asyncio.sleep(5)
+
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] != 'Tracking':
             execute_command('mnt track')
             await asyncio.sleep(2)
+
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
