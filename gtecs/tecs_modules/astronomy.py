@@ -94,7 +94,7 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
 
     # calculate Greenwich Apparent Solar Time, which we will use as ~UTC for now
     good_mask = ~np.isnan(LST)
-    solarTime = LST[good_mask] - raSun + 12*u.hourangle - location.longitude
+    solarTime = LST[good_mask] - raSun + 12*u.hourangle - location.lon
 
     # assume this is on the same day as supplied time, and fix later
     first_guess = Time(
@@ -157,7 +157,7 @@ def _rise_set_trig(t, target, location, prev_next, rise_set):
         Time of rise/set
     """
     dec = target.transform_to(GCRS).dec
-    cosHA = -np.tan(dec)*np.tan(location.latitude.radian)
+    cosHA = -np.tan(dec)*np.tan(location.lat.radian)
     # find the absolute value of the hour Angle
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

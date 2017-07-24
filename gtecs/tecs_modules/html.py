@@ -207,7 +207,7 @@ def write_queue_page():
         f.write('LST: ')
         import warnings
         warnings.simplefilter("ignore", UnicodeWarning)
-        LST = time.sidereal_time('mean', longitude=GOTO.location.longitude)
+        LST = time.sidereal_time('mean', longitude=GOTO.location.lon)
         f.write(LST.to_string(sep=':', precision=2))
 
         f.write('  SunAlt: ')
