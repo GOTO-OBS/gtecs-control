@@ -69,7 +69,6 @@ if __name__ == "__main__":
         print('Adding commands to exposure queue')
         exq_command_list = get_exq_commands(pID)
         for exq_command in exq_command_list:
-            print(exq_command)
             cmd(exq_command)
 
         # wait for telescope (timeout 480s)
