@@ -49,9 +49,9 @@ horizon_file = params.CONFIG_PATH + 'horizon'
 # priority settings
 too_weight = 0.1
 prob_dp = 3
-prob_weight = 0.1
+prob_weight = 0.01
 airmass_dp = 5
-airmass_weight = 0.00001
+airmass_weight = 0.001
 tts_dp = 5
 tts_weight = 0.00001
 
