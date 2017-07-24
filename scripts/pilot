@@ -392,6 +392,11 @@ class Pilot:
         Be extra cautious and double check that dome is closed if it should be
         """
         while True:
+            if self.overrides.robotic:
+                self.log.info('dome checks suspended in manual mode')
+                await asyncio.sleep(10)
+                continue
+
             if not self.domeOpen and not self.domeConfirmedClosed:
                 dome_info = self.hardware['dome'].getInfo()
                 if dome_info['dome'] == 'closed':
@@ -540,7 +545,7 @@ class Pilot:
         # done
         return retcode
 
-    async def waitForNightsEnd(self, stopTime, sleepTime=120):
+    async def waitForNightsEnd(self, stopTime, sleepTime=20):
         """
         Function returns when night is done.
 
@@ -561,7 +566,11 @@ class Pilot:
         while Time.now() < stopTime:
             status_str = Time.now().iso
             if self.paused:
-                status_str += " (paused)"
+                status_str += " (paused, "
+            if self.domeOpen:
+                status_str += " dome open)"
+            else:
+                status_str += " dome closed)"
             self.log.info(status_str)
             if self.paused:
                 self.log.info(self.whypause)
