@@ -575,9 +575,9 @@ class Pilot:
         # start the process and get transport and protocol for control of it
         self.runningScriptTransport, self.runningScriptProtocol = await proc
         # process started, await completion
-        retcode = await self.runningScriptResult
+        retcode, result = await self.runningScriptResult
         # done
-        return retcode
+        return retcode, result
 
     async def waitForNightsEnd(self, stopTime, sleepTime=120):
         """
@@ -675,14 +675,14 @@ class Pilot:
         # power off
         self.log.warn('powering off hardware')
         cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
-        retcode = await self.startScript('EON', SimpleProtocol, cmd)
+        retcode, result = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('EON ended abnormally')
 
         # shutdown daemons
         self.log.warn('stopping daemons')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode = await self.startScript('DAE', SimpleProtocol, cmd)
+        retcode, result = await self.startScript('DAE', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('DAE ended abnormally')
 
