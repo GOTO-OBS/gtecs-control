@@ -119,12 +119,10 @@ class DomeDaemon(HardwareDaemon):
             # check warnings
             if(self.check_warnings_flag):
                 # WARNING 1: ON UPS POWER
-                # ping the power sources
-                #pinglist = ['power1', 'power2', 'power3', 'scope', 'video', 'reg']
-                #self.power_status = misc.check_hosts(pinglist)
-                #if self.power_status:
-                #    self.logfile.info('No external power')
-                #    os.system('touch ' + str(params.EMERGENCY_FILE))
+                power = flags.Power()
+                if power.failed:
+                    self.logfile.info('No external power')
+                    os.system('touch ' + str(params.EMERGENCY_FILE))
 
                 # WARNING 2: WEATHER
                 # check any external flags
@@ -349,12 +347,12 @@ class DomeDaemon(HardwareDaemon):
         time.sleep(0.1)
         return self.info
 
-    def open_dome(self,side='both',frac=1):
+    def open_dome(self, side='both', frac=1):
         """Open the dome"""
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
             return 'ERROR: Conditions bad, dome will not open'
-        #elif self.power_status:
-        #    return 'ERROR: No external power, dome will not open'
+        elif flags.Power().failed:
+            return 'ERROR: No external power, dome will not open'
         elif os.path.isfile(params.EMERGENCY_FILE):
             return 'ERROR: In emergency locked state, dome will not open'
         else:

@@ -140,7 +140,7 @@ class APCPDU:
         command_oid_arr = []
         for oid in oid_arr:
             command_oid_arr += [oid, 'i', value]
-        command = [snmpset, '-v', '1', '-c', 'public', IP] + command_oid_arr
+        command = [snmpset, '-v', '1', '-c', 'private', IP] + command_oid_arr
         output = subprocess.check_output(command).decode('ascii').split('\n')
         status = ''
         for i in range(len(output)-1):

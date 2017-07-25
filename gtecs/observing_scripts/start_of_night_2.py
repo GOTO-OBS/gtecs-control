@@ -15,14 +15,25 @@ from astropy import units as u
 from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.tecs_modules.astronomy import find_lst
 from gtecs.tecs_modules.observing import wait_for_telescope, goto
+from gtecs.tecs_modules import params
 
 
 def run():
     print('Start of Night Phase 2')
-    print('Moving telescope to safe position')
 
-    # cmd('mnt park')
-    # cannot park while dec motor is broken
+    # clean up persistent queue from previous night
+    cmd('exq clear')
+    time.sleep(1)
+    cmd('exq resume')
+
+    # home the wheels
+    cmd('filt home')
+
+    print('Moving telescope to safe position')
+    if params.FREEZE_DEC:
+        cmd('mnt stop')
+    else:
+        cmd('mnt park')
 
     time.sleep(5)
     cmd('mnt info')

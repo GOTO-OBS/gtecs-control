@@ -20,7 +20,13 @@ def run():
         cmd('power off foc{}'.format(tel))
         cmd('power off cam{}'.format(tel))
 
-    cmd('mnt park')
+    if params.FREEZE_DEC:
+        cmd('mnt stop')
+    else:
+        cmd('mnt park')
+
+    # give time before returning
+    time.sleep(60)
 
 
 if __name__ == "__main__":
