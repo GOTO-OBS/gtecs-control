@@ -641,21 +641,26 @@ class Pilot:
         Close any running jobs and exit
         """
         # if we have external subprocess running, stop it
+        self.log.warn('cancelling running scripts')
         await self.cancelRunningScript()
 
         # park the scope
+        self.log.warn('parking')
         self.park_scope()
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
         # EMAIL IF DOME WON'T CLOSE
+        self.log.warn('making sure dome is closed')
         await self.reallyReallyCloseDome()
 
         # if we have external subprocess running, stop it
+        self.log.warn('cancelling running scripts again')
         await self.cancelRunningScript()
 
         # close any running tasks
         for future in self.running_tasks:
+            self.log.warn('cancelling future {!r}'.format(future))
             future.cancel()
 
     async def emergency_shutdown(self):
@@ -664,19 +669,24 @@ class Pilot:
 
         Power off, shutdown daemons and exit Pilot
         """
+        self.log.warn('performing emergency shutdown')
         await self.shutdown()
 
-        # park scope and power off
+        # shutdown daemons
+        self.log.warn('stopping daemons')
+        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
+        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('DAE ended abnormally')
+
+        # power off
+        self.log.warn('powering off hardware'
         cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
         retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('EON ended abnormally')
 
-        # shutdown daemons
-        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('DAE ended abnormally')
+
 
 
     async def open_dome(self):
