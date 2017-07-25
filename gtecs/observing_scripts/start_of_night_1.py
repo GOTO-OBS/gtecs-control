@@ -28,14 +28,6 @@ def run():
     cmd('power on sitech')
     time.sleep(5)
 
-    # clean up persistent queue from previous night
-    cmd('exq clear')
-    time.sleep(1)
-    cmd('exq resume')
-
-    # home the wheels
-    cmd('filt home')
-
 
 if __name__ == "__main__":
     run()

@@ -19,8 +19,16 @@ from gtecs.tecs_modules.observing import wait_for_telescope, goto
 
 def run():
     print('Start of Night Phase 2')
-    print('Moving telescope to safe position')
 
+    # clean up persistent queue from previous night
+    cmd('exq clear')
+    time.sleep(1)
+    cmd('exq resume')
+
+    # home the wheels
+    cmd('filt home')
+
+    print('Moving telescope to safe position')
     # cmd('mnt park')
     # cannot park while dec motor is broken
 
