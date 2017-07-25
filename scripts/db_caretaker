@@ -11,9 +11,22 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import sys
+import os
 import gtecs.database as db
 import time
 from sqlalchemy.orm import joinedload
+
+
+def ThereCanOnlyBeOne():
+    '''Quit if this process is already running (dodgy kludge!)'''
+    ps = os.popen('ps -fu ' + os.environ['LOGNAME'] + ' | grep -v cron | grep -v emacs').read()
+    if ps.count(sys.argv[0]) > 1:
+        print(sys.argv[0], ' already running')
+        sys.exit()
+
+
+ThereCanOnlyBeOne()
 
 while True:
     # prune stale pointings
