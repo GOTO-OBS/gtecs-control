@@ -7,7 +7,6 @@ This script should perform the following simple tasks:
 """
 from __future__ import absolute_import
 from __future__ import print_function
-import time
 from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.tecs_modules import params
 
@@ -20,7 +19,10 @@ def run():
         cmd('power off foc{}'.format(tel))
         cmd('power off cam{}'.format(tel))
 
-    cmd('mnt park')
+    if params.FREEZE_DEC:
+        cmd('mnt stop')
+    else:
+        cmd('mnt park')
 
 
 if __name__ == "__main__":
