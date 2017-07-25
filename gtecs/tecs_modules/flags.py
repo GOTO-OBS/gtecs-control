@@ -15,8 +15,10 @@ import json
 import time
 import copy
 from six import iteritems
+import Pyro4
 # TeCS modules
 from . import params
+from ..controls.power_control import APCUPS
 
 
 def load_json(fname):
@@ -35,6 +37,31 @@ def load_json(fname):
         return data_dict
     else:
         raise IOError('cannot read {}'.format(fname))
+
+
+class Power:
+    def __init__(self):
+        """
+        Class to monitor the UPS status
+        """
+        self.ups_units = {}
+        for unit_name in params.POWER_UNITS:
+            unit_class = params.POWER_UNITS[unit_name]['CLASS']
+            unit_ip = params.POWER_UNITS[unit_name]['IP']
+            if unit_class == 'APCUPS':
+                self.ups_units[unit_name] = APCUPS(unit_ip)
+
+    @property
+    def failed(self):
+        '''
+        return True if any power supplies have failed and UPS has kicked in
+        '''
+        return any([self.ups_units[ukey].status() != 'Normal' for ukey in self.ups_units])
+
+    def __repr__(self):
+        class_name = type(self).__name__
+        repr_str = ', '.join(['='.join((ukey, p.ups_units[ukey].status())) for ukey in p.ups_units])
+        return '{}({})'.format(class_name, repr_str)
 
 
 class Conditions:
