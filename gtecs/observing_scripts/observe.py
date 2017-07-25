@@ -13,15 +13,13 @@ from gtecs.tecs_modules.misc import neatCloser
 from gtecs.database import (markJobCompleted, markJobAborted,
                             open_session, get_pointing_by_id)
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
+from gtecs.tecs_modules.observing import (wait_for_exposure_queue, filters_are_homed,
                                           goto, wait_for_telescope)
 
 
 class Closer(neatCloser):
     """
     A class to neatly handle shutdown requests.
-
-    We mark the job as aborted
     """
     def __init__(self, taskName, jobID):
         super().__init__(taskName)
@@ -40,7 +38,7 @@ def get_position(pointingID):
 
 
 def get_exq_commands(pointingID):
-    command_template = "exq multimage {numexp} {expTime:.1f} {filt} {binning} {objectName} SCIENCE {expID}"
+    command_template = 'exq multimage {numexp} {expTime:.1f} {filt} {binning} "{objectName}" SCIENCE {expID}'
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
@@ -50,14 +48,22 @@ def get_exq_commands(pointingID):
             commands.append(command_template.format(**keywords))
     return commands
 
+
 if __name__ == "__main__":
 
     pID = int(sys.argv[1])
     minTime = int(sys.argv[2])
     closer = Closer(pID, pID)
-    print('Observing pointingID: ', pID)
 
     try:
+        if not filters_are_homed():
+            print('homing filters')
+            time.sleep(1)
+            while not filters_are_homed():
+                time.sleep(1)
+
+        print('Observing pointingID: ', pID)
+
         # clear & pause queue to make sure
         cmd('exq clear')
         cmd('exq pause')
@@ -69,7 +75,6 @@ if __name__ == "__main__":
         print('Adding commands to exposure queue')
         exq_command_list = get_exq_commands(pID)
         for exq_command in exq_command_list:
-            print(exq_command)
             cmd(exq_command)
 
         # wait for telescope (timeout 480s)

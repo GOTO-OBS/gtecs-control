@@ -129,7 +129,6 @@ class CamDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
             ### control functions
             # take exposure part one - start
             if(self.take_exposure_flag):
@@ -208,6 +207,9 @@ class CamDaemon(HardwareDaemon):
                         self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
                 self.active_tel = []
+                for intf in params.FLI_INTERFACES:
+                    nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+                    self.exposing_flag[intf] = [0]*nHW
                 self.abort_exposure_flag = 0
 
             # set camera temperature

@@ -157,8 +157,13 @@ class DomeMonitor(HardwareMonitor):
         self.availableModes.extend(['open'])
 
     def _check(self, obsMode=None):
-        if obsMode == 'open' and self.info['dome'] != 'open':
-            self.errors.append('Dome closed')
+        dome_open = all(item == 'full_open' for item in (
+            self.info['north'], self.info['south']
+        ))
+        if obsMode == 'open' and not dome_open:
+            self.errors.append('Dome not open')
+        elif obsMode is None and dome_open:
+            self.errors.append('Dome open')
 
     def setMode(self, mode):
         val = super(DomeMonitor, self).setMode(mode)
@@ -166,6 +171,7 @@ class DomeMonitor(HardwareMonitor):
             # dome open commands may need repeating if cond change hasnt propogated
             self.recoveryProcedure[1] = [30., 'dome open']
             self.recoveryProcedure[2] = [120., 'dome open']
+            self.recoveryProcedure[3] = [180., 'dome open']
         else:
             self.recoveryProcedure = {}
         return val
@@ -177,11 +183,29 @@ class MountMonitor(HardwareMonitor):
         super(MountMonitor, self).__init__(log)
         self.daemonID = 'mnt'
         self.availableModes.extend(['parked', 'tracking'])
+        self.slew_start_time = 0
+        self.currently_slewing = False
 
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
-            if (self.info['target_dist'] is None or float(self.info['target_dist']) > 0.00056 or self.info['status'] != 'Tracking'):
-                self.errors.append('Not on target')
+            not_on_target = (self.info['target_dist'] is not None and
+                             (float(self.info['target_dist']) > 0.003 or self.info['status'] != 'Tracking'))
+            if not_on_target:
+                if self.info['status'] == 'Slewing':
+                    if not self.currently_slewing:
+                        self.currently_slewing = True
+                        self.slew_start_time = time.time()
+                    else:
+                        if time.time() - self.slew_start_time > 100:
+                            self.errors.append('Slew taking too long')
+                else:
+                    self.errors.append('Not on target')
+            else:
+                self.currently_slewing = False
+
+        elif obsMode == 'parked' and params.FREEZE_DEC:
+            if self.info['status'] != 'Stopped':
+                self.errors.append('Not parked')
         elif obsMode == 'parked':
             if self.info['status'] != 'Parked':
                 self.errors.append('Not parked')
@@ -202,9 +226,9 @@ class MountMonitor(HardwareMonitor):
             self.recoveryProcedure[8] = [360., 'mnt track']
         else:
             self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [60., 'mnt park']
-            self.recoveryProcedure[2] = [120., 'mnt park']
-            self.recoveryProcedure[3] = [180., 'mnt park']
+            self.recoveryProcedure[1] = [60., 'mnt stop']
+            self.recoveryProcedure[2] = [120., 'mnt stop']
+            self.recoveryProcedure[3] = [180., 'mnt stop']
             self.recoveryProcedure[4] = [360., 'mnt stop']
         return val
 
@@ -216,7 +240,8 @@ class CameraMonitor(HardwareMonitor):
         self.daemonID = 'cam'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'cam start']
-        self.recoveryProcedure[2] = [120., 'cam kill; cam start']
+        self.recoveryProcedure[2] = [120., 'cam kill']
+        self.recoveryProcedure[3] = [130., 'cam start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
@@ -230,7 +255,8 @@ class FilterWheelMonitor(HardwareMonitor):
         self.daemonID = 'filt'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'filt start']
-        self.recoveryProcedure[2] = [120., 'filt kill; filt start']
+        self.recoveryProcedure[2] = [120., 'filt kill']
+        self.recoveryProcedure[3] = [130., 'filt start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
@@ -244,7 +270,8 @@ class ExposureQueueMonitor(HardwareMonitor):
         self.daemonID = 'exq'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'exq start']
-        self.recoveryProcedure[2] = [120., 'exq kill; exq start']
+        self.recoveryProcedure[2] = [120., 'exq kill']
+        self.recoveryProcedure[3] = [130., 'exq start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet
@@ -258,7 +285,8 @@ class FocuserMonitor(HardwareMonitor):
         self.daemonID = 'foc'
         self.availableModes.extend(['science'])
         self.recoveryProcedure[1] = [60., 'foc start']
-        self.recoveryProcedure[2] = [120., 'foc kill; foc start']
+        self.recoveryProcedure[2] = [120., 'foc kill']
+        self.recoveryProcedure[3] = [130., 'foc start']
 
     def _check(self, obsMode=None):
         # no custom checks as yet

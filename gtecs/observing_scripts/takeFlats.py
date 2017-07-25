@@ -11,6 +11,7 @@ from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import flats
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image,
+                                          filters_are_homed,
                                           goto, random_offset,
                                           wait_for_telescope)
 import gtecs.tecs_modules.astronomy as ast
@@ -35,7 +36,7 @@ def take_sky(expT, current_filter, name):
         expT, current_filter, name
     ))
     time.sleep(0.1)
-    wait_for_exposure_queue()
+    wait_for_exposure_queue(180)
     random_offset(10)  # make random offset to move stars
     time.sleep(0.1)
     fnames = last_written_image()
@@ -53,10 +54,16 @@ if __name__ == "__main__":
         sys.exit(1)
     if sys.argv[1].upper() == 'EVE':
         eve = True
-        alt = -5*u.deg
+        alt = -3*u.deg
     else:
         eve = False
         alt = -5.5*u.deg
+
+    if not filters_are_homed():
+        print('homing filters')
+        time.sleep(1)
+        while not filters_are_homed():
+            time.sleep(1)
 
     print("Starting flats")
 
@@ -83,12 +90,12 @@ if __name__ == "__main__":
 
     # set exposure order and check for sky brightness
     if eve:
-        expT = 5.0
+        expT = 3.0
         filt_order = ['B', 'G', 'R', 'L']
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 5.0
+        expT = 10.0
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
         skyMeanCheck = lambda x: x < 25000.0

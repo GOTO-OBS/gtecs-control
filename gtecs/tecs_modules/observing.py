@@ -193,6 +193,14 @@ def last_written_image():
     return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
 
 
+def filters_are_homed():
+    FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
+    with Pyro4.Proxy(FILT_DAEMON_ADDRESS) as filt:
+        filt._pyroTimeout = params.PROXY_TIMEOUT
+        filt_info = filt.get_info()
+    return all([filt_info[key] for key in filt_info if key.startswith('homed')])
+
+
 def wait_for_exposure_queue(timeout=None):
     """
     With a set of exposures underway, wait for an empty queue
