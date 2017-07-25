@@ -685,7 +685,6 @@ class Pilot:
         if retcode != 0:
             self.log.warn('DAE ended abnormally')
 
-
     async def open_dome(self):
         self.log.warn('opening dome')
         execute_command('dome open')
