@@ -80,6 +80,7 @@ class MntDaemon(HardwareDaemon):
         self.set_blinky = False
 
         self.dependency_error = 0
+        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self.mnt_control)
@@ -106,17 +107,19 @@ class MntDaemon(HardwareDaemon):
             self.time_check = time.time()
 
             ### check dependencies
-            if not misc.dependencies_are_alive('mnt'):
-                if not self.dependency_error:
-                    self.logfile.error('Dependencies are not responding')
-                    self.dependency_error = 1
-                time.sleep(5)
-            else:
-                if self.dependency_error:
-                    self.logfile.info('Dependencies responding again')
-                    self.dependency_error = 0
+            if (self.time_check - self.dependency_check_time) > 2:
+                if not misc.dependencies_are_alive('mnt'):
+                    if not self.dependency_error:
+                        self.logfile.error('Dependencies are not responding')
+                        self.dependency_error = 1
+                else:
+                    if self.dependency_error:
+                        self.logfile.info('Dependencies responding again')
+                        self.dependency_error = 0
+                self.dependency_check_time = time.time()
 
             if self.dependency_error:
+                time.sleep(5)
                 continue
 
             ### control functions
