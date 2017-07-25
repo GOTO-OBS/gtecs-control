@@ -640,6 +640,11 @@ class Pilot:
 
         Close any running jobs and exit
         """
+        # close any running tasks. do this first, so check_flags
+        # doesn't initiate two shutdowns
+        for future in self.running_tasks:
+            future.cancel()
+
         # if we have external subprocess running, stop it
         self.log.warn('cancelling running scripts')
         await self.cancelRunningScript()
@@ -657,10 +662,6 @@ class Pilot:
         # if we have external subprocess running, stop it
         self.log.warn('cancelling running scripts again')
         await self.cancelRunningScript()
-
-        # close any running tasks
-        for future in self.running_tasks:
-            future.cancel()
 
     async def emergency_shutdown(self):
         """
