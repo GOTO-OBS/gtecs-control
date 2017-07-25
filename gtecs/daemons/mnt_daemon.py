@@ -79,6 +79,8 @@ class MntDaemon(HardwareDaemon):
         self.utc_str = self.utc.iso
         self.set_blinky = False
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.mnt_control)
         t.daemon = True
@@ -102,6 +104,20 @@ class MntDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('mnt'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+
+            if self.dependency_error:
+                continue
 
             ### control functions
             # request info
@@ -189,12 +205,16 @@ class MntDaemon(HardwareDaemon):
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.5)
         return self.info
 
     def slew_to_radec(self,ra,dec):
         """Slew to specified coordinates"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
@@ -213,6 +233,8 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_target(self):
         """Slew to current set target"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
@@ -231,6 +253,8 @@ class MntDaemon(HardwareDaemon):
 
     def start_tracking(self):
         """Starts mount tracking"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Tracking':
@@ -247,6 +271,8 @@ class MntDaemon(HardwareDaemon):
 
     def full_stop(self):
         """Stops mount moving (slewing or tracking)"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Stopped':
@@ -259,6 +285,8 @@ class MntDaemon(HardwareDaemon):
 
     def blinky(self, activate):
         """Turn on or off blinky mode"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         if activate and self.sitech.blinky:
             return 'ERROR: Already in blinky mode'
         elif not activate and not self.sitech.blinky:
@@ -273,6 +301,8 @@ class MntDaemon(HardwareDaemon):
 
     def park(self):
         """Moves the mount to the park position"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
@@ -285,6 +315,8 @@ class MntDaemon(HardwareDaemon):
 
     def unpark(self):
         """Unpark the mount"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status != 'Parked':
@@ -295,18 +327,24 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_ra(self,ra):
         """Set the target RA"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target_ra = ra
         self.logfile.info('set ra to %.4f', self.target_ra)
         return """Setting target RA"""
 
     def set_target_dec(self,dec):
         """Set the target Dec"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target_dec = dec
         self.logfile.info('set dec to %.4f', self.target_dec)
         return """Setting target Dec"""
 
     def set_target(self,ra,dec):
         """Set the target location"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target_ra = ra
         self.logfile.info('set ra to %.4f', self.target_ra)
         self.target_dec = dec
@@ -315,6 +353,8 @@ class MntDaemon(HardwareDaemon):
 
     def offset(self,direction):
         """Offset in a specified (cardinal) direction"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
@@ -350,6 +390,8 @@ class MntDaemon(HardwareDaemon):
                 return 'Slewing to offset coordinates'
 
     def set_step(self,offset):
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.step = offset
         return 'New offset step set'
 

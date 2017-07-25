@@ -62,6 +62,8 @@ class PowerDaemon(HardwareDaemon):
         self.status_check_time = 0
         self.check_period = params.POWER_CHECK_PERIOD
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.power_control)
         t.daemon = True
@@ -98,6 +100,20 @@ class PowerDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('power'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+
+            if self.dependency_error:
+                continue
 
             # autocheck status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
@@ -226,6 +242,8 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.5)
@@ -233,6 +251,8 @@ class PowerDaemon(HardwareDaemon):
 
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
             return 'ERROR: No valid outlets'
@@ -242,6 +262,8 @@ class PowerDaemon(HardwareDaemon):
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
             return 'ERROR: No valid outlets'
@@ -251,6 +273,8 @@ class PowerDaemon(HardwareDaemon):
 
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
             return 'ERROR: No valid outlets'
