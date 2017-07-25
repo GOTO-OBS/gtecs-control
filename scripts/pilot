@@ -664,6 +664,8 @@ class Pilot:
 
         Power off, shutdown daemons and exit Pilot
         """
+        await self.shutdown()
+
         # park scope and power off
         cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
         retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
@@ -675,7 +677,7 @@ class Pilot:
         retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('DAE ended abnormally')
-        await self.shutdown()
+
 
     async def open_dome(self):
         self.log.warn('opening dome')
