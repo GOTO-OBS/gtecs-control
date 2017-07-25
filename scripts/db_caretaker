@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+########################################################################
+#                             db_caretaker                             #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#           G-TeCS script to take care of the queue database           #
+#                     Martin Dyer, Sheffield, 2015                     #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+from __future__ import absolute_import
+from __future__ import print_function
+
+import gtecs.database as db
+import time
+from sqlalchemy.orm import joinedload
+
+while True:
+    # prune stale pointings
+    with db.open_session() as session:
+        stale_pointings = db.get_stale_pointing_ids(session)
+        if len(stale_pointings) > 0:
+            print('Marking these pointings as expired')
+            print(stale_pointings)
+            db.bulk_update_pointing_status(session, stale_pointings, 'expired')
+
+    # schedule pointings for unscheduled MPs
+    with db.open_session() as session:
+        unscheduled_mps = session.query(db.Mpointing).filter(
+            db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
+
+        if len(unscheduled_mps) == 0:
+            continue
+
+        print('creating pointings')
+        start = time.time()
+        pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+        print('took {} secs'.format(time.time()-start))
+
+        print('inserting pointings into DB')
+        start = time.time()
+        db.insert_items(session, pointings)
+        print('took {} secs'.format(time.time()-start))
+
+    time.sleep(600)

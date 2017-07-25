@@ -178,6 +178,7 @@ FILTER_LIST = config['FILTER_LIST']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 DARKFILT = config['DARKFILT'] #as an example
 BIASEXP = config['BIASEXP'] #seconds, as an example
+CCD_TEMP = config['CCD_TEMP']
 
 # cant add these to validation without adding unwanted defaults
 # enforce type here instead.

@@ -28,6 +28,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt
+from gtecs.tecs_modules.observing import filters_are_homed
 from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
@@ -98,11 +99,12 @@ class Pilot:
         )
 
         # override and conditions flags
-        self.overrides = None
-        self.conditions = None
+        self.overrides = Overrides()
+        self.conditions = Conditions()
 
         # dictionary of reasons to pause
         self.whypause = dict(hw=False, cond=False, manual=False)
+        self.queuePausedDuration = 0
 
         # paranoia Time
         self.domeOpen = 0   # should dome be open?
@@ -149,14 +151,20 @@ class Pilot:
 
         our_watch_has_ended = False
         while not our_watch_has_ended:
+            await asyncio.sleep(60)
             sun_alt_now = sun_alt(Time.now())
             self.log.info('waiting: sun altitude = {}'.format(sun_alt_now))
             if rising:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
                 our_watch_has_ended = sun_alt_now < sunAlt
-            await asyncio.sleep(60)
+
         return True
+
+    async def homeFilters(self):
+        execute_command('filt home')
+        while not filters_are_homed():
+            asyncio.sleep(1)
 
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
         """
@@ -200,7 +208,17 @@ class Pilot:
             await self.runThroughJobList(self.daytime_jobs, rising=False,
                                          respect_pause=False)
 
-        # done the daytime jobs. Set flag to allow open dome
+        # make sure filters are homed in case of restart
+        await self.homeFilters()
+
+        # wait for the right sunalt to open dome
+        await self.waitingForTheSun(0.5)
+
+        # no point opening if we are paused due to bad weather or hw fault
+        while self.paused:
+            asyncio.sleep(5)
+
+        # OK - let's open the dome and get ready to observe
         self.ready_to_observe = True
         await self.open_dome()
         await self.unpark_scope()
@@ -233,6 +251,7 @@ class Pilot:
         pilot can carry on with other tasks whilst the schedule check is ongoing.
         """
         while True:
+            self.log.info('schedule check started')
             if self.paused:
                 await asyncio.sleep(10)
                 continue
@@ -245,7 +264,7 @@ class Pilot:
                 None, scheduler.check_queue, *scheduler_args
             )
             if self.newMinTime is not None:
-                self.newMinTime = int(self.newMinTime.value)
+                self.newMinTime = int(self.newMinTime)
             self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
@@ -256,6 +275,11 @@ class Pilot:
         # monitor until stopped
         sleepTime = 60
         while True:
+            if self.overrides.robotic:
+                self.log.info('hardware checks suspended in manual mode')
+                await asyncio.sleep(sleepTime)
+                continue
+
             errCount = 0
             self.log.info('running hardware checks')
             log_str = 'hardware check results: '
@@ -347,8 +371,7 @@ class Pilot:
                 # if the reason is weather, handle dome open/close
                 # also park mount and pause queue
                 self.log.warn('closing and parking')
-                # TODO: discuss what should happen when dome closes in middle of
-                # observing?
+
                 execute_command('exq pause')
                 execute_command('cam abort')
                 if self.domeOpen:
@@ -356,9 +379,15 @@ class Pilot:
                 await self.cancelRunningScript()
                 self.park_scope()
             elif reason == 'hw':
-                # just pause the queue until fixed
-                execute_command('exq pause')
-                execute_command('cam abort')
+                if self.runningScriptProtocol.jobName == 'OBS':
+                    # just pause the queue until fixed
+                    execute_command('exq pause')
+                    execute_command('cam abort')
+                else:
+                    # other scripts cannot handle losing frames
+                    execute_command('exq clear')
+                    execute_command('cam abort')
+                    await self.cancelRunningScript()
             else:
                 self.log.info('pausing for pilot for manual override')
                 self.log.info('current job will continue')
@@ -370,11 +399,11 @@ class Pilot:
             # OK, we can resume
             self.log.warn('resuming operations')
             if self.ready_to_observe:
-                await self.unpark_scope()
                 if not self.domeOpen:
                     # this way we don't
                     # start until the dome is open
                     await self.open_dome()
+                await self.unpark_scope()
                 execute_command('exq resume')
 
         # finally, change global pause status by updating flag
@@ -387,6 +416,11 @@ class Pilot:
         Be extra cautious and double check that dome is closed if it should be
         """
         while True:
+            if self.overrides.robotic:
+                self.log.info('dome checks suspended in manual mode')
+                await asyncio.sleep(10)
+                continue
+
             if not self.domeOpen and not self.domeConfirmedClosed:
                 dome_info = self.hardware['dome'].getInfo()
                 if dome_info['dome'] == 'closed':
@@ -397,6 +431,12 @@ class Pilot:
                     self.log.warn('dome not closed. Trying again...')
                     self.close_dome()
             await asyncio.sleep(10)
+
+    async def calcPauseTime(self):
+        while True:
+            if self.paused:
+                self.queuePausedDuration += 60
+            await asyncio.sleep(60)
 
     async def observe(self, until_sun_alt=-15):
         """
@@ -428,7 +468,7 @@ class Pilot:
                     self.log.info("got new job from scheduler %s", self.newID)
                     # this will fail if obsStartTime not currently defined
                     try:
-                        timeElapsed = time.time() - self.obsStartTime
+                        timeElapsed = time.time() - self.obsStartTime - self.queuePausedDuration
                     except:
                         # in which case...
                         timeElapsed = 0
@@ -461,6 +501,7 @@ class Pilot:
                            str(self.newID), str(int(self.newMinTime))]
                     self.log.info('starting Job {}'.format(self.newID))
                     self.obsStartTime = time.time()
+                    self.queuePausedDuration = 0
                     # start job, will cancel current one automatically
                     asyncio.ensure_future(
                         self.startScript('OBS', SimpleProtocol, cmd)
@@ -484,11 +525,11 @@ class Pilot:
             if self.runningScriptTransport.get_returncode() is None:
                 self.log.info("killing {}".format(self.runningScriptProtocol.jobName))
 
+                execute_command('exq clear')
+                execute_command('cam abort')
                 # if we were observing, mark as aborted and clear queue
                 if self.runningScriptProtocol.jobName == 'OBS' and self.currentID is not None:
                     markJobAborted(self.currentID)
-                    execute_command('exq clear')
-                    execute_command('cam abort')
                 self.runningScriptTransport.terminate()
                 await self.runningScriptResult
 
@@ -660,19 +701,25 @@ class Pilot:
 
     def park_scope(self):
         self.log.warn('parking scope')
-        execute_command('mnt park')
+        if params.FREEZE_DEC:
+            execute_command('mnt stop')
+        else:
+            execute_command('mnt park')
         self.hardware['mnt'].setMode('parked')
 
     async def unpark_scope(self):
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] == 'Parked':
             self.log.warn('unparking scope')
-            execute_command('mnt unpark')
+            if not params.FREEZE_DEC:
+                execute_command('mnt unpark')
             await asyncio.sleep(5)
+
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] != 'Tracking':
             execute_command('mnt track')
             await asyncio.sleep(2)
+
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
@@ -690,14 +737,14 @@ class Pilot:
                    protocol=SimpleProtocol)
         self.daytime_jobs = [sn0, sn1, sn2, sn3]
 
-        sn4 = dict(name='FLATS', sunAlt=0,
+        sn4 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
                    protocol=SimpleProtocol)
-        sn5 = dict(name='FOC', sunAlt=-10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), 'L'],
-                   protocol=SimpleProtocol)
-        sn6 = dict(name='STD', sunAlt=-13,
+        sn5 = dict(name='STD', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
+                   protocol=SimpleProtocol)
+        sn6 = dict(name='FOC', sunAlt=-12,
+                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), 'L'],
                    protocol=SimpleProtocol)
         self.evening_jobs = [sn4, sn5, sn6]
 
@@ -714,15 +761,23 @@ class Pilot:
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-t', '--test', action="store_true", default=False)
+    parser.add_argument('-r', '--restart', action="store_true", default=False)
+    args = parser.parse_args()
+
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
-    pilot = Pilot(testing=True)
+    pilot = Pilot(testing=args.test)
     pilot.assignJobs()
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
-        asyncio.ensure_future(pilot.nightMarshall()),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
+        asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
         asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome

@@ -49,9 +49,9 @@ horizon_file = params.CONFIG_PATH + 'horizon'
 # priority settings
 too_weight = 0.1
 prob_dp = 3
-prob_weight = 0.1
+prob_weight = 0.01
 airmass_dp = 5
-airmass_weight = 0.00001
+airmass_weight = 0.001
 tts_dp = 5
 tts_weight = 0.00001
 
@@ -432,7 +432,7 @@ class Queue:
 
         priorities_now += too_arr * too_weight
         priorities_now += prob_arr * prob_weight
-        priorities_now += airmass_arr * airmass_weight
+        priorities_now += airmass_arr.value * airmass_weight
         priorities_now += tts_arr * tts_weight
 
         # check validities, add INVALID_PRIORITY to invalid pointings
@@ -654,7 +654,7 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
-    GOTO = Observer.at_site('lapalma')
+    GOTO = Observer(astronomy.observatory_location())
 
     pointings = import_pointings_from_database(time, GOTO)
 
