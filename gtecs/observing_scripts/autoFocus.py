@@ -99,7 +99,7 @@ def estimate_focus(targetHFD, currentHFD, currentPos, slope):
     return currentPos + (targetHFD-currentHFD)/slope
 
 
-def measure_hfd(fname, filter_width=3, threshold=10, **kwargs):
+def measure_hfd(fname, filter_width=3, threshold=5, **kwargs):
     """
     Crude measure of half-flux-diameter.
 
@@ -159,7 +159,7 @@ def measure_hfd(fname, filter_width=3, threshold=10, **kwargs):
     return 0.0, 0.0, 0.0, 0.0
 
 
-def get_hfd(fnames, filter_width=3, threshold=10, **kwargs):
+def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
     """
     Measure the HFD diameter from multiple files.
 
@@ -173,8 +173,16 @@ def get_hfd(fnames, filter_width=3, threshold=10, **kwargs):
     fwhm_dict = {}
     stdf_dict = {}
     for tel_key in fnames:
-        median, std, fwhm, f_std = measure_hfd(fnames[tel_key],
-                                               filter_width, threshold, **kwargs)
+        try:
+            median, std, fwhm, f_std = measure_hfd(fnames[tel_key],
+                                                   filter_width, threshold, **kwargs)
+        except Exception as err:
+            print('HFD measurement for file {} errored: {}'.format(fnames[tel_key], str(err)))
+            std = -1.0
+            median = -1.0
+            f_std = -1
+            fwhm = -1
+
         if std > 0.0:
             median_dict[tel_key] = median
             std_dict[tel_key] = std
@@ -210,7 +218,7 @@ if __name__ == "__main__":
     xslice = slice(3300, 5100)
     yslice = slice(2800, 4100)
     kwargs = {'xslice': xslice, 'yslice': yslice,
-              'filter_width': 20}
+              'filter_width': 20, 'threshold': 5}
 
     if not filters_are_homed():
         print('homing filters')
