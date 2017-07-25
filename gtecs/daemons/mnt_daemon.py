@@ -106,7 +106,7 @@ class MntDaemon(HardwareDaemon):
             self.time_check = time.time()
 
             ### check dependencies
-            if not misc.dependencies_are_alive('filt'):
+            if not misc.dependencies_are_alive('mnt'):
                 if not self.dependency_error:
                     self.logfile.error('Dependencies are not responding')
                     self.dependency_error = 1
