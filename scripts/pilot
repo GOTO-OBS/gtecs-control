@@ -673,7 +673,7 @@ class Pilot:
         await self.shutdown()
 
         # power off
-        self.log.warn('powering off hardware'
+        self.log.warn('powering off hardware')
         cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
         retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
