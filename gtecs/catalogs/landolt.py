@@ -27,7 +27,7 @@ with warnings.catch_warnings():
 class LandoltStar:
     def __init__(self, name, ra, dec, pmra, pmdec, Vmag, BV):
         self.name = str(name).strip()
-        self.coord = SkyCoord(ra, dec, unit=(u.deg, u.deg))
+        self.coord = SkyCoord(ra, dec, unit=(u.hour, u.deg))
         self.pmra = pmra*u.mas/u.yr
         self.pmdec = pmdec*u.mas/u.yr
         self.Vmag = Vmag
