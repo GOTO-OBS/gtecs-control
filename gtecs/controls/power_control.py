@@ -175,15 +175,43 @@ class APCUPS:
     def __init__(self,IP_address):
         self.unit_type = 'UPS'
         self.IP_address = IP_address
-        self.command_oids = {'STATUS':'2.1.1.0',
-                             'PERCENT':'2.2.1.0',
-                             'TIME':'2.2.3.0'}
-        self.statuses = {'1':'UNKNOWN', '2':'Normal', '3':'LOW'}
+        self.command_oids = {'STATUS':'4.1.1.0',
+                             'PERCENT':'2.3.1.0',
+                             'TIME':'2.2.3.0',
+                             'LOAD':'4.3.3.0',
+                             'OUTLET':'12.3.2.1.3'}
+        self.commands = {'ON':'1', 'OFF':'2', 'REBOOT':'3'}
+        self.statuses = {'1':'UNKNOWN',
+                         '2':'Normal',
+                         '3':'ON BATTERY',
+                         '4':'onSmartBoost',
+                         '5':'timedSleeping',
+                         '6':'softwareBypass',
+                         '7':'off',
+                         '8':'rebooting',
+                         '9':'switchedBypass',
+                         '10':'hardwareFailureBypass',
+                         '11':'sleepingUntilPowerReturn',
+                         '12':'onSmartTrim',
+                         '13':'ecoMode',
+                         '14':'hotStandby',
+                         '15':'onBatteryTest'}
+        self.count = 3
+        self.outlets = list(range(1, self.count+1))
+        self.on_value = 1
+        self.off_value = 2
 
-    def _initialise_oid_array(self, command_oid):
+    def _initialise_oid_array(self, command_oid, outlet=None):
         """ Setup the oid array to use with snmpget and snmpset """
         base = '.1.3.6.1.4.1.318.1.1.1'
-        oid_arr = [base + '.' + str(command_oid)]
+        if outlet in self.outlets:
+            oid_arr = [base + '.' + str(command_oid) + '.' + str(outlet)]
+        elif outlet == 0: # all
+            oid_arr = [base +  '.' + str(command_oid) + '.' + str(outlet) for outlet in self.outlets]
+        elif outlet:
+            raise ValueError('Invalid outlet')
+        else:
+            oid_arr = [base + '.' + str(command_oid)]
         return oid_arr
 
     def _snmpget(self, oid_arr):
@@ -194,7 +222,25 @@ class APCUPS:
         IP = self.IP_address
         command = [snmpget, '-v', '1', '-c', 'public', IP] + oid_arr
         output = subprocess.check_output(command).decode('ascii').split('\n')
-        status = output[0].split(' ')[-1]
+        status = ''
+        for i in range(len(output)-1):
+            status += output[i].split(' ')[-1]
+        return status
+
+    def _snmpset(self, oid_arr, value):
+        """ Set a value using snmpset """
+        snmpset = shutil.which('snmpset')
+        if snmpset is None:
+            raise OSError('SNMP tools not installed')
+        IP = self.IP_address
+        command_oid_arr = []
+        for oid in oid_arr:
+            command_oid_arr += [oid, 'i', value]
+        command = [snmpset, '-v', '1', '-c', 'private', IP] + command_oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output)-1):
+            status += output[i][-1]
         return status
 
     def status(self):
@@ -206,7 +252,7 @@ class APCUPS:
     def percent_remaining(self):
         oid_arr = self._initialise_oid_array(self.command_oids['PERCENT'])
         out = self._snmpget(oid_arr)
-        percent = float(out)
+        percent = float(out)/10.
         return percent
 
     def time_remaining(self):
@@ -215,6 +261,33 @@ class APCUPS:
         hms = out.split(':')
         seconds = int(hms[0])*3600 + int(hms[1])*60 + float(hms[2])
         return seconds
+
+    def load(self):
+        oid_arr = self._initialise_oid_array(self.command_oids['LOAD'])
+        out = self._snmpget(oid_arr)
+        percent = float(out)/10.
+        return percent
+
+    def outlet_status(self):
+        outlet = 0 # all
+        oid_arr = self._initialise_oid_array(self.command_oids['OUTLET'], outlet)
+        out = self._snmpget(oid_arr)
+        return out
+
+    def on(self, outlet):
+        oid_arr = self._initialise_oid_array(self.command_oids['OUTLET'], outlet)
+        out = self._snmpset(oid_arr, self.commands['ON'])
+        return out
+
+    def off(self, outlet):
+        oid_arr = self._initialise_oid_array(self.command_oids['OUTLET'], outlet)
+        out = self._snmpset(oid_arr, self.commands['OFF'])
+        return out
+
+    def reboot(self, outlet):
+        oid_arr = self._initialise_oid_array(self.command_oids['OUTLET'], outlet)
+        out = self._snmpset(oid_arr, self.commands['REBOOT'])
+        return out
 
 ########################################################################
 # Ethernet relay power class (for ETH8020, 20 ports)
