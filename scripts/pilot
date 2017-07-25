@@ -253,7 +253,6 @@ class Pilot:
         pilot can carry on with other tasks whilst the schedule check is ongoing.
         """
         while True:
-            self.log.info('schedule check started')
             if self.paused:
                 await asyncio.sleep(10)
                 continue
