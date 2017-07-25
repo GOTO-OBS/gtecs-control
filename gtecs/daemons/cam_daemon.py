@@ -109,6 +109,8 @@ class CamDaemon(HardwareDaemon):
         self.expID = 0
         self.stored_tel_list = []
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.cam_control)
         t.daemon = True
@@ -125,10 +127,25 @@ class CamDaemon(HardwareDaemon):
             fli_proxies[intf] = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
             fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
 
-        self.get_info(fli_proxies)
-
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('cam'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+
+            if self.dependency_error:
+                continue
+
+            self.get_info(fli_proxies)
+
             ### control functions
             # take exposure part one - start
             if(self.take_exposure_flag):
@@ -259,6 +276,8 @@ class CamDaemon(HardwareDaemon):
     # Camera control functions
     def get_info(self, fli_proxies=None):
         """Return camera status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         # request info
         for tel in self.tel_dict:
             intf, HW = self.tel_dict[tel]
@@ -313,18 +332,26 @@ class CamDaemon(HardwareDaemon):
 
     def take_image(self,exptime,tel_list):
         """Take image with camera"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         return self._take_frame(exptime, 'image', tel_list)
 
     def take_dark(self,exptime,tel_list):
         """Take dark frame with camera"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         return self._take_frame(exptime, 'dark', tel_list)
 
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         return self._take_frame(params.BIASEXP, 'bias', tel_list)
 
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
@@ -342,6 +369,8 @@ class CamDaemon(HardwareDaemon):
 
     def set_temperature(self,target_temp,tel_list):
         """Set the camera's temperature"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target_temp = target_temp
         for tel in tel_list:
             if tel not in self.tel_dict:
@@ -357,6 +386,8 @@ class CamDaemon(HardwareDaemon):
 
     def set_binning(self,binning,tel_list):
         """Set the image binning"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target_binning = binning
         for tel in tel_list:
             if tel not in self.tel_dict:
@@ -370,6 +401,8 @@ class CamDaemon(HardwareDaemon):
 
     def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
         """Save the run details if given by the queue daemon"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.target = target
         self.imgtype = imgtype
         self.set_pos = set_pos

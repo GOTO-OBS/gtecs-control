@@ -213,6 +213,8 @@ class ExqDaemon(HardwareDaemon):
         self.working = 0
         self.paused = 1 # start paused
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.exq_control)
         t.daemon = True
@@ -234,6 +236,24 @@ class ExqDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('exq'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                    # pause the queue
+                    self.paused = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+                    # unpause the queue
+                    self.paused = 0
+
+            if self.dependency_error:
+                continue
 
             ### exposure queue processes
 
@@ -262,6 +282,8 @@ class ExqDaemon(HardwareDaemon):
     # Exposure queue functions
     def get_info(self):
         """Return exposure queue status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         info = {}
         if self.paused:
             info['status'] = 'Paused'
@@ -287,6 +309,8 @@ class ExqDaemon(HardwareDaemon):
     def add(self, tel_list, exptime, filt,
             binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         filt = filt.upper()
         target = target.replace(';', '')
         imgtype = imgtype.replace(';', '')
@@ -308,6 +332,8 @@ class ExqDaemon(HardwareDaemon):
                   binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
                   expID = 0):
         """Add multiple exposures to the queue as a set"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         filt = filt.upper()
         target = target.replace(';', '')
         imgtype = imgtype.replace(';', '')
@@ -333,24 +359,34 @@ class ExqDaemon(HardwareDaemon):
 
     def clear(self):
         """Empty the exposure queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.exp_queue.clear()
         return 'Queue cleared'
 
     def get(self):
         """Return info on exposures in the queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         return self.exp_queue.get()
 
     def get_simple(self):
         """Return simple info on exposures in the queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         return self.exp_queue.get_simple()
 
     def pause(self):
         """Pause the queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.paused = 1
         return 'Queue paused'
 
     def resume(self):
         """Unpause the queue"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.paused = 0
         return 'Queue resumed'
 
