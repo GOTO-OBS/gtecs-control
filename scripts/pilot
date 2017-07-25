@@ -208,9 +208,17 @@ class Pilot:
             await self.runThroughJobList(self.daytime_jobs, rising=False,
                                          respect_pause=False)
 
-        # done the daytime jobs. Set flag to allow open dome
+        # make sure filters are homed in case of restart
         await self.homeFilters()
+
+        # wait for the right sunalt to open dome
         await self.waitingForTheSun(0.5)
+
+        # no point opening if we are paused due to bad weather or hw fault
+        while self.paused:
+            asyncio.sleep(5)
+
+        # OK - let's open the dome and get ready to observe
         self.ready_to_observe = True
         await self.open_dome()
         await self.unpark_scope()
