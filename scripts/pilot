@@ -29,7 +29,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt
 from gtecs.tecs_modules.observing import filters_are_homed
-from gtecs.tecs_modules.flags import (Conditions, Overrides)
+from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
                                                   FocuserMonitor)
@@ -101,6 +101,7 @@ class Pilot:
         # override and conditions flags
         self.overrides = Overrides()
         self.conditions = Conditions()
+        self.power = Power()
 
         # dictionary of reasons to pause
         self.whypause = dict(hw=False, cond=False, manual=False)
@@ -320,6 +321,8 @@ class Pilot:
             self.overrides = Overrides()
             # conditions flags
             self.conditions = Conditions()
+            # power status
+            self.power = Power()
 
             # handle overrides first
             if self.overrides.robotic:
@@ -335,8 +338,8 @@ class Pilot:
                 await self.handlePause('cond', False)
 
             # emergency file
-            if os.path.isfile(params.EMERGENCY_FILE):
-                await self.emergency_shutdown()
+            if os.path.isfile(params.EMERGENCY_FILE) or self.power.failed:
+                asyncio.ensure_future(self.emergency_shutdown())
 
             await asyncio.sleep(10)
 
@@ -572,9 +575,9 @@ class Pilot:
         # start the process and get transport and protocol for control of it
         self.runningScriptTransport, self.runningScriptProtocol = await proc
         # process started, await completion
-        retcode = await self.runningScriptResult
+        retcode, result = await self.runningScriptResult
         # done
-        return retcode
+        return retcode, result
 
     async def waitForNightsEnd(self, stopTime, sleepTime=120):
         """
@@ -637,23 +640,28 @@ class Pilot:
 
         Close any running jobs and exit
         """
+        # close any running tasks. do this first, so check_flags
+        # doesn't initiate two shutdowns
+        for future in self.running_tasks:
+            future.cancel()
+
         # if we have external subprocess running, stop it
+        self.log.warn('cancelling running scripts')
         await self.cancelRunningScript()
 
         # park the scope
+        self.log.warn('parking')
         self.park_scope()
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
         # EMAIL IF DOME WON'T CLOSE
+        self.log.warn('making sure dome is closed')
         await self.reallyReallyCloseDome()
 
         # if we have external subprocess running, stop it
+        self.log.warn('cancelling running scripts again')
         await self.cancelRunningScript()
-
-        # close any running tasks
-        for future in self.running_tasks:
-            future.cancel()
 
     async def emergency_shutdown(self):
         """
@@ -661,18 +669,22 @@ class Pilot:
 
         Power off, shutdown daemons and exit Pilot
         """
-        # park scope and power off
+        self.log.warn('performing emergency shutdown')
+        await self.shutdown()
+
+        # power off
+        self.log.warn('powering off hardware')
         cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
-        retcode, results = await self.startScript('EON', SimpleProtocol, cmd)
+        retcode, result = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('EON ended abnormally')
 
         # shutdown daemons
+        self.log.warn('stopping daemons')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode, results = await self.startScript('DAE', SimpleProtocol, cmd)
+        retcode, result = await self.startScript('DAE', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('DAE ended abnormally')
-        await self.shutdown()
 
     async def open_dome(self):
         self.log.warn('opening dome')
@@ -723,11 +735,11 @@ class Pilot:
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
-        sn0 = dict(name='DAE', sunAlt=10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_daemons.py')],
-                   protocol=SimpleProtocol)
-        sn1 = dict(name='SN1', sunAlt=9,
+        sn0 = dict(name='SN1', sunAlt=12,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_1.py')],
+                   protocol=SimpleProtocol)
+        sn1 = dict(name='DAE', sunAlt=10,
+                   cmd=[os.path.join(SCRIPT_PATH, 'start_daemons.py')],
                    protocol=SimpleProtocol)
         sn2 = dict(name='SN2', sunAlt=8,
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_2.py')],

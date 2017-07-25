@@ -18,20 +18,15 @@ from gtecs.tecs_modules import params
 def run():
     print('Start of Night Phase 1')
 
+    cmd('power start')
+    time.sleep(10)
+
     for tel in params.TEL_DICT:
         cmd('power on filt{}'.format(tel))
         cmd('power on foc{}'.format(tel))
         cmd('power on cam{}'.format(tel))
     cmd('power on sitech')
     time.sleep(5)
-
-    # clean up persistent queue from previous night
-    cmd('exq clear')
-    time.sleep(1)
-    cmd('exq resume')
-
-    # home the wheels
-    cmd('filt home')
 
 
 if __name__ == "__main__":
