@@ -20,8 +20,6 @@ from gtecs.tecs_modules.observing import (wait_for_exposure_queue, filters_are_h
 class Closer(neatCloser):
     """
     A class to neatly handle shutdown requests.
-
-    We mark the job as aborted
     """
     def __init__(self, taskName, jobID):
         super().__init__(taskName)
@@ -50,21 +48,22 @@ def get_exq_commands(pointingID):
             commands.append(command_template.format(**keywords))
     return commands
 
+
 if __name__ == "__main__":
 
     pID = int(sys.argv[1])
     minTime = int(sys.argv[2])
     closer = Closer(pID, pID)
 
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
-
-    print('Observing pointingID: ', pID)
-
     try:
+        if not filters_are_homed():
+            print('homing filters')
+            time.sleep(1)
+            while not filters_are_homed():
+                time.sleep(1)
+
+        print('Observing pointingID: ', pID)
+
         # clear & pause queue to make sure
         cmd('exq clear')
         cmd('exq pause')
