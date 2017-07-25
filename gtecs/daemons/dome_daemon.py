@@ -71,6 +71,8 @@ class DomeDaemon(HardwareDaemon):
         self.warnings_check_time = 0
         self.warnings_check_period = 3 #params.DOME_CHECK_PERIOD
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.dome_control)
         t.daemon = True
@@ -90,6 +92,20 @@ class DomeDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('dome'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+
+            if self.dependency_error:
+                continue
 
             # autocheck dome status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
@@ -342,6 +358,8 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -349,6 +367,8 @@ class DomeDaemon(HardwareDaemon):
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
             return 'ERROR: Conditions bad, dome will not open'
         elif flags.Power().failed:
@@ -375,6 +395,8 @@ class DomeDaemon(HardwareDaemon):
 
     def close_dome(self,side='both',frac=1):
         """Close the dome"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.close_flag = 1
         self.move_side = side
         self.move_frac = frac
@@ -383,6 +405,8 @@ class DomeDaemon(HardwareDaemon):
 
     def halt_dome(self):
         """Stop the dome moving"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.halt_flag = 1
         return 'Halting dome'
 

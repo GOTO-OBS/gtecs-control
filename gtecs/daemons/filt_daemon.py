@@ -68,6 +68,8 @@ class FiltDaemon(HardwareDaemon):
         self.active_tel = []
         self.new_filter = ''
 
+        self.dependency_error = 0
+
         ### start control thread
         t = threading.Thread(target=self.filt_control)
         t.daemon = True
@@ -86,6 +88,20 @@ class FiltDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
+
+            ### check dependencies
+            if not misc.dependencies_are_alive('filt'):
+                if not self.dependency_error:
+                    self.logfile.error('Dependencies are not responding')
+                    self.dependency_error = 1
+                time.sleep(5)
+            else:
+                if self.dependency_error:
+                    self.logfile.info('Dependencies responding again')
+                    self.dependency_error = 0
+
+            if self.dependency_error:
+                continue
 
             ### control functions
             # request info
@@ -181,12 +197,16 @@ class FiltDaemon(HardwareDaemon):
     # Filter wheel control functions
     def get_info(self):
         """Return filter wheel status info"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
 
     def set_filter(self,new_filter,tel_list):
         """Move filter wheel to given filter"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         self.new_filter = new_filter
         for tel in tel_list:
             if tel not in self.tel_dict:
@@ -210,6 +230,8 @@ class FiltDaemon(HardwareDaemon):
 
     def home_filter(self,tel_list):
         """Move filter wheel to home position"""
+        if self.dependency_error:
+            return 'ERROR: Dependencies are not running'
         for tel in tel_list:
             if tel not in self.tel_dict:
                 return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
