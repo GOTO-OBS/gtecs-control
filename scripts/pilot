@@ -660,7 +660,6 @@ class Pilot:
 
         # close any running tasks
         for future in self.running_tasks:
-            self.log.warn('cancelling future {!r}'.format(future))
             future.cancel()
 
     async def emergency_shutdown(self):
