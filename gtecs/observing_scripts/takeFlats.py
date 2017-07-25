@@ -91,11 +91,13 @@ if __name__ == "__main__":
     # set exposure order and check for sky brightness
     if eve:
         expT = 3.0
+        nflats = 3
         filt_order = ['B', 'G', 'R', 'L']
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
         expT = 10.0
+        nflats = 3
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
         skyMeanCheck = lambda x: x < 25000.0
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     # we have just crossed threshold
     # start the first filter
     exposure_sequence = flats.exposure_sequence(
-        today, 1, expT, nflats=5, eve=eve
+        today, 1, expT, nflats=nflats, eve=eve
     )
     for expT in exposure_sequence:
         skyMean = take_sky(expT, current_filter, flat.name)
@@ -137,7 +139,7 @@ if __name__ == "__main__":
         # now we know the correct start exposure
         # exposure_sequence should work from here
         exposure_sequence = flats.exposure_sequence(
-            today, 1, expT, nflats=5, eve=eve
+            today, 1, expT, nflats=nflats, eve=eve
         )
         for expT in exposure_sequence:
             skyMean = take_sky(expT, current_filter, flat.name)
