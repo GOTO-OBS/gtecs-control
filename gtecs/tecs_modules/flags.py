@@ -15,7 +15,6 @@ import json
 import time
 import copy
 from six import iteritems
-import Pyro4
 # TeCS modules
 from . import params
 from ..controls.power_control import APCUPS
@@ -60,7 +59,7 @@ class Power:
 
     def __repr__(self):
         class_name = type(self).__name__
-        repr_str = ', '.join(['='.join((ukey, p.ups_units[ukey].status())) for ukey in p.ups_units])
+        repr_str = ', '.join(['='.join((ukey, self.ups_units[ukey].status())) for ukey in self.ups_units])
         return '{}({})'.format(class_name, repr_str)
 
 
