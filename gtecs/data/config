@@ -117,7 +117,7 @@ PROXY_TIMEOUT = 5
         PINGLIFE = 10.0
         PROCESS = exq_daemon.py
         PYROID = exq_daemon
-        DEPENDS = cam, filt
+        DEPENDS = cam, filt, fli
     [[filt]]
         PORT = 9002
         PINGLIFE = 10.0
