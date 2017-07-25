@@ -214,6 +214,7 @@ class ExqDaemon(HardwareDaemon):
         self.paused = 1 # start paused
 
         self.dependency_error = 0
+        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self.exq_control)
@@ -238,21 +239,23 @@ class ExqDaemon(HardwareDaemon):
             self.time_check = time.time()
 
             ### check dependencies
-            if not misc.dependencies_are_alive('exq'):
-                if not self.dependency_error:
-                    self.logfile.error('Dependencies are not responding')
-                    self.dependency_error = 1
-                    # pause the queue
-                    self.paused = 1
-                time.sleep(5)
-            else:
-                if self.dependency_error:
-                    self.logfile.info('Dependencies responding again')
-                    self.dependency_error = 0
-                    # unpause the queue
-                    self.paused = 0
+            if (self.time_check - self.dependency_check_time) > 2:
+                if not misc.dependencies_are_alive('exq'):
+                    if not self.dependency_error:
+                        self.logfile.error('Dependencies are not responding')
+                        self.dependency_error = 1
+                        # pause the queue
+                        self.paused = 1
+                else:
+                    if self.dependency_error:
+                        self.logfile.info('Dependencies responding again')
+                        self.dependency_error = 0
+                        # unpause the queue
+                        self.paused = 0
+                self.dependency_check_time = time.time()
 
             if self.dependency_error:
+                time.sleep(5)
                 continue
 
             ### exposure queue processes

@@ -55,6 +55,7 @@ class CamDaemon(HardwareDaemon):
         HardwareDaemon.__init__(self, 'cam')
 
         ### command flags
+        self.get_info_flag = 1
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
@@ -110,6 +111,7 @@ class CamDaemon(HardwareDaemon):
         self.stored_tel_list = []
 
         self.dependency_error = 0
+        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self.cam_control)
@@ -131,22 +133,67 @@ class CamDaemon(HardwareDaemon):
             self.time_check = time.time()
 
             ### check dependencies
-            if not misc.dependencies_are_alive('cam'):
-                if not self.dependency_error:
-                    self.logfile.error('Dependencies are not responding')
-                    self.dependency_error = 1
-                time.sleep(5)
-            else:
-                if self.dependency_error:
-                    self.logfile.info('Dependencies responding again')
-                    self.dependency_error = 0
+            if (self.time_check - self.dependency_check_time) > 2:
+                if not misc.dependencies_are_alive('cam'):
+                    if not self.dependency_error:
+                        self.logfile.error('Dependencies are not responding')
+                        self.dependency_error = 1
+                else:
+                    if self.dependency_error:
+                        self.logfile.info('Dependencies responding again')
+                        self.dependency_error = 0
+                self.dependency_check_time = time.time()
 
             if self.dependency_error:
+                time.sleep(5)
                 continue
 
-            self.get_info(fli_proxies)
-
             ### control functions
+            # request info
+            if(self.get_info_flag):
+                # update variables
+                for tel in self.tel_dict:
+                    intf, HW = self.tel_dict[tel]
+                    fli = fli_proxies[intf]
+                    try:
+                        fli._pyroReconnect()
+                        self.cam_info[intf][HW] = fli.get_camera_info(HW)
+                        self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
+                        self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
+                        self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
+                        self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
+                        self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
+                    except:
+                        self.logfile.error('No response from fli interface on %s', intf)
+                        self.logfile.debug('', exc_info=True)
+                # save info
+                info = {}
+                for tel in self.tel_dict:
+                    intf, HW = self.tel_dict[tel]
+                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                    info['remaining'+tel] = self.remaining[intf][HW]
+                    if self.exposing_flag[intf][HW] == 1:
+                        info['status'+tel] = 'Exposing'
+                    elif self.exposing_flag[intf][HW] == 2:
+                        info['status'+tel] = 'Reading'
+                    else:
+                        info['status'+tel] = 'Ready'
+                    info['frametype'+tel] = self.frametype[intf][HW]
+                    info['exptime'+tel] = self.exptime[intf][HW]
+                    info['binning'+tel] = self.binning[intf][HW]
+                    info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
+                    info['base_temp'+tel] = self.base_temp[intf][HW]
+                    info['cooler_power'+tel] = self.cooler_power[intf][HW]
+                    info['serial_number'+tel] = self.serial_number[intf][HW]
+                info['run_number'] = self.run_number
+                info['uptime'] = time.time()-self.start_time
+                info['ping'] = time.time()-self.time_check
+                now = datetime.datetime.utcnow()
+                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                self.info = info
+                self.get_info_flag = 0
+
             # take exposure part one - start
             if(self.take_exposure_flag):
                 exptime = self.target_exptime
@@ -278,56 +325,8 @@ class CamDaemon(HardwareDaemon):
         """Return camera status info"""
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
-        # request info
-        for tel in self.tel_dict:
-            intf, HW = self.tel_dict[tel]
-            if fli_proxies:
-                fli = fli_proxies[intf]
-            else:
-                fli = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
-                fli._pyroTimeout = params.PROXY_TIMEOUT
-            try:
-                fli._pyroReconnect()
-                self.cam_info[intf][HW] = fli.get_camera_info(HW)
-                self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
-                self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
-                self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
-                self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
-                self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
-            except:
-                self.logfile.error('No response from fli interface on %s', intf)
-                self.logfile.debug('', exc_info=True)
-            finally:
-                if not fli_proxies:
-                    fli._pyroRelease()
-
-        # save info
-        info = {}
-        for tel in self.tel_dict:
-            intf, HW = self.tel_dict[tel]
-            tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-            info['remaining'+tel] = self.remaining[intf][HW]
-            if self.exposing_flag[intf][HW] == 1:
-                info['status'+tel] = 'Exposing'
-            elif self.exposing_flag[intf][HW] == 2:
-                info['status'+tel] = 'Reading'
-            else:
-                info['status'+tel] = 'Ready'
-
-            info['frametype'+tel] = self.frametype[intf][HW]
-            info['exptime'+tel] = self.exptime[intf][HW]
-            info['binning'+tel] = self.binning[intf][HW]
-            info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
-            info['base_temp'+tel] = self.base_temp[intf][HW]
-            info['cooler_power'+tel] = self.cooler_power[intf][HW]
-            info['serial_number'+tel] = self.serial_number[intf][HW]
-
-        info['run_number'] = self.run_number
-        info['uptime'] = time.time()-self.start_time
-        info['ping'] = time.time()-self.time_check
-        now = datetime.datetime.utcnow()
-        info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-        self.info = info
+        self.get_info_flag = 1
+        time.sleep(0.1)
         return self.info
 
     def take_image(self,exptime,tel_list):
