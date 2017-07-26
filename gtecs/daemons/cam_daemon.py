@@ -267,7 +267,8 @@ class CamDaemon(HardwareDaemon):
                     self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
                     filename = self._image_location(tel)
                     self.logfile.info('Saving exposure to %s', filename)
-                    self._write_fits(image, filename, tel)
+                    self.pool.submit(self._write_fits,
+                                     (image, filename, tel))
                     self.exposing_flag[intf][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
 
@@ -511,7 +512,7 @@ class CamDaemon(HardwareDaemon):
         self._update_header(hdu.header,tel)
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
-        _ = self.pool.submit(hdulist.writeto, filename)
+        hdulist.writeto(filename)
 
     def _update_header(self,header,tel):
         """Add observation, exposure and hardware info to the FITS header"""
