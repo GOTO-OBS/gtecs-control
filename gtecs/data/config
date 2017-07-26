@@ -136,6 +136,12 @@ PROXY_TIMEOUT = 5
         PROCESS = power_daemon.py
         PYROID = power_daemon
         DEPENDS = None
+    [[sched]]
+        PORT = 9008
+        PINGLIFE = 10.0
+        PROCESS = scheduler_daemon.py
+        PYROID = sheduler_daemon
+        DEPENDS = None
 
 [FLI_INTERFACES]
     [[fli1]]
