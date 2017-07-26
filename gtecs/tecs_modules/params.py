@@ -234,6 +234,6 @@ DATABASE_ECHO = config['DATABASE_ECHO']
 try:
     SLACK_BOT_NAME = config['SLACK_BOT_NAME']
     SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
-    SLACK_CHANNEL_NAME = config['SLACK_CHANNEL_NAME']
+    SLACK_BOT_CHANNEL = config['SLACK_BOT_CHANNEL']
 except:
     pass
