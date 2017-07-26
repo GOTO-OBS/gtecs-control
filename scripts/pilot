@@ -801,11 +801,11 @@ if __name__ == "__main__":
     # start the recurrent tasks
     pilot.running_tasks.extend([
         asyncio.ensure_future(pilot.checkDayTime()),  # set daytime flag to false
-        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
         asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
+        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome
     ])
 
