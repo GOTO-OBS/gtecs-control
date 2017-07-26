@@ -19,7 +19,6 @@ import time
 from astropy.time import Time
 from astropy import units as u
 
-from gtecs.tecs_modules import scheduler
 from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
@@ -29,7 +28,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt
-from gtecs.tecs_modules.observing import filters_are_homed
+from gtecs.tecs_modules.observing import filters_are_homed, check_schedule
 from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
@@ -265,7 +264,7 @@ class Pilot:
             write_html = True
             scheduler_args = [Time.now(), write_html]
             self.newID, self.newPriority, self.newMinTime = await loop.run_in_executor(
-                None, scheduler.check_queue, *scheduler_args
+                None, check_schedule, *scheduler_args
             )
             if self.newMinTime is not None:
                 self.newMinTime = int(self.newMinTime)
