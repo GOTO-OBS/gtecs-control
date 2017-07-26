@@ -374,6 +374,8 @@ class DomeDaemon(HardwareDaemon):
         """Open the dome"""
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
+        if self.move_started:
+            return 'ERROR: Dome is currently moving'
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
             return 'ERROR: Conditions bad, dome will not open'
         elif flags.Power().failed:
@@ -401,6 +403,8 @@ class DomeDaemon(HardwareDaemon):
 
     def close_dome(self,side='both',frac=1):
         """Close the dome"""
+        if self.move_started:
+            return 'ERROR: Dome is currently moving'
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
         self.close_flag = 1
