@@ -23,7 +23,7 @@ from . import params
 READ_WEBSOCKET_DELAY = 1
 BOT_TOKEN = params.SLACK_BOT_TOKEN
 BOT_NAME = params.SLACK_BOT_NAME
-CHANNEL_NAME = params.SLACK_CHANNEL_NAME
+CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
 def send_slack_msg(msg):
