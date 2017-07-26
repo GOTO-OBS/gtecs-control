@@ -710,12 +710,18 @@ class Pilot:
         # make sure the dome starts reporting errors
         self.hardware['dome'].setMode('open')
         self.domeConfirmedClosed = 0
-        while self.domeStatus() != 'open':
+        while self.domeStatus() != 'full_open':
             await asyncio.sleep(5)
 
     def domeStatus(self):
         try:
-            return self.hardware['dome'].getInfo()['dome']
+            dome_info = self.hardware['dome'].getInfo()
+            if dome_info['dome'] == 'closed':
+                return 'closed'
+            if (dome_info['north'] == 'full_open' and
+                    dome_info['south'] == 'full_open'):
+                return 'full_open'
+            return 'part_open'
         except:
             return 'err'
 
