@@ -92,6 +92,8 @@ DATABASE_ECHO = 0
 ###########################################################
 # Daemon parameters
 PROXY_TIMEOUT = 5
+# should we create fake FLI hardware if we can't find any?
+USE_FAKE_FLI = 0
 
 [DAEMONS]
     [[foc]]
