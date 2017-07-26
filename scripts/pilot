@@ -220,7 +220,7 @@ class Pilot:
 
         # no point opening if we are paused due to bad weather or hw fault
         while self.paused or not self.initialHardwareCheckComplete:
-            asyncio.sleep(5)
+            await asyncio.sleep(5)
 
         # OK - let's open the dome and get ready to observe
         self.ready_to_observe = True
