@@ -268,7 +268,7 @@ class CamDaemon(HardwareDaemon):
                     filename = self._image_location(tel)
                     self.logfile.info('Saving exposure to %s', filename)
                     self.pool.submit(self._write_fits,
-                                     (image, filename, tel))
+                                     image, filename, tel)
                     self.exposing_flag[intf][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
 
