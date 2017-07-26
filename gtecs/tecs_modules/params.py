@@ -117,6 +117,8 @@ for key in DAEMONS:
     if 'fli' in DAEMONS[key]['DEPENDS']:
         DAEMONS[key]['DEPENDS'].remove('fli')
         DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
+    if key == 'sched':  ## MEGA FUDGE!
+        DAEMONS[key]['HOST'] = '10.2.6.10'
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
