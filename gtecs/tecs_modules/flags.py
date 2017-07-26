@@ -55,7 +55,9 @@ class Power:
         '''
         return True if any power supplies have failed and UPS has kicked in
         '''
-        return any([self.ups_units[ukey].status() != 'Normal' for ukey in self.ups_units])
+        acceptable_status_vals = ['Normal', 'onBatteryTest']
+        return any([self.ups_units[ukey].status() in acceptable_status_vals
+                    for ukey in self.ups_units])
 
     def __repr__(self):
         class_name = type(self).__name__
