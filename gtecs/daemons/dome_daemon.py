@@ -374,8 +374,6 @@ class DomeDaemon(HardwareDaemon):
         """Open the dome"""
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
-        if self.move_started:
-            return 'ERROR: Dome is currently moving'
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
             return 'ERROR: Conditions bad, dome will not open'
         elif flags.Power().failed:
@@ -384,6 +382,10 @@ class DomeDaemon(HardwareDaemon):
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
             return 'ERROR: In emergency locked state, dome will not open'
         else:
+            if self.open_flag or self.close_flag:
+                # We want new commands to overwrite the old ones
+                self.halt_flag = 1
+                time.sleep(3)
             north_status = self.dome_status['north']
             south_status = self.dome_status['south']
             if side == 'north' and north_status == 'full_open':
@@ -405,11 +407,13 @@ class DomeDaemon(HardwareDaemon):
 
     def close_dome(self,side='both',frac=1):
         """Close the dome"""
-        if self.move_started:
-            return 'ERROR: Dome is currently moving'
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
         else:
+            if self.open_flag or self.close_flag:
+                # We want new commands to overwrite the old ones
+                self.halt_flag = 1
+                time.sleep(3)
             north_status = self.dome_status['north']
             south_status = self.dome_status['south']
             if side == 'north' and north_status == 'closed':
