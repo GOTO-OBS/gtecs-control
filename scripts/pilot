@@ -165,7 +165,8 @@ class Pilot:
         return True
 
     async def homeFilters(self):
-        execute_command('filt home')
+        if not filters_are_homed():
+            execute_command('filt home')
         while not filters_are_homed():
             asyncio.sleep(1)
 
