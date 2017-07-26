@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+########################################################################
+#                          schedule_daemon.py                          #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#     G-TeCS daemon to allow remote computation of next observation    #
+#                    Stu Littlefair, Sheffield, 2017                   #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+########################################################################
+
+### Import ###
+# Python modules
+from __future__ import absolute_import
+from __future__ import print_function
+import time
+import sys
+import Pyro4
+
+# TeCS modules
+from gtecs.tecs_modules import misc
+from gtecs.tecs_modules import params
+from gtecs.tecs_modules import scheduler
+from gtecs.tecs_modules.daemons import HardwareDaemon
+
+
+class SchedulerDaemon(HardwareDaemon):
+    """
+    Scheduler daemon.
+
+    Contains a single function check_queue, which returns the next job.
+    """
+    def __init__(self):
+        HardwareDaemon.__init__(self, 'sched')
+
+    def check_queue(self, *args):
+        return scheduler.check_queue(*args)
+
+
+def start():
+    '''
+    Create Pyro server, register the daemon and enter request loop
+    '''
+    host = params.DAEMONS['sched']['HOST']
+    port = params.DAEMONS['sched']['PORT']
+    pyroID = params.DAEMONS['sched']['PYROID']
+
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one('sched'):
+        sys.exit()
+
+    # Start the daemon
+    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
+        sched_daemon = SchedulerDaemon()
+        uri = pyro_daemon.register(sched_daemon, objectId=pyroID)
+        Pyro4.config.COMMTIMEOUT = 5.
+
+        # Start request loop
+        sched_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=sched_daemon.status_function)
+
+    # Loop has closed
+    sched_daemon.logfile.info('Daemon successfully shut down')
+    time.sleep(1.)
+
+
+if __name__ == "__main__":
+    start()
