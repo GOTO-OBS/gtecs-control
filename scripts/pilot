@@ -24,6 +24,7 @@ from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules.slack import send_slack_msg
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
@@ -649,6 +650,7 @@ class Pilot:
             if elapsed_time / 60. > time_until_panic:
                 msg = "IMPORTANT: pilot cannot close dome. Take action immediately."
                 send_email(message=msg)
+                send_slack_msg(msg)
             dome_info = self.hardware['dome'].getInfo()
             if dome_info['dome'] == 'closed':
                 domeShut = True
@@ -691,6 +693,7 @@ class Pilot:
         Power off, shutdown daemons and exit Pilot
         """
         self.log.warn('performing emergency shutdown')
+        send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown')
         await self.shutdown()
 
         # power off
