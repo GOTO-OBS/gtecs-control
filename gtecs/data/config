@@ -142,6 +142,7 @@ PROXY_TIMEOUT = 5
         PROCESS = scheduler_daemon.py
         PYROID = sheduler_daemon
         DEPENDS = None
+        HOST = 10.2.6.10
 
 [FLI_INTERFACES]
     [[fli1]]
