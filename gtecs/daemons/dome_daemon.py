@@ -391,7 +391,9 @@ class DomeDaemon(HardwareDaemon):
             elif side == 'south' and south_status == 'full_open':
                 return 'ERROR: The south side is already open'
             elif side == 'both':
-                if north_status == 'full_open' and south_status != 'full_open':
+                if north_status == 'full_open' and south_status == 'full_open':
+                    return 'ERROR: The dome is already fully open'
+                elif north_status == 'full_open' and south_status != 'full_open':
                     side == 'south'
                 elif north_status != 'full_open' and south_status == 'full_open':
                     side == 'north'
@@ -407,11 +409,25 @@ class DomeDaemon(HardwareDaemon):
             return 'ERROR: Dome is currently moving'
         if self.dependency_error:
             return 'ERROR: Dependencies are not running'
-        self.close_flag = 1
-        self.move_side = side
-        self.move_frac = frac
-        self.logfile.info('Starting: Closing dome')
-        return 'Closing dome'
+        else:
+            north_status = self.dome_status['north']
+            south_status = self.dome_status['south']
+            if side == 'north' and north_status == 'closed':
+                return 'ERROR: The north side is already closed'
+            elif side == 'south' and south_status == 'closed':
+                return 'ERROR: The south side is already closed'
+            elif side == 'both':
+                if north_status == 'closed' and south_status == 'closed':
+                    return 'ERROR: The dome is already closed'
+                elif north_status == 'closed' and south_status != 'closed':
+                    side == 'south'
+                elif north_status != 'closed' and south_status == 'closed':
+                    side == 'north'
+            self.close_flag = 1
+            self.move_side = side
+            self.move_frac = frac
+            self.logfile.info('Starting: Closing dome')
+            return 'Closing dome'
 
     def halt_dome(self):
         """Stop the dome moving"""
