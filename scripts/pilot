@@ -390,15 +390,16 @@ class Pilot:
                 await self.cancelRunningScript()
                 self.park_scope()
             elif reason == 'hw':
-                if self.runningScriptProtocol.jobName == 'OBS':
-                    # just pause the queue until fixed
-                    execute_command('exq pause')
-                    execute_command('cam abort')
-                else:
-                    # other scripts cannot handle losing frames
-                    execute_command('exq clear')
-                    execute_command('cam abort')
-                    await self.cancelRunningScript()
+                if self.runningScriptProtocol is not None:
+                    if self.runningScriptProtocol.jobName == 'OBS':
+                        # just pause the queue until fixed
+                        execute_command('exq pause')
+                        execute_command('cam abort')
+                    else:
+                        # other scripts cannot handle losing frames
+                        execute_command('exq clear')
+                        execute_command('cam abort')
+                        await self.cancelRunningScript()
             else:
                 self.log.info('pausing for pilot for manual override')
                 self.log.info('current job will continue')
