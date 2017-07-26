@@ -168,8 +168,8 @@ class DomeDaemon(HardwareDaemon):
                             self.move_frac = 1
                     elif os.path.isfile(params.EMERGENCY_FILE):
                         self.logfile.info('Closing dome (emergency!)')
-                        send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
                         if not self.close_flag:
+                            send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
                             self.close_flag = 1
                             self.move_side = 'both'
                             self.move_frac = 1
