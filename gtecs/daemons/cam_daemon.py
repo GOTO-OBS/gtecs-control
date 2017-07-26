@@ -511,7 +511,7 @@ class CamDaemon(HardwareDaemon):
         self._update_header(hdu.header,tel)
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
-        hdulist.writeto(filename)
+        _ = self.pool.submit(hdulist.writeto, filename)
 
     def _update_header(self,header,tel):
         """Add observation, exposure and hardware info to the FITS header"""
