@@ -118,6 +118,7 @@ for key in DAEMONS:
         DAEMONS[key]['DEPENDS'].remove('fli')
         DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
+USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
     FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != '' else FLI_INTERFACES[key]['HOST']
