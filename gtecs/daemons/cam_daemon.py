@@ -236,6 +236,7 @@ class CamDaemon(HardwareDaemon):
                         fli._pyroReconnect()
                         ready = fli.exposure_ready(HW)
                         if ready:
+                            self.exposing_flag[intf][HW] = 2
                             self.future_images[tel] = self.pool.submit(
                                 fli.fetch_exposure, HW
                             )
@@ -246,15 +247,15 @@ class CamDaemon(HardwareDaemon):
             # take exposure part two-b - check if fetch_exposure is done
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
-                if self.exposing_flag[intf][HW] == 1:
+                if self.exposing_flag[intf][HW] == 2:
                     if tel in self.future_images and self.future_images[tel].done():
-                        self.exposing_flag[intf][HW] = 2
+                        self.exposing_flag[intf][HW] = 3
                         self.images[tel] = self.future_images[tel].result()
 
             # take exposure part three - save
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
-                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
+                if self.exposing_flag[intf][HW] == 3 and self.images[tel] is not None:
                     # image available
                     image = self.images[tel]
                     # reset entry
