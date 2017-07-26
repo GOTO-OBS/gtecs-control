@@ -249,7 +249,7 @@ class CamDaemon(HardwareDaemon):
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
                 if self.exposing_flag[intf][HW] == 2 and self.future_images[tel].done():
-                    self.images[tel] = self.future_iamges[tel].result()
+                    self.images[tel] = self.future_images[tel].result()
 
             # take exposure part three - save
             for tel in self.active_tel:
