@@ -112,6 +112,7 @@ class Pilot:
         self.domeOpen = 0   # should dome be open?
         self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
         self.timeOfLastCloseDomeCommand = 0.
+        self.initialHardwareCheckComplete = False
 
         # flag for daytime testing
         self.testing = testing
@@ -217,7 +218,7 @@ class Pilot:
         await self.waitingForTheSun(0.5)
 
         # no point opening if we are paused due to bad weather or hw fault
-        while self.paused:
+        while self.paused or not self.initialHardwareCheckComplete:
             asyncio.sleep(5)
 
         # OK - let's open the dome and get ready to observe
@@ -310,6 +311,7 @@ class Pilot:
                 await self.handlePause('hw', False)
 
             self.errCount = errCount  # save error count so we dont restart whilst broken
+            self.initialHardwareCheckComplete = True
             await asyncio.sleep(sleepTime)
 
     async def check_flags(self):
