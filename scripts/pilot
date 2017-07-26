@@ -366,11 +366,11 @@ class Pilot:
         pause : bool
             does reason suggest a pause (True) or unpause (False)
         """
+        are_we_paused_right_now = self.paused
         # we can set this here because we want to pause right away
         if pause:
             self.whypause[reason] = pause
-
-        if not self.paused and pause:
+        if not are_we_paused_right_now and pause:
             # ok, we need to cancel what we were doing!
             msg = 'Pausing operations due to '
             if reason == 'manual':
