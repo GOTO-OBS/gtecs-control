@@ -28,7 +28,7 @@ from gtecs.tecs_modules.slack import send_slack_msg
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
-from gtecs.tecs_modules.astronomy import sun_alt
+from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
 from gtecs.tecs_modules.observing import filters_are_homed
 from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
@@ -831,8 +831,9 @@ if __name__ == "__main__":
     if pilot.testing:
         stop_time = Time.now() + 60*u.minute
     else:
-        stop_time = Time(nightStarting() + "T12:00:00") + 1*u.day
-    stopSignal = pilot.waitForNightsEnd(stop_time)
+        date = nightStarting()
+        sunrise = startTime(date, 0*u.deg, eve=False)
+    stopSignal = pilot.waitForNightsEnd(sunrise)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
