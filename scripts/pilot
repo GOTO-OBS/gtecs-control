@@ -444,7 +444,7 @@ class Pilot:
                     # phew
                     self.domeConfirmedClosed = 1
                     self.log.info('dome confirmed closed')
-                elif time.time() - self.timeOfLastCloseDomeCommand > 45.:
+                elif time.time() - self.timeOfLastCloseDomeCommand > 65.:
                     self.log.warn('dome not closed. Trying again...')
                     self.close_dome()
             await asyncio.sleep(10)
