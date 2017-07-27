@@ -147,7 +147,14 @@ class Pilot:
         if self.testing:
             return True
 
-        sun_alt_now = sun_alt(Time.now())
+        now = Time.now()
+        midnight = localMidnight(nightStarting())
+        # check against sun rising or setting
+        if (rising and now < midnight) or (not rising and now > midnight):
+            # wow, you're really late
+            return False
+
+        sun_alt_now = sun_alt(now)
         if rising and (sun_alt_now - sunAlt) > 5:
             return False
         if not rising and (sunAlt - sun_alt_now) > 5:
@@ -156,7 +163,7 @@ class Pilot:
         our_watch_has_ended = False
         while not our_watch_has_ended:
             await asyncio.sleep(60)
-            sun_alt_now = sun_alt(Time.now())
+            sun_alt_now = sun_alt(now)
             self.log.info('waiting for sun altitude {}'.format(sunAlt))
             self.log.info('sun altitude now = {}'.format(sun_alt_now))
             if rising:
