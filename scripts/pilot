@@ -804,10 +804,7 @@ class Pilot:
         en1 = dict(name='POWOFF', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'power_off.py')],
                    protocol=SimpleProtocol)
-        en2 = dict(name='DAE', sunAlt=1,
-                   cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
-                   protocol=SimpleProtocol)
-        self.morning_jobs = [en0, en1, en2]
+        self.morning_jobs = [en0, en1]
 
 
 if __name__ == "__main__":
@@ -840,7 +837,7 @@ if __name__ == "__main__":
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
-    stopSignal = pilot.waitForNightsEnd(sunrise)
+    stopSignal = pilot.waitForNightsEnd(sunrise + 20*u.min)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
