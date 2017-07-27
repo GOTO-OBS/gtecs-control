@@ -476,7 +476,7 @@ class Pilot:
 
             # should we stop for the sun?
             now = Time.now()
-            midnight = Time(nightStarting() + "T23:59:00")
+            midnight = localMidnight(nightStarting())
             if now > midnight and sun_alt(now) > until_sun_alt:
                 return
 
