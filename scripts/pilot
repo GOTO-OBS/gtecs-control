@@ -790,7 +790,7 @@ class Pilot:
                    protocol=SimpleProtocol)
         self.evening_jobs = [sn4, sn5, sn6]
 
-        en0 = dict(name='FLATS', sunAlt=-7,
+        en0 = dict(name='FLATS', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                    protocol=SimpleProtocol)
         en1 = dict(name='POWOFF', sunAlt=0,
