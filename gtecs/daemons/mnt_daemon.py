@@ -19,6 +19,8 @@ import Pyro4
 import threading
 import time
 from astropy.time import Time
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
@@ -405,23 +407,19 @@ class MntDaemon(HardwareDaemon):
         # Need to catch error if target not yet set
         if self.target_ra == None or self.target_dec == None:
             return None
+        m_ra = self.sitech.ra
+        m_dec = self.sitech.dec
+        t_ra = self.target_ra
+        t_dec = self.target_dec
         if not params.FREEZE_DEC:
-            t_ra = self.target_ra
-            t_dec = self.target_dec
-            m_ra = self.sitech.ra
-            m_dec = self.sitech.dec
-            t_alt = 90 - t_dec
-            m_alt = 90 - m_dec
-            D_ra = (t_ra - m_ra)*360./24.
-            S1 = cos(radians(t_alt))*cos(radians(m_alt))
-            S2 = sin(radians(t_alt))*sin(radians(m_alt))*cos(radians(D_ra))
-            S = degrees(acos(S1+S2))
-            return S
+            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+            t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
+            return t_c.separation(m_c).deg
         else:
-            t_ra = self.target_ra
-            m_ra = self.sitech.ra
-            D_ra = (t_ra - m_ra)*360./24.
-            return abs(D_ra)
+            # note m_dec for both
+            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+            t_c = SkyCoord(t_ra, m_dec, unit=(u.hour, u.deg))
+            return t_c.separation(m_c).deg
 
     def _ra_check_thread(self):
         '''A thread to check the ra distance and cancel slewing when it's
