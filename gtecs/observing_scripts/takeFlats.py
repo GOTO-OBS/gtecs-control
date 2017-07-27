@@ -57,7 +57,7 @@ if __name__ == "__main__":
         alt = -3*u.deg
     else:
         eve = False
-        alt = -5.5*u.deg
+        alt = -10*u.deg
 
     if not filters_are_homed():
         print('homing filters')
