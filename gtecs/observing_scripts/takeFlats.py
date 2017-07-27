@@ -96,7 +96,7 @@ if __name__ == "__main__":
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 10.0
+        expT = 40.0
         nflats = 3
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0
