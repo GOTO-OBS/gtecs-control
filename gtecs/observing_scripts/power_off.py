@@ -25,9 +25,12 @@ def run():
     else:
         cmd('mnt park')
 
-    # give time before returning
+    # give time before closing dome
     time.sleep(60)
 
+    # close dome and wait (pilot will try again before shutdown)
+    cmd('dome close')
+    time.sleep(65)
 
 if __name__ == "__main__":
     run()

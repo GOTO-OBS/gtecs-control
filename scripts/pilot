@@ -28,7 +28,7 @@ from gtecs.tecs_modules.slack import send_slack_msg
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
-from gtecs.tecs_modules.astronomy import sun_alt
+from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
 from gtecs.tecs_modules.observing import filters_are_homed
 from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
@@ -147,7 +147,14 @@ class Pilot:
         if self.testing:
             return True
 
-        sun_alt_now = sun_alt(Time.now())
+        now = Time.now()
+        midnight = localMidnight(nightStarting())
+        # check against sun rising or setting
+        if (rising and now < midnight) or (not rising and now > midnight):
+            # wow, you're really late
+            return False
+
+        sun_alt_now = sun_alt(now)
         if rising and (sun_alt_now - sunAlt) > 5:
             return False
         if not rising and (sunAlt - sun_alt_now) > 5:
@@ -156,8 +163,9 @@ class Pilot:
         our_watch_has_ended = False
         while not our_watch_has_ended:
             await asyncio.sleep(60)
-            sun_alt_now = sun_alt(Time.now())
-            self.log.info('waiting: sun altitude = {}'.format(sun_alt_now))
+            sun_alt_now = sun_alt(now)
+            self.log.info('waiting for sun altitude {}'.format(sunAlt))
+            self.log.info('sun altitude now = {}'.format(sun_alt_now))
             if rising:
                 our_watch_has_ended = sun_alt_now > sunAlt
             else:
@@ -475,7 +483,7 @@ class Pilot:
 
             # should we stop for the sun?
             now = Time.now()
-            midnight = Time(nightStarting() + "T23:59:00")
+            midnight = localMidnight(nightStarting())
             if now > midnight and sun_alt(now) > until_sun_alt:
                 return
 
@@ -796,10 +804,7 @@ class Pilot:
         en1 = dict(name='POWOFF', sunAlt=0,
                    cmd=[os.path.join(SCRIPT_PATH, 'power_off.py')],
                    protocol=SimpleProtocol)
-        en2 = dict(name='DAE', sunAlt=1,
-                   cmd=[os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')],
-                   protocol=SimpleProtocol)
-        self.morning_jobs = [en0, en1, en2]
+        self.morning_jobs = [en0, en1]
 
 
 if __name__ == "__main__":
@@ -830,8 +835,9 @@ if __name__ == "__main__":
     if pilot.testing:
         stop_time = Time.now() + 60*u.minute
     else:
-        stop_time = Time(nightStarting() + "T12:00:00") + 1*u.day
-    stopSignal = pilot.waitForNightsEnd(stop_time)
+        date = nightStarting()
+        sunrise = startTime(date, 0*u.deg, eve=False)
+    stopSignal = pilot.waitForNightsEnd(sunrise + 20*u.min)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
