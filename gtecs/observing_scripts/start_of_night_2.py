@@ -29,6 +29,8 @@ def run():
     # home the wheels
     cmd('filt home')
 
+    # TODO: TAKE TELESCOPE OUT OF BLINKY MODE
+
     print('Moving telescope to safe position')
     if params.FREEZE_DEC:
         cmd('mnt stop')
