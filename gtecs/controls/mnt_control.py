@@ -53,9 +53,12 @@ class SiTech:
         '''Send a command string to the device, then fetch the reply
         and return it as a string.
         '''
-        self.socket.send(command_str.encode())
-        reply = self.socket.recv(self.buffer_size)
-        return reply.decode()
+        try:
+            self.socket.send(command_str.encode())
+            reply = self.socket.recv(self.buffer_size)
+            return reply.decode()
+        except Exception as error:
+            return 'SiTech socket error: {}'.format(error)
 
     def _parse_reply_string(self, reply_string):
         '''Parse the return string from a SiTech command.
@@ -75,7 +78,7 @@ class SiTech:
 
         # a quick check
         if not len(reply) == 11:
-            raise ValueError('Invalid SiTech return string')
+            raise ValueError('Invalid SiTech return string: {}'.format(reply))
 
         # parse boolian flags
         bools = int(reply[0])
