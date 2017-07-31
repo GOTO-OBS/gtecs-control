@@ -296,9 +296,9 @@ def print_info(info):
 
 def print_info_s(info):
     if info['status'] != 'Slewing':
-        print('MOUNT (sitech)           [{}]'.format(info['status']))
+        print('MOUNT ({})           [{}]'.format(params.SITECH_HOST, info['status']))
     else:
-        print('MOUNT (sitech)           Slewing (%.2f)' %info['target_dist'])
+        print('MOUNT ({})           Slewing ({:.2f})'.format(params.SITECH_HOST,info['target_dist']))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
