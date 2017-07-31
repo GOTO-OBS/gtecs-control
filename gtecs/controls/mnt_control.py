@@ -132,7 +132,7 @@ class SiTech:
             dec_j2000 = float(message.split(' ')[1])
             return (ra_j2000, dec_j2000)
         except:
-            raise ValueError('Bad return from coordinates: {}'.format(message)
+            raise ValueError('Bad return from coordinates: {}'.format(message))
 
     @property
     def status(self):
