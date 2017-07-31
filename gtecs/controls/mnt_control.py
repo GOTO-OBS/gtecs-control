@@ -26,9 +26,9 @@ class SiTech:
         self.port = port
         self.buffer_size = 1024
         self.commands = {'GET_STATUS' : 'ReadScopeStatus\n',
-                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f}\n',
+                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f} J2K\n',
                          'SLEW_ALTAZ' : 'GoToAltAz {:.5f} {:.5f}\n',
-                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f}\n',
+                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f} J2K\n',
                          'SYNC_ALTAZ' : 'SyncToAltAz {:.5f} {:.5f}\n',
                          'PARK' : 'Park\n',
                          'UNPARK' : 'UnPark\n',
@@ -37,6 +37,8 @@ class SiTech:
                          'PULSEGUIDE' : 'PulseGuide {:d} {:d}\n',
                          'BLINKY_ON' : 'MotorsToBlinky\n',
                          'BLINKY_OFF' : 'MotorsToAuto\n',
+                         'J2K_TO_JNOW' : 'CookCoordinates {:.5f} {:.5f}\n',
+                         'JNOW_TO_J2K' : 'UnCookCoordinates {:.5f} {:.5f}\n',
                          }
 
         # Create one persistent socket
@@ -95,8 +97,8 @@ class SiTech:
                                 }
 
         # parse values
-        self._ra = float(reply[1])
-        self._dec = float(reply[2])
+        self._ra_jnow = float(reply[1])
+        self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
         self._secondary_angle = float(reply[5])
@@ -117,6 +119,20 @@ class SiTech:
         command = self.commands['GET_STATUS']
         reply_string = self._tcp_command(command)
         self._parse_reply_string(reply_string) # no message
+
+    def _get_j2000(self):
+        '''Find the current RA and Dec values and convert them to J2000'''
+        self._update_status()
+        command = self.commands['JNOW_TO_J2K'].format(self._ra_jnow, self._dec_jnow)
+        reply_string = self._tcp_command(command)
+        message = self._parse_reply_string(reply_string)
+        try:
+            assert len(message.split(' ')) == 2
+            ra_j2000 = float(message.split(' ')[0])
+            dec_j2000 = float(message.split(' ')[1])
+            return (ra_j2000, dec_j2000)
+        except:
+            raise ValueError('Bad return from coordinates: {}'.format(message)
 
     @property
     def status(self):
@@ -189,13 +205,15 @@ class SiTech:
 
     @property
     def ra(self):
-        self._update_status()
-        return self._ra
+        '''Gives current RA (J2000)'''
+        ra_j2000, _ = self._get_j2000()
+        return ra_j2000
 
     @property
     def dec(self):
-        self._update_status()
-        return self._dec
+        '''Gives current Dec (J2000)'''
+        _, dec_j2000 = self._get_j2000()
+        return dec_j2000
 
     @property
     def alt(self):
@@ -233,9 +251,7 @@ class SiTech:
         return self._hours
 
     def slew_to_radec(self, ra, dec):
-        '''Slew to given RA and Dec coordinates
-        NOTE: RA and Dec must be in JNow, not J2000
-        '''
+        '''Slew to given RA and Dec coordinates (in J2000)'''
         self.target_radec = (ra, dec)
 
         command = self.commands['SLEW_RADEC'].format(float(ra), float(dec))
@@ -254,9 +270,7 @@ class SiTech:
         return message
 
     def sync_radec(self, ra, dec):
-        '''Set current pointing to given RA and Dec coordinates
-        NOTE: RA and Dec must be in JNow, not J2000
-        '''
+        '''Set current pointing to given RA and Dec coordinates (in J2000)'''
         command = self.commands['SYNC_RADEC'].format(float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
