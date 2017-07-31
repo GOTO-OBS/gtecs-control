@@ -43,6 +43,7 @@ class SiTech:
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
         self.socket.connect((self.IP_address, self.port))
 
     def __del__(self):
