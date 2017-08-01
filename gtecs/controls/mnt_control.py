@@ -40,11 +40,15 @@ class SiTech:
                          'J2K_TO_JNOW' : 'CookCoordinates {:.5f} {:.5f}\n',
                          'JNOW_TO_J2K' : 'UnCookCoordinates {:.5f} {:.5f}\n',
                          }
+        self._status_update_time = 0
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)
         self.socket.connect((self.IP_address, self.port))
+
+        # Update status when starting
+        self._update_status()
 
     def __del__(self):
         self.socket.shutdown(socket.SHUT_RDWR)
@@ -70,6 +74,9 @@ class SiTech:
         Returns None if there is no message,
         e.g. from just reading the status rather than sending a command.
         '''
+
+        # store update time
+        self._status_update_time = time.time()
 
         # save reply string
         self._reply_string = reply_string
@@ -120,9 +127,11 @@ class SiTech:
 
     def _update_status(self):
         '''Read and store status values'''
-        command = self.commands['GET_STATUS']
-        reply_string = self._tcp_command(command)
-        self._parse_reply_string(reply_string) # no message
+        # Only update if we need to, to save sending multiple commands
+        if (time.time() - self._status_update_time) > 0.5:
+            command = self.commands['GET_STATUS']
+            reply_string = self._tcp_command(command)
+            self._parse_reply_string(reply_string) # no message
 
     def _get_j2000(self):
         '''Find the current RA and Dec values and convert them to J2000'''
