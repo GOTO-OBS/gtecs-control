@@ -12,6 +12,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys, subprocess
+import threading
 import time
 import serial
 import socket
@@ -47,7 +48,7 @@ class SiTech:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)
         self.socket.connect((self.IP_address, self.port))
-
+        self.thread_lock = threading.Lock()
         # Update status when starting
         self._update_status()
 
@@ -61,8 +62,9 @@ class SiTech:
         '''
         try:
             print(datetime.datetime.now().time(), 'SEND:', command_str[:-1])
-            self.socket.send(command_str.encode())
-            reply = self.socket.recv(self.buffer_size)
+            with self.thread_lock:
+                self.socket.send(command_str.encode())
+                reply = self.socket.recv(self.buffer_size)
             print(datetime.datetime.now().time(), 'RECV:', reply.decode()[:-1])
             return reply.decode()
         except Exception as error:
