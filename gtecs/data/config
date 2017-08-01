@@ -16,12 +16,6 @@ EMAIL_SERVER = smtp.gmail.com:587
 CONFIG_PATH = /home/goto/g-tecs-config/
 IMAGE_PATH = /home/goto/images/
 
-# Specific Windows params
-WIN_USER = goto
-WIN_INSTALL_PATH = C:/g-tecs/
-WIN_CONFIG_PATH = C:/goto/g-tecs/
-CYGWIN_PYTHON_PATH = /cygdrive/c/Anaconda3/pythonw.exe
-
 # Daemons should log to file?
 FILE_LOGGING = 1
 # Daemons should log to stdout?
@@ -160,10 +154,3 @@ USE_FAKE_FLI = 0
             foc = fake, fake
             filt = fake, fake
             cam = fake, fake
-
-[WIN_INTERFACES]
-    [[sitech]]
-        PORT = 9000
-        PROCESS = sitech_interface.py
-        PYROID = sitech_interface
-        HOST = mount_control
