@@ -28,7 +28,7 @@ def run():
     # give time before closing dome
     time.sleep(60)
 
-    # TODO: PUT TELESCOPE IN BLINKY MODE
+    cmd('mnt blinky on')
 
     # close dome and wait (pilot will try again before shutdown)
     cmd('dome close')
