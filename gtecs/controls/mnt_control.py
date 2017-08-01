@@ -15,6 +15,7 @@ import os, sys, subprocess
 import time
 import serial
 import socket
+import datetime
 # TeCS modules
 from gtecs.tecs_modules import params
 
@@ -59,8 +60,10 @@ class SiTech:
         and return it as a string.
         '''
         try:
+            print(datetime.datetime.now().time(), 'SEND:', command_str[:-1])
             self.socket.send(command_str.encode())
             reply = self.socket.recv(self.buffer_size)
+            print(datetime.datetime.now().time(), 'RECV:', reply.decode()[:-1])
             return reply.decode()
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
