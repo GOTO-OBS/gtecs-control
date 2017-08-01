@@ -62,24 +62,6 @@ def get_process_ID(process_name, host):
 
     return process_ID
 
-def get_process_ID_windows(process_name, host, username=None):
-    '''Retrieve ID numbers of python processes from a remote Windows machine'''
-    process_ID = []
-    if username:
-        all_processes = getoutput('ssh {}@{}'.format(username, host)
-                                 +' wmic process get ProcessId,CommandLine'
-                                 +' | grep -i python')
-    else:
-        all_processes = getoutput('ssh {}'.format(host)
-                                 +' wmic process get ProcessId,CommandLine'
-                                 +' | grep -i python')
-
-    for line in all_processes.split('\n'):
-        if process_name in line:
-            process_ID.append(line.split()[2])
-
-    return process_ID
-
 def cmd_timeout(command, timeout, bufsize=-1):
     """
     Execute command and limit execution time to 'timeout' seconds.
@@ -122,15 +104,6 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
             print('Killed remote process', process_ID)
-
-def kill_processes_windows(process, host, username=None):
-    '''Kill any specified processes on a remote Windows machine'''
-    process_ID_list = get_process_ID_windows(process, host, username)
-
-    for process_ID in process_ID_list:
-        getoutput('ssh {}@{}'.format(username, host)
-                 +' taskkill /F /PID {}'.format(process_ID))
-        print('Killed remote process', process_ID)
 
 def python_command(filename, command, host='localhost',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -250,8 +223,6 @@ def daemon_is_alive(daemon_ID):
         address = params.DAEMONS[daemon_ID]['ADDRESS']
     elif daemon_ID in params.FLI_INTERFACES:
         address = params.FLI_INTERFACES[daemon_ID]['ADDRESS']
-    elif daemon_ID in params.WIN_INTERFACES:
-        address = params.WIN_INTERFACES[daemon_ID]['ADDRESS']
     else:
         raise ValueError('Invalid daemon ID')
 
@@ -296,18 +267,11 @@ def there_can_only_be_one(daemon_ID):
         host = params.FLI_INTERFACES[daemon_ID]['HOST']
         port = params.FLI_INTERFACES[daemon_ID]['PORT']
         process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
-    elif daemon_ID in params.WIN_INTERFACES:
-        host = params.WIN_INTERFACES[daemon_ID]['HOST']
-        port = params.WIN_INTERFACES[daemon_ID]['PORT']
-        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
     else:
         raise ValueError('Invalid daemon ID')
 
     # Check if daemon process is already running
-    if daemon_ID in params.WIN_INTERFACES:
-        process_ID = get_process_ID_windows(process, host, params.WIN_USER)
-    else:
-        process_ID = get_process_ID(process, host)
+    process_ID = get_process_ID(process, host)
     if len(process_ID) > 1:
         print('ERROR: Daemon already running')
         return False
