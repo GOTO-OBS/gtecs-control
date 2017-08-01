@@ -84,6 +84,12 @@ class MntDaemon(HardwareDaemon):
         self.dependency_error = 0
         self.dependency_check_time = 0
 
+        ### connect to SiTechExe
+        # Once, and we'll see if both threads can use it
+        IP_address = params.SITECH_HOST
+        port = params.SITECH_PORT
+        self.sitech = mnt_control.SiTech(IP_address, port)
+
         ### start control thread
         t = threading.Thread(target=self.mnt_control)
         t.daemon = True
@@ -99,11 +105,6 @@ class MntDaemon(HardwareDaemon):
     # Primary control thread
     def mnt_control(self):
         self.logfile.info('Daemon control thread started')
-
-        ### connect to SiTechExe
-        IP_address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(IP_address, port)
 
         while(self.running):
             self.time_check = time.time()
@@ -431,11 +432,6 @@ class MntDaemon(HardwareDaemon):
         If activated it will check the telescope when slewing, and if it's
         reached the RA target then stop the slewing and start tracking.
         '''
-
-        ### connect to SiTechExe
-        IP_address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(IP_address, port)
 
         ra_distance = 0
         i = 0
