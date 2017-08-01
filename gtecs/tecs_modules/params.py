@@ -64,22 +64,14 @@ TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with deta
 
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
-if sys.platform == 'win32':
-    CONFIG_PATH = config['WIN_CONFIG_PATH']
-else:
-    CONFIG_PATH = config['CONFIG_PATH']
+
+CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
 IMAGE_PATH = config['IMAGE_PATH']
-
-# Specific Windows params
-WIN_USER = config['WIN_USER']
-WIN_INSTALL_PATH = config['WIN_INSTALL_PATH']
-WIN_CONFIG_PATH = config['WIN_CONFIG_PATH']
-CYGWIN_PYTHON_PATH = config['CYGWIN_PYTHON_PATH']
 
 # Daemons should log to file?
 FILE_LOGGING = config['FILE_LOGGING']
@@ -128,12 +120,6 @@ TEL_DICT = {}
 for intf in FLI_INTERFACES:
     for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
         TEL_DICT[tel] = [intf, HW]
-
-WIN_INTERFACES = config['WIN_INTERFACES']
-for key in WIN_INTERFACES:
-    WIN_INTERFACES[key]['HOST'] = config['WIN_HOST_OVERRIDE'] if config['WIN_HOST_OVERRIDE'] != '' else WIN_INTERFACES[key]['HOST']
-    WIN_INTERFACES[key]['ADDRESS'] = 'PYRO:' + WIN_INTERFACES[key]['PYROID'] + '@' + WIN_INTERFACES[key]['HOST'] + ':' + str(WIN_INTERFACES[key]['PORT'])
-
 
 ########################################################################
 # Weather parameters
