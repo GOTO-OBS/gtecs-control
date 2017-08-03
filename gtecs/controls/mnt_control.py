@@ -113,7 +113,10 @@ class SiTech:
                                 }
 
         # parse values
-        self._ra_jnow = float(reply[1])
+        ra_temp = float(reply[1])
+        if ra_temp >= 24: # fix for RA
+            ra_temp -= 24
+        self._ra_jnow = ra_temp
         self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
