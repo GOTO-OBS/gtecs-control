@@ -163,6 +163,7 @@ class Pilot:
         our_watch_has_ended = False
         while not our_watch_has_ended:
             await asyncio.sleep(60)
+            now = Time.now()
             sun_alt_now = sun_alt(now)
             self.log.info('waiting for sun altitude {}'.format(sunAlt))
             self.log.info('sun altitude now = {}'.format(sun_alt_now))
