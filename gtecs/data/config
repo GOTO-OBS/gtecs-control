@@ -90,6 +90,20 @@ PROXY_TIMEOUT = 5
 USE_FAKE_FLI = 0
 
 [DAEMONS]
+    [[mnt]]
+        PORT = 9001
+        PINGLIFE = 10.0
+        PROCESS = mnt_daemon.py
+        PYROID = mnt_daemon
+        HOST = localhost
+        DEPENDS = None
+    [[filt]]
+        PORT = 9002
+        PINGLIFE = 10.0
+        PROCESS = filt_daemon.py
+        PYROID = filt_daemon
+        HOST = localhost
+        DEPENDS = fli
     [[foc]]
         PORT = 9003
         PINGLIFE = 10.0
@@ -104,13 +118,6 @@ USE_FAKE_FLI = 0
         PYROID = cam_daemon
         HOST = localhost
         DEPENDS = fli
-    [[dome]]
-        PORT = 9007
-        PINGLIFE = 10.0
-        PROCESS = dome_daemon.py
-        PYROID = dome_daemon
-        HOST = localhost
-        DEPENDS = None
     [[exq]]
         PORT = 9005
         PINGLIFE = 10.0
@@ -118,25 +125,18 @@ USE_FAKE_FLI = 0
         PYROID = exq_daemon
         HOST = localhost
         DEPENDS = cam, filt, fli
-    [[filt]]
-        PORT = 9002
-        PINGLIFE = 10.0
-        PROCESS = filt_daemon.py
-        PYROID = filt_daemon
-        HOST = localhost
-        DEPENDS = fli
-    [[mnt]]
-        PORT = 9001
-        PINGLIFE = 10.0
-        PROCESS = mnt_daemon.py
-        PYROID = mnt_daemon
-        HOST = localhost
-        DEPENDS = None
     [[power]]
         PORT = 9006
         PINGLIFE = 10.0
         PROCESS = power_daemon.py
         PYROID = power_daemon
+        HOST = localhost
+        DEPENDS = None
+    [[dome]]
+        PORT = 9007
+        PINGLIFE = 10.0
+        PROCESS = dome_daemon.py
+        PYROID = dome_daemon
         HOST = localhost
         DEPENDS = None
 
