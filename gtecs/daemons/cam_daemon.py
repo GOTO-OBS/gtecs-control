@@ -818,7 +818,6 @@ def start():
     '''
     host = params.DAEMONS['cam']['HOST']
     port = params.DAEMONS['cam']['PORT']
-    pyroID = params.DAEMONS['cam']['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one('cam'):
@@ -827,7 +826,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         cam_daemon = CamDaemon()
-        uri = pyro_daemon.register(cam_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(cam_daemon, objectId='cam')
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop

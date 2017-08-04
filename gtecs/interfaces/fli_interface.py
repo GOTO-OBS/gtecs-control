@@ -281,7 +281,6 @@ def start():
 
     host = params.FLI_INTERFACES[intf]['HOST']
     port = params.FLI_INTERFACES[intf]['PORT']
-    pyroID = params.FLI_INTERFACES[intf]['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(intf):
@@ -290,7 +289,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         fli_daemon = FLIDaemon(intf)
-        uri = pyro_daemon.register(fli_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(fli_daemon, objectId=intf)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop

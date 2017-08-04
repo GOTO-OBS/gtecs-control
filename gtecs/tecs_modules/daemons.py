@@ -104,7 +104,6 @@ def start_daemon(daemon_ID):
     '''Start a daemon (unless it is already running)'''
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
-    pyroid  = params.DAEMONS[daemon_ID]['PYROID']
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
     if depends[0] != 'None':
@@ -121,7 +120,7 @@ def start_daemon(daemon_ID):
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
-        fpipe = open(params.LOG_PATH + pyroid + '-stdout.log', 'a')
+        fpipe = open(params.LOG_PATH + daemon_ID + '-stdout.log', 'a')
         process_options.update({
             'stdout': fpipe, 'stderr': fpipe
         })

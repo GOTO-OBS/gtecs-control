@@ -471,7 +471,6 @@ def start():
     '''
     host = params.DAEMONS['mnt']['HOST']
     port = params.DAEMONS['mnt']['PORT']
-    pyroID = params.DAEMONS['mnt']['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one('mnt'):
@@ -480,7 +479,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         mnt_daemon = MntDaemon()
-        uri = pyro_daemon.register(mnt_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(mnt_daemon, objectId='mnt')
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
