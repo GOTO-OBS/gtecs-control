@@ -113,10 +113,6 @@ for daemon_ID in DAEMONS:
 
 USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
-for intf in FLI_INTERFACES:
-    if FLI_INTERFACES[intf]['HOST'] == 'localhost':
-        FLI_INTERFACES[intf]['HOST'] = HOST
-    FLI_INTERFACES[intf]['ADDRESS'] = 'PYRO:' + intf + '@' + FLI_INTERFACES[intf]['HOST'] + ':' + str(FLI_INTERFACES[intf]['PORT'])
 
 TEL_DICT = {}
 for intf in FLI_INTERFACES:

@@ -132,22 +132,28 @@ USE_FAKE_FLI = 0
         PINGLIFE = 10.0
         PROCESS = dome_daemon.py
         DEPENDS = None
+    [[fli1]]
+        HOST = localhost
+        PORT = 9010
+        PINGLIFE = 10.0
+        PROCESS = fli_interface.py
+        DEPENDS = None
+    [[fli2]]
+        HOST = localhost
+        PORT = 9020
+        PINGLIFE = 10.0
+        PROCESS = fli_interfaceB.py
+        DEPENDS = None
 
 [FLI_INTERFACES]
     [[fli1]]
         TELS = 1, 2
-        HOST = localhost
-        PORT = 9010
-        PROCESS = fli_interface.py
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
             cam = fake, fake
     [[fli2]]
         TELS = 3, 4
-        PORT = 9020
-        HOST = localhost
-        PROCESS = fli_interfaceB.py
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake

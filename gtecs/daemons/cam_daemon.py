@@ -126,7 +126,7 @@ class CamDaemon(HardwareDaemon):
         # make proxies once, outside the loop
         fli_proxies = dict()
         for intf in params.FLI_INTERFACES:
-            fli_proxies[intf] = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
+            fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
             fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):
@@ -468,7 +468,7 @@ class CamDaemon(HardwareDaemon):
 
     def _image_fetch(self, tel):
         intf, HW = self.tel_dict[tel]
-        fli = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
+        fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
         fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
         try:
             future_image = fli.fetch_exposure(HW)
