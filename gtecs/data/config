@@ -139,7 +139,7 @@ USE_FAKE_FLI = 0
         PYROID = power_daemon
         HOST = localhost
         DEPENDS = None
-    [[sched]]
+    [[scheduler]]
         PORT = 9008
         PINGLIFE = 10.0
         PROCESS = scheduler_daemon.py
