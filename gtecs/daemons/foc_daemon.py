@@ -88,7 +88,7 @@ class FocDaemon(HardwareDaemon):
         # make proxies once, outside the loop
         fli_proxies = dict()
         for intf in params.FLI_INTERFACES:
-            fli_proxies[intf] = Pyro4.Proxy(params.FLI_INTERFACES[intf]['ADDRESS'])
+            fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
             fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
 
         while(self.running):

@@ -279,8 +279,8 @@ def start():
     except ValueError:
         intf = misc.find_interface_ID('localhost')
 
-    host = params.FLI_INTERFACES[intf]['HOST']
-    port = params.FLI_INTERFACES[intf]['PORT']
+    host = params.DAEMONS[intf]['HOST']
+    port = params.DAEMONS[intf]['PORT']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(intf):
