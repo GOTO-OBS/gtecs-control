@@ -420,7 +420,11 @@ class MntDaemon(HardwareDaemon):
             # note m_dec for both
             m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
             t_c = SkyCoord(t_ra, m_dec, unit=(u.hour, u.deg))
-            return t_c.separation(m_c).deg
+            sep = t_c.separation(m_c).deg
+            if sep < 0.07:
+                return 0
+            else:
+                return sep
 
     def _ra_check_thread(self):
         '''A thread to check the ra distance and cancel slewing when it's
@@ -432,16 +436,16 @@ class MntDaemon(HardwareDaemon):
         If activated it will check the telescope when slewing, and if it's
         reached the RA target then stop the slewing and start tracking.
         '''
-
+        import numpy as np
         ra_distance = 0
         i = 0
         j = 0
         while True:
             if self.sitech.slewing:
                 sleep_time = 0.1
-                ra_distance_new = self._get_target_distance()
+                ra_distance_new = np.around(self._get_target_distance(),6)
                 print(ra_distance_new, abs(ra_distance_new - ra_distance), i, j)
-                if ra_distance_new < 0.003 and abs(ra_distance_new - ra_distance) < 0.0001:
+                if ra_distance_new < 0.01 and abs(ra_distance_new - ra_distance) < 0.0001:
                     i += 1
                 if abs(ra_distance_new - ra_distance) == 0:
                     j += 1
