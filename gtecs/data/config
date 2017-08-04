@@ -93,55 +93,53 @@ USE_FAKE_FLI = 0
     [[mnt]]
         HOST = localhost
         PORT = 9001
-        PINGLIFE = 10.0
         PROCESS = mnt_daemon.py
         DEPENDS = None
+        PINGLIFE = 10.0
     [[filt]]
         HOST = localhost
         PORT = 9002
-        PINGLIFE = 10.0
         PROCESS = filt_daemon.py
         DEPENDS = fli
+        PINGLIFE = 10.0
     [[foc]]
         HOST = localhost
         PORT = 9003
-        PINGLIFE = 10.0
         PROCESS = foc_daemon.py
         DEPENDS = fli
+        PINGLIFE = 10.0
     [[cam]]
         HOST = localhost
         PORT = 9004
-        PINGLIFE = 10.0
         PROCESS = cam_daemon.py
         DEPENDS = fli
+        PINGLIFE = 10.0
     [[exq]]
         HOST = localhost
         PORT = 9005
-        PINGLIFE = 10.0
         PROCESS = exq_daemon.py
         DEPENDS = cam, filt, fli
+        PINGLIFE = 10.0
     [[power]]
         HOST = localhost
         PORT = 9006
-        PINGLIFE = 10.0
         PROCESS = power_daemon.py
         DEPENDS = None
+        PINGLIFE = 10.0
     [[dome]]
         HOST = localhost
         PORT = 9007
-        PINGLIFE = 10.0
         PROCESS = dome_daemon.py
         DEPENDS = None
+        PINGLIFE = 10.0
     [[fli1]]
         HOST = localhost
         PORT = 9010
-        PINGLIFE = 10.0
         PROCESS = fli_interface.py
         DEPENDS = None
     [[fli2]]
         HOST = localhost
         PORT = 9020
-        PINGLIFE = 10.0
         PROCESS = fli_interfaceB.py
         DEPENDS = None
 
