@@ -68,7 +68,7 @@ class InterfaceDaemon(object):
     Generic interface daemon class
 
     Interface daemons do not have control threads like Hardware daemons,
-    instead they just staticly forward functions to the Pyro network
+    instead they just statically forward functions to the Pyro network
     """
 
     def __init__(self, daemon_ID):
