@@ -67,7 +67,6 @@ HOST = socket.gethostname()
 
 CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
