@@ -253,6 +253,25 @@ def twilightLength(date):
     return (twilight_end - sun_set_time).to(u.min)
 
 
+def localMidnight(date):
+    """
+    Find the UT time of local midnight.
+
+    Parameters
+    ----------
+    date : string
+        night starting date (YYYY-MM-DD)
+
+    Returns
+    -------
+    midnight : `astropy.time.Time`
+        time of local midnight in UT
+    """
+    noon = Time(date + " 12:00:00")
+    observer = Observer(location=observatory_location())
+    return observer.midnight(noon, 'next')
+
+
 @u.quantity_input(sunAlt=u.deg)
 def startTime(date, sunAlt, eve=True):
     """

@@ -54,7 +54,7 @@ if __name__ == "__main__":
         name = star.name
         goto(coordinate.ra.deg, coordinate.dec.deg)
         time.sleep(10)
-        wait_for_telescope(480)  # 480s timeout
+        wait_for_telescope(120)  # 120s timeout
 
         take_image_set(20, name)
 

@@ -57,7 +57,7 @@ if __name__ == "__main__":
         alt = -3*u.deg
     else:
         eve = False
-        alt = -5.5*u.deg
+        alt = -10*u.deg
 
     if not filters_are_homed():
         print('homing filters')
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    wait_for_telescope(480)  # 480s timeout
+    wait_for_telescope(120)  # 120s timeout
 
     # set exposure order and check for sky brightness
     if eve:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         skyMean = 40000.0
         skyMeanCheck = lambda x: x > 25000.0
     else:
-        expT = 10.0
+        expT = 40.0
         nflats = 3
         filt_order = ['L', 'R', 'G', 'B']
         skyMean = 2.0

@@ -19,6 +19,8 @@ import Pyro4
 import threading
 import time
 from astropy.time import Time
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
@@ -82,6 +84,12 @@ class MntDaemon(HardwareDaemon):
         self.dependency_error = 0
         self.dependency_check_time = 0
 
+        ### connect to SiTechExe
+        # Once, and we'll see if both threads can use it
+        IP_address = params.SITECH_HOST
+        port = params.SITECH_PORT
+        self.sitech = mnt_control.SiTech(IP_address, port)
+
         ### start control thread
         t = threading.Thread(target=self.mnt_control)
         t.daemon = True
@@ -97,11 +105,6 @@ class MntDaemon(HardwareDaemon):
     # Primary control thread
     def mnt_control(self):
         self.logfile.info('Daemon control thread started')
-
-        ### connect to SiTechExe
-        IP_address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(IP_address, port)
 
         while(self.running):
             self.time_check = time.time()
@@ -405,23 +408,23 @@ class MntDaemon(HardwareDaemon):
         # Need to catch error if target not yet set
         if self.target_ra == None or self.target_dec == None:
             return None
+        m_ra = self.sitech.ra
+        m_dec = self.sitech.dec
+        t_ra = self.target_ra
+        t_dec = self.target_dec
         if not params.FREEZE_DEC:
-            t_ra = self.target_ra
-            t_dec = self.target_dec
-            m_ra = self.sitech.ra
-            m_dec = self.sitech.dec
-            t_alt = 90 - t_dec
-            m_alt = 90 - m_dec
-            D_ra = (t_ra - m_ra)*360./24.
-            S1 = cos(radians(t_alt))*cos(radians(m_alt))
-            S2 = sin(radians(t_alt))*sin(radians(m_alt))*cos(radians(D_ra))
-            S = degrees(acos(S1+S2))
-            return S
+            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+            t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
+            return t_c.separation(m_c).deg
         else:
-            t_ra = self.target_ra
-            m_ra = self.sitech.ra
-            D_ra = (t_ra - m_ra)*360./24.
-            return abs(D_ra)
+            # note m_dec for both
+            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+            t_c = SkyCoord(t_ra, m_dec, unit=(u.hour, u.deg))
+            sep = t_c.separation(m_c).deg
+            if sep < 0.07:
+                return 0
+            else:
+                return sep
 
     def _ra_check_thread(self):
         '''A thread to check the ra distance and cancel slewing when it's
@@ -433,21 +436,16 @@ class MntDaemon(HardwareDaemon):
         If activated it will check the telescope when slewing, and if it's
         reached the RA target then stop the slewing and start tracking.
         '''
-
-        ### connect to SiTechExe
-        IP_address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(IP_address, port)
-
+        import numpy as np
         ra_distance = 0
         i = 0
         j = 0
         while True:
             if self.sitech.slewing:
                 sleep_time = 0.1
-                ra_distance_new = self._get_target_distance()
+                ra_distance_new = np.around(self._get_target_distance(),6)
                 print(ra_distance_new, abs(ra_distance_new - ra_distance), i, j)
-                if ra_distance_new < 0.003 and abs(ra_distance_new - ra_distance) < 0.0001:
+                if ra_distance_new < 0.01 and abs(ra_distance_new - ra_distance) < 0.0001:
                     i += 1
                 if abs(ra_distance_new - ra_distance) == 0:
                     j += 1

@@ -234,7 +234,7 @@ if __name__ == "__main__":
     coordinate = star.coord_now()
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    wait_for_telescope(480)  # 480s timeout
+    wait_for_telescope(120)  # 120s timeout
 
     # get the parameters of the focus curves. Should be arrays, one entry per OTA
     m2 = pd.Series(params.FOCUS_SLOPE_ABOVE, dtype='float')
