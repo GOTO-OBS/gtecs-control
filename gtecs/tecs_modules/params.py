@@ -104,18 +104,18 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 # Daemon parameters
 DAEMONS = config['DAEMONS']
 for key in DAEMONS:
-    DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
+    if  DAEMONS[key]['HOST'] == 'localhost':
+        DAEMONS[key]['HOST'] = HOST
     DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
     if 'fli' in DAEMONS[key]['DEPENDS']:
         DAEMONS[key]['DEPENDS'].remove('fli')
         DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
-    if key == 'sched':  ## MEGA FUDGE!
-        DAEMONS[key]['HOST'] = '10.2.6.10'
 
 USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
 for key in FLI_INTERFACES:
-    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != '' else FLI_INTERFACES[key]['HOST']
+    if FLI_INTERFACES[key]['HOST'] == 'localhost':
+        FLI_INTERFACES[key]['HOST'] = HOST
     FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
