@@ -30,10 +30,10 @@ def check_schedule(time, write_html):
     """
     Check the schedule
     """
-    SCHEDULER_DAEMON_ADDRESS = params.DAEMONS['sched']['ADDRESS']
-    with Pyro4.Proxy(SCHEDULER_DAEMON_ADDRESS) as sched:
-        sched._pyroTimeout = params.PROXY_TIMEOUT
-        newID, newPriority, newMinTime = sched.check_queue(time, write_html)
+    SCHEDULER_DAEMON_ADDRESS = params.DAEMONS['scheduler']['ADDRESS']
+    with Pyro4.Proxy(SCHEDULER_DAEMON_ADDRESS) as scheduler:
+        scheduler._pyroTimeout = params.PROXY_TIMEOUT
+        newID, newPriority, newMinTime = scheduler.check_queue(time, write_html)
     return newID, newPriority, newMinTime
 
 

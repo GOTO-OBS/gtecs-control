@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ########################################################################
-#                          schedule_daemon.py                          #
+#                          scheduler_daemon.py                         #
 #           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
 #     G-TeCS daemon to allow remote computation of next observation    #
 #                    Stu Littlefair, Sheffield, 2017                   #
@@ -31,7 +31,7 @@ class SchedulerDaemon(HardwareDaemon):
     Contains a single function check_queue, which returns the next job.
     """
     def __init__(self):
-        HardwareDaemon.__init__(self, 'sched')
+        HardwareDaemon.__init__(self, 'scheduler')
 
     def check_queue(self, *args):
         return scheduler.check_queue(*args)
@@ -41,26 +41,26 @@ def start():
     '''
     Create Pyro server, register the daemon and enter request loop
     '''
-    host = params.DAEMONS['sched']['HOST']
-    port = params.DAEMONS['sched']['PORT']
-    pyroID = params.DAEMONS['sched']['PYROID']
+    host = params.DAEMONS['scheduler']['HOST']
+    port = params.DAEMONS['scheduler']['PORT']
+    pyroID = params.DAEMONS['scheduler']['PYROID']
 
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('sched'):
+    if not misc.there_can_only_be_one('scheduler'):
         sys.exit()
 
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        sched_daemon = SchedulerDaemon()
-        uri = pyro_daemon.register(sched_daemon, objectId=pyroID)
+        scheduler_daemon = SchedulerDaemon()
+        uri = pyro_daemon.register(scheduler_daemon, objectId=pyroID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        sched_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=sched_daemon.status_function)
+        scheduler_daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=scheduler_daemon.status_function)
 
     # Loop has closed
-    sched_daemon.logfile.info('Daemon successfully shut down')
+    scheduler_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
 
 
