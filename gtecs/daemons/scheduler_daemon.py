@@ -21,17 +21,17 @@ import Pyro4
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules import scheduler
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs.tecs_modules.daemons import InterfaceDaemon
 
 
-class SchedulerDaemon(HardwareDaemon):
+class SchedulerDaemon(InterfaceDaemon):
     """
     Scheduler daemon.
 
     Contains a single function check_queue, which returns the next job.
     """
     def __init__(self):
-        HardwareDaemon.__init__(self, 'scheduler')
+        InterfaceDaemon.__init__(self, 'scheduler')
 
     def check_queue(self, *args):
         return scheduler.check_queue(*args)
