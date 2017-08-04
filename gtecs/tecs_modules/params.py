@@ -103,20 +103,20 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 ########################################################################
 # Daemon parameters
 DAEMONS = config['DAEMONS']
-for key in DAEMONS:
-    if  DAEMONS[key]['HOST'] == 'localhost':
-        DAEMONS[key]['HOST'] = HOST
-    DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
-    if 'fli' in DAEMONS[key]['DEPENDS']:
-        DAEMONS[key]['DEPENDS'].remove('fli')
-        DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
+for daemon_ID in DAEMONS:
+    if  DAEMONS[daemon_ID]['HOST'] == 'localhost':
+        DAEMONS[daemon_ID]['HOST'] = HOST
+    DAEMONS[daemon_ID]['ADDRESS'] = 'PYRO:' + daemon_ID + '@' + DAEMONS[daemon_ID]['HOST'] + ':' + str(DAEMONS[daemon_ID]['PORT'])
+    if 'fli' in DAEMONS[daemon_ID]['DEPENDS']:
+        DAEMONS[daemon_ID]['DEPENDS'].remove('fli')
+        DAEMONS[daemon_ID]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
-for key in FLI_INTERFACES:
-    if FLI_INTERFACES[key]['HOST'] == 'localhost':
-        FLI_INTERFACES[key]['HOST'] = HOST
-    FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
+for intf in FLI_INTERFACES:
+    if FLI_INTERFACES[intf]['HOST'] == 'localhost':
+        FLI_INTERFACES[intf]['HOST'] = HOST
+    FLI_INTERFACES[intf]['ADDRESS'] = 'PYRO:' + intf + '@' + FLI_INTERFACES[intf]['HOST'] + ':' + str(FLI_INTERFACES[intf]['PORT'])
 
 TEL_DICT = {}
 for intf in FLI_INTERFACES:

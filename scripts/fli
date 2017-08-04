@@ -29,7 +29,6 @@ def start_fli_interface(interface):
     '''Start an interface (unless it is already running)'''
     process = params.FLI_INTERFACES[interface]['PROCESS']
     host    = params.FLI_INTERFACES[interface]['HOST']
-    pyroid  = params.FLI_INTERFACES[interface]['PYROID']
 
     process_path = os.path.join(params.INTERFACE_PATH, process)
     process_ID = misc.get_process_ID(process, host)
@@ -37,7 +36,7 @@ def start_fli_interface(interface):
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
-        fpipe = open(params.LOG_PATH + pyroid + '-stdout.log', 'a')
+        fpipe = open(params.LOG_PATH + interface + '-stdout.log', 'a')
         process_options.update({
             'stdout': fpipe, 'stderr': fpipe
         })

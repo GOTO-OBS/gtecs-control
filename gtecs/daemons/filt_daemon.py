@@ -260,7 +260,6 @@ def start():
     '''
     host = params.DAEMONS['filt']['HOST']
     port = params.DAEMONS['filt']['PORT']
-    pyroID = params.DAEMONS['filt']['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one('filt'):
@@ -269,7 +268,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         filt_daemon = FiltDaemon()
-        uri = pyro_daemon.register(filt_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(filt_daemon, objectId='filt')
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop

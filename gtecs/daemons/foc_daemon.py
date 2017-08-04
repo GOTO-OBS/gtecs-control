@@ -292,7 +292,6 @@ def start():
     '''
     host = params.DAEMONS['foc']['HOST']
     port = params.DAEMONS['foc']['PORT']
-    pyroID = params.DAEMONS['foc']['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one('foc'):
@@ -301,7 +300,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         foc_daemon = FocDaemon()
-        uri = pyro_daemon.register(foc_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(foc_daemon, objectId='foc')
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
