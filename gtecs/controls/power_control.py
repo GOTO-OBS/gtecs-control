@@ -310,17 +310,25 @@ class ETH8020:
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
-    def _tcp_command(self, command):
-        # I think this should be a context manager
-        # which is apparently possible in Python3
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        IP = self.IP_address
-        port = self.port
-        s.connect((IP,port))
-        s.send(command)
-        reply = s.recv(self.buffer_size)
-        s.close()
-        return reply
+        # Create one persistent socket
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
+        self.socket.connect((self.IP_address, self.port))
+
+    def __del__(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.close()
+
+    def _tcp_command(self, command_bytes):
+        '''Send command bytes to the device, then fetch the reply bytes
+        and return them.
+        '''
+        try:
+            self.socket.send(command_bytes)
+            reply = self.socket.recv(self.buffer_size)
+            return reply
+        except Exception as error:
+            return 'Socket error: {}'.format(error)
 
     def status(self):
         num = 0 # all

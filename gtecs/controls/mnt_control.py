@@ -12,9 +12,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import os, sys, subprocess
+import threading
 import time
 import serial
 import socket
+import datetime
 # TeCS modules
 from gtecs.tecs_modules import params
 
@@ -26,9 +28,9 @@ class SiTech:
         self.port = port
         self.buffer_size = 1024
         self.commands = {'GET_STATUS' : 'ReadScopeStatus\n',
-                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f}\n',
+                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f} J2K\n',
                          'SLEW_ALTAZ' : 'GoToAltAz {:.5f} {:.5f}\n',
-                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f}\n',
+                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f} J2K\n',
                          'SYNC_ALTAZ' : 'SyncToAltAz {:.5f} {:.5f}\n',
                          'PARK' : 'Park\n',
                          'UNPARK' : 'UnPark\n',
@@ -37,11 +39,18 @@ class SiTech:
                          'PULSEGUIDE' : 'PulseGuide {:d} {:d}\n',
                          'BLINKY_ON' : 'MotorsToBlinky\n',
                          'BLINKY_OFF' : 'MotorsToAuto\n',
+                         'J2K_TO_JNOW' : 'CookCoordinates {:.5f} {:.5f}\n',
+                         'JNOW_TO_J2K' : 'UnCookCoordinates {:.5f} {:.5f}\n',
                          }
+        self._status_update_time = 0
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
         self.socket.connect((self.IP_address, self.port))
+        self.thread_lock = threading.Lock()
+        # Update status when starting
+        self._update_status()
 
     def __del__(self):
         self.socket.shutdown(socket.SHUT_RDWR)
@@ -51,9 +60,15 @@ class SiTech:
         '''Send a command string to the device, then fetch the reply
         and return it as a string.
         '''
-        self.socket.send(command_str.encode())
-        reply = self.socket.recv(self.buffer_size)
-        return reply.decode()
+        try:
+            print(datetime.datetime.now().time(), 'SEND:', command_str[:-1])
+            with self.thread_lock:
+                self.socket.send(command_str.encode())
+                reply = self.socket.recv(self.buffer_size)
+            print(datetime.datetime.now().time(), 'RECV:', reply.decode()[:-1])
+            return reply.decode()
+        except Exception as error:
+            return 'SiTech socket error: {}'.format(error)
 
     def _parse_reply_string(self, reply_string):
         '''Parse the return string from a SiTech command.
@@ -65,6 +80,9 @@ class SiTech:
         e.g. from just reading the status rather than sending a command.
         '''
 
+        # store update time
+        self._status_update_time = time.time()
+
         # save reply string
         self._reply_string = reply_string
 
@@ -73,7 +91,7 @@ class SiTech:
 
         # a quick check
         if not len(reply) == 11:
-            raise ValueError('Invalid SiTech return string')
+            raise ValueError('Invalid SiTech return string: {}'.format(reply))
 
         # parse boolian flags
         bools = int(reply[0])
@@ -95,8 +113,11 @@ class SiTech:
                                 }
 
         # parse values
-        self._ra = float(reply[1])
-        self._dec = float(reply[2])
+        ra_temp = float(reply[1])
+        if ra_temp >= 24: # fix for RA
+            ra_temp -= 24
+        self._ra_jnow = ra_temp
+        self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
         self._secondary_angle = float(reply[5])
@@ -114,9 +135,25 @@ class SiTech:
 
     def _update_status(self):
         '''Read and store status values'''
-        command = self.commands['GET_STATUS']
+        # Only update if we need to, to save sending multiple commands
+        if (time.time() - self._status_update_time) > 0.5:
+            command = self.commands['GET_STATUS']
+            reply_string = self._tcp_command(command)
+            self._parse_reply_string(reply_string) # no message
+
+    def _get_j2000(self):
+        '''Find the current RA and Dec values and convert them to J2000'''
+        self._update_status()
+        command = self.commands['JNOW_TO_J2K'].format(self._ra_jnow, self._dec_jnow)
         reply_string = self._tcp_command(command)
-        self._parse_reply_string(reply_string) # no message
+        message = self._parse_reply_string(reply_string)
+        try:
+            assert len(message.split(' ')) == 2
+            ra_j2000 = float(message.split(' ')[0])
+            dec_j2000 = float(message.split(' ')[1])
+            return (ra_j2000, dec_j2000)
+        except:
+            raise ValueError('Bad return from coordinates: {}'.format(message))
 
     @property
     def status(self):
@@ -189,13 +226,15 @@ class SiTech:
 
     @property
     def ra(self):
-        self._update_status()
-        return self._ra
+        '''Gives current RA (J2000)'''
+        ra_j2000, _ = self._get_j2000()
+        return ra_j2000
 
     @property
     def dec(self):
-        self._update_status()
-        return self._dec
+        '''Gives current Dec (J2000)'''
+        _, dec_j2000 = self._get_j2000()
+        return dec_j2000
 
     @property
     def alt(self):
@@ -233,9 +272,7 @@ class SiTech:
         return self._hours
 
     def slew_to_radec(self, ra, dec):
-        '''Slew to given RA and Dec coordinates
-        NOTE: RA and Dec must be in JNow, not J2000
-        '''
+        '''Slew to given RA and Dec coordinates (in J2000)'''
         self.target_radec = (ra, dec)
 
         command = self.commands['SLEW_RADEC'].format(float(ra), float(dec))
@@ -254,9 +291,7 @@ class SiTech:
         return message
 
     def sync_radec(self, ra, dec):
-        '''Set current pointing to given RA and Dec coordinates
-        NOTE: RA and Dec must be in JNow, not J2000
-        '''
+        '''Set current pointing to given RA and Dec coordinates (in J2000)'''
         command = self.commands['SYNC_RADEC'].format(float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)

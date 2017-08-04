@@ -13,7 +13,7 @@ from astropy.coordinates import Longitude
 from astropy import units as u
 
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.astronomy import find_lst
+from gtecs.tecs_modules.astronomy import find_lst, observatory_location
 from gtecs.tecs_modules.observing import wait_for_telescope, goto
 from gtecs.tecs_modules import params
 
@@ -29,11 +29,22 @@ def run():
     # home the wheels
     cmd('filt home')
 
+    cmd('mnt blinky off')
+    time.sleep(10)
+
     print('Moving telescope to safe position')
     if params.FREEZE_DEC:
         cmd('mnt stop')
     else:
         cmd('mnt park')
+
+    print('Setting target to Zenith')
+    lst = find_lst(Time.now()) * u.hourangle
+    obs = observatory_location()
+    ra = lst.to(u.deg)
+    dec = obs.lat.value
+    cmd('mnt ra {}'.format(ra))
+    cmd('mnt dec {}'.format(dec))
 
     time.sleep(5)
     cmd('mnt info')
