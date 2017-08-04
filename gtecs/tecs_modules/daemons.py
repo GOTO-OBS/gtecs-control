@@ -26,6 +26,8 @@ from . import misc
 class HardwareDaemon(object):
     """
     Generic hardware daemon class
+
+    Hardware daemons have always looping control threads
     """
 
     def __init__(self, daemon_ID):
@@ -64,15 +66,18 @@ class HardwareDaemon(object):
 class InterfaceDaemon(object):
     """
     Generic interface daemon class
+
+    Interface daemons do not have control threads like Hardware daemons,
+    instead they just staticly forward functions to the Pyro network
     """
 
-    def __init__(self, interface_ID):
-        self.interface_ID = interface_ID
+    def __init__(self, daemon_ID):
+        self.daemon_ID = daemon_ID
         self.running = True
         self.start_time = time.time()
 
         # set up logfile
-        self.logfile = logger.getLogger(self.interface_ID,
+        self.logfile = logger.getLogger(self.daemon_ID,
                                         file_logging=params.FILE_LOGGING,
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon created')
