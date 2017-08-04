@@ -131,6 +131,7 @@ def start_daemon(daemon_ID):
         misc.python_command(process_path, '', **process_options)
 
         # See if it started
+        time.sleep(1)
         process_ID_n = misc.get_process_ID(process, host)
         if len(process_ID_n) == 1:
             print('Daemon started on {} (PID {})'.format(host, process_ID_n[0]))
