@@ -78,6 +78,8 @@ FILE_LOGGING = config['FILE_LOGGING']
 STDOUT_LOGGING = config['STDOUT_LOGGING']
 # redirect Daemon stdout to file?
 REDIRECT_STDOUT = config['REDIRECT_STDOUT']
+# use colour and fancy formatting in output?
+FANCY_OUTPUT = config['FANCY_OUTPUT']
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = config['SITE_LATITUDE']

@@ -301,19 +301,40 @@ def find_interface_ID(hostname):
 ########################################################################
 ## Text formatting functions
 def rtxt(text):
-    return '\033[31;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[31;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def gtxt(text):
-    return '\033[32;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[32;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def ytxt(text):
-    return '\033[33;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[33;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def btxt(text):
-    return '\033[34;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[34;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def ptxt(text):
-    return '\033[35;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[35;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def bold(text):
-    return '\033[1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[1m' + str(text) + '\033[0m'
+    else:
+        return text
 def undl(text):
-    return '\033[4m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[4m' + str(text) + '\033[0m'
+    else:
+        return text
 
 ########################################################################
 # Misc functions

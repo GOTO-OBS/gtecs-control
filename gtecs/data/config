@@ -22,6 +22,8 @@ FILE_LOGGING = 1
 STDOUT_LOGGING = 1
 # redirect Daemon stdout to file?
 REDIRECT_STDOUT = 0
+# use colour and fancy formatting in output?
+FANCY_OUTPUT = 1
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_ALTITUDE = 2327
