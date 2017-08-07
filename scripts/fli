@@ -41,21 +41,47 @@ def query(command, args):
     # Primary control functions
     if command == 'start':
         for daemon_ID in daemon_IDs:
-            daemons.start_daemon(daemon_ID)
+            try:
+                c = daemons.start_daemon(daemon_ID)
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'shutdown':
         for daemon_ID in daemon_IDs:
-            daemons.shutdown_daemon(daemon_ID)
+            try:
+                c = daemons.shutdown_daemon(daemon_ID)
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'restart':
         for daemon_ID in daemon_IDs:
-            daemons.restart_daemon(daemon_ID)
+            try:
+                c = daemons.restart_daemon(daemon_ID)
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'kill':
         for daemon_ID in daemon_IDs:
-            daemons.kill_daemon(daemon_ID)
+            try:
+                c = daemons.kill_daemon(daemon_ID)
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'ping':
         for daemon_ID in daemon_IDs:
-            daemons.ping_daemon(daemon_ID)
+            try:
+                c = daemons.ping_daemon(daemon_ID)
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'help' or command == '?':
         print_instructions()
+
     elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 

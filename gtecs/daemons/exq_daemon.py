@@ -286,7 +286,7 @@ class ExqDaemon(HardwareDaemon):
     def get_info(self):
         """Return exposure queue status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         info = {}
         if self.paused:
             info['status'] = 'Paused'
@@ -313,14 +313,14 @@ class ExqDaemon(HardwareDaemon):
             binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         filt = filt.upper()
         target = target.replace(';', '')
         imgtype = imgtype.replace(';', '')
 
         # check if valid
         if filt.upper() not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+            raise ValueError('Filter not in list %s' %str(self.flist))
 
         exposure = ExposureSpec(tel_list, exptime, filt,
                                 binning, frametype, target, imgtype)
@@ -336,14 +336,14 @@ class ExqDaemon(HardwareDaemon):
                   expID = 0):
         """Add multiple exposures to the queue as a set"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         filt = filt.upper()
         target = target.replace(';', '')
         imgtype = imgtype.replace(';', '')
 
         # check if valid
         if filt.upper() not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+            raise ValueError('Filter not in list %s' %str(self.flist))
 
         s = ''
         for i in range(Nexp):
@@ -363,33 +363,33 @@ class ExqDaemon(HardwareDaemon):
     def clear(self):
         """Empty the exposure queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.exp_queue.clear()
         return 'Queue cleared'
 
     def get(self):
         """Return info on exposures in the queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         return self.exp_queue.get()
 
     def get_simple(self):
         """Return simple info on exposures in the queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         return self.exp_queue.get_simple()
 
     def pause(self):
         """Pause the queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.paused = 1
         return 'Queue paused'
 
     def resume(self):
         """Unpause the queue"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.paused = 0
         return 'Queue resumed'
 

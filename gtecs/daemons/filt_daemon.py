@@ -201,7 +201,7 @@ class FiltDaemon(HardwareDaemon):
     def get_info(self):
         """Return filter wheel status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
@@ -209,45 +209,47 @@ class FiltDaemon(HardwareDaemon):
     def set_filter(self,new_filter,tel_list):
         """Move filter wheel to given filter"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.new_filter = new_filter
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         if new_filter not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+            raise ValueError('Filter not in list %s' %str(self.flist))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)
             elif not self.homed[intf][HW]:
-                s += '\n  ERROR: Home filter wheel %i first!' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i not homed"' %tel)
             else:
                 self.active_tel += [tel]
-                s += '\n  Moving filter wheel %i' %tel
+                s += 'Moving filter wheel %i' %tel
         self.set_filter_flag = 1
         return s
 
     def home_filter(self,tel_list):
         """Move filter wheel to home position"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)
             else:
                 self.active_tel += [tel]
-                s += '\n  Homing filter wheel %i' %tel
+                s += 'Homing filter wheel %i' %tel
         self.home_filter_flag = 1
         return s
 

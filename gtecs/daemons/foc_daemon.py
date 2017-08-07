@@ -213,7 +213,7 @@ class FocDaemon(HardwareDaemon):
     def get_info(self):
         """Return focuser status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
@@ -221,66 +221,69 @@ class FocDaemon(HardwareDaemon):
     def set_focuser(self,new_pos,tel_list):
         """Move focuser to given position"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Focuser %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
             elif new_pos > self.limit[intf][HW]:
-                s += '\n  ERROR: Position past limit'
+                s += misc.ERROR('"ValueError: Position past limit"')
             else:
                 self.active_tel += [tel]
                 self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
-                s += '\n  Moving focuser %i' %tel
+                s += 'Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
 
     def move_focuser(self,move_steps,tel_list):
         """Move focuser by given number of steps"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Focuser %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
             elif (self.current_pos[intf][HW] + move_steps) > self.limit[intf][HW]:
-                s += '\n  ERROR: Position past limit'
+                s += misc.ERROR('"ValueError: Position past limit"')
             else:
                 self.active_tel += [tel]
                 self.move_steps[intf][HW] = move_steps
-                s += '\n  Moving focuser %i' %tel
+                s += 'Moving focuser %i' %tel
         self.move_focuser_flag = 1
         return s
 
     def home_focuser(self,tel_list):
         """Move focuser to the home position"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         self.get_info_flag = 1
         time.sleep(0.1)
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Focuser %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
             else:
                 self.active_tel += [tel]
-                s += '\n  Homing focuser %i' %tel
+                s += 'Homing focuser %i' %tel
         self.home_focuser_flag = 1
         return s
 
