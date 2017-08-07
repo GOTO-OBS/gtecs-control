@@ -23,18 +23,16 @@ from . import misc
 ########################################################################
 # Super classes
 
-class HardwareDaemon(object):
-    """
-    Generic hardware daemon class
+class BaseDaemon(object):
+    """Base class for TeCS daemons.
 
-    Hardware daemons have always looping control threads
+    Inherited by HardwareDaemon and InterfaceDaemon, use one of them.
     """
 
     def __init__(self, daemon_ID):
         self.daemon_ID = daemon_ID
         self.running = True
         self.start_time = time.time()
-        self.time_check = time.time()
 
         # set up logfile
         self.logfile = logger.getLogger(self.daemon_ID,
@@ -42,7 +40,33 @@ class HardwareDaemon(object):
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon created')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Common daemon functions
+    def ping(self):
+        raise NotImplementedError
+
+    def prod(self):
+        return
+
+    def status_function(self):
+        return self.running
+
+    def shutdown(self):
+        self.logfile.info('Daemon shutting down')
+        self.running = False
+
+
+class HardwareDaemon(BaseDaemon):
+    """Generic hardware daemon class.
+
+    Hardware daemons have always looping control threads.
+    """
+
+    def __init__(self, daemon_ID):
+        # initiate daemon
+        BaseDaemon.__init__(self, daemon_ID)
+
+        self.time_check = time.time()
+
     # Common daemon functions
     def ping(self):
         dt_control = abs(time.time() - self.time_check)
@@ -52,50 +76,21 @@ class HardwareDaemon(object):
         else:
             return 'ping'
 
-    def prod(self):
-        return
 
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.logfile.info('Daemon shutting down')
-        self.running = False
-
-
-class InterfaceDaemon(object):
-    """
-    Generic interface daemon class
+class InterfaceDaemon(BaseDaemon):
+    """Generic interface daemon class.
 
     Interface daemons do not have control threads like Hardware daemons,
-    instead they just statically forward functions to the Pyro network
+    instead they just statically forward functions to the Pyro network.
     """
 
     def __init__(self, daemon_ID):
-        self.daemon_ID = daemon_ID
-        self.running = True
-        self.start_time = time.time()
+        # initiate daemon
+        BaseDaemon.__init__(self, daemon_ID)
 
-        # set up logfile
-        self.logfile = logger.getLogger(self.daemon_ID,
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon created')
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Common daemon functions
     def ping(self):
         return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.logfile.info('Daemon shutting down')
-        self.running = False
 
 
 ########################################################################
