@@ -324,7 +324,7 @@ class CamDaemon(HardwareDaemon):
     def get_info(self, fli_proxies=None):
         """Return camera status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.get_info_flag = 1
         time.sleep(0.1)
         return self.info
@@ -332,76 +332,79 @@ class CamDaemon(HardwareDaemon):
     def take_image(self,exptime,tel_list):
         """Take image with camera"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         return self._take_frame(exptime, 'image', tel_list)
 
     def take_dark(self,exptime,tel_list):
         """Take dark frame with camera"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         return self._take_frame(exptime, 'dark', tel_list)
 
     def take_bias(self,tel_list):
         """Take bias frame with camera"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         return self._take_frame(params.BIASEXP, 'bias', tel_list)
 
     def abort_exposure(self,tel_list):
         """Abort current exposure"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         self.get_info()
         s = 'Aborting:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] == 0:
-                s += '\n  ERROR: Camera %i is not currently exposing' %tel
+                s += misc.ERROR('"HardwareStatusError: Camera %i is not currently exposing"' %tel)
             else:
                 self.active_tel += [tel]
-                s += '\n  Aborting exposure on camera %i' %tel
+                s += 'Aborting exposure on camera %i' %tel
         self.abort_exposure_flag = 1
         return s
 
     def set_temperature(self,target_temp,tel_list):
         """Set the camera's temperature"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.target_temp = target_temp
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         if not (-55 <= target_temp <= 45):
-            return 'ERROR: Temperature must be between -55 and 45'
+            raise ValueError('Temperature must be between -55 and 45')
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
-            s += '\n  Setting temperature on camera %i' %tel
+            s += '\n  '
+            s += 'Setting temperature on camera %i' %tel
         self.set_temp_flag = 1
         return s
 
     def set_binning(self,binning,tel_list):
         """Set the image binning"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.target_binning = binning
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
         s = 'Setting:'
         for tel in tel_list:
             self.active_tel += [tel]
-            s += '\n  Setting image binning on camera %i' %tel
+            s += '\n  '
+            s += 'Setting image binning on camera %i' %tel
         self.set_binning_flag = 1
         return s
 
     def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
         """Save the run details if given by the queue daemon"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.target = target
         self.imgtype = imgtype
         self.set_pos = set_pos
@@ -427,7 +430,7 @@ class CamDaemon(HardwareDaemon):
         """
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
 
         self.stored_tel_list = tel_list
         self.target_exptime = exptime
@@ -441,28 +444,26 @@ class CamDaemon(HardwareDaemon):
 
         time.sleep(0.1)
 
-        occupied = False
         for tel in self.active_tel:
             intf, HW = self.tel_dict[tel]
             if self.exposing_flag[intf][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
+                raise misc.HardwareStatusError('Cameras are already exposing')
 
-        if not occupied:
-            # find and update run number
-            with open(self.run_number_file, 'r') as f:
-                lines = f.readlines()
-                self.run_number = int(lines[0]) + 1
-            with open(self.run_number_file, 'w') as f:
-                f.write('{:07d}'.format(self.run_number))
+        # find and update run number
+        with open(self.run_number_file, 'r') as f:
+            lines = f.readlines()
+            self.run_number = int(lines[0]) + 1
+        with open(self.run_number_file, 'w') as f:
+            f.write('{:07d}'.format(self.run_number))
 
-            s = 'Exposing r{:07d}:'.format(self.run_number)
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
-                                                                     exp_type,
-                                                                     tel)
-            self.take_exposure_flag = 1
+        s = 'Exposing r{:07d}:'.format(self.run_number)
+        for tel in tel_list:
+            self.active_tel += [tel]
+            s += '\n  '
+            s += 'Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
+                                                             exp_type,
+                                                             tel)
+        self.take_exposure_flag = 1
 
         return s
 

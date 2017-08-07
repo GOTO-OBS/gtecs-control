@@ -246,7 +246,7 @@ class PowerDaemon(HardwareDaemon):
     def get_info(self):
         """Return power status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.5)
@@ -255,10 +255,10 @@ class PowerDaemon(HardwareDaemon):
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
-            return 'ERROR: No valid outlets'
+            raise ValueError('No valid outlets')
         else:
             self.on_flag = 1
             return 'Turning on power'
@@ -266,10 +266,10 @@ class PowerDaemon(HardwareDaemon):
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
-            return 'ERROR: No valid outlets'
+            raise ValueError('No valid outlets')
         else:
             self.off_flag = 1
             return 'Turning off power'
@@ -277,10 +277,10 @@ class PowerDaemon(HardwareDaemon):
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self._parse_input(outlet_list, unit)
         if len(self.current_outlets) == 0:
-            return 'ERROR: No valid outlets'
+            raise ValueError('No valid outlets')
         else:
             self.reboot_flag = 1
             return 'Rebooting power'

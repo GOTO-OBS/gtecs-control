@@ -40,17 +40,43 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        daemons.start_daemon(daemon_ID)
+        try:
+            c = daemons.start_daemon(daemon_ID)
+            if c: print(c)
+        except Exception as error:
+            print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'shutdown':
-        daemons.shutdown_daemon(daemon_ID)
+        try:
+            c = daemons.shutdown_daemon(daemon_ID)
+            if c: print(c)
+        except Exception as error:
+            print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'restart':
-        daemons.restart_daemon(daemon_ID)
+        try:
+            c = daemons.restart_daemon(daemon_ID)
+            if c: print(c)
+        except Exception as error:
+            print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'kill':
-        daemons.kill_daemon(daemon_ID)
+        try:
+            c = daemons.kill_daemon(daemon_ID)
+            if c: print(c)
+        except Exception as error:
+            print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'ping':
-        daemons.ping_daemon(daemon_ID)
+        try:
+            c = daemons.ping_daemon(daemon_ID)
+            if c: print(c)
+        except Exception as error:
+            print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
+
     elif command == 'help' or command == '?':
         print_instructions()
+
     elif command == 'i':
         print(misc.ERROR('Already in interactive mode'))
 
@@ -58,11 +84,17 @@ def query(command, args):
     # Filter wheel control functions
     elif command == 'info':
         if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info_s(info)
+            try:
+                info = daemons.daemon_function(daemon_ID, 'get_info')
+                if info: print_info_s(info)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info(info)
+            try:
+                info = daemons.daemon_function(daemon_ID, 'get_info')
+                if info: print_info(info)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -70,27 +102,39 @@ def query(command, args):
         if len(args) == 1:
             new_filt = args[0].upper()
             HW_list  = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
-            if c: print(c)
+            try:
+                c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         elif len(args) == 2:
             new_filt = args[1].upper()
             HW_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
-                if c: print(c)
+                try:
+                    c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+                    if c: print(c)
+                except Exception as error:
+                    print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'home':
         if len(args) == 0:
             HW_list  = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
-            if c: print(c)
+            try:
+                c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
+                if c: print(c)
+            except Exception as error:
+                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
-                if c: print(c)
+                try:
+                    c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
+                    if c: print(c)
+                except Exception as error:
+                    print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
         else:
             print(misc.ERROR('Invalid arguments'))
 

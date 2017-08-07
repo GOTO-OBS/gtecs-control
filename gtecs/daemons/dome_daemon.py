@@ -364,7 +364,7 @@ class DomeDaemon(HardwareDaemon):
     def get_info(self):
         """Return dome status info"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.check_status_flag = 1
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -373,14 +373,14 @@ class DomeDaemon(HardwareDaemon):
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
-            return 'ERROR: Conditions bad, dome will not open'
+            raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
-            return 'ERROR: No external power, dome will not open'
+            raise misc.HardwareStatusError('No external power, dome will not open')
         elif os.path.isfile(params.EMERGENCY_FILE):
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            return 'ERROR: In emergency locked state, dome will not open'
+            raise misc.HardwareStatusError('In emergency locked state, dome will not open')
         else:
             if self.open_flag or self.close_flag:
                 # We want new commands to overwrite the old ones
@@ -389,12 +389,12 @@ class DomeDaemon(HardwareDaemon):
             north_status = self.dome_status['north']
             south_status = self.dome_status['south']
             if side == 'north' and north_status == 'full_open':
-                return 'ERROR: The north side is already open'
+                raise misc.HardwareStatusError('The north side is already fully open')
             elif side == 'south' and south_status == 'full_open':
-                return 'ERROR: The south side is already open'
+                raise misc.HardwareStatusError('The south side is already fully open')
             elif side == 'both':
                 if north_status == 'full_open' and south_status == 'full_open':
-                    return 'ERROR: The dome is already fully open'
+                    raise misc.HardwareStatusError('The dome is already fully open')
                 elif north_status == 'full_open' and south_status != 'full_open':
                     side == 'south'
                 elif north_status != 'full_open' and south_status == 'full_open':
@@ -408,7 +408,7 @@ class DomeDaemon(HardwareDaemon):
     def close_dome(self,side='both',frac=1):
         """Close the dome"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         else:
             if self.open_flag or self.close_flag:
                 # We want new commands to overwrite the old ones
@@ -417,12 +417,12 @@ class DomeDaemon(HardwareDaemon):
             north_status = self.dome_status['north']
             south_status = self.dome_status['south']
             if side == 'north' and north_status == 'closed':
-                return 'ERROR: The north side is already closed'
+                raise misc.HardwareStatusError('The north side is already fully closed')
             elif side == 'south' and south_status == 'closed':
-                return 'ERROR: The south side is already closed'
+                raise misc.HardwareStatusError('The south side is already fully closed')
             elif side == 'both':
                 if north_status == 'closed' and south_status == 'closed':
-                    return 'ERROR: The dome is already closed'
+                    raise misc.HardwareStatusError('The dome is already fully closed')
                 elif north_status == 'closed' and south_status != 'closed':
                     side == 'south'
                 elif north_status != 'closed' and south_status == 'closed':
@@ -436,7 +436,7 @@ class DomeDaemon(HardwareDaemon):
     def halt_dome(self):
         """Stop the dome moving"""
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         self.halt_flag = 1
         return 'Halting dome'
 
