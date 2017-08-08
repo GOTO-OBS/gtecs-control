@@ -257,8 +257,16 @@ class ExqDaemon(HardwareDaemon):
                 self.logfile.info('Taking exposure')
                 self.working = 1
                 # we need to set filter and take image
-                self._set_filter(filt)
-                self._take_image(cam)
+                try:
+                    self._set_filter(filt)
+                except:
+                    self.logfile.error('set_filter command failed')
+                    self.logfile.debug('', exc_info=True)
+                try:
+                    self._take_image(cam)
+                except:
+                    self.logfile.error('take_image command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.working = 0
 
             elif self.queue_len == 0 or self.paused:

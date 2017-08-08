@@ -111,79 +111,112 @@ class MntDaemon(HardwareDaemon):
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                # save info
-                info = {}
-                self.mount_status = self.sitech.status
-                info['status'] = self.mount_status
-                info['mount_alt'] = self.sitech.alt
-                info['mount_az'] = self.sitech.az
-                info['mount_ra'] = self.sitech.ra
-                info['mount_dec'] = self.sitech.dec
-                info['target_ra'] = self.target_ra
-                info['target_dec'] = self.target_dec
-                info['target_dist'] = self._get_target_distance()
-                info['lst'] = self.sitech.sidereal_time
-                info['ha'] = find_ha(info['mount_ra'], info['lst'])
+            if self.get_info_flag:
+                try:
+                    info = {}
+                    self.mount_status = self.sitech.status
+                    info['status'] = self.mount_status
+                    info['mount_alt'] = self.sitech.alt
+                    info['mount_az'] = self.sitech.az
+                    info['mount_ra'] = self.sitech.ra
+                    info['mount_dec'] = self.sitech.dec
+                    info['target_ra'] = self.target_ra
+                    info['target_dec'] = self.target_dec
+                    info['target_dist'] = self._get_target_distance()
+                    info['lst'] = self.sitech.sidereal_time
+                    info['ha'] = find_ha(info['mount_ra'], info['lst'])
 
-                self.utc = Time.now()
-                self.utc.precision = 0  # only integer seconds
-                info['utc'] = self.utc.iso
-                info['step'] = self.step
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
-                now = Time.now()
-                now.precision = 0
-                info['timestamp'] = now.iso
-                self.info = info
+                    self.utc = Time.now()
+                    self.utc.precision = 0  # only integer seconds
+                    info['utc'] = self.utc.iso
+                    info['step'] = self.step
+                    info['uptime'] = time.time()-self.start_time
+                    info['ping'] = time.time()-self.time_check
+                    now = Time.now()
+                    now.precision = 0
+                    info['timestamp'] = now.iso
+
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # slew to given coordinates
-            if(self.slew_radec_flag):
-                self.logfile.info('Slewing to %.2f,%.2f',
-                                  self.temp_ra, self.temp_dec)
-                c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
-                if c: self.logfile.info(c)
-                self.slew_radec_flag = 0
+            if self.slew_radec_flag:
+                try:
+                    self.logfile.info('Slewing to %.2f,%.2f',
+                                      self.temp_ra, self.temp_dec)
+                    c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('slew_radec command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.temp_ra = None
                 self.temp_dec = None
+                self.slew_radec_flag = 0
 
             # slew to target
-            if(self.slew_target_flag):
-                self.logfile.info('Slewing to target')
-                c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
-                if c: self.logfile.info(c)
+            if self.slew_target_flag:
+                try:
+                    self.logfile.info('Slewing to target')
+                    raise ValueError
+                    c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('slew_target command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.slew_target_flag = 0
 
             # start tracking
-            if(self.start_tracking_flag):
-                c = self.sitech.track()
-                if c: self.logfile.info(c)
+            if self.start_tracking_flag:
+                try:
+                    c = self.sitech.track()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('start_tracking command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.start_tracking_flag = 0
 
             # stop all motion (tracking or slewing)
-            if(self.full_stop_flag):
-                c = self.sitech.halt()
-                if c: self.logfile.info(c)
+            if self.full_stop_flag:
+                try:
+                    c = self.sitech.halt()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('full_stop command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.full_stop_flag = 0
 
             # turn blinky mode on or off
-            if(self.set_blinky_mode_flag):
-                c = self.sitech.set_blinky_mode(self.set_blinky)
-                if c: self.logfile.info(c)
+            if self.set_blinky_mode_flag:
+                try:
+                    c = self.sitech.set_blinky_mode(self.set_blinky)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('set_blinky_mode command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 0
 
             # park the mount
-            if(self.park_flag):
-                c = self.sitech.park()
-                if c: self.logfile.info(c)
+            if self.park_flag:
+                try:
+                    c = self.sitech.park()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('park command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.park_flag = 0
 
             # unpark the mount
-            if(self.unpark_flag):
-                c = self.sitech.unpark()
-                if c: self.logfile.info(c)
+            if self.unpark_flag:
+                try:
+                    c = self.sitech.unpark()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('unpark command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.unpark_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
