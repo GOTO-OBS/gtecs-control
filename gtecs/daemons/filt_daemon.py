@@ -28,14 +28,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Filter wheel daemon class
 
 class FiltDaemon(HardwareDaemon):
-    """
-    Filter wheel daemon class
-
-    Contains 2 functions:
-    - get_info()
-    - set_filter(filt, telescopeIDs)
-    - home_filter(telescopeIDs)
-    """
+    """Filter wheel hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon

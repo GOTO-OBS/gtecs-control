@@ -185,18 +185,7 @@ class Queue(MutableSequence):
 # Exposure queue daemon class
 
 class ExqDaemon(HardwareDaemon):
-    """
-    Exposure queue daemon class
-
-    Contains 6 functions:
-    - get_info()
-    - add(exptime,filt,tel,binning,frametype,target,imgtype)
-    - clear()
-    - get()
-    - pause()
-    - resume()
-
-    """
+    """Exposure queue hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon

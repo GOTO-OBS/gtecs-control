@@ -34,40 +34,7 @@ from gtecs.tecs_modules.daemons import InterfaceDaemon
 # FLI interface class
 
 class FLIDaemon(InterfaceDaemon):
-    """
-    FLI interface class
-
-    Contains 22 functions:
-    ::focuser::
-    - step_focuser_motor(steps, HW)
-    - home_focuser(HW):
-    - get_focuser_limit(HW)
-    - get_focuser_position(HW)
-    - get_focuser_steps_remaining(HW)
-    - get_focuser_temp(temp_type, HW):
-
-    ::filter::
-    - set_filter_pos(new_filter, HW)
-    - home_filter(HW):
-    - get_filter_number(HW)
-    - get_filter_position(HW)
-    - get_filter_steps_remaining(HW)
-    - get_filter_homed(HW)
-
-    ::camera::
-    - set_exposure(exptime_ms, frametype, HW)
-    - start_exposure(HW)
-    - save_exposure(filename, HW)
-    - abort_exposure(HW)
-    - set_camera_temp(target_temp, HW)
-    - set_camera_flushes(target_flushes, HW)
-    - set_camera_binning(hbin, vbin, HW)
-    - set_camera_area(ul_x, ul_y, lr_x, lr_y, HW)
-    - get_camera_info(HW)
-    - get_camera_time_remaining(HW)
-    - get_camera_temp(temp_type, HW)
-    - get_camera_cooler_power(HW)
-    """
+    """FLI interface daemon class"""
 
     def __init__(self, intf):
         self.intf = intf

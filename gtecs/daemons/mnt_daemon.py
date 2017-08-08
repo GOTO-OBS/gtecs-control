@@ -33,23 +33,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Mount daemon class
 
 class MntDaemon(HardwareDaemon):
-    """
-    Mount daemon class
-
-    Contains x functions:
-    - get_info()
-    - slew_to_radec(ra,dec)
-    - slew_to_target()
-    - start_tracking()
-    - full_stop()
-    - park()
-    - unpark()
-    - set_target_ra(ra)
-    - set_target_dec(dec)
-    - set_target(dec)
-    - offset(direction)
-    - set_step()
-    """
+    """Mount hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon

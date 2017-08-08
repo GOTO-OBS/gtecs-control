@@ -31,13 +31,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Dome daemon class
 
 class DomeDaemon(HardwareDaemon):
-    """
-    Dome daemon class
-
-    Contains x functions:
-    - get_info()
-
-    """
+    """Dome hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
