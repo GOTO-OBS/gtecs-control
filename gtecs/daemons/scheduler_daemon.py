@@ -43,7 +43,6 @@ def start():
     '''
     host = params.DAEMONS['scheduler']['HOST']
     port = params.DAEMONS['scheduler']['PORT']
-    pyroID = params.DAEMONS['scheduler']['PYROID']
 
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one('scheduler'):
@@ -52,7 +51,7 @@ def start():
     # Start the daemon
     with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
         scheduler_daemon = SchedulerDaemon()
-        uri = pyro_daemon.register(scheduler_daemon, objectId=pyroID)
+        uri = pyro_daemon.register(scheduler_daemon, objectId='scheduler')
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
@@ -62,7 +61,6 @@ def start():
     # Loop has closed
     scheduler_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
 
 if __name__ == "__main__":
     start()
