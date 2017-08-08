@@ -266,7 +266,7 @@ def there_can_only_be_one(daemon_ID):
     # Check if daemon process is already running
     process_ID = get_process_ID(process, host)
     if len(process_ID) > 1:
-        raise misc.MultipleDaemonError('Daemon already running')
+        raise MultipleDaemonError('Daemon already running')
 
     # Also check the Pyro address is available
     try:
