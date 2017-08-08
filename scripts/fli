@@ -41,43 +41,33 @@ def query(command, args):
     # Primary control functions
     if command == 'start':
         for daemon_ID in daemon_IDs:
-            try:
+            with misc.print_errors():
                 c = daemons.start_daemon(daemon_ID)
                 if c: print(c)
-            except Exception as error:
-                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'shutdown':
         for daemon_ID in daemon_IDs:
-            try:
+            with misc.print_errors():
                 c = daemons.shutdown_daemon(daemon_ID)
                 if c: print(c)
-            except Exception as error:
-                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'restart':
         for daemon_ID in daemon_IDs:
-            try:
+            with misc.print_errors():
                 c = daemons.restart_daemon(daemon_ID)
                 if c: print(c)
-            except Exception as error:
-                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'kill':
         for daemon_ID in daemon_IDs:
-            try:
+            with misc.print_errors():
                 c = daemons.kill_daemon(daemon_ID)
                 if c: print(c)
-            except Exception as error:
-                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'ping':
         for daemon_ID in daemon_IDs:
-            try:
+            with misc.print_errors():
                 c = daemons.ping_daemon(daemon_ID)
                 if c: print(c)
-            except Exception as error:
-                print(misc.ERROR('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'help' or command == '?':
         print_instructions()
