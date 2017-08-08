@@ -64,7 +64,7 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
@@ -76,7 +76,7 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'set':
         if len(args) == 1 and misc.is_num(args[0]):
@@ -91,7 +91,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'set_focuser', [pos, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'move':
         if len(args) == 1 and misc.is_num(args[0]):
@@ -106,7 +106,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'move_focuser', [steps, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'home':
         if len(args) == 0:
@@ -119,12 +119,12 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'home_focuser', [HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "%s"' %command)
 
 ########################################################################
 # Output formatting functions

@@ -66,7 +66,7 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
@@ -78,7 +78,7 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'open':
         if len(args) == 0:
@@ -94,12 +94,12 @@ def query(command, args):
             side = args[0]
             fraction = float(args[1])
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
         if 0 < fraction <= 1:
             c = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
             if c: print(c)
         else:
-            print(misc.ERROR('Fraction must be between 0 and 1'))
+            raise misc.InputError('Fraction must be between 0 and 1')
 
     elif command == 'close':
         if len(args) == 0:
@@ -115,12 +115,12 @@ def query(command, args):
             side = args[0]
             fraction = float(args[1])
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
         if 0 < fraction <= 1:
             c = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
             if c: print(c)
         else:
-            print(misc.ERROR('Fraction must be between 0 and 1'))
+            raise misc.InputError('Fraction must be between 0 and 1')
 
     elif command in ['halt','stop','abort']:
         c = daemons.daemon_function(daemon_ID, 'halt_dome')
@@ -132,7 +132,7 @@ def query(command, args):
         elif args[0] == 'off':
             override = True
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
         with open(params.CONFIG_PATH + 'overrides_flags') as f:
             data = json.load(f)
             if override:
@@ -146,7 +146,7 @@ def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "%s"' %command)
 
 ########################################################################
 # Output formatting functions
