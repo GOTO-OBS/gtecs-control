@@ -217,12 +217,10 @@ def daemon_is_running(daemon_ID):
 
 def daemon_is_alive(daemon_ID):
     '''
-    Will check if a daemon or interface is alive and responding to pings
+    Will check if a daemon is alive and responding to pings
     '''
     if daemon_ID in params.DAEMONS:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
-    elif daemon_ID in params.FLI_INTERFACES:
-        address = params.FLI_INTERFACES[daemon_ID]['ADDRESS']
     else:
         raise ValueError('Invalid daemon ID')
 
@@ -263,10 +261,6 @@ def there_can_only_be_one(daemon_ID):
         host = params.DAEMONS[daemon_ID]['HOST']
         port = params.DAEMONS[daemon_ID]['PORT']
         process = params.DAEMONS[daemon_ID]['PROCESS']
-    elif daemon_ID in params.FLI_INTERFACES:
-        host = params.FLI_INTERFACES[daemon_ID]['HOST']
-        port = params.FLI_INTERFACES[daemon_ID]['PORT']
-        process = params.FLI_INTERFACES[daemon_ID]['PROCESS']
     else:
         raise ValueError('Invalid daemon ID')
 
@@ -300,26 +294,47 @@ def find_interface_ID(hostname):
         For testing the fli_interfaceB file will be used.
     '''
     for intf in params.FLI_INTERFACES:
-        if params.FLI_INTERFACES[intf]['HOST'] == hostname:
+        if params.DAEMONS[intf]['HOST'] == hostname:
             return intf
     raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
 ########################################################################
 ## Text formatting functions
 def rtxt(text):
-    return '\033[31;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[31;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def gtxt(text):
-    return '\033[32;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[32;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def ytxt(text):
-    return '\033[33;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[33;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def btxt(text):
-    return '\033[34;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[34;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def ptxt(text):
-    return '\033[35;1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[35;1m' + str(text) + '\033[0m'
+    else:
+        return text
 def bold(text):
-    return '\033[1m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[1m' + str(text) + '\033[0m'
+    else:
+        return text
 def undl(text):
-    return '\033[4m' + str(text) + '\033[0m'
+    if params.FANCY_OUTPUT:
+        return '\033[4m' + str(text) + '\033[0m'
+    else:
+        return text
 
 ########################################################################
 # Misc functions
