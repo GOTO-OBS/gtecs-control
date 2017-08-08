@@ -18,6 +18,7 @@ import readline
 import time
 import Pyro4
 from six.moves import input
+from astropy.time import Time
 # TeCS modules
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
@@ -55,12 +56,25 @@ def query(command, args):
         print(misc.ERROR('Already in interactive mode'))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Scheduler control functions
+    elif command == 'info':
+        info = daemons.daemon_function(daemon_ID, 'check_queue', [Time.now(),0])
+        if info: print_info_s(info)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
         print(misc.ERROR('Unrecognized command "%s"' %command))
 
 ########################################################################
 # Output formatting functions
+
+def print_info_s(info):
+    print('SCHEDULER:')
+    if info[0] is not None:
+        print('  ID: %i (Priority %.3f, MinTime %.1fs)' %(info[0],info[1],info[2]))
+    else:
+        print('  ID: None (Priority: None, MinTime: None)')
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' scheduler [command]' + '\n' +\
