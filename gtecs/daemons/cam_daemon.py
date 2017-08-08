@@ -139,77 +139,85 @@ class CamDaemon(HardwareDaemon):
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                # update variables
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        self.cam_info[intf][HW] = fli.get_camera_info(HW)
-                        self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
-                        self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
-                        self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
-                        self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
-                        self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                # save info
-                info = {}
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-                    info['remaining'+tel] = self.remaining[intf][HW]
-                    if self.exposing_flag[intf][HW] == 1:
-                        info['status'+tel] = 'Exposing'
-                    elif self.exposing_flag[intf][HW] == 2:
-                        info['status'+tel] = 'Reading'
-                    else:
-                        info['status'+tel] = 'Ready'
-                    info['frametype'+tel] = self.frametype[intf][HW]
-                    info['exptime'+tel] = self.exptime[intf][HW]
-                    info['binning'+tel] = self.binning[intf][HW]
-                    info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
-                    info['base_temp'+tel] = self.base_temp[intf][HW]
-                    info['cooler_power'+tel] = self.cooler_power[intf][HW]
-                    info['serial_number'+tel] = self.serial_number[intf][HW]
-                info['run_number'] = self.run_number
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
-                now = datetime.datetime.utcnow()
-                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+            if self.get_info_flag:
+                try:
+                    # update variables
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            self.cam_info[intf][HW] = fli.get_camera_info(HW)
+                            self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
+                            self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
+                            self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
+                            self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
+                            self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                    # save info
+                    info = {}
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                        info['remaining'+tel] = self.remaining[intf][HW]
+                        if self.exposing_flag[intf][HW] == 1:
+                            info['status'+tel] = 'Exposing'
+                        elif self.exposing_flag[intf][HW] == 2:
+                            info['status'+tel] = 'Reading'
+                        else:
+                            info['status'+tel] = 'Ready'
+                        info['frametype'+tel] = self.frametype[intf][HW]
+                        info['exptime'+tel] = self.exptime[intf][HW]
+                        info['binning'+tel] = self.binning[intf][HW]
+                        info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
+                        info['base_temp'+tel] = self.base_temp[intf][HW]
+                        info['cooler_power'+tel] = self.cooler_power[intf][HW]
+                        info['serial_number'+tel] = self.serial_number[intf][HW]
 
-                self.info = info
+                    info['run_number'] = self.run_number
+                    info['uptime'] = time.time()-self.start_time
+                    info['ping'] = time.time()-self.time_check
+                    now = datetime.datetime.utcnow()
+                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # take exposure part one - start
-            if(self.take_exposure_flag):
-                exptime = self.target_exptime
-                exptime_ms = exptime*1000.
-                frametype = self.target_frametype
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.exptime[intf][HW] = self.target_exptime
-                    self.frametype[intf][HW] = self.target_frametype
-                    self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
-                                       exptime, frametype, tel, intf, HW)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        fli.clear_exposure_queue(HW)
-                        c = fli.set_camera_area(0, 0, 8304, 6220, HW)
-                        if c: self.logfile.info(c)
-                        c = fli.set_exposure(exptime_ms,frametype,HW)
-                        if c: self.logfile.info(c)
-                        self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                        c = fli.start_exposure(HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                    self.exposing_flag[intf][HW] = 1
-
+            if self.take_exposure_flag:
+                try:
+                    exptime = self.target_exptime
+                    exptime_ms = exptime*1000.
+                    frametype = self.target_frametype
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.exptime[intf][HW] = self.target_exptime
+                        self.frametype[intf][HW] = self.target_frametype
+                        self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
+                                           exptime, frametype, tel, intf, HW)
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            fli.clear_exposure_queue(HW)
+                            c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                            if c: self.logfile.info(c)
+                            c = fli.set_exposure(exptime_ms,frametype,HW)
+                            if c: self.logfile.info(c)
+                            self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                            c = fli.start_exposure(HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                        self.exposing_flag[intf][HW] = 1
+                except:
+                    self.logfile.error('take_exposure command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.take_exposure_flag = 0
 
             # take exposure part two - finish
@@ -247,59 +255,71 @@ class CamDaemon(HardwareDaemon):
                     self.active_tel.pop(self.active_tel.index(tel))
 
             # abort exposure
-            if(self.abort_exposure_flag):
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.abort_exposure(HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                for intf in params.FLI_INTERFACES:
-                    nHW = len(params.FLI_INTERFACES[intf]['TELS'])
-                    self.exposing_flag[intf] = [0]*nHW
-                self.abort_exposure_flag = 0
-
-            # set camera temperature
-            if(self.set_temp_flag):
-                target_temp = self.target_temp
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.set_camera_temp(target_temp,HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                self.set_temp_flag = 0
-
-            # set binning
-            if(self.set_binning_flag):
-                binning = self.target_binning
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.binning[intf][HW] = self.target_binning
-                        self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
+            if self.abort_exposure_flag:
+                try:
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
-                            c = fli.set_camera_binning(binning,binning,HW)
+                            c = fli.abort_exposure(HW)
                             if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
+                    self.active_tel = []
+                    for intf in params.FLI_INTERFACES:
+                        nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+                        self.exposing_flag[intf] = [0]*nHW
+                except:
+                    self.logfile.error('abort_exposure command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.abort_exposure_flag = 0
+
+            # set camera temperature
+            if self.set_temp_flag:
+                try:
+                    target_temp = self.target_temp
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            c = fli.set_camera_temp(target_temp,HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('set_temp command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.active_tel = []
+                self.set_temp_flag = 0
+
+            # set binning
+            if self.set_binning_flag:
+                try:
+                    binning = self.target_binning
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        if self.exposing_flag[intf][HW] == 1:
+                            self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
+                        else:
+                            self.binning[intf][HW] = self.target_binning
+                            self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
+                            fli = fli_proxies[intf]
+                            try:
+                                fli._pyroReconnect()
+                                c = fli.set_camera_binning(binning,binning,HW)
+                                if c: self.logfile.info(c)
+                            except:
+                                self.logfile.error('No response from fli interface on %s', intf)
+                                self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('set_temp command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_binning_flag = 0
 
