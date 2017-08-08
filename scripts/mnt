@@ -36,35 +36,31 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        with misc.print_errors():
-            c = daemons.start_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.start_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'shutdown':
-        with misc.print_errors():
-            c = daemons.shutdown_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.shutdown_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'restart':
-        with misc.print_errors():
-            c = daemons.restart_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.restart_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'kill':
-        with misc.print_errors():
-            c = daemons.kill_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.kill_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'ping':
-        with misc.print_errors():
-            c = daemons.ping_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.ping_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'help' or command == '?':
         print_instructions()
@@ -76,52 +72,43 @@ def query(command, args):
     # Mount control functions
     elif command == 'info':
         if len(args) == 0:
-             with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info_s(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-             with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'slew':
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'slew_to_target')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'slew_to_target')
+        if c: print(c)
 
     elif command == 'track':
-         with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'start_tracking')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'start_tracking')
+        if c: print(c)
 
     elif command in ['stop', 'halt', 'abort']:
-         with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'full_stop')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'full_stop')
+        if c: print(c)
 
     elif command == 'blinky':
         if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-             with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'blinky', [True])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'blinky', [True])
+            if c: print(c)
         elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-             with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'blinky', [False])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'blinky', [False])
+            if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'park':
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'park')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'park')
+        if c: print(c)
 
     elif command == 'unpark':
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'unpark')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'unpark')
+        if c: print(c)
 
     elif command == 'ra':
         # option 1: decimal degrees
@@ -132,9 +119,8 @@ def query(command, args):
                 ra_hrs = ra_deg*24./360.
             except:
                 print(misc.ERROR('Invalid arguments'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+            if c: print(c)
         # option 2: hms notation
         elif len(args) == 3:
             try:
@@ -147,9 +133,8 @@ def query(command, args):
                 ra_hrs = h + m/60. + s/3600.
             except:
                 print(misc.ERROR('Invalid arguments'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+            if c: print(c)
         # they're the only options
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -162,9 +147,8 @@ def query(command, args):
                 assert -90 <= dec_deg <= 90
             except:
                 print(misc.ERROR('Invalid arguments'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            if c: print(c)
         # option 2: +dms notation
         elif len(args) == 4:
             try:
@@ -181,9 +165,8 @@ def query(command, args):
                 assert -90 <= dec_deg <= 90
             except:
                 print(misc.ERROR('Invalid arguments'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            if c: print(c)
         # option 2.5: forgetting the sign, let's work it out from dec
         # NOTE tricky to deal with -0, have to use the string
         elif len(args) == 3:
@@ -204,9 +187,8 @@ def query(command, args):
                 assert -90 <= dec_deg <= 90
             except:
                 print(misc.ERROR('Invalid arguments'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            if c: print(c)
         # they're the only options
         else:
             print(misc.ERROR('Invalid arguments'))
@@ -217,13 +199,11 @@ def query(command, args):
                 step = float(args[0])
             except:
                 print(misc.ERROR('Invalid step distance'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-                if c: print(c)
-        direction = 'north'
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
             if c: print(c)
+        direction = 'north'
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
 
     elif command == 's':
         if len(args) == 1:
@@ -231,13 +211,11 @@ def query(command, args):
                 step = float(args[0])
             except:
                 print(misc.ERROR('Invalid step distance'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-                if c: print(c)
-        direction = 'south'
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
             if c: print(c)
+        direction = 'south'
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
 
     elif command == 'e':
         if len(args) == 1:
@@ -245,13 +223,11 @@ def query(command, args):
                 step = float(args[0])
             except:
                 print(misc.ERROR('Invalid step distance'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-                if c: print(c)
-        direction = 'east'
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
             if c: print(c)
+        direction = 'east'
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
 
     elif command == 'w':
         if len(args) == 1:
@@ -259,19 +235,16 @@ def query(command, args):
                 step = float(args[0])
             except:
                 print(misc.ERROR('Invalid step distance'))
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-                if c: print(c)
-        direction = 'west'
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
             if c: print(c)
+        direction = 'west'
+        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
+        if c: print(c)
 
     elif command == 'step':
         step = float(args[0])
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'set_step', [step])
+        if c: print(c)
 
     elif command == 'target':
         try:
@@ -286,14 +259,12 @@ def query(command, args):
             print('Targeting "%s"' %name)
             # set RA
             ra_hrs  = coord.ra.hour
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+            if c: print(c)
             # set Dec
             dec_deg = coord.dec.value
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+            if c: print(c)
         except:
             print(misc.ERROR('Cannot find target "%s"' %name))
 
@@ -397,4 +368,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

@@ -36,35 +36,31 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        with misc.print_errors():
-            c = daemons.start_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.start_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'shutdown':
-        with misc.print_errors():
-            c = daemons.shutdown_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.shutdown_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'restart':
-        with misc.print_errors():
-            c = daemons.restart_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.restart_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'kill':
-        with misc.print_errors():
-            c = daemons.kill_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.kill_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'ping':
-        with misc.print_errors():
-            c = daemons.ping_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.ping_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'help' or command == '?':
         print_instructions()
@@ -76,13 +72,11 @@ def query(command, args):
     # Daemon functions
     elif command == 'info':
         if len(args) == 0:
-            with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info_s(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -102,9 +96,8 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
         if 0 < fraction <= 1:
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
+            if c: print(c)
         else:
             print(misc.ERROR('Fraction must be between 0 and 1'))
 
@@ -124,16 +117,14 @@ def query(command, args):
         else:
             print(misc.ERROR('Invalid arguments'))
         if 0 < fraction <= 1:
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
+            if c: print(c)
         else:
             print(misc.ERROR('Fraction must be between 0 and 1'))
 
     elif command in ['halt','stop','abort']:
-        with misc.print_errors():
-            c = daemons.daemon_function(daemon_ID, 'halt_dome')
-            if c: print(c)
+        c = daemons.daemon_function(daemon_ID, 'halt_dome')
+        if c: print(c)
 
     elif command == 'weather':
         if args[0] == 'on':
@@ -210,4 +201,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

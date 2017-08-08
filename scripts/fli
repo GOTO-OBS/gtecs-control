@@ -34,40 +34,36 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
         for daemon_ID in daemon_IDs:
-            with misc.print_errors():
-                c = daemons.start_daemon(daemon_ID)
-                if c: print(c)
+            c = daemons.start_daemon(daemon_ID)
+            if c: print(c)
 
     elif command == 'shutdown':
         for daemon_ID in daemon_IDs:
-            with misc.print_errors():
-                c = daemons.shutdown_daemon(daemon_ID)
-                if c: print(c)
+            c = daemons.shutdown_daemon(daemon_ID)
+            if c: print(c)
 
     elif command == 'restart':
         for daemon_ID in daemon_IDs:
-            with misc.print_errors():
-                c = daemons.restart_daemon(daemon_ID)
-                if c: print(c)
+            c = daemons.restart_daemon(daemon_ID)
+            if c: print(c)
 
     elif command == 'kill':
         for daemon_ID in daemon_IDs:
-            with misc.print_errors():
-                c = daemons.kill_daemon(daemon_ID)
-                if c: print(c)
+            c = daemons.kill_daemon(daemon_ID)
+            if c: print(c)
 
     elif command == 'ping':
         for daemon_ID in daemon_IDs:
-            with misc.print_errors():
-                c = daemons.ping_daemon(daemon_ID)
-                if c: print(c)
+            c = daemons.ping_daemon(daemon_ID)
+            if c: print(c)
 
     elif command == 'help' or command == '?':
         print_instructions()
@@ -112,4 +108,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)
