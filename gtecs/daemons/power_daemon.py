@@ -31,14 +31,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Power daemon class
 
 class PowerDaemon(HardwareDaemon):
-    """
-    Power daemon class
-
-    Contains x functions:
-    - get_info()
-    - on(outletname/number/'all')
-    - off(outletname/number/'all')
-    """
+    """Power hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
