@@ -25,6 +25,7 @@ import subprocess
 import serial
 import re
 import smtplib
+from contextlib import contextmanager
 
 # TeCS modules
 from . import params
@@ -331,7 +332,7 @@ def undl(text):
         return text
 
 ########################################################################
-# Custom exceptions
+# Errors and exceptions
 
 class DaemonConnectionError(Exception):
     '''To be used when a command to a daemon fails.
@@ -361,11 +362,25 @@ class HorizonError(Exception):
     '''To be used if a slew command would bring the mount below the limit.'''
     pass
 
-########################################################################
-# Misc functions
+
 def ERROR(message):
     return rtxt(bold('ERROR')) + ': ' + str(message)
 
+
+@contextmanager
+def print_errors():
+    '''A context manager to catch exceptions and print them nicely.
+    Used within the control scripts to handle errors from daemons.
+    '''
+    try:
+        yield
+    except Exception as error:
+        print(ERROR('"{}: {}"'.format(type(error).__name__, error)))
+        pass
+
+
+########################################################################
+# Misc functions
 def adz(num):
     num = repr(num)
     if len(num) == 1:
