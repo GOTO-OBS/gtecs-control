@@ -34,35 +34,31 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control functions
     if command == 'start':
-        with misc.print_errors():
-            c = daemons.start_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.start_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'shutdown':
-        with misc.print_errors():
-            c = daemons.shutdown_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.shutdown_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'restart':
-        with misc.print_errors():
-            c = daemons.restart_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.restart_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'kill':
-        with misc.print_errors():
-            c = daemons.kill_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.kill_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'ping':
-        with misc.print_errors():
-            c = daemons.ping_daemon(daemon_ID)
-            if c: print(c)
+        c = daemons.ping_daemon(daemon_ID)
+        if c: print(c)
 
     elif command == 'help' or command == '?':
         print_instructions()
@@ -74,13 +70,11 @@ def query(command, args):
     # Filter wheel control functions
     elif command == 'info':
         if len(args) == 0:
-            with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info_s(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info_s(info)
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            with misc.print_errors():
-                info = daemons.daemon_function(daemon_ID, 'get_info')
-                if info: print_info(info)
+            info = daemons.daemon_function(daemon_ID, 'get_info')
+            if info: print_info(info)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -88,31 +82,27 @@ def query(command, args):
         if len(args) == 1:
             new_filt = args[0].upper()
             HW_list  = list(params.TEL_DICT)
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+            if c: print(c)
         elif len(args) == 2:
             new_filt = args[1].upper()
             HW_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                with misc.print_errors():
-                    c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
-                    if c: print(c)
+                c = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
     elif command == 'home':
         if len(args) == 0:
             HW_list  = list(params.TEL_DICT)
-            with misc.print_errors():
-                c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
-                if c: print(c)
+            c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
+            if c: print(c)
         elif len(args) == 1:
             HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             if len(HW_list) > 0:
-                with misc.print_errors():
-                    c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
-                    if c: print(c)
+                c = daemons.daemon_function(daemon_ID, 'home_filter', [HW_list])
+                if c: print(c)
         else:
             print(misc.ERROR('Invalid arguments'))
 
@@ -194,4 +184,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)
