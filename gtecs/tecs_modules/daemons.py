@@ -23,18 +23,16 @@ from . import misc
 ########################################################################
 # Super classes
 
-class HardwareDaemon(object):
-    """
-    Generic hardware daemon class
+class BaseDaemon(object):
+    """Base class for TeCS daemons.
 
-    Hardware daemons have always looping control threads
+    Inherited by HardwareDaemon and InterfaceDaemon, use one of them.
     """
 
     def __init__(self, daemon_ID):
         self.daemon_ID = daemon_ID
         self.running = True
         self.start_time = time.time()
-        self.time_check = time.time()
 
         # set up logfile
         self.logfile = logger.getLogger(self.daemon_ID,
@@ -42,7 +40,33 @@ class HardwareDaemon(object):
                                         stdout_logging=params.STDOUT_LOGGING)
         self.logfile.info('Daemon created')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Common daemon functions
+    def ping(self):
+        raise NotImplementedError
+
+    def prod(self):
+        return
+
+    def status_function(self):
+        return self.running
+
+    def shutdown(self):
+        self.logfile.info('Daemon shutting down')
+        self.running = False
+
+
+class HardwareDaemon(BaseDaemon):
+    """Generic hardware daemon class.
+
+    Hardware daemons have always looping control threads.
+    """
+
+    def __init__(self, daemon_ID):
+        # initiate daemon
+        BaseDaemon.__init__(self, daemon_ID)
+
+        self.time_check = time.time()
+
     # Common daemon functions
     def ping(self):
         dt_control = abs(time.time() - self.time_check)
@@ -52,50 +76,21 @@ class HardwareDaemon(object):
         else:
             return 'ping'
 
-    def prod(self):
-        return
 
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.logfile.info('Daemon shutting down')
-        self.running = False
-
-
-class InterfaceDaemon(object):
-    """
-    Generic interface daemon class
+class InterfaceDaemon(BaseDaemon):
+    """Generic interface daemon class.
 
     Interface daemons do not have control threads like Hardware daemons,
-    instead they just staticly forward functions to the Pyro network
+    instead they just statically forward functions to the Pyro network.
     """
 
     def __init__(self, daemon_ID):
-        self.daemon_ID = daemon_ID
-        self.running = True
-        self.start_time = time.time()
+        # initiate daemon
+        BaseDaemon.__init__(self, daemon_ID)
 
-        # set up logfile
-        self.logfile = logger.getLogger(self.daemon_ID,
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
-        self.logfile.info('Daemon created')
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Common daemon functions
     def ping(self):
         return 'ping'
-
-    def prod(self):
-        return
-
-    def status_function(self):
-        return self.running
-
-    def shutdown(self):
-        self.logfile.info('Daemon shutting down')
-        self.running = False
 
 
 ########################################################################
@@ -104,7 +99,6 @@ def start_daemon(daemon_ID):
     '''Start a daemon (unless it is already running)'''
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
-    pyroid  = params.DAEMONS[daemon_ID]['PYROID']
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
     if depends[0] != 'None':
@@ -121,7 +115,7 @@ def start_daemon(daemon_ID):
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
-        fpipe = open(params.LOG_PATH + pyroid + '-stdout.log', 'a')
+        fpipe = open(params.LOG_PATH + daemon_ID + '-stdout.log', 'a')
         process_options.update({
             'stdout': fpipe, 'stderr': fpipe
         })
@@ -132,6 +126,7 @@ def start_daemon(daemon_ID):
         misc.python_command(process_path, '', **process_options)
 
         # See if it started
+        time.sleep(1)
         process_ID_n = misc.get_process_ID(process, host)
         if len(process_ID_n) == 1:
             print('Daemon started on {} (PID {})'.format(host, process_ID_n[0]))

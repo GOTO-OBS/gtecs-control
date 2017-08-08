@@ -5,6 +5,8 @@ import json
 from gtecs.tecs_modules import params
 
 username = input('Please enter your name for the record: ')
+if len(username) == 0:
+    username = 'Unknown'
 with open(params.CONFIG_PATH + 'observer', 'w') as f:
     f.write(username)
 print('Thank you "{}", everything will now be blamed on you'.format(username))
