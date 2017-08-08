@@ -72,13 +72,13 @@ class FiltDaemon(HardwareDaemon):
         self.dependency_check_time = 0
 
         ### start control thread
-        t = threading.Thread(target=self.filt_control)
+        t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
-    def filt_control(self):
+    def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
         # make proxies once, outside the loop
