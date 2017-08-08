@@ -70,13 +70,13 @@ class DomeDaemon(HardwareDaemon):
         self.dependency_check_time = 0
 
         ### start control thread
-        t = threading.Thread(target=self.dome_control)
+        t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
-    def dome_control(self):
+    def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
         ### connect to dome object

@@ -59,13 +59,13 @@ class PowerDaemon(HardwareDaemon):
         self.dependency_check_time = 0
 
         ### start control thread
-        t = threading.Thread(target=self.power_control)
+        t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
-    def power_control(self):
+    def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
         # make power objects once, outside the loop
