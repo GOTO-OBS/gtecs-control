@@ -37,18 +37,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Camera daemon class
 
 class CamDaemon(HardwareDaemon):
-    """
-    Camera daemon class
-
-    Contains 7 functions:
-    - get_info()
-    - take_image(exptime,telescopeIDs)
-    - take_dark(exptime,telescopeIDs)
-    - take_bias(telescopeIDs)
-    - abort_exposure(telescopeIDs)
-    - set_temperature(target_temp,telescopeIDs)
-    - set_spec(target,imgtype)
-    """
+    """Camera hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon

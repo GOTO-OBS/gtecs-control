@@ -28,15 +28,7 @@ from gtecs.tecs_modules.daemons import HardwareDaemon
 # Focuser daemon class
 
 class FocDaemon(HardwareDaemon):
-    """
-    Focuser daemon class
-
-    Contains X functions:
-    - get_info()
-    - set_focuser(pos, telescopeIDs)
-    - move_focuser(steps, telescopeIDs)
-    - home_focuser(telescopeIDs)
-    """
+    """Focuser hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
