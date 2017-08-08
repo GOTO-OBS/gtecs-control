@@ -22,6 +22,8 @@ FILE_LOGGING = 1
 STDOUT_LOGGING = 1
 # redirect Daemon stdout to file?
 REDIRECT_STDOUT = 0
+# use colour and fancy formatting in output?
+FANCY_OUTPUT = 1
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_ALTITUDE = 2327
@@ -90,80 +92,73 @@ PROXY_TIMEOUT = 5
 USE_FAKE_FLI = 0
 
 [DAEMONS]
-    [[foc]]
-        PORT = 9003
-        PINGLIFE = 10.0
-        PROCESS = foc_daemon.py
-        PYROID = foc_daemon
-        HOST = localhost
-        DEPENDS = fli
-    [[cam]]
-        PORT = 9004
-        PINGLIFE = 10.0
-        PROCESS = cam_daemon.py
-        PYROID = cam_daemon
-        HOST = localhost
-        DEPENDS = fli
-    [[dome]]
-        PORT = 9007
-        PINGLIFE = 10.0
-        PROCESS = dome_daemon.py
-        PYROID = dome_daemon
-        HOST = localhost
-        DEPENDS = None
-    [[exq]]
-        PORT = 9005
-        PINGLIFE = 10.0
-        PROCESS = exq_daemon.py
-        PYROID = exq_daemon
-        HOST = localhost
-        DEPENDS = cam, filt, fli
-    [[filt]]
-        PORT = 9002
-        PINGLIFE = 10.0
-        PROCESS = filt_daemon.py
-        PYROID = filt_daemon
-        HOST = localhost
-        DEPENDS = fli
     [[mnt]]
+        HOST = localhost
         PORT = 9001
-        PINGLIFE = 10.0
         PROCESS = mnt_daemon.py
-        PYROID = mnt_daemon
-        HOST = localhost
         DEPENDS = None
-    [[power]]
-        PORT = 9006
         PINGLIFE = 10.0
-        PROCESS = power_daemon.py
-        PYROID = power_daemon
+    [[filt]]
         HOST = localhost
+        PORT = 9002
+        PROCESS = filt_daemon.py
+        DEPENDS = fli
+        PINGLIFE = 10.0
+    [[foc]]
+        HOST = localhost
+        PORT = 9003
+        PROCESS = foc_daemon.py
+        DEPENDS = fli
+        PINGLIFE = 10.0
+    [[cam]]
+        HOST = localhost
+        PORT = 9004
+        PROCESS = cam_daemon.py
+        DEPENDS = fli
+        PINGLIFE = 10.0
+    [[exq]]
+        HOST = localhost
+        PORT = 9005
+        PROCESS = exq_daemon.py
+        DEPENDS = cam, filt, fli
+        PINGLIFE = 10.0
+    [[power]]
+        HOST = localhost
+        PORT = 9006
+        PROCESS = power_daemon.py
+        DEPENDS = None
+        PINGLIFE = 10.0
+    [[dome]]
+        HOST = localhost
+        PORT = 9007
+        PROCESS = dome_daemon.py
+        DEPENDS = None
+        PINGLIFE = 10.0
+    [[fli1]]
+        HOST = localhost
+        PORT = 9010
+        PROCESS = fli_interface.py
+        DEPENDS = None
+    [[fli2]]
+        HOST = localhost
+        PORT = 9020
+        PROCESS = fli_interfaceB.py
         DEPENDS = None
     [[scheduler]]
-        PORT = 9008
-        PINGLIFE = 10.0
-        PROCESS = scheduler_daemon.py
-        PYROID = sheduler_daemon
         HOST = localhost
+        PORT = 9030
+        PROCESS = scheduler_daemon.py
         DEPENDS = None
 
 [FLI_INTERFACES]
     [[fli1]]
         TELS = 1, 2
-        PORT = 9010
-        PROCESS = fli_interface.py
-        PYROID = fli_interface
-        HOST = localhost
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
             cam = fake, fake
     [[fli2]]
         TELS = 3, 4
-        PORT = 9020
-        PROCESS = fli_interfaceB.py
-        PYROID = fli_interfaceB
-        HOST = localhost
         [[[SERIALS]]]
             foc = fake, fake
             filt = fake, fake
