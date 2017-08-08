@@ -26,7 +26,14 @@ if __name__ == '__main__':
         if len(sys.argv) > 2:
             daemons = sys.argv[2:]
         else:
-            daemons = list(params.DAEMONS) + ['fli']
+            daemons = list(params.DAEMONS)
+
+        # remove individual fli interfaces and replace with one command
+        if any([intf in daemons for intf in params.FLI_INTERFACES]):
+            for intf in params.FLI_INTERFACES:
+                if intf in daemons:
+                    daemons.remove(intf)
+            daemons.append('fli')
 
         # handle dependencies
         if 'exq' in daemons:
