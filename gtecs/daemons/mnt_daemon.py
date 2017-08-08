@@ -91,7 +91,7 @@ class MntDaemon(HardwareDaemon):
         self.sitech = mnt_control.SiTech(IP_address, port)
 
         ### start control thread
-        t = threading.Thread(target=self.mnt_control)
+        t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
@@ -103,7 +103,7 @@ class MntDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary control thread
-    def mnt_control(self):
+    def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
         while(self.running):
