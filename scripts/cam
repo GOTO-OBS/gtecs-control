@@ -64,7 +64,7 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
@@ -76,7 +76,7 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'image':
         if len(args) == 1 and misc.is_num(args[0]):
@@ -96,7 +96,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'dark':
         if len(args) == 1 and misc.is_num(args[0]):
@@ -115,7 +115,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'bias':
         if len(args) == 0:
@@ -132,7 +132,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'abort':
         if len(args) == 0:
@@ -145,7 +145,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command == 'temp':
         if len(args) == 1 and misc.is_num(args[0]):
@@ -160,7 +160,7 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command in ['bin', 'bins', 'binning']:
         if len(args) == 1 and misc.is_num(args[0]):
@@ -175,12 +175,12 @@ def query(command, args):
                 c = daemons.daemon_function(daemon_ID, 'set_binning', [binning, HW_list])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "%s"' %command)
 
 ########################################################################
 # Output formatting functions

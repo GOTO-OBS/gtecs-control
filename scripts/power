@@ -64,7 +64,7 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
@@ -76,7 +76,7 @@ def query(command, args):
             info = daemons.daemon_function(daemon_ID, 'get_info')
             if info: print_info(info)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     elif command in ['on','off','reboot']:
         if len(args) == 1:
@@ -88,18 +88,18 @@ def query(command, args):
             # only outlets from the given unit
             unit = args[0]
             if unit not in params.POWER_UNITS:
-                print(misc.ERROR('Invalid unit name'))
+                raise misc.InputError('Invalid unit name')
             else:
                 outlets = args[1].split(',')
                 c = daemons.daemon_function(daemon_ID, command, [outlets, unit])
                 if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "%s"' %command)
 
 ########################################################################
 # Output formatting functions

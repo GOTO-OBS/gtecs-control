@@ -69,12 +69,12 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "%s"' %command)
 
 ########################################################################
 # Output formatting functions
