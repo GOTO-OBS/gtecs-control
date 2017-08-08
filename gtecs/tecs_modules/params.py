@@ -67,7 +67,6 @@ HOST = socket.gethostname()
 
 CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-INTERFACE_PATH = pkg_resources.resource_filename('gtecs', 'interfaces')
 LOG_PATH = CONFIG_PATH + 'logs/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
 
@@ -79,6 +78,8 @@ FILE_LOGGING = config['FILE_LOGGING']
 STDOUT_LOGGING = config['STDOUT_LOGGING']
 # redirect Daemon stdout to file?
 REDIRECT_STDOUT = config['REDIRECT_STDOUT']
+# use colour and fancy formatting in output?
+FANCY_OUTPUT = config['FANCY_OUTPUT']
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = config['SITE_LATITUDE']
@@ -103,18 +104,16 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 ########################################################################
 # Daemon parameters
 DAEMONS = config['DAEMONS']
-for key in DAEMONS:
-    DAEMONS[key]['HOST'] = HOST if config['DAEMONS_HOST'] == '' else config['DAEMONS_HOST']
-    DAEMONS[key]['ADDRESS'] = 'PYRO:' + DAEMONS[key]['PYROID'] + '@' + DAEMONS[key]['HOST'] + ':' + str(DAEMONS[key]['PORT'])
-    if 'fli' in DAEMONS[key]['DEPENDS']:
-        DAEMONS[key]['DEPENDS'].remove('fli')
-        DAEMONS[key]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
+for daemon_ID in DAEMONS:
+    if  DAEMONS[daemon_ID]['HOST'] == 'localhost':
+        DAEMONS[daemon_ID]['HOST'] = HOST
+    DAEMONS[daemon_ID]['ADDRESS'] = 'PYRO:' + daemon_ID + '@' + DAEMONS[daemon_ID]['HOST'] + ':' + str(DAEMONS[daemon_ID]['PORT'])
+    if 'fli' in DAEMONS[daemon_ID]['DEPENDS']:
+        DAEMONS[daemon_ID]['DEPENDS'].remove('fli')
+        DAEMONS[daemon_ID]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
-for key in FLI_INTERFACES:
-    FLI_INTERFACES[key]['HOST'] = config['FLI_HOST_OVERRIDE'] if config['FLI_HOST_OVERRIDE'] != '' else FLI_INTERFACES[key]['HOST']
-    FLI_INTERFACES[key]['ADDRESS'] = 'PYRO:' + FLI_INTERFACES[key]['PYROID'] + '@' + FLI_INTERFACES[key]['HOST'] + ':' + str(FLI_INTERFACES[key]['PORT'])
 
 TEL_DICT = {}
 for intf in FLI_INTERFACES:
