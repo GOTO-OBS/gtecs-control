@@ -222,13 +222,13 @@ def kill_daemon(daemon_ID):
 
 def restart_daemon(daemon_ID, wait_time=2):
     '''Shut down a daemon and then start it again after `wait_time` seconds'''
-    c = shutdown_daemon(daemon_ID)
-    if c: print(c)
+    reply = shutdown_daemon(daemon_ID)
+    print(reply)
 
     time.sleep(wait_time)
 
-    c = start_daemon(daemon_ID)
-    if c: print(c)
+    reply = start_daemon(daemon_ID)
+    print(reply)
 
 ########################################################################
 # Generic daemon function wrapper

@@ -39,42 +39,44 @@ def interactive():
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        for daemon_ID in daemon_IDs:
-            c = daemons.start_daemon(daemon_ID)
-            if c: print(c)
-
-    elif command == 'shutdown':
-        for daemon_ID in daemon_IDs:
-            c = daemons.shutdown_daemon(daemon_ID)
-            if c: print(c)
-
-    elif command == 'restart':
-        for daemon_ID in daemon_IDs:
-            c = daemons.restart_daemon(daemon_ID)
-            if c: print(c)
-
-    elif command == 'kill':
-        for daemon_ID in daemon_IDs:
-            c = daemons.kill_daemon(daemon_ID)
-            if c: print(c)
-
-    elif command == 'ping':
-        for daemon_ID in daemon_IDs:
-            c = daemons.ping_daemon(daemon_ID)
-            if c: print(c)
-
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
 
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Primary daemon control
+    elif command == 'start':
+        for daemon_ID in daemon_IDs:
+            reply = daemons.start_daemon(daemon_ID)
+            print(reply)
+
+    elif command == 'shutdown':
+        for daemon_ID in daemon_IDs:
+            reply = daemons.shutdown_daemon(daemon_ID)
+            print(reply)
+
+    elif command == 'restart':
+        for daemon_ID in daemon_IDs:
+            reply = daemons.restart_daemon(daemon_ID)
+            print(reply)
+
+    elif command == 'kill':
+        for daemon_ID in daemon_IDs:
+            reply = daemons.kill_daemon(daemon_ID)
+            print(reply)
+
+    elif command == 'ping':
+        for daemon_ID in daemon_IDs:
+            reply = daemons.ping_daemon(daemon_ID)
+            print(reply)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "%s"' %command)
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions

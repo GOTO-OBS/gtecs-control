@@ -41,204 +41,235 @@ def interactive():
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        c = daemons.start_daemon(daemon_ID)
-        if c: print(c)
-
-    elif command == 'shutdown':
-        c = daemons.shutdown_daemon(daemon_ID)
-        if c: print(c)
-
-    elif command == 'restart':
-        c = daemons.restart_daemon(daemon_ID)
-        if c: print(c)
-
-    elif command == 'kill':
-        c = daemons.kill_daemon(daemon_ID)
-        if c: print(c)
-
-    elif command == 'ping':
-        c = daemons.ping_daemon(daemon_ID)
-        if c: print(c)
-
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
 
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Mount control functions
+    # Primary daemon control
+    elif command == 'start':
+        reply = daemons.start_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'shutdown':
+        reply = daemons.shutdown_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'restart':
+        reply = daemons.restart_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'kill':
+        reply = daemons.kill_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'ping':
+        reply = daemons.ping_daemon(daemon_ID)
+        print(reply)
+
     elif command == 'info':
+        # parse arguments
         if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info_s(info)
+            info_type = 'simple'
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info(info)
+            info_type = 'verbose'
         else:
             raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        # print response
+        if not reply:
+            raise ValueError('No info returned, check daemon')
+        elif info_type == 'simple':
+            print_info_s(reply)
+        elif info_type == 'verbose':
+            print_info(reply)
 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Daemon functions
     elif command == 'slew':
-        c = daemons.daemon_function(daemon_ID, 'slew_to_target')
-        if c: print(c)
+        reply = daemons.daemon_function(daemon_ID, 'slew_to_target')
+        print(reply)
 
     elif command == 'track':
-        c = daemons.daemon_function(daemon_ID, 'start_tracking')
-        if c: print(c)
+        reply = daemons.daemon_function(daemon_ID, 'start_tracking')
+        print(reply)
 
     elif command in ['stop', 'halt', 'abort']:
-        c = daemons.daemon_function(daemon_ID, 'full_stop')
-        if c: print(c)
+        reply = daemons.daemon_function(daemon_ID, 'full_stop')
+        print(reply)
 
     elif command == 'blinky':
+        # parse arguments
         if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-            c = daemons.daemon_function(daemon_ID, 'blinky', [True])
-            if c: print(c)
+            activate = True
         elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-            c = daemons.daemon_function(daemon_ID, 'blinky', [False])
-            if c: print(c)
+            activate = False
         else:
             raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'blinky', [activate])
+        print(reply)
 
     elif command == 'park':
-        c = daemons.daemon_function(daemon_ID, 'park')
-        if c: print(c)
+        reply = daemons.daemon_function(daemon_ID, 'park')
+        print(reply)
 
     elif command == 'unpark':
-        c = daemons.daemon_function(daemon_ID, 'unpark')
-        if c: print(c)
+        reply = daemons.daemon_function(daemon_ID, 'unpark')
+        print(reply)
 
     elif command == 'ra':
-        # option 1: decimal degrees
+        # parse arguments
         if len(args) == 1:
-            try:
-                ra_deg = float(args[0])
-                assert 0 <= ra_deg < 360
-                ra_hrs = ra_deg*24./360.
-            except:
-                raise misc.InputError('Invalid arguments')
-            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-            if c: print(c)
-        # option 2: hms notation
+            # decimal
+            ra_deg = float(args[0])
+            assert 0 <= ra_deg < 360
+            ra_hrs = ra_deg*24./360.
+            assert 0 <= ra_hrs < 24
         elif len(args) == 3:
-            try:
-                h = int(args[0])
-                m = int(args[1])
-                s = float(args[2])
-                assert 0 <= h < 24
-                assert 0 <= m < 60
-                assert 0 <= s < 60
-                ra_hrs = h + m/60. + s/3600.
-            except:
-                raise misc.InputError('Invalid arguments')
-            c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-            if c: print(c)
-        # they're the only options
+            # h m s
+            h = int(args[0])
+            m = int(args[1])
+            s = float(args[2])
+            assert 0 <= h < 24
+            assert 0 <= m < 60
+            assert 0 <= s < 60
+            ra_hrs = h + m/60. + s/3600.
+            assert 0 <= ra_hrs < 24
         else:
             raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
+        print(reply)
 
     elif command == 'dec':
-        # option 1: decimal degrees
+        # parse arguments
         if len(args) == 1:
-            try:
-                dec_deg = float(args[0])
-                assert -90 <= dec_deg <= 90
-            except:
-                raise misc.InputError('Invalid arguments')
-            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-            if c: print(c)
-        # option 2: +dms notation
-        elif len(args) == 4:
-            try:
-                sign = args[0]
-                d = int(args[1])
-                m = int(args[2])
-                s = float(args[3])
-                assert 0 <= m < 60
-                assert 0 <= s < 60
-                if sign == '+':
-                    dec_deg = d + m/60. + s/3600.
-                else:
-                    dec_deg = -1*(d + m/60. + s/3600.)
-                assert -90 <= dec_deg <= 90
-            except:
-                raise misc.InputError('Invalid arguments')
-            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-            if c: print(c)
-        # option 2.5: forgetting the sign, let's work it out from dec
-        # NOTE tricky to deal with -0, have to use the string
+            # decimal
+            dec_deg = float(args[0])
+            assert -90 <= dec_deg <= 90
         elif len(args) == 3:
-            try:
-                if args[0][0] == '-':
-                    sign = '-'
-                else:
-                    sign = '+'
-                d = int(args[0])
-                m = int(args[1])
-                s = float(args[2])
-                assert 0 <= m < 60
-                assert 0 <= s < 60
-                if sign == '+':
-                    dec_deg = d + m/60. + s/3600.
-                else: #NB d is negative
-                    dec_deg = d - m/60. - s/3600.
-                assert -90 <= dec_deg <= 90
-            except:
-                raise misc.InputError('Invalid arguments')
-            c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-            if c: print(c)
-        # they're the only options
+            # d m s
+            if args[0][0] == '-':
+                sign = '-'
+            else:
+                sign = '+'
+            d = int(args[0])
+            m = int(args[1])
+            s = float(args[2])
+            assert 0 <= m < 60
+            assert 0 <= s < 60
+            if sign == '+':
+                dec_deg = d + m/60. + s/3600.
+            else: #NB d is negative
+                dec_deg = d - m/60. - s/3600.
+            assert -90 <= dec_deg <= 90
+        elif len(args) == 4:
+            # + d m s
+            sign = args[0]
+            d = int(args[1])
+            m = int(args[2])
+            s = float(args[3])
+            assert 0 <= m < 60
+            assert 0 <= s < 60
+            if sign == '+':
+                dec_deg = d + m/60. + s/3600.
+            else:
+                dec_deg = -1*(d + m/60. + s/3600.)
+            assert -90 <= dec_deg <= 90
         else:
             raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
+        print(reply)
 
     elif command == 'n':
-        if len(args) == 1:
+        # parse arguments
+        if len(args) == 0:
+            step = None
+        elif len(args) == 1:
             step = float(args[0])
-            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-            if c: print(c)
-        direction = 'north'
-        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
-        if c: print(c)
+        else:
+            raise misc.InputError('Invalid arguments')
+        # set step
+        if step:
+            reply = daemons.daemon_function(daemon_ID, 'set_step', [step])
+            print(reply)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'offset', ['north'])
+        print(reply)
 
     elif command == 's':
-        if len(args) == 1:
+        # parse arguments
+        if len(args) == 0:
+            step = None
+        elif len(args) == 1:
             step = float(args[0])
-            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-            if c: print(c)
-        direction = 'south'
-        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
-        if c: print(c)
+        else:
+            raise misc.InputError('Invalid arguments')
+        # set step
+        if step:
+            reply = daemons.daemon_function(daemon_ID, 'set_step', [step])
+            print(reply)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'offset', ['south'])
+        print(reply)
 
     elif command == 'e':
-        if len(args) == 1:
+        # parse arguments
+        if len(args) == 0:
+            step = None
+        elif len(args) == 1:
             step = float(args[0])
-            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-            if c: print(c)
-        direction = 'east'
-        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
-        if c: print(c)
+        else:
+            raise misc.InputError('Invalid arguments')
+        # set step
+        if step:
+            reply = daemons.daemon_function(daemon_ID, 'set_step', [step])
+            print(reply)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'offset', ['east'])
+        print(reply)
 
     elif command == 'w':
-        if len(args) == 1:
+        # parse arguments
+        if len(args) == 0:
+            step = None
+        elif len(args) == 1:
             step = float(args[0])
-            c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-            if c: print(c)
-        direction = 'west'
-        c = daemons.daemon_function(daemon_ID, 'offset', [direction])
-        if c: print(c)
+        else:
+            raise misc.InputError('Invalid arguments')
+        # set step
+        if step:
+            reply = daemons.daemon_function(daemon_ID, 'set_step', [step])
+            print(reply)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'offset', ['west'])
+        print(reply)
 
     elif command == 'step':
-        step = float(args[0])
-        c = daemons.daemon_function(daemon_ID, 'set_step', [step])
-        if c: print(c)
+        # parse arguments
+        if len(args) == 1:
+            step = float(args[0])
+        else:
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_step', [step])
+        print(reply)
 
     elif command == 'target':
+        # parse arguments
         if len(args) == 1:
             name = args[0]
         elif len(args) > 1:
             name = ' '.join(args)
+        else:
+            raise misc.InputError('Invalid arguments')
+        # find target
         try:
             coord = SkyCoord.from_name(name)
         except:
@@ -246,20 +277,17 @@ def query(command, args):
                 coord = get_body(name, Time.now())
             except:
                 raise misc.InputError('Cannot find target "%s"' %name)
-        print('Targeting "%s"' %name)
-        # set RA
-        ra_hrs  = coord.ra.hour
-        c = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
-        if c: print(c)
-        # set Dec
-        dec_deg = coord.dec.value
-        c = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
-        if c: print(c)
+        print('Targeting "{}"'.format(name))
+        # send commands
+        reply = daemons.daemon_function(daemon_ID, 'set_target_ra', [coord.ra.hour])
+        print(reply)
+        reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
+        print(reply)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "%s"' %command)
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
