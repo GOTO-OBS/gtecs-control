@@ -257,63 +257,97 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.check_status_flag = 1
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.5)
         return self.info
 
+
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        self._parse_input(outlet_list, unit)
-        if len(self.current_outlets) == 0:
+
+        # Check input
+        outlets, units = self._parse_input(outlet_list, unit)
+        if len(outlets) == 0:
             raise ValueError('No valid outlets')
-        else:
-            self.on_flag = 1
-            return 'Turning on power'
+
+        # Set values
+        self.current_outlets = outlets
+        self.current_units = units
+
+        # Set flag
+        self.on_flag = 1
+
+        return 'Turning on power'
+
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        self._parse_input(outlet_list, unit)
-        if len(self.current_outlets) == 0:
+
+        # Check input
+        outlets, units = self._parse_input(outlet_list, unit)
+        if len(outlets) == 0:
             raise ValueError('No valid outlets')
-        else:
-            self.off_flag = 1
-            return 'Turning off power'
+
+        # Set values
+        self.current_outlets = outlets
+        self.current_units = units
+
+        # Set flag
+        self.off_flag = 1
+
+        return 'Turning off power'
+
 
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        self._parse_input(outlet_list, unit)
-        if len(self.current_outlets) == 0:
+
+        # Check input
+        outlets, units = self._parse_input(outlet_list, unit)
+        if len(outlets) == 0:
             raise ValueError('No valid outlets')
-        else:
-            self.reboot_flag = 1
-            return 'Rebooting power'
+
+        # Set values
+        self.current_outlets = outlets
+        self.current_units = units
+
+        # Set flag
+        self.reboot_flag = 1
+        return 'Rebooting power'
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
     def _parse_input(self, outlet_list, unit=''):
         if unit in params.POWER_UNITS:
             # specific unit given, all outlets should be from that unit
-            self.current_outlets = self._get_valid_outlets(unit, outlet_list)
-            self.current_units = [unit]*len(self.current_outlets)
+            outlets = self._get_valid_outlets(unit, outlet_list)
+            units = [unit]*len(outlets)
         else:
             # a list of outlet names, we need to find their matching units
             unit_list = self._units_from_names(outlet_list)
-            self.current_units = []
-            self.current_outlets = []
+            units = []
+            outlets = []
             for unit in unit_list:
                 valid_outlets = self._get_valid_outlets(unit, outlet_list)
-                self.current_outlets += valid_outlets
-                self.current_units += [unit]*len(valid_outlets)
-        #print(self.current_outlets,self.current_units)
+                outlets += valid_outlets
+                units += [unit]*len(valid_outlets)
+        return outlets, units
 
     def _units_from_names(self, name_list):
         unit_list = []

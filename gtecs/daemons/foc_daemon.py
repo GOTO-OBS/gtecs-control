@@ -210,21 +210,44 @@ class FocDaemon(HardwareDaemon):
     # Focuser control functions
     def get_info(self):
         """Return focuser status info"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
-    def set_focuser(self,new_pos,tel_list):
+
+    def set_focuser(self, new_pos, tel_list):
         """Move focuser to given position"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
+            raise ValueError('Position must be a positive integer')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
+        for tel in tel_list:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
+                self.active_tel += [tel]
+                self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
+
+        # Set flag
+        self.move_focuser_flag = 1
+
+        # Format return string
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
@@ -232,47 +255,76 @@ class FocDaemon(HardwareDaemon):
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
             elif new_pos > self.limit[intf][HW]:
-                s += misc.ERROR('"ValueError: Position past limit"')
+                s += misc.ERROR('"ValueError: Focuser %i position past limit"' %tel)
             else:
-                self.active_tel += [tel]
-                self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
                 s += 'Moving focuser %i' %tel
-        self.move_focuser_flag = 1
         return s
 
-    def move_focuser(self,move_steps,tel_list):
+
+    def move_focuser(self, move_steps, tel_list):
         """Move focuser by given number of steps"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if (int(new_pos) - new_pos) != 0:
+            raise ValueError('Steps must be an integer')
         for tel in tel_list:
             if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
-        s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
-            s += '\n  '
-            if self.remaining[intf][HW] > 0:
-                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
-            elif (self.current_pos[intf][HW] + move_steps) > self.limit[intf][HW]:
-                s += misc.ERROR('"ValueError: Position past limit"')
-            else:
+            new_pos = self.current_pos[intf][HW] + move_steps
+            if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
                 self.active_tel += [tel]
                 self.move_steps[intf][HW] = move_steps
-                s += 'Moving focuser %i' %tel
+
+        # Set flag
         self.move_focuser_flag = 1
+
+        # Format return string
+        s = 'Moving:'
+        for tel in tel_list:
+            intf, HW = self.tel_dict[tel]
+            new_pos = self.current_pos[intf][HW] + move_steps
+            s += '\n  '
+            if self.remaining[intf][HW] > 0:
+                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
+            elif new_pos > self.limit[intf][HW]:
+                s += misc.ERROR('"ValueError: Position past limit"')
+            else:
+                s += 'Moving focuser %i' %tel
         return s
 
-    def home_focuser(self,tel_list):
+
+    def home_focuser(self, tel_list):
         """Move focuser to the home position"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
         for tel in tel_list:
             if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
+        for tel in tel_list:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] == 0:
+                self.active_tel += [tel]
+
+        # Set flag
+        self.home_focuser_flag = 1
+
+        # Format return string
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
@@ -280,9 +332,7 @@ class FocDaemon(HardwareDaemon):
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
             else:
-                self.active_tel += [tel]
                 s += 'Homing focuser %i' %tel
-        self.home_focuser_flag = 1
         return s
 
 ########################################################################

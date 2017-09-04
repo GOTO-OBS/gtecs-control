@@ -381,15 +381,20 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        self.check_status_flag = 1
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
@@ -399,63 +404,94 @@ class DomeDaemon(HardwareDaemon):
         elif os.path.isfile(params.EMERGENCY_FILE):
             #send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
             raise misc.HardwareStatusError('In emergency locked state, dome will not open')
-        else:
-            if self.open_flag or self.close_flag:
-                # We want new commands to overwrite the old ones
-                self.halt_flag = 1
-                time.sleep(3)
-            north_status = self.dome_status['north']
-            south_status = self.dome_status['south']
-            if side == 'north' and north_status == 'full_open':
-                raise misc.HardwareStatusError('The north side is already fully open')
-            elif side == 'south' and south_status == 'full_open':
-                raise misc.HardwareStatusError('The south side is already fully open')
-            elif side == 'both':
-                if north_status == 'full_open' and south_status == 'full_open':
-                    raise misc.HardwareStatusError('The dome is already fully open')
-                elif north_status == 'full_open' and south_status != 'full_open':
-                    side == 'south'
-                elif north_status != 'full_open' and south_status == 'full_open':
-                    side == 'north'
-            self.open_flag = 1
-            self.move_side = side
-            self.move_frac = frac
-            self.logfile.info('Starting: Opening dome')
-            return 'Opening dome'
 
-    def close_dome(self,side='both',frac=1):
+        # Check input
+        if not side in ['north', 'south', 'both']:
+            raise ValueError('Side must be one of "north", "south" or "both"')
+        if not (0 < frac <= 1):
+            raise ValueError('Fraction must be between 0 and 1')
+
+        # We want new commands to overwrite the old ones
+        if self.open_flag or self.close_flag:
+            self.halt_flag = 1
+            time.sleep(3)
+
+        # Check current status
+        north_status = self.dome_status['north']
+        south_status = self.dome_status['south']
+        if side == 'north' and north_status == 'full_open':
+            raise misc.HardwareStatusError('The north side is already fully open')
+        elif side == 'south' and south_status == 'full_open':
+            raise misc.HardwareStatusError('The south side is already fully open')
+        elif side == 'both':
+            if north_status == 'full_open' and south_status == 'full_open':
+                raise misc.HardwareStatusError('The dome is already fully open')
+            elif north_status == 'full_open' and south_status != 'full_open':
+                side == 'south'
+            elif north_status != 'full_open' and south_status == 'full_open':
+                side == 'north'
+
+        # Set values
+        self.move_side = side
+        self.move_frac = frac
+
+        # Set flag
+        self.logfile.info('Starting: Opening dome')
+        self.open_flag = 1
+
+        return 'Opening dome'
+
+    def close_dome(self, side='both', frac=1):
         """Close the dome"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        else:
-            if self.open_flag or self.close_flag:
-                # We want new commands to overwrite the old ones
-                self.halt_flag = 1
-                time.sleep(3)
-            north_status = self.dome_status['north']
-            south_status = self.dome_status['south']
-            if side == 'north' and north_status == 'closed':
-                raise misc.HardwareStatusError('The north side is already fully closed')
-            elif side == 'south' and south_status == 'closed':
-                raise misc.HardwareStatusError('The south side is already fully closed')
-            elif side == 'both':
-                if north_status == 'closed' and south_status == 'closed':
-                    raise misc.HardwareStatusError('The dome is already fully closed')
-                elif north_status == 'closed' and south_status != 'closed':
-                    side == 'south'
-                elif north_status != 'closed' and south_status == 'closed':
-                    side == 'north'
-            self.close_flag = 1
-            self.move_side = side
-            self.move_frac = frac
-            self.logfile.info('Starting: Closing dome')
-            return 'Closing dome'
+
+        # Check input
+        if not side in ['north', 'south', 'both']:
+            raise ValueError('Side must be one of "north", "south" or "both"')
+        if not (0 < frac <= 1):
+            raise ValueError('Fraction must be between 0 and 1')
+
+        # We want new commands to overwrite the old ones
+        if self.open_flag or self.close_flag:
+            self.halt_flag = 1
+            time.sleep(3)
+
+        # Check current status
+        north_status = self.dome_status['north']
+        south_status = self.dome_status['south']
+        if side == 'north' and north_status == 'closed':
+            raise misc.HardwareStatusError('The north side is already fully closed')
+        elif side == 'south' and south_status == 'closed':
+            raise misc.HardwareStatusError('The south side is already fully closed')
+        elif side == 'both':
+            if north_status == 'closed' and south_status == 'closed':
+                raise misc.HardwareStatusError('The dome is already fully closed')
+            elif north_status == 'closed' and south_status != 'closed':
+                side == 'south'
+            elif north_status != 'closed' and south_status == 'closed':
+                side == 'north'
+
+        # Set values
+        self.move_side = side
+        self.move_frac = frac
+
+        # Set flag
+        self.logfile.info('Starting: Closing dome')
+        self.close_flag = 1
+
+        return 'Closing dome'
 
     def halt_dome(self):
         """Stop the dome moving"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.halt_flag = 1
+
         return 'Halting dome'
 
 ########################################################################
