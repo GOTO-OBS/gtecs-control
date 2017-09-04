@@ -26,6 +26,17 @@ from .astronomy import tel_str, check_alt_limit
 from .misc import execute_command as cmd
 
 
+def check_schedule(time, write_html):
+    """
+    Check the schedule
+    """
+    SCHEDULER_DAEMON_ADDRESS = params.DAEMONS['scheduler']['ADDRESS']
+    with Pyro4.Proxy(SCHEDULER_DAEMON_ADDRESS) as scheduler:
+        scheduler._pyroTimeout = params.PROXY_TIMEOUT
+        newID, newPriority, newMinTime = scheduler.check_queue(time, write_html)
+    return newID, newPriority, newMinTime
+
+
 def get_cam_temps():
     """
     Get a dict of camera temps
