@@ -330,90 +330,184 @@ class CamDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    def get_info(self, fli_proxies=None):
+    def get_info(self):
         """Return camera status info"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
-    def take_image(self,exptime,tel_list):
+
+    def take_image(self, exptime, tel_list):
         """Take image with camera"""
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+        # Use the common function
         return self._take_frame(exptime, 'image', tel_list)
 
-    def take_dark(self,exptime,tel_list):
+
+    def take_dark(self, exptime, tel_list):
         """Take dark frame with camera"""
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+        # Use the common function
         return self._take_frame(exptime, 'dark', tel_list)
 
-    def take_bias(self,tel_list):
+
+    def take_bias(self, tel_list):
         """Take bias frame with camera"""
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+        # Use the common function
         return self._take_frame(params.BIASEXP, 'bias', tel_list)
 
-    def abort_exposure(self,tel_list):
-        """Abort current exposure"""
+
+    def _take_frame(self, exptime, exp_type, tel_list):
+        """Take a frame with camera"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(exptime) < 0:
+            raise ValueError('Exposure time must be > 0')
+        if exp_type not in ['image', 'dark', 'bias']:
+            raise ValueError("Exposure type must be 'image', 'dark' or 'bias'")
         for tel in tel_list:
             if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Check current status
+        for tel in self.active_tel:
+            intf, HW = self.tel_dict[tel]
+            if self.exposing_flag[intf][HW] == 1:
+                raise misc.HardwareStatusError('Cameras are already exposing')
+
+        # Find and update run number
+        with open(self.run_number_file, 'r') as f:
+            lines = f.readlines()
+            self.run_number = int(lines[0]) + 1
+        with open(self.run_number_file, 'w') as f:
+            f.write('{:07d}'.format(self.run_number))
+
+        # Set values
+        self.target_exptime = exptime
+        if exp_type == 'image':
+            self.target_frametype = 'normal'
+        elif exp_type == 'dark' or exp_type == 'bias':
+            self.target_frametype = 'dark'
+        self.stored_tel_list = tel_list
+        for tel in tel_list:
+            self.active_tel += [tel]
+
+        # Set flag
+        self.take_exposure_flag = 1
+
+        # Format return string
+        s = 'Exposing r{:07d}:'.format(self.run_number)
+        for tel in tel_list:
+            s += '\n  '
+            s += 'Taking {:.2f}s {} on camera {}'.format(exptime, exp_type, tel)
+        return s
+
+
+    def abort_exposure(self, tel_list):
+        """Abort current exposure"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info()
-        s = 'Aborting:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            if not self.remaining[intf][HW] == 0:
+                self.active_tel += [tel]
+
+        # Set flag
+        self.abort_exposure_flag = 1
+
+        # Format return string
+        s = 'Aborting:'
+        for tel in tel_list:
             s += '\n  '
-            if self.remaining[intf][HW] == 0:
+            if tel not in self.active_tel == 0:
                 s += misc.ERROR('"HardwareStatusError: Camera %i is not currently exposing"' %tel)
             else:
-                self.active_tel += [tel]
                 s += 'Aborting exposure on camera %i' %tel
-        self.abort_exposure_flag = 1
         return s
 
-    def set_temperature(self,target_temp,tel_list):
+
+    def set_temperature(self, target_temp, tel_list):
         """Set the camera's temperature"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        self.target_temp = target_temp
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
+
+        # Check input
         if not (-55 <= target_temp <= 45):
             raise ValueError('Temperature must be between -55 and 45')
-        s = 'Setting:'
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  '
-            s += 'Setting temperature on camera %i' %tel
-        self.set_temp_flag = 1
-        return s
-
-    def set_binning(self,binning,tel_list):
-        """Set the image binning"""
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-        self.target_binning = binning
         for tel in tel_list:
             if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
-        s = 'Setting:'
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
+        self.target_temp = target_temp
         for tel in tel_list:
             self.active_tel += [tel]
+
+        # Set flag
+        self.set_temp_flag = 1
+
+        # Format return string
+        s = 'Setting:'
+        for tel in tel_list:
             s += '\n  '
-            s += 'Setting image binning on camera %i' %tel
-        self.set_binning_flag = 1
+            s += 'Setting temperature on camera %i' %tel
         return s
 
-    def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
-        """Save the run details if given by the queue daemon"""
+
+    def set_binning(self, binning, tel_list):
+        """Set the image binning"""
+        # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
+        self.target_binning = binning
+        for tel in tel_list:
+            self.active_tel += [tel]
+
+        # Set flag
+        self.set_binning_flag = 1
+
+        # Format return string
+        s = 'Setting:'
+        for tel in tel_list:
+            s += '\n  '
+            s += 'Setting image binning on camera %i' %tel
+        return s
+
+
+    def set_spec(self, target, imgtype, set_pos=1, set_total=1, expID=0):
+        """Save the run details if given by the queue daemon"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set values
         self.target = target
         self.imgtype = imgtype
         self.set_pos = set_pos
@@ -422,60 +516,6 @@ class CamDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
-    def _take_frame(self, exptime, exp_type, tel_list):
-        """
-        Take a frame with camera.
-
-        Parameters
-        -----------
-        exptime : float
-            exposure time in seconds
-
-        exp_type : str
-            'image', 'dark', 'bias'
-
-        tel_list : list
-            list of unit telescopes
-        """
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list %s' %str(list(self.tel_dict)))
-
-        self.stored_tel_list = tel_list
-        self.target_exptime = exptime
-
-        if exp_type == 'image':
-            self.target_frametype = 'normal'
-        elif exp_type == 'dark' or exp_type == 'bias':
-            self.target_frametype = 'dark'
-        else:
-            raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
-
-        time.sleep(0.1)
-
-        for tel in self.active_tel:
-            intf, HW = self.tel_dict[tel]
-            if self.exposing_flag[intf][HW] == 1:
-                raise misc.HardwareStatusError('Cameras are already exposing')
-
-        # find and update run number
-        with open(self.run_number_file, 'r') as f:
-            lines = f.readlines()
-            self.run_number = int(lines[0]) + 1
-        with open(self.run_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.run_number))
-
-        s = 'Exposing r{:07d}:'.format(self.run_number)
-        for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  '
-            s += 'Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
-                                                             exp_type,
-                                                             tel)
-        self.take_exposure_flag = 1
-
-        return s
-
     def _image_fetch(self, tel):
         intf, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
