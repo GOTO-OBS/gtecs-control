@@ -278,6 +278,7 @@ class DomeDaemon(HardwareDaemon):
                 except:
                     self.logfile.error('open command failed')
                     self.logfile.debug('', exc_info=True)
+                    self.open_flag = 0
 
             # close dome
             if self.close_flag:
@@ -348,6 +349,7 @@ class DomeDaemon(HardwareDaemon):
                 except:
                     self.logfile.error('close command failed')
                     self.logfile.debug('', exc_info=True)
+                    self.close_flag = 0
 
             # halt dome motion
             if self.halt_flag:
