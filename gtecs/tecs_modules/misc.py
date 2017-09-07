@@ -124,7 +124,16 @@ def python_command(filename, command, host='localhost',
 
 def execute_command(cmd):
     print(cmd)
-    subprocess.Popen(cmd, shell=True, close_fds=True).wait()
+    p = subprocess.Popen(cmd, shell=True, close_fds=True)
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        print('...ctrl+c detected - closing...')
+        try:
+           p.terminate()
+        except OSError:
+           pass
+        p.wait()
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''

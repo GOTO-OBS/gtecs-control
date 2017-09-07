@@ -77,6 +77,17 @@ def query(command, args):
         else:
             print_info_s(info)
 
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -100,6 +111,7 @@ def print_instructions():
     '  scheduler ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
     '  scheduler ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  scheduler ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
+    '  scheduler ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  scheduler ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  scheduler ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
