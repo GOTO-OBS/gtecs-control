@@ -27,8 +27,9 @@ CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
 def send_slack_msg(msg):
-    bot = SlackBot()
-    bot.send_message(msg)
+    if params.ENABLE_SLACK:
+        bot = SlackBot()
+        bot.send_message(msg)
 
 
 class SlackBot:
