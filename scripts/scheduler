@@ -75,7 +75,7 @@ def query(command, args):
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:
-            print_info_s(info)
+            print_info_s(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -111,6 +111,7 @@ def print_instructions():
     '  scheduler ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
     '  scheduler ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  scheduler ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
+    '  scheduler ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
     '  scheduler ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  scheduler ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
