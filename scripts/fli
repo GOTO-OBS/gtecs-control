@@ -34,35 +34,61 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
+    # Command functions
+    if command in ['help', '?']:
+        print_instructions()
+
+    elif command == 'i':
+        raise misc.InputError('Already in interactive mode')
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Primary daemon control
+    elif command == 'start':
         for daemon_ID in daemon_IDs:
-            daemons.start_daemon(daemon_ID)
+            reply = daemons.start_daemon(daemon_ID)
+            print(reply)
+
     elif command == 'shutdown':
         for daemon_ID in daemon_IDs:
-            daemons.shutdown_daemon(daemon_ID)
+            reply = daemons.shutdown_daemon(daemon_ID)
+            print(reply)
+
     elif command == 'restart':
         for daemon_ID in daemon_IDs:
-            daemons.restart_daemon(daemon_ID)
+            reply = daemons.restart_daemon(daemon_ID)
+            print(reply)
+
     elif command == 'kill':
         for daemon_ID in daemon_IDs:
-            daemons.kill_daemon(daemon_ID)
+            reply = daemons.kill_daemon(daemon_ID)
+            print(reply)
+
     elif command == 'ping':
         for daemon_ID in daemon_IDs:
-            daemons.ping_daemon(daemon_ID)
-    elif command == 'help' or command == '?':
-        print_instructions()
-    elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+            reply = daemons.ping_daemon(daemon_ID)
+            print(reply)
+
+    elif command in ['log', 'tail']:
+        for daemon_ID in daemon_IDs:
+            # parse arguments
+            if 'stdout' in args:
+                log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+                args.remove('stdout')
+            else:
+                log_path = params.LOG_PATH + daemon_ID + '.log'
+            tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+            # send command
+            misc.execute_command(tail_command)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
@@ -75,6 +101,7 @@ def print_instructions():
     '  fli ' + misc.bold('restart') + '           - restart the interfaces' + '\n' +\
     '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
+    '  fli ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  fli ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  fli ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
@@ -96,4 +123,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

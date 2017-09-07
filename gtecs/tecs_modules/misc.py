@@ -25,6 +25,7 @@ import subprocess
 import serial
 import re
 import smtplib
+from contextlib import contextmanager
 
 # TeCS modules
 from . import params
@@ -123,7 +124,16 @@ def python_command(filename, command, host='localhost',
 
 def execute_command(cmd):
     print(cmd)
-    subprocess.Popen(cmd, shell=True, close_fds=True).wait()
+    p = subprocess.Popen(cmd, shell=True, close_fds=True)
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        print('...ctrl+c detected - closing...')
+        try:
+           p.terminate()
+        except OSError:
+           pass
+        p.wait()
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
@@ -199,12 +209,13 @@ class neatCloser:
         """
         return
 
-class MultipleDaemonError(Exception):
-    pass
-
 def daemon_is_running(daemon_ID):
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
+    '''Check if a daemon process is running.'''
+    if daemon_ID in params.DAEMONS:
+        process = params.DAEMONS[daemon_ID]['PROCESS']
+        host    = params.DAEMONS[daemon_ID]['HOST']
+    else:
+        raise ValueError('Invalid daemon ID')
 
     process_ID = get_process_ID(process, host)
     if len(process_ID) == 1:
@@ -216,9 +227,7 @@ def daemon_is_running(daemon_ID):
         raise MultipleDaemonError(error_str)
 
 def daemon_is_alive(daemon_ID):
-    '''
-    Will check if a daemon is alive and responding to pings
-    '''
+    '''Check if a daemon is alive and responding to pings.'''
     if daemon_ID in params.DAEMONS:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
     else:
@@ -236,6 +245,7 @@ def daemon_is_alive(daemon_ID):
         return False
 
 def dependencies_are_alive(daemon_ID):
+    '''Check if a given daemon's dependencies are alive and responding to pings.'''
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
     if depends[0] != 'None':
@@ -253,8 +263,7 @@ def dependencies_are_alive(daemon_ID):
 def there_can_only_be_one(daemon_ID):
     '''Ensure the current daemon script isn't already running.
 
-    Returns `True` if it's OK to start, `False` if there is annother instance
-    of this daemon already running.
+    Returns `True` if it's OK to start.
     '''
 
     if daemon_ID in params.DAEMONS:
@@ -267,18 +276,13 @@ def there_can_only_be_one(daemon_ID):
     # Check if daemon process is already running
     process_ID = get_process_ID(process, host)
     if len(process_ID) > 1:
-        print('ERROR: Daemon already running')
-        return False
+        raise MultipleDaemonError('Daemon already running')
 
     # Also check the Pyro address is available
     try:
         pyro_daemon = Pyro4.Daemon(host=host, port=port)
-    except IOError as err:
-        if err.args[1] == 'Address already in use':
-            print('ERROR: Daemon tried to start but was already registered')
-            return False
-        else:
-            raise
+    except:
+        raise
     else:
         pyro_daemon.close()
 
@@ -337,10 +341,60 @@ def undl(text):
         return text
 
 ########################################################################
-# Misc functions
+# Errors and exceptions
+
+class DaemonConnectionError(Exception):
+    '''To be used when a command to a daemon fails.
+    e.g. if the Daemon is not running or is not responding
+    '''
+    pass
+
+
+class DaemonDependencyError(Exception):
+    '''To be used if a daemons's dependendecneis are not responding.'''
+    pass
+
+
+class MultipleDaemonError(Exception):
+    '''To be used if multiple instances of a daemon are detected.'''
+    pass
+
+
+class InputError(Exception):
+    '''To be used if an input command or arguments aren't valid.'''
+    pass
+
+
+class HardwareStatusError(Exception):
+    '''To be used if a command isn't possible due to the hardware status.
+    e.g. trying to start an exposure when the cameras are already exposing
+    '''
+    pass
+
+
+class HorizonError(Exception):
+    '''To be used if a slew command would bring the mount below the limit.'''
+    pass
+
+
 def ERROR(message):
     return rtxt(bold('ERROR')) + ': ' + str(message)
 
+
+@contextmanager
+def print_errors():
+    '''A context manager to catch exceptions and print them nicely.
+    Used within the control scripts to handle errors from daemons.
+    '''
+    try:
+        yield
+    except Exception as error:
+        print(ERROR('"{}: {}"'.format(type(error).__name__, error)))
+        pass
+
+
+########################################################################
+# Misc functions
 def adz(num):
     num = repr(num)
     if len(num) == 1:
@@ -353,9 +407,9 @@ def valid_ints(array, allowed):
         if i == '':
             pass
         elif not i.isdigit():
-            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
+            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
         elif i not in [str(x) for x in allowed]:
-            print('ERROR: "' + str(i) + '" is invalid, must be in',allowed)
+            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()

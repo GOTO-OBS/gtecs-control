@@ -36,37 +36,73 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        daemons.start_daemon(daemon_ID)
-    elif command == 'shutdown':
-        daemons.shutdown_daemon(daemon_ID)
-    elif command == 'restart':
-        daemons.restart_daemon(daemon_ID)
-    elif command == 'kill':
-        daemons.kill_daemon(daemon_ID)
-    elif command == 'ping':
-        daemons.ping_daemon(daemon_ID)
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
+
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Primary daemon control
+    elif command == 'start':
+        reply = daemons.start_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'shutdown':
+        reply = daemons.shutdown_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'restart':
+        reply = daemons.restart_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'kill':
+        reply = daemons.kill_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'ping':
+        reply = daemons.ping_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'info':
+        # parse arguments
+        if len(args) == 0:
+            info_type = 'simple'
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info_type = 'verbose'
+        else:
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        # print response
+        if not reply:
+            raise ValueError('No info returned, check daemon')
+        elif info_type == 'simple':
+            print_info_s(reply)
+        elif info_type == 'verbose':
+            print_info(reply)
+
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
-    elif command == 'info':
-        if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info_s(info)
-        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info(info)
-
     elif command == 'open':
+        # parse arguments
         if len(args) == 0:
             side = 'both'
             fraction = 1
@@ -79,13 +115,14 @@ def query(command, args):
         elif len(args) == 2 and misc.is_num(args[1]):
             side = args[0]
             fraction = float(args[1])
-        if 0 < fraction <= 1:
-            c = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
-            if c: print(c)
         else:
-            print('ERROR: Fraction must be between 0 and 1')
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
+        print(reply)
 
     elif command == 'close':
+        # parse arguments
         if len(args) == 0:
             side  = 'both'
             fraction = 1
@@ -98,34 +135,45 @@ def query(command, args):
         elif len(args) == 2 and misc.is_num(args[1]):
             side = args[0]
             fraction = float(args[1])
-        if 0 < fraction <= 1:
-            c = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
-            if c: print(c)
         else:
-            print('ERROR: Fraction must be between 0 and 1')
+            raise misc.InputError('Invalid arguments')
+        # check arguments
+        if not 0 < fraction <= 1:
+            raise misc.InputError('Fraction must be between 0 and 1')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
+        print(reply)
 
-    elif command == 'halt' or command == 'stop':
-        c = daemons.daemon_function(daemon_ID, 'halt_dome')
-        if c: print(c)
+    elif command in ['halt', 'stop', 'abort']:
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'halt_dome')
+        print(reply)
 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Other functions
     elif command == 'weather':
-        with open('/home/goto/g-tecs-config/overrides_flags', 'r') as f:
-            data = json.load(f)
+        # parse arguments
         if args[0] == 'on':
-            data['dome_auto'] = 0
-            print('Dome in auto mode: will close in bad weather')
+            override = False
         elif args[0] == 'off':
-            data['dome_auto'] = 1
-            print('Auto weather override set: Dome will NOT close in bad weather')
+            override = True
         else:
-            print('ERROR: Invalid arguments')
-        with open('/home/goto/g-tecs-config/overrides_flags', 'w') as f:
+            raise misc.InputError('Invalid arguments')
+        # command
+        with open(params.CONFIG_PATH + 'overrides_flags') as f:
+            data = json.load(f)
+            if override:
+                data['dome_auto'] = 0
+                print('Dome in auto mode: will close in bad weather')
+            else:
+                data['dome_auto'] = 1
+                print('Auto weather override set: Dome will NOT close in bad weather')
             json.dump(data, f)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
@@ -163,6 +211,7 @@ def print_instructions():
     '  dome ' + misc.bold('halt') + '/' + misc.bold('stop')+ '                   - stop the dome moving' + '\n' +\
     '  dome ' + misc.bold('weather') + ' [on|off]            - set weather override' + '\n' +\
     '  dome ' + misc.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
+    '  dome ' + misc.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  dome ' + misc.bold('i') + '                           - enter interactive mode' + '\n' +\
     '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                      - quit interactive mode' + '\n' +\
@@ -180,4 +229,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

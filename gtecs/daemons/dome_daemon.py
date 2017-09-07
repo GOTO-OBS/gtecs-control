@@ -111,18 +111,22 @@ class DomeDaemon(HardwareDaemon):
                 self.check_status_flag = 1
 
             # check dome status
-            if(self.check_status_flag):
-                # get current dome status
-                self.dome_status = dome.status
-                if self.dome_status == None:
-                    dome._check_status()
-                    time.sleep(1)
+            if self.check_status_flag:
+                try:
+                    # get current dome status
                     self.dome_status = dome.status
+                    if self.dome_status == None:
+                        dome._check_status()
+                        time.sleep(1)
+                        self.dome_status = dome.status
 
-                print(self.dome_status, self.move_started, self.move_side,
-                      self.open_flag, self.close_flag)
+                    print(self.dome_status, self.move_started, self.move_side,
+                          self.open_flag, self.close_flag)
 
-                self.status_check_time = time.time()
+                    self.status_check_time = time.time()
+                except:
+                    self.logfile.error('check_status command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.check_status_flag = 0
 
             # autocheck warnings every Y seconds (if not already forced)
@@ -131,220 +135,242 @@ class DomeDaemon(HardwareDaemon):
                 self.check_warnings_flag = 1
 
             # check warnings
-            if(self.check_warnings_flag):
-                # WARNING 1: ON UPS POWER
-                power = flags.Power()
-                if power.failed:
-                    self.logfile.info('No external power')
-                    os.system('touch ' + str(params.EMERGENCY_FILE))
+            if self.check_warnings_flag:
+                try:
+                    # WARNING 1: ON UPS POWER
+                    power = flags.Power()
+                    if power.failed:
+                        self.logfile.info('No external power')
+                        os.system('touch ' + str(params.EMERGENCY_FILE))
 
-                # WARNING 2: WEATHER
-                # check any external flags
-                condition_flags = flags.Conditions()
-                override_flags = flags.Overrides()
+                    # WARNING 2: WEATHER
+                    # check any external flags
+                    condition_flags = flags.Conditions()
+                    override_flags = flags.Overrides()
 
-                # WARNING 3: QUICK CLOSE BUTTON
-                # loop through the button to see if it's triggered
-                if params.QUICK_CLOSE_BUTTON:
-                    if misc.loopback_test(params.QUICK_CLOSE_BUTTON_PORT,b'bob',chances=3):
-                        self.logfile.info('Quick close button pressed')
-                        os.system('touch %s' % params.EMERGENCY_FILE)
+                    # WARNING 3: QUICK CLOSE BUTTON
+                    # loop through the button to see if it's triggered
+                    if params.QUICK_CLOSE_BUTTON:
+                        if misc.loopback_test(params.QUICK_CLOSE_BUTTON_PORT,b'bob',chances=3):
+                            self.logfile.info('Quick close button pressed')
+                            os.system('touch %s' % params.EMERGENCY_FILE)
 
-                # Act on an emergency
-                if (self.dome_status['north'] != 'closed' or
-                    self.dome_status['south'] != 'closed'):
-                    if (condition_flags.summary > 0 and
-                        override_flags.dome_auto != 1):
-                        self.logfile.info('Conditions bad, auto-closing dome')
-                        if not self.close_flag:
-                            self.close_flag = 1
-                            self.move_side = 'both'
-                            self.move_frac = 1
-                    elif os.path.isfile(params.EMERGENCY_FILE):
-                        self.logfile.info('Closing dome (emergency!)')
-                        if not self.close_flag:
-                            send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
-                            self.close_flag = 1
-                            self.move_side = 'both'
-                            self.move_frac = 1
+                    # Act on an emergency
+                    if (self.dome_status['north'] != 'closed' or
+                        self.dome_status['south'] != 'closed'):
+                        if (condition_flags.summary > 0 and
+                            override_flags.dome_auto != 1):
+                            self.logfile.info('Conditions bad, auto-closing dome')
+                            if not self.close_flag:
+                                self.close_flag = 1
+                                self.move_side = 'both'
+                                self.move_frac = 1
+                        elif os.path.isfile(params.EMERGENCY_FILE):
+                            self.logfile.info('Closing dome (emergency!)')
+                            if not self.close_flag:
+                                send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
+                                self.close_flag = 1
+                                self.move_side = 'both'
+                                self.move_frac = 1
 
-                self.warnings_check_time = time.time()
+                    self.warnings_check_time = time.time()
+                except:
+                    self.logfile.error('check_warnings command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.check_warnings_flag = 0
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                info = {}
-                for key in ['north','south','hatch']:
-                    info[key] = self.dome_status[key]
+            if self.get_info_flag:
+                try:
+                    info = {}
+                    for key in ['north','south','hatch']:
+                        info[key] = self.dome_status[key]
 
-                # general, backwards-compatible open/closed
-                if ('open' in info['north']) or ('open' in info['south']):
-                    info['dome'] = 'open'
-                elif (info['north'] == 'closed') and (info['south'] == 'closed'):
-                    info['dome'] = 'closed'
-                else:
-                    info['dome'] = 'ERROR'
+                    # general, backwards-compatible open/closed
+                    if ('open' in info['north']) or ('open' in info['south']):
+                        info['dome'] = 'open'
+                    elif (info['north'] == 'closed') and (info['south'] == 'closed'):
+                        info['dome'] = 'closed'
+                    else:
+                        info['dome'] = 'ERROR'
 
-                info['uptime'] = time.time() - self.start_time
-                info['ping'] = time.time() - self.time_check
-                now = datetime.datetime.utcnow()
-                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-                if os.path.isfile(params.EMERGENCY_FILE):
-                    info['emergency'] = 1
-                else:
-                    info['emergency'] = 0
-                self.info = info
+                    info['uptime'] = time.time() - self.start_time
+                    info['ping'] = time.time() - self.time_check
+                    now = datetime.datetime.utcnow()
+                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+                    if os.path.isfile(params.EMERGENCY_FILE):
+                        info['emergency'] = 1
+                    else:
+                        info['emergency'] = 0
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # open dome
-            if(self.open_flag):
-                # chose the side to move
-                if self.move_side == 'south':
-                    side = 'south'
-                elif self.move_side == 'north':
-                    side = 'north'
-                elif self.move_side == 'both':
-                    side = 'south'
-                elif self.move_side == 'none':
-                    self.logfile.info('Finished: Dome is open')
-                    self.move_frac = 1
-                    self.open_flag = 0
-                    self.check_status_flag = 1
-                    self.check_warnings_flag = 1
-
-                if self.open_flag and not self.move_started:
-                    # before we start check if it's already there
-                    if self.dome_status[side] == 'full_open':
-                        self.logfile.info('The {} side is already open'.format(side))
-                        if self.move_side == 'both':
-                            self.move_side = 'north'
-                        else:
-                            self.move_side = 'none'
-                    # otherwise ready to start moving
-                    else:
-                        try:
-                            self.logfile.info('Opening {} side of dome'.format(side))
-                            c = dome.open_full(side,self.move_frac)
-                            if c: self.logfile.info(c)
-                            self.move_started = 1
-                            self.move_start_time = time.time()
-                            self.check_status_flag = 1
-                        except:
-                            self.logfile.error('Failed to open dome')
-                            self.logfile.debug('', exc_info=True)
-
-                if self.move_started and not dome.output_thread_running:
-                    ## we've finished
-                    # check if we timed out
-                    if time.time() - self.move_start_time > self.dome_timeout:
-                        self.logfile.info('Moving timed out')
-                        self.move_started = 0
-                        self.move_side = 'none'
+            if self.open_flag:
+                try:
+                    # chose the side to move
+                    if self.move_side == 'south':
+                        side = 'south'
+                    elif self.move_side == 'north':
+                        side = 'north'
+                    elif self.move_side == 'both':
+                        side = 'south'
+                    elif self.move_side == 'none':
+                        self.logfile.info('Finished: Dome is open')
                         self.move_frac = 1
                         self.open_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
-                    # we should be at the target
-                    elif self.move_frac == 1:
-                        self.logfile.info('The {} side is open'.format(side))
-                        self.move_started = 0
-                        self.move_start_time = 0
-                        if self.move_side == 'both':
-                            self.move_side = 'north'
+
+                    if self.open_flag and not self.move_started:
+                        # before we start check if it's already there
+                        if self.dome_status[side] == 'full_open':
+                            self.logfile.info('The {} side is already open'.format(side))
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                        # otherwise ready to start moving
                         else:
+                            try:
+                                self.logfile.info('Opening {} side of dome'.format(side))
+                                c = dome.open_full(side,self.move_frac)
+                                if c: self.logfile.info(c)
+                                self.move_started = 1
+                                self.move_start_time = time.time()
+                                self.check_status_flag = 1
+                            except:
+                                self.logfile.error('Failed to open dome')
+                                self.logfile.debug('', exc_info=True)
+
+                    if self.move_started and not dome.output_thread_running:
+                        ## we've finished
+                        # check if we timed out
+                        if time.time() - self.move_start_time > self.dome_timeout:
+                            self.logfile.info('Moving timed out')
+                            self.move_started = 0
                             self.move_side = 'none'
-                    elif self.move_frac != 1:
-                        self.logfile.info('The {} side moved requested fraction'.format(side))
-                        self.move_started = 0
-                        self.move_start_time = 0
-                        if self.move_side == 'both':
-                            self.move_side = 'north'
-                        else:
-                            self.move_side = 'none'
+                            self.move_frac = 1
+                            self.open_flag = 0
+                            self.check_status_flag = 1
+                            self.check_warnings_flag = 1
+                        # we should be at the target
+                        elif self.move_frac == 1:
+                            self.logfile.info('The {} side is open'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                        elif self.move_frac != 1:
+                            self.logfile.info('The {} side moved requested fraction'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                except:
+                    self.logfile.error('open command failed')
+                    self.logfile.debug('', exc_info=True)
+                    self.open_flag = 0
 
             # close dome
-            if(self.close_flag):
-                # chose the side to move
-                if self.move_side == 'south':
-                    side = 'south'
-                elif self.move_side == 'north':
-                    side = 'north'
-                elif self.move_side == 'both':
-                    side = 'north'
-                elif self.move_side == 'none':
-                    self.logfile.info('Finished: Dome is closed')
-                    self.move_frac = 1
-                    self.close_flag = 0
-                    self.check_status_flag = 1
-                    self.check_warnings_flag = 1
-
-                if self.close_flag and not self.move_started:
-                    # before we start check if it's already there
-                    if self.dome_status[side] == 'closed':
-                        self.logfile.info('The {} side is already closed'.format(side))
-                        if self.move_side == 'both':
-                            self.move_side = 'south'
-                        else:
-                            self.move_side = 'none'
-                    # otherwise ready to start moving
-                    else:
-                        try:
-                            self.logfile.info('Closing {} side of dome'.format(side))
-                            c = dome.close_full(side,self.move_frac)
-                            if c: self.logfile.info(c)
-                            self.move_started = 1
-                            self.move_start_time = time.time()
-                            self.check_status_flag = 1
-                        except:
-                            self.logfile.error('Failed to close dome')
-                            self.logfile.debug('', exc_info=True)
-
-                if self.move_started and not dome.output_thread_running:
-                    ## we've finished
-                    # check if we timed out
-                    if time.time() - self.move_start_time > self.dome_timeout:
-                        self.logfile.info('Moving timed out')
-                        self.move_started = 0
-                        self.move_side = 'none'
+            if self.close_flag:
+                try:
+                    # chose the side to move
+                    if self.move_side == 'south':
+                        side = 'south'
+                    elif self.move_side == 'north':
+                        side = 'north'
+                    elif self.move_side == 'both':
+                        side = 'north'
+                    elif self.move_side == 'none':
+                        self.logfile.info('Finished: Dome is closed')
                         self.move_frac = 1
                         self.close_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
-                    # we should be at the target
-                    elif self.move_frac == 1:
-                        self.logfile.info('The {} side is closed'.format(side))
-                        self.move_started = 0
-                        self.move_start_time = 0
-                        if self.move_side == 'both':
-                            self.move_side = 'south'
+
+                    if self.close_flag and not self.move_started:
+                        # before we start check if it's already there
+                        if self.dome_status[side] == 'closed':
+                            self.logfile.info('The {} side is already closed'.format(side))
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                        # otherwise ready to start moving
                         else:
+                            try:
+                                self.logfile.info('Closing {} side of dome'.format(side))
+                                c = dome.close_full(side,self.move_frac)
+                                if c: self.logfile.info(c)
+                                self.move_started = 1
+                                self.move_start_time = time.time()
+                                self.check_status_flag = 1
+                            except:
+                                self.logfile.error('Failed to close dome')
+                                self.logfile.debug('', exc_info=True)
+
+                    if self.move_started and not dome.output_thread_running:
+                        ## we've finished
+                        # check if we timed out
+                        if time.time() - self.move_start_time > self.dome_timeout:
+                            self.logfile.info('Moving timed out')
+                            self.move_started = 0
                             self.move_side = 'none'
-                    elif self.move_frac != 1:
-                        self.logfile.info('The {} side moved requested fraction'.format(side))
-                        self.move_started = 0
-                        self.move_start_time = 0
-                        if self.move_side == 'both':
-                            self.move_side = 'south'
-                        else:
-                            self.move_side = 'none'
+                            self.move_frac = 1
+                            self.close_flag = 0
+                            self.check_status_flag = 1
+                            self.check_warnings_flag = 1
+                        # we should be at the target
+                        elif self.move_frac == 1:
+                            self.logfile.info('The {} side is closed'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                        elif self.move_frac != 1:
+                            self.logfile.info('The {} side moved requested fraction'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                except:
+                    self.logfile.error('close command failed')
+                    self.logfile.debug('', exc_info=True)
+                    self.close_flag = 0
 
             # halt dome motion
-            if(self.halt_flag):
+            if self.halt_flag:
                 try:
-                    self.logfile.info('Halting dome')
-                    c = dome.halt()
-                    if c: self.logfile.info(c)
+                    try:
+                        self.logfile.info('Halting dome')
+                        c = dome.halt()
+                        if c: self.logfile.info(c)
+                    except:
+                        self.logfile.error('Failed to halt dome')
+                        self.logfile.debug('', exc_info=True)
+                    # reset everything
+                    self.open_flag = 0
+                    self.close_flag = 0
+                    self.move_side = 'none'
+                    self.move_frac = 1
+                    self.move_started = 0
+                    self.move_start_time = 0
                 except:
-                    self.logfile.error('Failed to halt dome')
+                    self.logfile.error('halt command failed')
                     self.logfile.debug('', exc_info=True)
-                # reset everything
-                self.open_flag = 0
-                self.close_flag = 0
-                self.move_side = 'none'
-                self.move_frac = 1
-                self.move_started = 0
-                self.move_start_time = 0
                 self.halt_flag = 0
                 self.check_status_flag = 1
 
@@ -357,81 +383,117 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        self.check_status_flag = 1
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
         if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
-            return 'ERROR: Conditions bad, dome will not open'
+            raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
-            return 'ERROR: No external power, dome will not open'
+            raise misc.HardwareStatusError('No external power, dome will not open')
         elif os.path.isfile(params.EMERGENCY_FILE):
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            return 'ERROR: In emergency locked state, dome will not open'
-        else:
-            if self.open_flag or self.close_flag:
-                # We want new commands to overwrite the old ones
-                self.halt_flag = 1
-                time.sleep(3)
-            north_status = self.dome_status['north']
-            south_status = self.dome_status['south']
-            if side == 'north' and north_status == 'full_open':
-                return 'ERROR: The north side is already open'
-            elif side == 'south' and south_status == 'full_open':
-                return 'ERROR: The south side is already open'
-            elif side == 'both':
-                if north_status == 'full_open' and south_status == 'full_open':
-                    return 'ERROR: The dome is already fully open'
-                elif north_status == 'full_open' and south_status != 'full_open':
-                    side == 'south'
-                elif north_status != 'full_open' and south_status == 'full_open':
-                    side == 'north'
-            self.open_flag = 1
-            self.move_side = side
-            self.move_frac = frac
-            self.logfile.info('Starting: Opening dome')
-            return 'Opening dome'
+            raise misc.HardwareStatusError('In emergency locked state, dome will not open')
 
-    def close_dome(self,side='both',frac=1):
+        # Check input
+        if not side in ['north', 'south', 'both']:
+            raise ValueError('Side must be one of "north", "south" or "both"')
+        if not (0 < frac <= 1):
+            raise ValueError('Fraction must be between 0 and 1')
+
+        # We want new commands to overwrite the old ones
+        if self.open_flag or self.close_flag:
+            self.halt_flag = 1
+            time.sleep(3)
+
+        # Check current status
+        north_status = self.dome_status['north']
+        south_status = self.dome_status['south']
+        if side == 'north' and north_status == 'full_open':
+            raise misc.HardwareStatusError('The north side is already fully open')
+        elif side == 'south' and south_status == 'full_open':
+            raise misc.HardwareStatusError('The south side is already fully open')
+        elif side == 'both':
+            if north_status == 'full_open' and south_status == 'full_open':
+                raise misc.HardwareStatusError('The dome is already fully open')
+            elif north_status == 'full_open' and south_status != 'full_open':
+                side == 'south'
+            elif north_status != 'full_open' and south_status == 'full_open':
+                side == 'north'
+
+        # Set values
+        self.move_side = side
+        self.move_frac = frac
+
+        # Set flag
+        self.logfile.info('Starting: Opening dome')
+        self.open_flag = 1
+
+        return 'Opening dome'
+
+    def close_dome(self, side='both', frac=1):
         """Close the dome"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        else:
-            if self.open_flag or self.close_flag:
-                # We want new commands to overwrite the old ones
-                self.halt_flag = 1
-                time.sleep(3)
-            north_status = self.dome_status['north']
-            south_status = self.dome_status['south']
-            if side == 'north' and north_status == 'closed':
-                return 'ERROR: The north side is already closed'
-            elif side == 'south' and south_status == 'closed':
-                return 'ERROR: The south side is already closed'
-            elif side == 'both':
-                if north_status == 'closed' and south_status == 'closed':
-                    return 'ERROR: The dome is already closed'
-                elif north_status == 'closed' and south_status != 'closed':
-                    side == 'south'
-                elif north_status != 'closed' and south_status == 'closed':
-                    side == 'north'
-            self.close_flag = 1
-            self.move_side = side
-            self.move_frac = frac
-            self.logfile.info('Starting: Closing dome')
-            return 'Closing dome'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not side in ['north', 'south', 'both']:
+            raise ValueError('Side must be one of "north", "south" or "both"')
+        if not (0 < frac <= 1):
+            raise ValueError('Fraction must be between 0 and 1')
+
+        # We want new commands to overwrite the old ones
+        if self.open_flag or self.close_flag:
+            self.halt_flag = 1
+            time.sleep(3)
+
+        # Check current status
+        north_status = self.dome_status['north']
+        south_status = self.dome_status['south']
+        if side == 'north' and north_status == 'closed':
+            raise misc.HardwareStatusError('The north side is already fully closed')
+        elif side == 'south' and south_status == 'closed':
+            raise misc.HardwareStatusError('The south side is already fully closed')
+        elif side == 'both':
+            if north_status == 'closed' and south_status == 'closed':
+                raise misc.HardwareStatusError('The dome is already fully closed')
+            elif north_status == 'closed' and south_status != 'closed':
+                side == 'south'
+            elif north_status != 'closed' and south_status == 'closed':
+                side == 'north'
+
+        # Set values
+        self.move_side = side
+        self.move_frac = frac
+
+        # Set flag
+        self.logfile.info('Starting: Closing dome')
+        self.close_flag = 1
+
+        return 'Closing dome'
 
     def halt_dome(self):
         """Stop the dome moving"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.halt_flag = 1
+
         return 'Halting dome'
 
 ########################################################################

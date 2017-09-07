@@ -34,83 +34,115 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        daemons.start_daemon(daemon_ID)
-    elif command == 'shutdown':
-        daemons.shutdown_daemon(daemon_ID)
-    elif command == 'kill':
-        daemons.kill_daemon(daemon_ID)
-    elif command == 'ping':
-        daemons.ping_daemon(daemon_ID)
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
+
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Focuser control functions
-    elif command == 'info':
-        if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info_s(info)
-        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info(info)
-        else:
-            print(misc.ERROR('Invalid arguments'))
+    # Primary daemon control
+    elif command == 'start':
+        reply = daemons.start_daemon(daemon_ID)
+        print(reply)
 
-    elif command == 'set':
-        if len(args) == 1 and misc.is_num(args[0]):
-            pos     = int(args[0])
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_focuser', [pos, HW_list])
-            if c: print(c)
-        elif len(args) == 2 and misc.is_num(args[1]):
-            pos     = int(args[1])
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_focuser', [pos, HW_list])
-                if c: print(c)
+    elif command == 'shutdown':
+        reply = daemons.shutdown_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'restart':
+        reply = daemons.restart_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'kill':
+        reply = daemons.kill_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'ping':
+        reply = daemons.ping_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'info':
+        # parse arguments
+        if len(args) == 0:
+            info_type = 'simple'
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info_type = 'verbose'
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        # print response
+        if not reply:
+            raise ValueError('No info returned, check daemon')
+        elif info_type == 'simple':
+            print_info_s(reply)
+        elif info_type == 'verbose':
+            print_info(reply)
+
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Daemon functions
+    elif command == 'set':
+        # parse arguments
+        if len(args) == 1 and misc.is_num(args[0]):
+            tel_list = list(params.TEL_DICT)
+            pos = int(args[0])
+        elif len(args) == 2 and misc.is_num(args[1]):
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            pos = int(args[1])
+        else:
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_focuser', [pos, tel_list])
+        print(reply)
 
     elif command == 'move':
+        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            steps   = int(args[0])
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'move_focuser', [steps, HW_list])
-            if c: print(c)
+            tel_list = list(params.TEL_DICT)
+            steps = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            steps   = int(args[1])
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'move_focuser', [steps, HW_list])
-                if c: print(c)
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            steps = int(args[1])
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'move_focuser', [steps, tel_list])
+        print(reply)
 
     elif command == 'home':
+        # parse arguments
         if len(args) == 0:
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'home_focuser', [HW_list])
-            if c: print(c)
+            tel_list = list(params.TEL_DICT)
         elif len(args) == 1:
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'home_focuser', [HW_list])
-                if c: print(c)
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'home_focuser', [tel_list])
+        print(reply)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
@@ -156,6 +188,7 @@ def print_instructions():
     '  foc ' + misc.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
     '  foc ' + misc.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
     '  foc ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  foc ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  foc ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  foc ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
@@ -173,4 +206,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

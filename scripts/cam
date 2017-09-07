@@ -34,141 +34,164 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        daemons.start_daemon(daemon_ID)
-    elif command == 'shutdown':
-        daemons.shutdown_daemon(daemon_ID)
-    elif command == 'restart':
-        daemons.restart_daemon(daemon_ID)
-    elif command == 'kill':
-        daemons.kill_daemon(daemon_ID)
-    elif command == 'ping':
-        daemons.ping_daemon(daemon_ID)
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
+
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Camera control functions
+    # Primary daemon control
+    elif command == 'start':
+        reply = daemons.start_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'shutdown':
+        reply = daemons.shutdown_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'restart':
+        reply = daemons.restart_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'kill':
+        reply = daemons.kill_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'ping':
+        reply = daemons.ping_daemon(daemon_ID)
+        print(reply)
+
     elif command == 'info':
+        # parse arguments
         if len(args) == 0:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info_s(info)
+            info_type = 'simple'
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
-            info = daemons.daemon_function(daemon_ID, 'get_info')
-            if info: print_info(info)
+            info_type = 'verbose'
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        # print response
+        if not reply:
+            raise ValueError('No info returned, check daemon')
+        elif info_type == 'simple':
+            print_info_s(reply)
+        elif info_type == 'verbose':
+            print_info(reply)
 
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Daemon functions
     elif command == 'image':
+        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
+            tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
-            HW_list = list(params.TEL_DICT)
-            spec = ['NA', 'SCIENCE', 1, 1]
-            daemons.daemon_function(daemon_ID, 'set_spec', spec)
-            c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
-            if c: print(c)
-
         elif len(args) == 2 and misc.is_num(args[1]):
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                spec = ['NA', 'SCIENCE', 1, 1]
-                daemons.daemon_function(daemon_ID, 'set_spec', spec)
-                c = daemons.daemon_function(daemon_ID, 'take_image', [exptime, HW_list])
-                if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # set spec
+        spec = ['NA', 'SCIENCE', 1, 1]
+        daemons.daemon_function(daemon_ID, 'set_spec', spec)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'take_image', [exptime, tel_list])
+        print(reply)
 
     elif command == 'dark':
+        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
+            tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
-            HW_list = list(params.TEL_DICT)
-            spec = ['NA', 'DARK', 1, 1]
-            daemons.daemon_function(daemon_ID, 'set_spec', spec)
-            c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
-            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                spec = ['NA', 'DARK', 1, 1]
-                daemons.daemon_function(daemon_ID, 'set_spec', spec)
-                c = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, HW_list])
-                if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # set spec
+        spec = ['NA', 'DARK', 1, 1]
+        daemons.daemon_function(daemon_ID, 'set_spec', spec)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, tel_list])
+        print(reply)
 
     elif command == 'bias':
+        # parse arguments
         if len(args) == 0:
-            HW_list = list(params.TEL_DICT)
-            spec = ['NA', 'BIAS', 1, 1]
-            daemons.daemon_function(daemon_ID, 'set_spec', spec)
-            c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
-            if c: print(c)
+            tel_list = list(params.TEL_DICT)
         elif len(args) == 1:
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                spec = ['NA', 'BIAS', 1, 1]
-                daemons.daemon_function(daemon_ID, 'set_spec', spec)
-                c = daemons.daemon_function(daemon_ID, 'take_bias', [HW_list])
-                if c: print(c)
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # set spec
+        spec = ['NA', 'BIAS', 1, 1]
+        daemons.daemon_function(daemon_ID, 'set_spec', spec)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'take_bias', [tel_list])
+        print(reply)
 
     elif command == 'abort':
+        # parse arguments
         if len(args) == 0:
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
-            if c: print(c)
+            tel_list = list(params.TEL_DICT)
         elif len(args) == 1:
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'abort_exposure', [HW_list])
-                if c: print(c)
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'abort_exposure', [tel_list])
+        print(reply)
 
     elif command == 'temp':
+        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
+            tel_list = list(params.TEL_DICT)
             target_temp = float(args[0])
-            HW_list     = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
-            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             target_temp = float(args[1])
-            HW_list     = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, HW_list])
-                if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, tell_list])
+        print(reply)
 
     elif command in ['bin', 'bins', 'binning']:
+        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
+            tel_list = list(params.TEL_DICT)
             binning = int(args[0])
-            HW_list = list(params.TEL_DICT)
-            c = daemons.daemon_function(daemon_ID, 'set_binning', [binning, HW_list])
-            if c: print(c)
         elif len(args) == 2 and misc.is_num(args[1]):
+            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             binning = int(args[1])
-            HW_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            if len(HW_list) > 0:
-                c = daemons.daemon_function(daemon_ID, 'set_binning', [binning, HW_list])
-                if c: print(c)
         else:
-            print(misc.ERROR('Invalid arguments'))
+            raise misc.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'set_binning', [binning, tel_list])
+        print(reply)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
@@ -219,6 +242,7 @@ def print_instructions():
     '  cam ' + misc.bold('bin') + ' [tels] binning' + '   - set binning factor' + '\n' +\
     '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
     '  cam ' + misc.bold('info') + ' [v]' + '             - report current status' + '\n' +\
+    '  cam ' + misc.bold('log') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  cam ' + misc.bold('i') + '                    - enter interactive mode' + '\n' +\
     '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '               - quit interactive mode' + '\n' +\
@@ -236,4 +260,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)
