@@ -88,6 +88,17 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
 
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'open':
@@ -200,6 +211,7 @@ def print_instructions():
     '  dome ' + misc.bold('halt') + '/' + misc.bold('stop')+ '                   - stop the dome moving' + '\n' +\
     '  dome ' + misc.bold('weather') + ' [on|off]            - set weather override' + '\n' +\
     '  dome ' + misc.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
+    '  dome ' + misc.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  dome ' + misc.bold('i') + '                           - enter interactive mode' + '\n' +\
     '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                      - quit interactive mode' + '\n' +\

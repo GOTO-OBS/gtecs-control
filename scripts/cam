@@ -86,6 +86,17 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
 
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'image':
@@ -231,6 +242,7 @@ def print_instructions():
     '  cam ' + misc.bold('bin') + ' [tels] binning' + '   - set binning factor' + '\n' +\
     '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
     '  cam ' + misc.bold('info') + ' [v]' + '             - report current status' + '\n' +\
+    '  cam ' + misc.bold('log') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  cam ' + misc.bold('i') + '                    - enter interactive mode' + '\n' +\
     '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '               - quit interactive mode' + '\n' +\

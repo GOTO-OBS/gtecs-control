@@ -73,6 +73,18 @@ def query(command, args):
             reply = daemons.ping_daemon(daemon_ID)
             print(reply)
 
+    elif command in ['log', 'tail']:
+        for daemon_ID in daemon_IDs:
+            # parse arguments
+            if 'stdout' in args:
+                log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+                args.remove('stdout')
+            else:
+                log_path = params.LOG_PATH + daemon_ID + '.log'
+            tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+            # send command
+            misc.execute_command(tail_command)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -89,6 +101,7 @@ def print_instructions():
     '  fli ' + misc.bold('restart') + '           - restart the interfaces' + '\n' +\
     '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
+    '  fli ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  fli ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  fli ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
