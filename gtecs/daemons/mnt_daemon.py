@@ -111,79 +111,112 @@ class MntDaemon(HardwareDaemon):
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                # save info
-                info = {}
-                self.mount_status = self.sitech.status
-                info['status'] = self.mount_status
-                info['mount_alt'] = self.sitech.alt
-                info['mount_az'] = self.sitech.az
-                info['mount_ra'] = self.sitech.ra
-                info['mount_dec'] = self.sitech.dec
-                info['target_ra'] = self.target_ra
-                info['target_dec'] = self.target_dec
-                info['target_dist'] = self._get_target_distance()
-                info['lst'] = self.sitech.sidereal_time
-                info['ha'] = find_ha(info['mount_ra'], info['lst'])
+            if self.get_info_flag:
+                try:
+                    info = {}
+                    self.mount_status = self.sitech.status
+                    info['status'] = self.mount_status
+                    info['mount_alt'] = self.sitech.alt
+                    info['mount_az'] = self.sitech.az
+                    info['mount_ra'] = self.sitech.ra
+                    info['mount_dec'] = self.sitech.dec
+                    info['target_ra'] = self.target_ra
+                    info['target_dec'] = self.target_dec
+                    info['target_dist'] = self._get_target_distance()
+                    info['lst'] = self.sitech.sidereal_time
+                    info['ha'] = find_ha(info['mount_ra'], info['lst'])
 
-                self.utc = Time.now()
-                self.utc.precision = 0  # only integer seconds
-                info['utc'] = self.utc.iso
-                info['step'] = self.step
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
-                now = Time.now()
-                now.precision = 0
-                info['timestamp'] = now.iso
-                self.info = info
+                    self.utc = Time.now()
+                    self.utc.precision = 0  # only integer seconds
+                    info['utc'] = self.utc.iso
+                    info['step'] = self.step
+                    info['uptime'] = time.time()-self.start_time
+                    info['ping'] = time.time()-self.time_check
+                    now = Time.now()
+                    now.precision = 0
+                    info['timestamp'] = now.iso
+
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # slew to given coordinates
-            if(self.slew_radec_flag):
-                self.logfile.info('Slewing to %.2f,%.2f',
-                                  self.temp_ra, self.temp_dec)
-                c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
-                if c: self.logfile.info(c)
-                self.slew_radec_flag = 0
+            if self.slew_radec_flag:
+                try:
+                    self.logfile.info('Slewing to %.2f,%.2f',
+                                      self.temp_ra, self.temp_dec)
+                    c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('slew_radec command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.temp_ra = None
                 self.temp_dec = None
+                self.slew_radec_flag = 0
 
             # slew to target
-            if(self.slew_target_flag):
-                self.logfile.info('Slewing to target')
-                c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
-                if c: self.logfile.info(c)
+            if self.slew_target_flag:
+                try:
+                    self.logfile.info('Slewing to target')
+                    raise ValueError
+                    c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('slew_target command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.slew_target_flag = 0
 
             # start tracking
-            if(self.start_tracking_flag):
-                c = self.sitech.track()
-                if c: self.logfile.info(c)
+            if self.start_tracking_flag:
+                try:
+                    c = self.sitech.track()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('start_tracking command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.start_tracking_flag = 0
 
             # stop all motion (tracking or slewing)
-            if(self.full_stop_flag):
-                c = self.sitech.halt()
-                if c: self.logfile.info(c)
+            if self.full_stop_flag:
+                try:
+                    c = self.sitech.halt()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('full_stop command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.full_stop_flag = 0
 
             # turn blinky mode on or off
-            if(self.set_blinky_mode_flag):
-                c = self.sitech.set_blinky_mode(self.set_blinky)
-                if c: self.logfile.info(c)
+            if self.set_blinky_mode_flag:
+                try:
+                    c = self.sitech.set_blinky_mode(self.set_blinky)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('set_blinky_mode command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 0
 
             # park the mount
-            if(self.park_flag):
-                c = self.sitech.park()
-                if c: self.logfile.info(c)
+            if self.park_flag:
+                try:
+                    c = self.sitech.park()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('park command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.park_flag = 0
 
             # unpark the mount
-            if(self.unpark_flag):
-                c = self.sitech.unpark()
-                if c: self.logfile.info(c)
+            if self.unpark_flag:
+                try:
+                    c = self.sitech.unpark()
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('unpark command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.unpark_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
@@ -195,194 +228,305 @@ class MntDaemon(HardwareDaemon):
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.5)
         return self.info
 
-    def slew_to_radec(self,ra,dec):
+
+    def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not (0 <= ra < 24):
+            raise ValueError('RA in hours must be between 0 and 24')
+        if not (-90 <= dec <= 90):
+            raise ValueError('Dec in degrees must be between -90 and +90')
+        if check_alt_limit(ra*360./24., dec, Time.now()):
+            raise misc.HorizonError('Target too low, cannot slew')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            return 'ERROR: Already slewing'
+            raise misc.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            return 'ERROR: Mount is parked, need to unpark before slewing'
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            return 'ERROR: Mount is in blinky mode, motors disabled'
-        elif check_alt_limit(ra*360./24., dec, self.utc):
-            return 'ERROR: Target too low, cannot slew'
-        else:
-            self.temp_ra = ra
-            self.temp_dec = dec
-            self.slew_radec_flag = 1
-            return 'Slewing to coordinates'
+            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+
+        # Set values
+        self.temp_ra = ra
+        self.temp_dec = dec
+
+        # Set flag
+        self.slew_radec_flag = 1
+
+        return 'Slewing to coordinates'
+
 
     def slew_to_target(self):
         """Slew to current set target"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if self.target_ra == None or self.target_dec == None:
+            raise misc.HardwareStatusError('Target not set')
+        if check_alt_limit(self.target_ra*360./24., self.target_dec, Time.now()):
+            raise misc.HorizonError('Target too low, cannot slew')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            return 'ERROR: Already slewing'
+            raise misc.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            return 'ERROR: Mount is parked, need to unpark before slewing'
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            return 'ERROR: Mount is in blinky mode, motors disabled'
-        elif self.target_ra == None or self.target_dec == None:
-            return 'ERROR: Target not set'
-        elif check_alt_limit(self.target_ra*360./24., self.target_dec, self.utc):
-            return 'ERROR: Target too low, cannot slew'
-        else:
-            self.slew_target_flag = 1
-            return 'Slewing to target'
+            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+
+        # Set flag
+        self.slew_target_flag = 1
+
+        return 'Slewing to target'
+
 
     def start_tracking(self):
         """Starts mount tracking"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Tracking':
-            return 'ERROR: Already tracking'
+            raise misc.HardwareStatusError('Already tracking')
         elif self.mount_status == 'Slewing':
-            return 'ERROR: Currently slewing, will track when reached target'
+            raise misc.HardwareStatusError('Currently slewing, will track when reached target')
         elif self.mount_status == 'Parked':
-            return 'ERROR: Mount is parked'
+            raise misc.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            return 'ERROR: Mount is in blinky mode, motors disabled'
-        else:
-            self.start_tracking_flag = 1
-            return 'Started tracking'
+            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+
+        # Set flag
+        self.start_tracking_flag = 1
+
+        return 'Started tracking'
+
 
     def full_stop(self):
         """Stops mount moving (slewing or tracking)"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Stopped':
-            return 'ERROR: Already stopped'
+            raise misc.HardwareStatusError('Already stopped')
         elif self.mount_status == 'Parked':
-            return 'ERROR: Mount is parked'
-        else:
-            self.full_stop_flag = 1
-            return 'Stopping mount'
+            raise misc.HardwareStatusError('Mount is parked')
+
+        # Set flag
+        self.full_stop_flag = 1
+
+        return 'Stopping mount'
+
 
     def blinky(self, activate):
         """Turn on or off blinky mode"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
         if activate and self.sitech.blinky:
-            return 'ERROR: Already in blinky mode'
+            raise misc.HardwareStatusError('Already in blinky mode')
         elif not activate and not self.sitech.blinky:
-            return 'ERROR: Already not in blinky mode'
+            raise misc.HardwareStatusError('Already not in blinky mode')
+
+        # Set values
+        self.set_blinky = activate
+
+        # Set flag
+        self.set_blinky_mode_flag = 1
+
+        if activate:
+            s = 'Turning on blinky mode'
         else:
-            self.set_blinky = activate
-            self.set_blinky_mode_flag = 1
-            if activate:
-                return 'Turning on blinky mode'
-            else:
-                return 'Turning off blinky mode'
+            s = 'Turning off blinky mode'
+        return s
+
 
     def park(self):
         """Moves the mount to the park position"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            return 'ERROR: Already parked'
+            raise misc.HardwareStatusError('Already parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            return 'ERROR: Mount is in Blinky Mode, motors disabled'
-        else:
-            self.park_flag = 1
-            return 'Parking mount'
+            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+
+        # Set flag
+        self.park_flag = 1
+
+        return 'Parking mount'
+
 
     def unpark(self):
         """Unpark the mount"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status != 'Parked':
-            return 'ERROR: Mount is not parked'
-        else:
-            self.unpark_flag = 1
-            return 'Unparking mount'
+            raise misc.HardwareStatusError('Mount is not parked')
 
-    def set_target_ra(self,ra):
+        # Set flag
+        self.unpark_flag = 1
+
+        return 'Unparking mount'
+
+
+    def set_target_ra(self, ra):
         """Set the target RA"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        self.target_ra = ra
-        self.logfile.info('set ra to %.4f', self.target_ra)
-        return """Setting target RA"""
+            raise misc.DaemonDependencyError('Dependencies are not running')
 
-    def set_target_dec(self,dec):
+        # Check input
+        if not (0 <= ra < 24):
+            raise ValueError('RA in hours must be between 0 and 24')
+
+        # Set values
+        self.target_ra = ra
+
+        self.logfile.info('Set target RA to %.4f', ra)
+        return 'Setting target RA'
+
+
+    def set_target_dec(self, dec):
         """Set the target Dec"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        self.target_dec = dec
-        self.logfile.info('set dec to %.4f', self.target_dec)
-        return """Setting target Dec"""
+            raise misc.DaemonDependencyError('Dependencies are not running')
 
-    def set_target(self,ra,dec):
+        # Check input
+        if not (-90 <= dec <= 90):
+            raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Set values
+        self.target_dec = dec
+
+        self.logfile.info('Set target Dec to %.4f', dec)
+        return 'Setting target Dec'
+
+
+    def set_target(self, ra, dec):
         """Set the target location"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        self.target_ra = ra
-        self.logfile.info('set ra to %.4f', self.target_ra)
-        self.target_dec = dec
-        self.logfile.info('set dec to %.4f', self.target_dec)
-        return """Setting target"""
+            raise misc.DaemonDependencyError('Dependencies are not running')
 
-    def offset(self,direction):
+        # Check input
+        if not (0 <= ra < 24):
+            raise ValueError('RA in hours must be between 0 and 24')
+        if not (-90 <= dec <= 90):
+            raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Set values
+        self.target_ra = ra
+        self.target_dec = dec
+
+        self.logfile.info('Set target RA to %.4f', ra)
+        self.logfile.info('Set target Dec to %.4f', dec)
+        return 'Setting target'
+
+
+    def offset(self, direction):
         """Offset in a specified (cardinal) direction"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if direction.lower() not in ['north', 'south', 'east', 'west']:
+            raise ValueError('Invalid direction')
+
+        # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            return 'ERROR: Already slewing'
+            raise misc.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            return 'ERROR: Mount is parked'
+            raise misc.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            return 'ERROR: Mount is in Blinky Mode, motors disabled'
-        elif direction not in ['north','south','east','west']:
-            return 'ERROR: Invalid direction'
-        else:
-            step_deg = self.step/3600.
-            step_ra = (step_deg*24./360.)/cos(self.sitech.dec*pi/180.)
-            step_dec = step_deg
-            if direction == 'north':
-                ra = self.sitech.ra
-                dec = self.sitech.dec + step_dec
-            elif direction == 'south':
-                ra = self.sitech.ra
-                dec = self.sitech.dec - step_dec
-            elif direction == 'east':
-                ra = self.sitech.ra + step_ra
-                dec = self.sitech.dec
-            elif direction == 'west':
-                ra = self.sitech.ra - step_ra
-                dec = self.sitech.dec
-            if check_alt_limit(ra*360./24.,dec,self.utc):
-                return 'ERROR: Target too low, cannot slew'
-            else:
-                self.target_ra = ra
-                self.target_dec = dec
-                self.slew_target_flag = 1
-                return 'Slewing to offset coordinates'
+            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
-    def set_step(self,offset):
+        # Calculate offset position
+        step_deg = self.step/3600.
+        step_ra = (step_deg*24./360.)/cos(self.sitech.dec*pi/180.)
+        step_dec = step_deg
+
+        if direction == 'north':
+            ra = self.sitech.ra
+            dec = self.sitech.dec + step_dec
+        elif direction == 'south':
+            ra = self.sitech.ra
+            dec = self.sitech.dec - step_dec
+        elif direction == 'east':
+            ra = self.sitech.ra + step_ra
+            dec = self.sitech.dec
+        elif direction == 'west':
+            ra = self.sitech.ra - step_ra
+            dec = self.sitech.dec
+
+        if check_alt_limit(ra*360./24.,dec,self.utc):
+            raise misc.HorizonError('Target too low, cannot slew')
+
+        # Set values
+        self.target_ra = ra
+        self.target_dec = dec
+
+        # Set flag
+        self.slew_target_flag = 1
+
+        return 'Slewing to offset coordinates'
+
+
+    def set_step(self, offset):
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(offset) < 0:
+            raise ValueError('Offset value must be > 0')
+
+        # Set values
         self.step = offset
+
         return 'New offset step set'
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -257,8 +257,16 @@ class ExqDaemon(HardwareDaemon):
                 self.logfile.info('Taking exposure')
                 self.working = 1
                 # we need to set filter and take image
-                self._set_filter(filt)
-                self._take_image(cam)
+                try:
+                    self._set_filter(filt)
+                except:
+                    self.logfile.error('set_filter command failed')
+                    self.logfile.debug('', exc_info=True)
+                try:
+                    self._take_image(cam)
+                except:
+                    self.logfile.error('take_image command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.working = 0
 
             elif self.queue_len == 0 or self.paused:
@@ -274,8 +282,11 @@ class ExqDaemon(HardwareDaemon):
     # Exposure queue functions
     def get_info(self):
         """Return exposure queue status info"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Exq info is outside the loop
         info = {}
         if self.paused:
             info['status'] = 'Paused'
@@ -292,94 +303,146 @@ class ExqDaemon(HardwareDaemon):
             info['current_frametype'] = self.exp_spec.frametype
             info['current_target'] = self.exp_spec.target
             info['current_imgtype'] = self.exp_spec.imgtype
+
         info['uptime'] = time.time() - self.start_time
         info['ping'] = time.time() - self.time_check
         now = datetime.datetime.utcnow()
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the updated info dict
         return info
+
 
     def add(self, tel_list, exptime, filt,
             binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        filt = filt.upper()
-        target = target.replace(';', '')
-        imgtype = imgtype.replace(';', '')
+            raise misc.DaemonDependencyError('Dependencies are not running')
 
-        # check if valid
+        # Check input
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+        if int(exptime) < 0:
+            raise ValueError('Exposure time must be > 0')
         if filt.upper() not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+            raise ValueError('Filter not in list %s' %str(self.flist))
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
+        if frametype not in ['normal', 'dark']:
+            raise ValueError("Frame type must be 'normal' or 'dark'")
 
-        exposure = ExposureSpec(tel_list, exptime, filt,
-                                binning, frametype, target, imgtype)
+        # Call the command
+        exposure = ExposureSpec(tel_list, exptime, filt.upper(),
+                                binning, frametype,
+                                target.replace(';', ''),
+                                imgtype.replace(';', ''))
         self.exp_queue.append(exposure)
 
+        # Format return string
+        s = 'Added exposure, now %i items in queue' %len(self.exp_queue)
         if self.paused:
-            return 'Added exposure, now %i items in queue [paused]' %len(self.exp_queue)
-        else:
-            return 'Added exposure, now %i items in queue' %len(self.exp_queue)
+            s += ' [paused]'
+        return s
+
 
     def add_multi(self, Nexp, tel_list, exptime, filt,
                   binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
                   expID = 0):
         """Add multiple exposures to the queue as a set"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        filt = filt.upper()
-        target = target.replace(';', '')
-        imgtype = imgtype.replace(';', '')
+            raise misc.DaemonDependencyError('Dependencies are not running')
 
-        # check if valid
+        # Check input
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+        if int(exptime) < 0:
+            raise ValueError('Exposure time must be > 0')
         if filt.upper() not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+            raise ValueError('Filter not in list %s' %str(self.flist))
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
+        if frametype not in ['normal', 'dark']:
+            raise ValueError("Frame type must be 'normal' or 'dark'")
 
-        s = ''
+        # Call the command
         for i in range(Nexp):
             set_pos = i+1
             set_total = Nexp
-            exposure = ExposureSpec(tel_list, exptime, filt,
-                                    binning, frametype, target, imgtype,
+            exposure = ExposureSpec(tel_list, exptime, filt.upper(),
+                                    binning, frametype,
+                                    target.replace(';', ''),
+                                    imgtype.replace(';', ''),
                                     set_pos, set_total, expID)
             self.exp_queue.append(exposure)
 
-            if self.paused:
-                s += 'Added exposure, now %i items in queue [paused]\n' %len(self.exp_queue)
-            else:
-                s += 'Added exposure, now %i items in queue\n' %len(self.exp_queue)
-        return s[:-1]
+        # Format return string
+        s = 'Added {} exposure(s), now %i items in queue' %(Nexp, len(self.exp_queue))
+        if self.paused:
+            s += ' [paused]'
+        return s
+
 
     def clear(self):
         """Empty the exposure queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Call the command
         self.exp_queue.clear()
+
         return 'Queue cleared'
+
 
     def get(self):
         """Return info on exposures in the queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        return self.exp_queue.get()
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Call the command
+        queue_info = self.exp_queue.get()
+
+        return queue_info
+
 
     def get_simple(self):
         """Return simple info on exposures in the queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        return self.exp_queue.get_simple()
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Call the command
+        queue_info_simple = self.exp_queue.get_simple()
+
+        return queue_info_simple
+
 
     def pause(self):
         """Pause the queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set values
         self.paused = 1
+
         return 'Queue paused'
+
 
     def resume(self):
         """Unpause the queue"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set values
         self.paused = 0
+
         return 'Queue resumed'
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

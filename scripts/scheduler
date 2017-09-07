@@ -35,36 +35,63 @@ def interactive():
             if command == 'q' or command == 'exit':
                 return
             else:
-                query(command, args)
+                with misc.print_errors():
+                    query(command, args)
 
 def query(command, args):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Primary control functions
-    if command == 'start':
-        daemons.start_daemon(daemon_ID)
-    elif command == 'shutdown':
-        daemons.shutdown_daemon(daemon_ID)
-    elif command == 'restart':
-        daemons.restart_daemon(daemon_ID)
-    elif command == 'kill':
-        daemons.kill_daemon(daemon_ID)
-    elif command == 'ping':
-        daemons.ping_daemon(daemon_ID)
-    elif command == 'help' or command == '?':
+    # Command functions
+    if command in ['help', '?']:
         print_instructions()
+
     elif command == 'i':
-        print(misc.ERROR('Already in interactive mode'))
+        raise misc.InputError('Already in interactive mode')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Scheduler control functions
+    # Primary daemon control
+    elif command == 'start':
+        reply = daemons.start_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'shutdown':
+        reply = daemons.shutdown_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'restart':
+        reply = daemons.restart_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'kill':
+        reply = daemons.kill_daemon(daemon_ID)
+        print(reply)
+
+    elif command == 'ping':
+        reply = daemons.ping_daemon(daemon_ID)
+        print(reply)
+
     elif command == 'info':
-        info = daemons.daemon_function(daemon_ID, 'check_queue', [Time.now(),0])
-        if info: print_info_s(info)
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'check_queue', [Time.now(), 0])
+        if not reply:
+            raise ValueError('No info returned, check daemon')
+        else:
+            print_info_s(reply)
+
+    elif command in ['log', 'tail']:
+        # parse arguments
+        if 'stdout' in args:
+            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_path = params.LOG_PATH + daemon_ID + '.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+        # send command
+        misc.execute_command(tail_command)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
-        print(misc.ERROR('Unrecognized command "%s"' %command))
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
 
 ########################################################################
 # Output formatting functions
@@ -84,6 +111,8 @@ def print_instructions():
     '  scheduler ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
     '  scheduler ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
     '  scheduler ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
+    '  scheduler ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  scheduler ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
     '  scheduler ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
     '  scheduler ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
@@ -101,4 +130,5 @@ else:
     if command == 'i':
         interactive()
     else:
-        query(command, args)
+        with misc.print_errors():
+            query(command, args)

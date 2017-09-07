@@ -71,8 +71,8 @@ class HardwareDaemon(BaseDaemon):
     def ping(self):
         dt_control = abs(time.time() - self.time_check)
         if dt_control > params.DAEMONS[self.daemon_ID]['PINGLIFE']:
-            return 'ERROR: Last control thread time check was '\
-                   '%.1f seconds ago' %dt_control
+            error_str = 'Last control thread time check was {:.1f}s ago'.format(dt_control)
+            raise misc.DaemonConnectionError(error_str)
         else:
             return 'ping'
 
@@ -102,13 +102,13 @@ def start_daemon(daemon_ID):
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
     if depends[0] != 'None':
-        fail = 0
+        failed = []
         for dependency in depends:
             if not misc.daemon_is_alive(dependency):
-                print('ERROR: Dependency "{}" is not running, abort start'.format(dependency))
-                fail += 1
-        if fail > 0:
-            return
+                failed += [dependency]
+        if len(failed) > 0:
+            error_str = 'Dependencies are not running ({}), abort start'.format(failed)
+            raise misc.DaemonDependencyError(error_str)
 
     process_path = os.path.join(params.DAEMON_PATH, process)
 
@@ -116,9 +116,7 @@ def start_daemon(daemon_ID):
                        'host': host}
     if params.REDIRECT_STDOUT:
         fpipe = open(params.LOG_PATH + daemon_ID + '-stdout.log', 'a')
-        process_options.update({
-            'stdout': fpipe, 'stderr': fpipe
-        })
+        process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 0:
@@ -129,15 +127,15 @@ def start_daemon(daemon_ID):
         time.sleep(1)
         process_ID_n = misc.get_process_ID(process, host)
         if len(process_ID_n) == 1:
-            print('Daemon started on {} (PID {})'.format(host, process_ID_n[0]))
+            return 'Daemon started on {} (PID {})'.format(host, process_ID_n[0])
         elif len(process_ID_n) > 1:
-            print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
+            raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
         else:
-            print('ERROR: Daemon did not start on {}, check logs'.format(host))
+            raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
     elif len(process_ID) == 1:
-        print('ERROR: Daemon already running on {} (PID {})'.format(host, process_ID[0]))
+        raise misc.DaemonConnectionError('Daemon already running on {} (PID {})'.format(host, process_ID[0]))
     else:
-        print('ERROR: Multiple daemons already running on {} (PID {})'.format(host, process_ID))
+        raise misc.MultipleDaemonError('Multiple daemons already running on {} (PID {})'.format(host, process_ID))
 
 
 def ping_daemon(daemon_ID):
@@ -153,15 +151,17 @@ def ping_daemon(daemon_ID):
         try:
             ping = daemon.ping()
             if ping == 'ping':
-                print('Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0]))
+                return 'Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0])
             else:
-                print(ping + ', daemon running on {} (PID {})'.format(host, process_ID[0]))
+                return ping + ', daemon running on {} (PID {})'.format(host, process_ID[0])
+        except misc.DaemonConnectionError:
+            raise
         except:
-            print('ERROR: No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
+            raise misc.DaemonConnectionError('No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
     elif len(process_ID) == 0:
-        print('ERROR: No response, daemon not running on {}'.format(host))
+        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
     else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID))
+        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
 
 
 def shutdown_daemon(daemon_ID):
@@ -186,17 +186,17 @@ def shutdown_daemon(daemon_ID):
             time.sleep(2)
             process_ID_n = misc.get_process_ID(process, host)
             if len(process_ID_n) == 0:
-                print('Daemon shut down on {}'.format(host))
+                return 'Daemon shut down on {}'.format(host)
             elif len(process_ID_n) == 1:
-                print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+                raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
             else:
-                print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
+                raise misc.MultipleDaemonError('Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
         except:
-            print('ERROR: No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
+            raise misc.DaemonConnectionError('No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
     elif len(process_ID) == 0:
-        print('ERROR: No response, daemon not running on {}'.format(host))
+        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
     else:
-        print('ERROR: Multiple daemons running on {} (PID {})'.format(host, process_ID))
+        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
 
 
 def kill_daemon(daemon_ID):
@@ -211,30 +211,34 @@ def kill_daemon(daemon_ID):
         # See if it is actually dead
         process_ID_n = misc.get_process_ID(process, host)
         if len(process_ID_n) == 0:
-            print('Daemon killed on {}'.format(host))
+            return 'Daemon killed on {}'.format(host)
         elif len(process_ID_n) == 1:
-            print('ERROR: Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
+            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
         else:
-            print('ERROR: Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
+            raise misc.MultipleDaemonError('Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
     else:
-        print('ERROR: Daemon not running on {}'.format(host))
+        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
 
 
 def restart_daemon(daemon_ID, wait_time=2):
     '''Shut down a daemon and then start it again after `wait_time` seconds'''
-    shutdown_daemon(daemon_ID)
+    reply = shutdown_daemon(daemon_ID)
+    print(reply)
+
     time.sleep(wait_time)
-    start_daemon(daemon_ID)
+
+    reply = start_daemon(daemon_ID)
+    print(reply)
 
 ########################################################################
 # Generic daemon function wrapper
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     if not misc.daemon_is_running(daemon_ID):
-        print(misc.ERROR('Daemon not running'))
+        raise misc.DaemonConnectionError('Daemon not running')
     elif not misc.daemon_is_alive(daemon_ID):
-        print(misc.ERROR('Daemon running but not responding, check logs'))
+        raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
     elif not misc.dependencies_are_alive(daemon_ID):
-        print(misc.ERROR('Required dependencies are not responding'))
+        raise misc.DaemonDependencyError('Required dependencies are not responding')
     else:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
         if not timeout:
@@ -245,7 +249,4 @@ def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
                 function = getattr(proxy, function_name)
             except AttributeError:
                 raise NotImplementedError('Invalid function')
-            try:
-                return function(*args)
-            except Exception as e:
-                print(misc.ERROR('Daemon returned {}: "{}"'.format(type(e).__name__, e)))
+            return function(*args)

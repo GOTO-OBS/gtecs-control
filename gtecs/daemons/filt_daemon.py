@@ -101,87 +101,93 @@ class FiltDaemon(HardwareDaemon):
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                # update variables
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        self.current_pos[intf][HW] = fli.get_filter_position(HW)
-                        self.remaining[intf][HW] = fli.get_filter_steps_remaining(HW)
-                        self.current_filter_num[intf][HW] = fli.get_filter_number(HW)
-                        self.serial_number[intf][HW] = fli.get_filter_serial_number(HW)
-                        self.homed[intf][HW] = fli.get_filter_homed(HW)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                # save info
-                info = {}
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-                    if self.remaining[intf][HW] > 0:
-                        info['status'+tel] = 'Moving'
-                        info['remaining'+tel] = self.remaining[intf][HW]
-                    else:
-                        info['status'+tel] = 'Ready'
-                    info['current_filter_num'+tel] = self.current_filter_num[intf][HW]
-                    info['current_pos'+tel] = self.current_pos[intf][HW]
-                    info['serial_number'+tel] = self.serial_number[intf][HW]
-                    info['homed'+tel] = self.homed[intf][HW]
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
-                now = datetime.datetime.utcnow()
-                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+            if self.get_info_flag:
+                try:
+                    # update variables
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            self.current_pos[intf][HW] = fli.get_filter_position(HW)
+                            self.remaining[intf][HW] = fli.get_filter_steps_remaining(HW)
+                            self.current_filter_num[intf][HW] = fli.get_filter_number(HW)
+                            self.serial_number[intf][HW] = fli.get_filter_serial_number(HW)
+                            self.homed[intf][HW] = fli.get_filter_homed(HW)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                    # save info
+                    info = {}
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                        if self.remaining[intf][HW] > 0:
+                            info['status'+tel] = 'Moving'
+                            info['remaining'+tel] = self.remaining[intf][HW]
+                        else:
+                            info['status'+tel] = 'Ready'
+                        info['current_filter_num'+tel] = self.current_filter_num[intf][HW]
+                        info['current_pos'+tel] = self.current_pos[intf][HW]
+                        info['serial_number'+tel] = self.serial_number[intf][HW]
+                        info['homed'+tel] = self.homed[intf][HW]
 
-                self.info = info
+                    info['uptime'] = time.time()-self.start_time
+                    info['ping'] = time.time()-self.time_check
+                    now = datetime.datetime.utcnow()
+                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # set the active filter
-            if(self.set_filter_flag):
-                # loop through each unit to send orders to in turn
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    new_filter_num = self.flist.index(self.new_filter)
+            if self.set_filter_flag:
+                try:
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        new_filter_num = self.flist.index(self.new_filter)
 
-                    self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
-                                      tel, intf, HW, self.new_filter, new_filter_num)
+                        self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
+                                          tel, intf, HW, self.new_filter, new_filter_num)
 
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.set_filter_pos(new_filter_num,HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-
-                # clear the 'active' units
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            c = fli.set_filter_pos(new_filter_num,HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('set_filter command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.active_tel = []
-
                 self.set_filter_flag = 0
 
             # home the filter
-            if(self.home_filter_flag):
-                # loop through each unit to send orders to it in turn
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
+            if self.home_filter_flag:
+                try:
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
 
-                    self.logfile.info('Homing filter wheel %i (%s-%i)',
-                                      tel, intf, HW)
+                        self.logfile.info('Homing filter wheel %i (%s-%i)',
+                                          tel, intf, HW)
 
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.home_filter(HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                # clear the active units
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            c = fli.home_filter(HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('home_filter command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.active_tel = []
-
                 self.home_filter_flag = 0
 
             time.sleep(0.0001) # To save 100% CPU usage
@@ -193,55 +199,88 @@ class FiltDaemon(HardwareDaemon):
     # Filter wheel control functions
     def get_info(self):
         """Return filter wheel status info"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
-    def set_filter(self,new_filter,tel_list):
+
+    def set_filter(self, new_filter, tel_list):
         """Move filter wheel to given filter"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
-        self.new_filter = new_filter
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if new_filter.upper() not in self.flist:
+            raise ValueError('Filter not in list %s' %str(self.flist))
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        if new_filter not in self.flist:
-            return 'ERROR: Filter not in list %s' %str(self.flist)
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
+        for tel in tel_list:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] == 0 and self.homed[intf][HW]:
+                self.active_tel += [tel]
+        self.new_filter = new_filter
+
+        # Set flag
+        self.set_filter_flag = 1
+
+        # Format return string
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)
             elif not self.homed[intf][HW]:
-                s += '\n  ERROR: Home filter wheel %i first!' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i not homed"' %tel)
             else:
-                self.active_tel += [tel]
-                s += '\n  Moving filter wheel %i' %tel
-        self.set_filter_flag = 1
+                s += 'Moving filter wheel %i' %tel
         return s
 
-    def home_filter(self,tel_list):
+
+    def home_filter(self, tel_list):
         """Move filter wheel to home position"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
+        for tel in tel_list:
+            intf, HW = self.tel_dict[tel]
+            if self.remaining[intf][HW] == 0:
+                self.active_tel += [tel]
+
+        # Set flag
+        self.home_filter_flag = 1
+
+        # Format return string
         s = 'Moving:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
+            s += '\n  '
             if self.remaining[intf][HW] > 0:
-                s += '\n  ERROR: Filter wheel %i motor is still moving' %tel
+                s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)
             else:
-                self.active_tel += [tel]
-                s += '\n  Homing filter wheel %i' %tel
-        self.home_filter_flag = 1
+                s += 'Homing filter wheel %i' %tel
         return s
 
 

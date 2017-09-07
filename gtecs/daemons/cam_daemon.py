@@ -139,77 +139,85 @@ class CamDaemon(HardwareDaemon):
 
             ### control functions
             # request info
-            if(self.get_info_flag):
-                # update variables
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        self.cam_info[intf][HW] = fli.get_camera_info(HW)
-                        self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
-                        self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
-                        self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
-                        self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
-                        self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                # save info
-                info = {}
-                for tel in self.tel_dict:
-                    intf, HW = self.tel_dict[tel]
-                    tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-                    info['remaining'+tel] = self.remaining[intf][HW]
-                    if self.exposing_flag[intf][HW] == 1:
-                        info['status'+tel] = 'Exposing'
-                    elif self.exposing_flag[intf][HW] == 2:
-                        info['status'+tel] = 'Reading'
-                    else:
-                        info['status'+tel] = 'Ready'
-                    info['frametype'+tel] = self.frametype[intf][HW]
-                    info['exptime'+tel] = self.exptime[intf][HW]
-                    info['binning'+tel] = self.binning[intf][HW]
-                    info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
-                    info['base_temp'+tel] = self.base_temp[intf][HW]
-                    info['cooler_power'+tel] = self.cooler_power[intf][HW]
-                    info['serial_number'+tel] = self.serial_number[intf][HW]
-                info['run_number'] = self.run_number
-                info['uptime'] = time.time()-self.start_time
-                info['ping'] = time.time()-self.time_check
-                now = datetime.datetime.utcnow()
-                info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+            if self.get_info_flag:
+                try:
+                    # update variables
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            self.cam_info[intf][HW] = fli.get_camera_info(HW)
+                            self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
+                            self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
+                            self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
+                            self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
+                            self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                    # save info
+                    info = {}
+                    for tel in self.tel_dict:
+                        intf, HW = self.tel_dict[tel]
+                        tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
+                        info['remaining'+tel] = self.remaining[intf][HW]
+                        if self.exposing_flag[intf][HW] == 1:
+                            info['status'+tel] = 'Exposing'
+                        elif self.exposing_flag[intf][HW] == 2:
+                            info['status'+tel] = 'Reading'
+                        else:
+                            info['status'+tel] = 'Ready'
+                        info['frametype'+tel] = self.frametype[intf][HW]
+                        info['exptime'+tel] = self.exptime[intf][HW]
+                        info['binning'+tel] = self.binning[intf][HW]
+                        info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
+                        info['base_temp'+tel] = self.base_temp[intf][HW]
+                        info['cooler_power'+tel] = self.cooler_power[intf][HW]
+                        info['serial_number'+tel] = self.serial_number[intf][HW]
 
-                self.info = info
+                    info['run_number'] = self.run_number
+                    info['uptime'] = time.time()-self.start_time
+                    info['ping'] = time.time()-self.time_check
+                    now = datetime.datetime.utcnow()
+                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                    self.info = info
+                except:
+                    self.logfile.error('get_info command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # take exposure part one - start
-            if(self.take_exposure_flag):
-                exptime = self.target_exptime
-                exptime_ms = exptime*1000.
-                frametype = self.target_frametype
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.exptime[intf][HW] = self.target_exptime
-                    self.frametype[intf][HW] = self.target_frametype
-                    self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
-                                       exptime, frametype, tel, intf, HW)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        fli.clear_exposure_queue(HW)
-                        c = fli.set_camera_area(0, 0, 8304, 6220, HW)
-                        if c: self.logfile.info(c)
-                        c = fli.set_exposure(exptime_ms,frametype,HW)
-                        if c: self.logfile.info(c)
-                        self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                        c = fli.start_exposure(HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                    self.exposing_flag[intf][HW] = 1
-
+            if self.take_exposure_flag:
+                try:
+                    exptime = self.target_exptime
+                    exptime_ms = exptime*1000.
+                    frametype = self.target_frametype
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.exptime[intf][HW] = self.target_exptime
+                        self.frametype[intf][HW] = self.target_frametype
+                        self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
+                                           exptime, frametype, tel, intf, HW)
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            fli.clear_exposure_queue(HW)
+                            c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                            if c: self.logfile.info(c)
+                            c = fli.set_exposure(exptime_ms,frametype,HW)
+                            if c: self.logfile.info(c)
+                            self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                            c = fli.start_exposure(HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                        self.exposing_flag[intf][HW] = 1
+                except:
+                    self.logfile.error('take_exposure command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.take_exposure_flag = 0
 
             # take exposure part two - finish
@@ -247,59 +255,71 @@ class CamDaemon(HardwareDaemon):
                     self.active_tel.pop(self.active_tel.index(tel))
 
             # abort exposure
-            if(self.abort_exposure_flag):
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.abort_exposure(HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                for intf in params.FLI_INTERFACES:
-                    nHW = len(params.FLI_INTERFACES[intf]['TELS'])
-                    self.exposing_flag[intf] = [0]*nHW
-                self.abort_exposure_flag = 0
-
-            # set camera temperature
-            if(self.set_temp_flag):
-                target_temp = self.target_temp
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
-                    fli = fli_proxies[intf]
-                    try:
-                        fli._pyroReconnect()
-                        c = fli.set_camera_temp(target_temp,HW)
-                        if c: self.logfile.info(c)
-                    except:
-                        self.logfile.error('No response from fli interface on %s', intf)
-                        self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                self.set_temp_flag = 0
-
-            # set binning
-            if(self.set_binning_flag):
-                binning = self.target_binning
-                for tel in self.active_tel:
-                    intf, HW = self.tel_dict[tel]
-                    if self.exposing_flag[intf][HW] == 1:
-                        self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                    else:
-                        self.binning[intf][HW] = self.target_binning
-                        self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
+            if self.abort_exposure_flag:
+                try:
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
-                            c = fli.set_camera_binning(binning,binning,HW)
+                            c = fli.abort_exposure(HW)
                             if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
+                    self.active_tel = []
+                    for intf in params.FLI_INTERFACES:
+                        nHW = len(params.FLI_INTERFACES[intf]['TELS'])
+                        self.exposing_flag[intf] = [0]*nHW
+                except:
+                    self.logfile.error('abort_exposure command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.abort_exposure_flag = 0
+
+            # set camera temperature
+            if self.set_temp_flag:
+                try:
+                    target_temp = self.target_temp
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
+                        fli = fli_proxies[intf]
+                        try:
+                            fli._pyroReconnect()
+                            c = fli.set_camera_temp(target_temp,HW)
+                            if c: self.logfile.info(c)
+                        except:
+                            self.logfile.error('No response from fli interface on %s', intf)
+                            self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('set_temp command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.active_tel = []
+                self.set_temp_flag = 0
+
+            # set binning
+            if self.set_binning_flag:
+                try:
+                    binning = self.target_binning
+                    for tel in self.active_tel:
+                        intf, HW = self.tel_dict[tel]
+                        if self.exposing_flag[intf][HW] == 1:
+                            self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
+                        else:
+                            self.binning[intf][HW] = self.target_binning
+                            self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
+                            fli = fli_proxies[intf]
+                            try:
+                                fli._pyroReconnect()
+                                c = fli.set_camera_binning(binning,binning,HW)
+                                if c: self.logfile.info(c)
+                            except:
+                                self.logfile.error('No response from fli interface on %s', intf)
+                                self.logfile.debug('', exc_info=True)
+                except:
+                    self.logfile.error('set_temp command failed')
+                    self.logfile.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_binning_flag = 0
 
@@ -310,87 +330,184 @@ class CamDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Camera control functions
-    def get_info(self, fli_proxies=None):
+    def get_info(self):
         """Return camera status info"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set flag
         self.get_info_flag = 1
+
+        # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
 
-    def take_image(self,exptime,tel_list):
+
+    def take_image(self, exptime, tel_list):
         """Take image with camera"""
-        if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+        # Use the common function
         return self._take_frame(exptime, 'image', tel_list)
 
-    def take_dark(self,exptime,tel_list):
+
+    def take_dark(self, exptime, tel_list):
         """Take dark frame with camera"""
-        if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+        # Use the common function
         return self._take_frame(exptime, 'dark', tel_list)
 
-    def take_bias(self,tel_list):
+
+    def take_bias(self, tel_list):
         """Take bias frame with camera"""
-        if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+        # Use the common function
         return self._take_frame(params.BIASEXP, 'bias', tel_list)
 
-    def abort_exposure(self,tel_list):
-        """Abort current exposure"""
+
+    def _take_frame(self, exptime, exp_type, tel_list):
+        """Take a frame with camera"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(exptime) < 0:
+            raise ValueError('Exposure time must be > 0')
+        if exp_type not in ['image', 'dark', 'bias']:
+            raise ValueError("Exposure type must be 'image', 'dark' or 'bias'")
         for tel in tel_list:
             if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Check current status
+        for tel in self.active_tel:
+            intf, HW = self.tel_dict[tel]
+            if self.exposing_flag[intf][HW] == 1:
+                raise misc.HardwareStatusError('Cameras are already exposing')
+
+        # Find and update run number
+        with open(self.run_number_file, 'r') as f:
+            lines = f.readlines()
+            self.run_number = int(lines[0]) + 1
+        with open(self.run_number_file, 'w') as f:
+            f.write('{:07d}'.format(self.run_number))
+
+        # Set values
+        self.target_exptime = exptime
+        if exp_type == 'image':
+            self.target_frametype = 'normal'
+        elif exp_type == 'dark' or exp_type == 'bias':
+            self.target_frametype = 'dark'
+        self.stored_tel_list = tel_list
+        for tel in tel_list:
+            self.active_tel += [tel]
+
+        # Set flag
+        self.take_exposure_flag = 1
+
+        # Format return string
+        s = 'Exposing r{:07d}:'.format(self.run_number)
+        for tel in tel_list:
+            s += '\n  '
+            s += 'Taking {:.2f}s {} on camera {}'.format(exptime, exp_type, tel)
+        return s
+
+
+    def abort_exposure(self, tel_list):
+        """Abort current exposure"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.get_info()
-        s = 'Aborting:'
         for tel in tel_list:
             intf, HW = self.tel_dict[tel]
-            if self.remaining[intf][HW] == 0:
-                s += '\n  ERROR: Camera %i is not currently exposing' %tel
-            else:
+            if not self.remaining[intf][HW] == 0:
                 self.active_tel += [tel]
-                s += '\n  Aborting exposure on camera %i' %tel
+
+        # Set flag
         self.abort_exposure_flag = 1
+
+        # Format return string
+        s = 'Aborting:'
+        for tel in tel_list:
+            s += '\n  '
+            if tel not in self.active_tel == 0:
+                s += misc.ERROR('"HardwareStatusError: Camera %i is not currently exposing"' %tel)
+            else:
+                s += 'Aborting exposure on camera %i' %tel
         return s
 
-    def set_temperature(self,target_temp,tel_list):
+
+    def set_temperature(self, target_temp, tel_list):
         """Set the camera's temperature"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not (-55 <= target_temp <= 45):
+            raise ValueError('Temperature must be between -55 and 45')
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.target_temp = target_temp
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-        if not (-55 <= target_temp <= 45):
-            return 'ERROR: Temperature must be between -55 and 45'
+            self.active_tel += [tel]
+
+        # Set flag
+        self.set_temp_flag = 1
+
+        # Format return string
         s = 'Setting:'
         for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting temperature on camera %i' %tel
-        self.set_temp_flag = 1
+            s += '\n  '
+            s += 'Setting temperature on camera %i' %tel
         return s
 
-    def set_binning(self,binning,tel_list):
+
+    def set_binning(self, binning, tel_list):
         """Set the image binning"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
+        for tel in tel_list:
+            if tel not in self.tel_dict:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+
+        # Set values
         self.target_binning = binning
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
+            self.active_tel += [tel]
+
+        # Set flag
+        self.set_binning_flag = 1
+
+        # Format return string
         s = 'Setting:'
         for tel in tel_list:
-            self.active_tel += [tel]
-            s += '\n  Setting image binning on camera %i' %tel
-        self.set_binning_flag = 1
+            s += '\n  '
+            s += 'Setting image binning on camera %i' %tel
         return s
 
-    def set_spec(self,target,imgtype,set_pos=1,set_total=1,expID=0):
+
+    def set_spec(self, target, imgtype, set_pos=1, set_total=1, expID=0):
         """Save the run details if given by the queue daemon"""
+        # Check restrictions
         if self.dependency_error:
-            return 'ERROR: Dependencies are not running'
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Set values
         self.target = target
         self.imgtype = imgtype
         self.set_pos = set_pos
@@ -399,62 +516,6 @@ class CamDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
-    def _take_frame(self, exptime, exp_type, tel_list):
-        """
-        Take a frame with camera.
-
-        Parameters
-        -----------
-        exptime : float
-            exposure time in seconds
-
-        exp_type : str
-            'image', 'dark', 'bias'
-
-        tel_list : list
-            list of unit telescopes
-        """
-        for tel in tel_list:
-            if tel not in self.tel_dict:
-                return 'ERROR: Unit telescope ID not in list %s' %str(list(self.tel_dict))
-
-        self.stored_tel_list = tel_list
-        self.target_exptime = exptime
-
-        if exp_type == 'image':
-            self.target_frametype = 'normal'
-        elif exp_type == 'dark' or exp_type == 'bias':
-            self.target_frametype = 'dark'
-        else:
-            raise ValueError("Exposure type not recognised: must be 'image', 'dark' or 'bias'")
-
-        time.sleep(0.1)
-
-        occupied = False
-        for tel in self.active_tel:
-            intf, HW = self.tel_dict[tel]
-            if self.exposing_flag[intf][HW] == 1:
-                s = 'ERROR: Cameras are already exposing'
-                occupied = True
-
-        if not occupied:
-            # find and update run number
-            with open(self.run_number_file, 'r') as f:
-                lines = f.readlines()
-                self.run_number = int(lines[0]) + 1
-            with open(self.run_number_file, 'w') as f:
-                f.write('{:07d}'.format(self.run_number))
-
-            s = 'Exposing r{:07d}:'.format(self.run_number)
-            for tel in tel_list:
-                self.active_tel += [tel]
-                s += '\n  Taking {:.2f}s {:s} on camera {:d}'.format(exptime,
-                                                                     exp_type,
-                                                                     tel)
-            self.take_exposure_flag = 1
-
-        return s
-
     def _image_fetch(self, tel):
         intf, HW = self.tel_dict[tel]
         fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
