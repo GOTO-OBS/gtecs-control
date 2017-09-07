@@ -23,7 +23,7 @@ from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-#from gtecs.tecs_modules.slack import send_slack_msg
+from gtecs.tecs_modules.slack import send_slack_msg
 from gtecs.controls import dome_control
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
@@ -168,7 +168,7 @@ class DomeDaemon(HardwareDaemon):
                         elif os.path.isfile(params.EMERGENCY_FILE):
                             self.logfile.info('Closing dome (emergency!)')
                             if not self.close_flag:
-                                #send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
+                                send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
@@ -402,7 +402,7 @@ class DomeDaemon(HardwareDaemon):
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
         elif os.path.isfile(params.EMERGENCY_FILE):
-            #send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
+            send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
             raise misc.HardwareStatusError('In emergency locked state, dome will not open')
 
         # Check input
