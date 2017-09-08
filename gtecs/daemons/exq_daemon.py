@@ -380,7 +380,7 @@ class ExqDaemon(HardwareDaemon):
             self.exp_queue.append(exposure)
 
         # Format return string
-        s = 'Added {} exposure(s), now %i items in queue' %(Nexp, len(self.exp_queue))
+        s = 'Added %i exposure(s), now %i items in queue' %(Nexp, len(self.exp_queue))
         if self.paused:
             s += ' [paused]'
         return s
