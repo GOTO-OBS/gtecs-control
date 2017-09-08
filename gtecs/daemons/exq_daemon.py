@@ -38,9 +38,10 @@ class ExqDaemon(HardwareDaemon):
 
         ### exposure queue variables
         self.info = {}
+
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
-        self.abort = 0
+
         self.working = 0
         self.paused = 1 # start paused
 
