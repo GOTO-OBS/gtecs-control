@@ -105,7 +105,7 @@ class ExposureSpec:
 ########################################################################
 # Exposure queue class
 
-class Queue(MutableSequence):
+class ExposureQueue(MutableSequence):
     """
     Queue sequence to hold exposures
 

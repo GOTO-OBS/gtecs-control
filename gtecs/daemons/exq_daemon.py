@@ -24,7 +24,7 @@ import ast
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from gtecs.controls.exq_control import ExposureSpec, Queue
+from gtecs.controls.exq_control import ExposureSpec, ExposureQueue
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
@@ -41,7 +41,7 @@ class ExqDaemon(HardwareDaemon):
         self.info = {}
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
-        self.exp_queue = Queue()
+        self.exp_queue = ExposureQueue()
         self.exp_spec = None
         self.current_filter = None
         self.abort = 0
