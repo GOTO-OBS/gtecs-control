@@ -842,8 +842,8 @@ class CamDaemon(HardwareDaemon):
             airmass = 'NA'
             equinox = 'NA'
 
-        header["RA      "] = (targ_ra_str, "Requested pointing RA")
-        header["DEC     "] = (targ_dec_str, "Requested pointing Dec")
+        header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
+        header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
 
         header["RA-TEL  "] = (mnt_ra_str, "Reported mount pointing RA")
         header["DEC-TEL "] = (mnt_dec_str, "Reported mount pointing Dec")
