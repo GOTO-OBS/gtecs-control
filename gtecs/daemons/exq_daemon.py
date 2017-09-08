@@ -23,7 +23,7 @@ from collections import MutableSequence
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
-from gtecs.controls.exq_control import ExposureSpec, ExposureQueue
+from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
@@ -41,8 +41,7 @@ class ExqDaemon(HardwareDaemon):
         self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
         self.exp_queue = ExposureQueue()
-        self.exp_spec = None
-        self.current_filter = None
+        self.current_exposure = None
         self.abort = 0
         self.working = 0
         self.paused = 1 # start paused
@@ -98,7 +97,7 @@ class ExqDaemon(HardwareDaemon):
             self.queue_len = len(self.exp_queue)
             if (self.queue_len > 0) and not self.paused and not self.working:
                 # OK - time to add a new exposure
-                self.exp_spec = self.exp_queue.pop(0)
+                self.current_exposure = self.exp_queue.pop(0)
                 self.logfile.info('Taking exposure')
                 self.working = 1
                 # we need to set filter and take image
@@ -140,14 +139,14 @@ class ExqDaemon(HardwareDaemon):
         else:
             info['status'] = 'Ready'
         info['queue_length'] = self.queue_len
-        if self.working and self.exp_spec != None:
-            info['current_tel_list'] = self.exp_spec.tel_list
-            info['current_exptime'] = self.exp_spec.exptime
-            info['current_filter'] = self.exp_spec.filt
-            info['current_binning'] = self.exp_spec.binning
-            info['current_frametype'] = self.exp_spec.frametype
-            info['current_target'] = self.exp_spec.target
-            info['current_imgtype'] = self.exp_spec.imgtype
+        if self.working and self.current_exposure != None:
+            info['current_tel_list'] = self.current_exposure.tel_list
+            info['current_exptime'] = self.current_exposure.exptime
+            info['current_filter'] = self.current_exposure.filt
+            info['current_binning'] = self.current_exposure.binning
+            info['current_frametype'] = self.current_exposure.frametype
+            info['current_target'] = self.current_exposure.target
+            info['current_imgtype'] = self.current_exposure.imgtype
 
         info['uptime'] = time.time() - self.start_time
         info['ping'] = time.time() - self.time_check
@@ -179,10 +178,10 @@ class ExqDaemon(HardwareDaemon):
             raise ValueError("Frame type must be 'normal' or 'dark'")
 
         # Call the command
-        exposure = ExposureSpec(tel_list, exptime, filt.upper(),
-                                binning, frametype,
-                                target.replace(';', ''),
-                                imgtype.replace(';', ''))
+        exposure = Exposure(tel_list, exptime, filt.upper(),
+                            binning, frametype,
+                            target.replace(';', ''),
+                            imgtype.replace(';', ''))
         self.exp_queue.append(exposure)
 
         # Format return string
@@ -217,11 +216,11 @@ class ExqDaemon(HardwareDaemon):
         for i in range(Nexp):
             set_pos = i+1
             set_total = Nexp
-            exposure = ExposureSpec(tel_list, exptime, filt.upper(),
-                                    binning, frametype,
-                                    target.replace(';', ''),
-                                    imgtype.replace(';', ''),
-                                    set_pos, set_total, expID)
+            exposure = Exposure(tel_list, exptime, filt.upper(),
+                                binning, frametype,
+                                target.replace(';', ''),
+                                imgtype.replace(';', ''),
+                                set_pos, set_total, expID)
             self.exp_queue.append(exposure)
 
         # Format return string
@@ -293,12 +292,11 @@ class ExqDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
     def _set_filter(self, filt):
-        new_filt = self.exp_spec.filt
-        tel_list = self.exp_spec.tel_list
+        new_filt = self.current_exposure.filt
+        tel_list = self.current_exposure.tel_list
         try:
             filt._pyroReconnect()
             filt.set_filter(new_filt, tel_list)
-            self.current_filter = new_filt
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
@@ -317,19 +315,21 @@ class ExqDaemon(HardwareDaemon):
             self.time_check = time.time()
 
     def _take_image(self, cam):
-        binning = self.exp_spec.binning
-        exptime = self.exp_spec.exptime
-        tel_list = self.exp_spec.tel_list
+        binning = self.current_exposure.binning
+        exptime = self.current_exposure.exptime
+        tel_list = self.current_exposure.tel_list
         try:
             cam._pyroReconnect()
             cam.set_binning(binning, tel_list)
-            cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype,
-                         self.exp_spec.set_pos, self.exp_spec.set_total,
-                         self.exp_spec.expID)
+            cam.set_spec(self.current_exposure.target,
+                         self.current_exposure.imgtype,
+                         self.current_exposure.set_pos,
+                         self.current_exposure.set_total,
+                         self.current_exposure.expID)
             time.sleep(0.1)
-            if self.exp_spec.frametype == 'normal':
+            if self.current_exposure.frametype == 'normal':
                 cam.take_image(exptime, tel_list)
-            elif self.exp_spec.frametype == 'dark':
+            elif self.current_exposure.frametype == 'dark':
                 cam.take_dark(exptime, tel_list)
         except:
             self.logfile.error('No response from camera daemon')
