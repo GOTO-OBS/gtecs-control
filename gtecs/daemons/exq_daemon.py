@@ -38,7 +38,6 @@ class ExqDaemon(HardwareDaemon):
 
         ### exposure queue variables
         self.info = {}
-        self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
@@ -170,8 +169,8 @@ class ExqDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if filt.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in ['normal', 'dark']:
@@ -205,8 +204,8 @@ class ExqDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if filt.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in ['normal', 'dark']:
