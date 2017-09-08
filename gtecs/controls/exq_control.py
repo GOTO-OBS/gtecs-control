@@ -17,20 +17,19 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Exposure specification class
-class ExposureSpec:
-    """
-    Exposure specification class
+# Exposure class
+class Exposure:
+    """A class to represent a single exposure.
 
     Contains 3 functions:
-    - line_to_spec(str)
-    - spec_to_line()
+    - from_line(str)
+    - as_line()
     - info()
 
     Exposures contain the folowing infomation:
     - tel_list    [lst] -- REQUIRED --
     - exptime     [int] -- REQUIRED --
-    - filter      [str] -- REQUIRED --
+    - filt        [str] -- REQUIRED --
     - binning     [int] <default = 1>
     - frame type  [str] <default = 'normal'>
     - target      [str] <default = 'NA'>
@@ -60,8 +59,8 @@ class ExposureSpec:
             self.expID = 0
 
     @classmethod
-    def line_to_spec(cls, line):
-        """Convert a line of data to exposure spec object"""
+    def from_line(cls, line):
+        """Create an Exposure object from a formatted string"""
         # eg '1011;20;R;2;normal;NA;SCIENCE;1;3;126598'
         ls = line.split(';')
         tel_list = misc.ut_string_to_list(ls[0])
@@ -79,8 +78,8 @@ class ExposureSpec:
                   set_pos, set_total, expID)
         return exp
 
-    def spec_to_line(self):
-        """Convert exposure spec object to a line of data"""
+    def as_line(self):
+        """Give the line representation of this Exposure"""
         line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
            %(self.tel_string, self.exptime, self.filt,
              self.binning, self.frametype, self.target, self.imgtype,
@@ -88,7 +87,7 @@ class ExposureSpec:
         return line
 
     def info(self):
-        """Return a readable string of summary infomation about the exposure"""
+        """Return a readable string of summary infomation about this Exposure"""
         s = 'EXPOSURE \n'
         s += '  '+time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time)+'\n'
         s += '  Unit telescope(s): %s\n' %self.tel_list
@@ -108,8 +107,7 @@ class ExposureSpec:
 # Exposure queue class
 
 class ExposureQueue(MutableSequence):
-    """
-    Queue sequence to hold exposures
+    """A queue sequence to hold Exposures.
 
     Contains 4 functions:
     - write_to_file()
@@ -130,13 +128,14 @@ class ExposureQueue(MutableSequence):
             lines = f.read().splitlines()
             for line in lines:
                 if not line.startswith('#'):
-                    self.data.append(ExposureSpec.line_to_spec(line))
+                    exposure = Exposure.from_line(line)
+                    self.data.append(exposure)
 
     def write_to_file(self):
         """Write the current queue to the queue file"""
         with open(self.queue_file, 'w') as f:
-            for exp in self.data:
-                f.write(exp.spec_to_line())
+            for exposure in self.data:
+                f.write(exposure.as_line())
 
     def __getitem__(self, index):
         return self.data[index]
@@ -165,13 +164,13 @@ class ExposureQueue(MutableSequence):
     def get(self):
         """Return info() for all exposures in the queue"""
         s = '%i items in queue:\n' %len(self.data)
-        for i, x in enumerate(self.data):
-            s += str(i+1) + ': ' + x.info()
+        for n, exposure in enumerate(self.data):
+            s += str(n+1) + ': ' + exposure.info()
         return s.rstrip()
 
     def get_simple(self):
         """Return string for all exposures in the queue"""
         s = '%i items in queue:\n' %len(self.data)
-        for i, x in enumerate(self.data):
-            s += str(i+1) + ': ' + x.spec_to_line()
+        for n, exposure in enumerate(self.data):
+            s += str(n+1) + ': ' + exposure.as_line()
         return s.rstrip()
