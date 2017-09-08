@@ -186,7 +186,7 @@ if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
 else:
     FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
 
-# Queue parameters
+# Exposure Queue parameters
 QUEUE_PATH = CONFIG_PATH
 
 # Power parameters
