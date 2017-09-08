@@ -758,14 +758,14 @@ class CamDaemon(HardwareDaemon):
 
 
         #Filter wheel info
-        flist = params.FILTER_LIST
         filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
         filt._pyroTimeout = params.PROXY_TIMEOUT
         try:
             info = filt.get_info()
             filt_serial = info['serial_number'+str(tel)]
             if info['current_filter_num'+str(tel)] != -1:
-                filt_filter = flist[info['current_filter_num'+str(tel)]]
+                filt_filter_num = info['current_filter_num'+str(tel)]
+                filt_filter = params.FILTER_LIST[filt_filter_num]
             else:
                 filt_filter = 'UNHOMED'
             filt_num = info['current_filter_num'+str(tel)]
@@ -775,12 +775,12 @@ class CamDaemon(HardwareDaemon):
             filt_filter = 'NA'
             filt_num = 'NA'
             filt_pos = 'NA'
-        flist_str = ''.join(flist)
+        filter_list_str = ''.join(params.FILTER_LIST)
 
         header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
-        header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(flist_str))
-        header["FILTNUM "] = (filt_num, "Filter wheel position number".format(flist_str))
-        header["FILTPOS "] = (filt_pos, "Filter wheel motor position".format(flist_str))
+        header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(filter_list_str))
+        header["FILTNUM "] = (filt_num, "Filter wheel position number"
+        header["FILTPOS "] = (filt_pos, "Filter wheel motor position"
 
         # Mount info
         mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])

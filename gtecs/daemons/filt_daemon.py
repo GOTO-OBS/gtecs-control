@@ -41,7 +41,6 @@ class FiltDaemon(HardwareDaemon):
 
         ### filter wheel variables
         self.info = {}
-        self.flist = params.FILTER_LIST
         self.tel_dict = params.TEL_DICT
 
         self.current_pos = {}
@@ -148,7 +147,7 @@ class FiltDaemon(HardwareDaemon):
                 try:
                     for tel in self.active_tel:
                         intf, HW = self.tel_dict[tel]
-                        new_filter_num = self.flist.index(self.new_filter)
+                        new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
                         self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
                                           tel, intf, HW, self.new_filter, new_filter_num)
@@ -218,8 +217,8 @@ class FiltDaemon(HardwareDaemon):
             raise misc.DaemonDependencyError('Dependencies are not running')
 
         # Check input
-        if new_filter.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if new_filter.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         for tel in tel_list:
             if tel not in self.tel_dict:
                 raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
