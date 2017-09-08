@@ -38,7 +38,6 @@ class ExqDaemon(HardwareDaemon):
 
         ### exposure queue variables
         self.info = {}
-        self.tel_dict = params.TEL_DICT
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
         self.abort = 0
@@ -165,8 +164,8 @@ class ExqDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt.upper() not in params.FILTER_LIST:
@@ -200,8 +199,8 @@ class ExqDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt.upper() not in params.FILTER_LIST:
@@ -302,13 +301,13 @@ class ExqDaemon(HardwareDaemon):
 
         time.sleep(1)
         filt_info_dict = filt.get_info()
-        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
             try:
                 filt_info_dict = filt.get_info()
             except Pyro4.errors.TimeoutError:
                 pass
-            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.005)
             # keep ping alive
             self.time_check = time.time()
@@ -336,13 +335,13 @@ class ExqDaemon(HardwareDaemon):
 
         time.sleep(1)
         cam_info_dict = cam.get_info()
-        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
             try:
                 cam_info_dict = cam.get_info()
             except Pyro4.errors.TimeoutError:
                 pass
-            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
