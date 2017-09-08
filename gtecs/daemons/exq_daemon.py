@@ -19,7 +19,6 @@ import Pyro4
 import threading
 import os, sys
 from collections import MutableSequence
-import ast
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc

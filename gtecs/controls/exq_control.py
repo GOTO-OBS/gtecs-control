@@ -12,8 +12,8 @@
 import time
 import os, sys
 from collections import MutableSequence
-import ast
 # TeCS modules
+from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 
 ########################################################################
@@ -44,6 +44,8 @@ class ExposureSpec:
                  set_pos=1, set_total=1, expID=None):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
+        self.tel_mask = misc.ut_list_to_mask(tel_list)
+        self.tel_string = misc.ut_mask_to_string(self.tel_mask)
         self.exptime = exptime
         self.filt = filt
         self.binning = binning
@@ -60,9 +62,9 @@ class ExposureSpec:
     @classmethod
     def line_to_spec(cls, line):
         """Convert a line of data to exposure spec object"""
-        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3;126598'
+        # eg '1011;20;R;2;normal;NA;SCIENCE;1;3;126598'
         ls = line.split(';')
-        tel_list = ast.literal_eval(ls[0])
+        tel_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
         filt = ls[2]
         binning = int(ls[3])
@@ -80,7 +82,7 @@ class ExposureSpec:
     def spec_to_line(self):
         """Convert exposure spec object to a line of data"""
         line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
-           %(self.tel_list, self.exptime, self.filt,
+           %(self.tel_string, self.exptime, self.filt,
              self.binning, self.frametype, self.target, self.imgtype,
              self.set_pos, self.set_total, self.expID)
         return line
