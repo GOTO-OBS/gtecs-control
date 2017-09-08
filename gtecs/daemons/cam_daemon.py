@@ -53,7 +53,6 @@ class CamDaemon(HardwareDaemon):
         ### camera variables
         self.info = {}
         self.ftlist = params.FRAMETYPE_LIST
-        self.tel_dict = params.TEL_DICT
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
         self.image = 'None yet'
@@ -142,8 +141,8 @@ class CamDaemon(HardwareDaemon):
             if self.get_info_flag:
                 try:
                     # update variables
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -158,8 +157,8 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
                         info['remaining'+tel] = self.remaining[intf][HW]
                         if self.exposing_flag[intf][HW] == 1:
@@ -195,7 +194,7 @@ class CamDaemon(HardwareDaemon):
                     exptime_ms = exptime*1000.
                     frametype = self.target_frametype
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
                         self.exptime[intf][HW] = self.target_exptime
                         self.frametype[intf][HW] = self.target_frametype
                         self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
@@ -222,7 +221,7 @@ class CamDaemon(HardwareDaemon):
 
             # take exposure part two - finish
             for tel in self.active_tel:
-                intf, HW = self.tel_dict[tel]
+                intf, HW = params.TEL_DICT[tel]
                 if self.exposing_flag[intf][HW] == 1:
                     fli = fli_proxies[intf]
                     try:
@@ -237,7 +236,7 @@ class CamDaemon(HardwareDaemon):
 
             # take exposure part three - save
             for tel in self.active_tel:
-                intf, HW = self.tel_dict[tel]
+                intf, HW = params.TEL_DICT[tel]
                 if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
                     # image available
                     image = self.images[tel]
@@ -258,7 +257,7 @@ class CamDaemon(HardwareDaemon):
             if self.abort_exposure_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
                         self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
@@ -282,7 +281,7 @@ class CamDaemon(HardwareDaemon):
                 try:
                     target_temp = self.target_temp
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
                         self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
                         fli = fli_proxies[intf]
                         try:
@@ -303,7 +302,7 @@ class CamDaemon(HardwareDaemon):
                 try:
                     binning = self.target_binning
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
                         if self.exposing_flag[intf][HW] == 1:
                             self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
                         else:
@@ -374,12 +373,12 @@ class CamDaemon(HardwareDaemon):
         if exp_type not in ['image', 'dark', 'bias']:
             raise ValueError("Exposure type must be 'image', 'dark' or 'bias'")
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Check current status
         for tel in self.active_tel:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if self.exposing_flag[intf][HW] == 1:
                 raise misc.HardwareStatusError('Cameras are already exposing')
 
@@ -419,13 +418,13 @@ class CamDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info()
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if not self.remaining[intf][HW] == 0:
                 self.active_tel += [tel]
 
@@ -453,8 +452,8 @@ class CamDaemon(HardwareDaemon):
         if not (-55 <= target_temp <= 45):
             raise ValueError('Temperature must be between -55 and 45')
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.target_temp = target_temp
@@ -482,8 +481,8 @@ class CamDaemon(HardwareDaemon):
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.target_binning = binning
@@ -517,7 +516,7 @@ class CamDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
     def _image_fetch(self, tel):
-        intf, HW = self.tel_dict[tel]
+        intf, HW = params.TEL_DICT[tel]
         fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
         fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
         try:
@@ -576,7 +575,7 @@ class CamDaemon(HardwareDaemon):
         header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
         header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
 
-        intf, HW = self.tel_dict[tel]
+        intf, HW = params.TEL_DICT[tel]
         ut_mask = misc.ut_list_to_mask(self.stored_tel_list)
         ut_string = misc.ut_mask_to_string(ut_mask)
         header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
