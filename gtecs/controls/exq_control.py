@@ -1,0 +1,175 @@
+#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+#                            exq_control.py                            #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#    G-TeCS module containing classes to control the exposure queue    #
+#                     Martin Dyer, Sheffield, 2017                     #
+#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
+#                   Based on the SLODAR/pt5m system                    #
+#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+
+### Import ###
+# Python modules
+import time
+import os, sys
+from collections import MutableSequence
+import ast
+# TeCS modules
+from gtecs.tecs_modules import params
+
+########################################################################
+# Exposure specification class
+class ExposureSpec:
+    """
+    Exposure specification class
+
+    Contains 3 functions:
+    - line_to_spec(str)
+    - spec_to_line()
+    - info()
+
+    Exposures contain the folowing infomation:
+    - tel_list    [lst] -- REQUIRED --
+    - exptime     [int] -- REQUIRED --
+    - filter      [str] -- REQUIRED --
+    - binning     [int] <default = 1>
+    - frame type  [str] <default = 'normal'>
+    - target      [str] <default = 'NA'>
+    - image type  [str] <default = 'SCIENCE'>
+    - set_pos     [int] <default = 1>
+    - set_total   [int] <default = 1>
+    - expID       [int] <default = None>
+    """
+    def __init__(self, tel_list, exptime, filt,
+                 binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                 set_pos=1, set_total=1, expID=None):
+        self.creation_time = time.gmtime()
+        self.tel_list = tel_list
+        self.exptime = exptime
+        self.filt = filt
+        self.binning = binning
+        self.frametype = frametype
+        self.target = target
+        self.imgtype = imgtype
+        self.set_pos = set_pos
+        self.set_total = set_total
+        if expID:
+            self.expID = expID
+        else:
+            self.expID = 0
+
+    @classmethod
+    def line_to_spec(cls, line):
+        """Convert a line of data to exposure spec object"""
+        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3;126598'
+        ls = line.split(';')
+        tel_list = ast.literal_eval(ls[0])
+        exptime = float(ls[1])
+        filt = ls[2]
+        binning = int(ls[3])
+        frametype = ls[4]
+        target = ls[5]
+        imgtype = ls[6]
+        set_pos = int(ls[7])
+        set_total = int(ls[8])
+        expID = int(ls[9])
+        exp = cls(tel_list, exptime, filt,
+                  binning, frametype, target, imgtype,
+                  set_pos, set_total, expID)
+        return exp
+
+    def spec_to_line(self):
+        """Convert exposure spec object to a line of data"""
+        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
+           %(self.tel_list, self.exptime, self.filt,
+             self.binning, self.frametype, self.target, self.imgtype,
+             self.set_pos, self.set_total, self.expID)
+        return line
+
+    def info(self):
+        """Return a readable string of summary infomation about the exposure"""
+        s = 'EXPOSURE \n'
+        s += '  '+time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time)+'\n'
+        s += '  Unit telescope(s): %s\n' %self.tel_list
+        s += '  Exposure time: %is\n' %self.exptime
+        s += '  Filter: %s\n' %self.filt
+        s += '  Binning: %i\n' %self.binning
+        s += '  Frame type: %s\n' %self.frametype
+        s += '  Target: %s\n' %self.target
+        s += '  Image type: %s\n' %self.imgtype
+        s += '  Position in set: %i\n' %self.set_pos
+        s += '  Total in set: %i\n' %self.set_total
+        s += '  ExposureSet database ID (if any): %i\n' %self.expID
+        return s
+
+
+########################################################################
+# Exposure queue class
+
+class Queue(MutableSequence):
+    """
+    Queue sequence to hold exposures
+
+    Contains 4 functions:
+    - write_to_file()
+    - insert(index,value)
+    - clear()
+    - get()
+    """
+    def __init__(self):
+        self.data = []
+        self.queue_file = os.path.join(params.CONFIG_PATH, 'exposure_queue')
+
+        if not os.path.exists(self.queue_file):
+            f = open(self.queue_file, 'w')
+            f.write('#\n')
+            f.close()
+
+        with open(self.queue_file) as f:
+            lines = f.read().splitlines()
+            for line in lines:
+                if not line.startswith('#'):
+                    self.data.append(ExposureSpec.line_to_spec(line))
+
+    def write_to_file(self):
+        """Write the current queue to the queue file"""
+        with open(self.queue_file, 'w') as f:
+            for exp in self.data:
+                f.write(exp.spec_to_line())
+
+    def __getitem__(self, index):
+        return self.data[index]
+
+    def __setitem__(self, index, value):
+        self.data[index] = value
+        self.write_to_file()
+
+    def __delitem__(self, index):
+        del self.data[index]
+        self.write_to_file()
+
+    def __len__(self):
+        return len(self.data)
+
+    def insert(self, index, value):
+        """Add an item to the queue at a specified position"""
+        self.data.insert(index, value)
+        self.write_to_file()
+
+    def clear(self):
+        """Empty the current queue and queue file"""
+        self.data = []
+        self.write_to_file()
+
+    def get(self):
+        """Return info() for all exposures in the queue"""
+        s = '%i items in queue:\n' %len(self.data)
+        for i, x in enumerate(self.data):
+            s += str(i+1) + ': ' + x.info()
+        return s.rstrip()
+
+    def get_simple(self):
+        """Return string for all exposures in the queue"""
+        s = '%i items in queue:\n' %len(self.data)
+        for i, x in enumerate(self.data):
+            s += str(i+1) + ': ' + x.spec_to_line()
+        return s.rstrip()
