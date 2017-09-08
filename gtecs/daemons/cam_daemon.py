@@ -578,11 +578,11 @@ class CamDaemon(HardwareDaemon):
 
         intf, HW = self.tel_dict[tel]
         ut_mask = misc.ut_list_to_mask(self.stored_tel_list)
-        ut_mask_bin = str(bin(ut_mask))[2:]
+        ut_string = misc.ut_mask_to_string(ut_mask)
         header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
         header["UT      "] = (tel, "Integer UT number")
         header["UTMASK  "] = (ut_mask, "Run UT mask integer")
-        header["UTMASKBN"] = (ut_mask_bin, "Run UT mask binary string")
+        header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
         header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
 
         header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
