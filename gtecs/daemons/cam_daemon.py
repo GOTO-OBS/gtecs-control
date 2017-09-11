@@ -325,19 +325,19 @@ class CamDaemon(HardwareDaemon):
         return self.info
 
 
-    def take_image(self, exptime, binning, tel_list):
+    def take_image(self, exptime, binning, imgtype, tel_list):
         """Take a normal frame with the camera"""
         # Use the common function
-        return self._take_frame(exptime, binning, 'normal', tel_list)
+        return self._take_frame(exptime, binning, 'normal', imgtype, tel_list)
 
 
-    def take_dark(self, exptime, binning, tel_list):
+    def take_dark(self, exptime, binning, imgtype, tel_list):
         """Take dark frame with the camera"""
         # Use the common function
-        return self._take_frame(exptime, binning, 'dark', tel_list)
+        return self._take_frame(exptime, binning, 'dark', imgtype, tel_list)
 
 
-    def _take_frame(self, exptime, binning, frametype, tel_list):
+    def _take_frame(self, exptime, binning, frametype, imgtype, tel_list):
         """Take a frame with the camera"""
         # Check restrictions
         if self.dependency_error:
@@ -374,6 +374,11 @@ class CamDaemon(HardwareDaemon):
         self.stored_tel_list = tel_list
         for tel in tel_list:
             self.active_tel += [tel]
+        self.target = 'NA'
+        self.imgtype = imgtype
+        self.set_pos = 1
+        self.set_total = 1
+        self.expID = 0
 
         # Set flag
         self.take_exposure_flag = 1
@@ -513,19 +518,6 @@ class CamDaemon(HardwareDaemon):
             s += 'Setting temperature on camera %i' %tel
         return s
 
-
-    def set_spec(self, target, imgtype, set_pos=1, set_total=1, expID=0):
-        """Save the run details if given by the queue daemon"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
-        # Set values
-        self.target = target
-        self.imgtype = imgtype
-        self.set_pos = set_pos
-        self.set_total = set_total
-        self.expID = expID
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
