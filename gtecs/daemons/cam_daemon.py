@@ -65,6 +65,7 @@ class CamDaemon(HardwareDaemon):
         self.cooler_power = {}
         self.cam_info = {}
         self.serial_number = {}
+        self.target_temp = {}
 
         for intf in params.FLI_INTERFACES:
             nHW = len(params.FLI_INTERFACES[intf]['TELS'])
@@ -75,6 +76,7 @@ class CamDaemon(HardwareDaemon):
             self.cooler_power[intf] = [0]*nHW
             self.cam_info[intf] = [0]*nHW
             self.serial_number[intf] = [0]*nHW
+            self.target_temp[intf] = [0]*nHW
 
         self.active_tel = []
         self.obs_times = {}
@@ -84,8 +86,6 @@ class CamDaemon(HardwareDaemon):
         self.run_number = 0
 
         self.current_exposure = None
-
-        self.target_temp = 0
 
         self.dependency_error = 0
         self.dependency_check_time = 0
@@ -158,6 +158,7 @@ class CamDaemon(HardwareDaemon):
                         else:
                             info['status'+tel] = 'Ready'
                         info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
+                        info['target_temp'+tel] = self.target_temp[intf][HW]
                         info['base_temp'+tel] = self.base_temp[intf][HW]
                         info['cooler_power'+tel] = self.cooler_power[intf][HW]
                         info['serial_number'+tel] = self.serial_number[intf][HW]
@@ -270,9 +271,9 @@ class CamDaemon(HardwareDaemon):
             # set camera temperature
             if self.set_temp_flag:
                 try:
-                    target_temp = self.target_temp
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
+                        target_temp = self.target_temp[intf][HW]
                         self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
                         fli = fli_proxies[intf]
                         try:
@@ -469,8 +470,9 @@ class CamDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
-        self.target_temp = target_temp
         for tel in tel_list:
+            intf, HW = params.TEL_DICT[tel]
+            self.target_temp[intf][HW] = target_temp
             self.active_tel += [tel]
 
         # Set flag
@@ -702,7 +704,7 @@ class CamDaemon(HardwareDaemon):
         header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
         header["CCDTEMP "] = (self.ccd_temp[intf][HW], "CCD temperature, C")
-        header["CCDTEMPS"] = (self.target_temp, "Requested CCD temperature, C")
+        header["CCDTEMPS"] = (self.target_temp[intf][HW], "Requested CCD temperature, C")
         header["BASETEMP"] = (self.base_temp[intf][HW], "Peltier base temperature, C")
 
 
