@@ -197,10 +197,11 @@ def print_info(info):
         if info['status'+str(tel)] != 'Exposing':
             print('Status: %s' %info['status'+str(tel)])
         else:
-            print('Status: %s r%07d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
-        print('Frame type:       %s' %info['frametype'+str(tel)])
-        print('Exposure time:    %.2fs' %info['exptime'+str(tel)])
-        print('Binning:          %i' %(info['binning'+str(tel)]))
+            print('Status: %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            if info['current_exposure'] and tel in info['current_exposure'].tel_list:
+                print('Exposure time:    %.2fs' %info['current_exposure'].exptime)
+                print('Binning:          %i' %info['current_exposure'].binning)
+                print('Frame type:       %s' %info['current_exposure'].frametype)
         print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
         print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
         print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
@@ -218,7 +219,7 @@ def print_info_s(info):
             print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
             print('  [%s]' %info['status'+str(tel)])
         else:
-            print('  %s r%07d (%.2f)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            print('  %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\

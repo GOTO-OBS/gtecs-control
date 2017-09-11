@@ -60,9 +60,6 @@ class CamDaemon(HardwareDaemon):
 
         self.remaining = {}
         self.exposing_flag = {}
-        self.exptime = {}
-        self.frametype = {}
-        self.binning = {}
         self.ccd_temp = {}
         self.base_temp = {}
         self.cooler_power = {}
@@ -73,9 +70,6 @@ class CamDaemon(HardwareDaemon):
             nHW = len(params.FLI_INTERFACES[intf]['TELS'])
             self.remaining[intf] = [0]*nHW
             self.exposing_flag[intf] = [0]*nHW
-            self.exptime[intf] = [1]*nHW
-            self.frametype[intf] = ['normal']*nHW
-            self.binning[intf] = [1]*nHW
             self.ccd_temp[intf] = [0]*nHW
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
@@ -152,6 +146,7 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
+                    info['current_exposure'] = self.current_exposure
                     for tel in params.TEL_DICT:
                         intf, HW = params.TEL_DICT[tel]
                         tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
@@ -162,14 +157,10 @@ class CamDaemon(HardwareDaemon):
                             info['status'+tel] = 'Reading'
                         else:
                             info['status'+tel] = 'Ready'
-                        info['frametype'+tel] = self.frametype[intf][HW]
-                        info['exptime'+tel] = self.exptime[intf][HW]
-                        info['binning'+tel] = self.binning[intf][HW]
                         info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
                         info['base_temp'+tel] = self.base_temp[intf][HW]
                         info['cooler_power'+tel] = self.cooler_power[intf][HW]
                         info['serial_number'+tel] = self.serial_number[intf][HW]
-
                     info['run_number'] = self.run_number
                     info['uptime'] = time.time()-self.start_time
                     info['ping'] = time.time()-self.time_check
@@ -191,9 +182,6 @@ class CamDaemon(HardwareDaemon):
                     frametype = self.current_exposure.frametype
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.exptime[intf][HW] = exptime
-                        self.binning[intf][HW] = binning
-                        self.frametype[intf][HW] = frametype
                         self.logfile.info('Taking exposure (%is, %ix%i, %s) on camera %i (%s-%i)',
                                            exptime, binning, binning, frametype, tel, intf, HW)
                         fli = fli_proxies[intf]
