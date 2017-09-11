@@ -101,51 +101,57 @@ def query(command, args):
     # Daemon functions
     elif command == 'image':
         # parse arguments
-        if len(args) == 1 and misc.is_num(args[0]):
+        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
-        elif len(args) == 2 and misc.is_num(args[1]):
+            binning = float(args[1])
+        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
+            binning = float(args[2])
         else:
             raise misc.InputError('Invalid arguments')
         # set spec
         spec = ['NA', 'SCIENCE', 1, 1]
         daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_image', [exptime, tel_list])
+        reply = daemons.daemon_function(daemon_ID, 'take_image', [exptime, binning, tel_list])
         print(reply)
 
     elif command == 'dark':
         # parse arguments
-        if len(args) == 1 and misc.is_num(args[0]):
+        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
-        elif len(args) == 2 and misc.is_num(args[1]):
+            binning = float(args[1])
+        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
+            binning = float(args[2])
         else:
             raise misc.InputError('Invalid arguments')
         # set spec
         spec = ['NA', 'DARK', 1, 1]
         daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, tel_list])
+        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, binning, tel_list])
         print(reply)
 
     elif command == 'bias':
         # parse arguments
-        if len(args) == 0:
+        if len(args) == 1:
             tel_list = list(params.TEL_DICT)
-        elif len(args) == 1:
+            binning = float(args[0])
+        elif len(args) == 2:
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            binning = float(args[1])
         else:
             raise misc.InputError('Invalid arguments')
         # set spec
         spec = ['NA', 'BIAS', 1, 1]
         daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_bias', [tel_list])
+        reply = daemons.daemon_function(daemon_ID, 'take_bias', [binning, tel_list])
         print(reply)
 
     elif command == 'abort':
@@ -172,20 +178,6 @@ def query(command, args):
             raise misc.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, tell_list])
-        print(reply)
-
-    elif command in ['bin', 'bins', 'binning']:
-        # parse arguments
-        if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = list(params.TEL_DICT)
-            binning = int(args[0])
-        elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
-            binning = int(args[1])
-        else:
-            raise misc.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function(daemon_ID, 'set_binning', [binning, tel_list])
         print(reply)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -229,24 +221,23 @@ def print_info_s(info):
 def print_instructions():
     help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('start') + '                - start the daemon' + '\n' +\
-    '  cam ' + misc.bold('shutdown') + '             - shutdown the daemon' + '\n' +\
-    '  cam ' + misc.bold('restart') + '              - restart the daemon' + '\n' +\
-    '  cam ' + misc.bold('kill') + '                 - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  cam ' + misc.bold('ping') + '                 - ping the daemon' + '\n' +\
+    '  cam ' + misc.bold('start') + '                        - start the daemon' + '\n' +\
+    '  cam ' + misc.bold('shutdown') + '                     - shutdown the daemon' + '\n' +\
+    '  cam ' + misc.bold('restart') + '                      - restart the daemon' + '\n' +\
+    '  cam ' + misc.bold('kill') + '                         - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
+    '  cam ' + misc.bold('ping') + '                         - ping the daemon' + '\n' +\
     ' ' + misc.undl('Camera commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('image') + ' [tels] exptime' + ' - take a normal exposure' + '\n' +\
-    '  cam ' + misc.bold('dark') + ' [tels] exptime' + '  - take a dark frame' + '\n' +\
-    '  cam ' + misc.bold('bias') + ' [tels]' + '          - take a bias frame' + '\n' +\
-    '  cam ' + misc.bold('abort') + ' [tels]' + '         - abort current exposure' + '\n' +\
-    '  cam ' + misc.bold('bin') + ' [tels] binning' + '   - set binning factor' + '\n' +\
-    '  cam ' + misc.bold('temp') + ' [tels] temp' + '     - set camera temperature' + '\n' +\
-    '  cam ' + misc.bold('info') + ' [v]' + '             - report current status' + '\n' +\
-    '  cam ' + misc.bold('log') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
+    '  cam ' + misc.bold('image') + ' [tels] exptime binning' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + misc.bold('dark') + ' [tels] exptime binning' + '  - take a dark frame' + '\n' +\
+    '  cam ' + misc.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
+    '  cam ' + misc.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\
+    '  cam ' + misc.bold('temp') + ' [tels] temp' + '             - set camera temperature' + '\n' +\
+    '  cam ' + misc.bold('info') + ' [v]' + '                     - report current status' + '\n' +\
+    '  cam ' + misc.bold('log') + ' [stdout]' + '                 - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('i') + '                    - enter interactive mode' + '\n' +\
-    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '               - quit interactive mode' + '\n' +\
-    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '               - print these instructions'
+    '  cam ' + misc.bold('i') + '                            - enter interactive mode' + '\n' +\
+    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '                       - quit interactive mode' + '\n' +\
+    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '                       - print these instructions'
     print(help_str)
 
 ########################################################################

@@ -48,7 +48,6 @@ class CamDaemon(HardwareDaemon):
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
-        self.set_binning_flag = 0
 
         ### camera variables
         self.info = {}
@@ -192,21 +191,29 @@ class CamDaemon(HardwareDaemon):
                 try:
                     exptime = self.target_exptime
                     exptime_ms = exptime*1000.
+                    binning = self.target_binning
                     frametype = self.target_frametype
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
                         self.exptime[intf][HW] = self.target_exptime
+                        self.binning[intf][HW] = self.target_binning
                         self.frametype[intf][HW] = self.target_frametype
-                        self.logfile.info('Taking exposure (%is, %s) on camera %i (%s-%i)',
-                                           exptime, frametype, tel, intf, HW)
+                        self.logfile.info('Taking exposure (%is, %ix%i, %s) on camera %i (%s-%i)',
+                                           exptime, binning, binning, frametype, tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
                             fli.clear_exposure_queue(HW)
-                            c = fli.set_camera_area(0, 0, 8304, 6220, HW)
-                            if c: self.logfile.info(c)
+                            # set exposure time and frame type
                             c = fli.set_exposure(exptime_ms,frametype,HW)
                             if c: self.logfile.info(c)
+                            # set binning factor
+                            c = fli.set_camera_binning(binning,binning,HW)
+                            if c: self.logfile.info(c)
+                            # set area (always full-frame)
+                            c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                            if c: self.logfile.info(c)
+                            # start the exposure
                             self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
                             c = fli.start_exposure(HW)
                             if c: self.logfile.info(c)
@@ -297,31 +304,6 @@ class CamDaemon(HardwareDaemon):
                 self.active_tel = []
                 self.set_temp_flag = 0
 
-            # set binning
-            if self.set_binning_flag:
-                try:
-                    binning = self.target_binning
-                    for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
-                        if self.exposing_flag[intf][HW] == 1:
-                            self.logfile.info('Not setting binning on camera %i (%s-%i) as it is exposing', tel, intf, HW)
-                        else:
-                            self.binning[intf][HW] = self.target_binning
-                            self.logfile.info('Setting binning on camera %i (%s-%i) to %i', tel, intf, HW, binning)
-                            fli = fli_proxies[intf]
-                            try:
-                                fli._pyroReconnect()
-                                c = fli.set_camera_binning(binning,binning,HW)
-                                if c: self.logfile.info(c)
-                            except:
-                                self.logfile.error('No response from fli interface on %s', intf)
-                                self.logfile.debug('', exc_info=True)
-                except:
-                    self.logfile.error('set_temp command failed')
-                    self.logfile.debug('', exc_info=True)
-                self.active_tel = []
-                self.set_binning_flag = 0
-
             time.sleep(0.0001) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
@@ -343,25 +325,25 @@ class CamDaemon(HardwareDaemon):
         return self.info
 
 
-    def take_image(self, exptime, tel_list):
+    def take_image(self, exptime, binning, tel_list):
         """Take image with camera"""
         # Use the common function
-        return self._take_frame(exptime, 'image', tel_list)
+        return self._take_frame(exptime, binning, 'image', tel_list)
 
 
-    def take_dark(self, exptime, tel_list):
+    def take_dark(self, exptime, binning, tel_list):
         """Take dark frame with camera"""
         # Use the common function
-        return self._take_frame(exptime, 'dark', tel_list)
+        return self._take_frame(exptime, binning, 'dark', tel_list)
 
 
-    def take_bias(self, tel_list):
+    def take_bias(self, binning, tel_list):
         """Take bias frame with camera"""
         # Use the common function
-        return self._take_frame(params.BIASEXP, 'bias', tel_list)
+        return self._take_frame(params.BIASEXP, binning, 'bias', tel_list)
 
 
-    def _take_frame(self, exptime, exp_type, tel_list):
+    def _take_frame(self, exptime, binning, exp_type, tel_list):
         """Take a frame with camera"""
         # Check restrictions
         if self.dependency_error:
@@ -370,6 +352,8 @@ class CamDaemon(HardwareDaemon):
         # Check input
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
         if exp_type not in ['image', 'dark', 'bias']:
             raise ValueError("Exposure type must be 'image', 'dark' or 'bias'")
         for tel in tel_list:
@@ -391,6 +375,7 @@ class CamDaemon(HardwareDaemon):
 
         # Set values
         self.target_exptime = exptime
+        self.target_binning = binning
         if exp_type == 'image':
             self.target_frametype = 'normal'
         elif exp_type == 'dark' or exp_type == 'bias':
@@ -468,35 +453,6 @@ class CamDaemon(HardwareDaemon):
         for tel in tel_list:
             s += '\n  '
             s += 'Setting temperature on camera %i' %tel
-        return s
-
-
-    def set_binning(self, binning, tel_list):
-        """Set the image binning"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
-        # Check input
-        if int(binning) < 1 or (int(binning) - binning) != 0:
-            raise ValueError('Binning factor must be a positive integer')
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
-
-        # Set values
-        self.target_binning = binning
-        for tel in tel_list:
-            self.active_tel += [tel]
-
-        # Set flag
-        self.set_binning_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        for tel in tel_list:
-            s += '\n  '
-            s += 'Setting image binning on camera %i' %tel
         return s
 
 
