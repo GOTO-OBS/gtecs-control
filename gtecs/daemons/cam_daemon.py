@@ -382,7 +382,8 @@ class CamDaemon(HardwareDaemon):
         s = 'Exposing r{:07d}:'.format(self.run_number)
         for tel in tel_list:
             s += '\n  '
-            s += 'Taking {:.2f}s {} on camera {}'.format(exptime, exp_type, tel)
+            s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
+                                              binning, binning, frametype, tel)
         return s
 
 
@@ -447,7 +448,8 @@ class CamDaemon(HardwareDaemon):
         s = 'Exposing r{:07d}:'.format(self.run_number)
         for tel in tel_list:
             s += '\n  '
-            s += 'Taking {:.2f}s {} on camera {}'.format(exptime, exp_type, tel)
+            s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
+                                              binning, binning, frametype, tel)
         return s
 
 
