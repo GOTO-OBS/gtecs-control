@@ -141,9 +141,11 @@ def query(command, args):
         # parse arguments
         if len(args) == 1:
             tel_list = list(params.TEL_DICT)
+            exptime = 0.0
             binning = float(args[0])
         elif len(args) == 2:
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            exptime = 0.0
             binning = float(args[1])
         else:
             raise misc.InputError('Invalid arguments')
@@ -151,7 +153,7 @@ def query(command, args):
         spec = ['NA', 'BIAS', 1, 1]
         daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_bias', [binning, tel_list])
+        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, binning, tel_list])
         print(reply)
 
     elif command == 'abort':
