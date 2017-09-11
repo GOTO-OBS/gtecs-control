@@ -162,7 +162,6 @@ FILTER_LIST = config['FILTER_LIST']
 
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
-DARKFILT = config['DARKFILT'] #as an example
 BIASEXP = config['BIASEXP'] #seconds, as an example
 CCD_TEMP = config['CCD_TEMP']
 

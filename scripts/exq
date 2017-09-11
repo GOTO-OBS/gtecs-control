@@ -217,7 +217,7 @@ def query(command, args):
             # exptime binning
             tel_list  = list(params.TEL_DICT)
             exptime   = float(args[0])
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[1])
             frametype = 'dark'
             target    = 'NA'
@@ -226,7 +226,7 @@ def query(command, args):
             # tels exptime binning
             tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime   = float(args[1])
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[2])
             frametype = 'dark'
             target    = 'NA'
@@ -247,7 +247,7 @@ def query(command, args):
             Nexp      = int(args[0])
             tel_list  = list(params.TEL_DICT)
             exptime   = float(args[1])
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[2])
             frametype = 'dark'
             target    = 'NA'
@@ -261,7 +261,7 @@ def query(command, args):
             Nexp      = int(args[0])
             tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
             exptime   = float(args[2])
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[3])
             frametype = 'dark'
             target    = 'NA'
@@ -285,7 +285,7 @@ def query(command, args):
             # binning
             tel_list  = list(params.TEL_DICT)
             exptime   = params.BIASEXP
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[0])
             frametype = 'dark'
             target    = 'NA'
@@ -294,7 +294,7 @@ def query(command, args):
             # tels binning
             tel_list  = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime   = params.BIASEXP
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[1])
             frametype = 'dark'
             target    = 'NA'
@@ -315,7 +315,7 @@ def query(command, args):
             Nexp      = int(args[0])
             tel_list  = list(params.TEL_DICT)
             exptime   = params.BIASEXP
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[1])
             frametype = 'dark'
             target    = 'NA'
@@ -329,7 +329,7 @@ def query(command, args):
             Nexp      = int(args[0])
             tel_list  = misc.valid_ints(args[1].split(','),list(params.TEL_DICT))
             exptime   = params.BIASEXP
-            filt      = params.DARKFILT
+            filt      = None # Dark
             binning   = int(args[2])
             frametype = 'dark'
             target    = 'NA'
