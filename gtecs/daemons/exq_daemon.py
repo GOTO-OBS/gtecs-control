@@ -329,7 +329,6 @@ class ExqDaemon(HardwareDaemon):
         tel_list = self.current_exposure.tel_list
         try:
             cam._pyroReconnect()
-            cam.set_binning(binning, tel_list)
             cam.set_spec(self.current_exposure.target,
                          self.current_exposure.imgtype,
                          self.current_exposure.set_pos,
@@ -337,9 +336,9 @@ class ExqDaemon(HardwareDaemon):
                          self.current_exposure.expID)
             time.sleep(0.1)
             if self.current_exposure.frametype == 'normal':
-                cam.take_image(exptime, tel_list)
+                cam.take_image(exptime, binning, tel_list)
             elif self.current_exposure.frametype == 'dark':
-                cam.take_dark(exptime, tel_list)
+                cam.take_dark(exptime, binning, tel_list)
         except:
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
