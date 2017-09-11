@@ -31,6 +31,7 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules import astronomy
 from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.controls.exq_control import Exposure
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
@@ -83,19 +84,14 @@ class CamDaemon(HardwareDaemon):
 
         self.active_tel = []
         self.obs_times = {}
-        self.target_exptime = 0
-        self.target_frametype = 0
-        self.target_binning = 1
-        self.target_temp = 0
+
         self.finished = 0
         self.saving_flag = 0
         self.run_number = 0
-        self.target = 'NA'
-        self.imgtype = 'MANUAL'
-        self.set_pos = 1
-        self.set_total = 1
-        self.expID = 0
-        self.stored_tel_list = []
+
+        self.current_exposure = None
+
+        self.target_temp = 0
 
         self.dependency_error = 0
         self.dependency_check_time = 0
@@ -189,15 +185,15 @@ class CamDaemon(HardwareDaemon):
             # take exposure part one - start
             if self.take_exposure_flag:
                 try:
-                    exptime = self.target_exptime
+                    exptime = self.current_exposure.exptime
                     exptime_ms = exptime*1000.
-                    binning = self.target_binning
-                    frametype = self.target_frametype
+                    binning = self.current_exposure.binning
+                    frametype = self.current_exposure.frametype
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.exptime[intf][HW] = self.target_exptime
-                        self.binning[intf][HW] = self.target_binning
-                        self.frametype[intf][HW] = self.target_frametype
+                        self.exptime[intf][HW] = exptime
+                        self.binning[intf][HW] = binning
+                        self.frametype[intf][HW] = frametype
                         self.logfile.info('Taking exposure (%is, %ix%i, %s) on camera %i (%s-%i)',
                                            exptime, binning, binning, frametype, tel, intf, HW)
                         fli = fli_proxies[intf]
@@ -368,17 +364,12 @@ class CamDaemon(HardwareDaemon):
             f.write('{:07d}'.format(self.run_number))
 
         # Set values
-        self.target_exptime = exptime
-        self.target_binning = binning
-        self.target_frametype = frametype
-        self.stored_tel_list = tel_list
+        exposure = Exposure(tel_list, exptime,
+                            binning=binning, frametype=frametype,
+                            target='NA', imgtype=imgtype)
+        self.current_exposure = exposure
         for tel in tel_list:
             self.active_tel += [tel]
-        self.target = 'NA'
-        self.imgtype = imgtype
-        self.set_pos = 1
-        self.set_total = 1
-        self.expID = 0
 
         # Set flag
         self.take_exposure_flag = 1
@@ -414,12 +405,6 @@ class CamDaemon(HardwareDaemon):
         if frametype not in ['normal', 'dark']:
             raise ValueError("Frame type must be 'normal' or 'dark'")
 
-        target = exposure.target
-        imgtype = exposure.imgtype
-        set_pos = exposure.set_pos
-        set_total = exposure.set_total
-        expID = exposure.expID
-
         # Check current status
         for tel in self.active_tel:
             intf, HW = params.TEL_DICT[tel]
@@ -434,17 +419,9 @@ class CamDaemon(HardwareDaemon):
             f.write('{:07d}'.format(self.run_number))
 
         # Set values
-        self.target_exptime = exptime
-        self.target_binning = binning
-        self.target_frametype = frametype
-        self.stored_tel_list = tel_list
+        self.current_exposure = exposure
         for tel in tel_list:
             self.active_tel += [tel]
-        self.target = target
-        self.imgtype = imgtype
-        self.set_pos = set_pos
-        self.set_total = set_total
-        self.expID = expID
 
         # Set flag
         self.take_exposure_flag = 1
@@ -582,7 +559,7 @@ class CamDaemon(HardwareDaemon):
         header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
 
         intf, HW = params.TEL_DICT[tel]
-        ut_mask = misc.ut_list_to_mask(self.stored_tel_list)
+        ut_mask = misc.ut_list_to_mask(self.current_exposure.tel_list)
         ut_string = misc.ut_mask_to_string(ut_mask)
         header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
         header["UT      "] = (tel, "Integer UT number")
@@ -594,10 +571,10 @@ class CamDaemon(HardwareDaemon):
 
         observer = misc.get_observer()
         header["OBSERVER"] = (observer, "Who started the exposure")
-        header["OBJECT  "] = (self.target, "Observed object name")
+        header["OBJECT  "] = (self.current_exposure.target, "Observed object name")
 
-        header["SET-POS "] = (self.set_pos, "Position of this exposure in this set")
-        header["SET-TOT "] = (self.set_total, "Total number of exposures in this set")
+        header["SET-POS "] = (self.current_exposure.set_pos, "Position of this exposure in this set")
+        header["SET-TOT "] = (self.current_exposure.set_total, "Total number of exposures in this set")
 
         header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
         header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
@@ -606,11 +583,11 @@ class CamDaemon(HardwareDaemon):
 
 
         # Exposure data
-        header["EXPTIME "] = (self.target_exptime, "Exposure time, seconds")
+        header["EXPTIME "] = (self.current_exposure.exptime, "Exposure time, seconds")
 
         start_time = Time(self.obs_times[tel])
         start_time.precision = 0
-        mid_time = start_time + (self.target_exptime*u.second)/2.
+        mid_time = start_time + (self.current_exposure.exptime*u.second)/2.
         header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
         header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
 
@@ -626,8 +603,8 @@ class CamDaemon(HardwareDaemon):
 
 
         # Frame info
-        header["FRMTYPE "] = (self.target_frametype, "Frame type (shutter open/closed)")
-        header["IMGTYPE "] = (self.imgtype, "Image type")
+        header["FRMTYPE "] = (self.current_exposure.frametype, "Frame type (shutter open/closed)")
+        header["IMGTYPE "] = (self.current_exposure.imgtype, "Image type")
 
         header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
         header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
@@ -661,11 +638,11 @@ class CamDaemon(HardwareDaemon):
         eventIVO = 'NA'
         eventSource = 'NA'
 
-        if self.expID != 0:
+        if self.current_exposure.expID != 0:
             from_db = True
             from gtecs import database as db
             with db.open_session() as session:
-                expsetID = self.expID
+                expsetID = self.current_exposure.expID
                 expset = session.query(db.ExposureSet).filter(
                          db.ExposureSet.expID == expsetID).one_or_none()
 
@@ -728,11 +705,11 @@ class CamDaemon(HardwareDaemon):
         cam_serial = self.cam_info[intf][HW]['serial_number']
         header["CAMERA  "] = (cam_serial, "Camera serial number")
 
-        header["XBINNING"] = (self.target_binning, "CCD x binning factor")
-        header["YBINNING"] = (self.target_binning, "CCD y binning factor")
+        header["XBINNING"] = (self.current_exposure.binning, "CCD x binning factor")
+        header["YBINNING"] = (self.current_exposure.binning, "CCD y binning factor")
 
-        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*self.target_binning
-        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*self.target_binning
+        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*self.current_exposure.binning
+        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*self.current_exposure.binning
         header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
         header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
