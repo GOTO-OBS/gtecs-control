@@ -179,7 +179,7 @@ def query(command, args):
         else:
             raise misc.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, tell_list])
+        reply = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, tel_list])
         print(reply)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
