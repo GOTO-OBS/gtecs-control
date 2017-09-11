@@ -146,8 +146,8 @@ def print_info(info):
             print('Status: %s' %info['status'+str(tel)])
             if info['current_filter_num'+str(tel)] != -1:
                 current_filter_num = info['current_filter_num'+str(tel)]
-                current_filter = params.FILTER_LIST[current_filter_num])
-                print('Current filter:     %s' %current_filter
+                current_filter = params.FILTER_LIST[current_filter_num]
+                print('Current filter:     %s' %current_filter)
             else:
                 print('Current filter: UNHOMED')
         else:
@@ -168,7 +168,7 @@ def print_info_s(info):
         if info['status'+str(tel)] != 'Moving':
             if info['current_filter_num'+str(tel)] != -1:
                 current_filter_num = info['current_filter_num'+str(tel)]
-                current_filter = params.FILTER_LIST[current_filter_num])
+                current_filter = params.FILTER_LIST[current_filter_num]
                 print('  Current filter: %s' %current_filter, end=' ')
             else:
                 print('  Current filter: UNHOMED', end=' ')
