@@ -105,17 +105,17 @@ def query(command, args):
             tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
             binning = float(args[1])
+            imgtype = 'SCIENCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
             binning = float(args[2])
+            imgtype = 'SCIENCE'
         else:
             raise misc.InputError('Invalid arguments')
-        # set spec
-        spec = ['NA', 'SCIENCE', 1, 1]
-        daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_image', [exptime, binning, tel_list])
+        arg_list = [exptime, binning, imgtype, tel_list]
+        reply = daemons.daemon_function(daemon_ID, 'take_image', arg_list)
         print(reply)
 
     elif command == 'dark':
@@ -124,17 +124,17 @@ def query(command, args):
             tel_list = list(params.TEL_DICT)
             exptime = float(args[0])
             binning = float(args[1])
+            imgtype = 'DARK'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = float(args[1])
             binning = float(args[2])
+            imgtype = 'DARK'
         else:
             raise misc.InputError('Invalid arguments')
-        # set spec
-        spec = ['NA', 'DARK', 1, 1]
-        daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, binning, tel_list])
+        arg_list = [exptime, binning, imgtype, tel_list]
+        reply = daemons.daemon_function(daemon_ID, 'take_dark', arg_list)
         print(reply)
 
     elif command == 'bias':
@@ -143,17 +143,17 @@ def query(command, args):
             tel_list = list(params.TEL_DICT)
             exptime = 0.0
             binning = float(args[0])
+            imgtype = 'BIAS'
         elif len(args) == 2:
             tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
             exptime = 0.0
             binning = float(args[1])
+            imgtype = 'BIAS'
         else:
             raise misc.InputError('Invalid arguments')
-        # set spec
-        spec = ['NA', 'BIAS', 1, 1]
-        daemons.daemon_function(daemon_ID, 'set_spec', spec)
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'take_dark', [exptime, binning, tel_list])
+        arg_list = [exptime, binning, imgtype, tel_list]
+        reply = daemons.daemon_function(daemon_ID, 'take_dark', arg_list)
         print(reply)
 
     elif command == 'abort':
