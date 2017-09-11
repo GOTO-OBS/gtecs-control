@@ -386,6 +386,71 @@ class CamDaemon(HardwareDaemon):
         return s
 
 
+    def take_exposure(self, exposure):
+        """Take an exposure with the camera from an Exposure object"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        tel_list = exposure.tel_list
+        exptime = exposure.exptime
+        binning = exposure.binning
+        frametype = exposure.frametype
+
+        for tel in tel_list:
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+        if int(exptime) < 0:
+            raise ValueError('Exposure time must be > 0')
+        if int(binning) < 1 or (int(binning) - binning) != 0:
+            raise ValueError('Binning factor must be a positive integer')
+        if frametype not in ['normal', 'dark']:
+            raise ValueError("Frame type must be 'normal' or 'dark'")
+
+        target = exposure.target
+        imgtype = exposure.imgtype
+        set_pos = exposure.set_pos
+        set_total = exposure.set_total
+        expID = exposure.expID
+
+        # Check current status
+        for tel in self.active_tel:
+            intf, HW = params.TEL_DICT[tel]
+            if self.exposing_flag[intf][HW] == 1:
+                raise misc.HardwareStatusError('Cameras are already exposing')
+
+        # Find and update run number
+        with open(self.run_number_file, 'r') as f:
+            lines = f.readlines()
+            self.run_number = int(lines[0]) + 1
+        with open(self.run_number_file, 'w') as f:
+            f.write('{:07d}'.format(self.run_number))
+
+        # Set values
+        self.target_exptime = exptime
+        self.target_binning = binning
+        self.target_frametype = frametype
+        self.stored_tel_list = tel_list
+        for tel in tel_list:
+            self.active_tel += [tel]
+        self.target = target
+        self.imgtype = imgtype
+        self.set_pos = set_pos
+        self.set_total = set_total
+        self.expID = expID
+
+        # Set flag
+        self.take_exposure_flag = 1
+
+        # Format return string
+        s = 'Exposing r{:07d}:'.format(self.run_number)
+        for tel in tel_list:
+            s += '\n  '
+            s += 'Taking {:.2f}s {} on camera {}'.format(exptime, exp_type, tel)
+        return s
+
+
     def abort_exposure(self, tel_list):
         """Abort current exposure"""
         # Check restrictions
