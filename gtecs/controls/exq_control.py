@@ -29,7 +29,7 @@ class Exposure:
     Exposures contain the folowing infomation:
     - tel_list    [lst] -- REQUIRED --
     - exptime     [int] -- REQUIRED --
-    - filt        [str] -- REQUIRED --
+    - filt        [str] <default = None>
     - binning     [int] <default = 1>
     - frame type  [str] <default = 'normal'>
     - target      [str] <default = 'NA'>
@@ -38,8 +38,9 @@ class Exposure:
     - set_total   [int] <default = 1>
     - expID       [int] <default = None>
     """
-    def __init__(self, tel_list, exptime, filt,
-                 binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+    def __init__(self, tel_list, exptime,
+                 filt=None, binning=1, frametype='normal',
+                 target='NA', imgtype='SCIENCE',
                  set_pos=1, set_total=1, expID=None):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
@@ -65,7 +66,7 @@ class Exposure:
         ls = line.split(';')
         tel_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
-        filt = ls[2]
+        filt = ls[2] if ls[2] != 'None' else None
         binning = int(ls[3])
         frametype = ls[4]
         target = ls[5]

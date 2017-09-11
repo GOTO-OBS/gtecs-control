@@ -99,17 +99,23 @@ class ExqDaemon(HardwareDaemon):
                 self.current_exposure = self.exp_queue.pop(0)
                 self.logfile.info('Taking exposure')
                 self.working = 1
-                # we need to set filter and take image
-                try:
-                    self._set_filter(filt)
-                except:
-                    self.logfile.error('set_filter command failed')
-                    self.logfile.debug('', exc_info=True)
+
+                # set the filter, if the exposure has one defined
+                if self.current_exposure.filt is not None:
+                    try:
+                        self._set_filter(filt)
+                    except:
+                        self.logfile.error('set_filter command failed')
+                        self.logfile.debug('', exc_info=True)
+
+                # take the image
                 try:
                     self._take_image(cam)
                 except:
                     self.logfile.error('take_image command failed')
                     self.logfile.debug('', exc_info=True)
+
+                # done!
                 self.working = 0
 
             elif self.queue_len == 0 or self.paused:
@@ -156,8 +162,9 @@ class ExqDaemon(HardwareDaemon):
         return info
 
 
-    def add(self, tel_list, exptime, filt,
-            binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
+    def add(self, tel_list, exptime,
+            filt=None, binning=1, frametype='normal',
+            target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
@@ -169,7 +176,7 @@ class ExqDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in params.FILTER_LIST:
+        if filt and filt.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
@@ -177,7 +184,8 @@ class ExqDaemon(HardwareDaemon):
             raise ValueError("Frame type must be 'normal' or 'dark'")
 
         # Call the command
-        exposure = Exposure(tel_list, exptime, filt.upper(),
+        exposure = Exposure(tel_list, exptime,
+                            filt.upper() if filt else None,
                             binning, frametype,
                             target.replace(';', ''),
                             imgtype.replace(';', ''))
@@ -190,8 +198,9 @@ class ExqDaemon(HardwareDaemon):
         return s
 
 
-    def add_multi(self, Nexp, tel_list, exptime, filt,
-                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+    def add_multi(self, Nexp, tel_list, exptime,
+                  filt=None, binning=1, frametype='normal',
+                  target='NA', imgtype='SCIENCE',
                   expID = 0):
         """Add multiple exposures to the queue as a set"""
         # Check restrictions
@@ -204,7 +213,7 @@ class ExqDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in params.FILTER_LIST:
+        if filt and filt.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
@@ -215,7 +224,8 @@ class ExqDaemon(HardwareDaemon):
         for i in range(Nexp):
             set_pos = i+1
             set_total = Nexp
-            exposure = Exposure(tel_list, exptime, filt.upper(),
+            exposure = Exposure(tel_list, exptime,
+                                filt.upper() if filt else None,
                                 binning, frametype,
                                 target.replace(';', ''),
                                 imgtype.replace(';', ''),
