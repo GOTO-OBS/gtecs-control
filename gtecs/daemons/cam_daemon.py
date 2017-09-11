@@ -60,6 +60,7 @@ class CamDaemon(HardwareDaemon):
 
         self.remaining = {}
         self.exposing_flag = {}
+        self.exposure_start_time = {}
         self.ccd_temp = {}
         self.base_temp = {}
         self.cooler_power = {}
@@ -70,6 +71,7 @@ class CamDaemon(HardwareDaemon):
             nHW = len(params.FLI_INTERFACES[intf]['TELS'])
             self.remaining[intf] = [0]*nHW
             self.exposing_flag[intf] = [0]*nHW
+            self.exposure_start_time[intf] = [0]*nHW
             self.ccd_temp[intf] = [0]*nHW
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
@@ -77,7 +79,6 @@ class CamDaemon(HardwareDaemon):
             self.target_temp[intf] = [0]*nHW
 
         self.active_tel = []
-        self.obs_times = {}
 
         self.finished = 0
         self.saving_flag = 0
@@ -154,6 +155,7 @@ class CamDaemon(HardwareDaemon):
                             info['status'+tel] = 'Reading'
                         else:
                             info['status'+tel] = 'Ready'
+                        info['exposure_start_time'+tel] = self.exposure_start_time[intf][HW]
                         info['ccd_temp'+tel] = self.ccd_temp[intf][HW]
                         info['target_temp'+tel] = self.target_temp[intf][HW]
                         info['base_temp'+tel] = self.base_temp[intf][HW]
@@ -199,7 +201,7 @@ class CamDaemon(HardwareDaemon):
                             c = fli.set_camera_area(0, 0, 8304, 6220, HW)
                             if c: self.logfile.info(c)
                             # start the exposure
-                            self.obs_times[tel] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                            self.exposure_start_time[intf][HW] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
                             c = fli.start_exposure(HW)
                             if c: self.logfile.info(c)
                         except:
@@ -575,7 +577,7 @@ class CamDaemon(HardwareDaemon):
         # Exposure data
         header["EXPTIME "] = (self.current_exposure.exptime, "Exposure time, seconds")
 
-        start_time = Time(self.obs_times[tel])
+        start_time = Time(self.exposure_start_time[intf][HW])
         start_time.precision = 0
         mid_time = start_time + (self.current_exposure.exptime*u.second)/2.
         header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
