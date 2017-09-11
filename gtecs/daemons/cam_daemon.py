@@ -778,8 +778,8 @@ class CamDaemon(HardwareDaemon):
 
         header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
         header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(filter_list_str))
-        header["FILTNUM "] = (filt_num, "Filter wheel position number"
-        header["FILTPOS "] = (filt_pos, "Filter wheel motor position"
+        header["FILTNUM "] = (filt_num, "Filter wheel position number")
+        header["FILTPOS "] = (filt_pos, "Filter wheel motor position")
 
         # Mount info
         mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
