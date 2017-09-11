@@ -162,7 +162,6 @@ FILTER_LIST = config['FILTER_LIST']
 
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
-BIASEXP = config['BIASEXP'] #seconds, as an example
 CCD_TEMP = config['CCD_TEMP']
 
 # cant add these to validation without adding unwanted defaults

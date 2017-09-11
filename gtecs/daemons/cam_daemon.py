@@ -326,25 +326,19 @@ class CamDaemon(HardwareDaemon):
 
 
     def take_image(self, exptime, binning, tel_list):
-        """Take image with camera"""
+        """Take a normal frame with the camera"""
         # Use the common function
-        return self._take_frame(exptime, binning, 'image', tel_list)
+        return self._take_frame(exptime, binning, 'normal', tel_list)
 
 
     def take_dark(self, exptime, binning, tel_list):
-        """Take dark frame with camera"""
+        """Take dark frame with the camera"""
         # Use the common function
         return self._take_frame(exptime, binning, 'dark', tel_list)
 
 
-    def take_bias(self, binning, tel_list):
-        """Take bias frame with camera"""
-        # Use the common function
-        return self._take_frame(params.BIASEXP, binning, 'bias', tel_list)
-
-
-    def _take_frame(self, exptime, binning, exp_type, tel_list):
-        """Take a frame with camera"""
+    def _take_frame(self, exptime, binning, frametype, tel_list):
+        """Take a frame with the camera"""
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
@@ -354,8 +348,8 @@ class CamDaemon(HardwareDaemon):
             raise ValueError('Exposure time must be > 0')
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if exp_type not in ['image', 'dark', 'bias']:
-            raise ValueError("Exposure type must be 'image', 'dark' or 'bias'")
+        if frametype not in ['normal', 'dark']:
+            raise ValueError("Frame type must be 'normal' or 'dark'")
         for tel in tel_list:
             if tel not in params.TEL_DICT:
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
@@ -376,10 +370,7 @@ class CamDaemon(HardwareDaemon):
         # Set values
         self.target_exptime = exptime
         self.target_binning = binning
-        if exp_type == 'image':
-            self.target_frametype = 'normal'
-        elif exp_type == 'dark' or exp_type == 'bias':
-            self.target_frametype = 'dark'
+        self.target_frametype = frametype
         self.stored_tel_list = tel_list
         for tel in tel_list:
             self.active_tel += [tel]
