@@ -64,7 +64,6 @@ class CamDaemon(HardwareDaemon):
         self.base_temp = {}
         self.cooler_power = {}
         self.cam_info = {}
-        self.serial_number = {}
         self.target_temp = {}
 
         for intf in params.FLI_INTERFACES:
@@ -75,7 +74,6 @@ class CamDaemon(HardwareDaemon):
             self.base_temp[intf] = [0]*nHW
             self.cooler_power[intf] = [0]*nHW
             self.cam_info[intf] = [0]*nHW
-            self.serial_number[intf] = [0]*nHW
             self.target_temp[intf] = [0]*nHW
 
         self.active_tel = []
@@ -140,7 +138,6 @@ class CamDaemon(HardwareDaemon):
                             self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
                             self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
                             self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
-                            self.serial_number[intf][HW] = fli.get_camera_serial_number(HW)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -161,7 +158,10 @@ class CamDaemon(HardwareDaemon):
                         info['target_temp'+tel] = self.target_temp[intf][HW]
                         info['base_temp'+tel] = self.base_temp[intf][HW]
                         info['cooler_power'+tel] = self.cooler_power[intf][HW]
-                        info['serial_number'+tel] = self.serial_number[intf][HW]
+                        info['serial_number'+tel] = self.cam_info[intf][HW]['serial_number']
+                        info['x_pixel_size'+tel] = self.cam_info[intf][HW]['pixel_size'][0]
+                        info['y_pixel_size'+tel] = self.cam_info[intf][HW]['pixel_size'][1]
+
                     info['run_number'] = self.run_number
                     info['uptime'] = time.time()-self.start_time
                     info['ping'] = time.time()-self.time_check
