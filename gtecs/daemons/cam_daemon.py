@@ -208,6 +208,7 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
                         self.exposing_flag[intf][HW] = 1
+                        self.get_info_flag = 1
                 except:
                     self.logfile.error('take_exposure command failed')
                     self.logfile.debug('', exc_info=True)
@@ -363,6 +364,7 @@ class CamDaemon(HardwareDaemon):
             self.active_tel += [tel]
 
         # Set flag
+        self.get_info_flag = 1
         self.take_exposure_flag = 1
 
         # Format return string
