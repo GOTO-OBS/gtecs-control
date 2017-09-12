@@ -506,7 +506,7 @@ class CamDaemon(HardwareDaemon):
         fli._pyroRelease()
         return future_image
 
-    def _image_location(self,tel):
+    def _image_location(self, tel):
         # Find the directory, using the date the observing night began
         night = nightStarting()
         direc = params.IMAGE_PATH + night
@@ -518,14 +518,14 @@ class CamDaemon(HardwareDaemon):
 
         return direc + filename
 
-    def _write_fits(self,image,filename,tel):
+    def _write_fits(self, image, filename, tel):
         hdu = pyfits.PrimaryHDU(image)
-        self._update_header(hdu.header,tel)
+        self._update_header(hdu.header, self.info, tel)
         hdulist = pyfits.HDUList([hdu])
         if os.path.exists(filename): os.remove(filename)
         hdulist.writeto(filename)
 
-    def _update_header(self,header,tel):
+    def _update_header(self, header, cam_info, tel):
         """Add observation, exposure and hardware info to the FITS header"""
 
         # These cards are set automatically by AstroPy, we just give them
@@ -541,8 +541,9 @@ class CamDaemon(HardwareDaemon):
 
 
         # Observation info
-        run_id = 'r{:07d}'.format(self.run_number)
-        header["RUN     "] = (self.run_number, "GOTO run number")
+        run_number = cam_info['run_number']
+        run_id = 'r{:07d}'.format(run_number)
+        header["RUN     "] = (run_number, "GOTO run number")
         header["RUN-ID  "] = (run_id, "Padded run ID string")
 
         now = datetime.datetime.utcnow()
@@ -553,7 +554,8 @@ class CamDaemon(HardwareDaemon):
         header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
 
         intf, HW = params.TEL_DICT[tel]
-        ut_mask = misc.ut_list_to_mask(self.current_exposure.tel_list)
+        current_exposure = cam_info['current_exposure']
+        ut_mask = misc.ut_list_to_mask(current_exposure.tel_list)
         ut_string = misc.ut_mask_to_string(ut_mask)
         header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
         header["UT      "] = (tel, "Integer UT number")
@@ -565,10 +567,10 @@ class CamDaemon(HardwareDaemon):
 
         observer = misc.get_observer()
         header["OBSERVER"] = (observer, "Who started the exposure")
-        header["OBJECT  "] = (self.current_exposure.target, "Observed object name")
+        header["OBJECT  "] = (current_exposure.target, "Observed object name")
 
-        header["SET-POS "] = (self.current_exposure.set_pos, "Position of this exposure in this set")
-        header["SET-TOT "] = (self.current_exposure.set_total, "Total number of exposures in this set")
+        header["SET-POS "] = (current_exposure.set_pos, "Position of this exposure in this set")
+        header["SET-TOT "] = (current_exposure.set_total, "Total number of exposures in this set")
 
         header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
         header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
@@ -577,11 +579,11 @@ class CamDaemon(HardwareDaemon):
 
 
         # Exposure data
-        header["EXPTIME "] = (self.current_exposure.exptime, "Exposure time, seconds")
+        header["EXPTIME "] = (current_exposure.exptime, "Exposure time, seconds")
 
-        start_time = Time(self.exposure_start_time[intf][HW])
+        start_time = Time(cam_info['exposure_start_time'+str(tel)])
         start_time.precision = 0
-        mid_time = start_time + (self.current_exposure.exptime*u.second)/2.
+        mid_time = start_time + (current_exposure.exptime*u.second)/2.
         header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
         header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
 
@@ -597,8 +599,8 @@ class CamDaemon(HardwareDaemon):
 
 
         # Frame info
-        header["FRMTYPE "] = (self.current_exposure.frametype, "Frame type (shutter open/closed)")
-        header["IMGTYPE "] = (self.current_exposure.imgtype, "Image type")
+        header["FRMTYPE "] = (current_exposure.frametype, "Frame type (shutter open/closed)")
+        header["IMGTYPE "] = (current_exposure.imgtype, "Image type")
 
         header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
         header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
@@ -632,11 +634,11 @@ class CamDaemon(HardwareDaemon):
         eventIVO = 'NA'
         eventSource = 'NA'
 
-        if self.current_exposure.expID != 0:
+        expsetID = current_exposure.expID
+        if expsetID != 0:
             from_db = True
             from gtecs import database as db
             with db.open_session() as session:
-                expsetID = self.current_exposure.expID
                 expset = session.query(db.ExposureSet).filter(
                          db.ExposureSet.expID == expsetID).one_or_none()
 
@@ -696,20 +698,20 @@ class CamDaemon(HardwareDaemon):
         header["SOURCE  "] = (eventSource, "Source of this event")
 
         # Camera info
-        cam_serial = self.cam_info[intf][HW]['serial_number']
+        cam_serial = cam_info['serial_number'+str(tel)]
         header["CAMERA  "] = (cam_serial, "Camera serial number")
 
-        header["XBINNING"] = (self.current_exposure.binning, "CCD x binning factor")
-        header["YBINNING"] = (self.current_exposure.binning, "CCD y binning factor")
+        header["XBINNING"] = (current_exposure.binning, "CCD x binning factor")
+        header["YBINNING"] = (current_exposure.binning, "CCD y binning factor")
 
-        x_pixel_size = self.cam_info[intf][HW]['pixel_size'][0]*self.current_exposure.binning
-        y_pixel_size = self.cam_info[intf][HW]['pixel_size'][1]*self.current_exposure.binning
+        x_pixel_size = cam_info['x_pixel_size'+str(tel)]*current_exposure.binning
+        y_pixel_size = cam_info['y_pixel_size'+str(tel)]*current_exposure.binning
         header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
         header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
-        header["CCDTEMP "] = (self.ccd_temp[intf][HW], "CCD temperature, C")
-        header["CCDTEMPS"] = (self.target_temp[intf][HW], "Requested CCD temperature, C")
-        header["BASETEMP"] = (self.base_temp[intf][HW], "Peltier base temperature, C")
+        header["CCDTEMP "] = (cam_info['ccd_temp'+str(tel)], "CCD temperature, C")
+        header["CCDTEMPS"] = (cam_info['target_temp'+str(tel)], "Requested CCD temperature, C")
+        header["BASETEMP"] = (cam_info['base_temp'+str(tel)], "Peltier base temperature, C")
 
 
         # Focuser info
