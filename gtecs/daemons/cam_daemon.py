@@ -46,7 +46,7 @@ class CamDaemon(HardwareDaemon):
 
         ### camera variables
         self.info = {}
-        self.ftlist = params.FRAMETYPE_LIST
+
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
         self.image = 'None yet'
@@ -331,8 +331,8 @@ class CamDaemon(HardwareDaemon):
             raise ValueError('Exposure time must be > 0')
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
         for tel in tel_list:
             if tel not in params.TEL_DICT:
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
@@ -390,8 +390,8 @@ class CamDaemon(HardwareDaemon):
             raise ValueError('Exposure time must be > 0')
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Check current status
         for tel in self.active_tel:
