@@ -180,8 +180,8 @@ class ExqDaemon(HardwareDaemon):
             raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Call the command
         exposure = Exposure(tel_list, exptime,
@@ -217,8 +217,8 @@ class ExqDaemon(HardwareDaemon):
             raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Call the command
         for i in range(Nexp):
