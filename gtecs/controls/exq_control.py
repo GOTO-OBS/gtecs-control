@@ -59,6 +59,9 @@ class Exposure:
         else:
             self.expID = 0
 
+    def __str__(self):
+        return self.info()
+
     @classmethod
     def from_line(cls, line):
         """Create an Exposure object from a formatted string"""
