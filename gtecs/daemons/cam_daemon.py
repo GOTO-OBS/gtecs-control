@@ -25,6 +25,8 @@ from astropy.time import Time
 import astropy.units as u
 import numpy
 import math
+from concurrent.futures import ThreadPoolExecutor
+
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
@@ -58,6 +60,8 @@ class CamDaemon(HardwareDaemon):
 
         self.image = 'None yet'
         self.images = {} # mapping between telescope and future images
+        self.future_images = {}  # use threads to download future images
+        self.pool = ThreadPoolExecutor(max_workers=4)
 
         self.remaining = {}
         self.exposing_flag = {}
@@ -230,15 +234,25 @@ class CamDaemon(HardwareDaemon):
                         ready = fli.exposure_ready(HW)
                         if ready:
                             self.exposing_flag[intf][HW] = 2
-                            self.images[tel] =  fli.fetch_exposure(HW)
+                            self.future_images[tel] = self.pool.submit(
+                                fli.fetch_exposure, HW
+                            )
                     except:
                         self.logfile.error('No response from fli interface on %s', intf)
                         self.logfile.debug('', exc_info=True)
 
+            # take exposure part two-b - check if fetch_exposure is done
+            for tel in self.active_tel:
+                intf, HW = self.tel_dict[tel]
+                if self.exposing_flag[intf][HW] == 2:
+                    if tel in self.future_images and self.future_images[tel].done():
+                        self.exposing_flag[intf][HW] = 3
+                        self.images[tel] = self.future_images[tel].result()
+
             # take exposure part three - save
             for tel in self.active_tel:
                 intf, HW = self.tel_dict[tel]
-                if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
+                if self.exposing_flag[intf][HW] == 3 and self.images[tel] is not None:
                     # image available
                     image = self.images[tel]
                     # reset entry
@@ -250,7 +264,8 @@ class CamDaemon(HardwareDaemon):
                     self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
                     filename = self._image_location(tel)
                     self.logfile.info('Saving exposure to %s', filename)
-                    self._write_fits(image, filename, tel)
+                    self.pool.submit(self._write_fits,
+                                     image, filename, tel)
                     self.exposing_flag[intf][HW] = 0
                     self.active_tel.pop(self.active_tel.index(tel))
 
