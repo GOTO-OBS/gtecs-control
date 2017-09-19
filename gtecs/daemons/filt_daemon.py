@@ -41,8 +41,6 @@ class FiltDaemon(HardwareDaemon):
 
         ### filter wheel variables
         self.info = {}
-        self.flist = params.FILTER_LIST
-        self.tel_dict = params.TEL_DICT
 
         self.current_pos = {}
         self.current_filter_num = {}
@@ -104,8 +102,8 @@ class FiltDaemon(HardwareDaemon):
             if self.get_info_flag:
                 try:
                     # update variables
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -119,8 +117,8 @@ class FiltDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
                         if self.remaining[intf][HW] > 0:
                             info['status'+tel] = 'Moving'
@@ -147,8 +145,8 @@ class FiltDaemon(HardwareDaemon):
             if self.set_filter_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
-                        new_filter_num = self.flist.index(self.new_filter)
+                        intf, HW = params.TEL_DICT[tel]
+                        new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
                         self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
                                           tel, intf, HW, self.new_filter, new_filter_num)
@@ -171,7 +169,7 @@ class FiltDaemon(HardwareDaemon):
             if self.home_filter_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
 
                         self.logfile.info('Homing filter wheel %i (%s-%i)',
                                           tel, intf, HW)
@@ -218,17 +216,17 @@ class FiltDaemon(HardwareDaemon):
             raise misc.DaemonDependencyError('Dependencies are not running')
 
         # Check input
-        if new_filter.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if new_filter.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if self.remaining[intf][HW] == 0 and self.homed[intf][HW]:
                 self.active_tel += [tel]
         self.new_filter = new_filter
@@ -239,7 +237,7 @@ class FiltDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             s += '\n  '
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)
@@ -258,14 +256,14 @@ class FiltDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if self.remaining[intf][HW] == 0:
                 self.active_tel += [tel]
 
@@ -275,7 +273,7 @@ class FiltDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             s += '\n  '
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Filter wheel %i motor is still moving"' %tel)

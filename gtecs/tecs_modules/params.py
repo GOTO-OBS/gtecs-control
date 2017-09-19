@@ -162,8 +162,6 @@ FILTER_LIST = config['FILTER_LIST']
 
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
-DARKFILT = config['DARKFILT'] #as an example
-BIASEXP = config['BIASEXP'] #seconds, as an example
 CCD_TEMP = config['CCD_TEMP']
 
 # cant add these to validation without adding unwanted defaults
@@ -186,7 +184,7 @@ if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
 else:
     FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
 
-# Queue parameters
+# Exposure Queue parameters
 QUEUE_PATH = CONFIG_PATH
 
 # Power parameters
