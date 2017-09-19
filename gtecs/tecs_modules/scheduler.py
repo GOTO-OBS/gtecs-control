@@ -206,7 +206,7 @@ class Pointing:
         return pointing
 
 
-class Queue:
+class PointingQueue:
     def __init__(self, pointings=None):
         if pointings is None:
             pointings = []
@@ -661,7 +661,7 @@ def check_queue(time, write_html=False):
     if len(pointings) == 0:
         return None, None, None
 
-    queue = Queue(pointings)
+    queue = PointingQueue(pointings)
 
     highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()

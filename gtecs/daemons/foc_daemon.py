@@ -42,7 +42,6 @@ class FocDaemon(HardwareDaemon):
 
         ### focuser variables
         self.info = {}
-        self.tel_dict = params.TEL_DICT
 
         self.limit = {}
         self.current_pos = {}
@@ -107,8 +106,8 @@ class FocDaemon(HardwareDaemon):
             if self.get_info_flag:
                 try:
                     # update variables
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -123,8 +122,8 @@ class FocDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
-                    for tel in self.tel_dict:
-                        intf, HW = self.tel_dict[tel]
+                    for tel in params.TEL_DICT:
+                        intf, HW = params.TEL_DICT[tel]
                         tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
                         if self.remaining[intf][HW] > 0:
                             info['status'+tel] = 'Moving'
@@ -155,7 +154,7 @@ class FocDaemon(HardwareDaemon):
             if self.move_focuser_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
                         move_steps = self.move_steps[intf][HW]
                         new_pos = self.current_pos[intf][HW] + move_steps
 
@@ -180,7 +179,7 @@ class FocDaemon(HardwareDaemon):
             if self.home_focuser_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = self.tel_dict[tel]
+                        intf, HW = params.TEL_DICT[tel]
 
                         self.logfile.info('Homing focuser %i (%s-%i)',
                                           tel, intf, HW)
@@ -232,14 +231,14 @@ class FocDaemon(HardwareDaemon):
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
             raise ValueError('Position must be a positive integer')
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
                 self.active_tel += [tel]
                 self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
@@ -250,7 +249,7 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             s += '\n  '
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
@@ -271,14 +270,14 @@ class FocDaemon(HardwareDaemon):
         if (int(new_pos) - new_pos) != 0:
             raise ValueError('Steps must be an integer')
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             new_pos = self.current_pos[intf][HW] + move_steps
             if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
                 self.active_tel += [tel]
@@ -290,7 +289,7 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             new_pos = self.current_pos[intf][HW] + move_steps
             s += '\n  '
             if self.remaining[intf][HW] > 0:
@@ -310,14 +309,14 @@ class FocDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             if self.remaining[intf][HW] == 0:
                 self.active_tel += [tel]
 
@@ -327,7 +326,7 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = self.tel_dict[tel]
+            intf, HW = params.TEL_DICT[tel]
             s += '\n  '
             if self.remaining[intf][HW] > 0:
                 s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)

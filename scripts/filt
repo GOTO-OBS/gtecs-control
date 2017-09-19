@@ -139,14 +139,15 @@ def query(command, args):
 # Output formatting functions
 
 def print_info(info):
-    flist = params.FILTER_LIST
     print('#### FILTER WHEEL INFO ####')
     for tel in params.TEL_DICT:
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
         if info['status'+str(tel)] != 'Moving':
             print('Status: %s' %info['status'+str(tel)])
             if info['current_filter_num'+str(tel)] != -1:
-                print('Current filter:     %s' %flist[info['current_filter_num'+str(tel)]])
+                current_filter_num = info['current_filter_num'+str(tel)]
+                current_filter = params.FILTER_LIST[current_filter_num]
+                print('Current filter:     %s' %current_filter)
             else:
                 print('Current filter: UNHOMED')
         else:
@@ -162,12 +163,13 @@ def print_info(info):
     print('###########################')
 
 def print_info_s(info):
-    flist = params.FILTER_LIST
     for tel in params.TEL_DICT:
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
         if info['status'+str(tel)] != 'Moving':
             if info['current_filter_num'+str(tel)] != -1:
-                print('  Current filter: %s' %flist[info['current_filter_num'+str(tel)]], end=' ')
+                current_filter_num = info['current_filter_num'+str(tel)]
+                current_filter = params.FILTER_LIST[current_filter_num]
+                print('  Current filter: %s' %current_filter, end=' ')
             else:
                 print('  Current filter: UNHOMED', end=' ')
             print('(%i)' %info['current_filter_num'+str(tel)], end=' ')

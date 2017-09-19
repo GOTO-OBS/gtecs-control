@@ -19,167 +19,12 @@ import Pyro4
 import threading
 import os, sys
 from collections import MutableSequence
-import ast
 # TeCS modules
 from gtecs.tecs_modules import logger
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.tecs_modules.daemons import HardwareDaemon
-
-########################################################################
-# Exposure queue classes
-
-class ExposureSpec:
-    """
-    Exposure specification class
-
-    Contains 3 functions:
-    - line_to_spec(str)
-    - spec_to_line()
-    - info()
-
-    Exposures contain the folowing infomation:
-    - tel_list    [lst] -- REQUIRED --
-    - exptime     [int] -- REQUIRED --
-    - filter      [str] -- REQUIRED --
-    - binning     [int] <default = 1>
-    - frame type  [str] <default = 'normal'>
-    - target      [str] <default = 'NA'>
-    - image type  [str] <default = 'SCIENCE'>
-    - set_pos     [int] <default = 1>
-    - set_total   [int] <default = 1>
-    - expID       [int] <default = None>
-    """
-    def __init__(self, tel_list, exptime, filt,
-                 binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
-                 set_pos = 1, set_total = 1, expID = None):
-        self.creation_time = time.gmtime()
-        self.tel_list = tel_list
-        self.exptime = exptime
-        self.filt = filt
-        self.binning = binning
-        self.frametype = frametype
-        self.target = target
-        self.imgtype = imgtype
-        self.set_pos = set_pos
-        self.set_total = set_total
-        if expID:
-            self.expID = expID
-        else:
-            self.expID = 0
-
-    @classmethod
-    def line_to_spec(cls, line):
-        """Convert a line of data to exposure spec object"""
-        # eg '[1, 2, 4];20;R;2;normal;NA;SCIENCE;1;3;126598'
-        ls = line.split(';')
-        tel_list = ast.literal_eval(ls[0])
-        exptime = float(ls[1])
-        filt = ls[2]
-        binning = int(ls[3])
-        frametype = ls[4]
-        target = ls[5]
-        imgtype = ls[6]
-        set_pos = int(ls[7])
-        set_total = int(ls[8])
-        expID = int(ls[9])
-        exp = cls(tel_list, exptime, filt,
-                  binning, frametype, target, imgtype,
-                  set_pos, set_total, expID)
-        return exp
-
-    def spec_to_line(self):
-        """Convert exposure spec object to a line of data"""
-        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
-           %(self.tel_list, self.exptime, self.filt,
-             self.binning, self.frametype, self.target, self.imgtype,
-             self.set_pos, self.set_total, self.expID)
-        return line
-
-    def info(self):
-        """Return a readable string of summary infomation about the exposure"""
-        s = 'EXPOSURE \n'
-        s += '  '+time.strftime('%Y-%m-%d %H:%M:%S UT',self.creation_time)+'\n'
-        s += '  Unit telescope(s): %s\n' %self.tel_list
-        s += '  Exposure time: %is\n' %self.exptime
-        s += '  Filter: %s\n' %self.filt
-        s += '  Binning: %i\n' %self.binning
-        s += '  Frame type: %s\n' %self.frametype
-        s += '  Target: %s\n' %self.target
-        s += '  Image type: %s\n' %self.imgtype
-        s += '  Position in set: %i\n' %self.set_pos
-        s += '  Total in set: %i\n' %self.set_total
-        s += '  ExposureSet database ID (if any): %i\n' %self.expID
-        return s
-
-class Queue(MutableSequence):
-    """
-    Queue sequence to hold exposures
-
-    Contains 4 functions:
-    - write_to_file()
-    - insert(index,value)
-    - clear()
-    - get()
-    """
-    def __init__(self):
-        self.data = []
-        self.queue_file = os.path.join(params.CONFIG_PATH, 'exposure_queue')
-
-        if not os.path.exists(self.queue_file):
-            f = open(self.queue_file,'w')
-            f.write('#\n')
-            f.close()
-
-        with open(self.queue_file) as f:
-            lines = f.read().splitlines()
-            for line in lines:
-                if not line.startswith('#'):
-                    self.data.append(ExposureSpec.line_to_spec(line))
-
-    def write_to_file(self):
-        """Write the current queue to the queue file"""
-        with open(self.queue_file,'w') as f:
-            for exp in self.data:
-                f.write(exp.spec_to_line())
-
-    def __getitem__(self,index):
-        return self.data[index]
-
-    def __setitem__(self,index,value):
-        self.data[index] = value
-        self.write_to_file()
-
-    def __delitem__(self,index):
-        del self.data[index]
-        self.write_to_file()
-
-    def __len__(self):
-        return len(self.data)
-
-    def insert(self,index,value):
-        """Add an item to the queue at a specified position"""
-        self.data.insert(index,value)
-        self.write_to_file()
-
-    def clear(self):
-        """Empty the current queue and queue file"""
-        self.data = []
-        self.write_to_file()
-
-    def get(self):
-        """Return info() for all exposures in the queue"""
-        s ='%i items in queue:\n' %len(self.data)
-        for i,x in enumerate(self.data):
-            s += str(i+1) + ': ' + x.info()
-        return s.rstrip()
-
-    def get_simple(self):
-        """Return string for all exposures in the queue"""
-        s ='%i items in queue:\n' %len(self.data)
-        for i,x in enumerate(self.data):
-            s += str(i+1) + ': ' + x.spec_to_line()
-        return s.rstrip()
 
 ########################################################################
 # Exposure queue daemon class
@@ -193,12 +38,10 @@ class ExqDaemon(HardwareDaemon):
 
         ### exposure queue variables
         self.info = {}
-        self.flist = params.FILTER_LIST
-        self.tel_dict = params.TEL_DICT
-        self.exp_queue = Queue()
-        self.exp_spec = None
-        self.current_filter = None
-        self.abort = 0
+
+        self.exp_queue = ExposureQueue()
+        self.current_exposure = None
+
         self.working = 0
         self.paused = 1 # start paused
 
@@ -253,20 +96,26 @@ class ExqDaemon(HardwareDaemon):
             self.queue_len = len(self.exp_queue)
             if (self.queue_len > 0) and not self.paused and not self.working:
                 # OK - time to add a new exposure
-                self.exp_spec = self.exp_queue.pop(0)
+                self.current_exposure = self.exp_queue.pop(0)
                 self.logfile.info('Taking exposure')
                 self.working = 1
-                # we need to set filter and take image
-                try:
-                    self._set_filter(filt)
-                except:
-                    self.logfile.error('set_filter command failed')
-                    self.logfile.debug('', exc_info=True)
+
+                # set the filter, if the exposure has one defined
+                if self.current_exposure.filt is not None:
+                    try:
+                        self._set_filter(filt)
+                    except:
+                        self.logfile.error('set_filter command failed')
+                        self.logfile.debug('', exc_info=True)
+
+                # take the image
                 try:
                     self._take_image(cam)
                 except:
                     self.logfile.error('take_image command failed')
                     self.logfile.debug('', exc_info=True)
+
+                # done!
                 self.working = 0
 
             elif self.queue_len == 0 or self.paused:
@@ -295,14 +144,14 @@ class ExqDaemon(HardwareDaemon):
         else:
             info['status'] = 'Ready'
         info['queue_length'] = self.queue_len
-        if self.working and self.exp_spec != None:
-            info['current_tel_list'] = self.exp_spec.tel_list
-            info['current_exptime'] = self.exp_spec.exptime
-            info['current_filter'] = self.exp_spec.filt
-            info['current_binning'] = self.exp_spec.binning
-            info['current_frametype'] = self.exp_spec.frametype
-            info['current_target'] = self.exp_spec.target
-            info['current_imgtype'] = self.exp_spec.imgtype
+        if self.working and self.current_exposure != None:
+            info['current_tel_list'] = self.current_exposure.tel_list
+            info['current_exptime'] = self.current_exposure.exptime
+            info['current_filter'] = self.current_exposure.filt
+            info['current_binning'] = self.current_exposure.binning
+            info['current_frametype'] = self.current_exposure.frametype
+            info['current_target'] = self.current_exposure.target
+            info['current_imgtype'] = self.current_exposure.imgtype
 
         info['uptime'] = time.time() - self.start_time
         info['ping'] = time.time() - self.time_check
@@ -313,8 +162,9 @@ class ExqDaemon(HardwareDaemon):
         return info
 
 
-    def add(self, tel_list, exptime, filt,
-            binning=1, frametype='normal', target='NA', imgtype='SCIENCE'):
+    def add(self, tel_list, exptime,
+            filt=None, binning=1, frametype='normal',
+            target='NA', imgtype='SCIENCE'):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
@@ -322,22 +172,23 @@ class ExqDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if filt and filt.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Call the command
-        exposure = ExposureSpec(tel_list, exptime, filt.upper(),
-                                binning, frametype,
-                                target.replace(';', ''),
-                                imgtype.replace(';', ''))
+        exposure = Exposure(tel_list, exptime,
+                            filt.upper() if filt else None,
+                            binning, frametype,
+                            target.replace(';', ''),
+                            imgtype.replace(';', ''))
         self.exp_queue.append(exposure)
 
         # Format return string
@@ -347,8 +198,9 @@ class ExqDaemon(HardwareDaemon):
         return s
 
 
-    def add_multi(self, Nexp, tel_list, exptime, filt,
-                  binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+    def add_multi(self, Nexp, tel_list, exptime,
+                  filt=None, binning=1, frametype='normal',
+                  target='NA', imgtype='SCIENCE',
                   expID = 0):
         """Add multiple exposures to the queue as a set"""
         # Check restrictions
@@ -357,26 +209,27 @@ class ExqDaemon(HardwareDaemon):
 
         # Check input
         for tel in tel_list:
-            if tel not in self.tel_dict:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(self.tel_dict)))
+            if tel not in params.TEL_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt.upper() not in self.flist:
-            raise ValueError('Filter not in list %s' %str(self.flist))
+        if filt and filt.upper() not in params.FILTER_LIST:
+            raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in ['normal', 'dark']:
-            raise ValueError("Frame type must be 'normal' or 'dark'")
+        if frametype not in params.FRAMETYPE_LIST:
+            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Call the command
         for i in range(Nexp):
             set_pos = i+1
             set_total = Nexp
-            exposure = ExposureSpec(tel_list, exptime, filt.upper(),
-                                    binning, frametype,
-                                    target.replace(';', ''),
-                                    imgtype.replace(';', ''),
-                                    set_pos, set_total, expID)
+            exposure = Exposure(tel_list, exptime,
+                                filt.upper() if filt else None,
+                                binning, frametype,
+                                target.replace(';', ''),
+                                imgtype.replace(';', ''),
+                                set_pos, set_total, expID)
             self.exp_queue.append(exposure)
 
         # Format return string
@@ -448,57 +301,45 @@ class ExqDaemon(HardwareDaemon):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
     def _set_filter(self, filt):
-        new_filt = self.exp_spec.filt
-        tel_list = self.exp_spec.tel_list
+        new_filt = self.current_exposure.filt
+        tel_list = self.current_exposure.tel_list
         try:
             filt._pyroReconnect()
             filt.set_filter(new_filt, tel_list)
-            self.current_filter = new_filt
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(1)
         filt_info_dict = filt.get_info()
-        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
             try:
                 filt_info_dict = filt.get_info()
             except Pyro4.errors.TimeoutError:
                 pass
-            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in self.tel_dict}
+            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.005)
             # keep ping alive
             self.time_check = time.time()
 
     def _take_image(self, cam):
-        binning = self.exp_spec.binning
-        exptime = self.exp_spec.exptime
-        tel_list = self.exp_spec.tel_list
         try:
             cam._pyroReconnect()
-            cam.set_binning(binning, tel_list)
-            cam.set_spec(self.exp_spec.target, self.exp_spec.imgtype,
-                         self.exp_spec.set_pos, self.exp_spec.set_total,
-                         self.exp_spec.expID)
-            time.sleep(0.1)
-            if self.exp_spec.frametype == 'normal':
-                cam.take_image(exptime, tel_list)
-            elif self.exp_spec.frametype == 'dark':
-                cam.take_dark(exptime, tel_list)
+            cam.take_exposure(self.current_exposure)
         except:
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(1)
         cam_info_dict = cam.get_info()
-        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
             try:
                 cam_info_dict = cam.get_info()
             except Pyro4.errors.TimeoutError:
                 pass
-            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in self.tel_dict}
+            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
