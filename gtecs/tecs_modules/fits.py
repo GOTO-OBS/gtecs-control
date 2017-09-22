@@ -10,15 +10,16 @@
 ### Import ###
 # Python modules
 from __future__ import absolute_import
-from astropy.time import Time
-import astropy.io.fits as pyfits
-import astropy.units as u
 import numpy
 import math
 import datetime
 import Pyro4
 import os
 import sys
+from astropy.time import Time
+from astropy.coordinates import Angle
+import astropy.io.fits as pyfits
+import astropy.units as u
 # TeCS modules
 from . import params
 from . import misc
@@ -297,19 +298,13 @@ def update_header(header, tel, cam_info):
         info = mnt.get_info()
         targ_ra = info['target_ra']
         if targ_ra:
-            ra_m, ra_s = divmod(abs(targ_ra)*3600,60)
-            ra_h, ra_m = divmod(ra_m,60)
-            if targ_ra < 0: ra_h = -ra_h
-            targ_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+            targ_ra_str = Angle(targ_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_ra_str = 'NA'
 
         targ_dec = info['target_dec']
         if targ_dec:
-            dec_m, dec_s = divmod(abs(targ_dec)*3600,60)
-            dec_d, dec_m = divmod(dec_m,60)
-            if targ_dec < 0: dec_d = -dec_d
-            targ_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+            targ_dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
@@ -320,16 +315,10 @@ def update_header(header, tel, cam_info):
             targ_dist = 'NA'
 
         mnt_ra = info['mount_ra']
-        ra_m, ra_s = divmod(abs(mnt_ra)*3600,60)
-        ra_h, ra_m = divmod(ra_m,60)
-        if mnt_ra < 0: ra_h = -ra_h
-        mnt_ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
+        mnt_ra_str = Angle(mnt_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
 
         mnt_dec = info['mount_dec']
-        dec_m, dec_s = divmod(abs(mnt_dec)*3600,60)
-        dec_d, dec_m = divmod(dec_m,60)
-        if mnt_dec < 0: dec_d = -dec_d
-        mnt_dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
+        mnt_dec_str = Angle(mnt_dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
         mnt_alt = numpy.around(info['mount_alt'], decimals=2)
         mnt_az = numpy.around(info['mount_az'], decimals=2)
