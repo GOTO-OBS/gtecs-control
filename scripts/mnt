@@ -18,7 +18,8 @@ import readline
 import time
 import Pyro4
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, get_body
+from astropy.coordinates import Angle, SkyCoord, get_body
+import astropy.units as u
 from six.moves import input
 # TeCS modules
 from gtecs.tecs_modules import misc
@@ -343,19 +344,11 @@ def print_info_s(info):
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
+    ra_str = Angle(ra*u.hour).to_string(sep=':', precision=1)
+    dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-
-    ra_m, ra_s = divmod(abs(ra)*3600,60)
-    ra_h, ra_m = divmod(ra_m,60)
-    if ra < 0: ra_h = -ra_h
-    ra_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(ra_h, ra_m, ra_s)
-    print('  RA:  {}       Alt: {:6.2f}'.format(ra_str, alt))
-
-    dec_m, dec_s = divmod(abs(dec)*3600,60)
-    dec_d, dec_m = divmod(dec_m,60)
-    if dec < 0: dec_d = -dec_d
-    dec_str = '{:+03.0f}:{:02.0f}:{:04.1f}'.format(dec_d, dec_m, dec_s)
-    print('  Dec: {}       Az:  {:6.2f}'.format(dec_str, az))
+    print('  RA:  {:>11}       Alt: {:6.2f}'.format(ra_str, alt))
+    print('  Dec: {:>11}       Az:  {:6.2f}'.format(dec_str, az))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
