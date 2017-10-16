@@ -27,8 +27,13 @@ with open_session() as session:
     st = SurveyTile(ra=22, decl=-2)
     st.survey = s
 
+    # and an event tile linked to that survey tile
+    et2 = EventTile(ra=22, decl=-2, probability=0.2)
+    et2.event = e
+    et2.surveyTile = st
+
     # add them
-    insert_items(session, [e, et, s, st])
+    insert_items(session, [e, et, s, st, et2])
 
 # OK, new Session. Let's make a Pointing
 with open_session() as session:

@@ -92,11 +92,18 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`event_tiles` (
   `decl` FLOAT NOT NULL,
   `probability` FLOAT NOT NULL,
   `events_eventID` INT NOT NULL,
+  `survey_tiles_tileID` INT NULL,
   PRIMARY KEY (`tileID`),
   INDEX `fk_event_tiles_events1_idx` (`events_eventID` ASC),
+  INDEX `fk_event_tiles_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   CONSTRAINT `fk_event_tiles_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_event_tiles_survey_tiles1`
+    FOREIGN KEY (`survey_tiles_tileID`)
+    REFERENCES `goto_obs`.`survey_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
