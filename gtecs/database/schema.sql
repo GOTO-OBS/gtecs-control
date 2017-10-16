@@ -50,6 +50,18 @@ DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
+-- Table `goto_obs`.`surveys`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `goto_obs`.`surveys` ;
+
+CREATE TABLE IF NOT EXISTS `goto_obs`.`surveys` (
+  `surveyID` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`surveyID`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `goto_obs`.`survey_tiles`
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `goto_obs`.`survey_tiles` ;
@@ -58,7 +70,14 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`survey_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
-  PRIMARY KEY (`tileID`))
+  `surveys_surveyID` INT NOT NULL,
+  PRIMARY KEY (`tileID`),
+  INDEX `fk_survey_tiles_surveys1_idx` (`surveys_surveyID` ASC),
+  CONSTRAINT `fk_survey_tiles_surveys1`
+    FOREIGN KEY (`surveys_surveyID`)
+    REFERENCES `goto_obs`.`surveys` (`surveyID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
@@ -103,16 +122,18 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `scheduled` TINYINT(1) NOT NULL DEFAULT 0,
   `events_eventID` INT NULL,
   `users_userKey` INT(11) NOT NULL,
-  `survey_tileID` INT NULL,
+  `surveys_surveyID` INT NULL,
+  `survey_tiles_tileID` INT NULL,
   `event_tiles_tileID` INT NULL,
   `infinite` TINYINT(1) NOT NULL DEFAULT 0,
   `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
   PRIMARY KEY (`rpID`),
   INDEX `fk_repeat_pointing_events1_idx` (`events_eventID` ASC),
   INDEX `fk_repeat_pointing_users1_idx` (`users_userKey` ASC),
-  INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tileID` ASC),
+  INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   INDEX `scheduled_idx` (`scheduled` ASC),
   INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
+  INDEX `fk_mpointings_surveys1_idx` (`surveys_surveyID` ASC),
   CONSTRAINT `fk_repeat_pointing_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
@@ -124,13 +145,18 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_mpointings_survey_tiles1`
-    FOREIGN KEY (`survey_tileID`)
+    FOREIGN KEY (`survey_tiles_tileID`)
     REFERENCES `goto_obs`.`survey_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_mpointings_event_tiles1`
     FOREIGN KEY (`event_tiles_tileID`)
     REFERENCES `goto_obs`.`event_tiles` (`tileID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_mpointings_surveys1`
+    FOREIGN KEY (`surveys_surveyID`)
+    REFERENCES `goto_obs`.`surveys` (`surveyID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -185,7 +211,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `repeats_repeatID` INT NULL,
   `mpointings_rpID` INT NULL,
   `event_tiles_tileID` INT NULL,
-  `survey_tileID` INT NULL,
+  `surveys_surveyID` INT NULL,
+  `survey_tiles_tileID` INT NULL,
   PRIMARY KEY (`pointingID`),
   INDEX `fk_pointings_events1_idx` (`events_eventID` ASC),
   INDEX `fk_pointings_users1_idx` (`users_userKey` ASC),
@@ -195,7 +222,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   INDEX `start_idx` (`startUTC` ASC),
   INDEX `stop_idx` (`stopUTC` ASC),
   INDEX `fk_pointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
-  INDEX `fk_pointings_survey1_idx` (`survey_tileID` ASC),
+  INDEX `fk_pointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
+  INDEX `fk_pointings_surveys1_idx` (`surveys_surveyID` ASC),
   CONSTRAINT `fk_pointings_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
@@ -221,9 +249,14 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
     REFERENCES `goto_obs`.`event_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pointings_survey1`
-    FOREIGN KEY (`survey_tileID`)
+  CONSTRAINT `fk_pointings_survey_tiles1`
+    FOREIGN KEY (`survey_tiles_tileID`)
     REFERENCES `goto_obs`.`survey_tiles` (`tileID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_pointings_surveys1`
+    FOREIGN KEY (`surveys_surveyID`)
+    REFERENCES `goto_obs`.`surveys` (`surveyID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
