@@ -63,19 +63,19 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `goto_obs`.`ligo_tiles`
+-- Table `goto_obs`.`event_tiles`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `goto_obs`.`ligo_tiles` ;
+DROP TABLE IF EXISTS `goto_obs`.`event_tiles` ;
 
-CREATE TABLE IF NOT EXISTS `goto_obs`.`ligo_tiles` (
+CREATE TABLE IF NOT EXISTS `goto_obs`.`event_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
   `ra` FLOAT NOT NULL,
   `decl` FLOAT NOT NULL,
   `probability` FLOAT NOT NULL,
   `events_eventID` INT NOT NULL,
   PRIMARY KEY (`tileID`),
-  INDEX `fk_ligo_tiles_events1_idx` (`events_eventID` ASC),
-  CONSTRAINT `fk_ligo_tiles_events1`
+  INDEX `fk_event_tiles_events1_idx` (`events_eventID` ASC),
+  CONSTRAINT `fk_event_tiles_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
     ON DELETE NO ACTION
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `events_eventID` INT NULL,
   `users_userKey` INT(11) NOT NULL,
   `survey_tileID` INT NULL,
-  `ligo_tiles_tileID` INT NULL,
+  `event_tiles_tileID` INT NULL,
   `infinite` TINYINT(1) NOT NULL DEFAULT 0,
   `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
   PRIMARY KEY (`rpID`),
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   INDEX `fk_repeat_pointing_users1_idx` (`users_userKey` ASC),
   INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tileID` ASC),
   INDEX `scheduled_idx` (`scheduled` ASC),
-  INDEX `fk_mpointings_ligo_tiles1_idx` (`ligo_tiles_tileID` ASC),
+  INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   CONSTRAINT `fk_repeat_pointing_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
@@ -128,9 +128,9 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
     REFERENCES `goto_obs`.`survey` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_mpointings_ligo_tiles1`
-    FOREIGN KEY (`ligo_tiles_tileID`)
-    REFERENCES `goto_obs`.`ligo_tiles` (`tileID`)
+  CONSTRAINT `fk_mpointings_event_tiles1`
+    FOREIGN KEY (`event_tiles_tileID`)
+    REFERENCES `goto_obs`.`event_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `users_userKey` INT(11) NOT NULL,
   `repeats_repeatID` INT NULL,
   `mpointings_rpID` INT NULL,
-  `ligo_tiles_tileID` INT NULL,
+  `event_tiles_tileID` INT NULL,
   `survey_tileID` INT NULL,
   PRIMARY KEY (`pointingID`),
   INDEX `fk_pointings_events1_idx` (`events_eventID` ASC),
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   INDEX `status_idx` (`status` ASC),
   INDEX `start_idx` (`startUTC` ASC),
   INDEX `stop_idx` (`stopUTC` ASC),
-  INDEX `fk_pointings_ligo_tiles1_idx` (`ligo_tiles_tileID` ASC),
+  INDEX `fk_pointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_pointings_survey1_idx` (`survey_tileID` ASC),
   CONSTRAINT `fk_pointings_events1`
     FOREIGN KEY (`events_eventID`)
@@ -216,9 +216,9 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
     REFERENCES `goto_obs`.`mpointings` (`rpID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pointings_ligo_tiles1`
-    FOREIGN KEY (`ligo_tiles_tileID`)
-    REFERENCES `goto_obs`.`ligo_tiles` (`tileID`)
+  CONSTRAINT `fk_pointings_event_tiles1`
+    FOREIGN KEY (`event_tiles_tileID`)
+    REFERENCES `goto_obs`.`event_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_pointings_survey1`

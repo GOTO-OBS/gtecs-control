@@ -1,7 +1,7 @@
 import hashlib
 
 from .engine import load_session, open_session
-from .models import (User, Event, SurveyTile, LigoTile,
+from .models import (User, Event, EventTile, SurveyTile,
                      Pointing, Mpointing, Repeat, ExposureSet, ObslogEntry)
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_
