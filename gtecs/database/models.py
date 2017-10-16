@@ -251,6 +251,60 @@ class EventTile(Base):
             self.tileID, self.ra, self.decl, self.probability, self.eventID)
 
 
+class Survey(Base):
+
+    """
+    A class to represent an observation survey.
+
+    Like all SQLAlchemy model classes, these objects link to the
+    underlying database. You can create an object, set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the surveyID)
+    will be None until the Survey is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        name : string
+            a human-readable identifier for the survey
+
+    A Survey also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        surveyID : int
+            primary key for surveys
+        surveyTiles : list of `SurveyTile`
+            a list of any `SurveyTiles` associated with this Survey
+        mpointings : list of `Mpointing`
+            a list of any `Mpointing`s associated with this Survey
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this Survey
+
+    Examples
+    --------
+
+        >>> s = Survey(name='GOTO4-allsky')
+
+    """
+
+    __tablename__ = "surveys"
+
+    surveyID = Column(Integer, primary_key=True)
+    name = Column(String)
+
+    surveyTiles = relationship("SurveyTile", back_populates="survey")
+
+    def __repr__(self):
+        return "Survey(surveyID={}, name={})".format(
+            self.surveyID, self.name
+        )
+
 class SurveyTile(Base):
 
     """
@@ -272,6 +326,8 @@ class SurveyTile(Base):
             J2000 right ascension in decimal degrees
         decl : float
             J2000 declination in decimal degrees
+        surveyID : int, optional
+            the ID number of the Survey this tile is associated with
 
     A SurveyTile also has the following properties which are
     populated through database queries, but not needed for
@@ -290,11 +346,27 @@ class SurveyTile(Base):
     --------
 
         >>> from gtecs.database import *
+
+        make a survey to associate our tile with
+
+        >>> s = Survey(name='GOTO4-allsky')
+        >>> session = load_session()
+        >>> session.add(s)  # add survey
+        >>> session.commit()  # commit changes (otherwise DB not changed)
+        >>> s.surveyID
+        1
+
+        construct without surveyID
+
         >>> tile = SurveyTile(ra=100, decl=20)
         >>> tile
         SurveyTile(tileID=None, ra=100.00, decl=20.00)
 
-        set the eventID
+        set the surveyID
+
+        >>> event_tile.eventID = 1
+        >>> event_tile
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
 
         add to the database, demonstrating the open_session context manager,
         which will handle committing changes for you:
@@ -302,7 +374,10 @@ class SurveyTile(Base):
         >>> with open_session as session():
         >>>     insert_items([tile])
         >>>     tile  # note how tileID is populated now tile is in DB
-        SurveyTile(tileID=1, ra=100.00, decl=20.00)
+        SurveyTile(tileID=1, ra=100.00, decl=20.00, surveyID=1)
+        >>> with open_session as session():
+        >>>     s.surveyTiles  # and survey knows about all associated tiles
+        [SurveyTile(tileID=1, ra=100.00, decl=20.00, surveyID=1)]
 
     """
 
@@ -315,8 +390,15 @@ class SurveyTile(Base):
     mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
     pointings = relationship("Pointing", back_populates="surveyTile", uselist=False)
 
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=False)
+    survey = relationship("Survey", back_populates="surveyTiles", uselist=False)
+
     def __repr__(self):
-        return "SurveyTile(tileID={})".format(self.tileID)
+        template = ("SurveyTile(tileID={}, ra={}, decl={}, " +
+                    "surveyID={})")
+        return template.format(
+            self.tileID, self.ra, self.decl, self.surveyID)
 
 
 status_list = Enum(
@@ -474,6 +556,8 @@ class Mpointing(Base):
             unique key linking to `SurveyTile`
         eventID : int, optional
             unique key linking to `Event`
+        surveyID : int, optional
+            unique key linking to `Survey`
 
     An Mpointing also has the following properties which are
     populated through database queries, but not needed for
@@ -501,6 +585,8 @@ class Mpointing(Base):
             the `EventTile` associated with this `Mpointing`, if any
         event : `Event`
             the `Event` associated with this `Mpointing`, if any
+        survey : `Survey`
+            the `Survey` associated with this `Mpointing`, if any
 
     Examples
     --------
@@ -610,7 +696,11 @@ class Mpointing(Base):
                         ForeignKey('event_tiles.tileID'), nullable=True)
     eventTile = relationship("EventTile", back_populates="mpointing", uselist=False)
 
-    surveyTileID = Column('survey_tileID', Integer,
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=True)
+    survey = relationship("Survey", backref="mpointings")
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
                           ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
 
@@ -631,12 +721,12 @@ class Mpointing(Base):
         template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
                     "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, num_repeats={}, num_completed={}, " +
-                    "num_remain={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyTile={})")
+                    "num_remain={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.num_repeats, self.num_completed, self.num_remain, self.scheduled, self.eventID,
-            self.userKey, self.eventTileID, self.surveyTileID
+            self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
     def __init__(self, objectName=None, ra=None, decl=None,
@@ -697,6 +787,10 @@ class Mpointing(Base):
             self.user = kwargs['user']
         if 'userKey' in kwargs:
             self.userKey = kwargs['userKey']
+        if 'surveyID' in kwargs:
+            self.surveyID = kwargs['surveyID']
+        if 'survey' in kwargs:
+            self.survey = kwargs['survey']
         if 'surveyTile' in kwargs:
             self.surveyTile = kwargs['surveyTile']
         if 'surveyTileID' in kwargs:
@@ -774,7 +868,7 @@ class Mpointing(Base):
             maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
             startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
             repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
-            mpointingID=self.rpID, eventTileID=self.eventTileID, surveyTileID=self.surveyTileID
+            mpointingID=self.rpID, eventTileID=self.eventTileID, surveyID=self.surveyID, surveyTileID=self.surveyTileID
         )
         # add the exposures
         p.exposure_sets = self.exposure_sets
@@ -830,6 +924,8 @@ class Pointing(Base):
             unique key linking to a `SurveyTile`
         eventID : int, optional
             unique key linking to an `Event`
+        surveyID : int, optional
+            unique key linking to a `Survey`
         mpointingID : int, optional
             unique key linking to an `Mpointing`
 
@@ -849,6 +945,8 @@ class Pointing(Base):
             the `SurveyTile` associated with this `Pointing`, if any
         event : `Event`
             the `Event` associated with this `Pointing`, if any
+        survey : `Survey`
+            the `Survey` associated with this `Pointing`, if any
         mpointing : `Mpointing`
             the `Mpointing` associated with this `Pointing`, if any
 
@@ -863,7 +961,7 @@ class Pointing(Base):
         >>> p
         Pointing(pointingID=None, objectName=IP Peg, ra=350.785625, decl=18.416472, rank=9, minAlt=30,
         maxSunAlt=-15, minTime=3600, maxMoon=G, ToO=0, startUTC=2016-08-16 20:27:57, stopUTC=2016-08-19 20:27:57,
-        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, eventTileID=None, surveyTileID=None)
+        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, eventTileID=None, surveyID=None, surveyTileID=None)
 
         we can insert it into the database and the status and pointingID will be set:
 
@@ -953,7 +1051,11 @@ class Pointing(Base):
                         ForeignKey('event_tiles.tileID'), nullable=True)
     eventTile = relationship("EventTile", back_populates="pointings", uselist=False)
 
-    surveyTileID = Column('survey_tileID', Integer,
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=True)
+    survey = relationship("Survey", backref="pointings")
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
                         ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="pointings", uselist=False)
 
@@ -962,12 +1064,12 @@ class Pointing(Base):
                     "rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
                     "stopUTC={}, status={}, eventID={}, userKey={}, " +
-                    "mpointingID={}, repeatID={}, eventTileID={}, surveyTileID={})")
+                    "mpointingID={}, repeatID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.pointingID, self.objectName, self.ra, self.decl, self.rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.startUTC, self.stopUTC, self.status, self.eventID,
-            self.userKey, self.mpointingID, self.repeatID, self.eventTileID, self.surveyTileID
+            self.userKey, self.mpointingID, self.repeatID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
 

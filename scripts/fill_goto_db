@@ -50,6 +50,7 @@ exp_settings = dict(expTime=120,
 
 goto = gototile.telescope.GOTON4()
 overlap = {k: goto.fov[k].value*0.1 for k in goto.fov}
+survey_name = '{}-{:.2f}-{:.2f}'.format(goto.name, overlap['ra'], overlap['dec'])
 
 _, _, coords = gototile.grid.tileallsky(goto.fov, 256, overlap)
 
@@ -58,8 +59,10 @@ ra, decl = coords.ra.value, coords.dec.value
 tiles = []
 mpointings = []
 with db.open_session() as session:
+    survey = db.Survey(name=survey_name)
     for a, d in zip(ra, decl):
         tile = db.SurveyTile(ra=float(a), decl=float(d))
+        tile.survey = survey
         tiles.append(tile)
     print('adding tiles to db: ')
     db.insert_items(session, tiles)
