@@ -50,11 +50,11 @@ DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
--- Table `goto_obs`.`survey`
+-- Table `goto_obs`.`survey_tiles`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `goto_obs`.`survey` ;
+DROP TABLE IF EXISTS `goto_obs`.`survey_tiles` ;
 
-CREATE TABLE IF NOT EXISTS `goto_obs`.`survey` (
+CREATE TABLE IF NOT EXISTS `goto_obs`.`survey_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_mpointings_survey_tiles1`
     FOREIGN KEY (`survey_tileID`)
-    REFERENCES `goto_obs`.`survey` (`tileID`)
+    REFERENCES `goto_obs`.`survey_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_mpointings_event_tiles1`
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_pointings_survey1`
     FOREIGN KEY (`survey_tileID`)
-    REFERENCES `goto_obs`.`survey` (`tileID`)
+    REFERENCES `goto_obs`.`survey_tiles` (`tileID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB

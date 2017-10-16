@@ -306,7 +306,7 @@ class SurveyTile(Base):
 
     """
 
-    __tablename__ = "survey"
+    __tablename__ = "survey_tiles"
 
     tileID = Column(Integer, primary_key=True)
     ra = Column(Float)
@@ -611,7 +611,7 @@ class Mpointing(Base):
     eventTile = relationship("EventTile", back_populates="mpointing", uselist=False)
 
     surveyTileID = Column('survey_tileID', Integer,
-                          ForeignKey('survey.tileID'), nullable=True)
+                          ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
 
     repeats = relationship("Repeat", back_populates="mpointing", viewonly=True)
@@ -954,7 +954,7 @@ class Pointing(Base):
     eventTile = relationship("EventTile", back_populates="pointings", uselist=False)
 
     surveyTileID = Column('survey_tileID', Integer,
-                        ForeignKey('survey.tileID'), nullable=True)
+                        ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="pointings", uselist=False)
 
     def __repr__(self):
