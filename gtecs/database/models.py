@@ -177,6 +177,8 @@ class EventTile(Base):
             probability that GW event is contained in this tile
         eventID : int, optional
             the ID number of the Event this tile is associated with
+        surveyTileID : int, optional
+            the SurveyTile this tile is associated with, if any
 
     An EventTile also has the following properties which are
     populated through database queries, but not needed for
@@ -243,6 +245,10 @@ class EventTile(Base):
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=False)
     event = relationship("Event", back_populates="eventTiles", uselist=False)
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
+                          ForeignKey('survey_tiles.tileID'), nullable=True)
+    surveyTile = relationship("SurveyTile", back_populates="eventTiles", uselist=False)
 
     def __repr__(self):
         template = ("EventTile(tileID={}, ra={}, decl={}, " +
@@ -337,6 +343,8 @@ class SurveyTile(Base):
     ----------
         tileID : int
             primary key for survey tiles
+        eventTiles : list of `EventTile`
+            a list of any `EventTiles` associated with this SurveyTiles, if any
         mpointing : `Mpointing`
             the `Mpointing` associated with this SurveyTile if any
         pointings : list of `Pointing`
@@ -387,6 +395,7 @@ class SurveyTile(Base):
     ra = Column(Float)
     decl = Column(Float)
 
+    eventTiles = relationship("EventTile", back_populates="surveyTile")
     mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
     pointings = relationship("Pointing", back_populates="surveyTile", uselist=False)
 
