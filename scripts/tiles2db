@@ -86,7 +86,7 @@ def save_to_dbase(session, tile_list, event_time, event_name):
 
 
 def save_single_tile(session, ra, dec, prob, num, event, event_time):
-    tile = db.LigoTile(ra=ra, decl=dec, probability=prob, event=event)
+    tile = db.EventTile(ra=ra, decl=dec, probability=prob, event=event)
     session.add(tile)
     save_pointing(session, ra, dec, num, event, event_time, tile)
 
@@ -118,7 +118,7 @@ def save_pointing(session, ra, dec, num, event, event_time, tile):
                         stopUTC=stop_time,
                         ToO=too,
                         event=event,
-                        ligoTile=tile)
+                        eventTile=tile)
     session.add(pointing)
 
     save_exposure_set(session, pointing)

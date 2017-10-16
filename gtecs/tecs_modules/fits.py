@@ -157,8 +157,8 @@ def update_header(header, tel, cam_info):
     mpointingID = 'NA'
     repeatID = 'NA'
     repeatNum = 'NA'
-    ligoTileID = 'NA'
-    ligoTileProb = 'NA'
+    eventTileID = 'NA'
+    eventTileProb = 'NA'
     surveyTileID = 'NA'
     eventID = 'NA'
     eventName = 'NA'
@@ -193,11 +193,11 @@ def update_header(header, tel, cam_info):
                                db.Repeat.repeatID == repeatID).one_or_none()
                     repeatNum = repeat.repeatNum
 
-                if pointing.ligoTileID:
-                    ligoTileID = pointing.ligoTileID
-                    ligoTile = session.query(db.LigoTile).filter(
-                               db.LigoTile.ligoTileID == pointingID).one_or_none()
-                    ligoTileProb = ligoTile.probability
+                if pointing.eventTileID:
+                    eventTileID = pointing.eventTileID
+                    eventTile = session.query(db.EventTile).filter(
+                               db.EventTile.eventTileID == pointingID).one_or_none()
+                    eventTileProb = eventTile.probability
 
                 if pointing.surveyTileID:
                     surveyTileID = pointing.surveyTileID
@@ -220,8 +220,8 @@ def update_header(header, tel, cam_info):
     header["MPNT-ID "] = (mpointingID, "Database Mpointing ID")
     header["REP-ID  "] = (repeatID, "Database Repeat ID")
     header["REP-N   "] = (repeatNum, "Number of this Repeat")
-    header["GW-ID   "] = (ligoTileID, "Database LIGO tile ID")
-    header["GW-PROB "] = (ligoTileProb, "LIGO tile contained probability")
+    header["GW-ID   "] = (eventTileID, "Database Event tile ID")
+    header["GW-PROB "] = (eventTileProb, "Event tile contained probability")
     header["SVY-ID  "] = (surveyTileID, "Database Survey tile ID")
     header["EVENT-ID"] = (eventID, "Database Event ID")
     header["EVENT   "] = (eventName, "Event name for this Pointing")

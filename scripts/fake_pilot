@@ -194,8 +194,8 @@ class DummyPilot(object):
             self.currentName = current_pointing.objectName
             self.currentRa   = current_pointing.ra
             self.currentDec  = current_pointing.decl
-            current_tileID   = current_pointing.ligoTileID
-            current_tile = session.query(db.LigoTile).filter(db.LigoTile.tileID == current_tileID).one_or_none()
+            current_tileID   = current_pointing.eventTileID
+            current_tile = session.query(db.EventTile).filter(db.EventTile.tileID == current_tileID).one_or_none()
             self.currentProbability = current_tile.probability
             state = ('OBS: ID%i'    %self.currentID
                     +' (%s;'        %self.currentName

@@ -173,8 +173,8 @@ class Pointing:
     @classmethod
     def from_database(cls, dbPointing):
         # not every pointing has an assosiated GW tile probability
-        if dbPointing.ligoTile:
-            tileprob = dbPointing.ligoTile.probability
+        if dbPointing.eventTile:
+            tileprob = dbPointing.eventTile.probability
         else:
             tileprob = 0
         # survey tiles can be told apart by having a specific rank

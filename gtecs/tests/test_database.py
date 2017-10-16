@@ -16,15 +16,15 @@ with open_session() as session:
     # create an event
     e = Event(ivo='ivo://pt5mTest', name='pt5mVar3', source='pt5m')
 
-    # and a LigoTile
-    lt = LigoTile(ra=100, decl=20, probability=0.1)
-    lt.event = e
+    # and an event tile
+    et = EventTile(ra=100, decl=20, probability=0.1)
+    et.event = e
 
     # and a survey tile
     st = SurveyTile(ra=22, decl=-2)
 
     # add them
-    insert_items(session, [e, lt, st])
+    insert_items(session, [e, et, st])
 
 # OK, new Session. Let's make a Pointing
 with open_session() as session:
