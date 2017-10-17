@@ -16,7 +16,10 @@ import gototile
 
 from sqlalchemy.orm import joinedload
 import time
+import numpy as np
 
+
+# Create GOTO user if it dosn't exist
 with db.open_session() as session:
     try:
         user_key = db.get_userkey(session, 'goto')
@@ -48,50 +51,68 @@ exp_settings = dict(expTime=120,
                     otaMask=None)
 
 
-goto = gototile.telescope.GOTON4()
-overlap = {k: goto.fov[k].value*0.1 for k in goto.fov}
-survey_name = '{}-{:.2f}-{:.2f}'.format(goto.name, overlap['ra'], overlap['dec'])
+# Create tiles using GOTO-tile
+gn4 = gototile.telescope.GOTON4()
+fov = gn4.fov
+overlap_frac = 0.5
+overlap = {'ra': overlap_frac, 'dec': overlap_frac}
+survey_name = 'GOTON4-allsky-{:.1f}'.format(overlap_frac)
+nside = 256
 
-_, _, coords = gototile.grid.tileallsky(goto.fov, 256, overlap)
+tiles = gototile.grid.tileallsky(fov, nside, overlap)
+coords = tiles[2]
+ras, decs = coords.ra.value, coords.dec.value
+names = np.arange(len(coords))+1
 
-# loop over coords
-ra, decl = coords.ra.value, coords.dec.value
+
+# Add to the database
 tiles = []
 mpointings = []
 with db.open_session() as session:
+    # create a Survey
     survey = db.Survey(name=survey_name)
-    i = 0
-    for a, d in zip(ra, decl):
-        i += 1
-        tile = db.SurveyTile(ra=float(a), decl=float(d), name='T{}'.format(i))
+    session.add(survey)
+
+    # create SurveyTiles
+    print('Creating tiles...')
+    start = time.time()
+    for a, d, name in zip(ras, decs, names):
+        tile = db.SurveyTile(ra=float(a), decl=float(d), name=str(name))
         tile.survey = survey
         tiles.append(tile)
-    print('adding tiles to db: ')
+    print('  took {:.2f} secs'.format(time.time()-start))
+
+    print('Adding {} tiles to database...'.format(len(tiles)))
+    start = time.time()
     db.insert_items(session, tiles)
+    print('  took {:.2f} secs'.format(time.time()-start))
 
-    session.commit()
-
-    for a, d, t in zip(ra, decl, tiles):
+    # create Mpointings
+    print('Creating mpointings...')
+    start = time.time()
+    for a, d, t in zip(ras, decs, tiles):
         mp = db.Mpointing(surveyTileID=t.tileID,
                           ra=float(a), decl=float(d), **survey_settings)
         mp.exposure_sets.append(db.ExposureSet(**exp_settings))
         mpointings.append(mp)
+    print('  took {:.2f} secs'.format(time.time()-start))
 
-    print('adding mpointings to db: ')
+    print('Adding {} mpointings to database...'.format(len(mpointings)))
+    start = time.time()
     db.insert_items(session, mpointings)
+    print('  took {:.2f} secs'.format(time.time()-start))
 
-
-# add first batch of pointings
-with db.open_session() as session:
+    # find the Mpointings that are unscheduled
     unscheduled_mps = session.query(db.Mpointing).filter(
         db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
 
-    print('creating pointings')
+    # create first batch of Pointings
+    print('Creating pointings...')
     start = time.time()
     pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
-    print('took {} secs'.format(time.time()-start))
+    print('  took {:.2f} secs'.format(time.time()-start))
 
-    print('inserting pointings into DB')
+    print('Adding {} pointings to database...'.format(len(pointings)))
     start = time.time()
     db.insert_items(session, pointings)
-    print('took {} secs'.format(time.time()-start))
+    print('  took {:.2f} secs'.format(time.time()-start))
