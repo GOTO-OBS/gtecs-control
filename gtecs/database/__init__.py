@@ -404,6 +404,36 @@ def get_mpointing_by_id(session, rpID):
     ).one_or_none()
 
 
+def get_survey_tile_by_name(session, survey_name, tile_name):
+    """
+    Get a tile in a survey from the name of the survey and tile.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+    survey_name : str
+        the name of the survey
+    tile_name : str
+        the name of the tile
+
+    Returns
+    -------
+    tile : `SurveyTile`
+        the matching SurveyTile
+
+    Raises
+    ------
+    NoResultFound : if SurveyTile not in DB
+    """
+
+    survey, tile = session.query(Survey, SurveyTile).filter(
+        Survey.name == survey_name,
+        SurveyTile.name == tile_name
+    ).one_or_none()
+    return tile
+
+
 def get_stale_pointing_ids(session, time=None):
     """
     Finds all the pointings still pending whose valid period has expired.

@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`survey_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
+  `name` VARCHAR(255) NOT NULL,
   `surveys_surveyID` INT NOT NULL,
   PRIMARY KEY (`tileID`),
   INDEX `fk_survey_tiles_surveys1_idx` (`surveys_surveyID` ASC),

@@ -334,6 +334,8 @@ class SurveyTile(Base):
             J2000 declination in decimal degrees
         surveyID : int, optional
             the ID number of the Survey this tile is associated with
+        name : str, optional
+            a human-readable identifier for the tile
 
     A SurveyTile also has the following properties which are
     populated through database queries, but not needed for
@@ -394,6 +396,7 @@ class SurveyTile(Base):
     tileID = Column(Integer, primary_key=True)
     ra = Column(Float)
     decl = Column(Float)
+    name = Column(String)
 
     eventTiles = relationship("EventTile", back_populates="surveyTile")
     mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
@@ -405,9 +408,9 @@ class SurveyTile(Base):
 
     def __repr__(self):
         template = ("SurveyTile(tileID={}, ra={}, decl={}, " +
-                    "surveyID={})")
+                    ", name={}, surveyID={})")
         return template.format(
-            self.tileID, self.ra, self.decl, self.surveyID)
+            self.tileID, self.ra, self.decl, self.name, self.surveyID)
 
 
 status_list = Enum(
