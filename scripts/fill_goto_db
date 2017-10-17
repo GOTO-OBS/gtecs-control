@@ -60,8 +60,10 @@ tiles = []
 mpointings = []
 with db.open_session() as session:
     survey = db.Survey(name=survey_name)
+    i = 0
     for a, d in zip(ra, decl):
-        tile = db.SurveyTile(ra=float(a), decl=float(d))
+        i += 1
+        tile = db.SurveyTile(ra=float(a), decl=float(d), name='T{}'.format(i))
         tile.survey = survey
         tiles.append(tile)
     print('adding tiles to db: ')
