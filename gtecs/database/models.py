@@ -169,12 +169,16 @@ class EventTile(Base):
 
     Args
     ----
-        ra : float
-            J2000 right ascension in decimal degrees
-        decl : float
-            J2000 declination in decimal degrees
         probability : float
-            probability that GW event is contained in this tile
+            contained target probability within this tile
+        ra : float, optional
+            J2000 right ascension in decimal degrees
+            if ra is not given and this EventTile is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
+            J2000 declination in decimal degrees
+            if dec is not given and this EventTile is linked to a SurveyTile
+            then the dec will be extracted from the SurveyTile
         eventID : int, optional
             the ID number of the Event this tile is associated with
         surveyTileID : int, optional
@@ -211,23 +215,49 @@ class EventTile(Base):
 
         >>> event_tile = EventTile(ra=122.34, decl=22.01, probability=0.01)
         >>> event_tile
-        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None, surveytileID=None)
 
         set the eventID
 
         >>> event_tile.eventID = 1
         >>> event_tile
-        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None, surveytileID=None)
 
         add to the database
 
         >>> session.add(event_tile)
         >>> session.commit()
         >>> event_tile  # note how tileID is populated now tile is in DB
-        EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)
+        EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1, surveytileID=None)
         >>> e.eventTiles  # and event knows about all associated tiles
-        [EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)]
+        [EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1, surveytileID=None)]
         >>> session.close()
+
+        make a survey and a survey tile, and add them to the database
+
+        >>> s = Survey(name='GOTO survey')
+        >>> st = SurveyTile(ra=22, decl=-2, name='Tile1')
+        >>> st.survey = s
+        >>> session.add(s, st)
+        >>> session.commit()
+
+        make a new event tile that has no ra and decl,
+        but is linked to the survey tile
+
+        >>> et2 = EventTile(probability=0.01)
+        >>> et2.event = e
+        >>> et2.surveyTile = st
+        >>> et2
+        EventTile(tileID=None, ra=None, decl=None, probability=0.01, eventID=None, surveytileID=None)
+
+        add to the database
+
+        >>> session.add(event_tile)
+        >>> session.commit()
+        >>> et2  # note how the ra and decl have been copied from the surveyTile
+        EventTile(tileID=2, ra=22.0, decl=-2.0, probability=0.01, eventID=1, surveytileID=1)
+        >>> st.eventTiles # and the surveyTile knows about the linked eventTiles
+        [EventTile(tileID=2, ra=22.0, decl=-2.0, probability=0.01, eventID=1, surveytileID=1)]
 
     """
 
@@ -252,10 +282,10 @@ class EventTile(Base):
 
     def __repr__(self):
         template = ("EventTile(tileID={}, ra={}, decl={}, " +
-                    "probability={}, eventID={})")
+                    "probability={}, eventID={}, surveytileID={})")
         return template.format(
-            self.tileID, self.ra, self.decl, self.probability, self.eventID)
-
+            self.tileID, self.ra, self.decl, self.probability, self.eventID,
+            self.surveyTileID)
 
 class Survey(Base):
 
@@ -310,6 +340,7 @@ class Survey(Base):
         return "Survey(surveyID={}, name={})".format(
             self.surveyID, self.name
         )
+
 
 class SurveyTile(Base):
 
