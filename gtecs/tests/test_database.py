@@ -24,16 +24,21 @@ with open_session() as session:
     s = Survey(name='GOTO survey')
 
     # and a survey tile
-    st = SurveyTile(ra=22, decl=-2)
+    st = SurveyTile(ra=22, decl=-2, name='Tile1')
     st.survey = s
 
     # and an event tile linked to that survey tile
-    et2 = EventTile(ra=22, decl=-2, probability=0.2)
+    et2 = EventTile(probability=0.2)
     et2.event = e
     et2.surveyTile = st
 
     # add them
     insert_items(session, [e, et, s, st, et2])
+    session.commit()
+
+    # check the second event tile updated correctly
+    assert et2.ra == st.ra
+    assert et2.decl == st.decl
 
 # OK, new Session. Let's make a Pointing
 with open_session() as session:

@@ -89,8 +89,8 @@ DROP TABLE IF EXISTS `goto_obs`.`event_tiles` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`event_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
-  `ra` FLOAT NOT NULL,
-  `decl` FLOAT NOT NULL,
+  `ra` FLOAT NULL,
+  `decl` FLOAT NULL,
   `probability` FLOAT NOT NULL,
   `events_eventID` INT NOT NULL,
   `survey_tiles_tileID` INT NULL,
@@ -357,6 +357,18 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 USE `goto_obs`;
 
 DELIMITER $$
+
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`event_tiles_BEFORE_INSERT` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`event_tiles_BEFORE_INSERT` BEFORE INSERT ON `event_tiles` FOR EACH ROW
+BEGIN
+	IF ((NEW.survey_tiles_tileID is not NULL) and (NEW.ra is NULL) and (NEW.decl is NULL)) THEN
+		SET NEW.ra = (SELECT ra FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
+		SET NEW.decl = (SELECT decl FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
+    END IF;
+END$$
+
 
 USE `goto_obs`$$
 DROP TRIGGER IF EXISTS `goto_obs`.`repeats_AFTER_UPDATE` $$
