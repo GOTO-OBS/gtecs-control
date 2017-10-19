@@ -78,6 +78,8 @@ def add_to_database(pointings, event_time, event_name, survey_name):
                 tile.event = event
                 tile.surveyTile = survey_tile
 
+                session.add(tile)
+
                 # Create Pointing and add to the database
                 object_name = '{} {}'.format(event_name, tile_name)
 
@@ -89,9 +91,9 @@ def add_to_database(pointings, event_time, event_name, survey_name):
                                        stopUTC=event_time+DURATION,
                                        **POINTING_SETTINGS)
 
-                pointing.surveyTileID = survey_tile.tileID
-                pointing.eventID = event.eventID
-                pointing.eventTileID = tile.tileID
+                pointing.surveyTile = survey_tile
+                pointing.event = event
+                pointing.eventTile = tile
                 pointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
 
                 session.add(pointing)
