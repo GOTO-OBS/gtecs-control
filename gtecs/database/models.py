@@ -270,7 +270,7 @@ class EventTile(Base):
 
     # handle relationships
     pointings = relationship("Pointing", back_populates="eventTile")
-    mpointing = relationship("Mpointing", back_populates="eventTile", uselist=False)
+    mpointing = relationship("Mpointing", back_populates="eventTile")
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=False)
@@ -430,8 +430,8 @@ class SurveyTile(Base):
     name = Column(String)
 
     eventTiles = relationship("EventTile", back_populates="surveyTile")
-    mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
-    pointings = relationship("Pointing", back_populates="surveyTile", uselist=False)
+    mpointing = relationship("Mpointing", back_populates="surveyTile")
+    pointings = relationship("Pointing", back_populates="surveyTile")
 
     surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
                      nullable=False)
@@ -534,9 +534,7 @@ class Repeat(Base):
         return field
 
     # relationships
-    mpointing = relationship("Mpointing",
-                             back_populates="repeats",
-                             uselist=False)
+    mpointing = relationship("Mpointing", back_populates="repeats", uselist=False)
     pointing = relationship("Pointing", back_populates="repeat", uselist=False)
 
     def __repr__(self):
