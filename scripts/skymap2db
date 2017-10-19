@@ -67,36 +67,34 @@ def add_to_database(pointings, event_time, event_name, survey_name):
             tile_name = str(pointing['fieldname'])
             prob = float(pointing['prob'])
 
-            # Only add the higher-probability pointings
-            if prob > 0.001:
-                # Find the matched Survey tile
-                survey_tile = db.get_survey_tile_by_name(session, survey_name,
-                                                         tile_name)
+            # Find the matched Survey tile
+            survey_tile = db.get_survey_tile_by_name(session, survey_name,
+                                                     tile_name)
 
-                # Create an EventTile and add to the database
-                tile = db.EventTile(probability=prob)
-                tile.event = event
-                tile.surveyTile = survey_tile
+            # Create an EventTile and add to the database
+            tile = db.EventTile(probability=prob)
+            tile.event = event
+            tile.surveyTile = survey_tile
 
-                session.add(tile)
+            session.add(tile)
 
-                # Create Pointing and add to the database
-                object_name = '{} {}'.format(event_name, tile_name)
+            # Create Pointing and add to the database
+            object_name = '{} {}'.format(event_name, tile_name)
 
-                pointing = db.Pointing(userKey=userkey,
-                                       objectName=object_name,
-                                       ra=survey_tile.ra,
-                                       decl=survey_tile.decl,
-                                       startUTC=event_time,
-                                       stopUTC=event_time+DURATION,
-                                       **POINTING_SETTINGS)
+            pointing = db.Pointing(userKey=userkey,
+                                   objectName=object_name,
+                                   ra=survey_tile.ra,
+                                   decl=survey_tile.decl,
+                                   startUTC=event_time,
+                                   stopUTC=event_time+DURATION,
+                                   **POINTING_SETTINGS)
 
-                pointing.surveyTile = survey_tile
-                pointing.event = event
-                pointing.eventTile = tile
-                pointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
+            pointing.surveyTile = survey_tile
+            pointing.event = event
+            pointing.eventTile = tile
+            pointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
 
-                session.add(pointing)
+            session.add(pointing)
 
 
 def run(filename, telescope, survey_name):
@@ -108,8 +106,12 @@ def run(filename, telescope, survey_name):
     # get pointings from gototile
     pointings = tile_skymap(skymap, [telescope])
 
+    # filter out low-priority pointings
+    hp_mask = pointings['prob'] > 0.001
+    hp_pointings = pointings[hp_mask]
+
     # add pointings to the database
-    add_to_database(pointings, event_time, event_name, survey_name)
+    add_to_database(hp_pointings, event_time, event_name, survey_name)
 
 
 if __name__ == '__main__':
