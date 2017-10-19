@@ -86,8 +86,8 @@ def run(telescope, overlap_frac):
         # create SurveyTiles
         print('Creating tiles...')
         start = time.time()
-        for a, d, name in zip(ras, decs, names):
-            tile = db.SurveyTile(ra=float(a), decl=float(d), name=str(name))
+        for ra, dec, name in zip(ras, decs, names):
+            tile = db.SurveyTile(ra=float(ra), decl=float(dec), name=str(name))
             tile.survey = survey
             tiles.append(tile)
         print('  took {:.2f} secs'.format(time.time()-start))
@@ -100,10 +100,13 @@ def run(telescope, overlap_frac):
         # create Mpointings
         print('Creating mpointings...')
         start = time.time()
-        for a, d, t in zip(ras, decs, tiles):
-            mp = db.Mpointing(surveyTileID=t.tileID,
-                              ra=float(a), decl=float(d),
-                              userKey=user_key, **SURVEY_SETTINGS)
+        for ra, dec, tile in zip(ras, decs, tiles):
+            mp = db.Mpointing(userKey=user_key,
+                              ra=float(ra),
+                              decl=float(dec),
+                              **SURVEY_SETTINGS)
+            mp.surveyID = survey.surveyID
+            mp.surveyTileID = tile.tileID
             mp.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
             mpointings.append(mp)
         print('  took {:.2f} secs'.format(time.time()-start))
