@@ -342,16 +342,16 @@ def get_pointing_by_id(session, pointingID):
     ).one_or_none()
 
 
-def get_mpointings(session, rpIDs=None, only_active=True,
+def get_mpointings(session, mpointingIDs=None, only_active=True,
                    scheduled=False):
     """
-    Get mpointings, filtered by rpID or status.
+    Get mpointings, filtered by mpointingID or status.
 
     Parameters
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
-    rpIDs : int or list
+    mpointingIDs : int or list
         supply a ID or list of IDs to filter results
     only_active : bool
         if True, only return `Mpointings` with pointings remaining
@@ -366,9 +366,9 @@ def get_mpointings(session, rpIDs=None, only_active=True,
         a list of all matching Pointings
     """
     query = session.query(Mpointing)
-    if rpIDs is not None:
+    if mpointingIDs is not None:
         query = query.filter(
-            Mpointing.rpID.in_(list(rpIDs))
+            Mpointing.mpointingID.in_(list(mpointingIDs))
         )
     if only_active:
         query = query.filter(
@@ -379,7 +379,7 @@ def get_mpointings(session, rpIDs=None, only_active=True,
     return query.all()
 
 
-def get_mpointing_by_id(session, rpID):
+def get_mpointing_by_id(session, mpointingID):
     """
     Get a single Mpointing, filtered by ID.
 
@@ -387,7 +387,7 @@ def get_mpointing_by_id(session, rpID):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
-    rpID : int
+    mpointingID : int
         the id number of the Mpointing
 
     Returns
@@ -400,7 +400,7 @@ def get_mpointing_by_id(session, rpID):
     NoResultFound : if Mpointing not in DB
     """
     return session.query(Mpointing).filter(
-        Mpointing.rpID == rpID
+        Mpointing.mpointingID == mpointingID
     ).one_or_none()
 
 
