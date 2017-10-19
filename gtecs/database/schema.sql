@@ -24,9 +24,9 @@ DROP TABLE IF EXISTS `goto_obs`.`events` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`events` (
   `eventID` INT NOT NULL AUTO_INCREMENT,
-  `ivo` VARCHAR(255) NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `source` VARCHAR(255) NOT NULL COMMENT 'LIGO, SWIFT etc.',
+  `ivo` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`eventID`),
   UNIQUE INDEX `ivo_UNIQUE` (`ivo` ASC))
 ENGINE = InnoDB;
@@ -68,9 +68,9 @@ DROP TABLE IF EXISTS `goto_obs`.`survey_tiles` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`survey_tiles` (
   `tileID` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
-  `name` VARCHAR(255) NOT NULL,
   `surveys_surveyID` INT NOT NULL,
   PRIMARY KEY (`tileID`),
   INDEX `fk_survey_tiles_surveys1_idx` (`surveys_surveyID` ASC),
@@ -116,7 +116,7 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `goto_obs`.`mpointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
-  `rpID` INT NOT NULL AUTO_INCREMENT,
+  `mpointingID` INT NOT NULL AUTO_INCREMENT,
   `object` TEXT NOT NULL,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
@@ -128,26 +128,26 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `maxMoon` CHAR(1) NOT NULL,
   `ToO` TINYINT(1) NOT NULL DEFAULT 0,
   `scheduled` TINYINT(1) NOT NULL DEFAULT 0,
-  `events_eventID` INT NULL,
+  `infinite` TINYINT(1) NOT NULL DEFAULT 0,
+  `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
   `users_userKey` INT(11) NOT NULL,
   `surveys_surveyID` INT NULL,
   `survey_tiles_tileID` INT NULL,
+  `events_eventID` INT NULL,
   `event_tiles_tileID` INT NULL,
-  `infinite` TINYINT(1) NOT NULL DEFAULT 0,
-  `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
-  PRIMARY KEY (`rpID`),
-  INDEX `fk_repeat_pointing_events1_idx` (`events_eventID` ASC),
-  INDEX `fk_repeat_pointing_users1_idx` (`users_userKey` ASC),
+  PRIMARY KEY (`mpointingID`),
+  INDEX `fk_mpointing_events1_idx` (`events_eventID` ASC),
+  INDEX `fk_mpointing_users1_idx` (`users_userKey` ASC),
   INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   INDEX `scheduled_idx` (`scheduled` ASC),
   INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_mpointings_surveys1_idx` (`surveys_surveyID` ASC),
-  CONSTRAINT `fk_repeat_pointing_events1`
+  CONSTRAINT `fk_mpointing_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_repeat_pointing_users1`
+  CONSTRAINT `fk_mpointing_users1`
     FOREIGN KEY (`users_userKey`)
     REFERENCES `goto_obs`.`users` (`userKey`)
     ON DELETE NO ACTION
@@ -177,18 +177,18 @@ DROP TABLE IF EXISTS `goto_obs`.`repeats` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`repeats` (
   `repeatID` INT NOT NULL AUTO_INCREMENT,
+  `status` ENUM('upcoming', 'aborted', 'completed', 'interrupted', 'pending', 'running', 'deleted', 'expired') NOT NULL DEFAULT 'upcoming',
   `repeatNum` INT NOT NULL COMMENT 'can be -1 for infinite repeaters',
   `waitTime` FLOAT NOT NULL COMMENT 'time to wait before scheduling this repeat',
   `valid_duration` FLOAT NULL COMMENT 'how long after the startUTC the repeat should be valid for in minutes.',
-  `status` ENUM('upcoming', 'aborted', 'completed', 'interrupted', 'pending', 'running', 'deleted', 'expired') NOT NULL DEFAULT 'upcoming',
   `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `mpointings_rpID` INT NOT NULL,
+  `mpointings_mpointingID` INT NOT NULL,
   PRIMARY KEY (`repeatID`),
-  INDEX `fk_repeats_repeat_pointing1_idx` (`mpointings_rpID` ASC),
+  INDEX `fk_repeats_mpointing1_idx` (`mpointings_mpointingID` ASC),
   INDEX `status_idx` (`status` ASC),
-  CONSTRAINT `fk_repeats_repeat_pointing1`
-    FOREIGN KEY (`mpointings_rpID`)
-    REFERENCES `goto_obs`.`mpointings` (`rpID`)
+  CONSTRAINT `fk_repeats_mpointing1`
+    FOREIGN KEY (`mpointings_mpointingID`)
+    REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -201,6 +201,7 @@ DROP TABLE IF EXISTS `goto_obs`.`pointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `pointingID` INT(24) NOT NULL AUTO_INCREMENT,
+  `status` ENUM('running', 'aborted', 'completed', 'interrupted', 'pending', 'deleted', 'expired') NOT NULL DEFAULT 'pending',
   `object` TEXT NOT NULL COMMENT 'object name',
   `ra` FLOAT NOT NULL COMMENT 'in decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'in decimal degrees',
@@ -209,23 +210,22 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `maxSunAlt` FLOAT NOT NULL DEFAULT -15 COMMENT 'degrees	',
   `minTime` FLOAT NOT NULL,
   `maxMoon` CHAR(1) NOT NULL,
+  `ToO` TINYINT(1) UNSIGNED NOT NULL,
   `startUTC` DATETIME NOT NULL,
   `stopUTC` DATETIME NOT NULL,
-  `ToO` TINYINT(1) UNSIGNED NOT NULL,
-  `status` ENUM('running', 'aborted', 'completed', 'interrupted', 'pending', 'deleted', 'expired') NOT NULL DEFAULT 'pending',
   `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `events_eventID` INT NULL,
   `users_userKey` INT(11) NOT NULL,
+  `mpointings_mpointingID` INT NULL,
   `repeats_repeatID` INT NULL,
-  `mpointings_rpID` INT NULL,
-  `event_tiles_tileID` INT NULL,
   `surveys_surveyID` INT NULL,
   `survey_tiles_tileID` INT NULL,
+  `events_eventID` INT NULL,
+  `event_tiles_tileID` INT NULL,
   PRIMARY KEY (`pointingID`),
   INDEX `fk_pointings_events1_idx` (`events_eventID` ASC),
   INDEX `fk_pointings_users1_idx` (`users_userKey` ASC),
   INDEX `fk_pointings_repeats1_idx` (`repeats_repeatID` ASC),
-  INDEX `fk_pointings_mpointings1_idx` (`mpointings_rpID` ASC),
+  INDEX `fk_pointings_mpointings1_idx` (`mpointings_mpointingID` ASC),
   INDEX `status_idx` (`status` ASC),
   INDEX `start_idx` (`startUTC` ASC),
   INDEX `stop_idx` (`stopUTC` ASC),
@@ -248,8 +248,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_pointings_mpointings1`
-    FOREIGN KEY (`mpointings_rpID`)
-    REFERENCES `goto_obs`.`mpointings` (`rpID`)
+    FOREIGN KEY (`mpointings_mpointingID`)
+    REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_pointings_event_tiles1`
@@ -279,27 +279,27 @@ DROP TABLE IF EXISTS `goto_obs`.`exposure_sets` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`exposure_sets` (
   `expID` INT(24) NOT NULL AUTO_INCREMENT,
-  `raoff` FLOAT NOT NULL DEFAULT 0.0 COMMENT 'RA offset (arcsecs)',
-  `decoff` FLOAT NOT NULL DEFAULT 0.0 COMMENT 'dec offset (arcsec)',
+  `otaMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
   `typeFlag` ENUM('SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD') NOT NULL,
   `filter` CHAR(2) NOT NULL,
   `exptime` FLOAT NOT NULL,
-  `numexp` INT(11) UNSIGNED NOT NULL,
   `binning` INT(11) UNSIGNED NOT NULL,
-  `otaMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
-  `pointings_pointingID` INT(12) NULL,
-  `mpointings_rpID` INT NULL,
+  `numexp` INT(11) UNSIGNED NOT NULL,
+  `raoff` FLOAT NOT NULL DEFAULT 0.0 COMMENT 'RA offset (arcsecs)',
+  `decoff` FLOAT NOT NULL DEFAULT 0.0 COMMENT 'dec offset (arcsec)',
+  `pointings_pointingID` INT NULL,
+  `mpointings_mpointingID` INT NULL,
   PRIMARY KEY (`expID`),
-  INDEX `fk_exposures_pointings_idx` (`pointings_pointingID` ASC),
-  INDEX `fk_exposures_repeat_pointing1_idx` (`mpointings_rpID` ASC),
-  CONSTRAINT `fk_exposures_pointings`
+  INDEX `fk_exposures_pointings1_idx` (`pointings_pointingID` ASC),
+  INDEX `fk_exposures_mpointing1_idx` (`mpointings_mpointingID` ASC),
+  CONSTRAINT `fk_exposures_pointings1`
     FOREIGN KEY (`pointings_pointingID`)
     REFERENCES `goto_obs`.`pointings` (`pointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_exposures_repeat_pointing1`
-    FOREIGN KEY (`mpointings_rpID`)
-    REFERENCES `goto_obs`.`mpointings` (`rpID`)
+  CONSTRAINT `fk_exposures_mpointing1`
+    FOREIGN KEY (`mpointings_mpointingID`)
+    REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
@@ -379,16 +379,16 @@ USE `goto_obs`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`repeats_AFTER_UPDATE` AFTER UPDATE ON `repeats` FOR EACH ROW
 BEGIN
 	DECLARE isinfinite INT;
-    SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_rpID` = `mpointings`.`rpID`);
+    SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 	IF (NEW.ts <> OLD.ts AND NEW.status NOT IN ('running', 'pending')) THEN
 		IF isinfinite = 0 THEN
-			UPDATE `mpointings` SET `rank` = `rank` + 10, `scheduled` = 0 WHERE (NEW.`mpointings_rpID` = `mpointings`.`rpID`);
+			UPDATE `mpointings` SET `rank` = `rank` + 10, `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 		ELSE
-			UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_rpID` = `mpointings`.`rpID`);
+			UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
         END IF;
 	END IF;
 	IF (NEW.ts <> OLD.ts AND NEW.status = 'pending') THEN
-		UPDATE `mpointings` SET `scheduled` = 1 WHERE (NEW.`mpointings_rpID` = `mpointings`.`rpID`);
+		UPDATE `mpointings` SET `scheduled` = 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
     END IF;
 END$$
 
@@ -406,17 +406,17 @@ BEGIN
 		UPDATE `repeats` SET `status` = NEW.status WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
 
         /* insert a new repeat into the repeats table if required */
-        SELECT `infinite` INTO isinfinite FROM `mpointings` INNER JOIN `repeats` ON `mpointings`.`rpID`=`repeats`.`mpointings_rpID`
+        SELECT `infinite` INTO isinfinite FROM `mpointings` INNER JOIN `repeats` ON `mpointings`.`mpointingID`=`repeats`.`mpointings_mpointingID`
         WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
         IF isinfinite = 1 THEN
             CREATE TEMPORARY TABLE tmptable SELECT
-				`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_rpID`
+				`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_mpointingID`
             FROM `repeats` WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
 
             UPDATE tmptable SET status = "upcoming";
             UPDATE tmptable SET repeatNum = repeatNum + 1;
 
-			INSERT INTO `repeats` (`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_rpID`)
+			INSERT INTO `repeats` (`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_mpointingID`)
                 SELECT * from tmptable;
 
             DROP TEMPORARY TABLE IF EXISTS tmptable;

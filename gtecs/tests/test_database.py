@@ -114,7 +114,7 @@ with open_session() as s:
 
     pointings_to_add = []
     for mp in mps_to_schedule:
-        print('Scheduling mp #{}'.format(mp.rpID))
+        print('Scheduling mp #{}'.format(mp.mpointingID))
         next_pointing = mp.get_next_pointing()
         if next_pointing:
             pointings_to_add.append(next_pointing)

@@ -519,8 +519,8 @@ class Repeat(Base):
     valid_duration = Column(Integer)
     status = Column(status_list, server_default='upcoming')
     ts = Column(DateTime)
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=False)
 
     @validates('waitTime', 'valid_duration')
@@ -554,7 +554,7 @@ class Mpointing(Base):
     Like all SQLAlchemy model classes, this object links to the
     underlying database. You can create an Mpointing, and set its attributes
     without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the rpID)
+    an active database session, and some properties (like the mpointingID)
     will be None until the Mpointing is added to the database.
 
     The constructor must use keyword arguments and the arguments below
@@ -608,7 +608,7 @@ class Mpointing(Base):
 
     Attributes
     ----------
-        rpID : int
+        mpointingID : int
             primary key for mpointings
         rank : int
             rank for next pointing to be scheduled
@@ -637,7 +637,7 @@ class Mpointing(Base):
         >>> from gtecs.database import *
         >>> mp = Mpointing()
         >>> mp
-        Mpointing(rpID=None, objectName=None, ra=None, decl=None, rank=None,
+        Mpointing(mpointingID=None, objectName=None, ra=None, decl=None, rank=None,
         start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
         ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
         userKey=None, eventTileID=None, surveyTile=None)
@@ -649,7 +649,7 @@ class Mpointing(Base):
         ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
         ... valid_durations=5, maxSunAlt=-15)
         >>> mp
-        Mpointing(rpID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
+        Mpointing(mpointingID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
         maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, eventTileID=None,
         surveyTile=None)
 
@@ -670,7 +670,7 @@ class Mpointing(Base):
         >>> session.add(mp)
         >>> session.commit()
         >>> mp
-        Mpointing(rpID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
+        Mpointing(mpointingID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
         minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
         eventTileID=None, surveyTile=None)
         >>> mp.repeats
@@ -713,7 +713,7 @@ class Mpointing(Base):
 
     __tablename__ = "mpointings"
 
-    rpID = Column(Integer, primary_key=True)
+    mpointingID = Column(Integer, primary_key=True)
     objectName = Column('object', String)
     ra = Column(Float)
     decl = Column(Float)
@@ -749,24 +749,24 @@ class Mpointing(Base):
 
     repeats = relationship("Repeat", back_populates="mpointing", viewonly=True)
     num_repeats = column_property(
-        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == rpID).correlate_except(Repeat)
+        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == mpointingID).correlate_except(Repeat)
     )
     num_remain = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
                                                     Repeat.status == 'upcoming')).correlate_except(Repeat)
     )
     num_completed = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
                                                     Repeat.status == 'completed')).correlate_except(Repeat)
     )
 
     def __repr__(self):
-        template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
+        template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
                     "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, num_repeats={}, num_completed={}, " +
                     "num_remain={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
-            self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.mpointingID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.num_repeats, self.num_completed, self.num_remain, self.scheduled, self.eventID,
             self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
@@ -911,7 +911,7 @@ class Mpointing(Base):
             maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
             startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
             repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
-            mpointingID=self.rpID, eventTileID=self.eventTileID, surveyID=self.surveyID, surveyTileID=self.surveyTileID
+            mpointingID=self.mpointingID, eventTileID=self.eventTileID, surveyID=self.surveyID, surveyTileID=self.surveyTileID
         )
         # add the exposures
         p.exposure_sets = self.exposure_sets
@@ -1081,8 +1081,8 @@ class Pointing(Base):
                      nullable=False)
     user = relationship("User", backref="pointings", uselist=False)
 
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=True)
     mpointing = relationship("Mpointing", backref="pointings", uselist=False)
 
@@ -1191,8 +1191,8 @@ class ExposureSet(Base):
                         nullable=False)
     pointing = relationship("Pointing", backref="exposure_sets", uselist=False)
 
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=False)
     mpointing = relationship("Mpointing", backref="exposure_sets", uselist=False)
 
