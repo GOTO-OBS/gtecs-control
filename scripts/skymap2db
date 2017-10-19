@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+# A script to aproximate what the GOTO sentinal should be doing:
+# - Read in a LIGO GW skymap
+# - Split it up into tiles
+# - Insert those tiles into the GOTO database
+
+# Import
+import os
+import sys
+import argparse
+import numpy as np
+from collections import namedtuple
+from astropy import units as u
+from astropy.time import Time
+
+from gototile.skymap import SkyMap
+from gototile.skymaptools import tile_skymap
+from gototile.telescope import GOTON4, GOTON8, GOTOS4, GOTOS8
+
+from gtecs.tecs_modules import params
+import gtecs.database as db
+
+DB_USER = 'goto'
+DB_PW = 'G0T0'
+DB_NAME = 'GOTO GW alerts'
+
+## Constant Pointing values
+DURATION = 7*24*u.hour
+POINTING_SETTINGS = dict(rank=2,
+                         minAlt=30,
+                         minTime=360,
+                         maxSunAlt=-18,
+                         maxMoon='B',
+                         ToO=0)
+
+## Constant ExposureSet values
+EXP_SETTINGS = dict(expTime=120,
+                    raoff=0.,
+                    decoff=0.,
+                    numexp=3,
+                    typeFlag='SCIENCE',
+                    filt='L',
+                    binning=1,
+                    otaMask=None)
+
+
+def add_to_database(pointings, event_time, event_name, survey_name):
+    '''Add an event and its tiles to the GOTO database'''
+
+    with db.open_session() as session:
+        # Connect to the user, or create it if it doesn't exist
+        try:
+            userkey = db.get_userkey(session, DB_USER)
+        except:
+            db.add_user(session, DB_USER, DB_PW, DB_NAME)
+            userkey = db.get_userkey(session, DB_USER)
+
+        # Create Event
+        event = db.Event(name=event_name,
+                         source='GW skymap',
+                         ivo=str(event_time)) # no official IVON yet
+        session.add(event)
+
+        # Go through the pointings
+        for pointing in pointings:
+            # Get pointing infomation
+            tile_name = str(pointing['fieldname'])
+            prob = float(pointing['prob'])
+
+            # Only add the higher-probability pointings
+            if prob > 0.001:
+                # Find the matched Survey tile
+                survey_tile = db.get_survey_tile_by_name(session, survey_name,
+                                                         tile_name)
+
+                # Create an EventTile and add to the database
+                tile = db.EventTile(probability=prob)
+                tile.event = event
+                tile.surveyTile = survey_tile
+
+                # Create Pointing and add to the database
+                object_name = '{} {}'.format(event_name, tile_name)
+
+                pointing = db.Pointing(userKey=userkey,
+                                       objectName=object_name,
+                                       ra=survey_tile.ra,
+                                       decl=survey_tile.decl,
+                                       startUTC=event_time,
+                                       stopUTC=event_time+DURATION,
+                                       **POINTING_SETTINGS)
+
+                pointing.surveyTileID = survey_tile.tileID
+                pointing.eventID = event.eventID
+                pointing.eventTileID = tile.tileID
+                pointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
+
+                session.add(pointing)
+
+
+def run(filename, telescope, survey_name):
+    # open skymap and get event details
+    skymap = SkyMap(filename)
+    event_time = skymap.header['date-det']
+    event_name = skymap.header['objid']
+
+    # get pointings from gototile
+    pointings = tile_skymap(skymap, [telescope])
+
+    # add pointings to the database
+    add_to_database(pointings, event_time, event_name, survey_name)
+
+
+if __name__ == '__main__':
+    description = """Convert a GOTO-tile output file containing a list of tiles
+                     and priorities into observation files for the G-TeCS
+                     observation queue."""
+
+    parser = argparse.ArgumentParser(description=description,
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('filename', help="skymap file")
+    parser.add_argument('--telescope', help="telescope name", default='gn4')
+    parser.add_argument('--survey_name', help="survey name", default='-allsky-0.5')
+
+    args = parser.parse_args()
+
+    if args.telescope.upper() in ['GOTON4', 'GN4']:
+        telescope = GOTON4()
+    elif args.telescope.upper() in ['GOTON8', 'GN8']:
+        telescope = GOTON8()
+    elif args.telescepe.upper() in ['GOTOS4', 'GS4']:
+        telescope = GOTOS4()
+    elif args.telescepe.upper() in ['GOTOS8', 'GS8']:
+        telescope = GOTOS8()
+    else:
+        print('Telescope not supported:', args.telescope)
+        sys.exit()
+
+    if args.survey_name[0] == '-':
+        survey_name = telescope.name.replace('-','') + args.survey_name
+    else:
+        survey_name = args.survey_name
+
+    run(args.filename, telescope, survey_name)
