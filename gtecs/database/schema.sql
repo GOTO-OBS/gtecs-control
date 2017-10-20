@@ -367,6 +367,9 @@ BEGIN
 		SET NEW.ra = (SELECT ra FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
 		SET NEW.decl = (SELECT decl FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
     END IF;
+	IF ((NEW.ra is NULL) or (NEW.decl is NULL)) THEN
+		SIGNAL sqlstate '45000' SET message_text = 'No RA/Dec set';
+	END IF;
 END$$
 
 
