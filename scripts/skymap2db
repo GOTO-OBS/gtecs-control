@@ -109,22 +109,34 @@ def run(filename, telescope, survey_name):
     # get pointings from gototile
     print('Getting skymap tile pointings')
     pointings = tile_skymap(skymap, [telescope])
+    pointings.sort('prob')
+    pointings.reverse()
     print('  loaded {} pointings'.format(len(pointings)))
 
     # filter out low-priority pointings
-    prob_lim = 0.001
-    print('Filtering to tiles that contain more than {}%'.format(prob_lim*100))
-    hp_mask = pointings['prob'] > prob_lim
-    hp_pointings = pointings[hp_mask]
+    hp_lim = 0.001
+    print('Filtering to tiles that contain more than {}%'.format(hp_lim*100))
+    hp_mask = pointings['prob'] > hp_lim
+    selected_pointings = pointings[hp_mask]
     print('  found {} tiles that cover {:.1f}% of the skymap'.format(
-        len(hp_pointings),
-        sum(hp_pointings['prob'])/sum(pointings['prob'])*100))
+        len(selected_pointings),
+        sum(selected_pointings['prob'])/sum(pointings['prob'])*100))
+
+    # make sure we always add a minimum number of tiles
+    n_lim = 200
+    if len(selected_pointings) < n_lim:
+        print('Adding extra tiles to reach a minimum of {}'.format(n_lim))
+        selected_pointings = pointings[:n_lim]
+        print('  found {} tiles that cover {:.1f}% of the skymap'.format(
+            len(selected_pointings),
+            sum(selected_pointings['prob'])/sum(pointings['prob'])*100))
 
     # add pointings to the database
     print('Adding {} tiles to the database...'.format(len(hp_pointings)))
     start = time.time()
     add_to_database(hp_pointings, event_time, event_name, survey_name)
     print('  took {:.2f} secs'.format(time.time()-start))
+
 
 if __name__ == '__main__':
     description = """Convert a GOTO-tile output file containing a list of tiles
