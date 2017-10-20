@@ -98,7 +98,7 @@ def add_to_database(pointings, event_time, event_name, survey_name):
             session.add(pointing)
 
 
-def run(filename, telescope, survey_name):
+def run(filename, telescope, survey_name, hp_lim=0.001, n_lim=200):
     # open skymap and get event details
     print('Loading skymap...')
     skymap = SkyMap(filename)
@@ -114,7 +114,6 @@ def run(filename, telescope, survey_name):
     print('  loaded {} pointings'.format(len(pointings)))
 
     # filter out low-priority pointings
-    hp_lim = 0.001
     print('Filtering to tiles that contain more than {}%'.format(hp_lim*100))
     hp_mask = pointings['prob'] > hp_lim
     selected_pointings = pointings[hp_mask]
@@ -123,9 +122,9 @@ def run(filename, telescope, survey_name):
         sum(selected_pointings['prob'])/sum(pointings['prob'])*100))
 
     # make sure we always add a minimum number of tiles
-    n_lim = 200
     if len(selected_pointings) < n_lim:
-        print('Adding extra tiles to reach a minimum of {}'.format(n_lim))
+        print('Adding {} extra tiles to reach a minimum of {}'.format(
+            n_lim-len(selected_pointings), n_lim))
         selected_pointings = pointings[:n_lim]
         print('  found {} tiles that cover {:.1f}% of the skymap'.format(
             len(selected_pointings),
@@ -149,6 +148,8 @@ if __name__ == '__main__':
     parser.add_argument('filename', help="skymap file")
     parser.add_argument('--telescope', help="telescope name", default='gn4')
     parser.add_argument('--survey_name', help="survey name", default='-allsky-0.5')
+    parser.add_argument('--priority', help="minimum priority", type=float, default=0.001)
+    parser.add_argument('--number', help="minimum number", type=int, default=200)
 
     args = parser.parse_args()
 
@@ -169,4 +170,5 @@ if __name__ == '__main__':
     else:
         survey_name = args.survey_name
 
-    run(args.filename, telescope, survey_name)
+    run(args.filename, telescope, survey_name,
+        hp_lim=args.priority, n_lim=args.number)
