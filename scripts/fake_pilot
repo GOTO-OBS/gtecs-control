@@ -32,7 +32,7 @@ readouttime = 10*u.s
 
 weather_on = False
 
-fake_dt = TimeDelta(60*u.s)  # 15*u.s)
+fake_dt = TimeDelta(60*u.s)*7  # 15*u.s)
 
 
 class Weather(object):
