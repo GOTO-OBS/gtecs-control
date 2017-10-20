@@ -565,10 +565,14 @@ class Mpointing(Base):
             unique key identifying user to whom this Mpointing belongs
         objectName : String
             object name
-        ra : float
+        ra : float, optional
             J2000 right ascension in decimal degrees
-        decl : float
+            if ra is not given and this Mpointing is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
             J2000 declination in decimal degrees
+            if decl is not given and this Mpointing is linked to a SurveyTile
+            then the decl will be extracted from the SurveyTile
         start_rank : Integer
             rank to use for first pointing in series
         minAlt : float
@@ -936,10 +940,14 @@ class Pointing(Base):
             unique key identifying user to whom this Pointing belongs
         objectName : String
             object name
-        ra : float
+        ra : float, optional
             J2000 right ascension in decimal degrees
-        decl : float
+            if ra is not given and this Pointing is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
             J2000 declination in decimal degrees
+            if decl is not given and this Pointing is linked to a SurveyTile
+            then the decl will be extracted from the SurveyTile
         rank : Integer
             rank to use for pointing
         minAlt : float

@@ -371,6 +371,18 @@ END$$
 
 
 USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`mpointings_BEFORE_INSERT` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`mpointings_BEFORE_INSERT` BEFORE INSERT ON `mpointings` FOR EACH ROW
+BEGIN
+	IF ((NEW.survey_tiles_tileID is not NULL) and (NEW.ra is NULL) and (NEW.decl is NULL)) THEN
+		SET NEW.ra = (SELECT ra FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
+		SET NEW.decl = (SELECT decl FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
+    END IF;
+END$$
+
+
+USE `goto_obs`$$
 DROP TRIGGER IF EXISTS `goto_obs`.`repeats_AFTER_UPDATE` $$
 USE `goto_obs`$$
 /* When repeats table is updated, this trigger performs the following tasks:
@@ -421,6 +433,18 @@ BEGIN
 
             DROP TEMPORARY TABLE IF EXISTS tmptable;
 		END IF;
+    END IF;
+END$$
+
+
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_BEFORE_INSERT` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_BEFORE_INSERT` BEFORE INSERT ON `pointings` FOR EACH ROW
+BEGIN
+	IF ((NEW.survey_tiles_tileID is not NULL) and (NEW.ra is NULL) and (NEW.decl is NULL)) THEN
+		SET NEW.ra = (SELECT ra FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
+		SET NEW.decl = (SELECT decl FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
     END IF;
 END$$
 

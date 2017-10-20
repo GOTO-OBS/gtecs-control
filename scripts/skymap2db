@@ -88,8 +88,6 @@ def add_to_database(pointings, event_time, event_name, survey_name):
 
             mpointing = db.Mpointing(userKey=userkey,
                                      objectName=object_name,
-                                     ra=survey_tile.ra,
-                                     decl=survey_tile.decl,
                                      **MPOINTING_SETTINGS)
 
             mpointing.surveyTile = survey_tile

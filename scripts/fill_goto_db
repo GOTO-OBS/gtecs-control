@@ -87,6 +87,7 @@ def run(telescope, overlap_frac):
         print('Creating tiles...')
         start = time.time()
         for ra, dec, name in zip(ras, decs, names):
+            if abs(dec) < 0.00001: dec = 0 # GOTO-tile rounding errors
             tile = db.SurveyTile(ra=float(ra), decl=float(dec), name=str(name))
             tile.survey = survey
             tiles.append(tile)
@@ -100,10 +101,8 @@ def run(telescope, overlap_frac):
         # create Mpointings
         print('Creating mpointings...')
         start = time.time()
-        for ra, dec, tile in zip(ras, decs, tiles):
+        for tile in tiles:
             mp = db.Mpointing(userKey=user_key,
-                              ra=float(ra),
-                              decl=float(dec),
                               **SURVEY_SETTINGS)
             mp.surveyID = survey.surveyID
             mp.surveyTileID = tile.tileID
