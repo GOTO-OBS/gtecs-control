@@ -14,6 +14,8 @@ from collections import namedtuple
 from astropy import units as u
 from astropy.time import Time
 
+from sqlalchemy.orm import joinedload
+
 from gototile.skymap import SkyMap
 from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4, GOTON8, GOTOS4, GOTOS8
@@ -26,13 +28,15 @@ DB_PW = 'G0T0'
 DB_NAME = 'GOTO GW alerts'
 
 ## Constant Pointing values
-DURATION = 7*24*u.hour
-POINTING_SETTINGS = dict(rank=2,
-                         minAlt=30,
-                         minTime=360,
-                         maxSunAlt=-18,
-                         maxMoon='B',
-                         ToO=0)
+MPOINTING_SETTINGS = dict(start_rank=2,
+                          minAlt=30,
+                          minTime=360,
+                          maxSunAlt=-18,
+                          maxMoon='B',
+                          ToO=0,
+                          num_repeats=5,
+                          intervals=1440,
+                          valid_durations=1439)
 
 ## Constant ExposureSet values
 EXP_SETTINGS = dict(expTime=120,
@@ -79,23 +83,29 @@ def add_to_database(pointings, event_time, event_name, survey_name):
 
             session.add(tile)
 
-            # Create Pointing and add to the database
+            # Create Mpointing and add to the database
             object_name = '{} {}'.format(event_name, tile_name)
 
-            pointing = db.Pointing(userKey=userkey,
-                                   objectName=object_name,
-                                   ra=survey_tile.ra,
-                                   decl=survey_tile.decl,
-                                   startUTC=event_time,
-                                   stopUTC=event_time+DURATION,
-                                   **POINTING_SETTINGS)
+            mpointing = db.Mpointing(userKey=userkey,
+                                     objectName=object_name,
+                                     ra=survey_tile.ra,
+                                     decl=survey_tile.decl,
+                                     **MPOINTING_SETTINGS)
 
-            pointing.surveyTile = survey_tile
-            pointing.event = event
-            pointing.eventTile = tile
-            pointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
+            mpointing.surveyTile = survey_tile
+            mpointing.event = event
+            mpointing.eventTile = tile
+            mpointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
 
-            session.add(pointing)
+            session.add(mpointing)
+
+        # find the Mpointings that are unscheduled
+        unscheduled_mps = session.query(db.Mpointing).filter(
+            db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
+
+        # create first batch of Pointings
+        pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+        db.insert_items(session, pointings)
 
 
 def run(filename, telescope, survey_name, hp_lim=0.001, n_lim=200):
