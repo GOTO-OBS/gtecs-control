@@ -632,7 +632,7 @@ def what_to_do_next(current_pointing, highest_pointing):
                 return current_pointing
 
 
-def check_queue(time, write_html=False):
+def check_queue(time=None, write_html=False):
     """
     Check the current pointings in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
@@ -646,6 +646,11 @@ def check_queue(time, write_html=False):
 
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
+        Default is `astropy.time.Time.now()`.
+
+    write_html : Bool
+        Should the scheduler write the HTML queue webpage?
+        Default is False.
 
     Returns
     -------
@@ -653,6 +658,9 @@ def check_queue(time, write_html=False):
         The pointing to send to the pilot.
         Could be a new pointing, the current pointing or 'None' (park).
     """
+
+    if time is None:
+        time = Time.now()
 
     GOTO = Observer(astronomy.observatory_location())
 
