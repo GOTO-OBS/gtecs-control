@@ -19,6 +19,7 @@ import astroplan
 from gtecs.tecs_modules import scheduler
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy
 import gtecs.database as db
 
 with warnings.catch_warnings():
@@ -103,8 +104,8 @@ def get_night_times(date):
     lapalma = astroplan.Observer.at_site('lapalma')
     # Time(date) gives start of date, add one day to get midnight that night
     midnight = Time(date) + TimeDelta(1*u.day)
-    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -15*u.deg)
-    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -15*u.deg)
+    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -8*u.deg)
+    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -8*u.deg)
     return sunset, sunrise
 
 
@@ -282,7 +283,9 @@ def run(date, sleep_time, write_html):
             ts = time.time()
             now.format = 'iso'
             now.precision = 0
-            print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
+            sunalt = astronomy.sun_alt(now)
+            print('Loop: {} ({:>5.2f}) ---  dt:{:.3f}s'.format(
+                now, sunalt, (ts-tprev)))
             pilot.check_weather(weather, now, session)
             if pilot.dome_status:  # open
                 pilot.review_target_situation(now, bool(write_html), session)
