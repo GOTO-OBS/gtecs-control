@@ -32,8 +32,10 @@ now = Time('2016-08-31 22:00')
 while True:
     now = now + 5*60*u.second
     print(now)
-    newID, newPriority, newMinTime = scheduler.check_queue(now, write_html)
-    if newID is not None:
+    newPointing = scheduler.check_queue(now, write_html)
+    if newPointing is not None:
+        newID = newPointing.id
+        newPriority = newPointing.priority_now
         print('   job is', newID, 'with', newPriority)
     else:
         print('   nothing to do, parking')

@@ -177,8 +177,8 @@ class Pointing:
             tileprob = dbPointing.eventTile.probability
         else:
             tileprob = 0
-        # survey tiles can be told apart by having a specific rank
-        if dbPointing.surveyTileID is not None:
+        # survey tiles can be told apart by being linked to a Survey
+        if dbPointing.surveyID is not None:
             survey = True
         else:
             survey = False
@@ -684,6 +684,6 @@ def check_queue(time=None, write_html=False):
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
 
     if new_pointing is not None:
-        return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
+        return new_pointing
     else:
-        return None, None, None
+        return None

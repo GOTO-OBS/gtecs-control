@@ -228,10 +228,16 @@ class DummyPilot(object):
             print('  current :', None)
 
         # find new highest priority from the scheduler
-        newID, newPriority, newMinTime = scheduler.check_queue(now, write_html)
-        if newID is not None:
+        newPointing = scheduler.check_queue(now, write_html)
+        if newPointing is not None:
+            newID = newPointing.id
+            newPriority = newPointing.priority_now
+            newMinTime = newPointing.mintime
             print('  queue   : ID', newID)#, newPriority)
         else:
+            newID = None
+            newPriority = None
+            newMinTime = None
             print('  queue   :', None)
 
         # what next
