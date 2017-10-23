@@ -667,7 +667,7 @@ def check_queue(time=None, write_html=False):
     pointings = import_pointings_from_database(time, GOTO)
 
     if len(pointings) == 0:
-        return None, None, None
+        return None
 
     queue = PointingQueue(pointings)
 
