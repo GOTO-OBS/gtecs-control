@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`events` (
   `name` VARCHAR(255) NOT NULL,
   `source` VARCHAR(255) NOT NULL COMMENT 'LIGO, SWIFT etc.',
   `ivo` VARCHAR(255) NOT NULL,
+  `skymap` VARCHAR(255) NULL,
   PRIMARY KEY (`eventID`),
   UNIQUE INDEX `ivo_UNIQUE` (`ivo` ASC))
 ENGINE = InnoDB;

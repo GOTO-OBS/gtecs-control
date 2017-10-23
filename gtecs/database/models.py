@@ -37,6 +37,8 @@ class Event(Base):
             a human-readable identifier for the event
         source : string
             the event's origin, e.g. LVC
+        skymap : string, optional
+            the location of the source skymap file
 
     An Event also has the following properties which are
     populated through database queries, but not needed for
@@ -63,15 +65,16 @@ class Event(Base):
     __tablename__ = "events"
 
     eventID = Column(Integer, primary_key=True)
-    ivo = Column(String, unique=True)
     name = Column(String)
     source = Column(String)
+    ivo = Column(String, unique=True)
+    skymap = Column(String)
 
     eventTiles = relationship("EventTile", back_populates="event")
 
     def __repr__(self):
-        return "Event(eventID={}, ivo={}, name={}, source={})".format(
-            self.eventID, self.ivo, self.name, self.source
+        return "Event(eventID={}, name={}, source={}, ivo={}, skymap={})".format(
+            self.eventID, self.name, self.source, self.ivo, self.skymap
         )
 
 

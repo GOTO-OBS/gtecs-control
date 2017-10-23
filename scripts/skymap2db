@@ -49,7 +49,7 @@ EXP_SETTINGS = dict(expTime=120,
                     otaMask=None)
 
 
-def add_to_database(pointings, event_time, event_name, survey_name):
+def add_to_database(pointings, event_time, event_name, survey_name, filename):
     '''Add an event and its tiles to the GOTO database'''
 
     with db.open_session() as session:
@@ -63,7 +63,8 @@ def add_to_database(pointings, event_time, event_name, survey_name):
         # Create Event
         event = db.Event(name=event_name,
                          source='GW skymap',
-                         ivo=str(event_time)) # no official IVON yet
+                         ivo=str(event_time), # no official IVON yet
+                         skymap=filename)
         session.add(event)
 
         # Go through the pointings
@@ -141,7 +142,7 @@ def run(filename, telescope, survey_name, hp_lim=0.001, n_lim=200):
     # add pointings to the database
     print('Adding {} tiles to the database...'.format(len(selected_pointings)))
     start = time.time()
-    add_to_database(selected_pointings, event_time, event_name, survey_name)
+    add_to_database(selected_pointings, event_time, event_name, survey_name, filename)
     print('  took {:.2f} secs'.format(time.time()-start))
 
 
@@ -161,6 +162,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    filename = os.path.realpath(args.filename) # unpack relative paths
+
     if args.telescope.upper() in ['GOTON4', 'GN4']:
         telescope = GOTON4()
     elif args.telescope.upper() in ['GOTON8', 'GN8']:
@@ -178,5 +181,5 @@ if __name__ == '__main__':
     else:
         survey_name = args.survey_name
 
-    run(args.filename, telescope, survey_name,
+    run(filename, telescope, survey_name,
         hp_lim=args.priority, n_lim=args.number)
