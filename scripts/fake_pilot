@@ -6,6 +6,7 @@ import signal
 import time
 import warnings
 import traceback
+import math
 
 import george
 import numpy as np
@@ -15,6 +16,10 @@ from astropy.time import Time, TimeDelta
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import astroplan
+
+from gototile.skymap import SkyMap
+from gototile.skymaptools import tile_skymap
+from gototile.telescope import GOTON4
 
 from gtecs.tecs_modules import scheduler
 from gtecs.tecs_modules import misc
@@ -77,6 +82,44 @@ class Weather(object):
                 return False
         else:
             return False
+
+
+def update_skymap_probabilities(session, event):
+    '''When a GW tile is observed, update all the Event tile probabilities
+
+    THIS SHOUD BE MOVED SOMEWHERE BETTER
+    '''
+    print('    Updating skymap probabilities: ', end = '\t')
+    try:
+        completed_pointings = session.query(db.Pointing).filter(
+            db.Pointing.eventID == event.eventID).filter(
+            db.Pointing.status == 'completed').all()
+
+        completed_tilenames = [p.surveyTile.name for p in completed_pointings]
+
+        filepath = event.skymap
+        skymap = SkyMap(filepath)
+
+        pointings = tile_skymap(skymap, [GOTON4()],
+                                observed = [completed_tilenames])
+
+        i = 0
+        for tile in event.eventTiles:
+            old_prob = float(tile.probability)
+            index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
+            new_prob = float(pointings['prob'][index])
+
+            if not math.isclose(old_prob, new_prob, abs_tol=0.0001):
+                i += 1
+                tile.probability = new_prob
+        print(' updated {:.0f} tiles'.format(i))
+
+        session.commit()
+        return 0
+    except:
+        print('ERROR')
+        session.rollback()
+        return 1
 
 
 def set_pointing_status(pointingID, status, session):
@@ -221,6 +264,11 @@ class DummyPilot(object):
             if time_elapsed > self.current_duration:
                 self.currentPriority += 100
                 set_pointing_status(self.currentID, 'completed', session)
+
+                current_pointing = db.get_pointing_by_id(session, self.currentID)
+                event = current_pointing.event
+                if event is not None and event.skymap is not None:
+                    update_skymap_probabilities(session, event)
                 self.completed_pointings.append(self.currentID)
                 self.completed_times.append(now)
             print('  current : ID', self.currentID)#, self.currentPriority)
