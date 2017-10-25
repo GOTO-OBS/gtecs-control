@@ -109,7 +109,7 @@ def update_skymap_probabilities(session, event):
             index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
             new_prob = float(pointings['prob'][index])
 
-            if not math.isclose(old_prob, new_prob, abs_tol=0.0001):
+            if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
                 i += 1
                 tile.probability = new_prob
         print(' updated {:.0f} tiles'.format(i))
