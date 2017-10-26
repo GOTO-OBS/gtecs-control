@@ -48,11 +48,8 @@ horizon_file = params.CONFIG_PATH + 'horizon'
 
 # priority settings
 too_weight = 0.1
-prob_dp = 3
 prob_weight = 0.01
-airmass_dp = 5
 airmass_weight = 0.001
-tts_dp = 5
 tts_weight = 0.00001
 
 # set debug level
@@ -397,15 +394,13 @@ class PointingQueue:
         too_mask = np.array([p.too for p in self.pointings])
         too_arr = np.array(np.invert(too_mask), dtype = float)
 
-        ## Find probability values (0.00.. to 0.99..)
-        prob_arr = np.array([1-prob if prob != 0
-                             else 0
+        ## Find probability values (0 to 1)
+        prob_arr = np.array([1-prob if prob != 0 else 0
                              for prob in self.tileprob_arr])
-        prob_arr = np.around(prob_arr, decimals = prob_dp)
-        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr >= 1)
-        prob_arr[bad_prob_mask] = float('0.' + '9' * prob_dp)
+        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr > 1)
+        prob_arr[bad_prob_mask] = 1
 
-        ## Find airmass values (0.00.. to 0.99..)
+        ## Find airmass values (0 to 1)
         # airmass at start
         altaz_now = _get_altaz(time, observer, self.targets)['altaz']
         secz_now = altaz_now.secz
@@ -417,22 +412,22 @@ class PointingQueue:
 
         # take average
         secz_arr = (secz_now + secz_later)/2.
-        airmass_arr = np.around(secz_arr/10., decimals = airmass_dp)
-        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr >= 1)
-        airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
+        airmass_arr = secz_arr.value/10.
+        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
+        airmass_arr[bad_airmass_mask] = 1
 
-        ## Find time to set values (0.00.. to 0.99..)
+        ## Find time to set values (0 to 1)
         tts_arr = time_to_set(observer, self.targets, time).to(u.hour).value
-        tts_arr = np.around(tts_arr/24., decimals = tts_dp)
-        bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
-        tts_arr[bad_tts_mask] = float('0.' + '9' * tts_dp)
+        tts_arr = tts_arr/24.
+        bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
+        tts_arr[bad_tts_mask] = 1
 
         ## Construct the probability based on weightings
         priorities_now = priorities.copy()
 
         priorities_now += too_arr * too_weight
         priorities_now += prob_arr * prob_weight
-        priorities_now += airmass_arr.value * airmass_weight
+        priorities_now += airmass_arr * airmass_weight
         priorities_now += tts_arr * tts_weight
 
         # check validities, add INVALID_PRIORITY to invalid pointings
