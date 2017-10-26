@@ -47,10 +47,13 @@ queue_file   = params.QUEUE_PATH  + 'queue_info'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
 # priority settings
-too_weight = 0.1
-prob_weight = 0.01
-airmass_weight = 0.001
-tts_weight = 0.00001
+PROB_WEIGHT = 10
+AIRMASS_WEIGHT = 1
+TTS_WEIGHT = 0.1
+
+PROB_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+AIRMASS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+TTS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
 # set debug level
 debug = 1
@@ -425,10 +428,10 @@ class PointingQueue:
         ## Construct the probability based on weightings
         priorities_now = priorities.copy()
 
-        priorities_now += too_arr * too_weight
-        priorities_now += prob_arr * prob_weight
-        priorities_now += airmass_arr * airmass_weight
-        priorities_now += tts_arr * tts_weight
+        priorities_now += 0.1 * too_arr
+        priorities_now += 0.01 * (prob_arr * PROB_WEIGHT +
+                                  airmass_arr * AIRMASS_WEIGHT +
+                                  tts_arr * TTS_WEIGHT)
 
         # check validities, add INVALID_PRIORITY to invalid pointings
         self.check_validities(time, observer)
