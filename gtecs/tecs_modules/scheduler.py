@@ -175,7 +175,7 @@ class Pointing:
         # not every pointing has an associated tile probability
         # if it doesn't, it effectively contains 100% of the target so prob=1
         if dbPointing.eventTile:
-            tileprob = dbPointing.eventTile.probability
+            tileprob = dbPointing.eventTile.unobserved_probability
         else:
             tileprob = 1
         # survey tiles can be told apart by being linked to a Survey

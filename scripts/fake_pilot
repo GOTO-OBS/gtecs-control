@@ -105,13 +105,13 @@ def update_skymap_probabilities(session, event):
 
         i = 0
         for tile in event.eventTiles:
-            old_prob = float(tile.probability)
+            old_prob = float(tile.unobserved_probability)
             index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
             new_prob = float(pointings['prob'][index])
 
             if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
                 i += 1
-                tile.probability = new_prob
+                tile.unobserved_probability = new_prob
         print(' updated {:.0f} tiles'.format(i))
 
         session.commit()
@@ -238,7 +238,7 @@ class DummyPilot(object):
             current_tileID   = current_pointing.eventTileID
             current_tile = session.query(db.EventTile).filter(db.EventTile.tileID == current_tileID).one_or_none()
             if current_tile:
-                self.currentProbability = current_tile.probability
+                self.currentProbability = current_tile.unobserved_probability
             else:
                 self.currentProbability = 0
 

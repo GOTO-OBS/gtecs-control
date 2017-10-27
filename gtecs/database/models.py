@@ -195,6 +195,9 @@ class EventTile(Base):
     ----------
         tileID : int
             primary key for event tiles
+        unobserved_probability : float
+            the total probability in this tile that hasn't been observed
+            should be updated whenever any overlapping tile is observed
         mpointing : `Mpointing`
             the `Mpointing` associated with this EventTile if any
         pointings : list of `Pointing`
@@ -270,6 +273,7 @@ class EventTile(Base):
     ra = Column(Float)
     decl = Column(Float)
     probability = Column(Float)
+    unobserved_probability = Column(Float)
 
     # handle relationships
     pointings = relationship("Pointing", back_populates="eventTile")
