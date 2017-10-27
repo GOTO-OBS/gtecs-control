@@ -242,12 +242,13 @@ class DummyPilot(object):
             else:
                 self.currentProbability = 0
 
-            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.2f}%)'.format(
+            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%; {:.9f})'.format(
                 self.currentID,
                 self.currentName,
                 self.currentRa,
                 self.currentDec,
                 self.currentProbability*100,
+                self.currentPriority,
                 )
         else:
             state = 'idle'
