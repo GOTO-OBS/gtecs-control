@@ -172,11 +172,12 @@ class Pointing:
 
     @classmethod
     def from_database(cls, dbPointing):
-        # not every pointing has an assosiated GW tile probability
+        # not every pointing has an associated tile probability
+        # if it doesn't, it effectively contains 100% of the target so prob=1
         if dbPointing.eventTile:
             tileprob = dbPointing.eventTile.probability
         else:
-            tileprob = 0
+            tileprob = 1
         # survey tiles can be told apart by being linked to a Survey
         if dbPointing.surveyID is not None:
             survey = True
@@ -398,8 +399,7 @@ class PointingQueue:
         too_arr = np.array(np.invert(too_mask), dtype = float)
 
         ## Find probability values (0 to 1)
-        prob_arr = np.array([1-prob if prob != 0 else 0
-                             for prob in self.tileprob_arr])
+        prob_arr = 1-self.tileprob_arr
         bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr > 1)
         prob_arr[bad_prob_mask] = 1
 
