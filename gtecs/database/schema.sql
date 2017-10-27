@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`event_tiles` (
   `ra` FLOAT NOT NULL,
   `decl` FLOAT NOT NULL,
   `probability` FLOAT NOT NULL,
+  `unobserved_probability` FLOAT NOT NULL,
   `events_eventID` INT NOT NULL,
   `survey_tiles_tileID` INT NULL,
   PRIMARY KEY (`tileID`),
@@ -368,6 +369,9 @@ BEGIN
 		SET NEW.ra = (SELECT ra FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
 		SET NEW.decl = (SELECT decl FROM `survey_tiles` WHERE NEW.survey_tiles_tileID = `survey_tiles`.`tileID`);
     END IF;
+    IF ((NEW.unobserved_probability is NULL) and (NEW.probability is not NULL)) THEN
+		SET NEW.unobserved_probability = NEW.probability;
+	END IF;
 END$$
 
 
