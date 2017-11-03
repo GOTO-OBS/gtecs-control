@@ -28,11 +28,10 @@ from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Fake AstroHaven dome class
-class FakeDome:
+# Fake AstroHaven dome classclass FakeDome:
     def __init__(self):
         self.fake = True
-        self.moving = False
+        self.output_thread_running = False
         self.side = ''
         # fake stuff
         self._temp_file = '/tmp/dome'
@@ -40,10 +39,6 @@ class FakeDome:
         self._writing = False # had problems with reading and writing overlapping
 
         self._read_temp()
-
-    @property
-    def status(self):
-        return self._check_status()
 
     def _read_temp(self):
         while self._writing:
@@ -67,36 +62,9 @@ class FakeDome:
             f.write(string)
         self._writing = False
 
-    def _move_dome(self, command):
-        if self.moving:
-            print('Already moving!')
-            return
-        self._read_temp()
-        if self.side == 'north':
-            side = 0
-        elif self.side == 'south':
-            side = 1
-        self.moving = True
-        while self.moving:
-            print(self._status_arr, side)
-            if command == 'open':
-                if self._status_arr[side] < 9:
-                    time.sleep(3)
-                    self._status_arr[side] += 1
-                    self._write_temp()
-                    if self._status_arr[side] == 9:
-                        self.moving = False
-                else:
-                    self.moving = False
-            elif command == 'close':
-                if self._status_arr[side] > 0:
-                    time.sleep(3)
-                    self._status_arr[side] -= 1
-                    self._write_temp()
-                    if self._status_arr[side] == 0:
-                        self.moving = False
-                else:
-                    self.moving = False
+    @property
+    def status(self):
+        return self._check_status()
 
     def _check_status(self):
         status = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
@@ -125,24 +93,100 @@ class FakeDome:
 
         return status
 
-    def open_full(self, side, frac=1):
-        #time.sleep(7) # for the alarm
-        print('ALARM', side)
+    def halt(self):
+        self.output_thread_running = False
+
+    def _output_thread(self):
+        if self.side == 'north':
+            side = 0
+        elif self.side == 'south':
+            side = 1
+        frac = self.frac
+        command = self.command
+        timeout = self.timeout
+        start_time = time.time()
+
+        self._read_temp()
+        start_position = self._status_arr[side]
+
+        while self.output_thread_running:
+            # store running time for timeout
+            running_time = time.time() - start_time
+
+            # check reasons to break out and stop the thread
+            if command == 'open' and self._status_arr[side] == 9:
+                print('Dome at limit')
+                self.output_thread_running = 0
+                break
+            elif command == 'close' and self._status_arr[side] == 0:
+                print('Dome at limit')
+                self.output_thread_running = 0
+                break
+            elif (frac != 1 and
+                abs(start_position - self._status_arr[side]) > frac*9):
+                print('Dome moved requested fraction')
+                self.output_thread_running = 0
+                break
+            elif running_time > timeout:
+                print('Dome moving timed out')
+                self.output_thread_running = 0
+                break
+            elif self.status[self.side] == 'ERROR':
+                print('All sensors failed, stopping movement')
+                self.output_thread_running = 0
+                break
+
+            # if we're still going, send the command to "the serial port"
+            if command == 'open':
+                self._status_arr[side] += 1
+                self._write_temp()
+                time.sleep(3)
+            elif command == 'close':
+                self._status_arr[side] -= 1
+                self._write_temp()
+                time.sleep(3)
+
+            time.sleep(0.5)
+
+        # finished moving for whatever reason, reset before exiting
+        self.side = ''
+        self.command = ''
+        self.timeout = 40.
+
+    def _move_dome(self, side, command, frac, timeout=40.):
         self.side = side
-        t = threading.Thread(target=self._move_dome, args = ['open'])
-        t.start()
+        self.frac = frac
+        self.command = command
+        self.timeout = timeout
+
+        # Don't interupt!
+        if self.status[side] in ['opening','closing']:
+            return
+
+        ### start output thread
+        if not self.output_thread_running:
+            print('starting to move:', side, command, frac)
+            self.output_thread_running = 1
+            ot = threading.Thread(target=self._output_thread)
+            ot.daemon = True
+            ot.start()
+            return
+
+    def open_full(self, side, frac=1):
+        self.sound_alarm(3)
+        self._move_dome(side, 'open', frac)
         return
 
     def close_full(self, side, frac=1):
-        #time.sleep(7) # for the alarm
-        print('ALARM')
-        self.side = side
-        t = threading.Thread(target=self._move_dome, args = ['close'])
-        t.start()
+        self.sound_alarm(3)
+        self._move_dome(side, 'close', frac)
         return
 
-    def halt(self):
-        self.moving = False
+    def sound_alarm(self,duration=3,sleep=True):
+        print('THIS IS A FALSE ALARM')
+        if sleep:
+            time.sleep(duration)
+        return
 
 
 ########################################################################
