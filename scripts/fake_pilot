@@ -111,6 +111,8 @@ def update_skymap_probabilities(session, event):
 
             if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
                 i += 1
+                if new_prob < 0.001:
+                    new_prob = 0
                 tile.unobserved_probability = new_prob
         print(' updated {:.0f} tiles'.format(i))
 
