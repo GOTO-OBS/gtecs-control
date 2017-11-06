@@ -6,7 +6,10 @@
 
 import time, math, ephem, string, os, subprocess, re, signal, smtplib, sys, urllib, calendar, json
 import numpy as np
+
+from astropy.time import Time
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy
 
 # function to trap ctrl-c and exit cleanly by closing open files
 def signal_handler(signal, frame):
@@ -24,13 +27,6 @@ def get_roomalert():
     temperature = float(dome_data['tc'])
     humidity = float(dome_data['h'])
     return temperature, humidity
-
-# function to get the current altitude of the Sun as viewed from GOTO
-def get_sun_alt():
-    sun = ephem.Sun()
-    goto.date = year,month,day,hour,min,sec
-    sun.compute(goto)
-    return (sun.alt)
 
 # function to get the current weather from the ING weather page (JKT mast)
 def get_ing_weather_html():
@@ -362,7 +358,6 @@ weather_source_used = weather_source
 
 # set GOTO limits
 
-sun_alt_limit = params.SUN_ELEVATION_LIMIT * math.pi/180.         # maximum altitude limit of the Sun in radians
 wind_limit = params.MAX_WINDSPEED                                 # wind speed limit in m/s
 wind_limit_closed = wind_limit*0.9                                # wind speed limit in m/s when already closed
 humidity_limit = params.MAX_HUMIDITY                              # relative humidity limit in per cent
@@ -410,21 +405,11 @@ loop = 0
 while True:
     loop +=1
     time.sleep(monitor_interval)
-
-# get current utc time and date
-
-    now = time.gmtime()
-    year = now[0]
-    month = now[1]
-    day = now[2]
-    hour = now[3]
-    min = now[4]
-    sec = now[5]
+    now = Time.now()
 
 # check the altitude of the Sun
-
-    (sun_alt_now) = get_sun_alt()
-    if sun_alt_now > sun_alt_limit:
+    sun_alt_now = astronomy.sun_alt(now)
+    if sun_alt_now > params.SUN_ELEVATION_LIMIT:
         dark = 1
     else:
         dark = 0
@@ -561,7 +546,7 @@ while True:
 
 # now write all the values to the conditions flags file in JSON format
 
-    time_flag = time.strftime('%Y-%m-%d %H:%M:%S', now)
+    time_flag = str(now.iso)
     dark_flag = int(dark)
     dry_flag = int(dry)
     wind_flag = int(wind)
@@ -590,8 +575,9 @@ while True:
 # write useful info to the conditions monitor log file if required
 
     if log_file == 0:
-        f = open(log_folder+time.strftime('%Y_%m_%d', now)+'_conditions_monitor.log', 'a')
-        time_log = time.strftime('%Y-%m-%d %H:%M:%S', now)
+        date = str(now.iso).split()[0].replace('-','_')
+        f = open(log_folder+date+'_conditions_monitor.log', 'a')
+        time_log = str(now.iso)
     if weather_source_used == backup_weather_source:
         backup = 'backup'
     else:
