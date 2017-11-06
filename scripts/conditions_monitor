@@ -17,15 +17,22 @@ def signal_handler(signal, frame):
         sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-# function to get Room Alert internal dome temperature and humidity
+
 def get_roomalert():
-    curl_command = "curl -s -m 10 -o " + monitor_folder + "roomalert.json 10.2.6.5/getData.json"
+    '''Get internal dome temperature and humidity from GOTO RoomAlert system'''
+
+    url = '10.2.6.5/getData.json'
+    outfile = monitor_folder + 'roomalert.json'
+    curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
     os.popen(curl_command)
-    with open(monitor_folder + "roomalert.json",'r') as f:
+
+    with open(outfile, 'r') as f:
         data = json.load(f)
+
     dome_data = data['sensor'][0]
     temperature = float(dome_data['tc'])
     humidity = float(dome_data['h'])
+
     return temperature, humidity
 
 
