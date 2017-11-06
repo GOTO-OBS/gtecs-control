@@ -28,253 +28,195 @@ def get_roomalert():
     humidity = float(dome_data['h'])
     return temperature, humidity
 
-# function to get the current weather from the ING weather page (JKT mast)
-def get_ing_weather_html():
-    curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.html http://catserver.ing.iac.es/weather/"
-    os.popen(curl_command)
-    try:
-        deltat_set = 1 # these _set variables added to make function more robust to
-        temp_set = 1   # changes/errors in the ING weather page
-        pressure_set = 1
-        wind_set = 1
-        winddir_set = 1
-        windgust_set = 1
-        humidity_set = 1
-        rain_set = 1
 
-        with open(monitor_folder+"weather.html", 'r',encoding='ISO-8859-1') as f:
+def get_ing_weather_html():
+    '''Get the current weather from the ING weather page (JKT mast)'''
+
+    url = 'http://catserver.ing.iac.es/weather/'
+    outfile = monitor_folder + 'weather.html'
+    curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
+    os.popen(curl_command)
+
+    delta_t = -999
+    rain_flag = 2
+    weather_dict = {'temperature': -999,
+                    'pressure': -999,
+                    'winddir': -999,
+                    'windspeed': -999,
+                    'windgust': -999,
+                    'humidity': -999,
+                    }
+
+    try:
+        with open(outfile, 'r', encoding='ISO-8859-1') as f:
             for line in f:
-                html_stripped = remove_html_tags(line)
-                columns = html_stripped.split()
+                columns = remove_html_tags(line).replace(':',' ').split()
                 if not columns:
                     continue
-                if columns[0].split(":")[0] == 'Temperature':
+
+                if columns[0] == 'Temperature':
                     try:
-                        temp_now = float(columns[0].split(":")[1])
-                        temp_set = 0
+                        weather_dict['temperature'] = float(columns[1])
                     except:
-                        temp_set = 1
-                elif columns[0].split(":")[0] == 'Pressure':
+                        print('Error parsing temperature:', columns[1])
+
+                elif columns[0] == 'Pressure':
                     try:
-                        pressure = float(columns[0].split(":")[1])
-                        pressure_set = 0
+                        weather_dict['pressure'] = float(columns[1])
                     except:
-                        pressure_set = 1
-                elif columns[0].split(":")[0] == 'Wind':
+                        print('Error parsing pressure:', columns[1])
+
+                elif columns[0] == 'Wind' and columns[1] == 'Speed':
                     try:
-                        if columns[1].split(":")[0] == 'Speed':
-                            #wind_now = float(columns[1].split(":")[1])        #old version - gives speed in km/h
-                            wind_now = float(columns[1].split(":")[1]) / 3.6   #convert from km/h to m/s
-                            wind_set = 0
+                        weather_dict['windspeed'] = float(columns[2]) / 3.6 # km/h to m/s
                     except:
-                        wind_set = 1
+                        print('Error parsing wind speed:', columns[2])
+
+                elif columns[0] == 'Wind' and columns[1] == 'Direction':
                     try:
-                        if columns[1].split(":")[0] == 'Direction':
-                            winddir = float(columns[1].split(":")[1])
-                            winddir_set = 0
+                        weather_dict['winddir'] = str(columns[2])
                     except:
-                        winddir_set = 1
+                        print('Error parsing wind direction:', columns[2])
+
+                elif columns[0] == 'Wind' and columns[1] == 'Gust':
                     try:
-                        if columns[1].split(":")[0] == 'Gust':
-                            windgust = float(columns[1].split(":")[1]) / 3.6
-                            windgust_set = 0
+                        weather_dict['windgust'] = float(columns[2]) / 3.6
                     except:
-                        windgust_set = 1
-                elif columns[0].split(":")[0] == 'Humidity':
+                        print('Error parsing wind gust:', columns[2])
+
+                elif columns[0] == 'Humidity':
                     try:
-                        humidity_now = float(columns[0].split(":")[1])
-                        humidity_set = 0
+                        weather_dict['humidity'] = float(columns[1])
                     except:
-                        humidity_set = 1
-                elif columns[0].split(":")[0] == 'Rain':
+                        print('Error parsing humidity:', columns[1])
+
+                elif columns[0] == 'Rain':
                     try:
-                        rain = columns[0].split(":")[1]
-                        if rain == "DRY":
-                            dry = 0
-                        elif rain == "WET":
-                            dry = 1
+                        if columns[1] == 'DRY':
+                            rain_flag = 0
+                        elif columns[1] == 'WET':
+                            rain_flag = 1
                         else:
-                            dry = 2
-                        rain_set = 0
+                            rain_flag = 2
                     except:
-                        rain_set = 1
-                elif len(columns) == 3:
-                        if columns[2].split(":")[0] == 'UT':
-                                try:
-                                        update = time.strptime(columns[0] + columns[1] + "GMT","%Y/%m/%d%H:%M%Z")
-                                        deltat = time.mktime(now)-time.mktime(update)
-                                        deltat_set = 0
-                                except:
-                                        deltat_set = 1
+                        print('Error parsing rain:', columns[1])
 
-        if deltat_set == 1:
-                deltat = -999
-        if temp_set == 1:
-                temp_now = -999
-        if pressure_set == 1:
-                pressure = -999
-        if wind_set == 1:
-                wind_now = -999
-        if winddir_set == 1:
-                winddir = -999
-        if windgust_set == 1:
-                windgust = -999
-        if humidity_set == 1:
-                humidity_now = -999
-        if rain_set == 1:
-                dry = 2
+                elif len(columns) == 4 and columns[3] == 'UT':
+                    try:
+                        update_date = columns[0].replace('/', '-')
+                        update_time = '{}:{}'.format(columns[1],columns[2])
+                        update_dt = '{} {}'.format(update_date, update_time)
+                        delta = Time.now() - Time(update_dt)
+                        delta_t = delta.value
+                    except:
+                        print('Error parsing update time:', *columns)
 
-        if deltat < -999:    # add some checks to pick up weird negative numbers being returned by the ING weather system
-            deltat = -999
-        if winddir < -999:
-            winddir = -999
-        if wind_now < -999:
-            wind_now = -999
-        if windgust < -999:
-            windgust = -999
-        if humidity_now < -999:
-            humidity_now = -999
-        if temp_now < -999:
-            temp_now = -999
     except:
-        deltat = -999
-        winddir = -999
-        wind_now = -999
-        humidity_now = -999
-        temp_now = -999
-        dry = -999
+        print('Error parsing weather page')
 
-    return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
+    return delta_t, rain_flag, weather_dict['winddir'], weather_dict['windspeed'], weather_dict['humidity'], weather_dict['temperature']
 
-# function to get the current weather from the internal ING xml weather file
+
 def get_ing_weather_xml(weather_source):
+    '''Get the current weather from the internal ING xml weather file'''
 
     if weather_source == 'wht':
-        # WHT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = "http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
     elif weather_source == 'int':
-        # INT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
     elif weather_source == 'jkt':
-        # JKT local data:
-        curl_command = "curl -s -m 10 -o " + monitor_folder + "weather.xml http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
+        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
+
+    outfile = monitor_folder + 'weather.xml'
+    curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
+    os.popen(curl_command)
+
+    delta_t = -999
+    rain_flag = 2
+    weather_dict = {'temperature': -999,
+                    'pressure': -999,
+                    'winddir': -999,
+                    'windspeed': -999,
+                    'windgust': -999,
+                    'humidity': -999,
+                    }
 
     try:
-        os.popen(curl_command)
-
-        deltat_set = 1 # these _set variables added to make function more robust to
-        temp_set = 1   # changes/errors in the ING weather page
-        pressure_set = 1
-        wind_set = 1
-        winddir_set = 1
-        windgust_set = 1
-        humidity_set = 1
-        rain_set = 1
-
         with open(monitor_folder+"weather.xml", 'r') as f:
             for line in f:
                 columns = line.split()
                 try:
                     label = columns[1].split("\"")[1].split(".")[2]
+                    value = columns[2].split("\"")[1]
                 except:
                     continue
+
                 if label == 'date':
                     try:
-                        update = float(columns[2].split("\"")[1])
-                        deltat = time.mktime(now)-update
-                        deltat_set = 0
+                        update = float(value)
+                        delta = Time.now() - Time(update)
+                        delta_t = delta.value
                     except:
-                        deltat_set = 1
+                        print('Error parsing update time:', value)
+
                 elif label == 'LocalMastAirTemp' or label == 'MainMastAirTemp':
                     try:
-                        temp_now = float(columns[2].split("\"")[1])
-                        temp_set = 0
+                        weather_dict['temperature'] = float(value)
                     except:
-                        temp_set = 1
+                        print('Error parsing temperature:', value)
+
                 elif label == 'LocalMastPressure' or label == 'MainMastPressure':
                     try:
-                        pressure = float(columns[2].split("\"")[1])
-                        pressure_set = 0
+                        weather_dict['pressure'] = float(value)
                     except:
-                        pressure_set = 1
+                        print('Error parsing pressure:', value)
+
                 elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
                     try:
-                        wind_now = float(columns[2].split("\"")[1]) / 3.6   #convert from km/h to m/s
-                        wind_set = 0
+                        weather_dict['windspeed'] = float(value) / 3.6
                     except:
-                        wind_set = 1
+                        print('Error parsing wind speed:', value)
+
                 elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
                     try:
-                        winddir = float(columns[2].split("\"")[1])
-                        winddir_set = 0
+                        weather_dict['winddir'] = float(value)
                     except:
-                        winddir_set = 1
+                        print('Error parsing wind direction:', value)
+
                 elif label == 'LocalMastGust' or label == 'MainMastGust':
                     try:
-                        windgust = float(columns[2].split("\"")[1]) / 3.6
-                        windgust_set = 0
+                        weather_dict['windgust'] = float(value) / 3.6
                     except:
-                        windgust_set = 1
+                        print('Error parsing wind gust:', value)
+
                 elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
                     try:
-                        humidity_now = float(columns[2].split("\"")[1])
-                        humidity_set = 0
+                        weather_dict['humidity'] = float(value)
                     except:
-                        humidity_set = 1
+                        print('Error parsing humidity:', value)
+
                 elif label == 'LocalMastWetness' or label == 'MainMastWetness':
                     try:
-                        rain = float(columns[2].split("\"")[1])
-                        if rain <= 0.:
-                            dry = 0
-                        elif rain >= 1.:
-                            dry = 1
+                        if float(value) <= 0:
+                            rain_flag = 0
+                        elif float(value) >= 1:
+                            rain_flag = 1
                         else:
-                            dry = 2
-                        rain_set = 0
+                            rain_flag = 2
                     except:
-                        rain_set = 1
+                        print('Error parsing rain:', value)
 
-        if deltat_set == 1:
-                deltat = -999
-        if temp_set == 1:
-                temp_now = -999
-        if pressure_set == 1:
-                pressure = -999
-        if wind_set == 1:
-                wind_now = -999
-        if winddir_set == 1:
-                winddir = -999
-        if windgust_set == 1:
-                windgust = -999
-        if humidity_set == 1:
-                humidity_now = -999
-        if rain_set == 1:
-                dry = 2
-
-        if deltat < -999:     # add some checks to pick up weird negative numbers being returned by the ING weather system
-            deltat = -999
-        if winddir < -999:
-            winddir = -999
-        if wind_now < -999:
-            wind_now = -999
-        if humidity_now < -999:
-            humidity_now = -999
-        if temp_now < -999:
-            temp_now = -999
     except:
-        deltat = -999
-        winddir = -999
-        wind_now = -999
-        humidity_now = -999
-        temp_now = -999
-        dry = -999
+        print('Error parsing weather page')
 
-    return (deltat, dry, winddir, wind_now, humidity_now, temp_now)
+    return delta_t, rain_flag, weather_dict['winddir'], weather_dict['windspeed'], weather_dict['humidity'], weather_dict['temperature']
 
-# function to remove html tags
+
 def remove_html_tags(data):
+    '''Remove html tags from a given line'''
     p = re.compile(r'<.*?>')
-    return p.sub('', data)
+    return p.sub('', data).strip()
+
 
 # function to check the connection between GOTO dome NUC and the GOTO head
 # (the server in Warwick)
