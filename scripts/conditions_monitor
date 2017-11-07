@@ -474,13 +474,13 @@ while True:
         src_log = backup + 'xmlWHT'
 
     log_line = '{:.0f} {} '.format(loop, now.iso)
-    log_line += 'src={} deltat={:.4f} '.format(src_log, deltat)
+    log_line += 'source={} source_dt={:.4f} '.format(src_log, deltat)
     log_line += 'sunalt={:.2f} dark_flag={:.0f} '.format(sun_alt_now, flags['dark'])
     log_line += 'rain_flag={:.0f} '.format(flags['rain'])
-    log_line += 'winddir={} windspeed={:.2f} windspeed_flag={:.0f} '.format(winddir, wind_now, flags['windspeed'])
+    log_line += 'winddir={} windspeed={:.2f} wind_flag={:.0f} '.format(winddir, wind_now, flags['windspeed'])
     log_line += 'ext_hum={:.1f}% int_hum={:.1f}% hum_flag={} '.format(humidity_now, dome_hum, flags['humidity'])
     log_line += 'ext_temp={:.1f}C int_temp={:.1f}C temp_flag={:.0f} '.format(temp_now, dome_temp, flags['temperature'])
-    log_line += 'link_flag={:.0f}\n'.format(flags['link'])
+    log_line += 'link_dt={:.3f} link_flag={:.0f} \n'.format(dt, flags['link'])
     print(log_line)
 
     if log_file == 0:
