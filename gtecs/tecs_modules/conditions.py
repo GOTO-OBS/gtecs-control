@@ -41,16 +41,26 @@ def get_roomalert():
     indata = curl_data_from_url(url, outfile)
     data = json.loads(indata)
 
-    internal_dict = {'int_temperature': -999,
+    internal_dict = {'int_update_time': -999,
+                     'int_temperature': -999,
                      'int_humidity': -999,
                      }
 
     try:
+        update_date = data['date'].split()[0]
+        update_date = '20'+'-'.join(update_date.split('/')[::-1])
+        update_time = data['date'].split()[1]
+        update = '{} {}'.format(update_date, update_time)
+        internal_dict['int_update_time'] = Time(update)
+
         dome_data = data['sensor'][0]
+
         temperature = float(dome_data['tc'])
-        humidity = float(dome_data['h'])
         internal_dict['int_temperature'] = temperature
+
+        humidity = float(dome_data['h'])
         internal_dict['int_humidity'] = humidity
+
     except:
         print('Error parsing RoomAlert page')
 
@@ -64,8 +74,8 @@ def get_ing_weather_html():
     outfile = params.CONFIG_PATH + 'weather.html'
     indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
 
-    delta_t = -999
-    weather_dict = {'rain': -999,
+    weather_dict = {'update_time': -999,
+                    'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
                     'winddir': -999,
@@ -129,16 +139,15 @@ def get_ing_weather_html():
                 try:
                     update_date = columns[0].replace('/', '-')
                     update_time = '{}:{}'.format(columns[1],columns[2])
-                    update_dt = '{} {}'.format(update_date, update_time)
-                    delta = Time.now() - Time(update_dt)
-                    delta_t = delta.value
+                    update = '{} {}'.format(update_date, update_time)
+                    weather_dict['update_time'] = Time(update)
                 except:
                     print('Error parsing update time:', *columns)
 
     except:
         print('Error parsing weather page')
 
-    return delta_t, weather_dict
+    return weather_dict
 
 
 def get_ing_weather_xml(weather_source):
@@ -154,8 +163,8 @@ def get_ing_weather_xml(weather_source):
     outfile = params.CONFIG_PATH + 'weather.xml'
     indata = curl_data_from_url(url, outfile)
 
-    delta_t = -999
-    weather_dict = {'rain': -999,
+    weather_dict = {'update_time': -999,
+                    'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
                     'winddir': -999,
@@ -176,8 +185,7 @@ def get_ing_weather_xml(weather_source):
             if label == 'date':
                 try:
                     update = float(value)
-                    delta = Time.now() - Time(update)
-                    delta_t = delta.value
+                    weather_dict['update_time'] = Time(update)
                 except:
                     print('Error parsing update time:', value)
 
@@ -229,7 +237,7 @@ def get_ing_weather_xml(weather_source):
     except:
         print('Error parsing weather page')
 
-    return delta_t, weather_dict
+    return weather_dict
 
 
 def get_weather():
@@ -240,17 +248,22 @@ def get_weather():
 
     # Get the weather from the external source
     if primary_source == 'html':
-        deltat, weather = get_ing_weather_html()
+        weather = get_ing_weather_html()
     else:
-        deltat, weather = get_ing_weather_xml(primary_source)
+        weather = get_ing_weather_xml(primary_source)
     source_used = primary_source
 
     # Check for errors, if there were then use the backup source
-    if deltat > params.WEATHER_TIMEOUT or -999 in weather.values():
+    source_dt = -999
+    if isinstance(weather['update_time'], Time):
+        source_dt = Time.now() - weather['update_time']
+        source_dt = source_dt.to('second').value
+
+    if source_dt > params.WEATHER_TIMEOUT or -999 in weather.values():
         if backup_source != 'html':
-            deltat, weather = get_ing_weather_xml(backup_source)
+            weather = get_ing_weather_xml(backup_source)
         else:
-            deltat, weather = get_ing_weather_html()
+            weather = get_ing_weather_html()
         source_used = backup_source
 
     # Get the internal conditions from the RoomAlert
@@ -260,7 +273,7 @@ def get_weather():
     # Add the altitude of the Sun at the current time
     weather['sunalt'] = sun_alt(Time.now())
 
-    return weather, source_used, deltat
+    return weather, source_used
 
 
 def check_external_connection():
