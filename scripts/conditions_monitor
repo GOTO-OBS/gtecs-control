@@ -10,6 +10,7 @@ import numpy as np
 from astropy.time import Time
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules import astronomy
+from gtecs.tecs_modules import daemons
 
 # function to trap ctrl-c and exit cleanly by closing open files
 def signal_handler(signal, frame):
@@ -247,16 +248,15 @@ def check_external_connection():
         return False
 
 
-# function to get dome status
-def checkDome():
-    try:
-        domeStat = os.popen('dome info').read()
-        if 'DOME:    [Closed]' in domeStat:
-            return 0
-        else:
-            return 1
-    except:
-        return 2
+def check_dome_closed():
+    '''Function to get the current dome status
+
+    Returns True if the dome is closed or False if it is open.
+
+    It will raise an error if one occurs, catch it higher up.
+    '''
+    dome_info = daemons.daemon_function('dome', 'get_info')
+    return dome_info['dome'] == 'closed'
 
 
 def ThereCanOnlyBeOne():
@@ -416,10 +416,6 @@ while True:
 
     dome_temp, dome_hum = get_roomalert()
 
-# check the dome status
-
-    dome_status = checkDome()
-
 # set flags
 # note the extra check if the flag is already set to 1, in which case a different (safer) limit is used
 # to prevent repeated opening/closing of the dome if conditions are hovering near a limit.
@@ -477,21 +473,23 @@ while True:
         humidity = 2
         temp = 2
 
-    if dome_status == 0:
-        if dt >= warwick_interval_closed:
-            link = 1
-        elif dt is None:
-            link = 2
+    try:
+        dome_closed = check_dome_closed()
+        if dome_closed:
+            if dt >= warwick_interval_closed:
+                link = 1
+            elif dt is None:
+                link = 2
+            else:
+                link = 0
         else:
-            link = 0
-    elif dome_status == 1:
-        if dt >= warwick_interval_open:
-            link = 1
-        elif dt is None:
-            link = 2
-        else:
-            link = 0
-    else:
+            if dt >= warwick_interval_open:
+                link = 1
+            elif dt is None:
+                link = 2
+            else:
+                link = 0
+    except:
         link = 2
 
 # check to see if the weather values are changing - if they aren't, assume something is wrong
