@@ -423,8 +423,9 @@ def is_num(value):
         return False
 
 def remove_html_tags(data):
+    '''Remove html tags from a given line'''
     p = re.compile(r'<.*?>')
-    return p.sub('', data)
+    return p.sub('', data).strip()
 
 def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     to_address = ', '.join(recipients)
