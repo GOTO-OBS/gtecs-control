@@ -9,6 +9,7 @@ import numpy as np
 
 from astropy.time import Time
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import astronomy
 from gtecs.tecs_modules import daemons
 
@@ -77,7 +78,7 @@ def get_ing_weather_html():
 
     try:
        for line in indata.split('\n'):
-            columns = remove_html_tags(line).replace(':',' ').split()
+            columns = misc.remove_html_tags(line).replace(':',' ').split()
             if not columns:
                 continue
 
@@ -231,12 +232,6 @@ def get_ing_weather_xml(weather_source):
         print('Error parsing weather page')
 
     return delta_t, weather_dict
-
-
-def remove_html_tags(data):
-    '''Remove html tags from a given line'''
-    p = re.compile(r'<.*?>')
-    return p.sub('', data).strip()
 
 
 def check_external_connection():
