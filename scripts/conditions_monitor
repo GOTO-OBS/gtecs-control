@@ -348,14 +348,17 @@ same = 0
 maxsame = static_limit / monitor_interval
 last_successful_ping = Time('1970-1-1')
 
-# set default values of flags
+## set default values of flags
+# 0=good, 1=bad, 2=error
 
-dark = 2
-dry = 2
-wind = 2
-humidity = 2
-temp = 2
-link = 2
+flags = {'dark': 2,
+         'rain': 2,
+         'windspeed': 2,
+         'humidity': 2,
+         'temperature': 2,
+         'link': 2,
+         }
+
 
 # start monitoring
 
@@ -367,44 +370,105 @@ while True:
     time.sleep(monitor_interval)
     now = Time.now()
 
-# check the altitude of the Sun
+    # check the altitude of the Sun for the dark flag
     sun_alt_now = astronomy.sun_alt(now)
-    if sun_alt_now > params.SUN_ELEVATION_LIMIT:
-        dark = 1
+    if sun_alt_now < params.SUN_ELEVATION_LIMIT:
+        flags['dark'] = 0
     else:
-        dark = 0
+        flags['dark'] = 1
 
-# check the weather
-
-# replaced this commented out code, as the wind direction is a string of characters and can't be checked with numpy like below
-#    if weather_source == 'html':
-#       (deltat, dry, winddir, wind_now, humidity_now, temp_now) = get_ing_weather_html()
-#    else:
-#       vals = get_ing_weather_xml(weather_source)
-#       weather_source_used = weather_source
-#       if np.any( (np.array(vals) == '-999') | (np.isnan(np.array(vals))) ):
-#           if backup_weather_source != 'html':
-#               print 'using backup weather source = ' + backup_weather_source + ', instead of primary weather source = ' + weather_source
-#               vals = get_ing_weather_xml(backup_weather_source)
-#               weather_source_used = backup_weather_source
-#           else:
-#               print 'only xml sources are supported as backup sources'
-#       deltat, dry, winddir, wind_now, humidity_now, temp_now = vals
-
+    # check the external weather sources
     if weather_source == 'html':
-        deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
+        deltat, rain_flag, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
     else:
-        deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(weather_source)
-    vals = deltat, dry, wind_now, humidity_now, temp_now
+        deltat, rain_flag, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(weather_source)
+    vals = deltat, rain_flag, wind_now, humidity_now, temp_now
     weather_source_used = weather_source
     if np.any( (np.array(vals) == -999) | (np.isnan(np.array(vals))) ) or deltat > deltat_limit:
         if backup_weather_source != 'html':
-            deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(backup_weather_source)
+            deltat, rain_flag, winddir, wind_now, humidity_now, temp_now = get_ing_weather_xml(backup_weather_source)
         else:
-            deltat, dry, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
+            deltat, rain_flag, winddir, wind_now, humidity_now, temp_now = get_ing_weather_html()
         weather_source_used = backup_weather_source
+    flags['rain'] = rain_flag
 
-# check the connectivity with Warwick
+    # check roomalert to get the internal temperature and humidity
+    dome_temp, dome_hum = get_roomalert()
+
+    # set flags
+    # note the extra check if the flag is already set to 1, in which case a different (safer) limit is used
+    # to prevent repeated opening/closing of the dome if conditions are hovering near a limit.
+
+    if wind_now == -999:
+        flags['windspeed'] = 2
+    elif wind_now > wind_limit:
+        flags['windspeed'] = 1
+    elif wind_now <= wind_limit:
+        if flags['windspeed'] == 1:
+            if wind_now < wind_limit_closed:
+                flags['windspeed'] = 0
+            else:
+                flags['windspeed'] = 1
+        else:
+            flags['windspeed'] = 0
+    else:
+        flags['windspeed'] = 2
+
+    if humidity_now == -999 or dome_hum is None:
+        flags['humidity'] = 2
+    elif humidity_now > humidity_limit or dome_hum > local_humidity_limit:
+        flags['humidity'] = 1
+    elif humidity_now <= humidity_limit and dome_hum <= local_humidity_limit:
+        if flags['humidity'] == 1:
+            if humidity_now <= humidity_limit_closed and dome_hum <= local_humidity_limit_closed:
+                flags['humidity'] = 0
+            else:
+                flags['humidity'] = 1
+        else:
+            flags['humidity'] = 0
+    else:
+        flags['humidity'] = 2
+
+    if temp_now == -999:
+        flags['temperature'] = 2
+    elif temp_now < min_temp_limit:
+        flags['temperature'] = 1
+    elif temp_now > max_temp_limit:
+        flags['temperature'] = 1
+    elif temp_now >= min_temp_limit and temp_now <= max_temp_limit:
+        if flags['temperature'] == 1:
+            if temp_now > min_temp_limit_closed or temp_now < max_temp_limit_closed:
+                flags['temperature'] = 0
+            else:
+                flags['temperature'] = 1
+        else:
+            flags['temperature'] = 0
+    else:
+        flags['temperature'] = 2
+
+    if deltat == -999 or deltat >= deltat_limit:
+        flags['rain'] = 2
+        flags['windspeed'] = 2
+        flags['humidity'] = 2
+        flags['temperature'] = 2
+
+    # check to see if the weather values are changing
+    # - if they aren't, assume something is wrong
+
+    old = new
+    new = [rain_flag, winddir, wind_now, humidity_now, temp_now]
+    if new == old:
+        same +=1
+    else:
+        same = 0
+    if same > maxsame:
+        flags['rain'] = 2
+        flags['windspeed'] = 2
+        flags['humidity'] = 2
+        flags['temperature'] = 2
+
+
+    # check the connectivity with Warwick to set the link flag
 
     ping_home = check_external_connection()
     if ping_home:
@@ -412,109 +476,27 @@ while True:
     dt = Time.now() - last_successful_ping
     dt = dt.to('second').value
 
-# check roomalert to get the internal temperature and humidity
-
-    dome_temp, dome_hum = get_roomalert()
-
-# set flags
-# note the extra check if the flag is already set to 1, in which case a different (safer) limit is used
-# to prevent repeated opening/closing of the dome if conditions are hovering near a limit.
-
-    if wind_now == -999:
-        wind = 2
-    elif wind_now > wind_limit:
-        wind = 1
-    elif wind_now <= wind_limit:
-        if wind == 1:
-            if wind_now < wind_limit_closed:
-                wind = 0
-            else:
-                wind = 1
-        else:
-            wind = 0
-    else:
-        wind = 2
-
-    if humidity_now == -999 or dome_hum is None:
-        humidity = 2
-    elif humidity_now > humidity_limit or dome_hum > local_humidity_limit:
-        humidity = 1
-    elif humidity_now <= humidity_limit and dome_hum <= local_humidity_limit:
-        if humidity == 1:
-            if humidity_now <= humidity_limit_closed and dome_hum <= local_humidity_limit_closed:
-                humidity = 0
-            else:
-                humidity = 1
-        else:
-            humidity = 0
-    else:
-        humidity = 2
-
-    if temp_now == -999:
-        temp = 2
-    elif temp_now < min_temp_limit:
-        temp = 1
-    elif temp_now > max_temp_limit:
-        temp = 1
-    elif temp_now >= min_temp_limit and temp_now <= max_temp_limit:
-        if temp == 1:
-            if temp_now > min_temp_limit_closed or temp_now < max_temp_limit_closed:
-                temp = 0
-            else:
-                temp = 1
-        else:
-            temp = 0
-    else:
-        temp = 2
-
-    if deltat == -999 or deltat >= deltat_limit:
-        dry = 2
-        wind = 2
-        humidity = 2
-        temp = 2
-
     try:
         dome_closed = check_dome_closed()
         if dome_closed:
             if dt >= warwick_interval_closed:
-                link = 1
+                flags['link'] = 1
             elif dt is None:
-                link = 2
+                flags['link'] = 2
             else:
-                link = 0
+                flags['link'] = 0
         else:
             if dt >= warwick_interval_open:
-                link = 1
+                flags['link'] = 1
             elif dt is None:
-                link = 2
+                flags['link'] = 2
             else:
-                link = 0
+                flags['link'] = 0
     except:
-        link = 2
+        flags['link'] = 2
 
-# check to see if the weather values are changing - if they aren't, assume something is wrong
 
-    old = new
-    new = [dry, winddir, wind_now, humidity_now, temp_now]
-    if new == old:
-        same +=1
-    else:
-        same = 0
-    if same > maxsame:
-        dry = 2
-        wind = 2
-        humidity = 2
-        temp = 2
-
-# now write all the values to the conditions flags file in JSON format
-
-    time_flag = str(now.iso)
-    dark_flag = int(dark)
-    dry_flag = int(dry)
-    wind_flag = int(wind)
-    humidity_flag = int(humidity)
-    temp_flag = int(temp)
-    link_flag = int(link)
+    # now write all the values to the conditions flags file in JSON format
 
     if os.path.exists(monitor_folder+"conditions_flags"):
         try:
@@ -525,22 +507,15 @@ while True:
     else:
         data = {}
 
-    data['update_time'] = time_flag
-    data['dark'] = dark_flag
-    data['dry'] = dry_flag
-    data['wind'] = wind_flag
-    data['humidity'] = humidity_flag
-    data['temperature'] = temp_flag
-    data['link'] = link_flag
+    data['update_time'] = str(now.iso)
+    data.update(flags)
 
     with open(monitor_folder+"conditions_flags", 'w') as f:
         json.dump(data, f)
 
 
-# write useful info to the conditions monitor log file if required
+    # print useful info, write to the conditions monitor log file if required
 
-
-    time_log = str(now.iso)
     if weather_source_used == backup_weather_source:
         backup = 'backup'
     else:
@@ -553,11 +528,17 @@ while True:
         src_log = backup + 'xmlINT'
     elif weather_source_used == 'wht':
         src_log = backup + 'xmlWHT'
-    wind_log = '%.1f' % wind_now
-    hum_log = '%.1f' % humidity_now
-    temp_log = '%.1f' % temp_now
-    log_line = str(loop) + " " + time_log + " src=" + src_log + " sun=" + str(sun_alt_now)  + " dark=" + str(dark) + " deltat=" + str(deltat) + " dry=" + str(dry) + " winddir=" + str(winddir) + " wind=" + wind_log + " wind_flag=" + str(wind) + " hum=" + hum_log + " hum_flag=" + str(humidity) + " temp=" + temp_log + " temp_flag=" + str(temp) + " dome_hum=" + str(dome_hum) + " dome_temp=" + str(dome_temp) + " link_flag=" + str(link) + "\n"
+
+    log_line = '{:.0f} {} '.format(loop, now.iso)
+    log_line += 'src={} deltat={:.4f} '.format(src_log, deltat)
+    log_line += 'sunalt={:.2f} dark_flag={:.0f} '.format(sun_alt_now, flags['dark'])
+    log_line += 'rain_flag={:.0f} '.format(flags['rain'])
+    log_line += 'winddir={} windspeed={:.2f} windspeed_flag={:.0f} '.format(winddir, wind_now, flags['windspeed'])
+    log_line += 'ext_hum={:.1f}% int_hum={:.1f}% hum_flag={} '.format(humidity_now, dome_hum, flags['humidity'])
+    log_line += 'ext_temp={:.1f}C int_temp={:.1f}C temp_flag={:.0f} '.format(temp_now, dome_temp, flags['temperature'])
+    log_line += 'link_flag={:.0f}\n'.format(flags['link'])
     print(log_line)
+
     if log_file == 0:
         date = str(now.iso).split()[0].replace('-','_')
         with open(log_folder+date+'_conditions_monitor.log', 'a') as f:
