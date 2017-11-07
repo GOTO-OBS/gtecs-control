@@ -441,19 +441,10 @@ while True:
 
 
     # now write all the values to the conditions flags file in JSON format
-    flags_file = params.CONFIG_PATH + 'conditions_flags'
-    if os.path.exists(flags_file):
-        try:
-            with open(flags_file, 'r') as f:
-                data = json.load(f)
-        except:
-            data = {}
-    else:
-        data = {}
-
-    data['update_time'] = str(now.iso)
+    data = {'update_time': str(now.iso)}
     data.update(flags)
 
+    flags_file = params.CONFIG_PATH + 'conditions_flags'
     with open(flags_file, 'w') as f:
         json.dump(data, f)
 
