@@ -268,7 +268,7 @@ def ThereCanOnlyBeOne():
 
 
 # set monitor parameters
-log_file = 0 # write log file, 0 = yes, 1 = no
+save_logs = True # write log file
 
 old_weather = {}
 last_update_time = Time('1970-1-1')
@@ -467,7 +467,7 @@ while True:
     log_line += 'link_dt={:.3f} link_flag={:.0f} \n'.format(dt, flags['link'])
     print(log_line)
 
-    if log_file == 0:
+    if save_logs:
         log_folder = params.LOG_PATH
         date = str(now.iso).split()[0].replace('-','_')
         log_file = log_folder + '{}_conditions_monitor.log'.format(date)
