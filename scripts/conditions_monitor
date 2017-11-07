@@ -48,6 +48,8 @@ flags = {'dark': 2,
          'link': 2,
          }
 
+# catch ctrl-c
+signal.signal(signal.SIGINT, misc.signal_handler)
 
 # start monitoring
 ThereCanOnlyBeOne()
