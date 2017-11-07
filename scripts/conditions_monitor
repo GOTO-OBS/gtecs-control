@@ -59,7 +59,7 @@ while True:
 
     # ~~~~~~~~~~~~~~
     # get the weather dict
-    weather, weather_source_used, deltat = conditions.get_weather()
+    weather, weather_source_used = conditions.get_weather()
 
     # ~~~~~~~~~~~~~~
     # set flags
@@ -133,11 +133,21 @@ while True:
         flags['temperature'] = 1
 
     # CHECK - if the fetch timed out
-    if deltat == -999 or deltat >= params.WEATHER_TIMEOUT:
+    update_time = weather['update_time']
+    if update_time == -999:
         flags['rain'] = 2
         flags['windspeed'] = 2
         flags['humidity'] = 2
         flags['temperature'] = 2
+        source_dt = -999
+    else:
+        source_dt = Time.now() - Time(update_time)
+        source_dt = source_dt.to('second').value
+        if source_dt >= params.WEATHER_TIMEOUT:
+            flags['rain'] = 2
+            flags['windspeed'] = 2
+            flags['humidity'] = 2
+            flags['temperature'] = 2
 
     # CHECK - if the data hasn't changed for a certain time
     if weather != old_weather:
@@ -202,7 +212,7 @@ while True:
         src_log = backup + 'xmlWHT'
 
     log_line = '{:.0f} {} '.format(loop, now.iso)
-    log_line += 'source={} source_dt={:.4f} '.format(src_log, deltat)
+    log_line += 'source={} source_dt={:.4f} '.format(src_log, source_dt)
     log_line += 'sunalt={:.2f} dark_flag={:.0f} '.format(weather['sunalt'], flags['dark'])
     log_line += 'rain_flag={:.0f} '.format(flags['rain'])
     log_line += 'winddir={} windspeed={:.2f} wind_flag={:.0f} '.format(weather['winddir'], weather['windspeed'], flags['windspeed'])
