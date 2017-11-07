@@ -15,6 +15,7 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import misc
+from .astronomy import sun_alt
 
 
 def curl_data_from_url(url, outfile, encoding=None):
@@ -229,6 +230,37 @@ def get_ing_weather_xml(weather_source):
         print('Error parsing weather page')
 
     return delta_t, weather_dict
+
+
+def get_weather():
+    '''Get the current weather conditions'''
+
+    primary_source = params.WEATHER_SOURCE
+    backup_source = params.BACKUP_WEATHER_SOURCE
+
+    # Get the weather from the external source
+    if primary_source == 'html':
+        deltat, weather = get_ing_weather_html()
+    else:
+        deltat, weather = get_ing_weather_xml(primary_source)
+    source_used = primary_source
+
+    # Check for errors, if there were then use the backup source
+    if deltat > params.WEATHER_TIMEOUT or -999 in weather.values():
+        if backup_source != 'html':
+            deltat, weather = get_ing_weather_xml(backup_source)
+        else:
+            deltat, weather = get_ing_weather_html()
+        source_used = backup_source
+
+    # Get the internal conditions from the RoomAlert
+    internal_dict = get_roomalert()
+    weather.update(internal_dict)
+
+    # Add the altitude of the Sun at the current time
+    weather['sunalt'] = sun_alt(Time.now())
+
+    return weather, source_used, deltat
 
 
 def check_external_connection():
