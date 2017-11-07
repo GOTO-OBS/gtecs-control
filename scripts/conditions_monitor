@@ -233,16 +233,19 @@ def remove_html_tags(data):
     return p.sub('', data).strip()
 
 
-# function to check the connection between GOTO dome NUC and the GOTO head
-# (the server in Warwick)
-def checkWarwickConnection():
-    link=os.popen('ping -c 3 ngtshead.warwick.ac.uk | grep "ttl="').read()
+def check_external_connection():
+    '''Check the connection between the GOTO dome and gotohead in Warwick'''
     try:
+        url = 'ngtshead.warwick.ac.uk'
+        ping_command = 'ping -c 3 {} | grep "ttl="'.format(url)
+        link = os.popen(ping_command).read()
         if "ttl=" in link:
-            dt=10
-        return dt
+            return True
+        else:
+            return False
     except:
-        return None
+        return False
+
 
 # function to get dome status
 def checkDome():
@@ -343,6 +346,7 @@ goto.elevation = params.SITE_ALTITUDE
 new = []
 same = 0
 maxsame = static_limit / monitor_interval
+last_successful_ping = Time('1970-1-1')
 
 # set default values of flags
 
@@ -402,7 +406,11 @@ while True:
 
 # check the connectivity with Warwick
 
-    dt = checkWarwickConnection()
+    ping_home = check_external_connection()
+    if ping_home:
+        last_successful_ping = Time.now()
+    dt = Time.now() - last_successful_ping
+    dt = dt.to('second').value
 
 # check roomalert to get the internal temperature and humidity
 
