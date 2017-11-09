@@ -28,7 +28,8 @@ from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import params
 
 ########################################################################
-# Fake AstroHaven dome classclass FakeDome:
+# Fake AstroHaven dome class
+class FakeDome:
     def __init__(self):
         self.fake = True
         self.output_thread_running = False
