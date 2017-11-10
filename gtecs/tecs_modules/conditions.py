@@ -54,12 +54,19 @@ def get_roomalert():
         internal_dict['int_update_time'] = Time(update)
 
         dome_data = data['sensor'][0]
+        dome_temperature = float(dome_data['tc'])
+        dome_humidity = float(dome_data['h'])
 
-        temperature = float(dome_data['tc'])
-        internal_dict['int_temperature'] = temperature
+        pier_data = data['sensor'][1]
+        pier_temperature = float(pier_data['tc'])
+        pier_humidity = float(pier_data['h'])
 
-        humidity = float(dome_data['h'])
-        internal_dict['int_humidity'] = humidity
+        # to be safe, take the higher of the two sensor values
+        int_temperature = max([dome_temperature, pier_temperature])
+        int_humidity = max([dome_humidity, pier_humidity])
+
+        internal_dict['int_temperature'] = int_temperature
+        internal_dict['int_humidity'] = int_humidity
 
     except:
         print('Error parsing RoomAlert page')
