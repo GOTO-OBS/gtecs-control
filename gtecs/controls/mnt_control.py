@@ -160,6 +160,8 @@ class SiTech:
         self._update_status()
         if self._connection_error:
             status = 'CONNECTION ERROR'
+        elif self._parked:
+            status = 'Parked'
         elif self._blinky:
             status = 'IN BLINKY MODE'
         elif self._slewing:
@@ -168,8 +170,6 @@ class SiTech:
             status = 'Tracking'
         elif self._parking:
             status = 'Parking'
-        elif self._parked:
-            status = 'Parked'
         else:
             status = 'Stopped'
         return status

@@ -402,6 +402,11 @@ class MntDaemon(HardwareDaemon):
         if self.mount_status != 'Parked':
             raise misc.HardwareStatusError('Mount is not parked')
 
+        # First turn off blinky mode
+        self.set_blinky = False
+        self.set_blinky_mode_flag = 1
+        time.sleep(0.2)
+
         # Set flag
         self.unpark_flag = 1
 
