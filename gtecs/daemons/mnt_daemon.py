@@ -160,7 +160,6 @@ class MntDaemon(HardwareDaemon):
             if self.slew_target_flag:
                 try:
                     self.logfile.info('Slewing to target')
-                    raise ValueError
                     c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
                     if c: self.logfile.info(c)
                 except:
