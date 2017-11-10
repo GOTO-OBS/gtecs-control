@@ -50,28 +50,33 @@ def query(command, args):
     # Primary daemon control
     elif command == 'start':
         for daemon_ID in daemon_IDs:
-            reply = daemons.start_daemon(daemon_ID)
-            print(reply)
+            with misc.print_errors():
+                reply = daemons.start_daemon(daemon_ID)
+                print(reply)
 
     elif command == 'shutdown':
         for daemon_ID in daemon_IDs:
-            reply = daemons.shutdown_daemon(daemon_ID)
-            print(reply)
+            with misc.print_errors():
+                reply = daemons.shutdown_daemon(daemon_ID)
+                print(reply)
 
     elif command == 'restart':
         for daemon_ID in daemon_IDs:
-            reply = daemons.restart_daemon(daemon_ID)
-            print(reply)
+            with misc.print_errors():
+                reply = daemons.restart_daemon(daemon_ID)
+                print(reply)
 
     elif command == 'kill':
         for daemon_ID in daemon_IDs:
-            reply = daemons.kill_daemon(daemon_ID)
-            print(reply)
+            with misc.print_errors():
+                reply = daemons.kill_daemon(daemon_ID)
+                print(reply)
 
     elif command == 'ping':
         for daemon_ID in daemon_IDs:
-            reply = daemons.ping_daemon(daemon_ID)
-            print(reply)
+            with misc.print_errors():
+                reply = daemons.ping_daemon(daemon_ID)
+                print(reply)
 
     elif command in ['log', 'tail']:
         for daemon_ID in daemon_IDs:
