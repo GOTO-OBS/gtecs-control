@@ -8,6 +8,7 @@
 #oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
 
 import os
+import subprocess
 import json
 
 from astropy.time import Time
@@ -22,7 +23,10 @@ def curl_data_from_url(url, outfile, encoding=None):
     '''Fetch data from a URL, store it in a file and return the contents'''
 
     curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
-    os.popen(curl_command)
+    try:
+        subprocess.Popen(curl_command, shell=True, close_fds=True)
+    except:
+        print('Error fetching URL "{}"'.format(url))
     if encoding:
         with open(outfile, 'r', encoding=encoding) as f:
             data = f.read()
