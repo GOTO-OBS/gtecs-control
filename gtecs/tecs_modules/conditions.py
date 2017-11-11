@@ -48,6 +48,7 @@ def get_roomalert():
     data = json.loads(indata)
 
     internal_dict = {'int_update_time': -999,
+                     'int_dt': -999,
                      'int_temperature': -999,
                      'int_humidity': -999,
                      }
@@ -58,6 +59,8 @@ def get_roomalert():
         update_time = data['date'].split()[1]
         update = '{} {}'.format(update_date, update_time)
         internal_dict['int_update_time'] = Time(update)
+        dt = Time.now() - Time(update)
+        internal_dict['int_dt'] = int(dt.to('second').value)
 
         dome_data = data['sensor'][0]
         dome_temperature = float(dome_data['tc'])
