@@ -58,7 +58,7 @@ def get_roomalert():
         update_date = '20'+'-'.join(update_date.split('/')[::-1])
         update_time = data['date'].split()[1]
         update = '{} {}'.format(update_date, update_time)
-        internal_dict['int_update_time'] = Time(update)
+        internal_dict['int_update_time'] = Time(update, precision=0).iso
         dt = Time.now() - Time(update)
         internal_dict['int_dt'] = int(dt.to('second').value)
 
@@ -168,7 +168,7 @@ def get_local_weather(source):
         print('Error fetching sky temp')
 
     try:
-        weather_dict['update_time'] = Time(data['date'])
+        weather_dict['update_time'] = Time(data['date'], precision=0).iso
         dt = Time.now() - Time(data['date'])
         weather_dict['dt'] = int(dt.to('second').value)
     except:
@@ -251,7 +251,7 @@ def get_ing_weather():
                     update_date = columns[0].replace('/', '-')
                     update_time = '{}:{}'.format(columns[1],columns[2])
                     update = '{} {}'.format(update_date, update_time)
-                    weather_dict['update_time'] = Time(update)
+                    weather_dict['update_time'] = Time(update, precision=0).iso
                     dt = Time.now() - Time(update)
                     weather_dict['dt'] = int(dt.to('second').value)
                 except:
@@ -299,7 +299,7 @@ def get_ing_internal_weather(weather_source):
             if label == 'date':
                 try:
                     update = float(value)
-                    weather_dict['update_time'] = Time(update)
+                    weather_dict['update_time'] = Time(update, precision=0).iso
                     dt = Time.now() - Time(update)
                     weather_dict['dt'] = int(dt.to('second').value)
                 except:
