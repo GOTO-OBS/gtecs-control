@@ -78,7 +78,7 @@ def get_roomalert():
     return internal_dict
 
 
-def get_warwick_weather(source):
+def get_local_weather(source):
     '''Get the current weather from the Warwick stations'''
 
     source = source.lower()
@@ -169,7 +169,7 @@ def get_warwick_weather(source):
     return weather_dict
 
 
-def get_ing_weather_html():
+def get_ing_weather():
     '''Get the current weather from the ING weather page (JKT mast)'''
 
     url = 'http://catserver.ing.iac.es/weather/'
@@ -252,7 +252,7 @@ def get_ing_weather_html():
     return weather_dict
 
 
-def get_ing_weather_xml(weather_source):
+def get_ing_internal_weather(weather_source):
     '''Get the current weather from the internal ING xml weather file'''
 
     if weather_source == 'wht':
@@ -350,9 +350,9 @@ def get_weather():
 
     # Get the weather from the external source
     if primary_source == 'html':
-        weather = get_ing_weather_html()
+        weather = get_ing_weather()
     else:
-        weather = get_ing_weather_xml(primary_source)
+        weather = get_ing_internal_weather(primary_source)
     source_used = primary_source
 
     # Check for errors, if there were then use the backup source
@@ -363,9 +363,9 @@ def get_weather():
 
     if source_dt > params.WEATHER_TIMEOUT or -999 in weather.values():
         if backup_source != 'html':
-            weather = get_ing_weather_xml(backup_source)
+            weather = get_ing_internal_weather(backup_source)
         else:
-            weather = get_ing_weather_html()
+            weather = get_ing_weather()
         source_used = backup_source
 
     # Get the internal conditions from the RoomAlert
