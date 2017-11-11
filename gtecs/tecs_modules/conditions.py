@@ -78,6 +78,97 @@ def get_roomalert():
     return internal_dict
 
 
+def get_warwick_weather(source):
+    '''Get the current weather from the Warwick stations'''
+
+    source = source.lower()
+    sources = ['goto', 'onemetre', 'superwasp']
+    if source not in ['goto', 'onemetre', 'superwasp']:
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
+
+    url = 'http://10.2.6.100/data/raw/'
+
+    if source == 'goto':
+        json_file = 'goto-vaisala.json'
+        vaisala = True
+    elif source == 'onemetre':
+        json_file = 'onemetre-vaisala.json'
+        vaisala = True
+    elif source == 'superwasp':
+        json_file = 'superwasp-log.json'
+        vaisala = False
+
+    data = json.loads(curl_data_from_url(url + json_file,
+                                         params.CONFIG_PATH + json_file))
+
+    weather_dict = {'update_time': -999,
+                    'rain': -999,
+                    'temperature': -999,
+                    'pressure': -999,
+                    'winddir': -999,
+                    'windspeed': -999,
+                    'humidity': -999,
+                    'skytemp': -999,
+                    }
+
+    try:
+        if vaisala:
+            weather_dict['temperature'] = float(data['temperature'])
+        else:
+            weather_dict['temperature'] = float(data['ext_temperature'])
+    except:
+        print('Error fetching temperature')
+
+    try:
+        weather_dict['pressure'] = float(data['pressure'])
+    except:
+        print('Error fetching pressure')
+
+    try:
+        weather_dict['windspeed'] = float(data['wind_speed']) / 3.6
+    except:
+        print('Error fetching wind speed')
+
+    try:
+        weather_dict['winddir'] = float(data['wind_direction'])
+    except:
+        print('Error fetching wind direction')
+
+    try:
+        if vaisala:
+            weather_dict['humidity'] = float(data['relative_humidity'])
+        else:
+            weather_dict['humidity'] = float(data['ext_humidity'])
+    except:
+        print('Error fetching humidity')
+
+    try:
+        if vaisala:
+            if float(data['rain_intensity']) > 0:
+                weather_dict['rain'] = True
+            else:
+                weather_dict['rain'] = False
+        else:
+            del weather_dict['rain']
+    except:
+        print('Error fetching rain')
+
+    try:
+        if vaisala:
+            del weather_dict['skytemp']
+        else:
+            weather_dict['skytemp'] = float(data['sky_temp'])
+    except:
+        print('Error fetching sky temp')
+
+    try:
+        weather_dict['update_time'] = Time(data['date'])
+    except:
+        print('Error parsing update time')
+
+    return weather_dict
+
+
 def get_ing_weather_html():
     '''Get the current weather from the ING weather page (JKT mast)'''
 
