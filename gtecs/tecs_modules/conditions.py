@@ -102,6 +102,7 @@ def get_local_weather(source):
                                          params.CONFIG_PATH + json_file))
 
     weather_dict = {'update_time': -999,
+                    'dt': -999,
                     'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
@@ -163,6 +164,8 @@ def get_local_weather(source):
 
     try:
         weather_dict['update_time'] = Time(data['date'])
+        dt = Time.now() - Time(data['date'])
+        weather_dict['dt'] = int(dt.to('second').value)
     except:
         print('Error parsing update time')
 
@@ -177,6 +180,7 @@ def get_ing_weather():
     indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
 
     weather_dict = {'update_time': -999,
+                    'dt': -999,
                     'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
@@ -243,6 +247,8 @@ def get_ing_weather():
                     update_time = '{}:{}'.format(columns[1],columns[2])
                     update = '{} {}'.format(update_date, update_time)
                     weather_dict['update_time'] = Time(update)
+                    dt = Time.now() - Time(update)
+                    weather_dict['dt'] = int(dt.to('second').value)
                 except:
                     print('Error parsing update time:', *columns)
 
@@ -266,6 +272,7 @@ def get_ing_internal_weather(weather_source):
     indata = curl_data_from_url(url, outfile)
 
     weather_dict = {'update_time': -999,
+                    'dt': -999,
                     'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
@@ -288,6 +295,8 @@ def get_ing_internal_weather(weather_source):
                 try:
                     update = float(value)
                     weather_dict['update_time'] = Time(update)
+                    dt = Time.now() - Time(update)
+                    weather_dict['dt'] = int(dt.to('second').value)
                 except:
                     print('Error parsing update time:', value)
 
@@ -356,12 +365,7 @@ def get_weather():
     source_used = primary_source
 
     # Check for errors, if there were then use the backup source
-    source_dt = -999
-    if isinstance(weather['update_time'], Time):
-        source_dt = Time.now() - weather['update_time']
-        source_dt = source_dt.to('second').value
-
-    if source_dt > params.WEATHER_TIMEOUT or -999 in weather.values():
+    if weather['dt'] > params.WEATHER_TIMEOUT or -999 in weather.values():
         if backup_source != 'html':
             weather = get_ing_internal_weather(backup_source)
         else:
