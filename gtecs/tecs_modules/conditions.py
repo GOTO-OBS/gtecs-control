@@ -39,48 +39,48 @@ def curl_data_from_url(url, outfile, encoding=None):
     return data
 
 
-def get_roomalert():
+def get_roomalert(source):
     '''Get internal dome temperature and humidity from GOTO RoomAlert system'''
+
+    sources = ['dome', 'pier']
+    if source not in sources:
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
     url = '10.2.6.5/getData.json'
     outfile = params.CONFIG_PATH + 'roomalert.json'
     indata = curl_data_from_url(url, outfile)
     data = json.loads(indata)
 
-    internal_dict = {'int_update_time': -999,
-                     'int_dt': -999,
-                     'int_temperature': -999,
-                     'int_humidity': -999,
-                     }
+    weather_dict = {'int_update_time': -999,
+                    'int_dt': -999,
+                    'int_temperature': -999,
+                    'int_humidity': -999,
+                    }
 
     try:
         update_date = data['date'].split()[0]
         update_date = '20'+'-'.join(update_date.split('/')[::-1])
         update_time = data['date'].split()[1]
         update = '{} {}'.format(update_date, update_time)
-        internal_dict['int_update_time'] = Time(update, precision=0).iso
+        weather_dict['int_update_time'] = Time(update, precision=0).iso
         dt = Time.now() - Time(update)
-        internal_dict['int_dt'] = int(dt.to('second').value)
+        weather_dict['int_dt'] = int(dt.to('second').value)
 
-        dome_data = data['sensor'][0]
-        dome_temperature = float(dome_data['tc'])
-        dome_humidity = float(dome_data['h'])
+        if source == 'dome':
+            sensor_data = data['sensor'][0]
+        elif source == 'pier':
+            sensor_data = data['sensor'][1]
 
-        pier_data = data['sensor'][1]
-        pier_temperature = float(pier_data['tc'])
-        pier_humidity = float(pier_data['h'])
+        int_temperature = float(sensor_data['tc'])
+        int_humidity = float(sensor_data['h'])
 
-        # to be safe, take the higher of the two sensor values
-        int_temperature = max([dome_temperature, pier_temperature])
-        int_humidity = max([dome_humidity, pier_humidity])
-
-        internal_dict['int_temperature'] = int_temperature
-        internal_dict['int_humidity'] = int_humidity
+        weather_dict['int_temperature'] = int_temperature
+        weather_dict['int_humidity'] = int_humidity
 
     except:
         print('Error parsing RoomAlert page')
 
-    return internal_dict
+    return weather_dict
 
 
 def get_local_weather(source):
