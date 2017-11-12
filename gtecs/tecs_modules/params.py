@@ -122,18 +122,6 @@ for intf in FLI_INTERFACES:
 
 ########################################################################
 # Weather parameters
-
-# We are going to temporarily rely on the ING weather systems until the
-# GOTO Vaisala is up and running.
-WEATHER_SOURCE = config['WEATHER_SOURCE']       # select weather source: html = external ING weather html web page
-                               # (JKT mast); wht = internal ING xml weather file (WHT mast); int =
-                               # internal ING xml weather file (INT mast); jkt = internal ING xml
-                               # weather file (JKT mast)
-BACKUP_WEATHER_SOURCE = config['BACKUP_WEATHER_SOURCE']  # select backup weather source: html = external ING weather html web
-                               # page (JKT mast); wht = internal ING xml weather file (WHT mast); int
-                               # = internal ING xml weather file (INT mast); jkt = internal ING xml
-                               # weather file (JKT mast)
-# Shutdown criteria
 MAX_HUMIDITY = config['MAX_HUMIDITY']          # relative humidity limit in per cent
 MAX_LOCAL_HUMIDITY = config['MAX_LOCAL_HUMIDITY']    # relative humidity limit in per cent, as measured by local sensor
 MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in m/s

@@ -17,7 +17,6 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import misc
-from .astronomy import sun_alt
 
 
 def curl_data_from_url(url, outfile, encoding=None):
@@ -51,8 +50,8 @@ def get_roomalert(source):
     indata = curl_data_from_url(url, outfile)
     data = json.loads(indata)
 
-    weather_dict = {'int_update_time': -999,
-                    'int_dt': -999,
+    weather_dict = {'update_time': -999,
+                    'dt': -999,
                     'int_temperature': -999,
                     'int_humidity': -999,
                     }
@@ -62,9 +61,9 @@ def get_roomalert(source):
         update_date = '20'+'-'.join(update_date.split('/')[::-1])
         update_time = data['date'].split()[1]
         update = '{} {}'.format(update_date, update_time)
-        weather_dict['int_update_time'] = Time(update, precision=0).iso
+        weather_dict['update_time'] = Time(update, precision=0).iso
         dt = Time.now() - Time(update)
-        weather_dict['int_dt'] = int(dt.to('second').value)
+        weather_dict['dt'] = int(dt.to('second').value)
 
         if source == 'dome':
             sensor_data = data['sensor'][0]
@@ -88,7 +87,7 @@ def get_local_weather(source):
 
     source = source.lower()
     sources = ['goto', 'onemetre', 'superwasp']
-    if source not in ['goto', 'onemetre', 'superwasp']:
+    if source not in sources:
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
     url = 'http://10.2.6.100/data/raw/'
@@ -359,32 +358,28 @@ def get_ing_internal_weather(weather_source):
 def get_weather():
     '''Get the current weather conditions'''
 
-    primary_source = params.WEATHER_SOURCE
-    backup_source = params.BACKUP_WEATHER_SOURCE
+    weather = {}
 
-    # Get the weather from the external source
-    if primary_source == 'html':
-        weather = get_ing_weather()
-    else:
-        weather = get_ing_internal_weather(primary_source)
-    source_used = primary_source
+    # Get the weather from the local stations
+    local_sources = ['goto', 'onemetre', 'superwasp']
+    for source in local_sources:
+        try:
+            weather[source] = get_local_weather(source)
+        except:
+            print('Error getting weather from "{}"'.format(source))
 
-    # Check for errors, if there were then use the backup source
-    if weather['dt'] > params.WEATHER_TIMEOUT or -999 in weather.values():
-        if backup_source != 'html':
-            weather = get_ing_internal_weather(backup_source)
-        else:
-            weather = get_ing_weather()
-        source_used = backup_source
+    # Get the weather fron the ING webpage as a backup
+    try:
+        weather['ing'] = get_ing_weather()
+    except:
+        print('Error getting weather from "ing"')
 
     # Get the internal conditions from the RoomAlert
-    internal_dict = get_roomalert()
-    weather.update(internal_dict)
+    internal_sources = ['dome', 'pier']
+    for source in internal_sources:
+        weather[source] = get_roomalert(source)
 
-    # Add the altitude of the Sun at the current time
-    weather['sunalt'] = sun_alt(Time.now())
-
-    return weather, source_used
+    return weather
 
 
 def check_external_connection():
