@@ -126,7 +126,7 @@ while True:
     valid_humidity_mask = humidity_array != -999
     valid_humidity = humidity_array[valid_humidity_mask]
 
-    int_humidity_max = params.MAX_LOCAL_HUMIDITY
+    int_humidity_max = params.MAX_INTERNAL_HUMIDITY
     int_humidity_max_closed = int_humidity_max * 0.9
     int_humidity_array = np.array([weather[source]['int_humidity']
                                   for source in weather
