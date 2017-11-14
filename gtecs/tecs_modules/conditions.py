@@ -93,17 +93,17 @@ def get_local_weather(source):
     url = 'http://10.2.6.100/data/raw/'
 
     if source == 'goto':
-        json_file = 'goto-vaisala.json'
+        json_file = 'goto-vaisala'
         vaisala = True
     elif source == 'onemetre':
-        json_file = 'onemetre-vaisala.json'
+        json_file = 'onemetre-vaisala'
         vaisala = True
     elif source == 'superwasp':
-        json_file = 'superwasp-log.json'
+        json_file = 'superwasp-log'
         vaisala = False
 
     data = json.loads(curl_data_from_url(url + json_file,
-                                         params.CONFIG_PATH + json_file))
+                                         params.CONFIG_PATH + json_file + '.json'))
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
