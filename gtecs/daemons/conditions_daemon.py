@@ -49,7 +49,7 @@ class ConditionsDaemon(HardwareDaemon):
 
         self.conditions_check_time = 0
 
-        self.old_weather = None
+        self.weather = None
         self.weather_changed_time = 0
 
         self.successful_ping_time = 0
@@ -64,7 +64,7 @@ class ConditionsDaemon(HardwareDaemon):
                       'temperature': 2,
                       'link': 2,
                       }
-        self.data = 'None yet'
+        self.data = None
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -201,9 +201,9 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # CHECK - if the data hasn't changed for a certain time
-                if weather != self.old_weather:
+                if weather != self.weather:
                     self.weather_changed_time = time.time()
-                    self.old_weather = weather.copy()
+                    self.weather = weather.copy()
                 else:
                     time_since_update = time.time() - weather_changed_time
                     if time_since_update > params.WEATHER_STATIC:
@@ -266,9 +266,9 @@ class ConditionsDaemon(HardwareDaemon):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Conditions functions
-    def get_flags(self):
-        """Return current conditions flags"""
-        return self.data
+    def get_info(self):
+        """Return current conditions flags and weather info"""
+        return {'flags': self.data, 'weather': self.weather}
 
 
 ########################################################################
