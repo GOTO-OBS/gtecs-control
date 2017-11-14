@@ -115,6 +115,7 @@ def print_info(info):
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
         print('WEATHER:')
 
+        weather['ing']['windspeed'] = 'NA'
         weather['superwasp']['rain'] = 'NA'
         for source in ['goto', 'onemetre', 'superwasp', 'ing']:
             temperature = weather[source]['temperature']
@@ -149,6 +150,8 @@ def print_info(info):
 
             if windspeed == -999:
                 windspeed_str = misc.rtxt('  ERR')
+            elif windspeed == 'NA':
+                windspeed_str = '  N/A'
             elif (flags['windspeed'] != 1 and
                   windspeed < params.MAX_WINDSPEED):
                 windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))

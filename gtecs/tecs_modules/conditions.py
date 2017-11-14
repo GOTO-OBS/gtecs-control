@@ -199,9 +199,9 @@ def get_ing_weather():
                     'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
-                    'winddir': -999,
-                    'windspeed': -999,
-                    'windgust': -999,
+                    #'winddir': -999,
+                    #'windspeed': -999,
+                    #'windgust': -999,
                     'humidity': -999,
                     }
 
@@ -223,23 +223,23 @@ def get_ing_weather():
                 except:
                     print('Error parsing pressure:', columns[1])
 
-            elif columns[0] == 'Wind' and columns[1] == 'Speed':
-                try:
-                    weather_dict['windspeed'] = float(columns[2])
-                except:
-                    print('Error parsing wind speed:', columns[2])
+            #elif columns[0] == 'Wind' and columns[1] == 'Speed':
+                #try:
+                    #weather_dict['windspeed'] = float(columns[2])
+                #except:
+                    #print('Error parsing wind speed:', columns[2])
 
-            elif columns[0] == 'Wind' and columns[1] == 'Direction':
-                try:
-                    weather_dict['winddir'] = str(columns[2])
-                except:
-                    print('Error parsing wind direction:', columns[2])
+            #elif columns[0] == 'Wind' and columns[1] == 'Direction':
+                #try:
+                    #weather_dict['winddir'] = str(columns[2])
+                #except:
+                    #print('Error parsing wind direction:', columns[2])
 
-            elif columns[0] == 'Wind' and columns[1] == 'Gust':
-                try:
-                    weather_dict['windgust'] = float(columns[2])
-                except:
-                    print('Error parsing wind gust:', columns[2])
+            #elif columns[0] == 'Wind' and columns[1] == 'Gust':
+                #try:
+                    #weather_dict['windgust'] = float(columns[2])
+                #except:
+                    #print('Error parsing wind gust:', columns[2])
 
             elif columns[0] == 'Humidity':
                 try:
