@@ -97,9 +97,20 @@ def query(command, args):
 # Output formatting functions
 
 def print_info_s(info):
-    print('CONDITIONS:')
-    for flag in info:
-        print('{}: \t {}'.format(flag.upper(), info[flag]))
+    if info == 'None yet':
+        print('CONDITIONS:')
+        print('  None yet, try again')
+    else:
+        print('CONDITIONS ({})'.format(info['update_time'][:-4]))
+        del info['update_time']
+        for flag in sorted(info.keys()):
+            if info[flag] == 0:
+                status = 'GOOD'
+            elif info[flag] == 1:
+                status = 'BAD'
+            else:
+                status = 'ERROR'
+            print('  {: >12} : {: <5} ({})'.format(flag, status, info[flag]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' conditions [command]' + '\n' +\
