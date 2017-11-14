@@ -68,6 +68,8 @@ DOME_LOCATION = /dev/ttyS0
 QUICK_CLOSE_BUTTON = 0
 QUICK_CLOSE_BUTTON_PORT = /dev/ttyUSB0
 SILENCE_ALARM_IN_MANUAL_MODE = 0
+DEHUMIDIFIER_IP = 10.2.6.17
+DEHUMIDIFIER_PORT = 17494
 
 ########################################################################
 # Observing parameters

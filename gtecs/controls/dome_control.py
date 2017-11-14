@@ -26,6 +26,8 @@ from six.moves import range
 # TeCS modules
 from gtecs.tecs_modules import flags
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.conditions import get_roomalert
+from gtecs.controls.power_control import ETH002
 
 ########################################################################
 # Fake AstroHaven dome class
@@ -666,6 +668,51 @@ class OldAstroHavenDome:
         curl = getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
+
+
+########################################################################
+# Fake dehumidifier class
+class FakeDehumidifier:
+    def __init__(self):
+        self._status = '0'
+
+    def on(self):
+        self._status = '1'
+
+    def off(self):
+        self._status = '0'
+
+    def status(self):
+        return self._status
+
+    def humidity(self):
+        dome_humidity = get_roomalert('dome')['int_humidity']
+        pier_humidity = get_roomalert('pier')['int_humidity']
+        return max([dome_humidity, pier_humidity])
+
+
+########################################################################
+# Dehumidifier class (using a ETH002 relay)
+class Dehumidifier:
+    def __init__(self, IP_address, port):
+        self.IP_address = IP_address
+        self.port = port
+        self.power = ETH002(self.IP_address, self.port)
+
+    def on(self):
+        self.power.on(1)
+
+    def off(self):
+        self.power.off(1)
+
+    def status(self):
+        return self.power.status()[0]
+
+    def humidity(self):
+        dome_humidity = get_roomalert('dome')['int_humidity']
+        pier_humidity = get_roomalert('pier')['int_humidity']
+        return max([dome_humidity, pier_humidity])
+
 
 ########################################################################
 # Direct control
