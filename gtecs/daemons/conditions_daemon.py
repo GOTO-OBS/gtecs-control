@@ -64,6 +64,7 @@ class ConditionsDaemon(HardwareDaemon):
                       'temperature': 2,
                       'link': 2,
                       }
+        self.data = 'None yet'
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -244,13 +245,13 @@ class ConditionsDaemon(HardwareDaemon):
 
                 # ~~~~~~~~~~~~~~
                 # add update time to output data
-                data = {'update_time': str(Time.now().iso)}
-                data.update(self.flags)
+                self.data = {'update_time': str(Time.now().iso)}
+                self.data.update(self.flags)
 
                 # write data to the conditions flags file
                 flags_file = params.CONFIG_PATH + 'conditions_flags'
                 with open(flags_file, 'w') as f:
-                    json.dump(data, f)
+                    json.dump(self.data, f)
 
                 # log current flags
                 logline = ''
@@ -267,7 +268,7 @@ class ConditionsDaemon(HardwareDaemon):
     # Conditions functions
     def get_flags(self):
         """Return current conditions flags"""
-        return self.flags
+        return self.data
 
 
 ########################################################################
