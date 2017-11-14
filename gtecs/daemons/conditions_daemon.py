@@ -253,7 +253,10 @@ class ConditionsDaemon(HardwareDaemon):
                     json.dump(data, f)
 
                 # log current flags
-                self.logfile.info(self.flags)
+                logline = ''
+                for key in sorted(self.flags.keys()):
+                    logline += '{}: {} '.format(key, self.flags[key])
+                self.logfile.info(logline)
 
             time.sleep(0.0001) # To save 100% CPU usage
 
