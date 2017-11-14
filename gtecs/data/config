@@ -152,6 +152,7 @@ USE_FAKE_FLI = 0
         PORT = 9031
         PROCESS = conditions_daemon.py
         DEPENDS = None
+        PINGLIFE = 10.0
 
 [FLI_INTERFACES]
     [[fli1]]
