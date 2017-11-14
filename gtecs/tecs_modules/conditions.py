@@ -24,10 +24,10 @@ def curl_data_from_url(url, outfile, encoding=None):
 
     curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
     try:
-        subprocess.Popen(curl_command, shell=True, close_fds=True)
+        p = subprocess.Popen(curl_command, shell=True, close_fds=True)
     except:
         print('Error fetching URL "{}"'.format(url))
-    time.sleep(0.2)
+    p.wait()
     if encoding:
         with open(outfile, 'r', encoding=encoding) as f:
             data = f.read()
