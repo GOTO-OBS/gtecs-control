@@ -25,9 +25,10 @@ def curl_data_from_url(url, outfile, encoding=None):
     curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
     try:
         p = subprocess.Popen(curl_command, shell=True, close_fds=True)
+        p.wait()
     except:
         print('Error fetching URL "{}"'.format(url))
-    p.wait()
+
     if encoding:
         with open(outfile, 'r', encoding=encoding) as f:
             data = f.read()
@@ -47,14 +48,22 @@ def get_roomalert(source):
 
     url = '10.2.6.5/getData.json'
     outfile = params.CONFIG_PATH + 'roomalert.json'
-    indata = curl_data_from_url(url, outfile)
-    data = json.loads(indata)
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
                     'int_temperature': -999,
                     'int_humidity': -999,
                     }
+
+    try:
+        indata = curl_data_from_url(url, outfile)
+        if len(indata) < 3:
+            time.sleep(0.2)
+            indata = curl_data_from_url(url, outfile)
+        data = json.loads(indata)
+    except:
+        print('Error fetching RoomAlert data')
+        return weather_dict
 
     try:
         update_date = data['date'].split()[0].split('/')
