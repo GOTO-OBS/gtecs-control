@@ -151,7 +151,7 @@ def query(command, args):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Other functions
-    elif command == 'weather':
+    elif command == 'autoclose':
         # parse arguments
         if args[0] == 'on':
             override = False
@@ -160,15 +160,15 @@ def query(command, args):
         else:
             raise misc.InputError('Invalid arguments')
         # command
-        with open(params.CONFIG_PATH + 'overrides_flags') as f:
-            data = json.load(f)
-            if override:
-                data['dome_auto'] = 0
-                print('Dome in auto mode: will close in bad weather')
-            else:
-                data['dome_auto'] = 1
-                print('Auto weather override set: Dome will NOT close in bad weather')
-            json.dump(data, f)
+        overrides = flags.load_json(params.CONFIG_PATH + 'overrides_flags')
+        if override:
+            overrides['autoclose'] = 0
+            print('Dome will autoclose in bad weather')
+        else:
+            overrides['autoclose'] = 1
+            print('Autoclose override set: Dome will NOT close in bad weather')
+        with open(params.CONFIG_PATH + 'overrides_flags', 'w') as f:
+            json.dump(overrides, f)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
@@ -209,7 +209,7 @@ def print_instructions():
     '  dome ' + misc.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
     '  dome ' + misc.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
     '  dome ' + misc.bold('halt') + '/' + misc.bold('stop')+ '                   - stop the dome moving' + '\n' +\
-    '  dome ' + misc.bold('weather') + ' [on|off]            - set weather override' + '\n' +\
+    '  dome ' + misc.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
     '  dome ' + misc.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
     '  dome ' + misc.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\

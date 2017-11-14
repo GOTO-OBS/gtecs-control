@@ -159,7 +159,7 @@ class DomeDaemon(HardwareDaemon):
                     if (self.dome_status['north'] != 'closed' or
                         self.dome_status['south'] != 'closed'):
                         if (condition_flags.summary > 0 and
-                            override_flags.dome_auto != 1):
+                            override_flags.autoclose != 1):
                             self.logfile.info('Conditions bad, auto-closing dome')
                             if not self.close_flag:
                                 self.close_flag = 1
@@ -399,7 +399,7 @@ class DomeDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
+        if not flags.Overrides().autoclose and flags.Conditions().summary > 0:
             raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
