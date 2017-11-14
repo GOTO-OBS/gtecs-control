@@ -161,7 +161,7 @@ def query(command, args):
             raise misc.InputError('Invalid arguments')
         # command
         overrides = flags.load_json(params.CONFIG_PATH + 'overrides_flags')
-        if override:
+        if not override:
             overrides['autoclose'] = 0
             print('Dome will autoclose in bad weather')
         else:
