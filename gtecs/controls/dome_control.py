@@ -541,8 +541,13 @@ class AstroHavenDome:
         '''
         loc = params.ARDUINO_LOCATION
         overrides = flags.Overrides()
-        if not (params.SILENCE_ALARM_IN_MANUAL_MODE and overrides.robotic):
-            # give the option to silence the alarm, but only in manual mode
+        if (params.SILENCE_ALARM_IN_MANUAL_MODE
+            and overrides.robotic
+            and overrides.autoclose):
+            # give the option to silence the alarm,
+            # but only in manual mode and only if autoclose is off
+           pass
+        else:
             curl = getoutput('curl -s {}?s{}'.format(loc, duration))
         if sleep:
             time.sleep(duration)
