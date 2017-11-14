@@ -147,6 +147,11 @@ USE_FAKE_FLI = 0
         PORT = 9030
         PROCESS = scheduler_daemon.py
         DEPENDS = None
+    [[conditions]]
+        HOST = localhost
+        PORT = 9031
+        PROCESS = conditions_daemon.py
+        DEPENDS = None
 
 [FLI_INTERFACES]
     [[fli1]]
