@@ -71,11 +71,11 @@ def query(command, args):
 
     elif command == 'info':
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_flags')
+        reply = daemons.daemon_function(daemon_ID, 'get_info')
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:
-            print_info_s(reply)
+            print_info(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -96,21 +96,125 @@ def query(command, args):
 ########################################################################
 # Output formatting functions
 
-def print_info_s(info):
-    if info == 'None yet':
+def print_info(info):
+    if info['flags'] is None or info['weather'] is None:
         print('CONDITIONS:')
         print('  None yet, try again')
     else:
-        print('CONDITIONS ({})'.format(info['update_time'][:-4]))
-        del info['update_time']
-        for flag in sorted(info.keys()):
-            if info[flag] == 0:
+        flags = info['flags']
+        weather = info['weather']
+        print('FLAGS ({}):'.format(flags['update_time'][:-4]))
+        del flags['update_time']
+        for flag in sorted(flags.keys()):
+            if flags[flag] == 0:
                 status = misc.gtxt('Good')
-            elif info[flag] == 1:
+            elif flags[flag] == 1:
                 status = misc.rtxt('Bad')
             else:
                 status = misc.rtxt('ERROR')
-            print('  {: >12} : {: <16} ({})'.format(flag, status, info[flag]))
+            print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
+        print('WEATHER:')
+
+        weather['superwasp']['rain'] = 'NA'
+        for source in ['goto', 'onemetre', 'superwasp', 'ing']:
+            temperature = weather[source]['temperature']
+            humidity = weather[source]['humidity']
+            windspeed = weather[source]['windspeed']
+            rain = weather[source]['rain']
+            dt = weather[source]['dt']
+
+            if temperature == -999:
+                temperature_str = misc.rtxt(' ERR')
+            elif (flags['temperature'] != 1 and
+                  temperature < params.MAX_TEMPERATURE and
+                  temperature > params.MIN_TEMPERATURE):
+                temperature_str = misc.gtxt('{:>4.1f}'.format(temperature))
+            elif (flags['temperature'] == 1 and
+                  temperature < params.MAX_TEMPERATURE-1 and
+                  temperature > params.MIN_TEMPERATURE+1):
+                temperature_str = misc.gtxt('{:>4.1f}'.format(temperature))
+            else:
+                temperature_str = misc.rtxt('{:>4.1f}'.format(temperature))
+
+            if humidity == -999:
+                humidity_str = misc.rtxt(' ERR')
+            elif (flags['humidity'] != 1 and
+                  humidity < params.MAX_HUMIDITY):
+                humidity_str = misc.gtxt('{:>3.1f}'.format(humidity))
+            elif (flags['humidity'] == 1 and
+                  humidity < params.MAX_HUMIDITY*0.9):
+                humidity_str = misc.gtxt('{:>3.1f}'.format(humidity))
+            else:
+                humidity_str = misc.rtxt('{:>3.1f}'.format(humidity))
+
+            if windspeed == -999:
+                windspeed_str = misc.rtxt('  ERR')
+            elif (flags['windspeed'] != 1 and
+                  windspeed < params.MAX_WINDSPEED):
+                windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))
+            elif (flags['windspeed'] == 1 and
+                  windspeed < params.MAX_WINDSPEED*0.9):
+                windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))
+            else:
+                windspeed_str = misc.rtxt('{:>5.1f}'.format(windspeed))
+
+            if rain == -999:
+                rain_str = misc.rtxt('  ERR')
+            elif rain == 'NA':
+                rain_str = '  N/A'
+            elif rain:
+                rain_str = misc.rtxt(' True')
+            else:
+                rain_str = misc.gtxt('False')
+
+            if dt == -999:
+                dt_str = misc.rtxt('ERR')
+            elif dt > params.WEATHER_TIMEOUT:
+                dt_str = misc.rtxt('{:>3.0f}'.format(dt))
+            else:
+                dt_str = misc.gtxt('{:>3.0f}'.format(dt))
+
+
+            print('  {: <10}'.format(source), end='\t')
+            weather_str = '{}C  {}%  {} km/s  {}  dt={}'.format(temperature_str,
+                                                                humidity_str,
+                                                                windspeed_str,
+                                                                rain_str,
+                                                                dt_str)
+            print(weather_str)
+
+        for source in ['dome', 'pier']:
+            int_temperature = weather[source]['int_temperature']
+            int_humidity = weather[source]['int_humidity']
+            dt = weather[source]['dt']
+
+            int_temperature_str = '{:>4.1f}'.format(int_temperature)
+
+            if int_humidity == -999:
+                int_humidity_str = misc.rtxt(' ERR')
+            elif (flags['humidity'] != 1 and
+                  int_humidity < params.MAX_INTERNAL_HUMIDITY):
+                int_humidity_str = misc.gtxt('{:>3.1f}'.format(int_humidity))
+            elif (flags['humidity'] == 1 and
+                  int_humidity < params.MAX_INTERNAL_HUMIDITY*0.9):
+                int_humidity_str = misc.gtxt('{:>3.1f}'.format(int_humidity))
+            else:
+                int_humidity_str = misc.rtxt('{:>3.1f}'.format(int_humidity))
+
+            if dt == -999:
+                dt_str = misc.rtxt('ERR')
+            elif dt > params.WEATHER_TIMEOUT:
+                dt_str = misc.rtxt('{:>3.0f}'.format(dt))
+            else:
+                dt_str = misc.gtxt('{:>3.0f}'.format(dt))
+
+            print('  {: <10}'.format(source+'_int'), end='\t')
+            weather_str = '{}C  {}%                     dt={}'.format(
+                                                        int_temperature_str,
+                                                        int_humidity_str,
+                                                        dt_str)
+            print(weather_str)
+
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' conditions [command]' + '\n' +\
