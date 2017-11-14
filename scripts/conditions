@@ -71,7 +71,7 @@ def query(command, args):
 
     elif command == 'info':
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_flags', [Time.now(), 0])
+        reply = daemons.daemon_function(daemon_ID, 'get_flags')
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:
