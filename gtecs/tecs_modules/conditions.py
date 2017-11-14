@@ -57,8 +57,10 @@ def get_roomalert(source):
                     }
 
     try:
-        update_date = data['date'].split()[0]
-        update_date = '20'+'-'.join(update_date.split('/')[::-1])
+        update_date = data['date'].split()[0].split('/')
+        update_date = '20{}-{}-{}'.format(update_date[2],
+                                          update_date[0],
+                                          update_date[1])
         update_time = data['date'].split()[1]
         update = '{} {}'.format(update_date, update_time)
         weather_dict['update_time'] = Time(update, precision=0).iso
