@@ -124,7 +124,7 @@ for intf in FLI_INTERFACES:
 # Weather parameters
 MAX_HUMIDITY = config['MAX_HUMIDITY']          # relative humidity limit in per cent
 MAX_INTERNAL_HUMIDITY = config['MAX_INTERNAL_HUMIDITY']    # relative humidity limit in per cent, as measured by internal sensor
-MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in m/s
+MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in km/h
 MAX_TEMPERATURE = config['MAX_TEMPERATURE']     # max temperature limit in Celsius
 MIN_TEMPERATURE = config['MIN_TEMPERATURE']       # min temperature limit in Celsius
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']     # weather data age limit in seconds

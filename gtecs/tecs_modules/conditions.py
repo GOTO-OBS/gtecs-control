@@ -132,7 +132,7 @@ def get_local_weather(source):
         print('Error fetching pressure')
 
     try:
-        weather_dict['windspeed'] = float(data['wind_speed']) / 3.6
+        weather_dict['windspeed'] = float(data['wind_speed'])
     except:
         print('Error fetching wind speed')
 
@@ -216,7 +216,7 @@ def get_ing_weather():
 
             elif columns[0] == 'Wind' and columns[1] == 'Speed':
                 try:
-                    weather_dict['windspeed'] = float(columns[2]) / 3.6 # km/h to m/s
+                    weather_dict['windspeed'] = float(columns[2])
                 except:
                     print('Error parsing wind speed:', columns[2])
 
@@ -228,7 +228,7 @@ def get_ing_weather():
 
             elif columns[0] == 'Wind' and columns[1] == 'Gust':
                 try:
-                    weather_dict['windgust'] = float(columns[2]) / 3.6
+                    weather_dict['windgust'] = float(columns[2])
                 except:
                     print('Error parsing wind gust:', columns[2])
 
@@ -320,7 +320,7 @@ def get_ing_internal_weather(weather_source):
 
             elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
                 try:
-                    weather_dict['windspeed'] = float(value) / 3.6
+                    weather_dict['windspeed'] = float(value)
                 except:
                     print('Error parsing wind speed:', value)
 
@@ -332,7 +332,7 @@ def get_ing_internal_weather(weather_source):
 
             elif label == 'LocalMastGust' or label == 'MainMastGust':
                 try:
-                    weather_dict['windgust'] = float(value) / 3.6
+                    weather_dict['windgust'] = float(value)
                 except:
                     print('Error parsing wind gust:', value)
 
