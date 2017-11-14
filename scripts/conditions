@@ -105,12 +105,12 @@ def print_info_s(info):
         del info['update_time']
         for flag in sorted(info.keys()):
             if info[flag] == 0:
-                status = 'GOOD'
+                status = misc.gtxt('Good')
             elif info[flag] == 1:
-                status = 'BAD'
+                status = misc.rtxt('Bad')
             else:
-                status = 'ERROR'
-            print('  {: >12} : {: <5} ({})'.format(flag, status, info[flag]))
+                status = misc.rtxt('ERROR')
+            print('  {: >12} : {: <16} ({})'.format(flag, status, info[flag]))
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' conditions [command]' + '\n' +\
