@@ -318,6 +318,8 @@ class MntDaemon(HardwareDaemon):
             raise misc.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
             raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        if check_alt_limit(self.info['mount_ra']*360./24., self.info['mount_dec'], Time.now()):
+            raise misc.HardwareStatusError('Mount is currently below horizon, cannot track')
 
         # Set flag
         self.start_tracking_flag = 1
@@ -401,6 +403,11 @@ class MntDaemon(HardwareDaemon):
         time.sleep(0.1)
         if self.mount_status != 'Parked':
             raise misc.HardwareStatusError('Mount is not parked')
+
+        # First turn off blinky mode
+        self.set_blinky = False
+        self.set_blinky_mode_flag = 1
+        time.sleep(0.2)
 
         # Set flag
         self.unpark_flag = 1
