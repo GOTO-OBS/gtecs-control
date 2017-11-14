@@ -180,9 +180,10 @@ def query(command, args):
 
 def print_info(info):
     print('######## DOME INFO ########')
-    print('North:       %s' %info['north'].capitalize())
-    print('South:       %s' %info['south'].capitalize())
-    print('Hatch:       %s' %info['hatch'].capitalize())
+    print('North:        %s' %info['north'].capitalize())
+    print('South:        %s' %info['south'].capitalize())
+    print('Hatch:        %s' %info['hatch'].capitalize())
+    print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -196,6 +197,7 @@ def print_info_s(info):
     else:
         print('DOME:    [%s]' %info['north'].capitalize())
     print('HATCH:   [%s]' %info['hatch'].capitalize())
+    print('DEHUM:   [%s]' %info['dehumidifier'].capitalize())
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
