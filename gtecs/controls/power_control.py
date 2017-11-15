@@ -367,3 +367,78 @@ class ETH8020:
             command = self.commands['OFF'] + int2byte(outlet) + int2byte(time)
         out = byte2int(self._tcp_command(command))
         return out
+
+
+########################################################################
+# Ethernet relay power class (for ETH002, 2 ports)
+
+class ETH002:
+    def __init__(self, IP_address, port, normally_closed=False):
+        self.IP_address = IP_address
+        self.port = port
+        if not normally_closed:
+            self.commands = {'ON':b'\x20', 'OFF':b'\x21', 'ALL':b'\x23', 'STATUS':b'\x24'}
+            self.on_value = 1
+            self.off_value = 0
+        else:
+            self.commands = {'ON':b'\x21', 'OFF':b'\x20', 'ALL':b'\x23', 'STATUS':b'\x24'}
+            self.on_value = 0
+            self.off_value = 1
+        self.count = 2
+        self.outlets = list(range(1, self.count+1))
+        self.reboot_time = 5  # seconds
+        self.buffer_size = 1024
+
+        # Create one persistent socket
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
+        self.socket.connect((self.IP_address, self.port))
+
+    def __del__(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.close()
+
+    def _tcp_command(self, command_bytes):
+        '''Send command bytes to the device, then fetch the reply bytes
+        and return them.
+        '''
+        try:
+            self.socket.send(command_bytes)
+            reply = self.socket.recv(self.buffer_size)
+            return reply
+        except Exception as error:
+            return 'Socket error: {}'.format(error)
+
+    def status(self):
+        out = self._tcp_command(self.commands['STATUS'])
+        i = byte2int(out)
+        status_string = str(bin(i))[2::]
+        status_string = status_string.zfill(2)[::-1]
+        return status_string
+
+    def on(self, outlet):
+        if outlet == 0:
+            command = self.commands['ALL'] + b'\xff' + b'\xff' + b'\xff'
+        else:
+            command = self.commands['ON'] + int2byte(outlet) + b'\x00'
+        out = byte2int(self._tcp_command(command))
+        return out
+
+    def off(self, outlet):
+        if outlet == 0:
+            command = self.commands['ALL'] + b'\x00' + b'\x00' + b'\x00'
+        else:
+            command = self.commands['OFF'] + int2byte(outlet) + b'\x00'
+        out = byte2int(self._tcp_command(command))
+        return out
+
+    def reboot(self, outlet):
+        time = int(self.reboot_time*10)  # relay takes 0.1s intervals
+        if outlet == 0:
+            cmd_arr = [self.commands['OFF'] + int2byte(n) + int2byte(time)
+                       for n in self.outlets]
+            command = b''.join(cmd_arr)
+        else:
+            command = self.commands['OFF'] + int2byte(outlet) + int2byte(time)
+        out = byte2int(self._tcp_command(command))
+        return out

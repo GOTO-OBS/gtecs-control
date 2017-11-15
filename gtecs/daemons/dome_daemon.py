@@ -25,6 +25,7 @@ from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules.slack import send_slack_msg
 from gtecs.controls import dome_control
+
 from gtecs.tecs_modules.daemons import HardwareDaemon
 
 ########################################################################
@@ -66,6 +67,10 @@ class DomeDaemon(HardwareDaemon):
         self.warnings_check_time = 0
         self.warnings_check_period = 3 #params.DOME_CHECK_PERIOD
 
+        self.check_humidity_flag = 1
+        self.humidity_check_time = 0
+        self.humidity_check_period = 60
+
         self.dependency_error = 0
         self.dependency_check_time = 0
 
@@ -85,6 +90,14 @@ class DomeDaemon(HardwareDaemon):
             dome = dome_control.FakeDome()
         else:
             dome = dome_control.AstroHavenDome(loc)
+
+        ### connect to dehumidifier object
+        ip = params.DEHUMIDIFIER_IP
+        port = params.DEHUMIDIFIER_PORT
+        if params.FAKE_DOME == 1:
+            dehumidifier = dome_control.FakeDehumidifier()
+        else:
+            dehumidifier = dome_control.Dehumidifier(ip, port)
 
         while(self.running):
             self.time_check = time.time()
@@ -159,7 +172,7 @@ class DomeDaemon(HardwareDaemon):
                     if (self.dome_status['north'] != 'closed' or
                         self.dome_status['south'] != 'closed'):
                         if (condition_flags.summary > 0 and
-                            override_flags.dome_auto != 1):
+                            override_flags.autoclose != 1):
                             self.logfile.info('Conditions bad, auto-closing dome')
                             if not self.close_flag:
                                 self.close_flag = 1
@@ -179,6 +192,41 @@ class DomeDaemon(HardwareDaemon):
                     self.logfile.debug('', exc_info=True)
                 self.check_warnings_flag = 0
 
+            # autocheck dome humidity every Z seconds (if not already forced)
+            delta = self.time_check - self.humidity_check_time
+            if delta > self.humidity_check_period:
+                self.check_humidity_flag = 1
+
+            # check dome humidity
+            if self.check_humidity_flag:
+                try:
+                    # get current dome humidity
+                    humidity = dehumidifier.humidity()
+
+                    currently_open = (self.dome_status['north'] != 'closed' or
+                                      self.dome_status['south'] != 'closed')
+
+                    if (humidity > params.MAX_INTERNAL_HUMIDITY and
+                        not currently_open and
+                        dehumidifier.status() == '0'):
+                        self.logfile.info('Internal humidity {}% is above {}%'.format(humidity, params.MAX_INTERNAL_HUMIDITY))
+                        self.logfile.info('Turning on dehumidifier')
+                        dehumidifier.on()
+
+                    if (humidity < params.MAX_INTERNAL_HUMIDITY-10 and
+                        dehumidifier.status() == '1'):
+                        self.logfile.info('Internal humidity {}% is below {}%'.format(humidity, params.MAX_INTERNAL_HUMIDITY-10))
+                        self.logfile.info('Turning off dehumidifier')
+                        dehumidifier.off()
+
+                    if (currently_open and dehumidifier.status() == '1'):
+                        self.logfile.info('Dome is open: turning off dehumidifier')
+                        dehumidifier.off()
+                except:
+                    self.logfile.error('check_humidity command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.check_status_flag = 0
+
             ### control functions
             # request info
             if self.get_info_flag:
@@ -194,6 +242,15 @@ class DomeDaemon(HardwareDaemon):
                         info['dome'] = 'closed'
                     else:
                         info['dome'] = 'ERROR'
+
+                    # add dehumidifier status
+                    dehumidifier_status = dehumidifier.status()
+                    if dehumidifier_status == '0':
+                        info['dehumidifier'] = 'off'
+                    elif dehumidifier_status == '1':
+                        info['dehumidifier'] = 'on'
+                    else:
+                        info['dehumidifier'] = 'ERROR'
 
                     info['uptime'] = time.time() - self.start_time
                     info['ping'] = time.time() - self.time_check
@@ -246,6 +303,8 @@ class DomeDaemon(HardwareDaemon):
                             except:
                                 self.logfile.error('Failed to open dome')
                                 self.logfile.debug('', exc_info=True)
+                            # make sure dehumidifier is off
+                            dehumidifier.off()
 
                     if self.move_started and not dome.output_thread_running:
                         ## we've finished
@@ -399,7 +458,7 @@ class DomeDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if flags.Overrides().dome_auto < 1 and flags.Conditions().summary > 0:
+        if not flags.Overrides().autoclose and flags.Conditions().summary > 0:
             raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')

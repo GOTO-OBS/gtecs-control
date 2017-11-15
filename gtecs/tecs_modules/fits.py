@@ -304,7 +304,7 @@ def update_header(header, tel, cam_info):
 
         targ_dec = info['target_dec']
         if targ_dec:
-            targ_dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+            targ_dec_str = Angle(targ_dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
