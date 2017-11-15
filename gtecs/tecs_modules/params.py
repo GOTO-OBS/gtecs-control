@@ -21,7 +21,7 @@ import validate
 
 ########################################################################
 # Module parameters
-GTECS_VERSION = '0.1.0'
+GTECS_VERSION = '0.2.0'
 
 ########################################################################
 
@@ -122,21 +122,9 @@ for intf in FLI_INTERFACES:
 
 ########################################################################
 # Weather parameters
-
-# We are going to temporarily rely on the ING weather systems until the
-# GOTO Vaisala is up and running.
-WEATHER_SOURCE = config['WEATHER_SOURCE']       # select weather source: html = external ING weather html web page
-                               # (JKT mast); wht = internal ING xml weather file (WHT mast); int =
-                               # internal ING xml weather file (INT mast); jkt = internal ING xml
-                               # weather file (JKT mast)
-BACKUP_WEATHER_SOURCE = config['BACKUP_WEATHER_SOURCE']  # select backup weather source: html = external ING weather html web
-                               # page (JKT mast); wht = internal ING xml weather file (WHT mast); int
-                               # = internal ING xml weather file (INT mast); jkt = internal ING xml
-                               # weather file (JKT mast)
-# Shutdown criteria
 MAX_HUMIDITY = config['MAX_HUMIDITY']          # relative humidity limit in per cent
-MAX_LOCAL_HUMIDITY = config['MAX_LOCAL_HUMIDITY']    # relative humidity limit in per cent, as measured by local sensor
-MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in m/s
+MAX_INTERNAL_HUMIDITY = config['MAX_INTERNAL_HUMIDITY']    # relative humidity limit in per cent, as measured by internal sensor
+MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in km/h
 MAX_TEMPERATURE = config['MAX_TEMPERATURE']     # max temperature limit in Celsius
 MIN_TEMPERATURE = config['MIN_TEMPERATURE']       # min temperature limit in Celsius
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']     # weather data age limit in seconds
@@ -201,6 +189,8 @@ QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
 QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
 EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
 SILENCE_ALARM_IN_MANUAL_MODE = config['SILENCE_ALARM_IN_MANUAL_MODE']
+DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
+DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
 # Observing parameters
 MOONDIST_LIMIT = config['MOONDIST_LIMIT']

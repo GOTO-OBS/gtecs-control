@@ -423,8 +423,9 @@ def is_num(value):
         return False
 
 def remove_html_tags(data):
+    '''Remove html tags from a given line'''
     p = re.compile(r'<.*?>')
-    return p.sub('', data)
+    return p.sub('', data).strip()
 
 def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     to_address = ', '.join(recipients)
@@ -453,7 +454,7 @@ def ut_list_to_mask(ut_list):
 
 def ut_mask_to_string(ut_mask):
     """Converts a UT mask integer to a string of 0s and 1s"""
-    total_tels = len(list(params.TEL_DICT))
+    total_tels = max(list(params.TEL_DICT))
     bin_str = format(ut_mask, '0{}b'.format(total_tels))
     ut_str = bin_str[-1*total_tels:]
     return ut_str
