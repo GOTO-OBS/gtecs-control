@@ -24,6 +24,7 @@ from . import params
 from .time_date import nightStarting
 from .astronomy import tel_str, check_alt_limit
 from .misc import execute_command as cmd
+from .daemons import daemon_function
 
 
 def check_schedule(time, write_html):
@@ -38,6 +39,14 @@ def check_schedule(time, write_html):
             return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
         else:
             return None, None, None
+
+
+def check_dome_closed():
+    """
+    Check the dome, returns True if the dome is closed or False if it's open
+    """
+    dome_info = daemon_function('dome', 'get_info')
+    return dome_info['dome'] == 'closed'
 
 
 def get_cam_temps():
