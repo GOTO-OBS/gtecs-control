@@ -231,16 +231,18 @@ class ConditionsDaemon(HardwareDaemon):
                 link_interval_closed = params.WARWICK_CLOSED
                 link_interval_open = params.WARWICK_OPEN
 
-                try:
-                    dome_closed = check_dome_closed()
-                    if dome_closed and dt < link_interval_closed:
-                        self.flags['link'] = 0
-                    elif not dome_closed and dt < link_interval_open:
-                        self.flags['link'] = 0
-                    else:
-                        self.flags['link'] = 1
-                except:
-                    self.flags['link'] = 2
+                self.flags['link'] = 0
+                # disable the link flag for now
+                #try:
+                #    dome_closed = check_dome_closed()
+                #    if dome_closed and dt < link_interval_closed:
+                #        self.flags['link'] = 0
+                #    elif not dome_closed and dt < link_interval_open:
+                #        self.flags['link'] = 0
+                #    else:
+                #        self.flags['link'] = 1
+                #except:
+                #    self.flags['link'] = 2
 
 
                 # ~~~~~~~~~~~~~~
