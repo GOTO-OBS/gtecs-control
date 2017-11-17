@@ -269,6 +269,7 @@ class Pilot:
                 continue
 
             # check schedule, update HTML
+            self.log.info('checking scheduler')
             loop = asyncio.get_event_loop()
             write_html = True
             scheduler_args = [Time.now(), write_html]
@@ -277,7 +278,7 @@ class Pilot:
             )
             if self.newMinTime is not None:
                 self.newMinTime = int(self.newMinTime)
-            self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
+            self.log.info('scheduler: current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
     async def hardwareChecks(self):
@@ -537,6 +538,10 @@ class Pilot:
                     self.currentMinTime = self.newMinTime
 
             else:  # we are doing the right job, so do nothing
+                if self.currentID is None:
+                    self.log.info('nothing to observe!')
+                else:
+                     self.log.info('still observing {}'.format(self.currentID))
                 await asyncio.sleep(5)
 
     async def cancelRunningScript(self):
