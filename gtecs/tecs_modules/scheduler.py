@@ -619,8 +619,11 @@ def what_to_do_next(current_pointing, highest_pointing):
         if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
             return None
         else:  # both are legal
-            if current_pointing.survey:  # a survey tile (filler), always slew
-                return highest_pointing
+            if current_pointing.survey:  # a survey tile (filler)
+                if not highest_pointing.survey:  # interupt unless the new pointing is also a tile
+                    return highest_pointing
+                else:
+                    return current_pointing
             elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if current_pointing.too:
                     return current_pointing
