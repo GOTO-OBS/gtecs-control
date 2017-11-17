@@ -21,8 +21,7 @@ import time
 import numpy as np
 import astropy.units as u
 
-SURVEY_SETTINGS = dict(objectName='survey',
-                       start_rank=999,
+SURVEY_SETTINGS = dict(start_rank=999,
                        minAlt=35,
                        minTime=30,
                        maxSunAlt=-12,
@@ -102,6 +101,7 @@ def run(fov, overlap):
         start = time.time()
         for tile in tiles:
             mp = db.Mpointing(userKey=user_key,
+                              objectName='T{}'.format(tile.name),
                               **SURVEY_SETTINGS)
             mp.surveyID = survey.surveyID
             mp.surveyTileID = tile.tileID
