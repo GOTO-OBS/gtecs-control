@@ -34,8 +34,8 @@ def check_schedule(time, write_html):
     SCHEDULER_DAEMON_ADDRESS = params.DAEMONS['scheduler']['ADDRESS']
     with Pyro4.Proxy(SCHEDULER_DAEMON_ADDRESS) as scheduler:
         scheduler._pyroTimeout = params.PROXY_TIMEOUT
-        newPointing = scheduler.check_queue(time, write_html)
-        if newPointing is not None:
+        new_pointing = scheduler.check_queue(time, write_html)
+        if new_pointing is not None:
             return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
         else:
             return None, None, None
