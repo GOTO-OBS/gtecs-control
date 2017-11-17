@@ -22,12 +22,12 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        print(pointing.pointingID, end='\t| ')
-        print(pointing.objectName, end='\t| ')
-        print(pointing.rank, end='\t| ')
-        print(pointing.minTime, end='\t| ')
-        print(pointing.startUTC, end='\t| ')
-        print(pointing.stopUTC, end='\t| ')
+        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} |'.format(
+                                        pointing.pointingID,
+                                        pointing.objectName,
+                                        pointing.rank,
+                                        pointing.ra, pointing.decl)
+
         if pointing.status == 'running':
             status = misc.ytxt('RUNNING')
         elif pointing.status == 'completed':
@@ -36,4 +36,5 @@ with db.open_session() as session:
             status = misc.btxt('pending')
         else:
             status = pointing.status
+        print(string, end='\t')
         print(status, end='\n')
