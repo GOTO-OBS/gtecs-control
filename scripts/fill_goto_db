@@ -19,6 +19,7 @@ import gototile
 from sqlalchemy.orm import joinedload
 import time
 import numpy as np
+import astropy.units as u
 
 SURVEY_SETTINGS = dict(objectName='survey',
                        start_rank=999,
@@ -57,20 +58,18 @@ def get_userkey(username, description=''):
     return user_key
 
 
-def get_tiles(telescope, overlap_frac=0.5, nside=256):
+def get_tiles(fov, overlap, nside=256):
     '''Define survey tiles using GOTO-tile'''
-    overlap = {'ra': overlap_frac, 'dec': overlap_frac}
-
-    tiles = gototile.grid.tileallsky(telescope.fov, nside, overlap)
+    tiles = gototile.grid.tileallsky(fov, nside, overlap)
     coords = tiles[2]
     ras, decs = coords.ra.value, coords.dec.value
     names = np.arange(len(coords))+1
     return ras, decs, names
 
 
-def run(telescope, overlap_frac):
+def run(fov, overlap):
     # Get tiles from GOTO-tile
-    ras, decs, names = get_tiles(telescope, overlap_frac)
+    ras, decs, names = get_tiles(fov, overlap)
 
     # Add to the database
     tiles = []
@@ -78,8 +77,8 @@ def run(telescope, overlap_frac):
     user_key = get_userkey('goto', 'GOTO Survey')
     with db.open_session() as session:
         # create a Survey
-        survey_name = '{}-allsky-{:.1f}'.format(telescope.name.replace('-',''),
-                                                overlap_frac)
+        survey_name = '{}x{}-allsky-{}-{}'.format(fov['ra'], fov['dec'],
+                                                  overlap['ra'], overlap['dec'])
         survey = db.Survey(name=survey_name)
         session.add(survey)
 
@@ -137,22 +136,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=description,
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('telescope', help="telescope name", default='gn4')
-    parser.add_argument('overlap_frac', help="overlap fraction between tiles",
-                        type=float, default=0.5)
+    parser.add_argument('ra_fov', help="FoV in RA", type=float, default=4.2)
+    parser.add_argument('dec_fov', help="FoV in Dec", type=float, default=5.6)
+    parser.add_argument('ra_overlap', help="Overlap in RA", type=float, default=0.5)
+    parser.add_argument('dec_overlap', help="Overlap in Dec", type=float, default=0.5)
 
     args = parser.parse_args()
 
-    if args.telescope.upper() in ['GOTON4', 'GN4']:
-        telescope = gototile.telescope.GOTON4()
-    elif args.telescope.upper() in ['GOTON8', 'GN8']:
-        telescope = gototile.telescope.GOTON8()
-    elif args.telescope.upper() in ['GOTOS4', 'GS4']:
-        telescope = gototile.telescope.GOTOS4()
-    elif args.telescope.upper() in ['GOTOS8', 'GS8']:
-        telescope = gototile.telescope.GOTOS8()
-    else:
-        print('Telescope not supported:', args.telescope)
-        sys.exit()
+    fov = {'ra':args.ra_fov*u.deg, 'dec':args.ra_fov*u.deg}
+    overlap = {'ra':args.ra_overlap, 'dec':args.dec_overlap}
 
-    run(telescope, args.overlap_frac)
+    run(fov, overlap)
