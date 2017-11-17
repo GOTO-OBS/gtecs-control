@@ -70,12 +70,22 @@ def query(command, args):
         print(reply)
 
     elif command == 'info':
+        # parse arguments
+        if len(args) == 0:
+            info_type = 'simple'
+        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+            info_type = 'verbose'
+        else:
+            raise misc.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'check_queue', [Time.now(), 0])
+        reply = daemons.daemon_function(daemon_ID, 'get_info', [Time.now()])
+        # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
-        else:
+        elif info_type == 'simple':
             print_info_s(reply)
+        elif info_type == 'verbose':
+            print_info(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -96,12 +106,52 @@ def query(command, args):
 ########################################################################
 # Output formatting functions
 
-def print_info_s(new_pointing):
+def print_info(info):
+    print('####### SCHEDULER INFO ########')
+    print('NEXT POINTING:')
+    if info['next_pointing'] is not None:
+        new_id = info['next_pointing'].id
+        new_ra = info['next_pointing'].ra
+        new_dec = info['next_pointing'].dec
+        new_priority = info['next_pointing'].priority
+        new_tileprob = info['next_pointing'].tileprob
+        new_too = info['next_pointing'].too
+        new_maxsunalt = info['next_pointing'].maxsunalt
+        new_minalt = info['next_pointing'].minalt
+        new_mintime = info['next_pointing'].mintime
+        new_maxmoon = info['next_pointing'].maxmoon
+        new_start = info['next_pointing'].start
+        new_stop = info['next_pointing'].stop
+        new_current = info['next_pointing'].current
+        new_survey = info['next_pointing'].survey
+
+        print('ID:        {}'.format(new_id))
+        print('RA:        {}'.format(new_ra))
+        print('Dec:       {}'.format(new_dec))
+        print('Priority:  {:.4f}'.format(new_priority))
+        print('TileProb:  {}'.format(new_tileprob))
+        print('ToO        {}'.format(new_too))
+        print('MaxSunAlt: {}'.format(new_maxsunalt))
+        print('MinAlt:    {}'.format(new_minalt))
+        print('MinTime:   {}'.format(new_mintime))
+        print('MaxMoon:   {}'.format(new_maxmoon))
+        print('Start:     {}'.format(new_start))
+        print('Stop:      {}'.format(new_stop))
+        print('Current:   {}'.format(new_current))
+        print('Survey :   {}'.format(new_survey))
+    else:
+        print('ID:        None')
+
+    print('~~~~~~~')
+    print('Timestamp: %s' %info['timestamp'])
+    print('###########################')
+
+def print_info_s(info):
     print('SCHEDULER:')
-    if info is not None:
-        new_id = new_pointing.id
-        new_priority = new_pointing.priority_now
-        new_mintime = new_pointing.mintime
+    if info['next_pointing'] is not None:
+        new_id = info['next_pointing'].id
+        new_priority = info['next_pointing'].priority_now
+        new_mintime = info['next_pointing'].mintime
         print('  ID: %i (Priority %.3f, MinTime %.1fs)' %(new_id,new_priority,new_mintime))
     else:
         print('  ID: None (Priority: None, MinTime: None)')
