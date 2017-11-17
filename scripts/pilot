@@ -490,7 +490,7 @@ class Pilot:
                     except:
                         # in which case...
                         timeElapsed = 0
-                    self.log.info('min time = {}, time elapsed = {}'.format(
+                    self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
                         self.currentMinTime, timeElapsed
                     ))
                     if timeElapsed > self.currentMinTime:
