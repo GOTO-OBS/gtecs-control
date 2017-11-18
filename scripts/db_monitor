@@ -22,11 +22,14 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} |'.format(
+        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
                                         pointing.pointingID,
                                         pointing.objectName,
                                         pointing.rank,
-                                        pointing.ra, pointing.decl)
+                                        pointing.ra, pointing.decl,
+                                        int(pointing.survey is not None))
+
+        print(string, end='\t')
 
         if pointing.status == 'running':
             status = misc.ytxt('RUNNING')
@@ -36,5 +39,4 @@ with db.open_session() as session:
             status = misc.btxt('pending')
         else:
             status = pointing.status
-        print(string, end='\t')
         print(status, end='\n')
