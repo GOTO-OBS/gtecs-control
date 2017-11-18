@@ -592,44 +592,59 @@ def what_to_do_next(current_pointing, highest_pointing):
 
     # Deal with either being missing (telescope is idle or queue is empty)
     if current_pointing is None and highest_pointing is None:
-        return current_pointing
+        print('Not doing anything; Nothing to do => Do nothing', end='\t')
+        return None
     elif current_pointing is None:
         if highest_pointing.priority_now < INVALID_PRIORITY:
+            print('Not doing anything; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
-            return current_pointing
+            print('Not doing anything; HP invalid => Do nothing', end='\t')
+            return None
     elif highest_pointing is None:
         if current_pointing.priority_now > INVALID_PRIORITY:
+            print('CP invalid; Nothing to do => Do nothing', end='\t')
             return None
         else:
+            print('CP valid; Nothing to do => Do CP', end='\t') ## TODO - is that right?
             return current_pointing
 
     if current_pointing == highest_pointing:
         if current_pointing.priority_now >= INVALID_PRIORITY or highest_pointing.priority_now >= INVALID_PRIORITY:
+            print('CP==HP and invalid => Do nothing', end='\t')
             return None  # it's either finished or is now illegal
         else:
+            print('CP==HP and valid => Do HP', end='\t')
             return highest_pointing
 
     if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
         if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
+            print('CP invalid; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
+            print('CP invalid; HP invalid => Do nothing', end='\t')
             return None
     else:  # telescope is observing legally
         if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
+            print('CP valid; HP invalid => Do nothing', end='\t')
             return None
         else:  # both are legal
             if current_pointing.survey:  # a survey tile (filler)
                 if not highest_pointing.survey:  # interupt unless the new pointing is also a tile
+                    print('CP < HP; CP is survey and HP is not => Do HP', end='\t')
                     return highest_pointing
                 else:
+                    print('CP < HP; CP is survey and HP is survey => Do CP', end='\t')
                     return current_pointing
             elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
-                if current_pointing.too:
-                    return current_pointing
-                else:
+                if not current_pointing.too:
+                    print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
                     return highest_pointing
+                else:
+                    print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
+                    return current_pointing
             else:  # stay for normal pointings
+                print('CP < HP; but not enough to intterupt (survey, ToO) => Do CP', end='\t')
                 return current_pointing
 
 
@@ -675,6 +690,15 @@ def check_queue(time=None, write_html=False):
     highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()
 
+    if current_pointing is not None:
+        print('CP: {}'.format(current_pointing.id), end = '\t')
+    else:
+        print('CP: None', end='\t')
+    if highest_pointing is not None:
+        print('HP: {}'.format(highest_pointing.id), end='\t')
+    else:
+        print('HP: None', end='\t')
+
     queue.write_to_file(time, GOTO, queue_file)
 
     if write_html:
@@ -683,6 +707,10 @@ def check_queue(time=None, write_html=False):
         html.write_queue_page()
 
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
+    if new_pointing is not None:
+        print('NP: {}'.format(new_pointing.id))
+    else:
+        print('NP: None')
 
     if new_pointing is not None:
         return new_pointing
