@@ -22,12 +22,15 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        print(pointing.pointingID, end='\t| ')
-        print(pointing.objectName, end='\t| ')
-        print(pointing.rank, end='\t| ')
-        print(pointing.minTime, end='\t| ')
-        print(pointing.startUTC, end='\t| ')
-        print(pointing.stopUTC, end='\t| ')
+        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
+                                        pointing.pointingID,
+                                        pointing.objectName,
+                                        pointing.rank,
+                                        pointing.ra, pointing.decl,
+                                        int(pointing.survey is not None))
+
+        print(string, end='\t')
+
         if pointing.status == 'running':
             status = misc.ytxt('RUNNING')
         elif pointing.status == 'completed':

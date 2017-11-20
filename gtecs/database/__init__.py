@@ -1,7 +1,7 @@
 import hashlib
 
 from .engine import load_session, open_session
-from .models import (User, Event, SurveyTile, LigoTile,
+from .models import (User, Event, EventTile, Survey, SurveyTile,
                      Pointing, Mpointing, Repeat, ExposureSet, ObslogEntry)
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_
@@ -342,16 +342,16 @@ def get_pointing_by_id(session, pointingID):
     ).one_or_none()
 
 
-def get_mpointings(session, rpIDs=None, only_active=True,
+def get_mpointings(session, mpointingIDs=None, only_active=True,
                    scheduled=False):
     """
-    Get mpointings, filtered by rpID or status.
+    Get mpointings, filtered by mpointingID or status.
 
     Parameters
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
-    rpIDs : int or list
+    mpointingIDs : int or list
         supply a ID or list of IDs to filter results
     only_active : bool
         if True, only return `Mpointings` with pointings remaining
@@ -366,9 +366,9 @@ def get_mpointings(session, rpIDs=None, only_active=True,
         a list of all matching Pointings
     """
     query = session.query(Mpointing)
-    if rpIDs is not None:
+    if mpointingIDs is not None:
         query = query.filter(
-            Mpointing.rpID.in_(list(rpIDs))
+            Mpointing.mpointingID.in_(list(mpointingIDs))
         )
     if only_active:
         query = query.filter(
@@ -379,7 +379,7 @@ def get_mpointings(session, rpIDs=None, only_active=True,
     return query.all()
 
 
-def get_mpointing_by_id(session, rpID):
+def get_mpointing_by_id(session, mpointingID):
     """
     Get a single Mpointing, filtered by ID.
 
@@ -387,7 +387,7 @@ def get_mpointing_by_id(session, rpID):
     ----------
     session : `sqlalchemy.Session.session`
         a session object - see `load_session` or `open_session` for details
-    rpID : int
+    mpointingID : int
         the id number of the Mpointing
 
     Returns
@@ -400,8 +400,38 @@ def get_mpointing_by_id(session, rpID):
     NoResultFound : if Mpointing not in DB
     """
     return session.query(Mpointing).filter(
-        Mpointing.rpID == rpID
+        Mpointing.mpointingID == mpointingID
     ).one_or_none()
+
+
+def get_survey_tile_by_name(session, survey_name, tile_name):
+    """
+    Get a tile in a survey from the name of the survey and tile.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+    survey_name : str
+        the name of the survey
+    tile_name : str
+        the name of the tile
+
+    Returns
+    -------
+    tile : `SurveyTile`
+        the matching SurveyTile
+
+    Raises
+    ------
+    NoResultFound : if SurveyTile not in DB
+    """
+
+    survey, tile = session.query(Survey, SurveyTile).filter(
+        Survey.name == survey_name,
+        SurveyTile.name == tile_name
+    ).one_or_none()
+    return tile
 
 
 def get_stale_pointing_ids(session, time=None):

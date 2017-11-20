@@ -37,6 +37,8 @@ class Event(Base):
             a human-readable identifier for the event
         source : string
             the event's origin, e.g. LVC
+        skymap : string, optional
+            the location of the source skymap file
 
     An Event also has the following properties which are
     populated through database queries, but not needed for
@@ -46,8 +48,8 @@ class Event(Base):
     ----------
         eventID : int
             primary key for events
-        ligoTiles : list of `LigoTile`
-            a list of any `LigoTiles` associated with this Event
+        eventTiles : list of `EventTile`
+            a list of any `EventTiles` associated with this Event
         mpointings : list of `Mpointing`
             a list of any `Mpointing`s associated with this Event
         pointings : list of `Pointing`
@@ -63,15 +65,16 @@ class Event(Base):
     __tablename__ = "events"
 
     eventID = Column(Integer, primary_key=True)
-    ivo = Column(String, unique=True)
     name = Column(String)
     source = Column(String)
+    ivo = Column(String, unique=True)
+    skymap = Column(String)
 
-    ligoTiles = relationship("LigoTile", back_populates="event")
+    eventTiles = relationship("EventTile", back_populates="event")
 
     def __repr__(self):
-        return "Event(eventID={}, ivo={}, name={}, source={})".format(
-            self.eventID, self.ivo, self.name, self.source
+        return "Event(eventID={}, name={}, source={}, ivo={}, skymap={})".format(
+            self.eventID, self.name, self.source, self.ivo, self.skymap
         )
 
 
@@ -134,7 +137,7 @@ class User(Base):
         decl=-53.5477, rank=67, minAlt=30.0, maxSunAlt=-15.0,
         minTime=428.848, maxMoon=D, ToO=1, startUTC=2016-08-17 14:45:15,
         stopUTC=2016-08-26 14:45:15, status=pending, eventID=None,
-        userKey=25, mpointingID=None, repeatID=None, ligoTileID=None)]
+        userKey=25, mpointingID=None, repeatID=None, eventTileID=None)]
         >>> session.close()
 
     """
@@ -152,13 +155,13 @@ class User(Base):
         )
 
 
-class LigoTile(Base):
+class EventTile(Base):
 
     """
-    A class to represent a Ligo Tile.
+    A class to represent a Tile from an Event (e.g. a LVC skymap).
 
     Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an LigoTile, and set its attributes
+    underlying database. You can create an EventTile, and set its attributes
     without a database session. Accessing some attributes may require
     an active database session, and some properties (like the tileID)
     will be None until the User is added to the database.
@@ -169,25 +172,34 @@ class LigoTile(Base):
 
     Args
     ----
-        ra : float
-            J2000 right ascension in decimal degrees
-        decl : float
-            J2000 declination in decimal degrees
         probability : float
-            probability that GW event is contained in this tile
+            contained target probability within this tile
+        ra : float, optional
+            J2000 right ascension in decimal degrees
+            if ra is not given and this EventTile is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
+            J2000 declination in decimal degrees
+            if dec is not given and this EventTile is linked to a SurveyTile
+            then the dec will be extracted from the SurveyTile
         eventID : int, optional
-            the ID number of the LIGO event this tile is associated with
+            the ID number of the Event this tile is associated with
+        surveyTileID : int, optional
+            the SurveyTile this tile is associated with, if any
 
-    A LigoTile also has the following properties which are
+    An EventTile also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
     Attributes
     ----------
         tileID : int
-            primary key for ligo tiles
+            primary key for event tiles
+        unobserved_probability : float
+            the total probability in this tile that hasn't been observed
+            should be updated whenever any overlapping tile is observed
         mpointing : `Mpointing`
-            the `Mpointing` associated with this LigoTile if any
+            the `Mpointing` associated with this EventTile if any
         pointings : list of `Pointing`
             a list of any `Pointing`s associated with this tile, if any
 
@@ -196,7 +208,7 @@ class LigoTile(Base):
 
         >>> from gtecs.database import *
 
-        make a ligo event to associate our tile with
+        make a LIGO event to associate our tile with
 
         >>> e = Event(ivo='ivo://GW150914', name='GW150914', source='LVC')
         >>> session = load_session()
@@ -207,48 +219,134 @@ class LigoTile(Base):
 
         construct without eventID
 
-        >>> ligo_tile = LigoTile(ra=122.34, decl=22.01, probability=0.01)
-        >>> ligo_tile
-        LigoTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+        >>> event_tile = EventTile(ra=122.34, decl=22.01, probability=0.01)
+        >>> event_tile
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None, surveytileID=None)
 
         set the eventID
 
-        >>> ligo_tile.eventID = 1
-        >>> ligo_tile
-        LigoTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
+        >>> event_tile.eventID = 1
+        >>> event_tile
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None, surveytileID=None)
 
         add to the database
 
-        >>> session.add(ligo_tile)
+        >>> session.add(event_tile)
         >>> session.commit()
-        >>> ligo_tile  # note how tileID is populated now tile is in DB
-        LigoTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)
-        >>> e.ligoTiles  # and event knows about all associated tiles
-        [LigoTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1)]
+        >>> event_tile  # note how tileID is populated now tile is in DB
+        EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1, surveytileID=None)
+        >>> e.eventTiles  # and event knows about all associated tiles
+        [EventTile(tileID=1, ra=122.34, decl=22.01, probability=0.01, eventID=1, surveytileID=None)]
         >>> session.close()
+
+        make a survey and a survey tile, and add them to the database
+
+        >>> s = Survey(name='GOTO survey')
+        >>> st = SurveyTile(ra=22, decl=-2, name='Tile1')
+        >>> st.survey = s
+        >>> session.add(s, st)
+        >>> session.commit()
+
+        make a new event tile that has no ra and decl,
+        but is linked to the survey tile
+
+        >>> et2 = EventTile(probability=0.01)
+        >>> et2.event = e
+        >>> et2.surveyTile = st
+        >>> et2
+        EventTile(tileID=None, ra=None, decl=None, probability=0.01, eventID=None, surveytileID=None)
+
+        add to the database
+
+        >>> session.add(event_tile)
+        >>> session.commit()
+        >>> et2  # note how the ra and decl have been copied from the surveyTile
+        EventTile(tileID=2, ra=22.0, decl=-2.0, probability=0.01, eventID=1, surveytileID=1)
+        >>> st.eventTiles # and the surveyTile knows about the linked eventTiles
+        [EventTile(tileID=2, ra=22.0, decl=-2.0, probability=0.01, eventID=1, surveytileID=1)]
 
     """
 
-    __tablename__ = "ligo_tiles"
+    __tablename__ = "event_tiles"
 
     tileID = Column(Integer, primary_key=True)
     ra = Column(Float)
     decl = Column(Float)
     probability = Column(Float)
+    unobserved_probability = Column(Float)
 
     # handle relationships
-    pointings = relationship("Pointing", back_populates="ligoTile")
-    mpointing = relationship("Mpointing", back_populates="ligoTile", uselist=False)
+    pointings = relationship("Pointing", back_populates="eventTile")
+    mpointing = relationship("Mpointing", back_populates="eventTile")
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=False)
-    event = relationship("Event", back_populates="ligoTiles", uselist=False)
+    event = relationship("Event", back_populates="eventTiles", uselist=False)
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
+                          ForeignKey('survey_tiles.tileID'), nullable=True)
+    surveyTile = relationship("SurveyTile", back_populates="eventTiles", uselist=False)
 
     def __repr__(self):
-        template = ("LigoTile(tileID={}, ra={}, decl={}, " +
-                    "probability={}, eventID={})")
+        template = ("EventTile(tileID={}, ra={}, decl={}, " +
+                    "probability={}, eventID={}, surveytileID={})")
         return template.format(
-            self.tileID, self.ra, self.decl, self.probability, self.eventID)
+            self.tileID, self.ra, self.decl, self.probability, self.eventID,
+            self.surveyTileID)
+
+class Survey(Base):
+
+    """
+    A class to represent an observation survey.
+
+    Like all SQLAlchemy model classes, these objects link to the
+    underlying database. You can create an object, set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the surveyID)
+    will be None until the Survey is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        name : string
+            a human-readable identifier for the survey
+
+    A Survey also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        surveyID : int
+            primary key for surveys
+        surveyTiles : list of `SurveyTile`
+            a list of any `SurveyTiles` associated with this Survey
+        mpointings : list of `Mpointing`
+            a list of any `Mpointing`s associated with this Survey
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this Survey
+
+    Examples
+    --------
+
+        >>> s = Survey(name='GOTO4-allsky')
+
+    """
+
+    __tablename__ = "surveys"
+
+    surveyID = Column(Integer, primary_key=True)
+    name = Column(String)
+
+    surveyTiles = relationship("SurveyTile", back_populates="survey")
+
+    def __repr__(self):
+        return "Survey(surveyID={}, name={})".format(
+            self.surveyID, self.name
+        )
 
 
 class SurveyTile(Base):
@@ -272,8 +370,12 @@ class SurveyTile(Base):
             J2000 right ascension in decimal degrees
         decl : float
             J2000 declination in decimal degrees
+        surveyID : int, optional
+            the ID number of the Survey this tile is associated with
+        name : str, optional
+            a human-readable identifier for the tile
 
-    A LigoTile also has the following properties which are
+    A SurveyTile also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
@@ -281,6 +383,8 @@ class SurveyTile(Base):
     ----------
         tileID : int
             primary key for survey tiles
+        eventTiles : list of `EventTile`
+            a list of any `EventTiles` associated with this SurveyTiles, if any
         mpointing : `Mpointing`
             the `Mpointing` associated with this SurveyTile if any
         pointings : list of `Pointing`
@@ -290,11 +394,27 @@ class SurveyTile(Base):
     --------
 
         >>> from gtecs.database import *
+
+        make a survey to associate our tile with
+
+        >>> s = Survey(name='GOTO4-allsky')
+        >>> session = load_session()
+        >>> session.add(s)  # add survey
+        >>> session.commit()  # commit changes (otherwise DB not changed)
+        >>> s.surveyID
+        1
+
+        construct without surveyID
+
         >>> tile = SurveyTile(ra=100, decl=20)
         >>> tile
         SurveyTile(tileID=None, ra=100.00, decl=20.00)
 
-        set the eventID
+        set the surveyID
+
+        >>> event_tile.eventID = 1
+        >>> event_tile
+        EventTile(tileID=None, ra=122.34, decl=22.01, probability=0.01, eventID=None)
 
         add to the database, demonstrating the open_session context manager,
         which will handle committing changes for you:
@@ -302,21 +422,33 @@ class SurveyTile(Base):
         >>> with open_session as session():
         >>>     insert_items([tile])
         >>>     tile  # note how tileID is populated now tile is in DB
-        SurveyTile(tileID=1, ra=100.00, decl=20.00)
+        SurveyTile(tileID=1, ra=100.00, decl=20.00, surveyID=1)
+        >>> with open_session as session():
+        >>>     s.surveyTiles  # and survey knows about all associated tiles
+        [SurveyTile(tileID=1, ra=100.00, decl=20.00, surveyID=1)]
 
     """
 
-    __tablename__ = "survey"
+    __tablename__ = "survey_tiles"
 
     tileID = Column(Integer, primary_key=True)
     ra = Column(Float)
     decl = Column(Float)
+    name = Column(String)
 
-    mpointing = relationship("Mpointing", back_populates="surveyTile", uselist=False)
-    pointings = relationship("Pointing", back_populates="surveyTile", uselist=False)
+    eventTiles = relationship("EventTile", back_populates="surveyTile")
+    mpointing = relationship("Mpointing", back_populates="surveyTile")
+    pointings = relationship("Pointing", back_populates="surveyTile")
+
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=False)
+    survey = relationship("Survey", back_populates="surveyTiles", uselist=False)
 
     def __repr__(self):
-        return "SurveyTile(tileID={})".format(self.tileID)
+        template = ("SurveyTile(tileID={}, ra={}, decl={}, " +
+                    ", name={}, surveyID={})")
+        return template.format(
+            self.tileID, self.ra, self.decl, self.name, self.surveyID)
 
 
 status_list = Enum(
@@ -394,8 +526,8 @@ class Repeat(Base):
     valid_duration = Column(Integer)
     status = Column(status_list, server_default='upcoming')
     ts = Column(DateTime)
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=False)
 
     @validates('waitTime', 'valid_duration')
@@ -409,9 +541,7 @@ class Repeat(Base):
         return field
 
     # relationships
-    mpointing = relationship("Mpointing",
-                             back_populates="repeats",
-                             uselist=False)
+    mpointing = relationship("Mpointing", back_populates="repeats", uselist=False)
     pointing = relationship("Pointing", back_populates="repeat", uselist=False)
 
     def __repr__(self):
@@ -429,7 +559,7 @@ class Mpointing(Base):
     Like all SQLAlchemy model classes, this object links to the
     underlying database. You can create an Mpointing, and set its attributes
     without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the rpID)
+    an active database session, and some properties (like the mpointingID)
     will be None until the Mpointing is added to the database.
 
     The constructor must use keyword arguments and the arguments below
@@ -442,10 +572,14 @@ class Mpointing(Base):
             unique key identifying user to whom this Mpointing belongs
         objectName : String
             object name
-        ra : float
+        ra : float, optional
             J2000 right ascension in decimal degrees
-        decl : float
+            if ra is not given and this Mpointing is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
             J2000 declination in decimal degrees
+            if decl is not given and this Mpointing is linked to a SurveyTile
+            then the decl will be extracted from the SurveyTile
         start_rank : Integer
             rank to use for first pointing in series
         minAlt : float
@@ -468,12 +602,14 @@ class Mpointing(Base):
             the amount of time the pointing should be valid in
             the queue. Must be less than the corresponding interval.
 
-        ligoTileID : int, optional
-            unique key linking to `LigoTile`
+        eventTileID : int, optional
+            unique key linking to `EventTile`
         surveyTileID : int, optional
             unique key linking to `SurveyTile`
         eventID : int, optional
             unique key linking to `Event`
+        surveyID : int, optional
+            unique key linking to `Survey`
 
     An Mpointing also has the following properties which are
     populated through database queries, but not needed for
@@ -481,7 +617,7 @@ class Mpointing(Base):
 
     Attributes
     ----------
-        rpID : int
+        mpointingID : int
             primary key for mpointings
         rank : int
             rank for next pointing to be scheduled
@@ -497,10 +633,12 @@ class Mpointing(Base):
             the `Repeat` objects associated with this `Mpointing`, if any
         surveyTile : `SurveyTile`
             the `SurveyTile` associated with this `Mpointing`, if any
-        ligoTile : `LigoTile`
-            the `LigoTile` associated with this `Mpointing`, if any
+        eventTile : `EventTile`
+            the `EventTile` associated with this `Mpointing`, if any
         event : `Event`
             the `Event` associated with this `Mpointing`, if any
+        survey : `Survey`
+            the `Survey` associated with this `Mpointing`, if any
 
     Examples
     --------
@@ -508,10 +646,10 @@ class Mpointing(Base):
         >>> from gtecs.database import *
         >>> mp = Mpointing()
         >>> mp
-        Mpointing(rpID=None, objectName=None, ra=None, decl=None, rank=None,
+        Mpointing(mpointingID=None, objectName=None, ra=None, decl=None, rank=None,
         start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
         ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
-        userKey=None, ligoTileID=None, surveyTile=None)
+        userKey=None, eventTileID=None, surveyTile=None)
 
         make a more useful Mpointing - repeating on increasing intervals, which stay in the
         queue for 5 minutes.
@@ -520,8 +658,8 @@ class Mpointing(Base):
         ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
         ... valid_durations=5, maxSunAlt=-15)
         >>> mp
-        Mpointing(rpID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
-        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, ligoTileID=None,
+        Mpointing(mpointingID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
+        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, eventTileID=None,
         surveyTile=None)
 
         notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
@@ -541,9 +679,9 @@ class Mpointing(Base):
         >>> session.add(mp)
         >>> session.commit()
         >>> mp
-        Mpointing(rpID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
+        Mpointing(mpointingID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
         minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
-        ligoTileID=None, surveyTile=None)
+        eventTileID=None, surveyTile=None)
         >>> mp.repeats
         [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
          Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
@@ -584,7 +722,7 @@ class Mpointing(Base):
 
     __tablename__ = "mpointings"
 
-    rpID = Column(Integer, primary_key=True)
+    mpointingID = Column(Integer, primary_key=True)
     objectName = Column('object', String)
     ra = Column(Float)
     decl = Column(Float)
@@ -606,37 +744,41 @@ class Mpointing(Base):
                      nullable=False)
     user = relationship("User", backref="mpointings", uselist=False)
 
-    ligoTileID = Column('ligo_tiles_tileID', Integer,
-                        ForeignKey('ligo_tiles.tileID'), nullable=True)
-    ligoTile = relationship("LigoTile", back_populates="mpointing", uselist=False)
+    eventTileID = Column('event_tiles_tileID', Integer,
+                        ForeignKey('event_tiles.tileID'), nullable=True)
+    eventTile = relationship("EventTile", back_populates="mpointing", uselist=False)
 
-    surveyTileID = Column('survey_tileID', Integer,
-                          ForeignKey('survey.tileID'), nullable=True)
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=True)
+    survey = relationship("Survey", backref="mpointings")
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
+                          ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
 
     repeats = relationship("Repeat", back_populates="mpointing", viewonly=True)
     num_repeats = column_property(
-        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == rpID).correlate_except(Repeat)
+        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == mpointingID).correlate_except(Repeat)
     )
     num_remain = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
                                                     Repeat.status == 'upcoming')).correlate_except(Repeat)
     )
     num_completed = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == rpID,
+        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
                                                     Repeat.status == 'completed')).correlate_except(Repeat)
     )
 
     def __repr__(self):
-        template = ("Mpointing(rpID={}, objectName={}, ra={}, decl={}, " +
+        template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
                     "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, num_repeats={}, num_completed={}, " +
-                    "num_remain={}, scheduled={}, eventID={}, userKey={}, ligoTileID={}, surveyTile={})")
+                    "num_remain={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
-            self.rpID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.mpointingID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.num_repeats, self.num_completed, self.num_remain, self.scheduled, self.eventID,
-            self.userKey, self.ligoTileID, self.surveyTileID
+            self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
     def __init__(self, objectName=None, ra=None, decl=None,
@@ -697,14 +839,18 @@ class Mpointing(Base):
             self.user = kwargs['user']
         if 'userKey' in kwargs:
             self.userKey = kwargs['userKey']
+        if 'surveyID' in kwargs:
+            self.surveyID = kwargs['surveyID']
+        if 'survey' in kwargs:
+            self.survey = kwargs['survey']
         if 'surveyTile' in kwargs:
             self.surveyTile = kwargs['surveyTile']
         if 'surveyTileID' in kwargs:
             self.surveyTileID = kwargs['surveyTileID']
-        if 'ligoTile' in kwargs:
-            self.ligoTile = kwargs['ligoTile']
-        if 'ligoTileID' in kwargs:
-            self.ligoTileID = kwargs['ligoTileID']
+        if 'eventTile' in kwargs:
+            self.eventTile = kwargs['eventTile']
+        if 'eventTileID' in kwargs:
+            self.eventTileID = kwargs['eventTileID']
 
     def get_next_last_repeats(self):
         """
@@ -774,7 +920,7 @@ class Mpointing(Base):
             maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
             startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
             repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
-            mpointingID=self.rpID, ligoTileID=self.ligoTileID, surveyTileID=self.surveyTileID
+            mpointingID=self.mpointingID, eventTileID=self.eventTileID, surveyID=self.surveyID, surveyTileID=self.surveyTileID
         )
         # add the exposures
         p.exposure_sets = self.exposure_sets
@@ -801,10 +947,14 @@ class Pointing(Base):
             unique key identifying user to whom this Pointing belongs
         objectName : String
             object name
-        ra : float
+        ra : float, optional
             J2000 right ascension in decimal degrees
-        decl : float
+            if ra is not given and this Pointing is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
             J2000 declination in decimal degrees
+            if decl is not given and this Pointing is linked to a SurveyTile
+            then the decl will be extracted from the SurveyTile
         rank : Integer
             rank to use for pointing
         minAlt : float
@@ -824,12 +974,14 @@ class Pointing(Base):
 
         status : string, optional
             status of pointing, default 'pending'
-        ligoTileID : int, optional
-            unique key linking to a `LigoTile`
+        eventTileID : int, optional
+            unique key linking to a `EventTile`
         surveyTileID : int, optional
             unique key linking to a `SurveyTile`
         eventID : int, optional
             unique key linking to an `Event`
+        surveyID : int, optional
+            unique key linking to a `Survey`
         mpointingID : int, optional
             unique key linking to an `Mpointing`
 
@@ -843,12 +995,14 @@ class Pointing(Base):
             primary key for mpointings
         exposure_sets : list of `ExposureSet`
             the `ExposureSet` objects associated with this `Pointing`, if any
-        ligoTile : `LigoTile`
-            the `LigoTile` associated with this `Pointing`, if any
+        eventTile : `EventTile`
+            the `EventTile` associated with this `Pointing`, if any
         surveyTile : `SurveyTile`
             the `SurveyTile` associated with this `Pointing`, if any
         event : `Event`
             the `Event` associated with this `Pointing`, if any
+        survey : `Survey`
+            the `Survey` associated with this `Pointing`, if any
         mpointing : `Mpointing`
             the `Mpointing` associated with this `Pointing`, if any
 
@@ -863,7 +1017,7 @@ class Pointing(Base):
         >>> p
         Pointing(pointingID=None, objectName=IP Peg, ra=350.785625, decl=18.416472, rank=9, minAlt=30,
         maxSunAlt=-15, minTime=3600, maxMoon=G, ToO=0, startUTC=2016-08-16 20:27:57, stopUTC=2016-08-19 20:27:57,
-        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, ligoTileID=None, surveyTileID=None)
+        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, eventTileID=None, surveyID=None, surveyTileID=None)
 
         we can insert it into the database and the status and pointingID will be set:
 
@@ -940,8 +1094,8 @@ class Pointing(Base):
                      nullable=False)
     user = relationship("User", backref="pointings", uselist=False)
 
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=True)
     mpointing = relationship("Mpointing", backref="pointings", uselist=False)
 
@@ -949,12 +1103,16 @@ class Pointing(Base):
                       ForeignKey('repeats.repeatID'), nullable=True)
     repeat = relationship("Repeat", back_populates="pointing", uselist=False)
 
-    ligoTileID = Column('ligo_tiles_tileID', Integer,
-                        ForeignKey('ligo_tiles.tileID'), nullable=True)
-    ligoTile = relationship("LigoTile", back_populates="pointings", uselist=False)
+    eventTileID = Column('event_tiles_tileID', Integer,
+                        ForeignKey('event_tiles.tileID'), nullable=True)
+    eventTile = relationship("EventTile", back_populates="pointings", uselist=False)
 
-    surveyTileID = Column('survey_tileID', Integer,
-                        ForeignKey('survey.tileID'), nullable=True)
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=True)
+    survey = relationship("Survey", backref="pointings")
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
+                        ForeignKey('survey_tiles.tileID'), nullable=True)
     surveyTile = relationship("SurveyTile", back_populates="pointings", uselist=False)
 
     def __repr__(self):
@@ -962,12 +1120,12 @@ class Pointing(Base):
                     "rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
                     "stopUTC={}, status={}, eventID={}, userKey={}, " +
-                    "mpointingID={}, repeatID={}, ligoTileID={}, surveyTileID={})")
+                    "mpointingID={}, repeatID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.pointingID, self.objectName, self.ra, self.decl, self.rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.startUTC, self.stopUTC, self.status, self.eventID,
-            self.userKey, self.mpointingID, self.repeatID, self.ligoTileID, self.surveyTileID
+            self.userKey, self.mpointingID, self.repeatID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
 
@@ -1046,8 +1204,8 @@ class ExposureSet(Base):
                         nullable=False)
     pointing = relationship("Pointing", backref="exposure_sets", uselist=False)
 
-    mpointingID = Column('mpointings_rpID', Integer,
-                         ForeignKey('mpointings.rpID'),
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                         ForeignKey('mpointings.mpointingID'),
                          nullable=False)
     mpointing = relationship("Mpointing", backref="exposure_sets", uselist=False)
 

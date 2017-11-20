@@ -16,15 +16,29 @@ with open_session() as session:
     # create an event
     e = Event(ivo='ivo://pt5mTest', name='pt5mVar3', source='pt5m')
 
-    # and a LigoTile
-    lt = LigoTile(ra=100, decl=20, probability=0.1)
-    lt.event = e
+    # and an event tile
+    et = EventTile(ra=100, decl=20, probability=0.1)
+    et.event = e
+
+    # and a survey
+    s = Survey(name='GOTO survey')
 
     # and a survey tile
-    st = SurveyTile(ra=22, decl=-2)
+    st = SurveyTile(ra=22, decl=-2, name='Tile1')
+    st.survey = s
+
+    # and an event tile linked to that survey tile
+    et2 = EventTile(probability=0.2)
+    et2.event = e
+    et2.surveyTile = st
 
     # add them
-    insert_items(session, [e, lt, st])
+    insert_items(session, [e, et, s, st, et2])
+    session.commit()
+
+    # check the second event tile updated correctly
+    assert et2.ra == st.ra
+    assert et2.decl == st.decl
 
 # OK, new Session. Let's make a Pointing
 with open_session() as session:
@@ -42,7 +56,7 @@ with open_session() as session:
     insert_items(session, pointings)
 
     more_pointings = [_make_random_pointing(userKey) for i in range(10)]
-    bulk_insert_items(session, more_pointings)
+    insert_items(session, more_pointings)
 
 # now check how many we have
 with open_session() as session:
@@ -100,8 +114,8 @@ with open_session() as s:
 
     pointings_to_add = []
     for mp in mps_to_schedule:
-        print('Scheduling mp #{}'.format(mp.rpID))
-        next_pointing = mp.get_next_pointing(s)
+        print('Scheduling mp #{}'.format(mp.mpointingID))
+        next_pointing = mp.get_next_pointing()
         if next_pointing:
             pointings_to_add.append(next_pointing)
     insert_items(s, pointings_to_add)
@@ -137,7 +151,7 @@ while keepGoing:
     summary(mp)
 
     # schedule next
-    next = mp.get_next_pointing(s)
+    next = mp.get_next_pointing()
     if next:
         s.add(next)
     else:

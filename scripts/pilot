@@ -257,27 +257,20 @@ class Pilot:
 
     async def checkSchedule(self):
         """
-        Check sheduler and update current job every 10 seconds.
-
-        Note that checking the schedule can be a long-running, CPU-heavy task.
-        We therefore launch the schedule check in it's own thread, so that the
-        pilot can carry on with other tasks whilst the schedule check is ongoing.
+        Check scheduler and update current job every 10 seconds.
         """
         while True:
             if self.paused:
                 await asyncio.sleep(10)
                 continue
 
-            # check schedule, update HTML
-            loop = asyncio.get_event_loop()
-            write_html = True
-            scheduler_args = [Time.now(), write_html]
-            self.newID, self.newPriority, self.newMinTime = await loop.run_in_executor(
-                None, check_schedule, *scheduler_args
-            )
-            if self.newMinTime is not None:
-                self.newMinTime = int(self.newMinTime)
-            self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
+            # check scheduler daemon
+            self.log.info('checking scheduler')
+
+            check_results = check_schedule(Time.now(), True)
+            self.newID, self.newPriority, self.newMinTime = check_results
+
+            self.log.info('scheduler: current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
     async def hardwareChecks(self):
@@ -497,7 +490,7 @@ class Pilot:
                     except:
                         # in which case...
                         timeElapsed = 0
-                    self.log.info('min time = {}, time elapsed = {}'.format(
+                    self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
                         self.currentMinTime, timeElapsed
                     ))
                     if timeElapsed > self.currentMinTime:
@@ -537,6 +530,10 @@ class Pilot:
                     self.currentMinTime = self.newMinTime
 
             else:  # we are doing the right job, so do nothing
+                if self.currentID is None:
+                    self.log.info('nothing to observe!')
+                else:
+                     self.log.info('still observing {}'.format(self.currentID))
                 await asyncio.sleep(5)
 
     async def cancelRunningScript(self):

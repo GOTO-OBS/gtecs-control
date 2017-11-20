@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # a fake pilot to test the scheduler
-# heavily based on the pt5m pilot, including pointing files and html pages
-# SL & MJD @ Sheffield, 2016
-
-from __future__ import absolute_import
-from __future__ import print_function
 
 import os
 import signal
 import time
+import warnings
+import traceback
+import math
 
 import george
 import numpy as np
@@ -19,12 +17,18 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 import astroplan
 
+from gototile.skymap import SkyMap
+from gototile.skymaptools import tile_skymap
+from gototile.telescope import GOTON4
+
 from gtecs.tecs_modules import scheduler
 from gtecs.tecs_modules import misc
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules import astronomy
 import gtecs.database as db
 
-from six.moves import zip
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore')
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
@@ -32,27 +36,9 @@ signal.signal(signal.SIGINT, misc.signal_handler)
 slewrate = 5 * u.degree/u.s
 readouttime = 10*u.s
 
-weather_on = 1
+weather_on = False
 
-fake_dt = TimeDelta(60*u.s)  # 15*u.s)
-
-
-def set_pointing_status(pointingID, status, session):
-    '''Mark a pointing as completed, aborted etc'''
-    if status not in ['aborted', 'completed', 'interrupted', 'running']:
-        print('Illegal status:', status)
-        return 1
-    else:
-        print('    Marking pointing', pointingID, 'as', status)
-        try:
-            pointing = db.get_pointing_by_id(session, pointingID)
-            pointing.status = status
-            session.commit()
-            return 0
-        except:
-            session.rollback()
-            print('Session error!!')
-            return 1
+fake_dt = TimeDelta(60*u.s)*7  # 15*u.s)
 
 
 class Weather(object):
@@ -98,24 +84,81 @@ class Weather(object):
             return False
 
 
+def update_skymap_probabilities(session, event):
+    '''When a GW tile is observed, update all the Event tile probabilities
+
+    THIS SHOUD BE MOVED SOMEWHERE BETTER
+    '''
+    print('    Updating skymap probabilities: ', end = '\t')
+    try:
+        completed_pointings = session.query(db.Pointing).filter(
+            db.Pointing.eventID == event.eventID).filter(
+            db.Pointing.status == 'completed').all()
+
+        completed_tilenames = [p.surveyTile.name for p in completed_pointings]
+
+        filepath = event.skymap
+        skymap = SkyMap(filepath)
+
+        pointings = tile_skymap(skymap, [GOTON4()],
+                                observed = [completed_tilenames])
+
+        i = 0
+        for tile in event.eventTiles:
+            old_prob = float(tile.unobserved_probability)
+            index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
+            new_prob = float(pointings['prob'][index])
+
+            if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
+                i += 1
+                if new_prob < 0.001:
+                    new_prob = 0
+                tile.unobserved_probability = new_prob
+        print(' updated {:.0f} tiles'.format(i))
+
+        session.commit()
+        return 0
+    except:
+        print('ERROR')
+        session.rollback()
+        return 1
+
+
+def set_pointing_status(pointingID, status, session):
+    '''Mark a pointing as completed, aborted etc'''
+    if status not in ['aborted', 'completed', 'interrupted', 'running']:
+        print('Illegal status:', status)
+        return 1
+    else:
+        print('    Marking pointing', pointingID, 'as', status)
+        try:
+            pointing = db.get_pointing_by_id(session, pointingID)
+            pointing.status = status
+            session.commit()
+            return 0
+        except:
+            session.rollback()
+            print('Session error!!')
+            return 1
+
+
 def get_night_times(date):
-    """
-    Calculate the start and stop times of a given date,
-    defined as sunrise and sunset times for La Palma.
-    """
+    '''Calculate the start and stop times of a given date.
+    Defined as sunrise and sunset times for La Palma.
+    '''
     lapalma = astroplan.Observer.at_site('lapalma')
     # Time(date) gives start of date, add one day to get midnight that night
     midnight = Time(date) + TimeDelta(1*u.day)
-    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -15*u.deg)
-    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -15*u.deg)
+    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -8*u.deg)
+    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -8*u.deg)
     return sunset, sunrise
 
 
 def estimate_completion_time(newID, currentID, session):
-    """
-    Extimate the exposure time for a new pointing, based on the combined
-    exposure times in all exposures and the time to move into position.
-    """
+    '''Extimate the exposure time for a new pointing.
+    Based on the combined exposure times in all exposures,
+    and the time to move into position.
+    '''
     total_exptime = 0*u.s
     new_pointing = db.get_pointing_by_id(session, newID)
     for exp in new_pointing.exposure_sets:
@@ -194,15 +237,21 @@ class DummyPilot(object):
             self.currentName = current_pointing.objectName
             self.currentRa   = current_pointing.ra
             self.currentDec  = current_pointing.decl
-            current_tileID   = current_pointing.ligoTileID
-            current_tile = session.query(db.LigoTile).filter(db.LigoTile.tileID == current_tileID).one_or_none()
-            self.currentProbability = current_tile.probability
-            state = ('OBS: ID%i'    %self.currentID
-                    +' (%s;'        %self.currentName
-                    +' prob: %.8f;' %self.currentProbability
-                    +' ra: %.4f;'   %self.currentRa
-                    +' dec: %.4f;'  %self.currentDec
-                    +' p: %.11f)'   %self.currentPriority)
+            current_tileID   = current_pointing.eventTileID
+            current_tile = session.query(db.EventTile).filter(db.EventTile.tileID == current_tileID).one_or_none()
+            if current_tile:
+                self.currentProbability = current_tile.unobserved_probability
+            else:
+                self.currentProbability = 0
+
+            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%; {:.9f})'.format(
+                self.currentID,
+                self.currentName,
+                self.currentRa,
+                self.currentDec,
+                self.currentProbability*100,
+                self.currentPriority,
+                )
         else:
             state = 'idle'
         fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
@@ -218,6 +267,11 @@ class DummyPilot(object):
             if time_elapsed > self.current_duration:
                 self.currentPriority += 100
                 set_pointing_status(self.currentID, 'completed', session)
+
+                current_pointing = db.get_pointing_by_id(session, self.currentID)
+                event = current_pointing.event
+                if event is not None and event.skymap is not None:
+                    update_skymap_probabilities(session, event)
                 self.completed_pointings.append(self.currentID)
                 self.completed_times.append(now)
             print('  current : ID', self.currentID)#, self.currentPriority)
@@ -225,10 +279,16 @@ class DummyPilot(object):
             print('  current :', None)
 
         # find new highest priority from the scheduler
-        newID, newPriority, newMinTime = scheduler.check_queue(now, write_html)
-        if newID is not None:
+        newPointing = scheduler.check_queue(now, write_html)
+        if newPointing is not None:
+            newID = newPointing.id
+            newPriority = newPointing.priority_now
+            newMinTime = newPointing.mintime
             print('  queue   : ID', newID)#, newPriority)
         else:
+            newID = None
+            newPriority = None
+            newMinTime = None
             print('  queue   :', None)
 
         # what next
@@ -264,7 +324,6 @@ class DummyPilot(object):
 def run(date, sleep_time, write_html):
 
     pilot = DummyPilot()
-    session = db.load_session()
 
     # weather has typical timescale = 1h and we lose 10% of time to bad weather
     sunset, sunrise = get_night_times(date)
@@ -272,29 +331,33 @@ def run(date, sleep_time, write_html):
 
     # loop until night is over
     print('Starting loop...')
-    now = sunset
-    ts = time.time()
-    while now < sunrise:
-        try:
+    session = db.load_session()
+    try:
+        now = sunset
+        ts = time.time()
+        while now < sunrise:
             tprev = ts
             ts = time.time()
             now.format = 'iso'
             now.precision = 0
-            print('Loop:', now, '  ---  dt:%.3fs' %(ts-tprev))
+            sunalt = astronomy.sun_alt(now)
+            print('Loop: {} ({:>5.2f}) ---  dt:{:.3f}s'.format(
+                now, sunalt, (ts-tprev)))
             pilot.check_weather(weather, now, session)
             if pilot.dome_status:  # open
                 pilot.review_target_situation(now, bool(write_html), session)
             else:
                 print('  dome closed')
             pilot.log_state(now, session)
+
             # increment by scheduler loop timestep
             now += fake_dt
             time.sleep(float(sleep_time))
-        session.close()
 
-    except Exception as e:
-        print(e)
-        session.close()
+    except Exception:
+        traceback.print_exc()
+
+    session.close()
 
     print('Listing completed pointings and time done')
     for pointingID, timedone in zip(pilot.completed_pointings, pilot.completed_times):
@@ -309,8 +372,10 @@ def run(date, sleep_time, write_html):
         print(pointingID)
 
 if __name__ == "__main__":
-    usage = """python fake_pilot.py date sleep_time write_html"""
     import argparse
+
+    usage = """python fake_pilot.py date sleep_time write_html"""
+
     parser = argparse.ArgumentParser(description="run fake pilot for a night",
                                      usage=usage)
     parser.add_argument('date', help="night starting date to simulate")
