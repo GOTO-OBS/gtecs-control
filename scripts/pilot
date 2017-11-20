@@ -780,7 +780,7 @@ class Pilot:
                    cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_2.py')],
                    protocol=SimpleProtocol)
         sn3 = dict(name='SN3', sunAlt=7,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
                    protocol=SimpleProtocol)
         self.daytime_jobs = [sn0, sn1, sn2, sn3]
 
