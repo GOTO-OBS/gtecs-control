@@ -64,6 +64,26 @@ def get_cam_temps():
     return values
 
 
+def prepare_for_images():
+    """
+    Make sure the hardware is set up for taking images:
+      - ensure the filter wheels are homed
+      - ensure the cameras are at operating temperature
+    """
+
+    # Home the filter wheels
+    if not filters_are_homed():
+        cmd('filt home')
+        while not filters_are_homed():
+            time.sleep(1)
+
+    # Bring the CCDs down to temperature
+    if not cameras_are_cool():
+        cmd('cam temp {}'.format(params.CCD_TEMP))
+        while not cameras_are_cool():
+            time.sleep(1)
+
+
 def set_new_focus(values):
     """
     Move each telescope to the requested focus

@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import wait_for_exposure_queue, get_cam_temps
+from gtecs.tecs_modules.observing import wait_for_exposure_queue, prepare_for_images
 from gtecs.tecs_modules import params
 
 
@@ -27,13 +27,8 @@ def run(nexp=5):
     """
     print('Start of Night Phase 3')
 
-    print('Cooling CCDs')
-    ccd_temp = params.CCD_TEMP
-    cmd('cam temp {}'.format(ccd_temp))
-    cool = False
-    while not cool:
-        cool = np.all(pd.Series(get_cam_temps()) < ccd_temp + 0.1)
-        time.sleep(1)
+    # make sure hardware is ready
+    prepare_for_images()
 
     cmd('exq multbias {} 1'.format(nexp))  # 1x1 binning
     cmd('exq multbias {} 2'.format(nexp))  # 2x2 binning

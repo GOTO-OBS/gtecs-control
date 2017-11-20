@@ -13,7 +13,8 @@ from gtecs.tecs_modules.misc import neatCloser
 from gtecs.database import (markJobCompleted, markJobAborted,
                             open_session, get_pointing_by_id)
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue, filters_are_homed,
+from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
+                                          prepare_for_images,
                                           goto, wait_for_telescope)
 
 
@@ -56,11 +57,8 @@ if __name__ == "__main__":
     closer = Closer(pID, pID)
 
     try:
-        if not filters_are_homed():
-            print('homing filters')
-            time.sleep(1)
-            while not filters_are_homed():
-                time.sleep(1)
+        # make sure hardware is ready
+        prepare_for_images()
 
         print('Observing pointingID: ', pID)
 
