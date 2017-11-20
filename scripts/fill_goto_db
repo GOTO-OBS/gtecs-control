@@ -23,7 +23,7 @@ import astropy.units as u
 
 SURVEY_SETTINGS = dict(start_rank=999,
                        minAlt=35,
-                       minTime=30,
+                       minTime=120,
                        maxSunAlt=-12,
                        maxMoon='B',
                        ToO=0,
