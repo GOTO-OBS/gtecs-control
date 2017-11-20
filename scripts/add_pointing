@@ -1,0 +1,327 @@
+#!/usr/bin/env python
+# A script to allow simple adding of pointings to the scheduler database
+# MJD @ Sheffield, 2016
+
+from __future__ import print_function
+
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, get_body
+
+import gtecs.database as db
+from gtecs.tecs_modules import misc
+import readline
+import getpass
+
+
+### PARSING
+def parse_ra(ra_str):
+    '''
+    Parse an RA string and return a float in decimal degrees, or ValueError
+    ------------------
+    Valid formats:
+        Decimal degrees
+            e.g. "6" OR "212" OR "317.321"
+        Hour Minute Second (space or colon seperated)
+            e.g. "3 2 1" OR "10:0:0" OR "8 56 25.7"
+    ------------------
+    Will also check for limits (0 <= hours < 24 etc.)
+    '''
+
+    ra_list = ra_str.replace(':',' ').split()
+
+    # option 1: decimal degrees
+    if len(ra_list) == 1:
+        try:
+            ra_deg = float(ra_list[0])
+        except Exception as error:
+            raise ValueError('Invalid value for RA in degrees')
+        if not 0 <= ra_deg < 360:
+            raise ValueError('RA in degrees must be between 0 and 360')
+
+    # option 2: hms notation
+    elif len(ra_list) == 3:
+        try:
+            h = int(ra_list[0])
+            m = int(ra_list[1])
+            s = float(ra_list[2])
+        except Exception as error:
+            raise ValueError('Invalid input for RA in h m s')
+        if not 0 <= h < 24:
+            raise ValueError('RA hours must be between 0 and 24')
+        if not 0 <= m < 60:
+            raise ValueError('RA minutes must be between 0 and 60')
+        if not 0 <= s < 60:
+            raise ValueError('RA seconds must be between 0 and 60')
+        ra_hrs = h + m/60. + s/3600.
+        ra_deg = ra_hrs*360./24.
+
+    # they're the only options
+    else:
+        raise ValueError('Invalid input, use either deg or h m s')
+
+    return ra_deg
+
+
+def parse_dec(dec_str):
+    '''
+    Parse an Dec string and return a float in decimal degrees, or ValueError
+    ------------------
+    Valid formats:
+        Decimal degrees
+            e.g. "002" OR "194" OR "43.51"
+        Degree Arcminute Arcsecond (space or colon seperated)
+            e.g. "201 9 55" OR "+12:4:2.54" OR "-0 44 19"
+        Sign Degree Arcminute Arcsecond (space or colon seperated)
+            e.g. "+ 201 9 55" OR "+ 12:4:2.54" OR "- 0 44 19"
+    ------------------
+    Will also check for limits (0 <= minutes < 60 etc.)
+    '''
+
+    dec_list = dec_str.replace(':',' ').split()
+
+    # option 1: decimal degrees
+    if len(dec_list) == 1:
+        try:
+            dec_deg = float(dec_list[0])
+        except Exception as error:
+            raise ValueError('Invalid value for Dec in degrees')
+        if not -90 <= dec_deg <= 90:
+            raise ValueError('Dec in degrees must be between 90 and -90')
+
+    # option 2: +dms notation (the old way)
+    elif len(dec_list) == 4:
+        if dec_list[0] not in ['+','-']:
+            raise ValueError('Sign should be "+" or "-"')
+        sign = dec_list[0]
+        try:
+            d = int(dec_list[1])
+            m = int(dec_list[2])
+            s = float(dec_list[3])
+        except Exception as error:
+            raise ValueError('Invalid input for Dec in d m s')
+        if not -90 <= d <= 90:
+            raise ValueError('Dec degrees must be between 90 and -90')
+        if not 0 <= m < 60:
+            raise ValueError('Dec arcminutes must be between 0 and 60')
+        if not 0 <= s < 60:
+            raise ValueError('Dec arcseconds must be between 0 and 60')
+        if sign == '+':
+            dec_deg = d + m/60. + s/3600.
+        else:
+            dec_deg = -d - m/60. - s/3600.
+        if not -90 <= dec_deg <= 90:
+            raise ValueError('Dec must be between 90 and -90')
+
+    # option 3: dms notation (need to extract sign, for -0)
+    elif len(dec_list) == 3:
+        if dec_list[0][0] == '-':
+            sign = '-'
+        else:
+            sign = '+'
+        try:
+            d = int(dec_list[0])
+            m = int(dec_list[1])
+            s = float(dec_list[2])
+        except Exception as error:
+            raise ValueError('Invalid input for Dec in d m s')
+        if not -90 <= d <= 90:
+            raise ValueError('Dec degrees must be between 90 and -90')
+        if not 0 <= m < 60:
+            raise ValueError('Dec arcminutes must be between 0 and 60')
+        if not 0 <= s < 60:
+            raise ValueError('Dec arcseconds must be between 0 and 60')
+        if sign == '+':
+            dec_deg = d + m/60. + s/3600.
+        else:  #NB d is negative
+            dec_deg = d - m/60. - s/3600.
+        if not -90 <= dec_deg <= 90:
+            raise ValueError('Dec must be between 90 and -90')
+
+    # they're the only options
+    else:
+        raise ValueError('Invalid input, use either deg or d m s')
+
+    return dec_deg
+
+
+
+def get_userkey(session, username):
+    try:
+        user_key = db.get_userkey(session, username)
+        print('    Attributing pointings to user "{}"'.format(username))
+    except:
+        # Create user if it doesn't exist
+        print('    User "{}" not recognised, creating new user...'.format(username))
+        description = input(misc.bold('Enter your full name')+': ')
+        prompt = misc.bold('Give a password for {}'.format(username))+': '
+        passwd = getpass.getpass(prompt=prompt)
+        db.add_user(session, username, passwd, description)
+        session.commit()
+        user_key = db.get_userkey(session, username)
+
+    return user_key
+
+
+def fill_mpointing(mpointing):
+
+    ### Object name
+    while mpointing['objectName'] is None:
+        mpointing['objectName'] = input('Enter Target name: ')
+
+    ### Try coord lookup
+    try:
+        coord = SkyCoord.from_name(mpointing['objectName'])
+    except:
+        coord = None
+    if coord is not None:
+        print('    Found catalogue object: RA {:.4f} deg, Dec {:.4f} deg '.format(coord.ra.value, coord.dec.value))
+        use_coords = None
+        while use_coords not in ['y','n','Y','N']:
+            use_coords = input('Use these coordinates? [y/n]: ')
+        if use_coords in ['y','Y']:
+            mpointing['ra'] = coord.ra.value
+            mpointing['decl'] = coord.dec.value
+
+
+    ### Enter coords
+    while mpointing['ra'] is None:
+        ra_str = input('Target RA [h m s OR deg]: ')
+        try:
+            mpointing['ra'] = parse_ra(ra_str)
+        except:
+            pass
+    while mpointing['decl'] is None:
+        dec_str = input('Target Dec [d m s OR deg]: ')
+        try:
+            mpointing['decl'] = parse_dec(dec_str)
+        except:
+            pass
+
+
+    ### Rank
+    rank_str = 'None'
+    while rank_str.lower() not in ['low', 'medium', 'high', 'l', 'm', 'h']:
+        rank_str = input('Enter rank [low/medium/high]: ')
+
+    if rank_str.lower() in ['low', 'l']:
+        mpointing['start_rank'] = 8
+    elif rank_str.lower() in ['medium', 'm']:
+        mpointing['start_rank'] = 7
+    elif rank_str.lower() in ['high', 'h']:
+        mpointing['start_rank'] = 6
+
+    ### Repeats
+    while mpointing['num_repeats'] is None:
+        mpointing['num_repeats'] = int(input('Number of visits? [0=infinite]: '))
+    if mpointing['num_repeats'] != 1:
+        ## Wait time
+        while mpointing['intervals'] is None:
+            mpointing['intervals'] = int(input('Time between repeats (min): '))
+        mpointing['valid_durations'] = mpointing['intervals']-1
+    else:
+        mpointing['intervals'] = 5
+        mpointing['valid_durations'] = 4
+
+    return mpointing
+
+
+def fill_exposure_set(exposure_set):
+
+    ### Number of exposures
+    while exposure_set['numexp'] is None:
+        exposure_set['numexp'] = int(input('Number of exposures: '))
+
+    ### Exposure time
+    while exposure_set['expTime'] is None:
+        exposure_set['expTime'] = int(input('Exposure time: '))
+
+    ### Filter
+    filt_str = 'X'
+    while filt_str.upper() not in ['L','R','G','B']:
+        filt_str = input('Filter [L/R/G/B/C]: ').upper()
+    exposure_set['filt'] = filt_str
+
+    return exposure_set
+
+
+############################################
+
+if __name__ == '__main__':
+
+    default_mpointing = {'userKey': None,
+                         'objectName': None,
+                         'ra': None,
+                         'decl': None,
+                         'start_rank': None,
+                         'num_repeats': None,
+                         'intervals': None,
+                         # auto filled values
+                         'minTime': None,
+                         'valid_durations': 1439,
+                         # default values:
+                         'minAlt': 30,
+                         'maxSunAlt': -15,
+                         'maxMoon': 'B',
+                         'ToO': 0,
+                         }
+
+    exposure_sets = []
+
+    default_exposure_set = {'numexp': None,
+                            'expTime': None,
+                            'filt': None,
+                            # default values:
+                            'binning': 1,
+                            'typeFlag': 'SCIENCE',
+                            'raoff': 0,
+                            'decoff': 0,
+                            'otaMask': None,
+                            }
+
+    with db.open_session() as session:
+        print("** Insert pointing into GOTO queue database **")
+
+        # Get userKey
+        username = input('Enter your database username: ')
+        if username is None:
+            username = 'goto'
+
+        # Fill Mpointing infomation
+        mpointing = default_mpointing.copy()
+        mpointing['userKey'] = get_userkey(session, username)
+        mpointing = fill_mpointing(mpointing)
+
+        # Fill Exposure Set infomation
+        exposure_sets = []
+
+        total_exptime = 0
+        more_exposures = True
+        while more_exposures is True:
+            exposure_set = fill_exposure_set(default_exposure_set.copy())
+
+            total_exptime += exposure_set['expTime'] * exposure_set['numexp']
+            exposure_sets.append(exposure_set)
+
+            add_more = None
+            while add_more not in ['y','Y','n','N']:
+                add_more = input('Add another exposure set? [y/n]: ')
+
+            if add_more not in ['y','Y']:
+                more_exposures = False
+
+        mpointing['minTime'] = total_exptime
+
+
+        mp = db.Mpointing(**mpointing)
+        for exposure_set in exposure_sets:
+            es = db.ExposureSet(**exposure_set)
+            mp.exposure_sets.append(es)
+
+        db.insert_items(session, [mp])
+
+        print(mp)
+
+        # create first batch of Pointings
+        p = mp.get_next_pointing()
+
+        db.insert_items(session, [p])

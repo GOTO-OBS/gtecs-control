@@ -10,27 +10,20 @@
 ########################################################################
 from __future__ import print_function
 import getpass
+import sys
+import argparse
 
 import gtecs.database as db
 import gototile
 
 from sqlalchemy.orm import joinedload
 import time
+import numpy as np
+import astropy.units as u
 
-with db.open_session() as session:
-    try:
-        user_key = db.get_userkey(session, 'goto')
-    except:
-        passwd = getpass.getpass(prompt="Creating 'goto' user - give password: ")
-        db.add_user(session, 'goto', passwd, 'GOTO survey')
-        session.commit()
-        user_key = db.get_userkey(session, 'goto')
-
-survey_settings = dict(userKey=user_key,
-                       objectName='survey',
-                       start_rank=999,
+SURVEY_SETTINGS = dict(start_rank=999,
                        minAlt=35,
-                       minTime=30,
+                       minTime=120,
                        maxSunAlt=-12,
                        maxMoon='B',
                        ToO=0,
@@ -38,7 +31,7 @@ survey_settings = dict(userKey=user_key,
                        intervals=1440,
                        valid_durations=1439)
 
-exp_settings = dict(expTime=120,
+EXP_SETTINGS = dict(expTime=120,
                     raoff=0.,
                     decoff=0.,
                     numexp=3,
@@ -48,45 +41,109 @@ exp_settings = dict(expTime=120,
                     otaMask=None)
 
 
-goto = gototile.telescope.GOTON4()
-overlap = {k: goto.fov[k].value*0.1 for k in goto.fov}
+def get_userkey(username, description=''):
+    '''Get user key of a user, and create it if it doesn't exit'''
 
-_, _, coords = gototile.grid.tileallsky(goto.fov, 256, overlap)
-
-# loop over coords
-ra, decl = coords.ra.value, coords.dec.value
-tiles = []
-mpointings = []
-with db.open_session() as session:
-    for a, d in zip(ra, decl):
-        tile = db.SurveyTile(ra=float(a), decl=float(d))
-        tiles.append(tile)
-    print('adding tiles to db: ')
-    db.insert_items(session, tiles)
-
-    session.commit()
-
-    for a, d, t in zip(ra, decl, tiles):
-        mp = db.Mpointing(surveyTileID=t.tileID,
-                          ra=float(a), decl=float(d), **survey_settings)
-        mp.exposure_sets.append(db.ExposureSet(**exp_settings))
-        mpointings.append(mp)
-
-    print('adding mpointings to db: ')
-    db.insert_items(session, mpointings)
+    with db.open_session() as session:
+        try:
+            user_key = db.get_userkey(session, username)
+        except:
+            # Create user if it doesn't exist
+            prompt = "Creating {} user - give password: ".format(username)
+            passwd = getpass.getpass(prompt=prompt)
+            db.add_user(session, username, passwd, description)
+            session.commit()
+            user_key = db.get_userkey(session, username)
+    return user_key
 
 
-# add first batch of pointings
-with db.open_session() as session:
-    unscheduled_mps = session.query(db.Mpointing).filter(
-        db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
+def get_tiles(fov, overlap, nside=256):
+    '''Define survey tiles using GOTO-tile'''
+    tiles = gototile.grid.tileallsky(fov, nside, overlap)
+    coords = tiles[2]
+    ras, decs = coords.ra.value, coords.dec.value
+    names = np.arange(len(coords))+1
+    return ras, decs, names
 
-    print('creating pointings')
-    start = time.time()
-    pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
-    print('took {} secs'.format(time.time()-start))
 
-    print('inserting pointings into DB')
-    start = time.time()
-    db.insert_items(session, pointings)
-    print('took {} secs'.format(time.time()-start))
+def run(fov, overlap):
+    # Get tiles from GOTO-tile
+    ras, decs, names = get_tiles(fov, overlap)
+
+    # Add to the database
+    tiles = []
+    mpointings = []
+    user_key = get_userkey('goto', 'GOTO Survey')
+    with db.open_session() as session:
+        # create a Survey
+        survey_name = '{}x{}-allsky-{}-{}'.format(fov['ra'], fov['dec'],
+                                                  overlap['ra'], overlap['dec'])
+        survey = db.Survey(name=survey_name)
+        session.add(survey)
+
+        # create SurveyTiles
+        print('Creating tiles...')
+        start = time.time()
+        for ra, dec, name in zip(ras, decs, names):
+            if abs(dec) < 0.00001: dec = 0 # GOTO-tile rounding errors
+            tile = db.SurveyTile(ra=float(ra), decl=float(dec), name=str(name))
+            tile.survey = survey
+            tiles.append(tile)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        print('Adding {} tiles to database...'.format(len(tiles)))
+        start = time.time()
+        db.insert_items(session, tiles)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        # create Mpointings
+        print('Creating mpointings...')
+        start = time.time()
+        for tile in tiles:
+            mp = db.Mpointing(userKey=user_key,
+                              objectName='T{}'.format(tile.name),
+                              **SURVEY_SETTINGS)
+            mp.surveyID = survey.surveyID
+            mp.surveyTileID = tile.tileID
+            mp.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
+            mpointings.append(mp)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        print('Adding {} mpointings to database...'.format(len(mpointings)))
+        start = time.time()
+        db.insert_items(session, mpointings)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        # find the Mpointings that are unscheduled
+        unscheduled_mps = session.query(db.Mpointing).filter(
+            db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
+
+        # create first batch of Pointings
+        print('Creating pointings...')
+        start = time.time()
+        pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        print('Adding {} pointings to database...'.format(len(pointings)))
+        start = time.time()
+        db.insert_items(session, pointings)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+
+if __name__ == '__main__':
+    description = """Fill the GOTO observation database with survey tiles."""
+
+    parser = argparse.ArgumentParser(description=description,
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('ra_fov', help="FoV in RA", type=float, default=4.2)
+    parser.add_argument('dec_fov', help="FoV in Dec", type=float, default=5.6)
+    parser.add_argument('ra_overlap', help="Overlap in RA", type=float, default=0.5)
+    parser.add_argument('dec_overlap', help="Overlap in Dec", type=float, default=0.5)
+
+    args = parser.parse_args()
+
+    fov = {'ra':args.ra_fov*u.deg, 'dec':args.dec_fov*u.deg}
+    overlap = {'ra':args.ra_overlap, 'dec':args.dec_overlap}
+
+    run(fov, overlap)

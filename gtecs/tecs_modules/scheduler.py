@@ -47,13 +47,13 @@ queue_file   = params.QUEUE_PATH  + 'queue_info'
 horizon_file = params.CONFIG_PATH + 'horizon'
 
 # priority settings
-too_weight = 0.1
-prob_dp = 3
-prob_weight = 0.01
-airmass_dp = 5
-airmass_weight = 0.001
-tts_dp = 5
-tts_weight = 0.00001
+PROB_WEIGHT = 10
+AIRMASS_WEIGHT = 1
+TTS_WEIGHT = 0.1
+
+PROB_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+AIRMASS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+TTS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
 # set debug level
 debug = 1
@@ -172,13 +172,14 @@ class Pointing:
 
     @classmethod
     def from_database(cls, dbPointing):
-        # not every pointing has an assosiated GW tile probability
-        if dbPointing.ligoTile:
-            tileprob = dbPointing.ligoTile.probability
+        # not every pointing has an associated tile probability
+        # if it doesn't, it effectively contains 100% of the target so prob=1
+        if dbPointing.eventTile:
+            tileprob = dbPointing.eventTile.unobserved_probability
         else:
-            tileprob = 0
-        # survey tiles can be told apart by having a specific rank
-        if dbPointing.surveyTileID is not None:
+            tileprob = 1
+        # survey tiles can be told apart by being linked to a Survey
+        if dbPointing.surveyID is not None:
             survey = True
         else:
             survey = False
@@ -397,15 +398,12 @@ class PointingQueue:
         too_mask = np.array([p.too for p in self.pointings])
         too_arr = np.array(np.invert(too_mask), dtype = float)
 
-        ## Find probability values (0.00.. to 0.99..)
-        prob_arr = np.array([1-prob if prob != 0
-                             else 0
-                             for prob in self.tileprob_arr])
-        prob_arr = np.around(prob_arr, decimals = prob_dp)
-        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr >= 1)
-        prob_arr[bad_prob_mask] = float('0.' + '9' * prob_dp)
+        ## Find probability values (0 to 1)
+        prob_arr = 1-self.tileprob_arr
+        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr > 1)
+        prob_arr[bad_prob_mask] = 1
 
-        ## Find airmass values (0.00.. to 0.99..)
+        ## Find airmass values (0 to 1)
         # airmass at start
         altaz_now = _get_altaz(time, observer, self.targets)['altaz']
         secz_now = altaz_now.secz
@@ -417,23 +415,23 @@ class PointingQueue:
 
         # take average
         secz_arr = (secz_now + secz_later)/2.
-        airmass_arr = np.around(secz_arr/10., decimals = airmass_dp)
-        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr >= 1)
-        airmass_arr[bad_airmass_mask] = float('0.' + '9' * airmass_dp)
+        airmass_arr = secz_arr.value/10.
+        bad_airmass_mask = np.logical_or(airmass_arr < 0, airmass_arr > 1)
+        airmass_arr[bad_airmass_mask] = 1
 
-        ## Find time to set values (0.00.. to 0.99..)
+        ## Find time to set values (0 to 1)
         tts_arr = time_to_set(observer, self.targets, time).to(u.hour).value
-        tts_arr = np.around(tts_arr/24., decimals = tts_dp)
-        bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr >= 1)
-        tts_arr[bad_tts_mask] = float('0.' + '9' * tts_dp)
+        tts_arr = tts_arr/24.
+        bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
+        tts_arr[bad_tts_mask] = 1
 
         ## Construct the probability based on weightings
         priorities_now = priorities.copy()
 
-        priorities_now += too_arr * too_weight
-        priorities_now += prob_arr * prob_weight
-        priorities_now += airmass_arr.value * airmass_weight
-        priorities_now += tts_arr * tts_weight
+        priorities_now += 0.1 * too_arr
+        priorities_now += 0.01 * (prob_arr * PROB_WEIGHT +
+                                  airmass_arr * AIRMASS_WEIGHT +
+                                  tts_arr * TTS_WEIGHT)
 
         # check validities, add INVALID_PRIORITY to invalid pointings
         self.check_validities(time, observer)
@@ -594,45 +592,63 @@ def what_to_do_next(current_pointing, highest_pointing):
 
     # Deal with either being missing (telescope is idle or queue is empty)
     if current_pointing is None and highest_pointing is None:
-        return current_pointing
+        print('Not doing anything; Nothing to do => Do nothing', end='\t')
+        return None
     elif current_pointing is None:
         if highest_pointing.priority_now < INVALID_PRIORITY:
+            print('Not doing anything; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
-            return current_pointing
+            print('Not doing anything; HP invalid => Do nothing', end='\t')
+            return None
     elif highest_pointing is None:
         if current_pointing.priority_now > INVALID_PRIORITY:
+            print('CP invalid; Nothing to do => Do nothing', end='\t')
             return None
         else:
+            print('CP valid; Nothing to do => Do CP', end='\t') ## TODO - is that right?
             return current_pointing
 
     if current_pointing == highest_pointing:
         if current_pointing.priority_now >= INVALID_PRIORITY or highest_pointing.priority_now >= INVALID_PRIORITY:
+            print('CP==HP and invalid => Do nothing', end='\t')
             return None  # it's either finished or is now illegal
         else:
+            print('CP==HP and valid => Do HP', end='\t')
             return highest_pointing
 
     if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
         if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
+            print('CP invalid; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
+            print('CP invalid; HP invalid => Do nothing', end='\t')
             return None
     else:  # telescope is observing legally
         if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
+            print('CP valid; HP invalid => Do nothing', end='\t')
             return None
         else:  # both are legal
-            if current_pointing.survey:  # a survey tile (filler), always slew
-                return highest_pointing
-            elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
-                if current_pointing.too:
-                    return current_pointing
-                else:
+            if current_pointing.survey:  # a survey tile (filler)
+                if not highest_pointing.survey:  # interupt unless the new pointing is also a tile
+                    print('CP < HP; CP is survey and HP is not => Do HP', end='\t')
                     return highest_pointing
+                else:
+                    print('CP < HP; CP is survey and HP is survey => Do CP', end='\t')
+                    return current_pointing
+            elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
+                if not current_pointing.too:
+                    print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
+                    return highest_pointing
+                else:
+                    print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
+                    return current_pointing
             else:  # stay for normal pointings
+                print('CP < HP; but not enough to intterupt (survey, ToO) => Do CP', end='\t')
                 return current_pointing
 
 
-def check_queue(time, write_html=False):
+def check_queue(time=None, write_html=False):
     """
     Check the current pointings in the queue, find the highest priority at
     the given time and decide whether to slew to it, stay on the current target
@@ -646,6 +662,11 @@ def check_queue(time, write_html=False):
 
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
+        Default is `astropy.time.Time.now()`.
+
+    write_html : Bool
+        Should the scheduler write the HTML queue webpage?
+        Default is False.
 
     Returns
     -------
@@ -654,17 +675,29 @@ def check_queue(time, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
     """
 
+    if time is None:
+        time = Time.now()
+
     GOTO = Observer(astronomy.observatory_location())
 
     pointings = import_pointings_from_database(time, GOTO)
 
     if len(pointings) == 0:
-        return None, None, None
+        return None
 
     queue = PointingQueue(pointings)
 
     highest_pointing = queue.get_highest_priority_pointing(time, GOTO)
     current_pointing = queue.get_current_pointing()
+
+    if current_pointing is not None:
+        print('CP: {}'.format(current_pointing.id), end = '\t')
+    else:
+        print('CP: None', end='\t')
+    if highest_pointing is not None:
+        print('HP: {}'.format(highest_pointing.id), end='\t')
+    else:
+        print('HP: None', end='\t')
 
     queue.write_to_file(time, GOTO, queue_file)
 
@@ -674,8 +707,12 @@ def check_queue(time, write_html=False):
         html.write_queue_page()
 
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
+    if new_pointing is not None:
+        print('NP: {}'.format(new_pointing.id))
+    else:
+        print('NP: None')
 
     if new_pointing is not None:
-        return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
+        return new_pointing
     else:
-        return None, None, None
+        return None

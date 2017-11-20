@@ -16,6 +16,7 @@ from __future__ import print_function
 import time
 import sys
 import Pyro4
+import datetime
 
 # TeCS modules
 from gtecs.tecs_modules import misc
@@ -34,8 +35,20 @@ class SchedulerDaemon(InterfaceDaemon):
         InterfaceDaemon.__init__(self, 'scheduler')
 
     def check_queue(self, *args):
-        return scheduler.check_queue(*args)
+        next_pointing = scheduler.check_queue(*args)
+        self.logfile.info('Scheduler gives pointing ID: {}'.format(next_pointing.id))
+        return next_pointing
 
+    def get_info(self, *args):
+        info = {}
+        next_pointing = scheduler.check_queue(*args)
+        self.logfile.info('Scheduler gives pointing ID: {}'.format(next_pointing.id))
+        info['next_pointing'] = next_pointing
+
+        now = datetime.datetime.utcnow()
+        info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        return info
 
 def start():
     '''
