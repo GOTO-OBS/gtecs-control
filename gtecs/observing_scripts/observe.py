@@ -1,21 +1,18 @@
 """
-Dummy helper script to simulate observing.
-
-Simply logs the fact that it started and whether
-it completed or was killed.
+Script to control observing a single pointing.
 """
 from __future__ import absolute_import
 from __future__ import print_function
+
 import sys
 import time
 
-from gtecs.tecs_modules.misc import neatCloser
-from gtecs.database import (markJobCompleted, markJobAborted,
-                            open_session, get_pointing_by_id)
-from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           prepare_for_images,
                                           goto, wait_for_telescope)
+from gtecs.database import (markJobCompleted, markJobAborted,
+                            open_session, get_pointing_by_id)
 
 
 class Closer(neatCloser):
@@ -50,10 +47,7 @@ def get_exq_commands(pointingID):
     return commands
 
 
-if __name__ == "__main__":
-
-    pID = int(sys.argv[1])
-    minTime = int(sys.argv[2])
+def run(pID, minTime):
     closer = Closer(pID, pID)
 
     try:
@@ -94,3 +88,9 @@ if __name__ == "__main__":
     # hey, if we got here no-one else will mark as completed
     markJobCompleted(pID)
     print('Pointing {} completed'.format(pID))
+
+
+if __name__ == "__main__":
+    pID = int(sys.argv[1])
+    minTime = int(sys.argv[2])
+    run(pID, minTime)

@@ -1,31 +1,29 @@
 """
-Script to run the tasks for Start Night Phase 3.
-
-This script should perform the following simple tasks:
-* take bias and dark frames (the dome should still be closed)
+Script to take bias and dark frames.
 """
 from __future__ import absolute_import
 from __future__ import print_function
+
+import sys
 import time
 
-import pandas as pd
 import numpy as np
 
-from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import wait_for_exposure_queue, prepare_for_images
 from gtecs.tecs_modules import params
-
+from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
+                                          prepare_for_images)
 
 def run(nexp=5):
     """
-    Take biasses and darks at start of night.
+    Take biases and darks at start of night.
 
     Parameters
     ----------
-    nexp : intw
+    nexp : int
         number of each type of frame to take
     """
-    print('Start of Night Phase 3')
+    print('Taking bias and dark frames.')
 
     # make sure hardware is ready
     prepare_for_images()
@@ -41,11 +39,13 @@ def run(nexp=5):
     total_time = 1.5*(readout + total_exp)
     wait_for_exposure_queue(total_time)
 
+    print('Biases and darks done')
+
+
 if __name__ == "__main__":
-    import sys
     if len(sys.argv) > 1:
         nexp = int(sys.argv[1])
     else:
         nexp = 5
+
     run(nexp)
-    print("Biasses and darks done")
