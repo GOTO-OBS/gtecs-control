@@ -15,6 +15,7 @@ import time
 
 from gtecs.tecs_modules import params
 from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.tecs_modules.observing import (filters_are_homed, cameras_are_cool)
 
 
 def run():
@@ -69,12 +70,13 @@ def run():
 
     # Home the filter wheels
     cmd('filt home')
+    while not filters_are_homed():
+        time.sleep(1)
+    print('filt info')
 
     # Bring the CCDs down to temperature
     cmd('cam temp {}'.format(params.CCD_TEMP))
-    cool = False
-    while not cool:
-        cool = np.all(pd.Series(get_cam_temps()) < ccd_temp + 0.1)
+    while not cameras_are_cool():
         time.sleep(1)
     cmd('cam info')
 
