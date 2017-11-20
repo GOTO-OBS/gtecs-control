@@ -12,7 +12,7 @@ from astropy.io import fits
 
 from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          filters_are_homed,
+                                          prepare_for_images,
                                           get_current_focus, set_new_focus,
                                           wait_for_focuser, last_written_image)
 import gtecs.tecs_modules.astronomy as ast
@@ -75,11 +75,8 @@ if __name__ == "__main__":
     if filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
+    # make sure hardware is ready
+    prepare_for_images()
 
     print("Starting focus run")
 

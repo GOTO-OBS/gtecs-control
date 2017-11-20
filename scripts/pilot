@@ -28,7 +28,8 @@ from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
-from gtecs.tecs_modules.observing import filters_are_homed, check_schedule
+from gtecs.tecs_modules.observing import (filters_are_homed, cameras_are_cool,
+                                          check_schedule)
 from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
@@ -173,11 +174,18 @@ class Pilot:
 
         return True
 
-    async def homeFilters(self):
+    async def prepare_for_images_async(self):
+        # Home the filter wheels
         if not filters_are_homed():
             execute_command('filt home')
-        while not filters_are_homed():
-            asyncio.sleep(1)
+            while not filters_are_homed():
+                asyncio.sleep(1)
+
+        # Bring the CCDs down to temperature
+        if not cameras_are_cool():
+            execute_command('cam temp {}'.format(params.CCD_TEMP))
+            while not cameras_are_cool():
+                asyncio.sleep(1)
 
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
         """
@@ -221,8 +229,8 @@ class Pilot:
             await self.runThroughJobList(self.daytime_jobs, rising=False,
                                          respect_pause=False)
 
-        # make sure filters are homed in case of restart
-        await self.homeFilters()
+        # make sure filters are homed and cams are cool, in case of restart
+        await self.prepare_for_images_async()
 
         # wait for the right sunalt to open dome
         await self.waitingForTheSun(0.5)

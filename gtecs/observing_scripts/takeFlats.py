@@ -11,7 +11,7 @@ from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.catalogs import flats
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image,
-                                          filters_are_homed,
+                                          prepare_for_images,
                                           goto, random_offset,
                                           wait_for_telescope)
 import gtecs.tecs_modules.astronomy as ast
@@ -59,11 +59,8 @@ if __name__ == "__main__":
         eve = False
         alt = -10*u.deg
 
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
+    # make sure hardware is ready
+    prepare_for_images()
 
     print("Starting flats")
 
