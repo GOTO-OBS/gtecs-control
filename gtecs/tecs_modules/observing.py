@@ -217,11 +217,24 @@ def last_written_image():
 
 
 def filters_are_homed():
+    """Check if all the filter wheels are homed"""
     FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
     with Pyro4.Proxy(FILT_DAEMON_ADDRESS) as filt:
         filt._pyroTimeout = params.PROXY_TIMEOUT
         filt_info = filt.get_info()
     return all([filt_info[key] for key in filt_info if key.startswith('homed')])
+
+
+def cameras_are_cool():
+    """Check if all the cameras are below the target temperature"""
+    target_temp = params.CCD_TEMP
+    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
+    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam_info = cam.get_info()
+    return all([cam_info[key] < target_temp + 0.1
+                for key in cam_info
+                if key.startswith('ccd_temp')])
 
 
 def wait_for_exposure_queue(timeout=None):
