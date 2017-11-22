@@ -113,6 +113,10 @@ def query(command, args):
         reply = daemons.daemon_function(daemon_ID, command, [outlets, unit])
         print(reply)
 
+    elif command in ['list', 'ls', 'outlets']:
+        # print info
+        print_outlets(params.POWER_UNITS, params.POWER_GROUPS)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
@@ -172,6 +176,23 @@ def print_info_s(info):
             if outlet[0] != '_':
                 print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
 
+def print_outlets(unit_dict, group_dict):
+    print('OUTLETS:')
+    for unit in unit_dict:
+        string = '   {: >7}:  '.format(unit.upper())
+        for name in unit_dict[unit]['NAMES']:
+            if name[0] != '_':
+                string += '{}, '.format(name)
+        print(string[:-2])
+
+    print('GROUPS:')
+    for group in group_dict:
+        string = '   {: >7}:  '.format(group)
+        for name in group_dict[group]:
+            if name[0] != '_':
+                string += '{}, '.format(name)
+        print(string[:-2])
+
 def print_instructions():
     help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
     ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
@@ -184,6 +205,7 @@ def print_instructions():
     '  power ' + misc.bold('on') + ' [names] | [unit] [outlet]' + '     - turn on specified outlet(s)' + '\n' +\
     '  power ' + misc.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
     '  power ' + misc.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
+    '  power ' + misc.bold('outlets') + '/' + misc.bold('list') + '                     - list valid outlets and groups' + '\n' +\
     '  power ' + misc.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
     '  power ' + misc.bold('log') + ' [stdout]' + '                     - print daemon log (tail alias)' + '\n' +\
     ' ' + misc.undl('Control commands') + ':' + '\n' +\

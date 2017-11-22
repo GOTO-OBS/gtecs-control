@@ -10,7 +10,7 @@ import sys
 import time
 
 from gtecs.tecs_modules.misc import neatCloser
-from gtecs.database import (markJobCompleted, markJobAborted,
+from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
                             open_session, get_pointing_by_id)
 from gtecs.tecs_modules.misc import execute_command as cmd
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue, filters_are_homed,
@@ -63,6 +63,7 @@ if __name__ == "__main__":
                 time.sleep(1)
 
         print('Observing pointingID: ', pID)
+        markJobRunning(pID)
 
         # clear & pause queue to make sure
         cmd('exq clear')
