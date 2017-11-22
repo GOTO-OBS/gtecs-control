@@ -60,6 +60,8 @@ POWER_CHECK_PERIOD = 30
         CLASS = FakeUPS
         IP = 0.0.0.0
         NAMES = _U1_, _U2_, _U3_
+[POWER_GROUPS]
+    group1 = _1_, _2_, _U1_
 
 ########################################################################
 # Dome parameters
