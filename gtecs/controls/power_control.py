@@ -30,40 +30,40 @@ class FakePDU:
         self.off_value = 0
         self.on_value = 1
         # fake stuff
-        self.temp_file = '/tmp/power_'+self.IP_address
-        self.outlet_status = [self.off_value]*self.count
+        self._temp_file = '/tmp/pdu_'+self.IP_address
+        self._outlet_status = [self.off_value]*self.count
         self._read_temp()
 
     def _read_temp(self):
-        if not os.path.exists(self.temp_file):
-            self.outlet_status = [self.off_value]*self.count
+        if not os.path.exists(self._temp_file):
+            self._outlet_status = [self.off_value]*self.count
             self._write_temp()
         else:
-            f = open(self.temp_file, 'r')
-            self.outlet_status = list(f.read().strip())
+            f = open(self._temp_file, 'r')
+            self._outlet_status = list(f.read().strip())
             f.close()
 
     def _write_temp(self):
-        f = open(self.temp_file,'w')
-        f.write(''.join(str(i) for i in self.outlet_status))
+        f = open(self._temp_file,'w')
+        f.write(''.join(str(i) for i in self._outlet_status))
         f.close()
 
     def status(self):
         self._read_temp()
-        return ''.join(self.outlet_status)
+        return ''.join(self._outlet_status)
 
     def on(self,outlet):
         if outlet == 0: # all
-            self.outlet_status = [self.on_value]*self.count
+            self._outlet_status = [self.on_value]*self.count
         else:
-            self.outlet_status[outlet-1] = self.on_value
+            self._outlet_status[outlet-1] = self.on_value
         self._write_temp()
 
     def off(self,outlet):
         if outlet == 0: # all
-            self.outlet_status = [self.off_value]*self.count
+            self._outlet_status = [self.off_value]*self.count
         else:
-            self.outlet_status[outlet-1] = self.off_value
+            self._outlet_status[outlet-1] = self.off_value
         self._write_temp()
 
     def reboot(self,outlet):
@@ -81,6 +81,28 @@ class FakeUPS:
         self.unit_type = 'UPS'
         self.IP_address = IP_address
         self.statuses = {'1':'UNKNOWN', '2':'Normal', '3':'LOW'}
+        self.count = 3
+        self.outlets = list(range(1, self.count+1))
+        self.on_value = 1
+        self.off_value = 0
+        # fake stuff
+        self._temp_file = '/tmp/ups_'+self.IP_address
+        self._outlet_status = [self.off_value]*self.count
+        self._read_temp()
+
+    def _read_temp(self):
+        if not os.path.exists(self._temp_file):
+            self._outlet_status = [self.off_value]*self.count
+            self._write_temp()
+        else:
+            f = open(self._temp_file, 'r')
+            self._outlet_status = list(f.read().strip())
+            f.close()
+
+    def _write_temp(self):
+        f = open(self._temp_file,'w')
+        f.write(''.join(str(i) for i in self._outlet_status))
+        f.close()
 
     def status(self):
         status = self.statuses['2']
@@ -93,6 +115,38 @@ class FakeUPS:
     def time_remaining(self):
         seconds = 65535.0
         return seconds
+
+    def load(self):
+        percent = 50.0
+        return percent
+
+    def outlet_status(self):
+        self._read_temp()
+        return ''.join(self._outlet_status)
+
+    def on(self,outlet):
+        if outlet == 0: # all
+            self._outlet_status = [self.on_value]*self.count
+        else:
+            self._outlet_status[outlet-1] = self.on_value
+        self._write_temp()
+
+    def off(self,outlet):
+        if outlet == 0: # all
+            self._outlet_status = [self.off_value]*self.count
+        else:
+            self._outlet_status[outlet-1] = self.off_value
+        self._write_temp()
+
+    def reboot(self,outlet):
+        self.off(outlet)
+        t = threading.Thread(target=self._turn_on_after_reboot, args = [outlet])
+        t.start()
+
+    def _turn_on_after_reboot(self,outlet):
+        time.sleep(3)
+        self.on(outlet)
+
 
 ########################################################################
 # APC PDU power class (for AP7921, 8 ports)
