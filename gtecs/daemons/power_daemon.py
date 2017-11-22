@@ -345,6 +345,9 @@ class PowerDaemon(HardwareDaemon):
                     outlet_list.remove(outlet)
                     outlet_list += params.POWER_GROUPS[outlet]
 
+            # remove duplicate outlets
+            outlet_list = list(set(outlet_list))
+
             # a list of outlet names, we need to find their matching units
             unit_list = self._units_from_names(outlet_list)
             units = []
