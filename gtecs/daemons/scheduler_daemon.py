@@ -36,13 +36,19 @@ class SchedulerDaemon(InterfaceDaemon):
 
     def check_queue(self, *args):
         next_pointing = scheduler.check_queue(*args)
-        self.logfile.info('Scheduler gives pointing ID: {}'.format(next_pointing.id))
+        if next_pointing is not None:
+            self.logfile.info('Scheduler returns: pointing ID {}'.format(next_pointing.id))
+        else:
+            self.logfile.info('Scheduler returns: None')
         return next_pointing
 
     def get_info(self, *args):
         info = {}
         next_pointing = scheduler.check_queue(*args)
-        self.logfile.info('Scheduler gives pointing ID: {}'.format(next_pointing.id))
+        if next_pointing is not None:
+            self.logfile.info('Scheduler returns: pointing ID {}'.format(next_pointing.id))
+        else:
+            self.logfile.info('Scheduler returns: None')
         info['next_pointing'] = next_pointing
 
         now = datetime.datetime.utcnow()
