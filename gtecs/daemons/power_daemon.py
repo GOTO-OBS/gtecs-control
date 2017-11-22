@@ -279,7 +279,7 @@ class PowerDaemon(HardwareDaemon):
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
-            raise ValueError('No valid outlets')
+            raise ValueError('No valid outlets or groups')
 
         # Set values
         self.current_outlets = outlets
@@ -300,7 +300,7 @@ class PowerDaemon(HardwareDaemon):
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
-            raise ValueError('No valid outlets')
+            raise ValueError('No valid outlets or groups')
 
         # Set values
         self.current_outlets = outlets
@@ -321,7 +321,7 @@ class PowerDaemon(HardwareDaemon):
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
-            raise ValueError('No valid outlets')
+            raise ValueError('No valid outlets or groups')
 
         # Set values
         self.current_outlets = outlets
@@ -339,6 +339,15 @@ class PowerDaemon(HardwareDaemon):
             outlets = self._get_valid_outlets(unit, outlet_list)
             units = [unit]*len(outlets)
         else:
+            # first check for group names
+            for outlet in outlet_list.copy():
+                if outlet in params.POWER_GROUPS:
+                    outlet_list.remove(outlet)
+                    outlet_list += params.POWER_GROUPS[outlet]
+
+            # remove duplicate outlets
+            outlet_list = list(set(outlet_list))
+
             # a list of outlet names, we need to find their matching units
             unit_list = self._units_from_names(outlet_list)
             units = []
