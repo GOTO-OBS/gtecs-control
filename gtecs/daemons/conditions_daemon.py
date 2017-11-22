@@ -54,6 +54,11 @@ class ConditionsDaemon(HardwareDaemon):
 
         self.successful_ping_time = 0
 
+        self.rain_changed_time = 0
+        self.windspeed_changed_time = 0
+        self.humidity_changed_time = 0
+        self.temperature_changed_time = 0
+        self.link_changed_time = 0
 
         # set default values of flags
         # 0=good, 1=bad, 2=error
@@ -111,17 +116,24 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_rain_mask = rain_array != -999
                 valid_rain = rain_array[valid_rain_mask]
 
+                rain_good = np.all(valid_rain == False)
+                rain_dt = self.time_check - self.rain_changed_time
+
                 if len(valid_rain) < 2:
                     self.flags['rain'] = 2
-                elif np.all(valid_rain == False):
+                elif (rain_good and
+                      self.flags['rain'] != 0 and
+                      rain_dt > params.RAIN_GOODTIME):
                     self.flags['rain'] = 0
-                else:
-                    self.flags['rain'] = 1
+                    self.rain_changed_time = time.time()
+                elif (not rain_good and
+                      self.flags['rain'] != 1 and
+                      rain_dt > params.RAIN_BADTIME):
+                    self.flags['rain'] = 0
+                    self.rain_changed_time = time.time()
 
 
                 # WINDSPEED
-                windspeed_max = params.MAX_WINDSPEED
-                windspeed_max_closed = windspeed_max * 0.9
                 windspeed_array = np.array([weather[source]['windspeed']
                                            for source in weather
                                            if 'windspeed' in weather[source]])
@@ -129,21 +141,23 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_windspeed_mask = windspeed_array != -999
                 valid_windspeed = windspeed_array[valid_windspeed_mask]
 
+                windspeed_good = np.all(valid_windspeed <  params.MAX_WINDSPEED)
+                windspeed_dt = self.time_check - self.windspeed_changed_time
+
                 if len(valid_windspeed) < 2:
                     self.flags['windspeed'] = 2
-                elif (self.flags['windspeed'] != 1 and
-                      np.all(valid_windspeed < windspeed_max)):
+                elif (windspeed_good and
+                      self.flags['windspeed'] != 0 and
+                      windspeed_dt > params.WINDSPEED_GOODTIME):
                     self.flags['windspeed'] = 0
-                elif (self.flags['windspeed'] == 1 and
-                      np.all(valid_windspeed < windspeed_max_closed)):
+                    self.windspeed_changed_time = time.time()
+                elif (not windspeed_good and
+                      self.flags['windspeed'] != 1 and
+                      windspeed_dt > params.WINDSPEED_BADTIME):
                     self.flags['windspeed'] = 0
-                else:
-                    self.flags['windspeed'] = 1
-
+                    self.windspeed_changed_time = time.time()
 
                 # HUMIDITY
-                humidity_max = params.MAX_HUMIDITY
-                humidity_max_closed = humidity_max * 0.9
                 humidity_array = np.array([weather[source]['humidity']
                                           for source in weather
                                           if 'humidity' in weather[source]])
@@ -151,8 +165,6 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_humidity_mask = humidity_array != -999
                 valid_humidity = humidity_array[valid_humidity_mask]
 
-                int_humidity_max = params.MAX_INTERNAL_HUMIDITY
-                int_humidity_max_closed = int_humidity_max * 0.9
                 int_humidity_array = np.array([weather[source]['int_humidity']
                                               for source in weather
                                               if 'int_humidity' in weather[source]])
@@ -160,25 +172,25 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_int_humidity_mask = int_humidity_array != -999
                 valid_int_humidity = int_humidity_array[valid_int_humidity_mask]
 
+                humidity_good = (np.all(valid_humidity < params.MAX_HUMIDITY) and
+                                 np.all(valid_int_humidity < params.MAX_INTERNAL_HUMIDITY))
+                humidity_dt = self.time_check - self.humidity_changed_time
+
                 if len(valid_humidity) < 2 or len(valid_int_humidity) < 1:
                     self.flags['humidity'] = 2
-                elif (self.flags['humidity'] != 1 and
-                      np.all(valid_humidity < humidity_max) and
-                      np.all(valid_int_humidity < int_humidity_max)):
+                elif (humidity_good and
+                      self.flags['humidity'] != 0 and
+                      humidity_dt > params.HUMIDITY_GOODTIME):
                     self.flags['humidity'] = 0
-                elif (self.flags['humidity'] == 1 and
-                      np.all(valid_humidity < humidity_max_closed) and
-                      np.all(valid_int_humidity < int_humidity_max_closed)):
+                    self.humidity_changed_time = time.time()
+                elif (not humidity_good and
+                      self.flags['humidity'] != 1 and
+                      humidity_dt > params.HUMIDITY_BADTIME):
                     self.flags['humidity'] = 0
-                else:
-                    self.flags['humidity'] = 1
+                    self.humidity_changed_time = time.time()
 
 
                 # TEMPERATURE
-                temp_min = params.MIN_TEMPERATURE
-                temp_min_closed = temp_min + 1
-                temp_max = params.MAX_TEMPERATURE
-                temp_max_closed = temp_max - 1
                 temp_array = np.array([weather[source]['temperature']
                                       for source in weather
                                       if 'temperature' in weather[source]])
@@ -186,19 +198,22 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_temp_mask = temp_array != -999
                 valid_temp = temp_array[valid_temp_mask]
 
+                temp_good = (np.all(valid_temp > params.MIN_TEMPERATURE) and
+                             np.all(valid_temp < params.MAX_TEMPERATURE))
+                temp_dt = self.time_check - self.temperature_changed_time
+
                 if len(valid_temp) < 2:
                     self.flags['temperature'] = 2
-                elif (self.flags['temperature'] != 1 and
-                      np.all(valid_temp > temp_min) and
-                      np.all(valid_temp < temp_max)):
+                elif (temp_good and
+                      self.flags['temperature'] != 0 and
+                      temp_dt > params.TEMPERATURE_GOODTIME):
                     self.flags['temperature'] = 0
-                elif (self.flags['temperature'] == 1 and
-                      np.all(valid_temp > temp_min_closed) and
-                      np.all(valid_temp < temp_max_closed)):
+                    self.temperature_changed_time = time.time()
+                elif (not temp_good and
+                      self.flags['temperature'] != 1 and
+                      temp_dt > params.TEMPERATURE_BADTIME):
                     self.flags['temperature'] = 0
-                else:
-                    self.flags['temperature'] = 1
-
+                    self.temperature_changed_time = time.time()
 
                 # CHECK - if the data hasn't changed for a certain time
                 if weather != self.weather:
@@ -228,8 +243,8 @@ class ConditionsDaemon(HardwareDaemon):
                     self.successful_ping_time = time.time()
                 dt = time.time() - self.successful_ping_time
 
-                link_interval_closed = params.WARWICK_CLOSED
-                link_interval_open = params.WARWICK_OPEN
+                link_interval_closed = params.LINK_BADTIME
+                link_interval_open = params.LINK_BADTIME*10
 
                 self.flags['link'] = 0
                 # disable the link flag for now
