@@ -129,7 +129,7 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (not rain_good and
                       self.flags['rain'] != 1 and
                       rain_dt > params.RAIN_BADTIME):
-                    self.flags['rain'] = 0
+                    self.flags['rain'] = 1
                     self.rain_changed_time = time.time()
 
 
@@ -154,7 +154,7 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (not windspeed_good and
                       self.flags['windspeed'] != 1 and
                       windspeed_dt > params.WINDSPEED_BADTIME):
-                    self.flags['windspeed'] = 0
+                    self.flags['windspeed'] = 1
                     self.windspeed_changed_time = time.time()
 
                 # HUMIDITY
@@ -186,7 +186,7 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (not humidity_good and
                       self.flags['humidity'] != 1 and
                       humidity_dt > params.HUMIDITY_BADTIME):
-                    self.flags['humidity'] = 0
+                    self.flags['humidity'] = 1
                     self.humidity_changed_time = time.time()
 
 
@@ -212,7 +212,7 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (not temp_good and
                       self.flags['temperature'] != 1 and
                       temp_dt > params.TEMPERATURE_BADTIME):
-                    self.flags['temperature'] = 0
+                    self.flags['temperature'] = 1
                     self.temperature_changed_time = time.time()
 
                 # CHECK - if the data hasn't changed for a certain time
@@ -220,7 +220,7 @@ class ConditionsDaemon(HardwareDaemon):
                     self.weather_changed_time = time.time()
                     self.weather = weather.copy()
                 else:
-                    time_since_update = time.time() - weather_changed_time
+                    time_since_update = time.time() - self.weather_changed_time
                     if time_since_update > params.WEATHER_STATIC:
                         self.flags['rain'] = 2
                         self.flags['windspeed'] = 2
@@ -230,10 +230,13 @@ class ConditionsDaemon(HardwareDaemon):
                 # ~~~~~~~~~~~~~~
                 # get the current sun alt to set the dark flag
                 sunalt_now = sun_alt(Time.now())
+                sunalt_good = sunalt_now < params.SUN_ELEVATION_LIMIT
 
-                if sunalt_now < params.SUN_ELEVATION_LIMIT:
+                if (sunalt_good and
+                    self.flags['dark'] != 0):
                     self.flags['dark'] = 0
-                else:
+                elif (not sunalt_good and
+                    self.flags['dark'] != 1):
                     self.flags['dark'] = 1
 
                 # ~~~~~~~~~~~~~~
