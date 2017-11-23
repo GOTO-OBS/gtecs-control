@@ -155,6 +155,7 @@ LINK_BADTIME = config['LINK_BADTIME']
 LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
+USE_ING_WEATHER = config['USE_ING_WEATHER']
 
 ########################################################################
 # Mount parameters

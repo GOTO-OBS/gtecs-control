@@ -118,9 +118,8 @@ def print_info(info):
 
         print('  {: <10}    {:>4.1f} degrees'.format('sun_alt', sun_alt(Time.now())))
 
-        weather['ing']['windspeed'] = 'NA'
         weather['superwasp']['rain'] = 'NA'
-        for source in ['goto', 'onemetre', 'superwasp', 'ing']:
+        for source in ['goto', 'onemetre', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
             windspeed = weather[source]['windspeed']
