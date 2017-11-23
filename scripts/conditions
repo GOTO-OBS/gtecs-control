@@ -116,7 +116,12 @@ def print_info(info):
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
         print('WEATHER:')
 
-        print('  {: <10}    {:>4.1f} degrees'.format('sun_alt', sun_alt(Time.now())))
+        sunalt = sun_alt(Time.now())
+        if sunalt < params.SUN_ELEVATION_LIMIT:
+            sunalt_str = misc.gtxt('{:>5.1f}'.format(sunalt))
+        else:
+            sunalt_str = misc.rtxt('{:>5.1f}'.format(sunalt))
+        print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
 
         weather['superwasp']['rain'] = 'NA'
         for source in ['goto', 'onemetre', 'superwasp']:
