@@ -790,13 +790,13 @@ class Pilot:
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
-        sn0 = dict(name='SN1', sunAlt=12,
+        sn0 = dict(name='START', sunAlt=12,
                    cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')],
                    protocol=SimpleProtocol)
-        sn3 = dict(name='SN3', sunAlt=7,
+        sn1 = dict(name='DARKS', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = [sn0, sn1, sn2, sn3]
+        self.daytime_jobs = [sn0, sn1]
 
         sn4 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
