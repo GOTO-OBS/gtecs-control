@@ -62,10 +62,24 @@ class ConditionsDaemon(HardwareDaemon):
                            'link']
 
         self.good = dict.fromkeys(self.flag_names, False)
-
         self.valid = dict.fromkeys(self.flag_names, False)
 
         self.change_time = dict.fromkeys(self.flag_names, 0)
+        self.good_delay = {'dark': 0,
+                           'rain': params.RAIN_GOODDELAY,
+                           'windspeed': params.WINDSPEED_GOODDELAY,
+                           'humidity': params.HUMIDITY_GOODDELAY,
+                           'temperature': params.TEMPERATURE_GOODDELAY,
+                           'link': params.LINK_GOODDELAY,
+                           }
+        self.bad_delay = {'dark': 0,
+                          'rain': params.RAIN_BADDELAY,
+                          'windspeed': params.WINDSPEED_BADDELAY,
+                          'humidity': params.HUMIDITY_BADDELAY,
+                          'temperature': params.TEMPERATURE_BADDELAY,
+                          'link': params.LINK_BADDELAY,
+                          }
+
 
         self.flags = dict.fromkeys(self.flag_names, 2)
 
@@ -197,20 +211,22 @@ class ConditionsDaemon(HardwareDaemon):
                         self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
                         dt = update_time - self.change_time[name]
-                        if dt > 60:
+                        delay = self.good_delay[name]
+                        if dt > delay:
                             self.change_time[name] = update_time
                             print('Setting {} to good (0)'.format(name))
                             self.flags[name] = 0
                         else:
-                            print(name, 'is good but count is', int(dt))
+                            print(name, 'is good but delay is {:.0f}/{:.0f}'.format(dt, delay))
                     elif not self.good[name] and self.flags[name] != 1:
                         dt = update_time - self.change_time[name]
-                        if dt > 60:
+                        delay = self.bad_delay[name]
+                        if dt > delay:
                             self.change_time[name] = update_time
                             print('Setting {} to bad (1)'.format(name))
                             self.flags[name] = 1
                         else:
-                            print(name, 'is bad but count is', int(dt))
+                            print(name, 'is bad but delay is {:.0f}/{:.0f}'.format(dt, delay))
                     else:
                         self.change_time[name] = update_time
 
