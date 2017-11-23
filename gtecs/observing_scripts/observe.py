@@ -11,7 +11,7 @@ from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           prepare_for_images,
                                           goto, wait_for_telescope)
-from gtecs.database import (markJobCompleted, markJobAborted,
+from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
                             open_session, get_pointing_by_id)
 
 
@@ -55,6 +55,7 @@ def run(pID, minTime):
         prepare_for_images()
 
         print('Observing pointingID: ', pID)
+        markJobRunning(pID)
 
         # clear & pause queue to make sure
         cmd('exq clear')

@@ -526,13 +526,13 @@ class Pilot:
                     cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
                            str(self.newID), str(int(self.newMinTime))]
                     self.log.info('starting Job {}'.format(self.newID))
+                    markJobRunning(self.newID)
                     self.obsStartTime = time.time()
                     self.queuePausedDuration = 0
                     # start job, will cancel current one automatically
                     asyncio.ensure_future(
                         self.startScript('OBS', SimpleProtocol, cmd)
                     )
-                    markJobRunning(self.newID)
                     self.currentID = self.newID
                     self.currentPriority = self.newPriority
                     self.currentMinTime = self.newMinTime
