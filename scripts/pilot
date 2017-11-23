@@ -779,13 +779,7 @@ class Pilot:
 
     def assignJobs(self):
         sn0 = dict(name='SN1', sunAlt=12,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_1.py')],
-                   protocol=SimpleProtocol)
-        sn1 = dict(name='DAE', sunAlt=10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_daemons.py')],
-                   protocol=SimpleProtocol)
-        sn2 = dict(name='SN2', sunAlt=8,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_2.py')],
+                   cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')],
                    protocol=SimpleProtocol)
         sn3 = dict(name='SN3', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
