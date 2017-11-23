@@ -124,11 +124,13 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (rain_good and
                       self.flags['rain'] != 0 and
                       rain_dt > params.RAIN_GOODTIME):
+                    print('Setting rain to good')
                     self.flags['rain'] = 0
                     self.rain_changed_time = time.time()
                 elif (not rain_good and
                       self.flags['rain'] != 1 and
                       rain_dt > params.RAIN_BADTIME):
+                    print('Setting rain to bad')
                     self.flags['rain'] = 1
                     self.rain_changed_time = time.time()
 
@@ -149,11 +151,13 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (windspeed_good and
                       self.flags['windspeed'] != 0 and
                       windspeed_dt > params.WINDSPEED_GOODTIME):
+                    print('Setting windspeed to good')
                     self.flags['windspeed'] = 0
                     self.windspeed_changed_time = time.time()
                 elif (not windspeed_good and
                       self.flags['windspeed'] != 1 and
                       windspeed_dt > params.WINDSPEED_BADTIME):
+                    print('Setting windspeed to bad')
                     self.flags['windspeed'] = 1
                     self.windspeed_changed_time = time.time()
 
@@ -181,11 +185,13 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (humidity_good and
                       self.flags['humidity'] != 0 and
                       humidity_dt > params.HUMIDITY_GOODTIME):
+                    print('Setting humidity to good')
                     self.flags['humidity'] = 0
                     self.humidity_changed_time = time.time()
                 elif (not humidity_good and
                       self.flags['humidity'] != 1 and
                       humidity_dt > params.HUMIDITY_BADTIME):
+                    print('Setting humidity to bad')
                     self.flags['humidity'] = 1
                     self.humidity_changed_time = time.time()
 
@@ -207,11 +213,13 @@ class ConditionsDaemon(HardwareDaemon):
                 elif (temp_good and
                       self.flags['temperature'] != 0 and
                       temp_dt > params.TEMPERATURE_GOODTIME):
+                    print('Setting temperature to good')
                     self.flags['temperature'] = 0
                     self.temperature_changed_time = time.time()
                 elif (not temp_good and
                       self.flags['temperature'] != 1 and
                       temp_dt > params.TEMPERATURE_BADTIME):
+                    print('Setting temperature to bad')
                     self.flags['temperature'] = 1
                     self.temperature_changed_time = time.time()
 
@@ -234,9 +242,11 @@ class ConditionsDaemon(HardwareDaemon):
 
                 if (sunalt_good and
                     self.flags['dark'] != 0):
+                    print('Setting dark to good')
                     self.flags['dark'] = 0
                 elif (not sunalt_good and
                     self.flags['dark'] != 1):
+                    print('Setting dark to bad')
                     self.flags['dark'] = 1
 
                 # ~~~~~~~~~~~~~~
