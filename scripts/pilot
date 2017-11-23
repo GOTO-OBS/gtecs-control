@@ -187,7 +187,8 @@ class Pilot:
             while not cameras_are_cool():
                 asyncio.sleep(1)
 
-    async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
+    async def runThroughJobList(self, jobList, rising=False, respect_pause=True,
+                                respect_sunalt = True):
         """
         Just pop jobs off a list and run them at correct sun_alt
         """
@@ -197,7 +198,10 @@ class Pilot:
                 continue
             job = jobList.pop(0)
             # wait for the right sun altitude
-            OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
+            if respect_sunalt:
+                OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
+            else:
+                OK = True
             # and go!
             if OK:
                 if self.testing:
@@ -213,7 +217,7 @@ class Pilot:
                 self.log.warn('too late to start {}'.format(job['name']))
             await asyncio.sleep(1)
 
-    async def nightMarshall(self, restart=False):
+    async def nightMarshall(self, restart=False, late=False):
         """
         The night marshall starts tasks at the right time.
 
@@ -223,11 +227,19 @@ class Pilot:
         ----------
         restart : bool
             If true, we will skip startup jobs and get straight to observing
+
+        late : bool
+            If true, we will do the startup jobs even if it's too late
         """
         # daytime jobs. Do these even in bad weather.
         if not restart:
-            await self.runThroughJobList(self.daytime_jobs, rising=False,
-                                         respect_pause=False)
+            if late:
+                await self.runThroughJobList(self.daytime_jobs, rising=False,
+                                             respect_pause=False,
+                                             respect_sunalt=False)
+            else:
+                await self.runThroughJobList(self.daytime_jobs, rising=False,
+                                             respect_pause=False)
 
         # make sure filters are homed and cams are cool, in case of restart
         await self.prepare_for_images_async()
@@ -812,6 +824,7 @@ if __name__ == "__main__":
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-t', '--test', action="store_true", default=False)
     parser.add_argument('-r', '--restart', action="store_true", default=False)
+    parser.add_argument('-l', '--late', action="store_true", default=False)
     args = parser.parse_args()
 
     loop = asyncio.get_event_loop()
@@ -826,7 +839,7 @@ if __name__ == "__main__":
         asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
-        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightMarshall(args.restart, args.late)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome
     ])
 
