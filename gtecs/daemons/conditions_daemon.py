@@ -65,6 +65,8 @@ class ConditionsDaemon(HardwareDaemon):
 
         self.valid = dict.fromkeys(self.flag_names, False)
 
+        self.change_time = dict.fromkeys(self.flag_names, 0)
+
         self.flags = dict.fromkeys(self.flag_names, 2)
 
         self.data = None
@@ -188,16 +190,29 @@ class ConditionsDaemon(HardwareDaemon):
 
                 # ~~~~~~~~~~~~~~
                 # set the flags
+                update_time = time.time()
                 for name in self.flag_names:
                     if not self.valid[name]:
                         print('Setting {} to ERROR (2)'.format(name))
                         self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
-                        print('Setting {} to good (0)'.format(name))
-                        self.flags[name] = 0
+                        dt = update_time - self.change_time[name]
+                        if dt > 60:
+                            self.change_time[name] = update_time
+                            print('Setting {} to good (0)'.format(name))
+                            self.flags[name] = 0
+                        else:
+                            print(name, 'is good but count is', int(dt))
                     elif not self.good[name] and self.flags[name] != 1:
-                        print('Setting {} to bad (1)'.format(name))
-                        self.flags[name] = 1
+                        dt = update_time - self.change_time[name]
+                        if dt > 60:
+                            self.change_time[name] = update_time
+                            print('Setting {} to bad (1)'.format(name))
+                            self.flags[name] = 1
+                        else:
+                            print(name, 'is bad but count is', int(dt))
+                    else:
+                        self.change_time[name] = update_time
 
 
                 # ~~~~~~~~~~~~~~
