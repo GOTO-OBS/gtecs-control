@@ -54,16 +54,35 @@ class ConditionsDaemon(HardwareDaemon):
 
         self.successful_ping_time = 0
 
+        self.flag_names = ['dark',
+                           'rain',
+                           'windspeed',
+                           'humidity',
+                           'temperature',
+                           'link']
 
-        # set default values of flags
-        # 0=good, 1=bad, 2=error
-        self.flags = {'dark': 2,
-                      'rain': 2,
-                      'windspeed': 2,
-                      'humidity': 2,
-                      'temperature': 2,
-                      'link': 2,
-                      }
+        self.good = dict.fromkeys(self.flag_names, False)
+        self.valid = dict.fromkeys(self.flag_names, False)
+
+        self.change_time = dict.fromkeys(self.flag_names, 0)
+        self.good_delay = {'dark': 0,
+                           'rain': params.RAIN_GOODDELAY,
+                           'windspeed': params.WINDSPEED_GOODDELAY,
+                           'humidity': params.HUMIDITY_GOODDELAY,
+                           'temperature': params.TEMPERATURE_GOODDELAY,
+                           'link': params.LINK_GOODDELAY,
+                           }
+        self.bad_delay = {'dark': 0,
+                          'rain': params.RAIN_BADDELAY,
+                          'windspeed': params.WINDSPEED_BADDELAY,
+                          'humidity': params.HUMIDITY_BADDELAY,
+                          'temperature': params.TEMPERATURE_BADDELAY,
+                          'link': params.LINK_BADDELAY,
+                          }
+
+
+        self.flags = dict.fromkeys(self.flag_names, 2)
+
         self.data = None
 
         ### start control thread
@@ -84,6 +103,9 @@ class ConditionsDaemon(HardwareDaemon):
 
                 self.conditions_check_time = time.time()
 
+                # ~~~~~~~~~~~~~~
+                # gather the external data
+
                 # get the weather dict
                 weather = conditions.get_weather()
 
@@ -94,155 +116,119 @@ class ConditionsDaemon(HardwareDaemon):
                     if dt >= params.WEATHER_TIMEOUT or dt == -999:
                         weather[source] = dict.fromkeys(weather[source], -999)
 
+                # get the current sun alt
+                sunalt_now = sun_alt(Time.now())
+
+                # get the time since last connection with Warwick
+                ping_home = conditions.check_external_connection()
+                if ping_home:
+                    self.successful_ping_time = time.time()
+                dt = time.time() - self.successful_ping_time
+
+
                 # ~~~~~~~~~~~~~~
-                # set weather flags
+                # check if current values are good/bad and valid
                 # at least two of the external sources and one of the
                 #    internal sources need to be valid
-                # note the extra check if the flag is already set to 1,
-                #    in which case a different (safer) limit is used to prevent
-                #    repeated opening/closing of the dome if conditions are
-                #    hovering near a limit
 
                 # RAIN
                 rain_array = np.array([weather[source]['rain']
                                       for source in weather
                                       if 'rain' in weather[source]])
+                valid_rain = rain_array[rain_array != -999]
 
-                valid_rain_mask = rain_array != -999
-                valid_rain = rain_array[valid_rain_mask]
-
-                if len(valid_rain) < 2:
-                    self.flags['rain'] = 2
-                elif np.all(valid_rain == False):
-                    self.flags['rain'] = 0
-                else:
-                    self.flags['rain'] = 1
+                self.good['rain'] = np.all(valid_rain == False)
+                self.valid['rain'] = len(valid_rain) >= 2
 
 
                 # WINDSPEED
-                windspeed_max = params.MAX_WINDSPEED
-                windspeed_max_closed = windspeed_max * 0.9
                 windspeed_array = np.array([weather[source]['windspeed']
                                            for source in weather
                                            if 'windspeed' in weather[source]])
+                valid_windspeed = windspeed_array[windspeed_array != -999]
 
-                valid_windspeed_mask = windspeed_array != -999
-                valid_windspeed = windspeed_array[valid_windspeed_mask]
-
-                if len(valid_windspeed) < 2:
-                    self.flags['windspeed'] = 2
-                elif (self.flags['windspeed'] != 1 and
-                      np.all(valid_windspeed < windspeed_max)):
-                    self.flags['windspeed'] = 0
-                elif (self.flags['windspeed'] == 1 and
-                      np.all(valid_windspeed < windspeed_max_closed)):
-                    self.flags['windspeed'] = 0
-                else:
-                    self.flags['windspeed'] = 1
+                self.good['windspeed'] = np.all(valid_windspeed <  params.MAX_WINDSPEED)
+                self.valid['windspeed'] = len(valid_windspeed) >= 2
 
 
                 # HUMIDITY
-                humidity_max = params.MAX_HUMIDITY
-                humidity_max_closed = humidity_max * 0.9
                 humidity_array = np.array([weather[source]['humidity']
                                           for source in weather
                                           if 'humidity' in weather[source]])
+                valid_humidity = humidity_array[humidity_array != -999]
 
-                valid_humidity_mask = humidity_array != -999
-                valid_humidity = humidity_array[valid_humidity_mask]
-
-                int_humidity_max = params.MAX_INTERNAL_HUMIDITY
-                int_humidity_max_closed = int_humidity_max * 0.9
                 int_humidity_array = np.array([weather[source]['int_humidity']
                                               for source in weather
                                               if 'int_humidity' in weather[source]])
+                valid_int_humidity = int_humidity_array[int_humidity_array != -999]
 
-                valid_int_humidity_mask = int_humidity_array != -999
-                valid_int_humidity = int_humidity_array[valid_int_humidity_mask]
-
-                if len(valid_humidity) < 2 or len(valid_int_humidity) < 1:
-                    self.flags['humidity'] = 2
-                elif (self.flags['humidity'] != 1 and
-                      np.all(valid_humidity < humidity_max) and
-                      np.all(valid_int_humidity < int_humidity_max)):
-                    self.flags['humidity'] = 0
-                elif (self.flags['humidity'] == 1 and
-                      np.all(valid_humidity < humidity_max_closed) and
-                      np.all(valid_int_humidity < int_humidity_max_closed)):
-                    self.flags['humidity'] = 0
-                else:
-                    self.flags['humidity'] = 1
+                self.good['humidity'] = (np.all(valid_humidity < params.MAX_HUMIDITY) and
+                                         np.all(valid_int_humidity < params.MAX_INTERNAL_HUMIDITY))
+                self.valid['humidity'] = (len(valid_humidity) >= 2 and
+                                            len(valid_int_humidity) >= 1)
 
 
                 # TEMPERATURE
-                temp_min = params.MIN_TEMPERATURE
-                temp_min_closed = temp_min + 1
-                temp_max = params.MAX_TEMPERATURE
-                temp_max_closed = temp_max - 1
                 temp_array = np.array([weather[source]['temperature']
                                       for source in weather
                                       if 'temperature' in weather[source]])
+                valid_temp = temp_array[temp_array != -999]
 
-                valid_temp_mask = temp_array != -999
-                valid_temp = temp_array[valid_temp_mask]
-
-                if len(valid_temp) < 2:
-                    self.flags['temperature'] = 2
-                elif (self.flags['temperature'] != 1 and
-                      np.all(valid_temp > temp_min) and
-                      np.all(valid_temp < temp_max)):
-                    self.flags['temperature'] = 0
-                elif (self.flags['temperature'] == 1 and
-                      np.all(valid_temp > temp_min_closed) and
-                      np.all(valid_temp < temp_max_closed)):
-                    self.flags['temperature'] = 0
-                else:
-                    self.flags['temperature'] = 1
+                self.good['temperature'] = (np.all(valid_temp > params.MIN_TEMPERATURE) and
+                                            np.all(valid_temp < params.MAX_TEMPERATURE))
+                self.valid['temperature'] = len(valid_temp) >= 2
 
 
-                # CHECK - if the data hasn't changed for a certain time
+                # DARK
+                self.good['dark'] = sunalt_now < params.SUN_ELEVATION_LIMIT
+                self.valid['dark'] = True
+
+
+                # LINK
+                self.good['link'] = dt < params.LINK_BADTIME
+                self.valid['link'] = True
+
+
+                # CHECK - if the weather hasn't changed for a certain time
                 if weather != self.weather:
                     self.weather_changed_time = time.time()
                     self.weather = weather.copy()
                 else:
                     time_since_update = time.time() - weather_changed_time
                     if time_since_update > params.WEATHER_STATIC:
-                        self.flags['rain'] = 2
-                        self.flags['windspeed'] = 2
-                        self.flags['humidity'] = 2
-                        self.flags['temperature'] = 2
+                        self.good['rain'] = False
+                        self.good['windspeed'] = False
+                        self.good['humidity'] = False
+                        self.good['temperature'] = False
+
 
                 # ~~~~~~~~~~~~~~
-                # get the current sun alt to set the dark flag
-                sunalt_now = sun_alt(Time.now())
-
-                if sunalt_now < params.SUN_ELEVATION_LIMIT:
-                    self.flags['dark'] = 0
-                else:
-                    self.flags['dark'] = 1
-
-                # ~~~~~~~~~~~~~~
-                # check the connectivity with Warwick to set the link flag
-                ping_home = conditions.check_external_connection()
-                if ping_home:
-                    self.successful_ping_time = time.time()
-                dt = time.time() - self.successful_ping_time
-
-                link_interval_closed = params.WARWICK_CLOSED
-                link_interval_open = params.WARWICK_OPEN
-
-                self.flags['link'] = 0
-                # disable the link flag for now
-                #try:
-                #    dome_closed = check_dome_closed()
-                #    if dome_closed and dt < link_interval_closed:
-                #        self.flags['link'] = 0
-                #    elif not dome_closed and dt < link_interval_open:
-                #        self.flags['link'] = 0
-                #    else:
-                #        self.flags['link'] = 1
-                #except:
-                #    self.flags['link'] = 2
+                # set the flags
+                update_time = time.time()
+                for name in self.flag_names:
+                    if not self.valid[name]:
+                        print('Setting {} to ERROR (2)'.format(name))
+                        self.flags[name] = 2
+                    elif self.good[name] and self.flags[name] != 0:
+                        dt = update_time - self.change_time[name]
+                        delay = self.good_delay[name]
+                        if dt > delay:
+                            self.change_time[name] = update_time
+                            print('Setting {} to good (0)'.format(name))
+                            self.flags[name] = 0
+                        else:
+                            print(name, 'is good but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                    elif not self.good[name] and self.flags[name] != 1:
+                        dt = update_time - self.change_time[name]
+                        delay = self.bad_delay[name]
+                        if dt > delay:
+                            self.change_time[name] = update_time
+                            print('Setting {} to bad (1)'.format(name))
+                            self.flags[name] = 1
+                        else:
+                            print(name, 'is bad but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                    else:
+                        self.change_time[name] = update_time
 
 
                 # ~~~~~~~~~~~~~~
