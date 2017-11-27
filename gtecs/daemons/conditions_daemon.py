@@ -57,6 +57,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'windspeed',
                            'humidity',
                            'temperature',
+                           'ups',
                            'link']
 
         self.good = dict.fromkeys(self.flag_names, False)
@@ -68,6 +69,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'windspeed': params.WINDSPEED_GOODDELAY,
                            'humidity': params.HUMIDITY_GOODDELAY,
                            'temperature': params.TEMPERATURE_GOODDELAY,
+                           'ups': params.UPS_GOODDELAY,
                            'link': params.LINK_GOODDELAY,
                            }
         self.bad_delay = {'dark': 0,
@@ -75,6 +77,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'windspeed': params.WINDSPEED_BADDELAY,
                           'humidity': params.HUMIDITY_BADDELAY,
                           'temperature': params.TEMPERATURE_BADDELAY,
+                          'ups': params.UPS_BADDELAY,
                           'link': params.LINK_BADDELAY,
                           }
 
@@ -116,6 +119,9 @@ class ConditionsDaemon(HardwareDaemon):
 
                 # get the current sun alt
                 sunalt_now = sun_alt(Time.now())
+
+                # get the current UPS battery percentage remaining
+                ups_percent = conditions.get_ups()
 
                 # check the connection with Warwick
                 ping_successful = []
@@ -179,6 +185,14 @@ class ConditionsDaemon(HardwareDaemon):
                 # DARK
                 self.good['dark'] = sunalt_now < params.SUN_ELEVATION_LIMIT
                 self.valid['dark'] = True
+
+
+                # UPS
+                ups_array = np.array(ups_percent)
+                valid_ups = ups_array[ups_array != -999]
+
+                self.good['ups'] = np.all(valid_ups > params.MIN_UPSBATTERY)
+                self.valid['ups'] = len(valid_ups) >= 1
 
 
                 # LINK
