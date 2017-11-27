@@ -118,7 +118,9 @@ class ConditionsDaemon(HardwareDaemon):
                 sunalt_now = sun_alt(Time.now())
 
                 # check the connection with Warwick
-                successful_ping_home = conditions.check_ping(params.LINK_URL)
+                ping_successful = []
+                for url in params.LINK_URLS:
+                    ping_successful.append(conditions.check_ping(url))
 
 
                 # ~~~~~~~~~~~~~~
@@ -180,8 +182,9 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # LINK
-                self.good['link'] = successful_ping_home
-                self.valid['link'] = True
+                link_array = np.array(ping_successful)
+                self.good['link'] = np.all(link_array == True)
+                self.valid['link'] = len(link_array) >= 1
 
 
                 # CHECK - if the weather hasn't changed for a certain time
