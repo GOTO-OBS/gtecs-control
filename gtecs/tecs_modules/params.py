@@ -150,6 +150,11 @@ TEMPERATURE_GOODDELAY = config['TEMPERATURE_GOODDELAY']
 # Dark - sunalt measured in degrees
 SUN_ELEVATION_LIMIT = config['SUN_ELEVATION_LIMIT']
 
+# UPS battery - measured in %
+MIN_UPSBATTERY = config['MIN_UPSBATTERY']
+UPS_BADDELAY = config['UPS_BADDELAY']
+UPS_GOODDELAY = config['UPS_GOODDELAY']
+
 # Link - time measured in seconds
 LINK_URLS = config['LINK_URLS']
 LINK_BADDELAY = config['LINK_BADDELAY']

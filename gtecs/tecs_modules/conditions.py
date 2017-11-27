@@ -17,6 +17,7 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import misc
+from ..controls.power_control import APCUPS, FakeUPS
 
 
 def curl_data_from_url(url, outfile, encoding=None):
@@ -37,6 +38,33 @@ def curl_data_from_url(url, outfile, encoding=None):
             data = f.read()
 
     return data
+
+
+def get_ups():
+    '''Get battery status from GOTO UPSs'''
+    percent = []
+    for unit_name in params.POWER_UNITS:
+        unit_class = params.POWER_UNITS[unit_name]['CLASS']
+        if 'UPS' not in unit_class:
+            continue
+        else:
+            try:
+                unit_ip = params.POWER_UNITS[unit_name]['IP']
+                if unit_class == 'APCUPS':
+                    ups = APCUPS(unit_ip)
+                elif unit_class == 'FakeUPS':
+                    ups = FakeUPS(unit_ip)
+                remaining = ups.percent_remaining()
+
+                # Check status too
+                status = ups.status()
+                if status != 'Normal':
+                    remaining = -999
+
+                percent.append(remaining)
+            except:
+                percent.append[-999]
+    return percent
 
 
 def get_roomalert(source):
