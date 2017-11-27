@@ -52,8 +52,6 @@ class ConditionsDaemon(HardwareDaemon):
         self.weather = None
         self.weather_changed_time = 0
 
-        self.successful_ping_time = 0
-
         self.flag_names = ['dark',
                            'rain',
                            'windspeed',
@@ -119,11 +117,8 @@ class ConditionsDaemon(HardwareDaemon):
                 # get the current sun alt
                 sunalt_now = sun_alt(Time.now())
 
-                # get the time since last connection with Warwick
-                ping_home = conditions.check_external_connection()
-                if ping_home:
-                    self.successful_ping_time = time.time()
-                dt = time.time() - self.successful_ping_time
+                # check the connection with Warwick
+                successful_ping_home = conditions.check_external_connection()
 
 
                 # ~~~~~~~~~~~~~~
@@ -185,7 +180,7 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # LINK
-                self.good['link'] = dt < params.LINK_BADTIME
+                self.good['link'] = successful_ping_home
                 self.valid['link'] = True
 
 
