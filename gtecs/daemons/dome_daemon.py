@@ -150,18 +150,12 @@ class DomeDaemon(HardwareDaemon):
             # check warnings
             if self.check_warnings_flag:
                 try:
-                    # WARNING 1: ON UPS POWER
-                    power = flags.Power()
-                    if power.failed:
-                        self.logfile.info('No external power')
-                        os.system('touch ' + str(params.EMERGENCY_FILE))
-
-                    # WARNING 2: WEATHER
+                    # WARNING 1: CONDITIONS
                     # check any external flags
                     condition_flags = flags.Conditions()
                     override_flags = flags.Overrides()
 
-                    # WARNING 3: QUICK CLOSE BUTTON
+                    # WARNING 2: QUICK CLOSE BUTTON
                     # loop through the button to see if it's triggered
                     if params.QUICK_CLOSE_BUTTON:
                         if misc.loopback_test(params.QUICK_CLOSE_BUTTON_PORT,b'bob',chances=3):

@@ -29,7 +29,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
 from gtecs.tecs_modules.observing import filters_are_homed, check_schedule
-from gtecs.tecs_modules.flags import (Conditions, Overrides, Power)
+from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
                                                   FocuserMonitor)
@@ -102,7 +102,6 @@ class Pilot:
         # override and conditions flags
         self.overrides = Overrides()
         self.conditions = Conditions()
-        self.power = Power()
 
         # dictionary of reasons to pause
         self.whypause = dict(hw=False, cond=False, manual=False)
@@ -331,8 +330,6 @@ class Pilot:
             self.overrides = Overrides()
             # conditions flags
             self.conditions = Conditions()
-            # power status
-            self.power = Power()
 
             # handle overrides first
             if self.overrides.robotic:
@@ -348,7 +345,7 @@ class Pilot:
                 await self.handlePause('cond', False)
 
             # emergency file
-            if os.path.isfile(params.EMERGENCY_FILE) or self.power.failed:
+            if os.path.isfile(params.EMERGENCY_FILE):
                 asyncio.ensure_future(self.emergency_shutdown())
 
             await asyncio.sleep(10)
