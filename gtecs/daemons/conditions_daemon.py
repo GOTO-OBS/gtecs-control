@@ -118,8 +118,7 @@ class ConditionsDaemon(HardwareDaemon):
                 sunalt_now = sun_alt(Time.now())
 
                 # check the connection with Warwick
-                url = 'ngtshead.warwick.ac.uk'
-                successful_ping_home = conditions.check_ping(url)
+                successful_ping_home = conditions.check_ping(params.LINK_URL)
 
 
                 # ~~~~~~~~~~~~~~
