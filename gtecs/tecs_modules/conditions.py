@@ -394,13 +394,14 @@ def get_weather():
     return weather
 
 
-def check_external_connection():
-    '''Check the connection between the GOTO dome and gotohead in Warwick'''
+def check_ping(url, count=3, timeout=10):
+    '''Ping a url, and check it responds'''
     try:
-        url = 'ngtshead.warwick.ac.uk'
-        ping_command = 'ping -c 3 {} | grep "ttl="'.format(url)
-        link = os.popen(ping_command).read()
-        if "ttl=" in link:
+        ping_command = 'ping -c {} {}'.format(count, url)
+        out = subprocess.check_output(ping_command.split(),
+                                      stderr=subprocess.STDOUT,
+                                      timeout=timeout)
+        if "ttl=" in str(out):
             return True
         else:
             return False
