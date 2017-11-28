@@ -327,6 +327,14 @@ def update_header(header, tel, cam_info):
         airmass = 1/(math.cos(math.pi/2-(mnt_alt*math.pi/180)))
         airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
+
+        moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
+        moon_alt = numpy.around(moon_alt, decimals=2)
+        moon_ill = numpy.around(moon_ill*100., decimals=1)
+
+        moon_dist = astronomy.get_moon_distance(mnt_ra, mnt_dec, Time.now())
+        moon_dist = numpy.around(moon_dist, decimals=2)
+
     except:
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
@@ -338,6 +346,10 @@ def update_header(header, tel, cam_info):
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
+        moon_alt = 'NA'
+        moon_ill = 'NA'
+        moon_phase = 'NA'
+        moon_dist = 'NA'
 
     header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
     header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
@@ -352,6 +364,11 @@ def update_header(header, tel, cam_info):
     header["ALT     "] = (mnt_alt, "Mount altitude")
     header["AZ      "] = (mnt_az, "Mount azimuth")
 
+    header["AIRMASS "] = (airmass, "Airmass")
+
     header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
 
-    header["AIRMASS "] = (airmass, "Airmass")
+    header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
+    header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
+    header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
+    header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
