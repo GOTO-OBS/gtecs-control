@@ -25,6 +25,7 @@ from . import params
 from . import misc
 from . import astronomy
 from .time_date import nightStarting
+from .astronomy import sun_alt as get_sun_alt
 
 
 def image_location(run_number, tel):
@@ -328,10 +329,6 @@ def update_header(header, tel, cam_info):
         airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
 
-        moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
-        moon_alt = numpy.around(moon_alt, decimals=2)
-        moon_ill = numpy.around(moon_ill*100., decimals=1)
-
         moon_dist = astronomy.get_moon_distance(mnt_ra, mnt_dec, Time.now())
         moon_dist = numpy.around(moon_dist, decimals=2)
 
@@ -346,9 +343,6 @@ def update_header(header, tel, cam_info):
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
-        moon_alt = 'NA'
-        moon_ill = 'NA'
-        moon_phase = 'NA'
         moon_dist = 'NA'
 
     header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
@@ -369,6 +363,16 @@ def update_header(header, tel, cam_info):
     header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
 
     header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
+
+    # Astronomy info
+    moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
+    moon_alt = numpy.around(moon_alt, decimals=2)
+    moon_ill = numpy.around(moon_ill*100., decimals=1)
+
     header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
     header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
     header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
+
+    sun_alt = numpy.around(get_sun_alt(Time.now()), decimals=1)
+
+    header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
