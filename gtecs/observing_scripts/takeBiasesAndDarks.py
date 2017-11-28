@@ -28,9 +28,7 @@ def run(nexp=5):
     # make sure hardware is ready
     prepare_for_images()
 
-    cmd('exq multbias {} 1'.format(nexp))  # 1x1 binning
-    cmd('exq multbias {} 2'.format(nexp))  # 2x2 binning
-    cmd('exq multbias {} 3'.format(nexp))  # 3x3 binning
+    cmd('exq multbias {} 1'.format(nexp))
     cmd('exq multdark {} 120 1'.format(nexp))
     cmd('exq resume')  # just in case
 
