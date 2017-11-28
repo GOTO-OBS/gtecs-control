@@ -67,6 +67,30 @@ def get_ups():
     return percent
 
 
+def hatch_closed():
+    '''Get hatch status from GOTO Dome Arduino'''
+
+    url = params.ARDUINO_LOCATION
+    outfile = params.CONFIG_PATH + 'arduino.json'
+
+    try:
+        indata = curl_data_from_url(url, outfile)
+        data = json.loads(indata)
+    except:
+        print('Error fetching hatch data')
+        return False
+
+    try:
+        hatch_closed = data['switch_d']
+        if hatch_closed:
+            return True
+        else:
+            return False
+    except:
+        print('Error parsing hatch status')
+        return False
+
+
 def get_roomalert(source):
     '''Get internal dome temperature and humidity from GOTO RoomAlert system'''
 

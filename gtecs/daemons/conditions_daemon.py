@@ -58,7 +58,9 @@ class ConditionsDaemon(HardwareDaemon):
                            'humidity',
                            'temperature',
                            'ups',
-                           'link']
+                           'link',
+                           'hatch',
+                           ]
 
         self.good = dict.fromkeys(self.flag_names, False)
         self.valid = dict.fromkeys(self.flag_names, False)
@@ -71,6 +73,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'temperature': params.TEMPERATURE_GOODDELAY,
                            'ups': params.UPS_GOODDELAY,
                            'link': params.LINK_GOODDELAY,
+                           'hatch': 0,
                            }
         self.bad_delay = {'dark': 0,
                           'rain': params.RAIN_BADDELAY,
@@ -79,6 +82,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'temperature': params.TEMPERATURE_BADDELAY,
                           'ups': params.UPS_BADDELAY,
                           'link': params.LINK_BADDELAY,
+                          'hatch': 0,
                           }
 
 
@@ -127,6 +131,9 @@ class ConditionsDaemon(HardwareDaemon):
                 ping_successful = []
                 for url in params.LINK_URLS:
                     ping_successful.append(conditions.check_ping(url))
+
+                # get the current hatch status
+                hatch_closed = conditions.hatch_closed()
 
 
                 # ~~~~~~~~~~~~~~
@@ -199,6 +206,11 @@ class ConditionsDaemon(HardwareDaemon):
                 link_array = np.array(ping_successful)
                 self.good['link'] = np.all(link_array == True)
                 self.valid['link'] = len(link_array) >= 1
+
+
+                # HATCH
+                self.good['hatch'] = hatch_closed
+                self.valid['hatch'] = True
 
 
                 # CHECK - if the weather hasn't changed for a certain time
