@@ -376,3 +376,58 @@ def update_header(header, tel, cam_info):
     sun_alt = numpy.around(get_sun_alt(Time.now()), decimals=1)
 
     header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
+
+    # Conditions info
+    conditions = Pyro4.Proxy(params.DAEMONS['conditions']['ADDRESS'])
+    conditions._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = conditions.get_info()
+
+        ext_weather = info['weather']['goto']
+
+        ext_temp = ext_weather['temperature']
+        if ext_temp == -999:
+            ext_temp = 'NA'
+        else:
+            ext_temp = numpy.around(ext_temp, decimals=1)
+
+        ext_hum = ext_weather['humidity']
+        if ext_hum == -999:
+            ext_hum = 'NA'
+        else:
+            ext_hum = numpy.around(ext_hum, decimals=1)
+
+        ext_wind = ext_weather['windspeed']
+        if ext_wind == -999:
+            ext_wind = 'NA'
+        else:
+            ext_wind = numpy.around(ext_wind, decimals=1)
+
+        int_weather = info['weather']['dome']
+
+        int_temp = int_weather['int_temperature']
+        if int_temp == -999:
+            int_temp = 'NA'
+        else:
+            int_temp = numpy.around(int_temp, decimals=1)
+
+        int_hum = int_weather['int_humidity']
+        if int_hum == -999:
+            int_hum = 'NA'
+        else:
+            int_hum = numpy.around(int_hum, decimals=1)
+
+    except:
+        ext_temp = 'NA'
+        ext_hum = 'NA'
+        ext_wind = 'NA'
+        int_temp = 'NA'
+        int_hum = 'NA'
+
+
+    header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
+    header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
+    header["EXT-WIND"] = (ext_wind, "External wind speed, km/h (GOTO mast)")
+
+    header["INT-TEMP"] = (int_temp, "Internal temperature, Celsius (dome)")
+    header["INT-HUM "] = (int_hum, "Internal humidity, percent (dome)")
