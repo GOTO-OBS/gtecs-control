@@ -122,20 +122,40 @@ for intf in FLI_INTERFACES:
 
 ########################################################################
 # Weather parameters
-MAX_HUMIDITY = config['MAX_HUMIDITY']          # relative humidity limit in per cent
-MAX_INTERNAL_HUMIDITY = config['MAX_INTERNAL_HUMIDITY']    # relative humidity limit in per cent, as measured by internal sensor
-MAX_WINDSPEED = config['MAX_WINDSPEED']         # wind speed limit in km/h
-MAX_TEMPERATURE = config['MAX_TEMPERATURE']     # max temperature limit in Celsius
-MIN_TEMPERATURE = config['MIN_TEMPERATURE']       # min temperature limit in Celsius
-WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']     # weather data age limit in seconds
-WEATHER_STATIC = config['WEATHER_STATIC']     # max time that weather parameters can remain unchanged in seconds
-WEATHER_INTERVAL = config['WEATHER_INTERVAL']     # weather monitoring interval in seconds
+WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']
+WEATHER_STATIC = config['WEATHER_STATIC']
+WEATHER_INTERVAL = config['WEATHER_INTERVAL']
 
-SUN_ELEVATION_LIMIT = config['SUN_ELEVATION_LIMIT']  # maximum altitude limit of the Sun in degrees
+# Rain
+RAIN_BADDELAY = config['RAIN_BADDELAY']
+RAIN_GOODDELAY = config['RAIN_GOODDELAY']
 
-WARWICK_CLOSED = config['WARWICK_CLOSED']       # max time in secs that can elapse without contact with Warwick server when dome closed
-WARWICK_OPEN = config['WARWICK_OPEN']        # max time in secs that can elapse without contact with Warwick server when dome open
+# Humidity - measured in %
+MAX_HUMIDITY = config['MAX_HUMIDITY']
+MAX_INTERNAL_HUMIDITY = config['MAX_INTERNAL_HUMIDITY']
+HUMIDITY_BADDELAY = config['HUMIDITY_BADDELAY']
+HUMIDITY_GOODDELAY = config['HUMIDITY_GOODDELAY']
 
+# Windspeed - measured in km/h
+MAX_WINDSPEED = config['MAX_WINDSPEED']
+WINDSPEED_BADDELAY = config['WINDSPEED_BADDELAY']
+WINDSPEED_GOODDELAY = config['WINDSPEED_GOODDELAY']
+
+# Temperature - measured in Celsius
+MAX_TEMPERATURE = config['MAX_TEMPERATURE']
+MIN_TEMPERATURE = config['MIN_TEMPERATURE']
+TEMPERATURE_BADDELAY = config['TEMPERATURE_BADDELAY']
+TEMPERATURE_GOODDELAY = config['TEMPERATURE_GOODDELAY']
+
+# Dark - sunalt measured in degrees
+SUN_ELEVATION_LIMIT = config['SUN_ELEVATION_LIMIT']
+
+# Link - time measured in seconds
+LINK_BADTIME = config['LINK_BADTIME']
+LINK_BADDELAY = config['LINK_BADDELAY']
+LINK_GOODDELAY = config['LINK_GOODDELAY']
+
+USE_ING_WEATHER = config['USE_ING_WEATHER']
 
 ########################################################################
 # Mount parameters

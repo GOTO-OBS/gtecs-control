@@ -380,10 +380,11 @@ def get_weather():
             print('Error getting weather from "{}"'.format(source))
 
     # Get the weather fron the ING webpage as a backup
-    try:
-        weather['ing'] = get_ing_weather()
-    except:
-        print('Error getting weather from "ing"')
+    if params.USE_ING_WEATHER:
+        try:
+            weather['ing'] = get_ing_weather()
+        except:
+            print('Error getting weather from "ing"')
 
     # Get the internal conditions from the RoomAlert
     internal_sources = ['dome', 'pier']
