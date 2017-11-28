@@ -116,11 +116,15 @@ def print_info(info):
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
         print('WEATHER:')
 
-        print('  {: <10}    {:>4.1f} degrees'.format('sun_alt', sun_alt(Time.now())))
+        sunalt = sun_alt(Time.now())
+        if sunalt < params.SUN_ELEVATION_LIMIT:
+            sunalt_str = misc.gtxt('{:>5.1f}'.format(sunalt))
+        else:
+            sunalt_str = misc.rtxt('{:>5.1f}'.format(sunalt))
+        print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
 
-        weather['ing']['windspeed'] = 'NA'
         weather['superwasp']['rain'] = 'NA'
-        for source in ['goto', 'onemetre', 'superwasp', 'ing']:
+        for source in ['goto', 'onemetre', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
             windspeed = weather[source]['windspeed']
@@ -129,24 +133,15 @@ def print_info(info):
 
             if temperature == -999:
                 temperature_str = misc.rtxt(' ERR')
-            elif (flags['temperature'] != 1 and
-                  temperature < params.MAX_TEMPERATURE and
+            elif (temperature < params.MAX_TEMPERATURE and
                   temperature > params.MIN_TEMPERATURE):
-                temperature_str = misc.gtxt('{:>4.1f}'.format(temperature))
-            elif (flags['temperature'] == 1 and
-                  temperature < params.MAX_TEMPERATURE-1 and
-                  temperature > params.MIN_TEMPERATURE+1):
                 temperature_str = misc.gtxt('{:>4.1f}'.format(temperature))
             else:
                 temperature_str = misc.rtxt('{:>4.1f}'.format(temperature))
 
             if humidity == -999:
                 humidity_str = misc.rtxt(' ERR')
-            elif (flags['humidity'] != 1 and
-                  humidity < params.MAX_HUMIDITY):
-                humidity_str = misc.gtxt('{:>3.1f}'.format(humidity))
-            elif (flags['humidity'] == 1 and
-                  humidity < params.MAX_HUMIDITY*0.9):
+            elif (humidity < params.MAX_HUMIDITY):
                 humidity_str = misc.gtxt('{:>3.1f}'.format(humidity))
             else:
                 humidity_str = misc.rtxt('{:>3.1f}'.format(humidity))
@@ -155,11 +150,7 @@ def print_info(info):
                 windspeed_str = misc.rtxt('  ERR')
             elif windspeed == 'NA':
                 windspeed_str = '  N/A'
-            elif (flags['windspeed'] != 1 and
-                  windspeed < params.MAX_WINDSPEED):
-                windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))
-            elif (flags['windspeed'] == 1 and
-                  windspeed < params.MAX_WINDSPEED*0.9):
+            elif (windspeed < params.MAX_WINDSPEED):
                 windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))
             else:
                 windspeed_str = misc.rtxt('{:>5.1f}'.format(windspeed))
@@ -198,11 +189,7 @@ def print_info(info):
 
             if int_humidity == -999:
                 int_humidity_str = misc.rtxt(' ERR')
-            elif (flags['humidity'] != 1 and
-                  int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                int_humidity_str = misc.gtxt('{:>3.1f}'.format(int_humidity))
-            elif (flags['humidity'] == 1 and
-                  int_humidity < params.MAX_INTERNAL_HUMIDITY*0.9):
+            elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
                 int_humidity_str = misc.gtxt('{:>3.1f}'.format(int_humidity))
             else:
                 int_humidity_str = misc.rtxt('{:>3.1f}'.format(int_humidity))
