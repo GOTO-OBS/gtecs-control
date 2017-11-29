@@ -267,9 +267,9 @@ def get_ing_weather():
                     'rain': -999,
                     'temperature': -999,
                     'pressure': -999,
-                    #'winddir': -999,
-                    #'windspeed': -999,
-                    #'windgust': -999,
+                    'winddir': -999,
+                    'windspeed': -999,
+                    'windgust': -999,
                     'humidity': -999,
                     }
 
@@ -283,37 +283,37 @@ def get_ing_weather():
                 try:
                     weather_dict['temperature'] = float(columns[1])
                 except:
-                    print('Error parsing temperature:', columns[1])
+                    print('Error parsing temperature for ing:', columns[1])
 
             elif columns[0] == 'Pressure':
                 try:
                     weather_dict['pressure'] = float(columns[1])
                 except:
-                    print('Error parsing pressure:', columns[1])
+                    print('Error parsing pressure for ing:', columns[1])
 
-            #elif columns[0] == 'Wind' and columns[1] == 'Speed':
-                #try:
-                    #weather_dict['windspeed'] = float(columns[2])
-                #except:
-                    #print('Error parsing wind speed:', columns[2])
+            elif columns[0] == 'Wind' and columns[1] == 'Speed':
+                try:
+                    weather_dict['windspeed'] = float(columns[2])
+                except:
+                    print('Error parsing wind speed for ing:', columns[2])
 
-            #elif columns[0] == 'Wind' and columns[1] == 'Direction':
-                #try:
-                    #weather_dict['winddir'] = str(columns[2])
-                #except:
-                    #print('Error parsing wind direction:', columns[2])
+            elif columns[0] == 'Wind' and columns[1] == 'Direction':
+                try:
+                    weather_dict['winddir'] = str(columns[2])
+                except:
+                    print('Error parsing wind direction for ing:', columns[2])
 
-            #elif columns[0] == 'Wind' and columns[1] == 'Gust':
-                #try:
-                    #weather_dict['windgust'] = float(columns[2])
-                #except:
-                    #print('Error parsing wind gust:', columns[2])
+            elif columns[0] == 'Wind' and columns[1] == 'Gust':
+                try:
+                    weather_dict['windgust'] = float(columns[2])
+                except:
+                    print('Error parsing wind gust for ing:', columns[2])
 
             elif columns[0] == 'Humidity':
                 try:
                     weather_dict['humidity'] = float(columns[1])
                 except:
-                    print('Error parsing humidity:', columns[1])
+                    print('Error parsing humidity for ing:', columns[1])
 
             elif columns[0] == 'Rain':
                 try:
@@ -322,7 +322,7 @@ def get_ing_weather():
                     elif columns[1] == 'WET':
                         weather_dict['rain'] = True
                 except:
-                    print('Error parsing rain:', columns[1])
+                    print('Error parsing rain for ing:', columns[1])
 
             elif len(columns) == 4 and columns[3] == 'UT':
                 try:
@@ -333,10 +333,10 @@ def get_ing_weather():
                     dt = Time.now() - Time(update)
                     weather_dict['dt'] = int(dt.to('second').value)
                 except:
-                    print('Error parsing update time:', *columns)
+                    print('Error parsing update time for ing:', *columns)
 
     except:
-        print('Error parsing weather page')
+        print('Error parsing ing weather page')
 
     return weather_dict
 
