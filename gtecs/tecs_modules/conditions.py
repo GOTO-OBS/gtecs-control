@@ -475,3 +475,14 @@ def check_ping(url, count=3, timeout=10):
             return False
     except:
         return False
+
+
+def get_diskspace_remaining(path):
+    '''Get the percentage diskspace remaining from a given path'''
+
+    statvfs = os.statvfs(path)
+
+    available = statvfs.f_bsize * statvfs.f_bavail / 1024
+    total = statvfs.f_bsize * statvfs.f_blocks / 1024
+
+    return available/total
