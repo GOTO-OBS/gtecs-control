@@ -153,7 +153,7 @@ def get_local_weather(source):
     if source not in sources:
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
-    url = 'http://10.2.6.100/data/raw/'
+    base_url = 'http://10.2.6.100/data/raw/'
 
     if source == 'goto':
         json_file = 'goto-vaisala'
@@ -165,8 +165,24 @@ def get_local_weather(source):
         json_file = 'superwasp-log'
         vaisala = False
 
-    data = json.loads(curl_data_from_url(url + json_file,
-                                         params.CONFIG_PATH + json_file + '.json'))
+    url = base_url + json_file
+    outfile = params.CONFIG_PATH + json_file + '.json'
+
+    try:
+        indata = curl_data_from_url(url, outfile)
+        if len(indata) < 2:
+            raise IOError
+    except:
+        time.sleep(0.2)
+        try:
+            indata = curl_data_from_url(url, outfile)
+        except:
+            print('Error fetching JSON for {}'.format(source))
+
+    try:
+        data = json.loads(indata)
+    except:
+        print('Error reading data for {}'.format(source))
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
@@ -185,22 +201,22 @@ def get_local_weather(source):
         else:
             weather_dict['temperature'] = float(data['ext_temperature'])
     except:
-        print('Error fetching temperature')
+        print('Error parsing temperature for {}'.format(source))
 
     try:
         weather_dict['pressure'] = float(data['pressure'])
     except:
-        print('Error fetching pressure')
+        print('Error parsing pressure for {}'.format(source))
 
     try:
         weather_dict['windspeed'] = float(data['wind_speed'])
     except:
-        print('Error fetching wind speed')
+        print('Error parsing wind speed for {}'.format(source))
 
     try:
         weather_dict['winddir'] = float(data['wind_direction'])
     except:
-        print('Error fetching wind direction')
+        print('Error parsing wind direction for {}'.format(source))
 
     try:
         if vaisala:
@@ -208,7 +224,7 @@ def get_local_weather(source):
         else:
             weather_dict['humidity'] = float(data['ext_humidity'])
     except:
-        print('Error fetching humidity')
+        print('Error parsing humidity for {}'.format(source))
 
     try:
         if vaisala:
@@ -219,7 +235,7 @@ def get_local_weather(source):
         else:
             del weather_dict['rain']
     except:
-        print('Error fetching rain')
+        print('Error parsing rain for {}'.format(source))
 
     try:
         if vaisala:
@@ -227,14 +243,14 @@ def get_local_weather(source):
         else:
             weather_dict['skytemp'] = float(data['sky_temp'])
     except:
-        print('Error fetching sky temp')
+        print('Error parsing sky temp for {}'.format(source))
 
     try:
         weather_dict['update_time'] = Time(data['date'], precision=0).iso
         dt = Time.now() - Time(data['date'])
         weather_dict['dt'] = int(dt.to('second').value)
     except:
-        print('Error parsing update time')
+        print('Error parsing update time for {}'.format(source))
 
     return weather_dict
 
