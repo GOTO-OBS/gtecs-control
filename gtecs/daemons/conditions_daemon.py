@@ -60,6 +60,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'ups',
                            'link',
                            'hatch',
+                           'diskspace',
                            ]
 
         self.good = dict.fromkeys(self.flag_names, False)
@@ -74,6 +75,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'ups': params.UPS_GOODDELAY,
                            'link': params.LINK_GOODDELAY,
                            'hatch': 0,
+                           'diskspace': 0,
                            }
         self.bad_delay = {'dark': 0,
                           'rain': params.RAIN_BADDELAY,
@@ -83,6 +85,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'ups': params.UPS_BADDELAY,
                           'link': params.LINK_BADDELAY,
                           'hatch': 0,
+                          'diskspace': 0,
                           }
 
 
@@ -134,6 +137,9 @@ class ConditionsDaemon(HardwareDaemon):
 
                 # get the current hatch status
                 hatch_closed = conditions.hatch_closed()
+
+                # get the current disk usage on the image path
+                free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH)*100.
 
 
                 # ~~~~~~~~~~~~~~
@@ -211,6 +217,11 @@ class ConditionsDaemon(HardwareDaemon):
                 # HATCH
                 self.good['hatch'] = hatch_closed
                 self.valid['hatch'] = True
+
+
+                # DISKSPACE
+                self.good['diskspace'] = free_diskspace > params.MIN_DISKSPACE
+                self.valid['diskspace'] = True
 
 
                 # CHECK - if the weather hasn't changed for a certain time

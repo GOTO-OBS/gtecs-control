@@ -160,6 +160,9 @@ LINK_URLS = config['LINK_URLS']
 LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
+# Diskspace - free space in %
+MIN_DISKSPACE = config['MIN_DISKSPACE']
+
 USE_ING_WEATHER = config['USE_ING_WEATHER']
 
 ########################################################################
