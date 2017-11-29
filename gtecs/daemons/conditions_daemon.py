@@ -128,7 +128,7 @@ class ConditionsDaemon(HardwareDaemon):
                 sunalt_now = sun_alt(Time.now())
 
                 # get the current UPS battery percentage remaining
-                ups_percent = conditions.get_ups()
+                ups_percent, ups_status = conditions.get_ups()
 
                 # check the connection with Warwick
                 ping_successful = []
@@ -201,11 +201,15 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # UPS
-                ups_array = np.array(ups_percent)
-                valid_ups = ups_array[ups_array != -999]
+                ups_percent_array = np.array(ups_percent)
+                ups_status_array = np.array(ups_status)
+                valid_ups_percent = ups_percent_array[ups_percent_array != -999]
+                valid_ups_status = ups_status_array[ups_status_array != -999]
 
-                self.good['ups'] = np.all(valid_ups > params.MIN_UPSBATTERY)
-                self.valid['ups'] = len(valid_ups) >= 1
+                self.good['ups'] = (np.all(valid_ups_percent > params.MIN_UPSBATTERY) and
+                                    np.all(valid_ups_status == True))
+                self.valid['ups'] = (len(valid_ups_percent) >= 1 and
+                                     len(valid_ups_status) >= 1)
 
 
                 # LINK
