@@ -61,6 +61,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'link',
                            'hatch',
                            'diskspace',
+                           'low_battery',
                            ]
 
         self.good = dict.fromkeys(self.flag_names, False)
@@ -76,6 +77,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'link': params.LINK_GOODDELAY,
                            'hatch': 0,
                            'diskspace': 0,
+                           'low_battery': 0,
                            }
         self.bad_delay = {'dark': 0,
                           'rain': params.RAIN_BADDELAY,
@@ -86,6 +88,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'link': params.LINK_BADDELAY,
                           'hatch': 0,
                           'diskspace': 0,
+                          'low_battery': 0,
                           }
 
 
@@ -200,7 +203,7 @@ class ConditionsDaemon(HardwareDaemon):
                 self.valid['dark'] = True
 
 
-                # UPS
+                # UPS and LOW_BATTERY
                 ups_percent_array = np.array(ups_percent)
                 ups_status_array = np.array(ups_status)
                 valid_ups_percent = ups_percent_array[ups_percent_array != -999]
@@ -210,6 +213,9 @@ class ConditionsDaemon(HardwareDaemon):
                                     np.all(valid_ups_status == True))
                 self.valid['ups'] = (len(valid_ups_percent) >= 1 and
                                      len(valid_ups_status) >= 1)
+
+                self.good['low_battery'] = np.all(valid_ups_percent > params.CRITICAL_UPSBATTERY)
+                self.valid['low_battery'] = len(valid_ups_percent) >= 1
 
 
                 # LINK
