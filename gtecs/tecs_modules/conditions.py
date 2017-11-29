@@ -41,8 +41,9 @@ def curl_data_from_url(url, outfile, encoding=None):
 
 
 def get_ups():
-    '''Get battery status from GOTO UPSs'''
-    percent = []
+    '''Get battery percent remaining and current status from GOTO UPSs'''
+    percents = []
+    statuses = []
     for unit_name in params.POWER_UNITS:
         unit_class = params.POWER_UNITS[unit_name]['CLASS']
         if 'UPS' not in unit_class:
@@ -54,17 +55,21 @@ def get_ups():
                     ups = APCUPS(unit_ip)
                 elif unit_class == 'FakeUPS':
                     ups = FakeUPS(unit_ip)
+
                 remaining = ups.percent_remaining()
+                percents.append(remaining)
 
                 # Check status too
                 status = ups.status()
                 if status != 'Normal':
-                    remaining = -999
-
-                percent.append(remaining)
+                    normal = False
+                else:
+                    normal = True
+                statuses.append(normal)
             except:
-                percent.append[-999]
-    return percent
+                percents.append[-999]
+                statuses.append[-999]
+    return percents, statuses
 
 
 def hatch_closed():
