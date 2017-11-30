@@ -86,10 +86,13 @@ class Conditions:
             if key != 'dark':
                 self._summary += value
 
-        # and store a seperate summary of critical flags
+        # and store a separate summary of critical flags
         self._crit_sum = 0
         for key, value in iteritems(conditions_dict):
-            if key in ['diskspace', 'hatch', 'low_battery']:
+            if key in ['diskspace', 'low_battery']:
+                self._crit_sum += value
+            overrides = Overrides()
+            if key == 'hatch' and not overrides.robotic:
                 self._crit_sum += value
 
     def age(self):
@@ -122,7 +125,7 @@ class Conditions:
             and will need human intervention to fix.
         These are currently:
             - low diskspace remaining on image path
-            - dome hatch is open
+            - dome hatch is open (only in robotic mode)
             - UPSs are below critical charge
         """
         return self._crit_sum
