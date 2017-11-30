@@ -162,6 +162,10 @@ LINK_URLS = config['LINK_URLS']
 LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
+# Hatch
+HATCH_BADDELAY = config['HATCH_BADDELAY']
+HATCH_GOODDELAY = config['HATCH_GOODDELAY']
+
 # Diskspace - free space in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
 
