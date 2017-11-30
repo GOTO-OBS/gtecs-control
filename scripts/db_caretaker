@@ -50,6 +50,7 @@ while True:
         print('creating pointings')
         start = time.time()
         pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+        pointings = [p for p in pointings if p is not None]
         print('took {} secs'.format(time.time()-start))
 
         print('inserting pointings into DB')
