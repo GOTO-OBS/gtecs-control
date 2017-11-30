@@ -87,9 +87,6 @@ SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
 
-# Conditions checks
-MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
-
 # Pyro connection
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
@@ -121,7 +118,11 @@ for intf in FLI_INTERFACES:
         TEL_DICT[tel] = [intf, HW]
 
 ########################################################################
-# Weather parameters
+# Conditions parameters
+MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+
+USE_ING_WEATHER = config['USE_ING_WEATHER']
+
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']
 WEATHER_STATIC = config['WEATHER_STATIC']
 WEATHER_INTERVAL = config['WEATHER_INTERVAL']
@@ -150,12 +151,23 @@ TEMPERATURE_GOODDELAY = config['TEMPERATURE_GOODDELAY']
 # Dark - sunalt measured in degrees
 SUN_ELEVATION_LIMIT = config['SUN_ELEVATION_LIMIT']
 
+# UPS battery - measured in %
+MIN_UPSBATTERY = config['MIN_UPSBATTERY']
+CRITICAL_UPSBATTERY = config['CRITICAL_UPSBATTERY']
+UPS_BADDELAY = config['UPS_BADDELAY']
+UPS_GOODDELAY = config['UPS_GOODDELAY']
+
 # Link - time measured in seconds
-LINK_BADTIME = config['LINK_BADTIME']
+LINK_URLS = config['LINK_URLS']
 LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
-USE_ING_WEATHER = config['USE_ING_WEATHER']
+# Hatch
+HATCH_BADDELAY = config['HATCH_BADDELAY']
+HATCH_GOODDELAY = config['HATCH_GOODDELAY']
+
+# Diskspace - free space in %
+MIN_DISKSPACE = config['MIN_DISKSPACE']
 
 ########################################################################
 # Mount parameters
