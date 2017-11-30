@@ -80,11 +80,17 @@ class Conditions:
         # add the update time
         self.update_time = update_time
 
-        # and the summary
-        self.summary = 0  # sum of flags, excluding dark
+        # store a summary of all flags, excluding dark
+        self._summary = 0
         for key, value in iteritems(conditions_dict):
             if key != 'dark':
-                self.summary += value
+                self._summary += value
+
+        # and store a seperate summary of critical flags
+        self._crit_sum = 0
+        for key, value in iteritems(conditions_dict):
+            if key in ['diskspace', 'hatch', 'low_battery']:
+                self._crit_sum += value
 
     def age(self):
         return int(Time.now().unix - self.update_time)
@@ -105,7 +111,21 @@ class Conditions:
             tooOld = 1
         else:
             tooOld = 0
-        return self.summary + tooOld
+        return self._summary + tooOld
+
+    @property
+    def critical(self):
+        """
+        A property to check if any of the critical flags are bad.
+
+        Critical flags are ones that won't just change themselves (like weather)
+            and will need human intervention to fix.
+        These are currently:
+            - low diskspace remaining on image path
+            - dome hatch is open
+            - UPSs are below critical charge
+        """
+        return self._crit_sum
 
 
 class Overrides:
