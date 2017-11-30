@@ -87,9 +87,6 @@ SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
 
-# Conditions checks
-MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
-
 # Pyro connection
 PROXY_TIMEOUT = config['PROXY_TIMEOUT']
 Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
@@ -121,7 +118,11 @@ for intf in FLI_INTERFACES:
         TEL_DICT[tel] = [intf, HW]
 
 ########################################################################
-# Weather parameters
+# Conditions parameters
+MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+
+USE_ING_WEATHER = config['USE_ING_WEATHER']
+
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']
 WEATHER_STATIC = config['WEATHER_STATIC']
 WEATHER_INTERVAL = config['WEATHER_INTERVAL']
@@ -163,8 +164,6 @@ LINK_GOODDELAY = config['LINK_GOODDELAY']
 
 # Diskspace - free space in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
-
-USE_ING_WEATHER = config['USE_ING_WEATHER']
 
 ########################################################################
 # Mount parameters
