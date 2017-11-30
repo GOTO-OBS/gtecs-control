@@ -454,7 +454,7 @@ class DomeDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if not flags.Overrides().autoclose and flags.Conditions().summary > 0:
+        if flags.Conditions().bad and not flags.Overrides().autoclose:
             raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
