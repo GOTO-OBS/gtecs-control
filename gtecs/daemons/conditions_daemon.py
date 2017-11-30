@@ -75,7 +75,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'temperature': params.TEMPERATURE_GOODDELAY,
                            'ups': params.UPS_GOODDELAY,
                            'link': params.LINK_GOODDELAY,
-                           'hatch': 0,
+                           'hatch': params.HATCH_GOODDELAY,
                            'diskspace': 0,
                            'low_battery': 0,
                            }
@@ -86,7 +86,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'temperature': params.TEMPERATURE_BADDELAY,
                           'ups': params.UPS_BADDELAY,
                           'link': params.LINK_BADDELAY,
-                          'hatch': 0,
+                          'hatch': params.HATCH_BADDELAY,
                           'diskspace': 0,
                           'low_battery': 0,
                           }
