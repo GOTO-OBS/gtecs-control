@@ -164,6 +164,9 @@ class DomeDaemon(HardwareDaemon):
                     if button_pressed:
                         self.logfile.info('Quick close button pressed!')
                         os.system('touch {}'.format(params.EMERGENCY_FILE))
+                    if conditions.critical:
+                        self.logfile.info('Conditions critical!')
+                        os.system('touch {}'.format(params.EMERGENCY_FILE))
 
                     # Act on an emergency
                     if (self.dome_status['north'] != 'closed' or
