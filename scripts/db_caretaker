@@ -29,8 +29,6 @@ def ThereCanOnlyBeOne():
 ThereCanOnlyBeOne()
 
 while True:
-    time.sleep(600)
-    
     # prune stale pointings
     with db.open_session() as session:
         stale_pointings = db.get_stale_pointing_ids(session)
@@ -57,3 +55,5 @@ while True:
         start = time.time()
         db.insert_items(session, pointings)
         print('took {} secs'.format(time.time()-start))
+
+    time.sleep(600)
