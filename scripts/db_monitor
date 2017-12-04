@@ -22,21 +22,25 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        string = '{: <6.0f} | {: >20} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
+        string = '{: <6.0f} | {: >20} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | {} |'.format(
                                         pointing.pointingID,
                                         pointing.objectName,
                                         pointing.rank,
                                         pointing.ra, pointing.decl,
-                                        int(pointing.survey is not None))
+                                        int(pointing.survey is not None),
+                                        pointing.startUTC)
 
-        print(string, end='\t')
+        print(string, end=' ')
 
         if pointing.status == 'running':
             status = misc.ytxt('RUNNING')
         elif pointing.status == 'completed':
             status = misc.gtxt('completed')
         elif pointing.status == 'pending':
-            status = misc.btxt('pending')
+            if t > Time(pointing.startUTC):
+                status = misc.btxt('pending')
+            else:
+                status = 'waiting'
         else:
             status = pointing.status
         print(status, end='\n')
