@@ -13,7 +13,10 @@ t = Time.now()
 
 with db.open_session() as session:
     all_pointings = db.get_pointings(session)
-    print("{} points in database".format(len(all_pointings)))
+    n_all = len(all_pointings)
+    n_survey = len([p.survey is not None for p in all_pointings])
+    print("{} points in database - {} targeted and {} survey".format(
+                                           n_all, n_all-n_survey, n_survey))
 
     running, _ = db.get_queue(session)
     if running:
@@ -44,3 +47,6 @@ with db.open_session() as session:
         else:
             status = pointing.status
         print(status, end='\n')
+
+    print("{} points in database - {} targeted and {} survey".format(
+                                           n_all, n_all-n_survey, n_survey))
