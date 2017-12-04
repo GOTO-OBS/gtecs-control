@@ -22,7 +22,7 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
+        string = '{: <6.0f} | {: >20} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
                                         pointing.pointingID,
                                         pointing.objectName,
                                         pointing.rank,
