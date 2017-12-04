@@ -530,15 +530,15 @@ class Repeat(Base):
                          ForeignKey('mpointings.mpointingID'),
                          nullable=False)
 
-    @validates('waitTime', 'valid_duration')
-    def validate_timings(self, key, field):
-        if key == 'waitTime' and self.valid_duration is not None:
-            if field < self.valid_duration and field > 0:
-                raise AssertionError('waitTime must be > valid_duration')
-        elif key == 'valid_duration' and self.waitTime is not None:
-            if self.waitTime < field and self.waitTime > 0:
-                raise AssertionError('waitTime must be > valid_duration')
-        return field
+    #@validates('waitTime', 'valid_duration')
+    #def validate_timings(self, key, field):
+    #    if key == 'waitTime' and self.valid_duration is not None:
+    #        if field < self.valid_duration and field > 0:
+    #            raise AssertionError('waitTime must be > valid_duration')
+    #    elif key == 'valid_duration' and self.waitTime is not None:
+    #        if self.waitTime < field and self.waitTime > 0:
+    #            raise AssertionError('waitTime must be > valid_duration')
+    #    return field
 
     # relationships
     mpointing = relationship("Mpointing", back_populates="repeats", uselist=False)
