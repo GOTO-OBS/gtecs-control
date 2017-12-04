@@ -55,7 +55,7 @@ while True:
             pointings = [p for p in pointings if p is not None]
             print('>    took {:.2f} secs'.format(time.time()-start))
 
-            print('> Inserting {} pointings into DB'.format(len(unscheduled_mps)))
+            print('> Inserting {} pointings into DB'.format(len(pointings)))
             start = time.time()
             db.insert_items(session, pointings)
             print('>    took {:.2f} secs'.format(time.time()-start))
