@@ -52,14 +52,17 @@ class ConditionsDaemon(HardwareDaemon):
         self.weather = None
         self.weather_changed_time = 0
 
-        self.successful_ping_time = 0
-
         self.flag_names = ['dark',
                            'rain',
                            'windspeed',
                            'humidity',
                            'temperature',
-                           'link']
+                           'ups',
+                           'link',
+                           'hatch',
+                           'diskspace',
+                           'low_battery',
+                           ]
 
         self.good = dict.fromkeys(self.flag_names, False)
         self.valid = dict.fromkeys(self.flag_names, False)
@@ -70,14 +73,22 @@ class ConditionsDaemon(HardwareDaemon):
                            'windspeed': params.WINDSPEED_GOODDELAY,
                            'humidity': params.HUMIDITY_GOODDELAY,
                            'temperature': params.TEMPERATURE_GOODDELAY,
+                           'ups': params.UPS_GOODDELAY,
                            'link': params.LINK_GOODDELAY,
+                           'hatch': params.HATCH_GOODDELAY,
+                           'diskspace': 0,
+                           'low_battery': 0,
                            }
         self.bad_delay = {'dark': 0,
                           'rain': params.RAIN_BADDELAY,
                           'windspeed': params.WINDSPEED_BADDELAY,
                           'humidity': params.HUMIDITY_BADDELAY,
                           'temperature': params.TEMPERATURE_BADDELAY,
+                          'ups': params.UPS_BADDELAY,
                           'link': params.LINK_BADDELAY,
+                          'hatch': params.HATCH_BADDELAY,
+                          'diskspace': 0,
+                          'low_battery': 0,
                           }
 
 
@@ -119,11 +130,19 @@ class ConditionsDaemon(HardwareDaemon):
                 # get the current sun alt
                 sunalt_now = sun_alt(Time.now())
 
-                # get the time since last connection with Warwick
-                ping_home = conditions.check_external_connection()
-                if ping_home:
-                    self.successful_ping_time = time.time()
-                dt = time.time() - self.successful_ping_time
+                # get the current UPS battery percentage remaining
+                ups_percent, ups_status = conditions.get_ups()
+
+                # check the connection with Warwick
+                ping_successful = []
+                for url in params.LINK_URLS:
+                    ping_successful.append(conditions.check_ping(url))
+
+                # get the current hatch status
+                hatch_closed = conditions.hatch_closed()
+
+                # get the current disk usage on the image path
+                free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH)*100.
 
 
                 # ~~~~~~~~~~~~~~
@@ -184,9 +203,35 @@ class ConditionsDaemon(HardwareDaemon):
                 self.valid['dark'] = True
 
 
+                # UPS and LOW_BATTERY
+                ups_percent_array = np.array(ups_percent)
+                ups_status_array = np.array(ups_status)
+                valid_ups_percent = ups_percent_array[ups_percent_array != -999]
+                valid_ups_status = ups_status_array[ups_status_array != -999]
+
+                self.good['ups'] = (np.all(valid_ups_percent > params.MIN_UPSBATTERY) and
+                                    np.all(valid_ups_status == True))
+                self.valid['ups'] = (len(valid_ups_percent) >= 1 and
+                                     len(valid_ups_status) >= 1)
+
+                self.good['low_battery'] = np.all(valid_ups_percent > params.CRITICAL_UPSBATTERY)
+                self.valid['low_battery'] = len(valid_ups_percent) >= 1
+
+
                 # LINK
-                self.good['link'] = dt < params.LINK_BADTIME
-                self.valid['link'] = True
+                link_array = np.array(ping_successful)
+                self.good['link'] = np.all(link_array == True)
+                self.valid['link'] = len(link_array) >= 1
+
+
+                # HATCH
+                self.good['hatch'] = hatch_closed
+                self.valid['hatch'] = True
+
+
+                # DISKSPACE
+                self.good['diskspace'] = free_diskspace > params.MIN_DISKSPACE
+                self.valid['diskspace'] = True
 
 
                 # CHECK - if the weather hasn't changed for a certain time
