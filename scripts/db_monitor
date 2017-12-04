@@ -21,7 +21,7 @@ else:
 with db.open_session() as session:
     all_pointings = db.get_pointings(session)
     n_all = len(all_pointings)
-    n_survey = len([p.survey is not None for p in all_pointings])
+    n_survey = sum([p.survey is not None for p in all_pointings])
     print("{} points in database - {} targeted and {} survey".format(
                                            n_all, n_all-n_survey, n_survey))
 
