@@ -25,6 +25,7 @@ from . import params
 from . import misc
 from . import astronomy
 from .time_date import nightStarting
+from .astronomy import sun_alt as get_sun_alt
 
 
 def image_location(run_number, tel):
@@ -327,6 +328,10 @@ def update_header(header, tel, cam_info):
         airmass = 1/(math.cos(math.pi/2-(mnt_alt*math.pi/180)))
         airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
+
+        moon_dist = astronomy.get_moon_distance(mnt_ra, mnt_dec, Time.now())
+        moon_dist = numpy.around(moon_dist, decimals=2)
+
     except:
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
@@ -338,6 +343,7 @@ def update_header(header, tel, cam_info):
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
+        moon_dist = 'NA'
 
     header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
     header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
@@ -352,6 +358,76 @@ def update_header(header, tel, cam_info):
     header["ALT     "] = (mnt_alt, "Mount altitude")
     header["AZ      "] = (mnt_az, "Mount azimuth")
 
+    header["AIRMASS "] = (airmass, "Airmass")
+
     header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
 
-    header["AIRMASS "] = (airmass, "Airmass")
+    header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
+
+    # Astronomy info
+    moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
+    moon_alt = numpy.around(moon_alt, decimals=2)
+    moon_ill = numpy.around(moon_ill*100., decimals=1)
+
+    header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
+    header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
+    header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
+
+    sun_alt = numpy.around(get_sun_alt(Time.now()), decimals=1)
+
+    header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
+
+    # Conditions info
+    conditions = Pyro4.Proxy(params.DAEMONS['conditions']['ADDRESS'])
+    conditions._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = conditions.get_info()
+
+        ext_weather = info['weather']['goto']
+
+        ext_temp = ext_weather['temperature']
+        if ext_temp == -999:
+            ext_temp = 'NA'
+        else:
+            ext_temp = numpy.around(ext_temp, decimals=1)
+
+        ext_hum = ext_weather['humidity']
+        if ext_hum == -999:
+            ext_hum = 'NA'
+        else:
+            ext_hum = numpy.around(ext_hum, decimals=1)
+
+        ext_wind = ext_weather['windspeed']
+        if ext_wind == -999:
+            ext_wind = 'NA'
+        else:
+            ext_wind = numpy.around(ext_wind, decimals=1)
+
+        int_weather = info['weather']['dome']
+
+        int_temp = int_weather['int_temperature']
+        if int_temp == -999:
+            int_temp = 'NA'
+        else:
+            int_temp = numpy.around(int_temp, decimals=1)
+
+        int_hum = int_weather['int_humidity']
+        if int_hum == -999:
+            int_hum = 'NA'
+        else:
+            int_hum = numpy.around(int_hum, decimals=1)
+
+    except:
+        ext_temp = 'NA'
+        ext_hum = 'NA'
+        ext_wind = 'NA'
+        int_temp = 'NA'
+        int_hum = 'NA'
+
+
+    header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
+    header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
+    header["EXT-WIND"] = (ext_wind, "External wind speed, km/h (GOTO mast)")
+
+    header["INT-TEMP"] = (int_temp, "Internal temperature, Celsius (dome)")
+    header["INT-HUM "] = (int_hum, "Internal humidity, percent (dome)")

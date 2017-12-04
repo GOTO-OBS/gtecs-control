@@ -150,38 +150,37 @@ class DomeDaemon(HardwareDaemon):
             # check warnings
             if self.check_warnings_flag:
                 try:
-                    # WARNING 1: ON UPS POWER
-                    power = flags.Power()
-                    if power.failed:
-                        self.logfile.info('No external power')
-                        os.system('touch ' + str(params.EMERGENCY_FILE))
+                    # Get external flags
+                    conditions = flags.Conditions()
+                    overrides = flags.Overrides()
 
-                    # WARNING 2: WEATHER
-                    # check any external flags
-                    condition_flags = flags.Conditions()
-                    override_flags = flags.Overrides()
-
-                    # WARNING 3: QUICK CLOSE BUTTON
-                    # loop through the button to see if it's triggered
+                    # Loop through QC button to see if it's triggered
+                    button_pressed = False
                     if params.QUICK_CLOSE_BUTTON:
-                        if misc.loopback_test(params.QUICK_CLOSE_BUTTON_PORT,b'bob',chances=3):
-                            self.logfile.info('Quick close button pressed')
-                            os.system('touch %s' % params.EMERGENCY_FILE)
+                        port = params.QUICK_CLOSE_BUTTON_PORT
+                        button_pressed = misc.loopback_test(port)
+
+                    # Create emergency file if needed
+                    if button_pressed:
+                        self.logfile.info('Quick close button pressed!')
+                        os.system('touch {}'.format(params.EMERGENCY_FILE))
+                    if conditions.critical:
+                        self.logfile.info('Conditions critical!')
+                        os.system('touch {}'.format(params.EMERGENCY_FILE))
 
                     # Act on an emergency
                     if (self.dome_status['north'] != 'closed' or
                         self.dome_status['south'] != 'closed'):
-                        if (condition_flags.summary > 0 and
-                            override_flags.autoclose != 1):
-                            self.logfile.info('Conditions bad, auto-closing dome')
-                            if not self.close_flag:
-                                self.close_flag = 1
-                                self.move_side = 'both'
-                                self.move_frac = 1
-                        elif os.path.isfile(params.EMERGENCY_FILE):
+                        if os.path.isfile(params.EMERGENCY_FILE):
                             self.logfile.info('Closing dome (emergency!)')
                             if not self.close_flag:
                                 send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
+                                self.close_flag = 1
+                                self.move_side = 'both'
+                                self.move_frac = 1
+                        elif (conditions.bad and not overrides.autoclose):
+                            self.logfile.info('Conditions bad, auto-closing dome')
+                            if not self.close_flag:
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
@@ -458,7 +457,7 @@ class DomeDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if not flags.Overrides().autoclose and flags.Conditions().summary > 0:
+        if flags.Conditions().bad and not flags.Overrides().autoclose:
             raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')

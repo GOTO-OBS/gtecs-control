@@ -21,11 +21,13 @@ from . import params
 from . import astropy_speedups
 
 # astropy/astroplan
-from astropy.coordinates import (SkyCoord, EarthLocation, AltAz, get_sun,
+from astropy.coordinates import (SkyCoord, EarthLocation, AltAz,
+                                 get_sun, get_moon,
                                  GCRS, Longitude)
 from astropy import units as u
 from astropy.time import Time
 from astroplan import Observer
+from astroplan.moon import moon_illumination
 
 # pyephem
 import ephem
@@ -448,3 +450,71 @@ def tel_str(ra, dec):
     dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
     dec_string = dec_string[0] + ' ' + dec_string[1:]
     return ra_string, dec_string
+
+
+def get_moon_params(now):
+    """
+    Get the current Moon parameters
+
+    Parameters
+    ----------
+    now : `~astropy.time.Time`
+        time to get Moon details
+
+    Returns
+    -------
+    alt : float
+        current Moon altitude in degrees
+        uses astropy.coordinates.get_moon()
+
+    illumination : float
+        current fractional Moon illumination
+        uses astroplan.moon.moon_illumination()
+
+    phase : str
+        current Moon phase, one of 'D', 'G', 'B'
+        Dark is illumination below 25%
+        Grey is illumination between 25% and 65%
+        Bright is illumination above 65%
+        if `alt` is below the horizon then phase is given as 'D',
+            regardless of illumination
+
+    """
+    coords = get_moon(now)
+    alt, az = altaz(coords.ra.degree, coords.dec.degree, now)
+    illumination = moon_illumination(now)
+
+    if 0 <= illumination < 0.25:
+        phase = 'D'
+    elif 0.25 <= illumination < 0.65:
+        phase = 'G'
+    elif 0.65 <= illumination <= 1.00:
+        phase = 'B'
+    if alt < params.MOONELEV_LIMIT:
+        phase = 'D'
+
+    return alt, illumination, phase
+
+
+def get_moon_distance(ra, dec, now):
+    """
+    Get the angular seperation of the given coordinates from the Moon
+        at the given time
+
+    Parameters
+    ----------
+    ra : float or np.ndarray
+        J2000 RA in degrees
+    dec : float or np.ndarray
+        J2000 Declination in degrees
+    now : `~astropy.time.Time`
+        time to check Moon position
+
+    Returns
+    -------
+    sep : float or np.ndarray
+        angular seperations in degrees
+
+    """
+    moon_coords = get_moon(now)
+    return ang_sep(ra, dec, moon_coords.ra.degree, moon_coords.dec.degree)
