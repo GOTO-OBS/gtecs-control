@@ -1,34 +1,50 @@
 """
 Script to run the tasks for end of night.
-
 This script should perform the following simple tasks:
-* park the scope
-* power off the equipment
+    * empty the camera queues
+    * abort any current exposures
+    * shutdown the interfaces
+    * power off the hardware
+    * park the scope
+    * close the dome
 """
 from __future__ import absolute_import
 from __future__ import print_function
+
 import time
-from gtecs.tecs_modules.misc import execute_command as cmd
+
 from gtecs.tecs_modules import params
+from gtecs.tecs_modules.misc import execute_command as cmd
 
 
 def run():
-    print('End of night power down')
+    """
+    Run shutdown tasks.
+    """
+    print('Running shutdown tasks')
 
+    # Pause and clear the exposure queue
+    cmd('exq pause')
+    time.sleep(1)
+    cmd('exq clear')
+
+    # Abort any current exposures
+    cmd('cam abort')
+
+    # Shut down the FLI interface, else it would crash when we power off
+    cmd('fli shutdown')
+
+    # Power off the FLI hardware
     for tel in params.TEL_DICT:
         cmd('power off filt{}'.format(tel))
         cmd('power off foc{}'.format(tel))
         cmd('power off cam{}'.format(tel))
 
-    if params.FREEZE_DEC:
-        cmd('mnt stop')
-    else:
-        cmd('mnt park')
+    # Park the mount
+    md('mnt park')
 
     # give time before closing dome
     time.sleep(60)
-
-    cmd('mnt blinky on')
 
     # close dome and wait (pilot will try again before shutdown)
     cmd('dome close')
