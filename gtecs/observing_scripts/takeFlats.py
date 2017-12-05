@@ -57,8 +57,8 @@ def run(eve, alt):
     # spin our heels until we reach correct sunAlt
     time_to_go = -1000*u.second
     today = nightStarting()
-    startTime = startTime(today, alt, eve)
-    time_to_go = Time.now() - startTime
+    start_time = startTime(today, alt, eve)
+    time_to_go = Time.now() - start_time
     if time_to_go > 10*u.min:
         print("Too late for flats")
         sys.exit(1)
