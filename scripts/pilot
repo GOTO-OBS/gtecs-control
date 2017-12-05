@@ -720,7 +720,7 @@ class Pilot:
 
         # power off
         self.log.warn('powering off hardware')
-        cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
+        cmd = [os.path.join(SCRIPT_PATH, 'normal_shutdown.py')]
         retcode, result = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('EON ended abnormally')
@@ -809,8 +809,8 @@ class Pilot:
         en0 = dict(name='FLATS', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                    protocol=SimpleProtocol)
-        en1 = dict(name='POWOFF', sunAlt=0,
-                   cmd=[os.path.join(SCRIPT_PATH, 'power_off.py')],
+        en1 = dict(name='SHUTDOWN', sunAlt=0,
+                   cmd=[os.path.join(SCRIPT_PATH, 'normal_shutdown.py')],
                    protocol=SimpleProtocol)
         self.morning_jobs = [en0, en1]
 
