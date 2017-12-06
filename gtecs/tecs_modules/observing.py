@@ -67,9 +67,19 @@ def get_cam_temps():
 def prepare_for_images():
     """
     Make sure the hardware is set up for taking images:
+      - ensure the exposure queue is empty
       - ensure the filter wheels are homed
       - ensure the cameras are at operating temperature
     """
+
+    # Empty the exposure queue
+    if not exposure_queue_is_empty():
+        cmd('exq pause')
+        time.sleep(1)
+        cmd('exq clear')
+        while not exposure_queue_is_empty():
+            time.sleep(1)
+        cmd('exq resume')
 
     # Home the filter wheels
     if not filters_are_homed():
@@ -234,6 +244,15 @@ def last_written_image():
 
     fnames = {key: root+'_UT{}.fits'.format(key) for key in params.TEL_DICT.keys()}
     return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
+
+
+def exposure_queue_is_empty():
+    """Check if the image queue is empty"""
+    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
+    with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
+        exq._pyroTimeout = params.PROXY_TIMEOUT
+        exq_info = exq.get_info()
+    return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
