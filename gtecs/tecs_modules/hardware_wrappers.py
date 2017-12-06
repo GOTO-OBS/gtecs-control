@@ -174,9 +174,11 @@ class DomeMonitor(HardwareMonitor):
         if mode == 'open':
             # dome open commands may need repeating if cond change hasnt propogated
             self.recoveryProcedure[1] = [30., 'dome open']
-            self.recoveryProcedure[2] = [180., 'dome open']
-            self.recoveryProcedure[3] = [240., 'dome start']
-            self.recoveryProcedure[4] = [260., 'dome open']
+            self.recoveryProcedure[2] = [60., 'dome close both 0.1']
+            self.recoveryProcedure[3] = [90., 'dome open']
+            self.recoveryProcedure[4] = [180., 'dome open']
+            self.recoveryProcedure[4] = [240., 'dome close']
+            self.recoveryProcedure[4] = [360., 'dome open']
         else:
             self.recoveryProcedure = {}
         return val
