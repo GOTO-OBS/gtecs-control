@@ -495,6 +495,7 @@ class Pilot:
             now = Time.now()
             midnight = localMidnight(nightStarting())
             if now > midnight and sun_alt(now) > until_sun_alt:
+                self.log.info('observing completed!')
                 return
 
             # see if a new target has arrived and mark job appropriately
