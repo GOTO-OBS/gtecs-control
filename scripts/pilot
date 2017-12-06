@@ -729,12 +729,6 @@ class Pilot:
         if retcode != 0:
             self.log.warn('EON ended abnormally')
 
-        # shutdown daemons
-        self.log.warn('stopping daemons')
-        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode, result = await self.startScript('DAE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('DAE ended abnormally')
 
     async def open_dome(self):
         self.log.warn('opening dome')
