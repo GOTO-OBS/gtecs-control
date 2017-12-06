@@ -231,7 +231,7 @@ class MountMonitor(HardwareMonitor):
             self.recoveryProcedure[6] = [320., 'mnt slew']
             self.recoveryProcedure[7] = [320., 'mnt slew']
             self.recoveryProcedure[8] = [360., 'mnt track']
-        elif mode = 'parked':
+        elif mode == 'parked':
             self.recoveryProcedure = {}
             self.recoveryProcedure[1] = [60., 'mnt stop']
             self.recoveryProcedure[2] = [120., 'mnt park']
