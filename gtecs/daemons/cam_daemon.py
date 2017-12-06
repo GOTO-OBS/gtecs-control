@@ -436,6 +436,7 @@ class CamDaemon(HardwareDaemon):
 
         # Set values
         self.get_info()
+        self.active_tel = []
         for tel in tel_list:
             intf, HW = params.TEL_DICT[tel]
             if not self.remaining[intf][HW] == 0:
@@ -448,7 +449,7 @@ class CamDaemon(HardwareDaemon):
         s = 'Aborting:'
         for tel in tel_list:
             s += '\n  '
-            if tel not in self.active_tel == 0:
+            if tel not in self.active_tel:
                 s += misc.ERROR('"HardwareStatusError: Camera %i is not currently exposing"' %tel)
             else:
                 s += 'Aborting exposure on camera %i' %tel
