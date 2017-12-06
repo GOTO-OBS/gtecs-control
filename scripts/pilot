@@ -290,9 +290,9 @@ class Pilot:
             self.newID, self.newPriority, self.newMinTime = check_results
 
             if self.newID != self.currentID:
-                self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
-            else:
                 self.log.info('current Job: {}, new Job: {} - NEW'.format(self.currentID, self.newID))
+            else:
+                self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
     async def hardwareChecks(self):
