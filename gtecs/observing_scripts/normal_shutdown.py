@@ -41,7 +41,7 @@ def run():
         cmd('power off cam{}'.format(tel))
 
     # Park the mount
-    md('mnt park')
+    cmd('mnt park')
 
     # give time before closing dome
     time.sleep(60)
