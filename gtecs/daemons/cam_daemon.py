@@ -434,6 +434,12 @@ class CamDaemon(HardwareDaemon):
             if tel not in params.TEL_DICT:
                 raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
 
+        # Check current status
+        for tel in self.active_tel:
+            intf, HW = params.TEL_DICT[tel]
+            if self.exposing_flag[intf][HW] == 2:
+                raise misc.HardwareStatusError('Cameras are reading out, no need to abort')
+
         # Set values
         self.get_info()
         self.active_tel = []
