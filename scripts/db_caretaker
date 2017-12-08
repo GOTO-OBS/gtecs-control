@@ -29,30 +29,38 @@ def ThereCanOnlyBeOne():
 ThereCanOnlyBeOne()
 
 while True:
-    time.sleep(600)
-    
     # prune stale pointings
     with db.open_session() as session:
+        print('Getting any expired pointings...')
         stale_pointings = db.get_stale_pointing_ids(session)
+
         if len(stale_pointings) > 0:
-            print('Marking these pointings as expired')
-            print(stale_pointings)
+            print('> Marking {} pointings as expired'.format(len(stale_pointings)))
+            start = time.time()
             db.bulk_update_pointing_status(session, stale_pointings, 'expired')
+            print('>    took {:.2f} secs'.format(time.time()-start))
+        else:
+            print('> None found')
 
     # schedule pointings for unscheduled MPs
     with db.open_session() as session:
+        print('Getting any unscheduled mpointings...')
         unscheduled_mps = session.query(db.Mpointing).filter(
             db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
 
-        if len(unscheduled_mps) == 0:
-            continue
+        if len(unscheduled_mps) > 0:
+            print('> Creating {} new pointings'.format(len(unscheduled_mps)))
+            start = time.time()
+            pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
+            pointings = [p for p in pointings if p is not None]
+            print('>    took {:.2f} secs'.format(time.time()-start))
 
-        print('creating pointings')
-        start = time.time()
-        pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
-        print('took {} secs'.format(time.time()-start))
+            print('> Inserting {} pointings into DB'.format(len(pointings)))
+            start = time.time()
+            db.insert_items(session, pointings)
+            print('>    took {:.2f} secs'.format(time.time()-start))
+        else:
+            print('> None found')
 
-        print('inserting pointings into DB')
-        start = time.time()
-        db.insert_items(session, pointings)
-        print('took {} secs'.format(time.time()-start))
+    print('~~~~~~~~~~~~~~~~~~~')
+    time.sleep(600)

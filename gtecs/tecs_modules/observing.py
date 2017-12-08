@@ -64,6 +64,36 @@ def get_cam_temps():
     return values
 
 
+def prepare_for_images():
+    """
+    Make sure the hardware is set up for taking images:
+      - ensure the exposure queue is empty
+      - ensure the filter wheels are homed
+      - ensure the cameras are at operating temperature
+    """
+
+    # Empty the exposure queue
+    if not exposure_queue_is_empty():
+        cmd('exq pause')
+        time.sleep(1)
+        cmd('exq clear')
+        while not exposure_queue_is_empty():
+            time.sleep(1)
+        cmd('exq resume')
+
+    # Home the filter wheels
+    if not filters_are_homed():
+        cmd('filt home')
+        while not filters_are_homed():
+            time.sleep(1)
+
+    # Bring the CCDs down to temperature
+    if not cameras_are_cool():
+        cmd('cam temp {}'.format(params.CCD_TEMP))
+        while not cameras_are_cool():
+            time.sleep(1)
+
+
 def set_new_focus(values):
     """
     Move each telescope to the requested focus
@@ -216,12 +246,34 @@ def last_written_image():
     return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
 
 
+def exposure_queue_is_empty():
+    """Check if the image queue is empty"""
+    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
+    with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
+        exq._pyroTimeout = params.PROXY_TIMEOUT
+        exq_info = exq.get_info()
+    return exq_info['queue_length'] == 0
+
+
 def filters_are_homed():
+    """Check if all the filter wheels are homed"""
     FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
     with Pyro4.Proxy(FILT_DAEMON_ADDRESS) as filt:
         filt._pyroTimeout = params.PROXY_TIMEOUT
         filt_info = filt.get_info()
     return all([filt_info[key] for key in filt_info if key.startswith('homed')])
+
+
+def cameras_are_cool():
+    """Check if all the cameras are below the target temperature"""
+    target_temp = params.CCD_TEMP
+    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
+    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
+        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam_info = cam.get_info()
+    return all([cam_info[key] < target_temp + 0.1
+                for key in cam_info
+                if key.startswith('ccd_temp')])
 
 
 def wait_for_exposure_queue(timeout=None):

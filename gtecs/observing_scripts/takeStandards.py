@@ -1,20 +1,23 @@
 """
-Script to take Landolt standard star observations with a range of colours and airmasses.
+takeStandards
+Script to take Landolt standard star observations
+with a range of colours and airmasses.
 """
 from __future__ import absolute_import
 from __future__ import print_function
+
 import time
 
 from astropy.time import Time
 
+from gtecs.tecs_modules import params
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.catalogs import landolt
+from gtecs.tecs_modules.astronomy import check_alt_limit
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
-                                          filters_are_homed,
+                                          prepare_for_images,
                                           wait_for_telescope)
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import astronomy as ast
+from gtecs.catalogs import landolt
 
 
 def take_image_set(expT, name):
@@ -27,13 +30,9 @@ def take_image_set(expT, name):
     time.sleep(0.1)
 
 
-if __name__ == "__main__":
-
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
+def run():
+    # make sure hardware is ready
+    prepare_for_images()
 
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
@@ -44,9 +43,7 @@ if __name__ == "__main__":
     for star in stars:
         coordinate = star.coord_now()
 
-        if ast.check_alt_limit(coordinate.ra.deg,
-                               coordinate.dec.deg,
-                               Time.now()):
+        if check_alt_limit(coordinate.ra.deg, coordinate.dec.deg, Time.now()):
             print('Star ', star, ' is below limit')
             continue
 
@@ -59,3 +56,7 @@ if __name__ == "__main__":
         take_image_set(20, name)
 
     print("Done")
+
+
+if __name__ == "__main__":
+    run()

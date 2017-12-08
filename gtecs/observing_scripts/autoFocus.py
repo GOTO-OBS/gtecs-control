@@ -1,5 +1,6 @@
 """
-Script to autofocus the telescopes.
+autoFocus [filter]
+Script to autofocus the telescopes
 
 Image quality is measured via the half-flux-diameter (HFD).
 
@@ -13,8 +14,9 @@ and hops to the best focus from there.
 """
 from __future__ import absolute_import
 from __future__ import print_function
-import argparse
+
 import time
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -25,18 +27,17 @@ from astropy.stats.sigma_clipping import sigma_clipped_stats
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.convolution import Gaussian2DKernel
 
-# for measuring HFD from sources
 import sep
 
+from gtecs.tecs_modules import params
 from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
-from gtecs.catalogs import gliese
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image, goto,
                                           get_current_focus, set_new_focus,
                                           wait_for_focuser,
-                                          filters_are_homed,
+                                          prepare_for_images,
                                           wait_for_telescope)
-from gtecs.tecs_modules import params
+from gtecs.catalogs import gliese
 
 
 def take_frame(expT, current_filter, name):
@@ -199,17 +200,7 @@ def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
                          'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-            description=__doc__,
-            formatter_class=argparse.RawDescriptionHelpFormatter
-        )
-    parser.add_argument('filter')
-    args = parser.parse_args()
-    filt = args.filter
-    if filt not in params.FILTER_LIST:
-        raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
-
+def run(filt):
     bigstep = 5000
     smallstep = 300
     expT = 30
@@ -220,11 +211,8 @@ if __name__ == "__main__":
     kwargs = {'xslice': xslice, 'yslice': yslice,
               'filter_width': 20, 'threshold': 5}
 
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
+    # make sure hardware is ready
+    prepare_for_images()
 
     print('Starting focus routine')
     star = gliese.focus_star(Time.now())
@@ -332,3 +320,15 @@ if __name__ == "__main__":
     print('HFD at best focus =\n{!r}'.format(best_focus_values))
 
     print("Done")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('filt')
+    args = parser.parse_args()
+
+    if args.filt not in params.FILTER_LIST:
+        raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
+
+    run(args.filt)

@@ -28,7 +28,8 @@ from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.tecs_modules.misc import execute_command, send_email
 from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
-from gtecs.tecs_modules.observing import filters_are_homed, check_schedule
+from gtecs.tecs_modules.observing import (filters_are_homed, cameras_are_cool,
+                                          check_schedule)
 from gtecs.tecs_modules.flags import (Conditions, Overrides)
 from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                                   MountMonitor, DomeMonitor, ExposureQueueMonitor,
@@ -172,13 +173,21 @@ class Pilot:
 
         return True
 
-    async def homeFilters(self):
+    async def prepare_for_images_async(self):
+        # Home the filter wheels
         if not filters_are_homed():
             execute_command('filt home')
-        while not filters_are_homed():
-            asyncio.sleep(1)
+            while not filters_are_homed():
+                asyncio.sleep(1)
 
-    async def runThroughJobList(self, jobList, rising=False, respect_pause=True):
+        # Bring the CCDs down to temperature
+        if not cameras_are_cool():
+            execute_command('cam temp {}'.format(params.CCD_TEMP))
+            while not cameras_are_cool():
+                asyncio.sleep(1)
+
+    async def runThroughJobList(self, jobList, rising=False, respect_pause=True,
+                                respect_sunalt = True):
         """
         Just pop jobs off a list and run them at correct sun_alt
         """
@@ -188,7 +197,10 @@ class Pilot:
                 continue
             job = jobList.pop(0)
             # wait for the right sun altitude
-            OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
+            if respect_sunalt:
+                OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
+            else:
+                OK = True
             # and go!
             if OK:
                 if self.testing:
@@ -204,7 +216,7 @@ class Pilot:
                 self.log.warn('too late to start {}'.format(job['name']))
             await asyncio.sleep(1)
 
-    async def nightMarshall(self, restart=False):
+    async def nightMarshall(self, restart=False, late=False):
         """
         The night marshall starts tasks at the right time.
 
@@ -214,14 +226,22 @@ class Pilot:
         ----------
         restart : bool
             If true, we will skip startup jobs and get straight to observing
+
+        late : bool
+            If true, we will do the startup jobs even if it's too late
         """
         # daytime jobs. Do these even in bad weather.
         if not restart:
-            await self.runThroughJobList(self.daytime_jobs, rising=False,
-                                         respect_pause=False)
+            if late:
+                await self.runThroughJobList(self.daytime_jobs, rising=False,
+                                             respect_pause=False,
+                                             respect_sunalt=False)
+            else:
+                await self.runThroughJobList(self.daytime_jobs, rising=False,
+                                             respect_pause=False)
 
-        # make sure filters are homed in case of restart
-        await self.homeFilters()
+        # make sure filters are homed and cams are cool, in case of restart
+        await self.prepare_for_images_async()
 
         # wait for the right sunalt to open dome
         await self.waitingForTheSun(0.5)
@@ -269,7 +289,10 @@ class Pilot:
             check_results = check_schedule(Time.now(), True)
             self.newID, self.newPriority, self.newMinTime = check_results
 
-            self.log.info('scheduler: current Job: {}, new Job: {}'.format(self.currentID, self.newID))
+            if self.newID != self.currentID:
+                self.log.info('current Job: {}, new Job: {} - NEW'.format(self.currentID, self.newID))
+            else:
+                self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(10)
 
     async def hardwareChecks(self):
@@ -475,6 +498,7 @@ class Pilot:
             now = Time.now()
             midnight = localMidnight(nightStarting())
             if now > midnight and sun_alt(now) > until_sun_alt:
+                self.log.info('observing completed!')
                 return
 
             # see if a new target has arrived and mark job appropriately
@@ -700,17 +724,11 @@ class Pilot:
 
         # power off
         self.log.warn('powering off hardware')
-        cmd = [os.path.join(SCRIPT_PATH, 'power_off.py')]
+        cmd = [os.path.join(SCRIPT_PATH, 'normal_shutdown.py')]
         retcode, result = await self.startScript('EON', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('EON ended abnormally')
 
-        # shutdown daemons
-        self.log.warn('stopping daemons')
-        cmd = [os.path.join(SCRIPT_PATH, 'shutdown_daemons.py')]
-        retcode, result = await self.startScript('DAE', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('DAE ended abnormally')
 
     async def open_dome(self):
         self.log.warn('opening dome')
@@ -767,19 +785,13 @@ class Pilot:
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
-        sn0 = dict(name='SN1', sunAlt=12,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_1.py')],
+        sn0 = dict(name='START', sunAlt=12,
+                   cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')],
                    protocol=SimpleProtocol)
-        sn1 = dict(name='DAE', sunAlt=10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_daemons.py')],
+        sn1 = dict(name='DARKS', sunAlt=7,
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
                    protocol=SimpleProtocol)
-        sn2 = dict(name='SN2', sunAlt=8,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_2.py')],
-                   protocol=SimpleProtocol)
-        sn3 = dict(name='SN3', sunAlt=7,
-                   cmd=[os.path.join(SCRIPT_PATH, 'start_of_night_3.py'), '3'],
-                   protocol=SimpleProtocol)
-        self.daytime_jobs = [sn0, sn1, sn2, sn3]
+        self.daytime_jobs = [sn0, sn1]
 
         sn4 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
@@ -795,8 +807,8 @@ class Pilot:
         en0 = dict(name='FLATS', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                    protocol=SimpleProtocol)
-        en1 = dict(name='POWOFF', sunAlt=0,
-                   cmd=[os.path.join(SCRIPT_PATH, 'power_off.py')],
+        en1 = dict(name='SHUTDOWN', sunAlt=0,
+                   cmd=[os.path.join(SCRIPT_PATH, 'normal_shutdown.py')],
                    protocol=SimpleProtocol)
         self.morning_jobs = [en0, en1]
 
@@ -807,6 +819,7 @@ if __name__ == "__main__":
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-t', '--test', action="store_true", default=False)
     parser.add_argument('-r', '--restart', action="store_true", default=False)
+    parser.add_argument('-l', '--late', action="store_true", default=False)
     args = parser.parse_args()
 
     loop = asyncio.get_event_loop()
@@ -821,7 +834,7 @@ if __name__ == "__main__":
         asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
-        asyncio.ensure_future(pilot.nightMarshall(args.restart)),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightMarshall(args.restart, args.late)),  # run through scheduled jobs
         asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome
     ])
 
