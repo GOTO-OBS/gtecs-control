@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 
+import sys
+
 from astropy.time import Time
 
 import gtecs.database as db
@@ -11,9 +13,17 @@ from gtecs.tecs_modules import misc
 
 t = Time.now()
 
+if len(sys.argv) > 1:
+    show_all = sys.argv[1] in ['-a', '--all']
+else:
+    show_all = False
+
 with db.open_session() as session:
     all_pointings = db.get_pointings(session)
-    print("{} points in database".format(len(all_pointings)))
+    n_all = len(all_pointings)
+    n_survey = sum([p.survey is not None for p in all_pointings])
+    print("{} points in database - {} targeted and {} survey".format(
+                                           n_all, n_all-n_survey, n_survey))
 
     running, _ = db.get_queue(session)
     if running:
@@ -22,21 +32,29 @@ with db.open_session() as session:
         print('\n')
 
     for pointing in all_pointings:
-        string = '{: <6.0f} | {: >10} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | '.format(
-                                        pointing.pointingID,
-                                        pointing.objectName,
-                                        pointing.rank,
-                                        pointing.ra, pointing.decl,
-                                        int(pointing.survey is not None))
+        if show_all or (pointing.survey is None and pointing.status != 'expired'):
+            string = '{: <6.0f} | {: >20} | {: >3.0f} | {: >6.2f} | {: >6.2f} | {} | {} |'.format(
+                                            pointing.pointingID,
+                                            pointing.objectName,
+                                            pointing.rank,
+                                            pointing.ra, pointing.decl,
+                                            int(pointing.survey is not None),
+                                            pointing.startUTC)
 
-        print(string, end='\t')
+            print(string, end=' ')
 
-        if pointing.status == 'running':
-            status = misc.ytxt('RUNNING')
-        elif pointing.status == 'completed':
-            status = misc.gtxt('completed')
-        elif pointing.status == 'pending':
-            status = misc.btxt('pending')
-        else:
-            status = pointing.status
-        print(status, end='\n')
+            if pointing.status == 'running':
+                status = misc.ytxt('RUNNING')
+            elif pointing.status == 'completed':
+                status = misc.gtxt('completed')
+            elif pointing.status == 'pending':
+                if t > Time(pointing.startUTC):
+                    status = misc.btxt('pending')
+                else:
+                    status = 'waiting'
+            else:
+                status = pointing.status
+            print(status, end='\n')
+
+    print("{} points in database - {} targeted and {} survey".format(
+                                           n_all, n_all-n_survey, n_survey))

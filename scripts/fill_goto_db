@@ -29,7 +29,7 @@ SURVEY_SETTINGS = dict(start_rank=999,
                        ToO=0,
                        num_repeats=0,
                        intervals=1440,
-                       valid_durations=1439)
+                       valid_durations=525600)
 
 EXP_SETTINGS = dict(expTime=120,
                     raoff=0.,

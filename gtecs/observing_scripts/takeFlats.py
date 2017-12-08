@@ -1,5 +1,12 @@
+"""
+takeFlats [EVE|MORN]
+Script to take flat frames in the morning or evening
+"""
 from __future__ import absolute_import
 from __future__ import print_function
+
+import sys
+import time
 
 import numpy as np
 
@@ -7,19 +14,16 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 
+from gtecs.tecs_modules import params
 from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.catalogs import flats
+from gtecs.tecs_modules.time_date import nightStarting
+from gtecs.tecs_modules.astronomy import startTime
 from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
                                           last_written_image,
-                                          filters_are_homed,
+                                          prepare_for_images,
                                           goto, random_offset,
                                           wait_for_telescope)
-import gtecs.tecs_modules.astronomy as ast
-from gtecs.tecs_modules.time_date import nightStarting
-from gtecs.tecs_modules import params
-
-import time
-import sys
+from gtecs.catalogs import flats
 
 
 def mean_sky_brightness(fnames):
@@ -37,41 +41,25 @@ def take_sky(expT, current_filter, name):
     ))
     time.sleep(0.1)
     wait_for_exposure_queue(180)
-    random_offset(10)  # make random offset to move stars
+    random_offset(60)  # make random offset to move stars
     time.sleep(0.1)
     fnames = last_written_image()
     skyMean = mean_sky_brightness(fnames)
     return skyMean
 
-if __name__ == "__main__":
 
+def run(eve, alt):
     '''run just after sunset or just after start of twilight'''
-    try:
-        assert len(sys.argv) == 2
-        assert sys.argv[1].upper() in ['EVE','MORN']
-    except:
-        print("usage: takeFlats EVE|MORN")
-        sys.exit(1)
-    if sys.argv[1].upper() == 'EVE':
-        eve = True
-        alt = -3*u.deg
-    else:
-        eve = False
-        alt = -10*u.deg
-
-    if not filters_are_homed():
-        print('homing filters')
-        time.sleep(1)
-        while not filters_are_homed():
-            time.sleep(1)
+    # make sure hardware is ready
+    prepare_for_images()
 
     print("Starting flats")
 
     # spin our heels until we reach correct sunAlt
     time_to_go = -1000*u.second
     today = nightStarting()
-    startTime = ast.startTime(today, alt, eve)
-    time_to_go = Time.now() - startTime
+    start_time = startTime(today, alt, eve)
+    time_to_go = Time.now() - start_time
     if time_to_go > 10*u.min:
         print("Too late for flats")
         sys.exit(1)
@@ -147,3 +135,20 @@ if __name__ == "__main__":
                                                                skyMean))
 
     print("Done")
+
+
+if __name__ == "__main__":
+    try:
+        assert len(sys.argv) == 2
+        assert sys.argv[1].upper() in ['EVE','MORN']
+    except:
+        print("usage: takeFlats EVE|MORN")
+        sys.exit(1)
+    if sys.argv[1].upper() == 'EVE':
+        eve = True
+        alt = -3*u.deg
+    else:
+        eve = False
+        alt = -10*u.deg
+
+    run(eve, alt)
