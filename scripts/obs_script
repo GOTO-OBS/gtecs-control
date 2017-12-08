@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+'''
+obs_script [script_name] [args]
+A script to make it easier for users to run observation scripts
+'''
+
+import os
+import sys
+import pkg_resources
+
+from gtecs.tecs_modules.misc import execute_command as cmd
+
+SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
+
+script_names = [os.path.splitext(f)[0]
+                for f in os.listdir(SCRIPT_PATH)
+                if not f.startswith('__')]
+
+script_docs = {}
+for s in script_names:
+    with open(os.path.join(SCRIPT_PATH,s+'.py')) as f:
+        lines = f.readlines()
+        script_docs[s] = (lines[1].strip(), lines[2].strip())
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print('Usage: obs_script <script name> [args]')
+        print('Valid observation scripts:')
+        for s in sorted(script_names):
+            print('  - {: <25} '.format(script_docs[s][0]), script_docs[s][1])
+    else:
+        name = sys.argv[1]
+        args = sys.argv[2:]
+        if name not in sorted(script_names):
+            print('ERROR: "{}" script not found'.format(name))
+            print('Valid observation scripts:')
+            for s in sorted(script_names):
+                    print('\t', s)
+        else:
+            cmd_str =  ' '.join((sys.executable, SCRIPT_PATH+'/'+name+'.py', *args))
+            cmd(cmd_str)
