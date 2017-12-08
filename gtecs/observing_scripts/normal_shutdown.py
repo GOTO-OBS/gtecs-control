@@ -1,5 +1,6 @@
 """
-Script to run the tasks for end of night.
+normal_shutdown
+Script to run end of night tasks
 This script should perform the following simple tasks:
     * empty the camera queues
     * abort any current exposures

@@ -1,5 +1,6 @@
 """
-Script to autofocus the telescopes.
+autoFocus [filter]
+Script to autofocus the telescopes
 
 Image quality is measured via the half-flux-diameter (HFD).
 

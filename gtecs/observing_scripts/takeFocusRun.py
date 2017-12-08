@@ -1,4 +1,5 @@
 """
+takeFocusRun [filter]
 Script to take a series of images running through focus
 
 It assumes you're already on a reasonable patch of sky and that you're
