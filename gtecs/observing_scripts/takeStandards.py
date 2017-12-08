@@ -1,5 +1,6 @@
 """
-Script to take Landolt standard star observations,
+takeStandards
+Script to take Landolt standard star observations
 with a range of colours and airmasses.
 """
 from __future__ import absolute_import

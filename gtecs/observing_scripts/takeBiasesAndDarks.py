@@ -1,5 +1,6 @@
 """
-Script to take bias and dark frames.
+takeBiasesAndDarks [nExp]
+Script to take bias and dark frames
 """
 from __future__ import absolute_import
 from __future__ import print_function

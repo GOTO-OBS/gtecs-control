@@ -1,5 +1,6 @@
 """
-Script to take flat frames in the morning or evening.
+takeFlats [EVE|MORN]
+Script to take flat frames in the morning or evening
 """
 from __future__ import absolute_import
 from __future__ import print_function

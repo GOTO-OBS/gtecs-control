@@ -1,5 +1,6 @@
 """
-Script to run startup tasks at the start of the night.
+normal_startup
+Script to run start of night tasks
 These are hardware tasks to do BEFORE the dome opens:
     * power on the hardware
     * make sure the daemons are running
