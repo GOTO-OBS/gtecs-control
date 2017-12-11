@@ -1,33 +1,23 @@
 #!/usr/bin/env python
+"""
+Daemon to control the exposure queue
+"""
 
-########################################################################
-#                            exq_daemon.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#               G-TeCS daemon to control exposure queue                #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
-import os, sys
 from collections import MutableSequence
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Exposure queue daemon class
 
 class ExqDaemon(HardwareDaemon):
     """Exposure queue hardware daemon class"""
@@ -53,7 +43,7 @@ class ExqDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -127,7 +117,7 @@ class ExqDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Exposure queue functions
     def get_info(self):
         """Return exposure queue status info"""
@@ -298,7 +288,7 @@ class ExqDaemon(HardwareDaemon):
 
         return 'Queue resumed'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Internal functions
     def _set_filter(self, filt):
         new_filt = self.current_exposure.filt
@@ -323,6 +313,7 @@ class ExqDaemon(HardwareDaemon):
             # keep ping alive
             self.time_check = time.time()
 
+
     def _take_image(self, cam):
         try:
             cam._pyroReconnect()
@@ -344,7 +335,6 @@ class ExqDaemon(HardwareDaemon):
             # keep ping alive
             self.time_check = time.time()
 
-########################################################################
 
 def start():
     '''
@@ -370,6 +360,7 @@ def start():
     # Loop has closed
     exq_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

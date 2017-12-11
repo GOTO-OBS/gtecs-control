@@ -1,27 +1,15 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                              daemons.py                              #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#      G-TeCS module containing generic daemon classes & functions     #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Generic G-TeCS daemon classes & functions
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import time
 import os
+import time
 import Pyro4
 
-# TeCS modules
 from . import logger
 from . import params
 from . import misc
 
-########################################################################
-# Super classes
 
 class BaseDaemon(object):
     """Base class for TeCS daemons.
@@ -93,8 +81,6 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
-########################################################################
-# Core Daemon control functions
 def start_daemon(daemon_ID):
     '''Start a daemon (unless it is already running)'''
     process = params.DAEMONS[daemon_ID]['PROCESS']
@@ -230,8 +216,7 @@ def restart_daemon(daemon_ID, wait_time=2):
     reply = start_daemon(daemon_ID)
     print(reply)
 
-########################################################################
-# Generic daemon function wrapper
+
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     if not misc.daemon_is_running(daemon_ID):
         raise misc.DaemonConnectionError('Daemon not running')

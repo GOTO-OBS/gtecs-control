@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# A script to allow simple adding of pointings to the scheduler database
-# MJD @ Sheffield, 2016
-
-from __future__ import print_function
+"""
+A script to allow simple adding of pointings to the scheduler database
+"""
 
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
@@ -13,7 +12,6 @@ import readline
 import getpass
 
 
-### PARSING
 def parse_ra(ra_str):
     '''
     Parse an RA string and return a float in decimal degrees, or ValueError
@@ -144,7 +142,6 @@ def parse_dec(dec_str):
     return dec_deg
 
 
-
 def get_userkey(session, username):
     try:
         user_key = db.get_userkey(session, username)
@@ -243,8 +240,6 @@ def fill_exposure_set(exposure_set):
 
     return exposure_set
 
-
-############################################
 
 if __name__ == '__main__':
 

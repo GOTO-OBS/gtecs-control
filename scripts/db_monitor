@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# A simple script to monitor what's in the GOTO database
-# MJD @ Sheffield, 2016
-
-from __future__ import print_function
+"""
+A simple script to monitor what's in the GOTO database
+"""
 
 import sys
 

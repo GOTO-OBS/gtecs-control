@@ -1,27 +1,18 @@
 #!/usr/bin/env python
+"""
+Daemon to access SiTech mount control
+"""
 
-########################################################################
-#                            mnt_daemon.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#              G-TeCS daemon to access SiTech mount control            #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import sin, cos, acos, pi, radians, degrees
 import sys
+import time
+from math import sin, cos, acos, pi, radians, degrees
 import Pyro4
 import threading
-import time
-from astropy.time import Time
+
 import astropy.units as u
+from astropy.time import Time
 from astropy.coordinates import SkyCoord
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
@@ -29,8 +20,6 @@ from gtecs.controls import mnt_control
 from gtecs.astronomy import find_ha, check_alt_limit
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Mount daemon class
 
 class MntDaemon(HardwareDaemon):
     """Mount hardware daemon class"""
@@ -85,7 +74,7 @@ class MntDaemon(HardwareDaemon):
             t2.daemon = True
             t2.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -223,7 +212,7 @@ class MntDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
@@ -535,7 +524,7 @@ class MntDaemon(HardwareDaemon):
 
         return 'New offset step set'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Internal functions
     def _get_target_distance(self):
         """Return the distance to the current target"""
@@ -559,6 +548,7 @@ class MntDaemon(HardwareDaemon):
                 return 0
             else:
                 return sep
+
 
     def _ra_check_thread(self):
         '''A thread to check the ra distance and cancel slewing when it's
@@ -597,7 +587,6 @@ class MntDaemon(HardwareDaemon):
             else:
                 time.sleep(1)
 
-########################################################################
 
 def start():
     '''
@@ -623,6 +612,7 @@ def start():
     # Loop has closed
     mnt_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

@@ -1,26 +1,23 @@
 #!/usr/bin/env python
+"""
+A script to fill G-TeCS database using GOTO-tile
+"""
 
-########################################################################
-#                             fill_goto_db                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#        G-TeCS script to fill G-TeCS database using GOTO-tile         #
-#                 Stuart Littlefair, Sheffield, 2017                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-from __future__ import print_function
-import getpass
 import sys
+import time
+import getpass
 import argparse
+
+from sqlalchemy.orm import joinedload
+
+import numpy as np
+
+import astropy.units as u
 
 import gototile
 
 from gtecs import database as db
 
-from sqlalchemy.orm import joinedload
-import time
-import numpy as np
-import astropy.units as u
 
 SURVEY_SETTINGS = dict(start_rank=999,
                        minAlt=35,

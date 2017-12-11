@@ -1,16 +1,19 @@
 #!/usr/bin/env python
-# A script to aproximate what the GOTO sentinal should be doing:
-# - Read in a LIGO GW skymap
-# - Split it up into tiles
-# - Insert those tiles into the GOTO database
+"""
+A script to approximate what the GOTO sentinel should be doing:
+ - Read in a LIGO GW skymap
+ - Split it up into tiles
+ - Insert those tiles into the GOTO database
+"""
 
-# Import
 import os
 import sys
 import time
 import argparse
-import numpy as np
 from collections import namedtuple
+
+import numpy as np
+
 from astropy import units as u
 from astropy.time import Time
 
@@ -22,6 +25,7 @@ from gototile.telescope import GOTON4, GOTON8, GOTOS4, GOTOS8
 
 from gtecs import params
 from gtecs import database as db
+
 
 DB_USER = 'goto'
 DB_PW = 'G0T0'

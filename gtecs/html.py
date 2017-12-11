@@ -1,26 +1,19 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                                html.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#    G-TeCS module containing html page functions for the scheduler    #
-#                     Martin Dyer, Sheffield, 2016                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+HTML page functions for the scheduler
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from astroplan import Observer, FixedTarget, is_observable
-from astroplan.moon import moon_illumination
-from astropy import coordinates as coord, units as u
-from astropy.time import Time
 import os
 
-# TeCS modules
+from astropy import coordinates as coord, units as u
+from astropy.time import Time
+
+from astroplan import Observer, FixedTarget, is_observable
+from astroplan.moon import moon_illumination
+
 from . import params
 from . import astronomy
 from . import database as db
+
 
 ## setup
 # common strings

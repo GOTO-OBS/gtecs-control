@@ -1,30 +1,19 @@
 #!/usr/bin/env python
+"""
+A script to provide control over fli interface daemons
+"""
 
-########################################################################
-#                                fli.py                                #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS script to provide control over fli interface daemons      #
-#                      Martin Dyer, Sheffield, 2017                    #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import readline
+import os
+import sys
 import time
+import readline
 import Pyro4
 from six.moves import input
-# TeCS modules
+
 from gtecs import misc
 from gtecs import params
 from gtecs import daemons
 
-########################################################################
-# Interactive functions
 
 def interactive():
     while True:
@@ -37,8 +26,8 @@ def interactive():
                 with misc.print_errors():
                     query(command, args)
 
+
 def query(command, args):
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -46,7 +35,6 @@ def query(command, args):
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary daemon control
     elif command == 'start':
         for daemon_ID in daemon_IDs:
@@ -90,13 +78,10 @@ def query(command, args):
             # send command
             misc.execute_command(tail_command)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
         raise misc.InputError('Unrecognized command "{}"'.format(command))
 
-########################################################################
-# Output formatting functions
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' fli [command]' + '\n' +\
@@ -113,20 +98,20 @@ def print_instructions():
     '  fli ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
     print(help_str)
 
-########################################################################
 
-daemon_IDs = []
-for daemon_ID in params.DAEMONS:
-    if daemon_ID in params.FLI_INTERFACES:
-        daemon_IDs.append(daemon_ID)
-daemon_IDs.sort()
+if __name__ == "__main__":
+    daemon_IDs = []
+    for daemon_ID in params.DAEMONS:
+        if daemon_ID in params.FLI_INTERFACES:
+            daemon_IDs.append(daemon_ID)
+    daemon_IDs.sort()
 
-if len(sys.argv) == 1:
-    print_instructions()
-else:
-    command, *args = sys.argv[1:]
-    if command == 'i':
-        interactive()
+    if len(sys.argv) == 1:
+        print_instructions()
     else:
-        with misc.print_errors():
-            query(command, args)
+        command, *args = sys.argv[1:]
+        if command == 'i':
+            interactive()
+        else:
+            with misc.print_errors():
+                query(command, args)

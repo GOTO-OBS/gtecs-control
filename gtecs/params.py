@@ -1,29 +1,21 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                               params.py                              #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#       G-TeCS module containing core controll system parameters       #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+G-TeCS core control system parameters
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-import os,sys
+import os
+import sys
 import socket
-import numpy
 import Pyro4
 import pkg_resources
 import configobj
 import validate
 
+import numpy
 
-########################################################################
+
 # Module parameters
 GTECS_VERSION = '0.2.0'
 
-########################################################################
 
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
@@ -55,9 +47,8 @@ if result != True:
     print('Config file validation failed')
     sys.exit(1)
 
-########################################################################
-# General parameters
 
+# General parameters
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
@@ -98,7 +89,7 @@ EMAIL_LIST = config['EMAIL_LIST']
 EMAIL_ADDRESS = config['EMAIL_ADDRESS'] # An example
 EMAIL_SERVER = config['EMAIL_SERVER']
 
-########################################################################
+
 # Daemon parameters
 DAEMONS = config['DAEMONS']
 for daemon_ID in DAEMONS:
@@ -117,7 +108,7 @@ for intf in FLI_INTERFACES:
     for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
         TEL_DICT[tel] = [intf, HW]
 
-########################################################################
+
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
 
@@ -169,7 +160,7 @@ HATCH_GOODDELAY = config['HATCH_GOODDELAY']
 # Diskspace - free space in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
 
-########################################################################
+
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
@@ -177,8 +168,10 @@ SITECH_HOST = config['SITECH_HOST']
 SITECH_PORT = config['SITECH_PORT']
 FREEZE_DEC = config['FREEZE_DEC']
 
+
 # Filter wheel parameters
 FILTER_LIST = config['FILTER_LIST']
+
 
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
@@ -204,14 +197,17 @@ if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
 else:
     FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
 
+
 # Exposure Queue parameters
 QUEUE_PATH = CONFIG_PATH
+
 
 # Power parameters
 POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_UNITS = config['POWER_UNITS']
 POWER_GROUPS = config['POWER_GROUPS']
+
 
 # Dome parameters
 DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
@@ -225,9 +221,11 @@ SILENCE_ALARM_IN_MANUAL_MODE = config['SILENCE_ALARM_IN_MANUAL_MODE']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
+
 # Observing parameters
 MOONDIST_LIMIT = config['MOONDIST_LIMIT']
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
+
 
 # Database parameters
 DATABASE_USER = config['DATABASE_USER']
@@ -236,6 +234,7 @@ DATABASE_HOST = config['DATABASE_HOST']
 DATABASE_NAME = config['DATABASE_NAME']
 DATABASE_LOCATION = DATABASE_USER + ':' + DATABASE_PASSWORD + '@' + DATABASE_HOST + '/' + DATABASE_NAME
 DATABASE_ECHO = config['DATABASE_ECHO']
+
 
 # Slack bot parameters
 ENABLE_SLACK = config['ENABLE_SLACK']
