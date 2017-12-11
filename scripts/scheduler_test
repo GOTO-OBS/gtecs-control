@@ -17,7 +17,7 @@ import sys
 from astropy.time import Time
 import astropy.units as u
 
-from gtecs.tecs_modules import scheduler
+from gtecs import scheduler
 
 """
 Test code: goes through a night and returns the current best job.

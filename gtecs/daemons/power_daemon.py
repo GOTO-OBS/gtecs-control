@@ -21,11 +21,11 @@ import Pyro4
 import threading
 from six.moves import range
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
 from gtecs.controls import power_control
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs.daemons import HardwareDaemon
 
 ########################################################################
 # Power daemon class

@@ -17,8 +17,8 @@ import time
 import sys
 import Pyro4
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import misc
+from gtecs import params
 
 ########################################################################
 

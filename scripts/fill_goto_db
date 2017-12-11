@@ -13,8 +13,9 @@ import getpass
 import sys
 import argparse
 
-import gtecs.database as db
 import gototile
+
+from gtecs import database as db
 
 from sqlalchemy.orm import joinedload
 import time

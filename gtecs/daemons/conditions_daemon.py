@@ -23,13 +23,13 @@ import json
 import numpy as np
 from astropy.time import Time
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import conditions
-from gtecs.tecs_modules.astronomy import sun_alt
-from gtecs.tecs_modules.observing import check_dome_closed
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs import conditions
+from gtecs.astronomy import sun_alt
+from gtecs.observing import check_dome_closed
+from gtecs.daemons import HardwareDaemon
 
 ########################################################################
 # Conditions daemon class

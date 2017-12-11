@@ -12,7 +12,7 @@ not elapsed.
 """
 from __future__ import absolute_import
 from __future__ import print_function
-from ..database import open_session, get_queue
+from .database import open_session, get_queue
 
 from astropy.time import Time
 from astropy import units as u

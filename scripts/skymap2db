@@ -20,8 +20,8 @@ from gototile.skymap import SkyMap
 from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4, GOTON8, GOTOS4, GOTOS8
 
-from gtecs.tecs_modules import params
-import gtecs.database as db
+from gtecs import params
+from gtecs import database as db
 
 DB_USER = 'goto'
 DB_PW = 'G0T0'

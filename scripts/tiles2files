@@ -19,7 +19,7 @@ from collections import namedtuple
 from astropy import units as u
 from astropy.time import Time
 
-from gtecs.tecs_modules import params
+from gtecs import params
 
 Tile = namedtuple('Tile', 'tel, ra, dec, time, dt, prob, cumprob, rank')
 

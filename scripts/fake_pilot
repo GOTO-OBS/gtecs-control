@@ -21,11 +21,11 @@ from gototile.skymap import SkyMap
 from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4
 
-from gtecs.tecs_modules import scheduler
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import astronomy
-import gtecs.database as db
+from gtecs import scheduler
+from gtecs import misc
+from gtecs import params
+from gtecs import astronomy
+from gtecs import database as db
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')

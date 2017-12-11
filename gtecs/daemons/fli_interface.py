@@ -25,10 +25,10 @@ from concurrent.futures import ThreadPoolExecutor
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
 from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.daemons import InterfaceDaemon
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs.daemons import InterfaceDaemon
 
 ########################################################################
 # FLI interface class

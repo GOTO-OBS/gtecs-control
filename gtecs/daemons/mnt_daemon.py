@@ -22,12 +22,12 @@ from astropy.time import Time
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
 from gtecs.controls import mnt_control
-from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs.astronomy import find_ha, check_alt_limit
+from gtecs.daemons import HardwareDaemon
 
 ########################################################################
 # Mount daemon class

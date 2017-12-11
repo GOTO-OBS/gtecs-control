@@ -18,8 +18,8 @@ import readline
 import time
 import Pyro4
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import misc
+from gtecs import params
 
 if __name__ == '__main__':
     if sys.argv[1] in ['start', 'shutdown', 'kill', 'ping']:

@@ -8,10 +8,9 @@ from __future__ import print_function
 import sys
 import time
 
-from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          prepare_for_images,
-                                          goto, wait_for_telescope)
+from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
+                             goto, wait_for_telescope)
 from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
                             open_session, get_pointing_by_id)
 

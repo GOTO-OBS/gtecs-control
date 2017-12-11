@@ -20,10 +20,10 @@ import Pyro4
 from six.moves import input
 from astropy.time import Time
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import daemons
-from gtecs.tecs_modules.astronomy import sun_alt
+from gtecs import misc
+from gtecs import params
+from gtecs import daemons
+from gtecs.astronomy import sun_alt
 
 ########################################################################
 # Interactive functions

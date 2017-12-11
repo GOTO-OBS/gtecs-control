@@ -20,7 +20,7 @@ import os
 # TeCS modules
 from . import params
 from . import astronomy
-from .. import database as db
+from . import database as db
 
 ## setup
 # common strings

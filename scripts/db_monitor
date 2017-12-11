@@ -8,8 +8,8 @@ import sys
 
 from astropy.time import Time
 
-import gtecs.database as db
-from gtecs.tecs_modules import misc
+from gtecs import database as db
+from gtecs import misc
 
 t = Time.now()
 

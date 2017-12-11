@@ -20,11 +20,11 @@ import threading
 import os, sys
 from collections import MutableSequence
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs.daemons import HardwareDaemon
 
 ########################################################################
 # Exposure queue daemon class
