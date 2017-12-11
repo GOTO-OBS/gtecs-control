@@ -1,14 +1,3 @@
-#!/usr/bin/env python
-
-########################################################################
-#                          scheduler_test.py                           #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#             G-TeCS test script for the scheduler system              #
-#                     Martin Dyer, Sheffield, 2016                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
 from __future__ import absolute_import
 from __future__ import print_function
 
