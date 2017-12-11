@@ -1,31 +1,19 @@
 #!/usr/bin/env python
-
-########################################################################
-#                            foc_daemon.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS meta-daemon to control FLI focusers via fli_interface     #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import *
+"""
+Daemon to control FLI focusers via fli_interface
+"""
 import sys
-import time, datetime
+import time
+import datetime
+from math import *
 import Pyro4
 import threading
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Focuser daemon class
 
 class FocDaemon(HardwareDaemon):
     """Focuser hardware daemon class"""
@@ -71,7 +59,7 @@ class FocDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -205,7 +193,7 @@ class FocDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Focuser control functions
     def get_info(self):
         """Return focuser status info"""
@@ -334,7 +322,6 @@ class FocDaemon(HardwareDaemon):
                 s += 'Homing focuser %i' %tel
         return s
 
-########################################################################
 
 def start():
     '''
@@ -360,6 +347,7 @@ def start():
     # Loop has closed
     foc_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

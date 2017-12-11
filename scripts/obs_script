@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-'''
-obs_script [script_name] [args]
+"""
 A script to make it easier for users to run observation scripts
-'''
+"""
 
 import os
 import sys

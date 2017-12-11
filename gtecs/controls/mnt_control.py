@@ -1,28 +1,21 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                          mount_control.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#         G-TeCS module containing classes to control SiTechExe        #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to control SiTechExe
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys, subprocess
-import threading
+import os
+import sys
 import time
+import subprocess
+import threading
 import serial
 import socket
 import datetime
-# TeCS modules
+
 from gtecs import params
 
-########################################################################
-# SiTech servo controller class using TCP/IP commands
+
 class SiTech:
+    """SiTech servo controller class using TCP/IP commands"""
     def __init__(self, IP_address, port):
         self.IP_address = IP_address
         self.port = port

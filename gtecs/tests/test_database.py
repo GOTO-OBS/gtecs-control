@@ -1,13 +1,16 @@
-from gtecs.database import *
-from gtecs.database import _make_random_pointing
-from astropy import units as u
-from astropy.time import Time
+"""
+Demonstrate the use of the database modules.
+Assume we start from a clean database.
+"""
+
 import time
 
-"""
-Demonstrate the use of the database modules. Assume we start from a clean
-database.
-"""
+from astropy import units as u
+from astropy.time import Time
+
+from gtecs.database import *
+from gtecs.database import _make_random_pointing
+
 
 # add a user
 with open_session() as session:

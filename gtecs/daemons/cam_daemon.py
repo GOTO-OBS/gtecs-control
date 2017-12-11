@@ -1,26 +1,17 @@
 #!/usr/bin/env python
+"""
+Daemon to control FLI cameras via fli_interface
+"""
 
-########################################################################
-#                            cam_daemon.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS meta-daemon to control FLI camerass via fli_interface     #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
 from concurrent import futures
-import os
-import sys
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
@@ -28,8 +19,6 @@ from gtecs.controls.exq_control import Exposure
 from gtecs.daemons import HardwareDaemon
 from gtecs.fits import image_location, write_fits
 
-########################################################################
-# Camera daemon class
 
 class CamDaemon(HardwareDaemon):
     """Camera hardware daemon class"""
@@ -88,7 +77,7 @@ class CamDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -292,7 +281,7 @@ class CamDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Camera control functions
     def get_info(self):
         """Return camera status info"""
@@ -492,7 +481,6 @@ class CamDaemon(HardwareDaemon):
         return s
 
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Internal functions
     def _image_fetch(self, tel):
         intf, HW = params.TEL_DICT[tel]
@@ -508,8 +496,6 @@ class CamDaemon(HardwareDaemon):
         fli._pyroRelease()
         return future_image
 
-
-########################################################################
 
 def start():
     '''
@@ -535,6 +521,7 @@ def start():
     # Loop has closed
     cam_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

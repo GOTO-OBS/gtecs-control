@@ -1,24 +1,16 @@
 #!/usr/bin/env python
+"""
+Daemon to control an AstroHaven dome
+"""
 
-########################################################################
-#                            dome_daemon.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#             G-TeCS daemon to control an AstroHaven dome              #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
-# TeCS modules
+
 from gtecs import flags
 from gtecs import logger
 from gtecs import misc
@@ -27,8 +19,6 @@ from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Dome daemon class
 
 class DomeDaemon(HardwareDaemon):
     """Dome hardware daemon class"""
@@ -78,7 +68,7 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -436,7 +426,7 @@ class DomeDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
@@ -450,6 +440,7 @@ class DomeDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
@@ -500,6 +491,7 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Opening dome'
 
+
     def close_dome(self, side='both', frac=1):
         """Close the dome"""
         # Check restrictions
@@ -542,6 +534,7 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Closing dome'
 
+
     def halt_dome(self):
         """Stop the dome moving"""
         # Check restrictions
@@ -553,7 +546,6 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Halting dome'
 
-########################################################################
 
 def start():
     '''
@@ -579,6 +571,7 @@ def start():
     # Loop has closed
     dome_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

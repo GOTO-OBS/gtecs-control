@@ -1,30 +1,19 @@
 #!/usr/bin/env python
+"""
+A script to provide control over the exq daemon
+"""
 
-########################################################################
-#                                exq.py                                #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS script to provide control over exq_daemon           #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import readline
+import os
+import sys
 import time
+import readline
 import Pyro4
 from six.moves import input, range
-# TeCS modules
+
 from gtecs import misc
 from gtecs import params
 from gtecs import daemons
 
-########################################################################
-# Interactive functions
 
 def interactive():
     while True:
@@ -37,8 +26,8 @@ def interactive():
                 with misc.print_errors():
                     query(command, args)
 
+
 def query(command, args):
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -46,7 +35,6 @@ def query(command, args):
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary daemon control
     elif command == 'start':
         reply = daemons.start_daemon(daemon_ID)
@@ -97,7 +85,6 @@ def query(command, args):
         # send command
         misc.execute_command(tail_command)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'image':
         # parse arguments
@@ -372,13 +359,10 @@ def query(command, args):
         reply = daemons.daemon_function(daemon_ID, 'clear')
         print(reply)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
         raise misc.InputError('Unrecognized command "{}"'.format(command))
 
-########################################################################
-# Output formatting functions
 
 def print_info(info):
     print('####### QUEUE INFO #######')
@@ -397,6 +381,7 @@ def print_info(info):
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
 
+
 def print_info_s(info):
     print('QUEUE: [%s]' %info['status'])
     print('  Current exposure:', end=' ')
@@ -406,6 +391,7 @@ def print_info_s(info):
     except:
         print('None')
     print('  Items in queue: %s' %info['queue_length'])
+
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
@@ -434,16 +420,16 @@ def print_instructions():
     '  exq ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
     print(help_str)
 
-########################################################################
 
-daemon_ID = os.path.basename(__file__)
+if __name__ == "__main__":
+    daemon_ID = os.path.basename(__file__)
 
-if len(sys.argv) == 1:
-    print_instructions()
-else:
-    command, *args = sys.argv[1:]
-    if command == 'i':
-        interactive()
+    if len(sys.argv) == 1:
+        print_instructions()
     else:
-        with misc.print_errors():
-            query(command, args)
+        command, *args = sys.argv[1:]
+        if command == 'i':
+            interactive()
+        else:
+            with misc.print_errors():
+                query(command, args)

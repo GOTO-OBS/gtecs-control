@@ -1,31 +1,20 @@
 #!/usr/bin/env python
+"""
+Daemon to control FLI filter wheels via fli_interface
+"""
 
-########################################################################
-#                            filt_daemon.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#   G-TeCS meta-daemon to control FLI filter wheels via fli_interface  #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import *
 import sys
-import time, datetime
+import time
+import datetime
+from math import *
 import Pyro4
 import threading
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Filter wheel daemon class
 
 class FiltDaemon(HardwareDaemon):
     """Filter wheel hardware daemon class"""
@@ -67,7 +56,7 @@ class FiltDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -193,7 +182,7 @@ class FiltDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Filter wheel control functions
     def get_info(self):
         """Return filter wheel status info"""
@@ -282,8 +271,6 @@ class FiltDaemon(HardwareDaemon):
         return s
 
 
-########################################################################
-
 def start():
     '''
     Create Pyro server, register the daemon and enter request loop
@@ -308,6 +295,7 @@ def start():
     # Loop has closed
     filt_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

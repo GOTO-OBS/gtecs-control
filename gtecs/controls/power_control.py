@@ -1,16 +1,9 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                           power_control.py                           #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#       G-TeCS module containing class to control power switches       #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to control power switches and UPSs
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-import os, sys
+import os
+import sys
 import socket
 import subprocess
 import threading
@@ -19,9 +12,9 @@ import shutil
 from six.moves import range
 from six import int2byte, byte2int, indexbytes
 
-########################################################################
-# Fake classes
+
 class FakePDU:
+    """Fake PDU power class (8 ports)"""
     def __init__(self, IP_address):
         self.unit_type = 'PDU'
         self.IP_address = IP_address
@@ -77,6 +70,7 @@ class FakePDU:
 
 
 class FakeUPS:
+    """Fake UPS power class """
     def __init__(self, IP_address):
         self.unit_type = 'UPS'
         self.IP_address = IP_address
@@ -148,10 +142,8 @@ class FakeUPS:
         self.on(outlet)
 
 
-########################################################################
-# APC PDU power class (for AP7921, 8 ports)
-
 class APCPDU:
+    """APC PDU power class (for AP7921, 8 ports)"""
     def __init__(self,IP_address):
         self.unit_type = 'PDU'
         self.IP_address = IP_address
@@ -222,10 +214,9 @@ class APCPDU:
         out = self._snmpset(oid_arr, self.commands['REBOOT'])
         return out
 
-########################################################################
-# APC UPS power class (for Smart-UPS X 3000)
 
 class APCUPS:
+    """APC UPS power class (for Smart-UPS X 3000)"""
     def __init__(self,IP_address):
         self.unit_type = 'UPS'
         self.IP_address = IP_address
@@ -343,10 +334,9 @@ class APCUPS:
         out = self._snmpset(oid_arr, self.commands['REBOOT'])
         return out
 
-########################################################################
-# Ethernet relay power class (for ETH8020, 20 ports)
 
 class ETH8020:
+    """Ethernet relay power class (for ETH8020, 20 ports)"""
     def __init__(self, IP_address, port, normally_closed=False):
         self.unit_type = 'PDU'
         self.IP_address = IP_address
@@ -423,10 +413,8 @@ class ETH8020:
         return out
 
 
-########################################################################
-# Ethernet relay power class (for ETH002, 2 ports)
-
 class ETH002:
+    """Ethernet relay power class (for ETH002, 2 ports)"""
     def __init__(self, IP_address, port, normally_closed=False):
         self.IP_address = IP_address
         self.port = port

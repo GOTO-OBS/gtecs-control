@@ -1,21 +1,14 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                               flags.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing classes to read external flag files     #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to read external flag files
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from astropy.time import Time
-import json
 import time
+import json
 import copy
 from six import iteritems
-# TeCS modules
+
+from astropy.time import Time
+
 from . import params
 from .controls.power_control import APCUPS
 

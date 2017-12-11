@@ -1,27 +1,20 @@
 #!/usr/bin/env python
-
-########################################################################
-#                               tiles2db                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#      G-TeCS script to convert GOTO-tile files to G-TeCS database     #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#                Uses functions taken from the sentinel                #
-########################################################################
-
-# Import
-from __future__ import print_function
+"""
+A script to convert GOTO-tile files to G-TeCS database
+"""
 
 import os
 import argparse
-import numpy
 from collections import namedtuple
+
+import numpy
+
 from astropy import units as u
 from astropy.time import Time
 
 from gtecs import params
 from gtecs import database as db
+
 
 Tile = namedtuple('Tile', 'tel, ra, dec, time, dt, prob, cumprob, rank')
 

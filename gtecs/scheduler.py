@@ -1,19 +1,12 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                             scheduler.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#               G-TeCS robotic queue scheduler functions               #
-#                     Martin Dyer, Sheffield, 2016                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-
-from __future__ import absolute_import
-from __future__ import print_function
+"""
+Robotic queue scheduler functions
+"""
 
 import os
 import signal
 from collections import namedtuple
 import json
+import warnings
 
 import numpy as np
 from scipy import interpolate
@@ -24,15 +17,10 @@ from astropy._erfa import ErfaWarning
 
 from astroplan import Observer
 from astroplan.constraints import _get_altaz
-
 from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
-import warnings
-warnings.simplefilter("ignore", ErfaWarning)
-
-# TeCS modules
 from . import params
 from . import misc
 from . import html
@@ -40,7 +28,10 @@ from . import astronomy
 from . import database as db
 from . import astropy_speedups
 
+
 ## Setup
+warnings.simplefilter("ignore", ErfaWarning)
+
 # define paths to directories
 queue_folder = params.QUEUE_PATH  + 'todo/'
 queue_file   = params.QUEUE_PATH  + 'queue_info'

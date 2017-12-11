@@ -1,28 +1,22 @@
 #!/usr/bin/env python
+"""
+Daemon to monitor environmental conditions
+"""
 
-########################################################################
-#                         conditions_daemon.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS daemon to monitor environmental conditions          #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
 import subprocess
 import json
+
 import numpy as np
+
 from astropy.time import Time
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
@@ -31,8 +25,6 @@ from gtecs.astronomy import sun_alt
 from gtecs.observing import check_dome_closed
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Conditions daemon class
 
 class ConditionsDaemon(HardwareDaemon):
     """Conditions monitor daemon class"""
@@ -101,7 +93,7 @@ class ConditionsDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -297,14 +289,12 @@ class ConditionsDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Conditions functions
     def get_info(self):
         """Return current conditions flags and weather info"""
         return {'flags': self.data, 'weather': self.weather}
 
-
-########################################################################
 
 def start():
     '''
@@ -330,6 +320,7 @@ def start():
     # Loop has closed
     conditions_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

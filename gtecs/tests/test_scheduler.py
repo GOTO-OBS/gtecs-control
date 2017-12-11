@@ -1,6 +1,7 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
+"""
+Test code: goes through a night and returns the current best job.
+NOTE jobs are never completed so are never removed from the queue folder.
+"""
 import sys
 
 from astropy.time import Time
@@ -8,10 +9,6 @@ import astropy.units as u
 
 from gtecs import scheduler
 
-"""
-Test code: goes through a night and returns the current best job.
-NOTE jobs are never completed so are never removed from the queue folder.
-"""
 
 write_html = 0
 if len(sys.argv) > 1:

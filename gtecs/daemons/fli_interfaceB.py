@@ -1,31 +1,19 @@
 #!/usr/bin/env python
+"""
+Clone FLI interface to allow testing on a single host
+"""
 
-########################################################################
-#                           fli_interfaceB.py                          #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#            Clone FLI interface to allow testing on one host          #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import time
 import sys
+import time
 import Pyro4
-# TeCS modules
+
 from gtecs import misc
 from gtecs import params
 
-########################################################################
 
 # Directly import a copy of the real interface daemon
 from fli_interface import FLIDaemon
 
-########################################################################
 
 def start():
     '''
@@ -54,6 +42,7 @@ def start():
     # Loop has closed
     fli_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

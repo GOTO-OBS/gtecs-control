@@ -1,34 +1,23 @@
 #!/usr/bin/env python
+"""
+Daemon to control APC PDUs and UPSs
+"""
 
-########################################################################
-#                            power_daemon.py                           #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#         G-TeCS daemon to control APC power distribution unit         #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import *
-import time, datetime
-import sys
 import os
+import sys
+import time
+import datetime
+from math import *
 import Pyro4
 import threading
 from six.moves import range
-# TeCS modules
+
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls import power_control
 from gtecs.daemons import HardwareDaemon
 
-########################################################################
-# Power daemon class
 
 class PowerDaemon(HardwareDaemon):
     """Power hardware daemon class"""
@@ -63,7 +52,7 @@ class PowerDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -253,7 +242,7 @@ class PowerDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Power control functions
     def get_info(self):
         """Return power status info"""
@@ -331,7 +320,7 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 1
         return 'Rebooting power'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Internal functions
     def _parse_input(self, outlet_list, unit=''):
         if unit in params.POWER_UNITS:
@@ -358,6 +347,7 @@ class PowerDaemon(HardwareDaemon):
                 units += [unit]*len(valid_outlets)
         return outlets, units
 
+
     def _units_from_names(self, name_list):
         unit_list = []
         for name in name_list:
@@ -375,6 +365,7 @@ class PowerDaemon(HardwareDaemon):
                     unit_list.append(unit)
         return unit_list
 
+
     def _get_valid_outlets(self, unit, outlet_list):
         """Check outlets are valid and convert any names to numbers"""
         names = params.POWER_UNITS[unit]['NAMES']
@@ -391,7 +382,6 @@ class PowerDaemon(HardwareDaemon):
                 valid_list.append(names.index(outlet) + 1)
         return valid_list
 
-########################################################################
 
 def start():
     '''
@@ -417,6 +407,7 @@ def start():
     # Loop has closed
     power_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

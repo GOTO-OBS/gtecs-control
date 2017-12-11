@@ -1,21 +1,11 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                         hardware_wrappers.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#         G-TeCS module containing hardware wrappers for pilot         #
-#                     Stuart Littlefair, Sheffield, 2016               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
+"""
+Hardware wrappers for the pilot
+"""
 
-#  Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
 import Pyro4
 import time
 import abc
 
-# TeCS modules
 from . import params
 from .misc import execute_command
 

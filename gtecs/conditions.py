@@ -1,20 +1,14 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                            conditions.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                  G-TeCS conditions monitor functions                 #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Conditions monitor functions
+"""
 
 import os
+import time
 import subprocess
 import json
-import time
 
 from astropy.time import Time
 
-# TeCS modules
 from . import params
 from . import misc
 from .controls.power_control import APCUPS, FakeUPS

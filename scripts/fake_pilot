@@ -1,20 +1,23 @@
 #!/usr/bin/env python
-# a fake pilot to test the scheduler
+"""
+A fake pilot to test the scheduler
+"""
 
 import os
-import signal
 import time
+import signal
 import warnings
 import traceback
 import math
-
 import george
+
 import numpy as np
 from scipy import stats
 
 from astropy.time import Time, TimeDelta
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+
 import astroplan
 
 from gototile.skymap import SkyMap
@@ -26,6 +29,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs import astronomy
 from gtecs import database as db
+
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')

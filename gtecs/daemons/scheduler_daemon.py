@@ -1,24 +1,13 @@
 #!/usr/bin/env python
+"""
+Daemon to allow remote computation of next observation
+"""
 
-########################################################################
-#                          scheduler_daemon.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS daemon to allow remote computation of next observation    #
-#                    Stu Littlefair, Sheffield, 2017                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import time
 import sys
+import time
 import Pyro4
 import datetime
 
-# TeCS modules
 from gtecs import misc
 from gtecs import params
 from gtecs import scheduler
@@ -26,13 +15,11 @@ from gtecs.daemons import InterfaceDaemon
 
 
 class SchedulerDaemon(InterfaceDaemon):
-    """
-    Scheduler daemon.
+    """Scheduler interface daemon class"""
 
-    Contains a single function check_queue, which returns the next job.
-    """
     def __init__(self):
         InterfaceDaemon.__init__(self, 'scheduler')
+
 
     def check_queue(self, *args):
         next_pointing = scheduler.check_queue(*args)
@@ -41,6 +28,7 @@ class SchedulerDaemon(InterfaceDaemon):
         else:
             self.logfile.info('Scheduler returns: None')
         return next_pointing
+
 
     def get_info(self, *args):
         info = {}
@@ -55,6 +43,7 @@ class SchedulerDaemon(InterfaceDaemon):
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
         return info
+
 
 def start():
     '''
@@ -80,6 +69,7 @@ def start():
     # Loop has closed
     scheduler_daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
 
 if __name__ == "__main__":
     start()

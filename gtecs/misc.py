@@ -1,25 +1,18 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                                misc.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#   G-TeCS module containing common functions used by TeCS processes   #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Miscellaneous common functions
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import six
+import os
+import sys
+import time
 import abc
 import signal
+import six
 if six.PY2:
     from commands import getoutput
 else:
     from subprocess import getoutput
-import time
+from six.moves import range
 import Pyro4
 import subprocess
 import serial
@@ -27,13 +20,10 @@ import re
 import smtplib
 from contextlib import contextmanager
 
-# TeCS modules
 from . import params
 from . import flags
-from six.moves import range
 
-########################################################################
-## Command functions
+
 def get_hostname():
     '''Get the hostname of this machine'''
     if 'HOSTNAME' in os.environ:
@@ -41,6 +31,7 @@ def get_hostname():
     else:
         tmp = getoutput('hostname')
         return tmp.strip()
+
 
 def get_process_ID(process_name, host):
     '''Retrieve ID numbers of python processes with specified name'''
@@ -62,6 +53,7 @@ def get_process_ID(process_name, host):
             process_ID.append(line.split()[1])
 
     return process_ID
+
 
 def cmd_timeout(command, timeout, bufsize=-1):
     """
@@ -92,6 +84,7 @@ def cmd_timeout(command, timeout, bufsize=-1):
     returncode = p.returncode
     return out #(returncode, err, out)
 
+
 def kill_processes(process, host):
     '''Kill any specified processes'''
     local_host = get_hostname()
@@ -105,6 +98,7 @@ def kill_processes(process, host):
         for process_ID in process_ID_list:
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
             print('Killed remote process', process_ID)
+
 
 def python_command(filename, command, host='localhost',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -122,6 +116,7 @@ def python_command(filename, command, host='localhost',
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         return ''
 
+
 def execute_command(cmd):
     print(cmd)
     p = subprocess.Popen(cmd, shell=True, close_fds=True)
@@ -135,6 +130,7 @@ def execute_command(cmd):
            pass
         p.wait()
 
+
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
     ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
@@ -147,12 +143,14 @@ def ping_host(hostname,count=1,ttl=1):
             break
     return packets_received
 
+
 def check_hosts(hostlist):
     '''Ping list of hosts until one responds or the list is exhausted'''
     for hostname in hostlist:
         if ping_host(hostname) > 0:
             return 0 # success
     return 1 # failure
+
 
 def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
     '''Send a message to a serial port and try to read it back'''
@@ -167,10 +165,12 @@ def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
     s.close()
     return 1   # failure
 
+
 def signal_handler(signal, frame):
     '''Trap ctrl-c and exit cleanly'''
     print('...ctrl+c detected - closing...')
     sys.exit(0)
+
 
 class neatCloser:
     """
@@ -209,6 +209,7 @@ class neatCloser:
         """
         return
 
+
 def daemon_is_running(daemon_ID):
     '''Check if a daemon process is running.'''
     if daemon_ID in params.DAEMONS:
@@ -225,6 +226,7 @@ def daemon_is_running(daemon_ID):
     else:
         error_str = 'Multiple instances of {} detected on {}, PID {}'.format(process, host, process_ID)
         raise MultipleDaemonError(error_str)
+
 
 def daemon_is_alive(daemon_ID):
     '''Check if a daemon is alive and responding to pings.'''
@@ -244,6 +246,7 @@ def daemon_is_alive(daemon_ID):
     except:
         return False
 
+
 def dependencies_are_alive(daemon_ID):
     '''Check if a given daemon's dependencies are alive and responding to pings.'''
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
@@ -259,6 +262,7 @@ def dependencies_are_alive(daemon_ID):
             return True
     else:
         return True
+
 
 def there_can_only_be_one(daemon_ID):
     '''Ensure the current daemon script isn't already running.
@@ -288,6 +292,7 @@ def there_can_only_be_one(daemon_ID):
 
     return True
 
+
 def find_interface_ID(hostname):
     '''Find what interface should be running on a given host.
 
@@ -302,46 +307,55 @@ def find_interface_ID(hostname):
             return intf
     raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
-########################################################################
-## Text formatting functions
+
 def rtxt(text):
     if params.FANCY_OUTPUT:
         return '\033[31;1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def gtxt(text):
     if params.FANCY_OUTPUT:
         return '\033[32;1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def ytxt(text):
     if params.FANCY_OUTPUT:
         return '\033[33;1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def btxt(text):
     if params.FANCY_OUTPUT:
         return '\033[34;1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def ptxt(text):
     if params.FANCY_OUTPUT:
         return '\033[35;1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def bold(text):
     if params.FANCY_OUTPUT:
         return '\033[1m' + str(text) + '\033[0m'
     else:
         return text
+
+
 def undl(text):
     if params.FANCY_OUTPUT:
         return '\033[4m' + str(text) + '\033[0m'
     else:
         return text
 
-########################################################################
-# Errors and exceptions
 
 class DaemonConnectionError(Exception):
     '''To be used when a command to a daemon fails.
@@ -393,13 +407,12 @@ def print_errors():
         pass
 
 
-########################################################################
-# Misc functions
 def adz(num):
     num = repr(num)
     if len(num) == 1:
         num = '0' + num
     return num
+
 
 def valid_ints(array, allowed):
     valid = []
@@ -415,6 +428,7 @@ def valid_ints(array, allowed):
     valid.sort()
     return valid
 
+
 def is_num(value):
     try:
         float(value)
@@ -422,10 +436,12 @@ def is_num(value):
     except ValueError:
         return False
 
+
 def remove_html_tags(data):
     '''Remove html tags from a given line'''
     p = re.compile(r'<.*?>')
     return p.sub('', data).strip()
+
 
 def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     to_address = ', '.join(recipients)

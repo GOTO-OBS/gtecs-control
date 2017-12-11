@@ -1,11 +1,3 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                          astropy_speedups.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                 G-TeCS module containing astropy fudge s             #
-#                   Stuart Littlefair, Sheffield, 2016                 #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
 """
 Contains some faster coordinate transformations than the ones currently used in astropy.
 
@@ -16,8 +8,7 @@ master at some point. If this happens, this module can be removed.
 Simply import into code to experience the speedups; the astropy coordinate transforms are
 overwritten on modeul import.
 """
-from __future__ import (absolute_import, unicode_literals, division,
-                        print_function)
+
 import numpy as np
 
 from astropy.time import Time

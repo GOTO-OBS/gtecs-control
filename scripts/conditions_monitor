@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-# GOTO conditions monitor
-# This version is a stop-gap for testing prior to installation of the GOTO
-# Vaisala weather station.
-# vsd @ING 27-Mar-2017
+"""
+GOTO conditions monitor
+This version is a stop-gap for testing prior to installation of the GOTO
+Vaisala weather station.
+"""
 
 import os
 import sys

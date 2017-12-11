@@ -1,25 +1,16 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                             astronomy.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#             G-TeCS module containing observing utilities             #
-#                     Stuart Littlefair, Sheffield, 2016               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
+"""
+Observing utilities
+"""
 
-#  Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
+import os
 import time
 import Pyro4
 import glob
-import os
+
 import numpy as np
 
 from astropy.time import Time
 
-# TeCS modules
 from . import params
 from .time_date import nightStarting
 from .astronomy import tel_str, check_alt_limit
@@ -228,7 +219,6 @@ def random_offset(offset_size):
     time.sleep(2)
 
 
-# utility functions for taking images
 def last_written_image():
     """
     Returns the last written image files

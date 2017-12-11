@@ -1,37 +1,30 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                           dome_control.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing classes to control telescope domes      #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to control telescope domes and dehumidifiers
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys, subprocess
+import os
+import sys
+import time
+import subprocess
 import six
 if six.PY2:
     from commands import getoutput
 else:
     from subprocess import getoutput
-import time
 import serial
 import json
 import threading
 from six.moves import map
 from six.moves import range
-# TeCS modules
+
 from gtecs import flags
 from gtecs import params
 from gtecs.conditions import get_roomalert
 from gtecs.controls.power_control import ETH002
 
-########################################################################
-# Fake AstroHaven dome class
+
 class FakeDome:
+    """Fake AstroHaven dome class"""
     def __init__(self):
         self.fake = True
         self.output_thread_running = False
@@ -192,9 +185,8 @@ class FakeDome:
         return
 
 
-########################################################################
-# New AstroHaven dome class (based on Warwick 1m control)
 class AstroHavenDome:
+    """New AstroHaven dome class (based on Warwick 1m control)"""
     def __init__(self, serial_port='/dev/ttyS0', stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
@@ -554,9 +546,8 @@ class AstroHavenDome:
         return
 
 
-########################################################################
-# AstroHaven dome class (based on KNU SLODAR dome control)
 class OldAstroHavenDome:
+    """AstroHaven dome class (based on KNU SLODAR dome control)"""
     def __init__(self,serial_port='/dev/ttyS1',stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
@@ -675,9 +666,8 @@ class OldAstroHavenDome:
             time.sleep(5)
 
 
-########################################################################
-# Fake dehumidifier class
 class FakeDehumidifier:
+    """Fake dehumidifier class"""
     def __init__(self):
         self._status = '0'
 
@@ -696,9 +686,8 @@ class FakeDehumidifier:
         return max([dome_humidity, pier_humidity])
 
 
-########################################################################
-# Dehumidifier class (using a ETH002 relay)
 class Dehumidifier:
+    """Dehumidifier class (using a ETH002 relay)"""
     def __init__(self, IP_address, port):
         self.IP_address = IP_address
         self.port = port
@@ -717,22 +706,3 @@ class Dehumidifier:
         dome_humidity = get_roomalert('dome')['int_humidity']
         pier_humidity = get_roomalert('pier')['int_humidity']
         return max([dome_humidity, pier_humidity])
-
-
-########################################################################
-# Direct control
-if __name__ == '__main__':
-    dome = AstroHavenDome(params.DOME_LOCATION)
-    try:
-        if sys.argv[1] == 'open':
-            dome.open_full()
-        elif sys.argv[1] == 'close':
-            dome.close_full()
-        elif sys.argv[1] == 'status':
-            print(dome.status())
-        elif sys.argv[1] == 'alarm':
-            dome.sound_alarm()
-        else:
-            print('Usage: python dome_control.py status/open/close/alarm')
-    except:
-        print('Usage: python dome_control.py status/open/close/alarm')

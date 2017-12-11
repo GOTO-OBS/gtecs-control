@@ -1,31 +1,21 @@
 #!/usr/bin/env python
+"""
+A script to provide control over the scheduler daemon
+"""
 
-########################################################################
-#                             scheduler.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-# G-TeCS script to provide control over the scheduler interface daemon #
-#                      Martin Dyer, Sheffield, 2017                    #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import readline
+import os
+import sys
 import time
+import readline
 import Pyro4
 from six.moves import input
+
 from astropy.time import Time
-# TeCS modules
+
 from gtecs import misc
 from gtecs import params
 from gtecs import daemons
 
-########################################################################
-# Interactive functions
 
 def interactive():
     while True:
@@ -38,8 +28,8 @@ def interactive():
                 with misc.print_errors():
                     query(command, args)
 
+
 def query(command, args):
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -47,7 +37,6 @@ def query(command, args):
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary daemon control
     elif command == 'start':
         reply = daemons.start_daemon(daemon_ID)
@@ -98,13 +87,10 @@ def query(command, args):
         # send command
         misc.execute_command(tail_command)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
         raise misc.InputError('Unrecognized command "{}"'.format(command))
 
-########################################################################
-# Output formatting functions
 
 def print_info(info):
     print('####### SCHEDULER INFO ########')
@@ -146,6 +132,7 @@ def print_info(info):
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
 
+
 def print_info_s(info):
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
@@ -155,6 +142,7 @@ def print_info_s(info):
         print('  ID: %i (Priority %.3f, MinTime %.1fs)' %(new_id,new_priority,new_mintime))
     else:
         print('  ID: None (Priority: None, MinTime: None)')
+
 
 def print_instructions():
     help_str = misc.bold('Usage:') + ' scheduler [command]' + '\n' +\
@@ -172,16 +160,16 @@ def print_instructions():
     '  scheduler ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
     print(help_str)
 
-########################################################################
 
-daemon_ID = os.path.basename(__file__)
+if __name__ == "__main__":
+    daemon_ID = os.path.basename(__file__)
 
-if len(sys.argv) == 1:
-    print_instructions()
-else:
-    command, *args = sys.argv[1:]
-    if command == 'i':
-        interactive()
+    if len(sys.argv) == 1:
+        print_instructions()
     else:
-        with misc.print_errors():
-            query(command, args)
+        command, *args = sys.argv[1:]
+        if command == 'i':
+            interactive()
+        else:
+            with misc.print_errors():
+                query(command, args)

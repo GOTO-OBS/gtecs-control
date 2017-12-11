@@ -1,26 +1,20 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                                fits.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing functions to write FITS image files     #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Functions to write FITS image files
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-import numpy
+import os
+import sys
 import math
 import datetime
 import Pyro4
-import os
-import sys
+
+import numpy
+
 from astropy.time import Time
 from astropy.coordinates import Angle
 import astropy.io.fits as pyfits
 import astropy.units as u
-# TeCS modules
+
 from . import params
 from . import misc
 from . import astronomy
