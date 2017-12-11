@@ -13,8 +13,8 @@ import time
 import os, sys
 from collections import MutableSequence
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import misc
+from gtecs import params
 
 ########################################################################
 # Exposure class

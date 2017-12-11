@@ -24,9 +24,9 @@ import threading
 from six.moves import map
 from six.moves import range
 # TeCS modules
-from gtecs.tecs_modules import flags
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.conditions import get_roomalert
+from gtecs import flags
+from gtecs import params
+from gtecs.conditions import get_roomalert
 from gtecs.controls.power_control import ETH002
 
 ########################################################################

@@ -7,8 +7,8 @@ from __future__ import print_function
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
 
-import gtecs.database as db
-from gtecs.tecs_modules import misc
+from gtecs import database as db
+from gtecs import misc
 import readline
 import getpass
 

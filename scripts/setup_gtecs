@@ -17,7 +17,7 @@ import shutil
 import pkg_resources
 
 
-from gtecs.tecs_modules import params
+from gtecs import params
 
 # find package resources
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')

@@ -37,7 +37,7 @@ from . import params
 from . import misc
 from . import html
 from . import astronomy
-from .. import database as db
+from . import database as db
 from . import astropy_speedups
 
 ## Setup

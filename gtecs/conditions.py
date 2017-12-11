@@ -17,7 +17,7 @@ from astropy.time import Time
 # TeCS modules
 from . import params
 from . import misc
-from ..controls.power_control import APCUPS, FakeUPS
+from .controls.power_control import APCUPS, FakeUPS
 
 
 def curl_data_from_url(url, outfile, encoding=None):

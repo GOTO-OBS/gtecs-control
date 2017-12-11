@@ -2,7 +2,7 @@
 
 import json
 
-from gtecs.tecs_modules import params
+from gtecs import params
 
 username = input('Please enter your name for the record: ')
 if len(username) == 0:

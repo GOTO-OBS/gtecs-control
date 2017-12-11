@@ -14,8 +14,8 @@ from __future__ import print_function
 
 import time
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs import params
+from gtecs.misc import execute_command as cmd
 
 
 def run():

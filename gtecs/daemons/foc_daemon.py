@@ -19,10 +19,10 @@ import time, datetime
 import Pyro4
 import threading
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.daemons import HardwareDaemon
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs.daemons import HardwareDaemon
 
 ########################################################################
 # Focuser daemon class

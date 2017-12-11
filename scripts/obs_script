@@ -8,7 +8,7 @@ import os
 import sys
 import pkg_resources
 
-from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.misc import execute_command as cmd
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 

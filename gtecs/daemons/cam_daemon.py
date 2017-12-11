@@ -21,12 +21,12 @@ from concurrent import futures
 import os
 import sys
 # TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
 from gtecs.controls.exq_control import Exposure
-from gtecs.tecs_modules.daemons import HardwareDaemon
-from gtecs.tecs_modules.fits import image_location, write_fits
+from gtecs.daemons import HardwareDaemon
+from gtecs.fits import image_location, write_fits
 
 ########################################################################
 # Camera daemon class

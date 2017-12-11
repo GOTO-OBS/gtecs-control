@@ -18,7 +18,7 @@ import serial
 import socket
 import datetime
 # TeCS modules
-from gtecs.tecs_modules import params
+from gtecs import params
 
 ########################################################################
 # SiTech servo controller class using TCP/IP commands

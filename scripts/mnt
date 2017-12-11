@@ -22,9 +22,9 @@ from astropy.coordinates import Angle, SkyCoord, get_body
 import astropy.units as u
 from six.moves import input
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import daemons
+from gtecs import misc
+from gtecs import params
+from gtecs import daemons
 
 ########################################################################
 # Interactive functions

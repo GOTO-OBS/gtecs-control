@@ -10,13 +10,11 @@ import time
 
 from astropy.time import Time
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.astronomy import check_alt_limit
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          last_written_image, goto,
-                                          prepare_for_images,
-                                          wait_for_telescope)
+from gtecs import params
+from gtecs.misc import execute_command as cmd
+from gtecs.astronomy import check_alt_limit
+from gtecs.observing import (wait_for_exposure_queue, last_written_image,
+                             goto, prepare_for_images, wait_for_telescope)
 from gtecs.catalogs import landolt
 
 

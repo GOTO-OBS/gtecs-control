@@ -19,10 +19,10 @@ import Pyro4
 import datetime
 
 # TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import scheduler
-from gtecs.tecs_modules.daemons import InterfaceDaemon
+from gtecs import misc
+from gtecs import params
+from gtecs import scheduler
+from gtecs.daemons import InterfaceDaemon
 
 
 class SchedulerDaemon(InterfaceDaemon):

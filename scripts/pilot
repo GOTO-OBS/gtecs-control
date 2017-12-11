@@ -19,21 +19,20 @@ import time
 from astropy.time import Time
 from astropy import units as u
 
-from gtecs.tecs_modules.asyncio_protocols import SimpleProtocol
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.time_date import nightStarting
-from gtecs.tecs_modules.slack import send_slack_msg
+from gtecs.asyncio_protocols import SimpleProtocol
+from gtecs import logger
+from gtecs import params
+from gtecs.time_date import nightStarting
+from gtecs.slack import send_slack_msg
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
-from gtecs.tecs_modules.misc import execute_command, send_email
-from gtecs.tecs_modules.astronomy import sun_alt, startTime, localMidnight
-from gtecs.tecs_modules.observing import (filters_are_homed, cameras_are_cool,
-                                          check_schedule)
-from gtecs.tecs_modules.flags import (Conditions, Overrides)
-from gtecs.tecs_modules.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
-                                                  MountMonitor, DomeMonitor, ExposureQueueMonitor,
-                                                  FocuserMonitor)
+from gtecs.misc import execute_command, send_email
+from gtecs.astronomy import sun_alt, startTime, localMidnight
+from gtecs.observing import filters_are_homed, cameras_are_cool, check_schedule
+from gtecs.flags import Conditions, Overrides
+from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
+                                     MountMonitor, DomeMonitor,
+                                     ExposureQueueMonitor, FocuserMonitor)
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 

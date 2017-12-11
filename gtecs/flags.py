@@ -17,7 +17,7 @@ import copy
 from six import iteritems
 # TeCS modules
 from . import params
-from ..controls.power_control import APCUPS
+from .controls.power_control import APCUPS
 
 
 def load_json(fname):
