@@ -45,39 +45,43 @@ class FLIDaemon(InterfaceDaemon):
         self.cams = []
         self.focs = []
         self.filts = []
+        missing_hardware = []
         for HW in range(len(params.FLI_INTERFACES[self.intf]['TELS'])):
             # cameras
             cam_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['cam'][HW]
             cam = USBCamera.locate_device(cam_serial)
-            if cam == None:
-                if params.USE_FAKE_FLI:
+            if cam == None and params.USE_FAKE_FLI:
                     cam = FakeCamera('fake','Fake-Cam')
-                else:
-                    raise ValueError('FLI hardware not found')
-            self.cams.append(cam)
-            self.logfile.info('Connected to Camera {}: serial "{}"'.format(HW, cam.serial_number))
+            if cam != None:
+                self.cams.append(cam)
+                self.logfile.info('Connected to Camera {}: serial "{}"'.format(HW, cam.serial_number))
+            else:
+                missing_hardware.append('Camera {}: {}'.format(HW, cam_serial))
 
             # focusers
             foc_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['foc'][HW]
             foc = USBFocuser.locate_device(foc_serial)
-            if foc == None:
-                if params.USE_FAKE_FLI:
+            if foc == None and params.USE_FAKE_FLI:
                     foc = FakeFocuser('fake','Fake-Foc')
-                else:
-                    raise ValueError('FLI hardware not found')
-            self.focs.append(foc)
-            self.logfile.info('Connected to Focuser {}: serial "{}"'.format(HW, foc.serial_number))
+            if cam != None:
+                self.focs.append(foc)
+                self.logfile.info('Connected to Focuser {}: serial "{}"'.format(HW, foc.serial_number))
+            else:
+                missing_hardware.append('Focuser {}: {}'.format(HW, foc_serial))
 
             # filter wheels
             filt_serial = params.FLI_INTERFACES[self.intf]['SERIALS']['filt'][HW]
             filt = USBFilterWheel.locate_device(filt_serial)
-            if filt == None:
-                if params.USE_FAKE_FLI:
+            if filt == None and params.USE_FAKE_FLI:
                     filt = FakeFilterWheel('fake','Fake-Filt')
-                else:
-                    raise ValueError('FLI hardware not found')
-            self.filts.append(filt)
-            self.logfile.info('Connected to Filter Wheel {}: serial "{}"'.format(HW, filt.serial_number))
+            if filt != None:
+                self.filts.append(filt)
+                self.logfile.info('Connected to Filter Wheel {}: serial "{}"'.format(HW, filt.serial_number))
+            else:
+                missing_hardware.append('Filter Wheel {}: {}'.format(HW, filt_serial))
+
+        if len(missing_hardware) > 0:
+            raise ValueError('FLI hardware not found: {!r}'.format(missing_hardware))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser control functions
