@@ -7,6 +7,8 @@ if len(sys.argv) > 1:
 else:
     repo = '~/g-tecs'
 
+repo = os.path.expanduser(repo)
+
 if not os.path.exists(repo):
     print('ERROR: Repository "{}" does not exist'.format(repo))
     sys.exit()
