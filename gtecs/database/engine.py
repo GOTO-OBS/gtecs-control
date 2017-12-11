@@ -8,7 +8,8 @@ from gtecs.tecs_modules import params
 # TODO: build name from params
 
 engine_string = 'mysql+pymysql://' + str(params.DATABASE_LOCATION)
-engine = create_engine(engine_string, echo=params.DATABASE_ECHO)
+engine = create_engine(engine_string, echo=params.DATABASE_ECHO,
+                       pool_pre_ping=True) # needs sqlalchemy >= 1.2
 
 
 @contextmanager
