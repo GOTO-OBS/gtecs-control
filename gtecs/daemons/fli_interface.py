@@ -244,9 +244,8 @@ class FLIDaemon(InterfaceDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     # find which interface this is
     hostname = socket.gethostname()
 

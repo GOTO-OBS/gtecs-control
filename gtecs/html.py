@@ -63,7 +63,7 @@ def import_queue_file():
 
 
 def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
-    '''Write flag file for a given pointing'''
+    """Write flag file for a given pointing"""
     pointingID, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
     flag_filename = html_folder + 'ID_{}_flags.html'.format(pointingID)
 
@@ -127,7 +127,7 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
 
 
 def write_exp_file(pointingID, dbExps):
-    '''Write exposure files for a pointing'''
+    """Write exposure files for a pointing"""
     exp_filename = html_folder + 'ID_{}_exp.html'.format(pointingID)
 
     # unlike the flags, exposure info dosn't change
@@ -164,7 +164,7 @@ def write_exp_file(pointingID, dbExps):
 
 
 def write_queue_page():
-    '''Write the GOTO queue page'''
+    """Write the GOTO queue page"""
     # load any needed infomation saved by the scheduler
     time, all_constraint_names, pointing_list = import_queue_file()
 

@@ -324,9 +324,8 @@ class FocDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['foc']['HOST']
     port = params.DAEMONS['foc']['PORT']
 

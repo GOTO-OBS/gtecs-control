@@ -595,10 +595,9 @@ class Pilot:
         factory = functools.partial(protocol, name, self.runningScriptResult,
                                     'pilot')
         loop = asyncio.get_event_loop()
-        '''
-        create the process coroutine which will return
-        a 'transport' and 'protocol' when scheduled
-        '''
+
+        # create the process coroutine which will return
+        # a 'transport' and 'protocol' when scheduled
         proc = loop.subprocess_exec(
             factory,
             sys.executable, '-u',  # sys.executable is Python, '-u' to flush stdout

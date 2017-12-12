@@ -297,9 +297,8 @@ class ConditionsDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['conditions']['HOST']
     port = params.DAEMONS['conditions']['PORT']
 

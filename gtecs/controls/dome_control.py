@@ -365,8 +365,8 @@ class AstroHavenDome:
             return
 
     def _read_status(self):
-        '''Check the dome status
-        reported by both the dome heartbeat and the arduino'''
+        """Check the dome status
+        reported by both the dome heartbeat and the arduino"""
 
         # check heartbeat
         self._read_heartbeat()
@@ -479,11 +479,11 @@ class AstroHavenDome:
         self.timeout = 40.
 
     def halt(self):
-        '''To stop the output thread'''
+        """To stop the output thread"""
         self.output_thread_running = 0
 
     def _move_dome(self, side, command, frac, timeout=40.):
-        #'''Internal (blocking) function to keep moving dome until it reaches its limit'''
+        #"""Internal (blocking) function to keep moving dome until it reaches its limit"""
         self.side = side
         self.frac = frac
         self.command = command
@@ -513,7 +513,7 @@ class AstroHavenDome:
         return
 
     def sound_alarm(self,duration=3,sleep=True):
-        '''Sound the dome alarm using the Arduino
+        """Sound the dome alarm using the Arduino
 
         duration : int [0-9]
             The time to sound the alarm for (seconds)
@@ -523,7 +523,7 @@ class AstroHavenDome:
             Whether to sleep for the duration of the alarm
             or return immediately
             default = True
-        '''
+        """
         loc = params.ARDUINO_LOCATION
         overrides = flags.Overrides()
         if (params.SILENCE_ALARM_IN_MANUAL_MODE
@@ -553,7 +553,7 @@ class OldAstroHavenDome:
         self.fake = False
 
     def _move_dome(self,command,timeout=40.):
-        '''Internal (blocking) function to keep moving dome until it reaches its limit'''
+        """Internal (blocking) function to keep moving dome until it reaches its limit"""
         received = ''
         stop_signal = self.stop_length * self.limit_code[command]
         print('Expecting stop on',stop_signal)
@@ -573,7 +573,7 @@ class OldAstroHavenDome:
             time.sleep(0.1)
 
     def _move_dome_steps(self,command,steps):
-        '''Internal (blocking) function to move dome a fixed number of (stop-start) steps'''
+        """Internal (blocking) function to move dome a fixed number of (stop-start) steps"""
         received = ''
         for i in range(steps):
             self.dome_port.write(move_code[command])
@@ -585,7 +585,7 @@ class OldAstroHavenDome:
         return received
 
     def status(self):
-        '''Check the status as reported by the arduino'''
+        """Check the status as reported by the arduino"""
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
         try:
@@ -653,7 +653,7 @@ class OldAstroHavenDome:
         return closeS.strip()
 
     def sound_alarm(self,sleep=True):
-        '''Sound the dome alarm using the arduino'''
+        """Sound the dome alarm using the arduino"""
         curl = subprocess.getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)

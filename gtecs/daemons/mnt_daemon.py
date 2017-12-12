@@ -551,7 +551,7 @@ class MntDaemon(HardwareDaemon):
 
 
     def _ra_check_thread(self):
-        '''A thread to check the ra distance and cancel slewing when it's
+        """A thread to check the ra distance and cancel slewing when it's
         reached the target.
 
         Required for when the FREEZE_DEC is set, so the mount doesn't keep
@@ -559,7 +559,7 @@ class MntDaemon(HardwareDaemon):
 
         If activated it will check the telescope when slewing, and if it's
         reached the RA target then stop the slewing and start tracking.
-        '''
+        """
         import numpy as np
         ra_distance = 0
         i = 0
@@ -589,9 +589,8 @@ class MntDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['mnt']['HOST']
     port = params.DAEMONS['mnt']['PORT']
 

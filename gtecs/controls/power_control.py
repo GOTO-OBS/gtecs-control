@@ -363,9 +363,9 @@ class ETH8020:
         self.socket.close()
 
     def _tcp_command(self, command_bytes):
-        '''Send command bytes to the device, then fetch the reply bytes
+        """Send command bytes to the device, then fetch the reply bytes
         and return them.
-        '''
+        """
         try:
             self.socket.send(command_bytes)
             reply = self.socket.recv(self.buffer_size)
@@ -440,9 +440,9 @@ class ETH002:
         self.socket.close()
 
     def _tcp_command(self, command_bytes):
-        '''Send command bytes to the device, then fetch the reply bytes
+        """Send command bytes to the device, then fetch the reply bytes
         and return them.
-        '''
+        """
         try:
             self.socket.send(command_bytes)
             reply = self.socket.recv(self.buffer_size)

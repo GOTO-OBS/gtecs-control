@@ -16,9 +16,8 @@ from fli_interface import FLIDaemon
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     # define which interface this is
     intf = 'fli2'
 

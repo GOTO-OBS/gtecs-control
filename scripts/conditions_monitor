@@ -23,7 +23,7 @@ from gtecs.observing import check_dome_closed
 
 
 def ThereCanOnlyBeOne():
-    '''Quit if this process is already running (dodgy kludge!)'''
+    """Quit if this process is already running (dodgy kludge!)"""
     ps=os.popen('ps -fu '+os.environ['LOGNAME']+' | grep -v cron | grep -v emacs' ).read()
     if ps.count(sys.argv[0])>1:
         print(ps)

@@ -123,10 +123,10 @@ class DummyScheduler(object):
 
 
 def update_skymap_probabilities(session, event):
-    '''When a GW tile is observed, update all the Event tile probabilities
+    """When a GW tile is observed, update all the Event tile probabilities
 
     THIS SHOUD BE MOVED SOMEWHERE BETTER
-    '''
+    """
     print('    Updating skymap probabilities: ', end = '\t')
     try:
         completed_pointings = session.query(db.Pointing).filter(
@@ -163,7 +163,7 @@ def update_skymap_probabilities(session, event):
 
 
 def set_pointing_status(pointingID, status, session):
-    '''Mark a pointing as completed, aborted etc'''
+    """Mark a pointing as completed, aborted etc"""
     if status not in ['aborted', 'completed', 'interrupted', 'running']:
         print('Illegal status:', status)
         return 1
@@ -181,9 +181,9 @@ def set_pointing_status(pointingID, status, session):
 
 
 def get_night_times(date):
-    '''Calculate the start and stop times of a given date.
+    """Calculate the start and stop times of a given date.
     Defined as sunrise and sunset times for La Palma.
-    '''
+    """
     lapalma = astroplan.Observer.at_site('lapalma')
     # Time(date) gives start of date, add one day to get midnight that night
     midnight = Time(date) + TimeDelta(1*u.day)
@@ -193,10 +193,10 @@ def get_night_times(date):
 
 
 def estimate_completion_time(newID, currentID, session):
-    '''Extimate the exposure time for a new pointing.
+    """Extimate the exposure time for a new pointing.
     Based on the combined exposure times in all exposures,
     and the time to move into position.
-    '''
+    """
     total_exptime = 0*u.s
     new_pointing = db.get_pointing_by_id(session, newID)
     for exp in new_pointing.exposure_sets:
@@ -264,7 +264,7 @@ class DummyPilot(object):
             self.resume_observing()
 
     def log_state(self, now, session):
-        '''Write the current state of the pilot to a log file'''
+        """Write the current state of the pilot to a log file"""
         state = 'unknown'
         if self.pilot_status == 'Suspended':
             state = 'manual'
@@ -297,7 +297,7 @@ class DummyPilot(object):
             f.write('%s %s\n' % (now. iso, state))
 
     def review_target_situation(self, now, write_html, session):
-        '''Check queue for a new target and, if necessary, go to it'''
+        """Check queue for a new target and, if necessary, go to it"""
 
         # check if current pointing is finished
         if self.currentID is not None:

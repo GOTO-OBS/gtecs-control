@@ -53,7 +53,7 @@ class HardwareMonitor:
         return inf
 
     def pingDaemon(self):
-        '''Ping a daemon - return 0 for alive and 1 for (maybe) dead'''
+        """Ping a daemon - return 0 for alive and 1 for (maybe) dead"""
         if self.daemonID is not None:
             daem_address = params.DAEMONS[self.daemonID]['ADDRESS']
             try:
@@ -114,11 +114,11 @@ class HardwareMonitor:
         return
 
     def recover(self):
-        '''
+        """
         Recovery procedure.
 
         Checks whether enough time has elapsed to progress to next stage of recovery.
-        '''
+        """
         downtime = time.time() - self.lastSuccessfulCheck
         nextLevel = self.recoveryLevel + 1
         if nextLevel in self.recoveryProcedure:
