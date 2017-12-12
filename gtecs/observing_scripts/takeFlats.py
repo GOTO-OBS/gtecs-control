@@ -2,8 +2,6 @@
 takeFlats [EVE|MORN]
 Script to take flat frames in the morning or evening
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import sys
 import time
@@ -14,15 +12,12 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.time_date import nightStarting
-from gtecs.tecs_modules.astronomy import startTime
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          last_written_image,
-                                          prepare_for_images,
-                                          goto, random_offset,
-                                          wait_for_telescope)
+from gtecs import params
+from gtecs.misc import execute_command as cmd
+from gtecs.astronomy import startTime, nightStarting
+from gtecs.observing import (wait_for_exposure_queue, last_written_image,
+                             prepare_for_images, goto, random_offset,
+                             wait_for_telescope)
 from gtecs.catalogs import flats
 
 
@@ -49,7 +44,7 @@ def take_sky(expT, current_filter, name):
 
 
 def run(eve, alt):
-    '''run just after sunset or just after start of twilight'''
+    """run just after sunset or just after start of twilight"""
     # make sure hardware is ready
     prepare_for_images()
 

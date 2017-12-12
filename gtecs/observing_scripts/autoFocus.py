@@ -12,8 +12,6 @@ on, and the current HFD, you can in principle move straight to focus.
 The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import time
 import argparse
@@ -29,14 +27,12 @@ from astropy.convolution import Gaussian2DKernel
 
 import sep
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          last_written_image, goto,
-                                          get_current_focus, set_new_focus,
-                                          wait_for_focuser,
-                                          prepare_for_images,
-                                          wait_for_telescope)
+from gtecs import params
+from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.observing import (wait_for_exposure_queue, last_written_image,
+                             goto, get_current_focus, set_new_focus,
+                             wait_for_focuser, prepare_for_images,
+                             wait_for_telescope)
 from gtecs.catalogs import gliese
 
 

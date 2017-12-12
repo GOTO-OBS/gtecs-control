@@ -1,8 +1,12 @@
 #!/usr/bin/env python
+"""
+A simple script to change into robotic mode
+"""
 
 import json
 
-from gtecs.tecs_modules import params
+from gtecs import params
+
 
 with open(params.CONFIG_PATH + 'observer', 'w') as f:
     f.write('GOTO-pilot')

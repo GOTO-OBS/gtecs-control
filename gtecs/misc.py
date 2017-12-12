@@ -1,25 +1,12 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                                misc.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#   G-TeCS module containing common functions used by TeCS processes   #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Miscellaneous common functions
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import six
+import os
+import sys
+import time
 import abc
 import signal
-if six.PY2:
-    from commands import getoutput
-else:
-    from subprocess import getoutput
-import time
 import Pyro4
 import subprocess
 import serial
@@ -27,23 +14,22 @@ import re
 import smtplib
 from contextlib import contextmanager
 
-# TeCS modules
 from . import params
 from . import flags
-from six.moves import range
+from .style import ERROR
 
-########################################################################
-## Command functions
+
 def get_hostname():
-    '''Get the hostname of this machine'''
+    """Get the hostname of this machine"""
     if 'HOSTNAME' in os.environ:
         return os.environ['HOSTNAME']
     else:
-        tmp = getoutput('hostname')
+        tmp = subprocess.getoutput('hostname')
         return tmp.strip()
 
+
 def get_process_ID(process_name, host):
-    '''Retrieve ID numbers of python processes with specified name'''
+    """Retrieve ID numbers of python processes with specified name"""
     process_ID = []
     if 'USER' in os.environ:
         username = os.environ['USER']
@@ -53,15 +39,16 @@ def get_process_ID(process_name, host):
         username = os.environ['LOGNAME']
 
     if host == 'localhost' or host == get_hostname():
-        all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
+        all_processes = subprocess.getoutput('ps -fwwu %s | grep -i python' % username)
     else:
-        all_processes = getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
+        all_processes = subprocess.getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
 
     for line in all_processes.split('\n'):
         if line.endswith(process_name):
             process_ID.append(line.split()[1])
 
     return process_ID
+
 
 def cmd_timeout(command, timeout, bufsize=-1):
     """
@@ -92,8 +79,9 @@ def cmd_timeout(command, timeout, bufsize=-1):
     returncode = p.returncode
     return out #(returncode, err, out)
 
+
 def kill_processes(process, host):
-    '''Kill any specified processes'''
+    """Kill any specified processes"""
     local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
 
@@ -106,10 +94,11 @@ def kill_processes(process, host):
             os.system('ssh ' + host + ' kill -9 ' + process_ID)
             print('Killed remote process', process_ID)
 
+
 def python_command(filename, command, host='localhost',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                    in_background=False):
-    '''Send a command to a control script as if using the terminal'''
+    """Send a command to a control script as if using the terminal"""
     if host == 'localhost' or host == get_hostname():
         command_string = ' '.join((sys.executable, filename, command))
     else:
@@ -121,6 +110,7 @@ def python_command(filename, command, host='localhost',
     else:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         return ''
+
 
 def execute_command(cmd):
     print(cmd)
@@ -135,9 +125,10 @@ def execute_command(cmd):
            pass
         p.wait()
 
+
 def ping_host(hostname,count=1,ttl=1):
-    '''Ping a network address and return the number of responses'''
-    ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
+    """Ping a network address and return the number of responses"""
+    ping = subprocess.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
     out = ping.split('\n')
     packets_received = 0
     for line in range(len(out)):
@@ -147,15 +138,17 @@ def ping_host(hostname,count=1,ttl=1):
             break
     return packets_received
 
+
 def check_hosts(hostlist):
-    '''Ping list of hosts until one responds or the list is exhausted'''
+    """Ping list of hosts until one responds or the list is exhausted"""
     for hostname in hostlist:
         if ping_host(hostname) > 0:
             return 0 # success
     return 1 # failure
 
+
 def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
-    '''Send a message to a serial port and try to read it back'''
+    """Send a message to a serial port and try to read it back"""
     s = serial.Serial(serialport, 9600, parity='N', bytesize=8, stopbits=1, rtscts=0, xonxoff=1, timeout=1)
     for i in range(chances):
         s.write(message + b'\n')
@@ -167,10 +160,12 @@ def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
     s.close()
     return 1   # failure
 
+
 def signal_handler(signal, frame):
-    '''Trap ctrl-c and exit cleanly'''
+    """Trap ctrl-c and exit cleanly"""
     print('...ctrl+c detected - closing...')
     sys.exit(0)
+
 
 class neatCloser:
     """
@@ -209,8 +204,9 @@ class neatCloser:
         """
         return
 
+
 def daemon_is_running(daemon_ID):
-    '''Check if a daemon process is running.'''
+    """Check if a daemon process is running."""
     if daemon_ID in params.DAEMONS:
         process = params.DAEMONS[daemon_ID]['PROCESS']
         host    = params.DAEMONS[daemon_ID]['HOST']
@@ -226,8 +222,9 @@ def daemon_is_running(daemon_ID):
         error_str = 'Multiple instances of {} detected on {}, PID {}'.format(process, host, process_ID)
         raise MultipleDaemonError(error_str)
 
+
 def daemon_is_alive(daemon_ID):
-    '''Check if a daemon is alive and responding to pings.'''
+    """Check if a daemon is alive and responding to pings."""
     if daemon_ID in params.DAEMONS:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
     else:
@@ -244,8 +241,9 @@ def daemon_is_alive(daemon_ID):
     except:
         return False
 
+
 def dependencies_are_alive(daemon_ID):
-    '''Check if a given daemon's dependencies are alive and responding to pings.'''
+    """Check if a given daemon's dependencies are alive and responding to pings."""
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
     if depends[0] != 'None':
@@ -260,11 +258,12 @@ def dependencies_are_alive(daemon_ID):
     else:
         return True
 
+
 def there_can_only_be_one(daemon_ID):
-    '''Ensure the current daemon script isn't already running.
+    """Ensure the current daemon script isn't already running.
 
     Returns `True` if it's OK to start.
-    '''
+    """
 
     if daemon_ID in params.DAEMONS:
         host = params.DAEMONS[daemon_ID]['HOST']
@@ -288,104 +287,61 @@ def there_can_only_be_one(daemon_ID):
 
     return True
 
+
 def find_interface_ID(hostname):
-    '''Find what interface should be running on a given host.
+    """Find what interface should be running on a given host.
 
     Used by the FLI interfaces to find which interface it should identify as.
 
     NOTE it will only return the first match, as there should only be one
         interface per host.
         For testing the fli_interfaceB file will be used.
-    '''
+    """
     for intf in params.FLI_INTERFACES:
         if params.DAEMONS[intf]['HOST'] == hostname:
             return intf
     raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
-########################################################################
-## Text formatting functions
-def rtxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[31;1m' + str(text) + '\033[0m'
-    else:
-        return text
-def gtxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[32;1m' + str(text) + '\033[0m'
-    else:
-        return text
-def ytxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[33;1m' + str(text) + '\033[0m'
-    else:
-        return text
-def btxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[34;1m' + str(text) + '\033[0m'
-    else:
-        return text
-def ptxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[35;1m' + str(text) + '\033[0m'
-    else:
-        return text
-def bold(text):
-    if params.FANCY_OUTPUT:
-        return '\033[1m' + str(text) + '\033[0m'
-    else:
-        return text
-def undl(text):
-    if params.FANCY_OUTPUT:
-        return '\033[4m' + str(text) + '\033[0m'
-    else:
-        return text
-
-########################################################################
-# Errors and exceptions
 
 class DaemonConnectionError(Exception):
-    '''To be used when a command to a daemon fails.
+    """To be used when a command to a daemon fails.
     e.g. if the Daemon is not running or is not responding
-    '''
+    """
     pass
 
 
 class DaemonDependencyError(Exception):
-    '''To be used if a daemons's dependendecneis are not responding.'''
+    """To be used if a daemons's dependendecneis are not responding."""
     pass
 
 
 class MultipleDaemonError(Exception):
-    '''To be used if multiple instances of a daemon are detected.'''
+    """To be used if multiple instances of a daemon are detected."""
     pass
 
 
 class InputError(Exception):
-    '''To be used if an input command or arguments aren't valid.'''
+    """To be used if an input command or arguments aren't valid."""
     pass
 
 
 class HardwareStatusError(Exception):
-    '''To be used if a command isn't possible due to the hardware status.
+    """To be used if a command isn't possible due to the hardware status.
     e.g. trying to start an exposure when the cameras are already exposing
-    '''
+    """
     pass
 
 
 class HorizonError(Exception):
-    '''To be used if a slew command would bring the mount below the limit.'''
+    """To be used if a slew command would bring the mount below the limit."""
     pass
-
-
-def ERROR(message):
-    return rtxt(bold('ERROR')) + ': ' + str(message)
 
 
 @contextmanager
 def print_errors():
-    '''A context manager to catch exceptions and print them nicely.
+    """A context manager to catch exceptions and print them nicely.
     Used within the control scripts to handle errors from daemons.
-    '''
+    """
     try:
         yield
     except Exception as error:
@@ -393,13 +349,12 @@ def print_errors():
         pass
 
 
-########################################################################
-# Misc functions
 def adz(num):
     num = repr(num)
     if len(num) == 1:
         num = '0' + num
     return num
+
 
 def valid_ints(array, allowed):
     valid = []
@@ -415,6 +370,7 @@ def valid_ints(array, allowed):
     valid.sort()
     return valid
 
+
 def is_num(value):
     try:
         float(value)
@@ -422,10 +378,12 @@ def is_num(value):
     except ValueError:
         return False
 
+
 def remove_html_tags(data):
-    '''Remove html tags from a given line'''
+    """Remove html tags from a given line"""
     p = re.compile(r'<.*?>')
     return p.sub('', data).strip()
+
 
 def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     to_address = ', '.join(recipients)

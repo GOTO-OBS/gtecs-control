@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-# A script to allow simple adding of pointings to the scheduler database
-# MJD @ Sheffield, 2016
+"""
+A script to allow simple adding of pointings to the scheduler database
+"""
 
-from __future__ import print_function
+import readline
+import getpass
 
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
 
-import gtecs.database as db
-from gtecs.tecs_modules import misc
-import readline
-import getpass
+from gtecs import database as db
+from gtecs import style
 
 
-### PARSING
 def parse_ra(ra_str):
-    '''
+    """
     Parse an RA string and return a float in decimal degrees, or ValueError
     ------------------
     Valid formats:
@@ -25,7 +24,7 @@ def parse_ra(ra_str):
             e.g. "3 2 1" OR "10:0:0" OR "8 56 25.7"
     ------------------
     Will also check for limits (0 <= hours < 24 etc.)
-    '''
+    """
 
     ra_list = ra_str.replace(':',' ').split()
 
@@ -63,7 +62,7 @@ def parse_ra(ra_str):
 
 
 def parse_dec(dec_str):
-    '''
+    """
     Parse an Dec string and return a float in decimal degrees, or ValueError
     ------------------
     Valid formats:
@@ -75,7 +74,7 @@ def parse_dec(dec_str):
             e.g. "+ 201 9 55" OR "+ 12:4:2.54" OR "- 0 44 19"
     ------------------
     Will also check for limits (0 <= minutes < 60 etc.)
-    '''
+    """
 
     dec_list = dec_str.replace(':',' ').split()
 
@@ -144,7 +143,6 @@ def parse_dec(dec_str):
     return dec_deg
 
 
-
 def get_userkey(session, username):
     try:
         user_key = db.get_userkey(session, username)
@@ -152,8 +150,8 @@ def get_userkey(session, username):
     except:
         # Create user if it doesn't exist
         print('    User "{}" not recognised, creating new user...'.format(username))
-        description = input(misc.bold('Enter your full name')+': ')
-        prompt = misc.bold('Give a password for {}'.format(username))+': '
+        description = input(style.bold('Enter your full name')+': ')
+        prompt = style.bold('Give a password for {}'.format(username))+': '
         passwd = getpass.getpass(prompt=prompt)
         db.add_user(session, username, passwd, description)
         session.commit()
@@ -243,8 +241,6 @@ def fill_exposure_set(exposure_set):
 
     return exposure_set
 
-
-############################################
 
 if __name__ == '__main__':
 

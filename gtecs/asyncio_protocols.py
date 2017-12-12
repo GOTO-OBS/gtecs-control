@@ -1,13 +1,3 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                         asyncio_protocols.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing classes to communicate with external    #
-#             processes and retrieve results asynchronously            #
-#                   Stuart Littlefair, Sheffield, 2016                 #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-
 """
 We communicate with external processes by defining
 protocols for them. A protocol for an external
@@ -21,8 +11,7 @@ This file is where we store the different
 protocols necessary for communicating with
 all external tasks that will be launched.
 """
-from __future__ import absolute_import
-from __future__ import print_function
+
 import asyncio
 import abc
 from . import logger

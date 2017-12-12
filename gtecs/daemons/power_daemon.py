@@ -1,41 +1,35 @@
 #!/usr/bin/env python
+"""
+Daemon to control APC PDUs and UPSs
+"""
 
-########################################################################
-#                            power_daemon.py                           #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#         G-TeCS daemon to control APC power distribution unit         #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import *
-import time, datetime
-import sys
 import os
+import sys
+import time
+import datetime
+from math import *
 import Pyro4
 import threading
-from six.moves import range
-# TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.controls import power_control
-from gtecs.tecs_modules.daemons import HardwareDaemon
 
-########################################################################
-# Power daemon class
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs.controls import power_control
+from gtecs.daemons import HardwareDaemon
+
+
+DAEMON_ID = 'power'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
 
 class PowerDaemon(HardwareDaemon):
     """Power hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'power')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 1
@@ -63,7 +57,7 @@ class PowerDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -97,7 +91,7 @@ class PowerDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('power'):
+                if not misc.dependencies_are_alive(self.daemon_id):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -253,7 +247,7 @@ class PowerDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Power control functions
     def get_info(self):
         """Return power status info"""
@@ -331,7 +325,7 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 1
         return 'Rebooting power'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Internal functions
     def _parse_input(self, outlet_list, unit=''):
         if unit in params.POWER_UNITS:
@@ -358,6 +352,7 @@ class PowerDaemon(HardwareDaemon):
                 units += [unit]*len(valid_outlets)
         return outlets, units
 
+
     def _units_from_names(self, name_list):
         unit_list = []
         for name in name_list:
@@ -375,6 +370,7 @@ class PowerDaemon(HardwareDaemon):
                     unit_list.append(unit)
         return unit_list
 
+
     def _get_valid_outlets(self, unit, outlet_list):
         """Check outlets are valid and convert any names to numbers"""
         names = params.POWER_UNITS[unit]['NAMES']
@@ -391,32 +387,24 @@ class PowerDaemon(HardwareDaemon):
                 valid_list.append(names.index(outlet) + 1)
         return valid_list
 
-########################################################################
 
-def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
-    host = params.DAEMONS['power']['HOST']
-    port = params.DAEMONS['power']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('power'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = PowerDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        power_daemon = PowerDaemon()
-        uri = pyro_daemon.register(power_daemon, objectId='power')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        power_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=power_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    power_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-if __name__ == "__main__":
-    start()

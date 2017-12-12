@@ -1,22 +1,14 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                               logger.py                              #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#   G-TeCS module containing standard format for creating log files    #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Standard format for creating log files
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
+import os
+import sys
+import time
+
 import logging
 from logging import handlers
-import time
-import sys
-import os
-# TeCS modules
+
 from . import params
 
 

@@ -1,8 +1,6 @@
 """
 Landolt 2009 catalog of standard stars
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import pkg_resources
 import os
 import warnings
@@ -15,7 +13,7 @@ from astropy.time import Time
 import numpy as np
 import scipy.spatial as sp
 
-from ..tecs_modules import astronomy as ast
+from . import astronomy as ast
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')

@@ -1,24 +1,16 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                               slack.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS module containing slack messaging tools             #
-#                     Stuart Littlefair, Sheffield, 2017               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
+"""
+Slack messaging tools
+"""
 
-#  Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
 import os
+
+from slackclient import SlackClient
 
 from astropy.time import Time
 from astropy.utils.decorators import lazyproperty
-from slackclient import SlackClient
 
-# TeCS modules
 from . import params
+
 
 READ_WEBSOCKET_DELAY = 1
 BOT_TOKEN = params.SLACK_BOT_TOKEN

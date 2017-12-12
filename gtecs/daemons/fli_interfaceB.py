@@ -1,59 +1,41 @@
 #!/usr/bin/env python
+"""
+Clone FLI interface to allow testing on a single host
+"""
 
-########################################################################
-#                           fli_interfaceB.py                          #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#            Clone FLI interface to allow testing on one host          #
-#                    Martin Dyer, Sheffield, 2015-16                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import time
 import sys
+import time
 import Pyro4
-# TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
 
-########################################################################
+from gtecs import misc
+from gtecs import params
 
 # Directly import a copy of the real interface daemon
 from fli_interface import FLIDaemon
 
-########################################################################
 
-def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
-    # define which interface this is
-    intf = 'fli2'
+DAEMON_ID = 'fli2'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
-    host = params.DAEMONS[intf]['HOST']
-    port = params.DAEMONS[intf]['PORT']
 
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(intf):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = FLIDaemon(intf=DAEMON_ID)
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        fli_daemon = FLIDaemon(intf)
-        uri = pyro_daemon.register(fli_daemon, objectId=intf)
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        fli_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    fli_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-if __name__ == "__main__":
-    start()

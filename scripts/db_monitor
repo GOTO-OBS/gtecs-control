@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-# A simple script to monitor what's in the GOTO database
-# MJD @ Sheffield, 2016
-
-from __future__ import print_function
+"""
+A simple script to monitor what's in the GOTO database
+"""
 
 import sys
 
 from astropy.time import Time
 
-import gtecs.database as db
-from gtecs.tecs_modules import misc
+from gtecs import database as db
+from gtecs import style
 
 t = Time.now()
 
@@ -27,7 +26,7 @@ with db.open_session() as session:
 
     running, _ = db.get_queue(session)
     if running:
-        print(misc.ytxt('CURRENTLY OBSERVING: ID %i \n' %running.pointingID))
+        print(style.ytxt('CURRENTLY OBSERVING: ID %i \n' %running.pointingID))
     else:
         print('\n')
 
@@ -44,12 +43,12 @@ with db.open_session() as session:
             print(string, end=' ')
 
             if pointing.status == 'running':
-                status = misc.ytxt('RUNNING')
+                status = style.ytxt('RUNNING')
             elif pointing.status == 'completed':
-                status = misc.gtxt('completed')
+                status = style.gtxt('completed')
             elif pointing.status == 'pending':
                 if t > Time(pointing.startUTC):
-                    status = misc.btxt('pending')
+                    status = style.btxt('pending')
                 else:
                     status = 'waiting'
             else:

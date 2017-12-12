@@ -1,25 +1,23 @@
 #!/usr/bin/env python
+"""
+A script to fill G-TeCS database using GOTO-tile
+"""
 
-########################################################################
-#                             fill_goto_db                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#        G-TeCS script to fill G-TeCS database using GOTO-tile         #
-#                 Stuart Littlefair, Sheffield, 2017                   #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-from __future__ import print_function
-import getpass
 import sys
+import time
+import getpass
 import argparse
 
-import gtecs.database as db
+from sqlalchemy.orm import joinedload
+
+import numpy as np
+
+import astropy.units as u
+
 import gototile
 
-from sqlalchemy.orm import joinedload
-import time
-import numpy as np
-import astropy.units as u
+from gtecs import database as db
+
 
 SURVEY_SETTINGS = dict(start_rank=999,
                        minAlt=35,
@@ -42,7 +40,7 @@ EXP_SETTINGS = dict(expTime=120,
 
 
 def get_userkey(username, description=''):
-    '''Get user key of a user, and create it if it doesn't exit'''
+    """Get user key of a user, and create it if it doesn't exit"""
 
     with db.open_session() as session:
         try:
@@ -58,7 +56,7 @@ def get_userkey(username, description=''):
 
 
 def get_tiles(fov, overlap, nside=256):
-    '''Define survey tiles using GOTO-tile'''
+    """Define survey tiles using GOTO-tile"""
     tiles = gototile.grid.tileallsky(fov, nside, overlap)
     coords = tiles[2]
     ras, decs = coords.ra.value, coords.dec.value

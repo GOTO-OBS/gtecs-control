@@ -1,27 +1,18 @@
 #!/usr/bin/env python
-
-########################################################################
-#                              setup_gtecs                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS script to setup directory structure for config files      #
-#                    S Littlefair, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-# Import
-from __future__ import print_function
+"""
+A script to setup directory structure for G-TeCS config files
+"""
 
 import os
 import shutil
 import pkg_resources
 
+from gtecs import params
 
-from gtecs.tecs_modules import params
 
 # find package resources
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
-gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'html')
+gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'data/html')
 
 # create CONFIG_DIR if necessary and put files there
 try:

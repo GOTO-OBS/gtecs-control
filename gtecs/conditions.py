@@ -1,27 +1,21 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                            conditions.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                  G-TeCS conditions monitor functions                 #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Conditions monitor functions
+"""
 
 import os
+import time
 import subprocess
 import json
-import time
 
 from astropy.time import Time
 
-# TeCS modules
 from . import params
 from . import misc
-from ..controls.power_control import APCUPS, FakeUPS
+from .controls.power_control import APCUPS, FakeUPS
 
 
 def curl_data_from_url(url, outfile, encoding=None):
-    '''Fetch data from a URL, store it in a file and return the contents'''
+    """Fetch data from a URL, store it in a file and return the contents"""
 
     curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
     try:
@@ -41,7 +35,7 @@ def curl_data_from_url(url, outfile, encoding=None):
 
 
 def get_ups():
-    '''Get battery percent remaining and current status from GOTO UPSs'''
+    """Get battery percent remaining and current status from GOTO UPSs"""
     percents = []
     statuses = []
     for unit_name in params.POWER_UNITS:
@@ -73,7 +67,7 @@ def get_ups():
 
 
 def hatch_closed():
-    '''Get hatch status from GOTO Dome Arduino'''
+    """Get hatch status from GOTO Dome Arduino"""
 
     url = params.ARDUINO_LOCATION
     outfile = params.CONFIG_PATH + 'arduino.json'
@@ -97,7 +91,7 @@ def hatch_closed():
 
 
 def get_roomalert(source):
-    '''Get internal dome temperature and humidity from GOTO RoomAlert system'''
+    """Get internal dome temperature and humidity from GOTO RoomAlert system"""
 
     sources = ['dome', 'pier']
     if source not in sources:
@@ -151,7 +145,7 @@ def get_roomalert(source):
 
 
 def get_local_weather(source):
-    '''Get the current weather from the Warwick stations'''
+    """Get the current weather from the Warwick stations"""
 
     source = source.lower()
     sources = ['goto', 'onemetre', 'superwasp']
@@ -261,7 +255,7 @@ def get_local_weather(source):
 
 
 def get_ing_weather():
-    '''Get the current weather from the ING weather page (JKT mast)'''
+    """Get the current weather from the ING weather page (JKT mast)"""
 
     url = 'http://catserver.ing.iac.es/weather/'
     outfile = params.CONFIG_PATH + 'weather.html'
@@ -347,7 +341,7 @@ def get_ing_weather():
 
 
 def get_ing_internal_weather(weather_source):
-    '''Get the current weather from the internal ING xml weather file'''
+    """Get the current weather from the internal ING xml weather file"""
 
     if weather_source == 'wht':
         url = "http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
@@ -440,7 +434,7 @@ def get_ing_internal_weather(weather_source):
 
 
 def get_weather():
-    '''Get the current weather conditions'''
+    """Get the current weather conditions"""
 
     weather = {}
 
@@ -468,7 +462,7 @@ def get_weather():
 
 
 def check_ping(url, count=3, timeout=10):
-    '''Ping a url, and check it responds'''
+    """Ping a url, and check it responds"""
     try:
         ping_command = 'ping -c {} {}'.format(count, url)
         out = subprocess.check_output(ping_command.split(),
@@ -483,7 +477,7 @@ def check_ping(url, count=3, timeout=10):
 
 
 def get_diskspace_remaining(path):
-    '''Get the percentage diskspace remaining from a given path'''
+    """Get the percentage diskspace remaining from a given path"""
 
     statvfs = os.statvfs(path)
 

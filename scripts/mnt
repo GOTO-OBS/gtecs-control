@@ -1,47 +1,28 @@
 #!/usr/bin/env python
+"""
+A script to provide control over the mnt daemon
+"""
 
-########################################################################
-#                                mnt.py                                #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS script to provide control over mnt_daemon           #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import readline
+import os
+import sys
 import time
+import readline
 import Pyro4
+
 from astropy.time import Time
 from astropy.coordinates import Angle, SkyCoord, get_body
 import astropy.units as u
-from six.moves import input
-# TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import daemons
 
-########################################################################
-# Interactive functions
+from gtecs import misc
+from gtecs import params
+from gtecs import style
+from gtecs import daemons
 
-def interactive():
-    while True:
-        i_in = input('{}> '.format(daemon_ID)).split()
-        if len(i_in) > 0:
-            command, *args = i_in
-            if command == 'q' or command == 'exit':
-                return
-            else:
-                with misc.print_errors():
-                    query(command, args)
 
-def query(command, args):
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DAEMON_ID = os.path.basename(__file__)
+
+
+def query(command, args, daemon_ID):
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -49,7 +30,6 @@ def query(command, args):
     elif command == 'i':
         raise misc.InputError('Already in interactive mode')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Primary daemon control
     elif command == 'start':
         reply = daemons.start_daemon(daemon_ID)
@@ -100,7 +80,6 @@ def query(command, args):
         # send command
         misc.execute_command(tail_command)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Daemon functions
     elif command == 'slew':
         reply = daemons.daemon_function(daemon_ID, 'slew_to_target')
@@ -296,13 +275,10 @@ def query(command, args):
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
         print(reply)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Unrecognized function
     else:
         raise misc.InputError('Unrecognized command "{}"'.format(command))
 
-########################################################################
-# Output formatting functions
 
 def print_info(info):
     print('####### MOUNT INFO ########')
@@ -336,6 +312,7 @@ def print_info(info):
     print('Timestamp: %s' %info['timestamp'])
     print('###########################')
 
+
 def print_info_s(info):
     if info['status'] != 'Slewing':
         print('MOUNT ({})           [{}]'.format(params.SITECH_HOST, info['status']))
@@ -350,44 +327,51 @@ def print_info_s(info):
     print('  RA:  {:>11}       Alt: {:6.2f}'.format(ra_str, alt))
     print('  Dec: {:>11}       Az:  {:6.2f}'.format(dec_str, az))
 
+
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('start') + '          - start the daemon' + '\n' +\
-    '  mnt ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
-    '  mnt ' + misc.bold('restart') + '        - restart the daemon' + '\n' +\
-    '  mnt ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  mnt ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Mount commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
-    '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
-    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
-    '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
-    '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
-    '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
-    '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
-    '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
-    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
-    '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
-    '  mnt ' + misc.bold('blinky') + ' on|off' + '  - turn on or off blinky mode' + '\n' +\
-    '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
-    '  mnt ' + misc.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
-    '  mnt ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
-    '  mnt ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    help_str = style.bold('Usage:') + ' mnt [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('start') + '          - start the daemon' + '\n' +\
+    '  mnt ' + style.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  mnt ' + style.bold('restart') + '        - restart the daemon' + '\n' +\
+    '  mnt ' + style.bold('kill') + '           - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  mnt ' + style.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + style.undl('Mount commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
+    '  mnt ' + style.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
+    '  mnt ' + style.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
+    '  mnt ' + style.bold('slew') + '           - slew to target ra/dec' + '\n' +\
+    '  mnt ' + style.bold('track') + '          - start tracking' + '\n' +\
+    '  mnt ' + style.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
+    '  mnt ' + style.bold('park') + '           - enter park state' + '\n' +\
+    '  mnt ' + style.bold('unpark') + '         - leave park state' + '\n' +\
+    '  mnt ' + style.bold('n') + '/' + style.bold('s') + '/' + style.bold('e') + '/' + style.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
+    '  mnt ' + style.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
+    '  mnt ' + style.bold('blinky') + ' on|off' + '  - turn on or off blinky mode' + '\n' +\
+    '  mnt ' + style.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    '  mnt ' + style.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  mnt ' + style.bold('q') + '/' + style.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  mnt ' + style.bold('?') + '/' + style.bold('help') + '         - print these instructions'
     print(help_str)
 
-########################################################################
 
-daemon_ID = os.path.basename(__file__)
-
-if len(sys.argv) == 1:
-    print_instructions()
-else:
-    command, *args = sys.argv[1:]
-    if command == 'i':
-        interactive()
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print_instructions()
     else:
-        with misc.print_errors():
-            query(command, args)
+        command, *args = sys.argv[1:]
+        if command == 'i':
+            while True:
+                interactive_input = input('{}> '.format(DAEMON_ID)).split()
+                if len(interactive_input) > 0:
+                    command, *args = interactive_input
+                    if command in ['q', 'exit']:
+                        break
+                    else:
+                        with misc.print_errors():
+                            query(command, args, DAEMON_ID)
+        else:
+            with misc.print_errors():
+                query(command, args, DAEMON_ID)

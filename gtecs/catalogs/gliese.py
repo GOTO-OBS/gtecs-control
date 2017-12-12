@@ -1,8 +1,6 @@
 """
 Gliese 1991 catalog of nearby stars
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import pkg_resources
 import os
 import warnings
@@ -14,8 +12,8 @@ from astropy.time import Time
 
 import numpy as np
 
-from ..tecs_modules import astronomy as ast
-from ..tecs_modules import params
+from . import astronomy as ast
+from . import params
 
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
 gliese_table_path = os.path.join(gtecs_data_dir, 'Gliese91.fit')

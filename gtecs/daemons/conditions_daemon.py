@@ -1,45 +1,43 @@
 #!/usr/bin/env python
+"""
+Daemon to monitor environmental conditions
+"""
 
-########################################################################
-#                         conditions_daemon.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#           G-TeCS daemon to monitor environmental conditions          #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
 import subprocess
 import json
-import numpy as np
-from astropy.time import Time
-# TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import conditions
-from gtecs.tecs_modules.astronomy import sun_alt
-from gtecs.tecs_modules.observing import check_dome_closed
-from gtecs.tecs_modules.daemons import HardwareDaemon
 
-########################################################################
-# Conditions daemon class
+import numpy as np
+
+from astropy.time import Time
+
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs import conditions
+from gtecs.astronomy import sun_alt
+from gtecs.observing import check_dome_closed
+from gtecs.daemons import HardwareDaemon
+
+
+DAEMON_ID = 'conditions'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
 
 class ConditionsDaemon(HardwareDaemon):
     """Conditions monitor daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'conditions')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 0
@@ -101,7 +99,7 @@ class ConditionsDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -297,39 +295,30 @@ class ConditionsDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Conditions functions
     def get_info(self):
         """Return current conditions flags and weather info"""
         return {'flags': self.data, 'weather': self.weather}
 
 
-########################################################################
-
-def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
-    host = params.DAEMONS['conditions']['HOST']
-    port = params.DAEMONS['conditions']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('conditions'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = ConditionsDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        conditions_daemon = ConditionsDaemon()
-        uri = pyro_daemon.register(conditions_daemon, objectId='conditions')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        conditions_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=conditions_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    conditions_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-if __name__ == "__main__":
-    start()
