@@ -16,6 +16,7 @@ from contextlib import contextmanager
 
 from . import params
 from . import flags
+from .style import ERROR
 
 
 def get_hostname():
@@ -302,55 +303,6 @@ def find_interface_ID(hostname):
     raise ValueError('Host {} does not have an associated interface'.format(hostname))
 
 
-def rtxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[31;1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def gtxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[32;1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def ytxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[33;1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def btxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[34;1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def ptxt(text):
-    if params.FANCY_OUTPUT:
-        return '\033[35;1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def bold(text):
-    if params.FANCY_OUTPUT:
-        return '\033[1m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
-def undl(text):
-    if params.FANCY_OUTPUT:
-        return '\033[4m' + str(text) + '\033[0m'
-    else:
-        return text
-
-
 class DaemonConnectionError(Exception):
     """To be used when a command to a daemon fails.
     e.g. if the Daemon is not running or is not responding
@@ -383,10 +335,6 @@ class HardwareStatusError(Exception):
 class HorizonError(Exception):
     """To be used if a slew command would bring the mount below the limit."""
     pass
-
-
-def ERROR(message):
-    return rtxt(bold('ERROR')) + ': ' + str(message)
 
 
 @contextmanager

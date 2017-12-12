@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -83,18 +84,18 @@ def query(command, args):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' fli [command]' + '\n' +\
-    ' ' + misc.undl('Interface commands') + ':' + '\n' +\
-    '  fli ' + misc.bold('start') + '             - start the interfaces' + '\n' +\
-    '  fli ' + misc.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
-    '  fli ' + misc.bold('restart') + '           - restart the interfaces' + '\n' +\
-    '  fli ' + misc.bold('kill') + '              - kill the interfaces (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  fli ' + misc.bold('ping') + '              - ping the interfaces' + '\n' +\
-    '  fli ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  fli ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  fli ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  fli ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    help_str = style.bold('Usage:') + ' fli [command]' + '\n' +\
+    ' ' + style.undl('Interface commands') + ':' + '\n' +\
+    '  fli ' + style.bold('start') + '             - start the interfaces' + '\n' +\
+    '  fli ' + style.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
+    '  fli ' + style.bold('restart') + '           - restart the interfaces' + '\n' +\
+    '  fli ' + style.bold('kill') + '              - kill the interfaces (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  fli ' + style.bold('ping') + '              - ping the interfaces' + '\n' +\
+    '  fli ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  fli ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  fli ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  fli ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
     print(help_str)
 
 

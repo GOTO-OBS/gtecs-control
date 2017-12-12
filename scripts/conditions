@@ -13,6 +13,7 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 from gtecs.astronomy import sun_alt
 
@@ -93,19 +94,19 @@ def print_info(info):
         del flags['update_time']
         for flag in sorted(flags.keys()):
             if flags[flag] == 0:
-                status = misc.gtxt('Good')
+                status = style.gtxt('Good')
             elif flags[flag] == 1:
-                status = misc.rtxt('Bad')
+                status = style.rtxt('Bad')
             else:
-                status = misc.rtxt('ERROR')
+                status = style.rtxt('ERROR')
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
         print('WEATHER:')
 
         sunalt = sun_alt(Time.now())
         if sunalt < params.SUN_ELEVATION_LIMIT:
-            sunalt_str = misc.gtxt('{:>5.1f}'.format(sunalt))
+            sunalt_str = style.gtxt('{:>5.1f}'.format(sunalt))
         else:
-            sunalt_str = misc.rtxt('{:>5.1f}'.format(sunalt))
+            sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
         print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
 
         weather['superwasp']['rain'] = 'NA'
@@ -117,44 +118,44 @@ def print_info(info):
             dt = weather[source]['dt']
 
             if temperature == -999:
-                temperature_str = misc.rtxt(' ERR')
+                temperature_str = style.rtxt(' ERR')
             elif (temperature < params.MAX_TEMPERATURE and
                   temperature > params.MIN_TEMPERATURE):
-                temperature_str = misc.gtxt('{:>4.1f}'.format(temperature))
+                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
-                temperature_str = misc.rtxt('{:>4.1f}'.format(temperature))
+                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
             if humidity == -999:
-                humidity_str = misc.rtxt(' ERR')
+                humidity_str = style.rtxt(' ERR')
             elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = misc.gtxt('{:>3.1f}'.format(humidity))
+                humidity_str = style.gtxt('{:>3.1f}'.format(humidity))
             else:
-                humidity_str = misc.rtxt('{:>3.1f}'.format(humidity))
+                humidity_str = style.rtxt('{:>3.1f}'.format(humidity))
 
             if windspeed == -999:
-                windspeed_str = misc.rtxt('  ERR')
+                windspeed_str = style.rtxt('  ERR')
             elif windspeed == 'NA':
                 windspeed_str = '  N/A'
             elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = misc.gtxt('{:>5.1f}'.format(windspeed))
+                windspeed_str = style.gtxt('{:>5.1f}'.format(windspeed))
             else:
-                windspeed_str = misc.rtxt('{:>5.1f}'.format(windspeed))
+                windspeed_str = style.rtxt('{:>5.1f}'.format(windspeed))
 
             if rain == -999:
-                rain_str = misc.rtxt('  ERR')
+                rain_str = style.rtxt('  ERR')
             elif rain == 'NA':
                 rain_str = '  N/A'
             elif rain:
-                rain_str = misc.rtxt(' True')
+                rain_str = style.rtxt(' True')
             else:
-                rain_str = misc.gtxt('False')
+                rain_str = style.gtxt('False')
 
             if dt == -999:
-                dt_str = misc.rtxt('ERR')
+                dt_str = style.rtxt('ERR')
             elif dt > params.WEATHER_TIMEOUT:
-                dt_str = misc.rtxt('{:>3.0f}'.format(dt))
+                dt_str = style.rtxt('{:>3.0f}'.format(dt))
             else:
-                dt_str = misc.gtxt('{:>3.0f}'.format(dt))
+                dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
 
             print('  {: <10}'.format(source), end='\t')
@@ -173,18 +174,18 @@ def print_info(info):
             int_temperature_str = '{:>4.1f}'.format(int_temperature)
 
             if int_humidity == -999:
-                int_humidity_str = misc.rtxt(' ERR')
+                int_humidity_str = style.rtxt(' ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                int_humidity_str = misc.gtxt('{:>3.1f}'.format(int_humidity))
+                int_humidity_str = style.gtxt('{:>3.1f}'.format(int_humidity))
             else:
-                int_humidity_str = misc.rtxt('{:>3.1f}'.format(int_humidity))
+                int_humidity_str = style.rtxt('{:>3.1f}'.format(int_humidity))
 
             if dt == -999:
-                dt_str = misc.rtxt('ERR')
+                dt_str = style.rtxt('ERR')
             elif dt > params.WEATHER_TIMEOUT:
-                dt_str = misc.rtxt('{:>3.0f}'.format(dt))
+                dt_str = style.rtxt('{:>3.0f}'.format(dt))
             else:
-                dt_str = misc.gtxt('{:>3.0f}'.format(dt))
+                dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source+'_int'), end='\t')
             weather_str = '{}C  {}%                     dt={}'.format(
@@ -195,19 +196,19 @@ def print_info(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' conditions [command]' + '\n' +\
-    ' ' + misc.undl('Interface commands') + ':' + '\n' +\
-    '  conditions ' + misc.bold('start') + '             - start the daemon' + '\n' +\
-    '  conditions ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  conditions ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  conditions ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  conditions ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  conditions ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
-    '  conditions ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  conditions ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  conditions ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  conditions ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    help_str = style.bold('Usage:') + ' conditions [command]' + '\n' +\
+    ' ' + style.undl('Interface commands') + ':' + '\n' +\
+    '  conditions ' + style.bold('start') + '             - start the daemon' + '\n' +\
+    '  conditions ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  conditions ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
+    '  conditions ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  conditions ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
+    '  conditions ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  conditions ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  conditions ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  conditions ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  conditions ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
     print(help_str)
 
 

@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -180,24 +181,24 @@ def print_outlets(unit_dict, group_dict):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' power [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  power ' + misc.bold('start') + '                            - start the daemon' + '\n' +\
-    '  power ' + misc.bold('shutdown') + '                         - shutdown the daemon' + '\n' +\
-    '  power ' + misc.bold('restart') + '                          - restart the daemon' + '\n' +\
-    '  power ' + misc.bold('kill') + '                             - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  power ' + misc.bold('ping') + '                             - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Power commands') + ':' + '\n' +\
-    '  power ' + misc.bold('on') + ' [names] | [unit] [outlet]' + '     - turn on specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
-    '  power ' + misc.bold('outlets') + '/' + misc.bold('list') + '                     - list valid outlets and groups' + '\n' +\
-    '  power ' + misc.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
-    '  power ' + misc.bold('log') + ' [stdout]' + '                     - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  power ' + misc.bold('i') + '                                - enter interactive mode' + '\n' +\
-    '  power ' + misc.bold('q') + '/' + misc.bold('exit') + '                           - quit interactive mode' + '\n' +\
-    '  power ' + misc.bold('?') + '/' + misc.bold('help') + '                           - print these instructions'
+    help_str = style.bold('Usage:') + ' power [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  power ' + style.bold('start') + '                            - start the daemon' + '\n' +\
+    '  power ' + style.bold('shutdown') + '                         - shutdown the daemon' + '\n' +\
+    '  power ' + style.bold('restart') + '                          - restart the daemon' + '\n' +\
+    '  power ' + style.bold('kill') + '                             - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  power ' + style.bold('ping') + '                             - ping the daemon' + '\n' +\
+    ' ' + style.undl('Power commands') + ':' + '\n' +\
+    '  power ' + style.bold('on') + ' [names] | [unit] [outlet]' + '     - turn on specified outlet(s)' + '\n' +\
+    '  power ' + style.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
+    '  power ' + style.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
+    '  power ' + style.bold('outlets') + '/' + style.bold('list') + '                     - list valid outlets and groups' + '\n' +\
+    '  power ' + style.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
+    '  power ' + style.bold('log') + ' [stdout]' + '                     - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  power ' + style.bold('i') + '                                - enter interactive mode' + '\n' +\
+    '  power ' + style.bold('q') + '/' + style.bold('exit') + '                           - quit interactive mode' + '\n' +\
+    '  power ' + style.bold('?') + '/' + style.bold('help') + '                           - print these instructions'
     print(help_str)
 
 

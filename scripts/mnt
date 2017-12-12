@@ -15,6 +15,7 @@ import astropy.units as u
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -337,31 +338,31 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' mnt [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('start') + '          - start the daemon' + '\n' +\
-    '  mnt ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
-    '  mnt ' + misc.bold('restart') + '        - restart the daemon' + '\n' +\
-    '  mnt ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  mnt ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Mount commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
-    '  mnt ' + misc.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
-    '  mnt ' + misc.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
-    '  mnt ' + misc.bold('slew') + '           - slew to target ra/dec' + '\n' +\
-    '  mnt ' + misc.bold('track') + '          - start tracking' + '\n' +\
-    '  mnt ' + misc.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
-    '  mnt ' + misc.bold('park') + '           - enter park state' + '\n' +\
-    '  mnt ' + misc.bold('unpark') + '         - leave park state' + '\n' +\
-    '  mnt ' + misc.bold('n') + '/' + misc.bold('s') + '/' + misc.bold('e') + '/' + misc.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
-    '  mnt ' + misc.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
-    '  mnt ' + misc.bold('blinky') + ' on|off' + '  - turn on or off blinky mode' + '\n' +\
-    '  mnt ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
-    '  mnt ' + misc.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  mnt ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
-    '  mnt ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
-    '  mnt ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    help_str = style.bold('Usage:') + ' mnt [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('start') + '          - start the daemon' + '\n' +\
+    '  mnt ' + style.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  mnt ' + style.bold('restart') + '        - restart the daemon' + '\n' +\
+    '  mnt ' + style.bold('kill') + '           - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  mnt ' + style.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + style.undl('Mount commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('ra') + ' h m s' + '       - set target ra' + '\n' +\
+    '  mnt ' + style.bold('dec') + ' d m s' + '      - set target dec' + '\n' +\
+    '  mnt ' + style.bold('target') + ' name' + '    - set target as named object (can include spaces)' + '\n' +\
+    '  mnt ' + style.bold('slew') + '           - slew to target ra/dec' + '\n' +\
+    '  mnt ' + style.bold('track') + '          - start tracking' + '\n' +\
+    '  mnt ' + style.bold('stop') + '           - stop moving (tracking/slewing)' + '\n' +\
+    '  mnt ' + style.bold('park') + '           - enter park state' + '\n' +\
+    '  mnt ' + style.bold('unpark') + '         - leave park state' + '\n' +\
+    '  mnt ' + style.bold('n') + '/' + style.bold('s') + '/' + style.bold('e') + '/' + style.bold('w') + ' [step]' + ' - offset in direction by one step' + '\n' +\
+    '  mnt ' + style.bold('step') + ' size' + '      - set offset step size (arcsec, default=10)' + '\n' +\
+    '  mnt ' + style.bold('blinky') + ' on|off' + '  - turn on or off blinky mode' + '\n' +\
+    '  mnt ' + style.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    '  mnt ' + style.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  mnt ' + style.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  mnt ' + style.bold('q') + '/' + style.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  mnt ' + style.bold('?') + '/' + style.bold('help') + '         - print these instructions'
     print(help_str)
 
 

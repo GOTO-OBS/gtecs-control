@@ -13,6 +13,7 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -144,19 +145,19 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' scheduler [command]' + '\n' +\
-    ' ' + misc.undl('Interface commands') + ':' + '\n' +\
-    '  scheduler ' + misc.bold('start') + '             - start the daemon' + '\n' +\
-    '  scheduler ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  scheduler ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  scheduler ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  scheduler ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  scheduler ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
-    '  scheduler ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  scheduler ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  scheduler ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  scheduler ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    help_str = style.bold('Usage:') + ' scheduler [command]' + '\n' +\
+    ' ' + style.undl('Interface commands') + ':' + '\n' +\
+    '  scheduler ' + style.bold('start') + '             - start the daemon' + '\n' +\
+    '  scheduler ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  scheduler ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
+    '  scheduler ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  scheduler ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
+    '  scheduler ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  scheduler ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  scheduler ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  scheduler ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  scheduler ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
     print(help_str)
 
 

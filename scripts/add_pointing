@@ -3,13 +3,14 @@
 A script to allow simple adding of pointings to the scheduler database
 """
 
+import readline
+import getpass
+
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
 
 from gtecs import database as db
-from gtecs import misc
-import readline
-import getpass
+from gtecs import style
 
 
 def parse_ra(ra_str):
@@ -149,8 +150,8 @@ def get_userkey(session, username):
     except:
         # Create user if it doesn't exist
         print('    User "{}" not recognised, creating new user...'.format(username))
-        description = input(misc.bold('Enter your full name')+': ')
-        prompt = misc.bold('Give a password for {}'.format(username))+': '
+        description = input(style.bold('Enter your full name')+': ')
+        prompt = style.bold('Give a password for {}'.format(username))+': '
         passwd = getpass.getpass(prompt=prompt)
         db.add_user(session, username, passwd, description)
         session.commit()
