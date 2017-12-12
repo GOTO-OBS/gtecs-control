@@ -17,19 +17,10 @@ from gtecs import flags
 from gtecs import daemons
 
 
-def interactive():
-    while True:
-        i_in = input('{}> '.format(daemon_ID)).split()
-        if len(i_in) > 0:
-            command, *args = i_in
-            if command == 'q' or command == 'exit':
-                return
-            else:
-                with misc.print_errors():
-                    query(command, args)
+DAEMON_ID = os.path.basename(__file__)
 
 
-def query(command, args):
+def query(command, args, daemon_ID):
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -207,14 +198,20 @@ def print_instructions():
 
 
 if __name__ == "__main__":
-    daemon_ID = os.path.basename(__file__)
-
     if len(sys.argv) == 1:
         print_instructions()
     else:
         command, *args = sys.argv[1:]
         if command == 'i':
-            interactive()
+            while True:
+                interactive_input = input('{}> '.format(DAEMON_ID)).split()
+                if len(interactive_input) > 0:
+                    command, *args = interactive_input
+                    if command in ['q', 'exit']:
+                        break
+                    else:
+                        with misc.print_errors():
+                            query(command, args, DAEMON_ID)
         else:
             with misc.print_errors():
-                query(command, args)
+                query(command, args, DAEMON_ID)

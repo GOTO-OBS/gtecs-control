@@ -20,6 +20,14 @@ from gtecs import params
 from gtecs.daemons import InterfaceDaemon
 
 
+try:
+    DAEMON_ID = misc.find_interface_ID(socket.gethostname())
+except ValueError:
+    DAEMON_ID = misc.find_interface_ID('localhost')
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
+
 class FLIDaemon(InterfaceDaemon):
     """FLI interface daemon class"""
 
@@ -243,38 +251,23 @@ class FLIDaemon(InterfaceDaemon):
         return self.cams[int(HW)].serial_number
 
 
-def start():
-    """Create Pyro server, register the daemon and enter request loop"""
-
-    # find which interface this is
-    hostname = socket.gethostname()
-
-    try:
-        intf = misc.find_interface_ID(hostname)
-    except ValueError:
-        intf = misc.find_interface_ID('localhost')
-
-    host = params.DAEMONS[intf]['HOST']
-    port = params.DAEMONS[intf]['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(intf):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = FLIDaemon(intf=DAEMON_ID)
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        fli_daemon = FLIDaemon(intf)
-        uri = pyro_daemon.register(fli_daemon, objectId=intf)
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        fli_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=fli_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    fli_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-
-if __name__ == "__main__":
-    start()
