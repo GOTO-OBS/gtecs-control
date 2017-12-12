@@ -12,10 +12,11 @@ import validate
 
 import numpy
 
+from . import __version__
+
 
 # Module parameters
-GTECS_VERSION = '0.2.0'
-
+GTECS_VERSION = __version__
 
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):

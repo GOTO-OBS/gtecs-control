@@ -1,9 +1,9 @@
 from setuptools import setup
 import glob
-from gtecs.params import GTECS_VERSION
+from gtecs import __version__
 
 setup(name='gtecs',
-      version=GTECS_VERSION,
+      version=__version__,
       description='G-TeCS control system for GOTO',
       url='http://github.com/GOTO/g-tecs',
       author='Martin Dyer',
