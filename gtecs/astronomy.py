@@ -1,37 +1,27 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                             astronomy.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#             G-TeCS module containing astronomy utilities             #
-#                     Stuart Littlefair, Sheffield, 2016               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
+"""
+Astronomy utilities
+"""
 
-#  Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
+import math
 import warnings
+import datetime
+
+import ephem
 
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 
-# TeCS modules
-from . import params
-from . import astropy_speedups
-
-# astropy/astroplan
+from astropy import units as u
+from astropy.time import Time
 from astropy.coordinates import (SkyCoord, EarthLocation, AltAz,
                                  get_sun, get_moon,
                                  GCRS, Longitude)
-from astropy import units as u
-from astropy.time import Time
+
 from astroplan import Observer
 from astroplan.moon import moon_illumination
 
-# pyephem
-import ephem
-import math
+from . import params
+from . import astropy_speedups
 
 
 MAGIC_TIME = Time(-999, format='jd')
@@ -272,6 +262,15 @@ def localMidnight(date):
     noon = Time(date + " 12:00:00")
     observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
+
+
+def nightStarting():
+    """
+    Return the date at the start of the current astronomical night in format Y-M-D.
+    """
+    now = datetime.datetime.utcnow()
+    if now.hour < 12: now = now - datetime.timedelta(days=1)
+    return now.strftime("%Y-%m-%d")
 
 
 @u.quantity_input(sunAlt=u.deg)

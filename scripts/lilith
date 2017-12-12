@@ -1,25 +1,17 @@
 #!/usr/bin/env python
+"""
+A script to provide overall control of the daemons
+"""
 
-########################################################################
-#                               lilith.py                              #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#       G-TeCS script to provide overall control of the daemons        #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
-import readline
+import os
+import sys
 import time
+import readline
 import Pyro4
-# TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+
+from gtecs import misc
+from gtecs import params
+
 
 if __name__ == '__main__':
     if sys.argv[1] in ['start', 'shutdown', 'kill', 'ping']:

@@ -1,24 +1,16 @@
 #!/usr/bin/env python
+"""
+A script to check the dome status
+"""
 
-########################################################################
-#                            dome_check.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#               G-TeCS script to check the dome status                 #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
+import os
+import sys
 import time
 import Pyro4
-# TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
+
+from gtecs import misc
+from gtecs import params
+
 
 INFO_TIMEOUT = 10.
 PING_LIMIT = 60.

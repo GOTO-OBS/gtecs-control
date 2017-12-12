@@ -1,21 +1,11 @@
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
-#                         hardware_wrappers.py                         #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#         G-TeCS module containing hardware wrappers for pilot         #
-#                     Stuart Littlefair, Sheffield, 2016               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-# oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo #
+"""
+Hardware wrappers for the pilot
+"""
 
-#  Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
 import Pyro4
 import time
 import abc
 
-# TeCS modules
 from . import params
 from .misc import execute_command
 
@@ -63,7 +53,7 @@ class HardwareMonitor:
         return inf
 
     def pingDaemon(self):
-        '''Ping a daemon - return 0 for alive and 1 for (maybe) dead'''
+        """Ping a daemon - return 0 for alive and 1 for (maybe) dead"""
         if self.daemonID is not None:
             daem_address = params.DAEMONS[self.daemonID]['ADDRESS']
             try:
@@ -124,11 +114,11 @@ class HardwareMonitor:
         return
 
     def recover(self):
-        '''
+        """
         Recovery procedure.
 
         Checks whether enough time has elapsed to progress to next stage of recovery.
-        '''
+        """
         downtime = time.time() - self.lastSuccessfulCheck
         nextLevel = self.recoveryLevel + 1
         if nextLevel in self.recoveryProcedure:

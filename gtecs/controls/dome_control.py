@@ -1,37 +1,23 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                           dome_control.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing classes to control telescope domes      #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to control telescope domes and dehumidifiers
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys, subprocess
-import six
-if six.PY2:
-    from commands import getoutput
-else:
-    from subprocess import getoutput
+import os
+import sys
 import time
 import serial
 import json
 import threading
-from six.moves import map
-from six.moves import range
-# TeCS modules
-from gtecs.tecs_modules import flags
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.conditions import get_roomalert
+import subprocess
+
+from gtecs import flags
+from gtecs import params
+from gtecs.conditions import get_roomalert
 from gtecs.controls.power_control import ETH002
 
-########################################################################
-# Fake AstroHaven dome class
+
 class FakeDome:
+    """Fake AstroHaven dome class"""
     def __init__(self):
         self.fake = True
         self.output_thread_running = False
@@ -192,9 +178,8 @@ class FakeDome:
         return
 
 
-########################################################################
-# New AstroHaven dome class (based on Warwick 1m control)
 class AstroHavenDome:
+    """New AstroHaven dome class (based on Warwick 1m control)"""
     def __init__(self, serial_port='/dev/ttyS0', stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
@@ -288,7 +273,7 @@ class AstroHavenDome:
     def _read_arduino(self):
         loc = params.ARDUINO_LOCATION
         try:
-            arduino = getoutput('curl -s %s' %loc)
+            arduino = subprocess.getoutput('curl -s %s' %loc)
             data = json.loads(arduino)
             self._parse_arduino_status(data)
             return 0
@@ -380,8 +365,8 @@ class AstroHavenDome:
             return
 
     def _read_status(self):
-        '''Check the dome status
-        reported by both the dome heartbeat and the arduino'''
+        """Check the dome status
+        reported by both the dome heartbeat and the arduino"""
 
         # check heartbeat
         self._read_heartbeat()
@@ -494,11 +479,11 @@ class AstroHavenDome:
         self.timeout = 40.
 
     def halt(self):
-        '''To stop the output thread'''
+        """To stop the output thread"""
         self.output_thread_running = 0
 
     def _move_dome(self, side, command, frac, timeout=40.):
-        #'''Internal (blocking) function to keep moving dome until it reaches its limit'''
+        #"""Internal (blocking) function to keep moving dome until it reaches its limit"""
         self.side = side
         self.frac = frac
         self.command = command
@@ -528,7 +513,7 @@ class AstroHavenDome:
         return
 
     def sound_alarm(self,duration=3,sleep=True):
-        '''Sound the dome alarm using the Arduino
+        """Sound the dome alarm using the Arduino
 
         duration : int [0-9]
             The time to sound the alarm for (seconds)
@@ -538,7 +523,7 @@ class AstroHavenDome:
             Whether to sleep for the duration of the alarm
             or return immediately
             default = True
-        '''
+        """
         loc = params.ARDUINO_LOCATION
         overrides = flags.Overrides()
         if (params.SILENCE_ALARM_IN_MANUAL_MODE
@@ -548,15 +533,14 @@ class AstroHavenDome:
             # but only in manual mode and only if autoclose is off
            pass
         else:
-            curl = getoutput('curl -s {}?s{}'.format(loc, duration))
+            curl = subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
         if sleep:
             time.sleep(duration)
         return
 
 
-########################################################################
-# AstroHaven dome class (based on KNU SLODAR dome control)
 class OldAstroHavenDome:
+    """AstroHaven dome class (based on KNU SLODAR dome control)"""
     def __init__(self,serial_port='/dev/ttyS1',stop_length=3):
         self.serial_port = serial_port
         self.stop_length = stop_length
@@ -569,7 +553,7 @@ class OldAstroHavenDome:
         self.fake = False
 
     def _move_dome(self,command,timeout=40.):
-        '''Internal (blocking) function to keep moving dome until it reaches its limit'''
+        """Internal (blocking) function to keep moving dome until it reaches its limit"""
         received = ''
         stop_signal = self.stop_length * self.limit_code[command]
         print('Expecting stop on',stop_signal)
@@ -589,7 +573,7 @@ class OldAstroHavenDome:
             time.sleep(0.1)
 
     def _move_dome_steps(self,command,steps):
-        '''Internal (blocking) function to move dome a fixed number of (stop-start) steps'''
+        """Internal (blocking) function to move dome a fixed number of (stop-start) steps"""
         received = ''
         for i in range(steps):
             self.dome_port.write(move_code[command])
@@ -601,11 +585,11 @@ class OldAstroHavenDome:
         return received
 
     def status(self):
-        '''Check the status as reported by the arduino'''
+        """Check the status as reported by the arduino"""
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
         try:
-            curl = getoutput('curl -s dome')
+            curl = subprocess.getoutput('curl -s dome')
             ard = remove_html_tags(curl).split()
             for i in range(len(ard)):
                 if ard[i] == 'pin':
@@ -669,15 +653,14 @@ class OldAstroHavenDome:
         return closeS.strip()
 
     def sound_alarm(self,sleep=True):
-        '''Sound the dome alarm using the arduino'''
-        curl = getoutput('curl -s dome?s')
+        """Sound the dome alarm using the arduino"""
+        curl = subprocess.getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 
 
-########################################################################
-# Fake dehumidifier class
 class FakeDehumidifier:
+    """Fake dehumidifier class"""
     def __init__(self):
         self._status = '0'
 
@@ -696,9 +679,8 @@ class FakeDehumidifier:
         return max([dome_humidity, pier_humidity])
 
 
-########################################################################
-# Dehumidifier class (using a ETH002 relay)
 class Dehumidifier:
+    """Dehumidifier class (using a ETH002 relay)"""
     def __init__(self, IP_address, port):
         self.IP_address = IP_address
         self.port = port
@@ -717,22 +699,3 @@ class Dehumidifier:
         dome_humidity = get_roomalert('dome')['int_humidity']
         pier_humidity = get_roomalert('pier')['int_humidity']
         return max([dome_humidity, pier_humidity])
-
-
-########################################################################
-# Direct control
-if __name__ == '__main__':
-    dome = AstroHavenDome(params.DOME_LOCATION)
-    try:
-        if sys.argv[1] == 'open':
-            dome.open_full()
-        elif sys.argv[1] == 'close':
-            dome.close_full()
-        elif sys.argv[1] == 'status':
-            print(dome.status())
-        elif sys.argv[1] == 'alarm':
-            dome.sound_alarm()
-        else:
-            print('Usage: python dome_control.py status/open/close/alarm')
-    except:
-        print('Usage: python dome_control.py status/open/close/alarm')

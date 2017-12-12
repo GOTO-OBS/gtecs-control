@@ -1,19 +1,12 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                             scheduler.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#               G-TeCS robotic queue scheduler functions               #
-#                     Martin Dyer, Sheffield, 2016                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-
-from __future__ import absolute_import
-from __future__ import print_function
+"""
+Robotic queue scheduler functions
+"""
 
 import os
 import signal
 from collections import namedtuple
 import json
+import warnings
 
 import numpy as np
 from scipy import interpolate
@@ -24,23 +17,21 @@ from astropy._erfa import ErfaWarning
 
 from astroplan import Observer
 from astroplan.constraints import _get_altaz
-
 from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
-import warnings
-warnings.simplefilter("ignore", ErfaWarning)
-
-# TeCS modules
 from . import params
 from . import misc
 from . import html
 from . import astronomy
-from .. import database as db
+from . import database as db
 from . import astropy_speedups
 
+
 ## Setup
+warnings.simplefilter("ignore", ErfaWarning)
+
 # define paths to directories
 queue_folder = params.QUEUE_PATH  + 'todo/'
 queue_file   = params.QUEUE_PATH  + 'queue_info'
@@ -230,13 +221,13 @@ class PointingQueue:
         return len(self.pointings)
 
     def get_current_pointing(self):
-        '''Return the current pointing from the queue'''
+        """Return the current pointing from the queue"""
         for p in self.pointings:
             if p.current:
                 return p
 
     def initialise(self):
-        '''Setup the queue and constraints when initialised.'''
+        """Setup the queue and constraints when initialised."""
         limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
         moondist_limit = params.MOONDIST_LIMIT * u.deg
 
@@ -340,7 +331,7 @@ class PointingQueue:
                                      self.mintime_constraint_names)
 
     def check_validities(self, now, observer):
-        ''' Check if the pointings are valid, both now and after mintimes'''
+        """ Check if the pointings are valid, both now and after mintimes"""
 
         # apply normal constraints
         cons_valid_arr = apply_constraints(self.constraints,
@@ -389,7 +380,7 @@ class PointingQueue:
             pointing.valid_time = now
 
     def calculate_priorities(self, time, observer):
-        '''Calculate priorities at a given time for each pointing.'''
+        """Calculate priorities at a given time for each pointing."""
 
         ## Find base priority based on rank
         priorities = np.array([p.priority for p in self.pointings])
@@ -450,7 +441,7 @@ class PointingQueue:
             pointing.priority_now = priority_now
 
     def get_highest_priority_pointing(self, time, observer):
-        '''Return the pointing with the highest priority.'''
+        """Return the pointing with the highest priority."""
 
         if len(self.pointings) == 0:
             return None
@@ -463,7 +454,7 @@ class PointingQueue:
 
 
     def write_to_file(self, time, observer, filename):
-        '''Write any time-dependent pointing infomation to a file.'''
+        """Write any time-dependent pointing infomation to a file."""
 
         # The queue should already have priorities calculated
         try:

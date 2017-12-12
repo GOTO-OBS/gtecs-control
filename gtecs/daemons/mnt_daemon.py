@@ -1,43 +1,38 @@
 #!/usr/bin/env python
+"""
+Daemon to access SiTech mount control
+"""
 
-########################################################################
-#                            mnt_daemon.py                             #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#              G-TeCS daemon to access SiTech mount control            #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-from math import sin, cos, acos, pi, radians, degrees
 import sys
+import time
+from math import sin, cos, acos, pi, radians, degrees
 import Pyro4
 import threading
-import time
-from astropy.time import Time
-import astropy.units as u
-from astropy.coordinates import SkyCoord
-# TeCS modules
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.controls import mnt_control
-from gtecs.tecs_modules.astronomy import find_ha, check_alt_limit
-from gtecs.tecs_modules.daemons import HardwareDaemon
 
-########################################################################
-# Mount daemon class
+import astropy.units as u
+from astropy.time import Time
+from astropy.coordinates import SkyCoord
+
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs.controls import mnt_control
+from gtecs.astronomy import find_ha, check_alt_limit
+from gtecs.daemons import HardwareDaemon
+
+
+DAEMON_ID = 'mnt'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
 
 class MntDaemon(HardwareDaemon):
     """Mount hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'mnt')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 1
@@ -85,7 +80,7 @@ class MntDaemon(HardwareDaemon):
             t2.daemon = True
             t2.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -95,7 +90,7 @@ class MntDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('mnt'):
+                if not misc.dependencies_are_alive(self.daemon_id):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -223,7 +218,7 @@ class MntDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
@@ -535,7 +530,7 @@ class MntDaemon(HardwareDaemon):
 
         return 'New offset step set'
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Internal functions
     def _get_target_distance(self):
         """Return the distance to the current target"""
@@ -560,8 +555,9 @@ class MntDaemon(HardwareDaemon):
             else:
                 return sep
 
+
     def _ra_check_thread(self):
-        '''A thread to check the ra distance and cancel slewing when it's
+        """A thread to check the ra distance and cancel slewing when it's
         reached the target.
 
         Required for when the FREEZE_DEC is set, so the mount doesn't keep
@@ -569,7 +565,7 @@ class MntDaemon(HardwareDaemon):
 
         If activated it will check the telescope when slewing, and if it's
         reached the RA target then stop the slewing and start tracking.
-        '''
+        """
         import numpy as np
         ra_distance = 0
         i = 0
@@ -597,32 +593,24 @@ class MntDaemon(HardwareDaemon):
             else:
                 time.sleep(1)
 
-########################################################################
 
-def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
-    host = params.DAEMONS['mnt']['HOST']
-    port = params.DAEMONS['mnt']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('mnt'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = MntDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        mnt_daemon = MntDaemon()
-        uri = pyro_daemon.register(mnt_daemon, objectId='mnt')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        mnt_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=mnt_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    mnt_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-if __name__ == "__main__":
-    start()

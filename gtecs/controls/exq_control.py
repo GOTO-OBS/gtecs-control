@@ -1,23 +1,16 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                            exq_control.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#    G-TeCS module containing classes to control the exposure queue    #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to control the exposure queue
+"""
 
-### Import ###
-# Python modules
+import os
+import sys
 import time
-import os, sys
 from collections import MutableSequence
-# TeCS modules
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
 
-########################################################################
-# Exposure class
+from gtecs import misc
+from gtecs import params
+
+
 class Exposure:
     """A class to represent a single exposure.
 
@@ -106,9 +99,6 @@ class Exposure:
         s += '  ExposureSet database ID (if any): %i\n' %self.expID
         return s
 
-
-########################################################################
-# Exposure queue class
 
 class ExposureQueue(MutableSequence):
     """A queue sequence to hold Exposures.

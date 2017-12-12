@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from gtecs.tecs_modules import params
+from gtecs import params
 
 # TODO: build name from params
 

@@ -1,23 +1,15 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                               flags.py                               #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#     G-TeCS module containing classes to read external flag files     #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Classes to read external flag files
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from astropy.time import Time
-import json
 import time
+import json
 import copy
-from six import iteritems
-# TeCS modules
+
+from astropy.time import Time
+
 from . import params
-from ..controls.power_control import APCUPS
+from .controls.power_control import APCUPS
 
 
 def load_json(fname):
@@ -52,9 +44,9 @@ class Power:
 
     @property
     def failed(self):
-        '''
+        """
         return True if any power supplies have failed and UPS has kicked in
-        '''
+        """
         acceptable_status_vals = ['Normal', 'onBatteryTest']
         return any([self.ups_units[ukey].status() not in acceptable_status_vals
                     for ukey in self.ups_units])
@@ -82,13 +74,13 @@ class Conditions:
 
         # store a summary of all flags, excluding dark
         self._summary = 0
-        for key, value in iteritems(conditions_dict):
+        for key, value in conditions_dict.items():
             if key != 'dark':
                 self._summary += value
 
         # and store a separate summary of critical flags
         self._crit_sum = 0
-        for key, value in iteritems(conditions_dict):
+        for key, value in conditions_dict.items():
             if key in ['diskspace', 'low_battery']:
                 self._crit_sum += value
             overrides = Overrides()

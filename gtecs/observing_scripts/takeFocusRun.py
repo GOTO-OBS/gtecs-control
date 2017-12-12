@@ -5,8 +5,6 @@ Script to take a series of images running through focus
 It assumes you're already on a reasonable patch of sky and that you're
 already focused (see autoFocus script)
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import os
 import sys
@@ -22,13 +20,12 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd, neatCloser
-from gtecs.tecs_modules.time_date import nightStarting
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          prepare_for_images,
-                                          get_current_focus, set_new_focus,
-                                          wait_for_focuser, last_written_image)
+from gtecs import params
+from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.astronomy import nightStarting
+from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
+                             get_current_focus, set_new_focus,
+                             wait_for_focuser, last_written_image)
 from gtecs.observing_scripts.autoFocus import (take_frame, RestoreFocus,
                                                set_focus_carefully, get_hfd)
 

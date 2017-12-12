@@ -9,7 +9,6 @@ from sqlalchemy import or_
 from astropy.time import Time
 from astropy.coordinates import Longitude
 from astropy import units as u
-import six
 
 
 def add_user(session, userName, password, fullName):
@@ -309,7 +308,7 @@ def get_pointings(session, pointingIDs=None,
             Pointing.pointingID.in_(list(pointingIDs))
         )
     if status is not None:
-        if isinstance(status, six.string_types):
+        if isinstance(status, str):
             status = [status]
         query = query.filter(
             Pointing.status.in_(status)

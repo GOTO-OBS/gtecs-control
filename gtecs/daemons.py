@@ -1,27 +1,15 @@
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
-#                              daemons.py                              #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#      G-TeCS module containing generic daemon classes & functions     #
-#                     Martin Dyer, Sheffield, 2017                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo#
+"""
+Generic G-TeCS daemon classes & functions
+"""
 
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import time
 import os
+import time
 import Pyro4
 
-# TeCS modules
 from . import logger
 from . import params
 from . import misc
 
-########################################################################
-# Super classes
 
 class BaseDaemon(object):
     """Base class for TeCS daemons.
@@ -93,10 +81,8 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
-########################################################################
-# Core Daemon control functions
 def start_daemon(daemon_ID):
-    '''Start a daemon (unless it is already running)'''
+    """Start a daemon (unless it is already running)"""
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
@@ -139,7 +125,7 @@ def start_daemon(daemon_ID):
 
 
 def ping_daemon(daemon_ID):
-    '''Ping a daemon'''
+    """Ping a daemon"""
     address = params.DAEMONS[daemon_ID]['ADDRESS']
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
@@ -165,7 +151,7 @@ def ping_daemon(daemon_ID):
 
 
 def shutdown_daemon(daemon_ID):
-    '''Shut a daemon down nicely'''
+    """Shut a daemon down nicely"""
     address = params.DAEMONS[daemon_ID]['ADDRESS']
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
@@ -200,7 +186,7 @@ def shutdown_daemon(daemon_ID):
 
 
 def kill_daemon(daemon_ID):
-    '''Kill a daemon (should be used as a last resort)'''
+    """Kill a daemon (should be used as a last resort)"""
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
 
@@ -221,7 +207,7 @@ def kill_daemon(daemon_ID):
 
 
 def restart_daemon(daemon_ID, wait_time=2):
-    '''Shut down a daemon and then start it again after `wait_time` seconds'''
+    """Shut down a daemon and then start it again after `wait_time` seconds"""
     reply = shutdown_daemon(daemon_ID)
     print(reply)
 
@@ -230,8 +216,7 @@ def restart_daemon(daemon_ID, wait_time=2):
     reply = start_daemon(daemon_ID)
     print(reply)
 
-########################################################################
-# Generic daemon function wrapper
+
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     if not misc.daemon_is_running(daemon_ID):
         raise misc.DaemonConnectionError('Daemon not running')

@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+"""
+A script to change the system control mode
+"""
 
 import sys
 import json
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules import misc
+from gtecs import params
+from gtecs import misc
+
 
 CURRENT_OBSERVER = misc.get_observer()
 

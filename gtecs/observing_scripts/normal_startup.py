@@ -9,14 +9,12 @@ These are hardware tasks to do BEFORE the dome opens:
     * unpark the mount (but don't move anywhere yet)
     * bring the cameras down to the target temperature
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import time
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import (filters_are_homed, cameras_are_cool)
+from gtecs import params
+from gtecs.misc import execute_command as cmd
+from gtecs.observing import (filters_are_homed, cameras_are_cool)
 
 
 def run():

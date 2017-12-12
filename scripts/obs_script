@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-'''
-obs_script [script_name] [args]
+"""
 A script to make it easier for users to run observation scripts
-'''
+"""
 
 import os
 import sys
 import pkg_resources
 
-from gtecs.tecs_modules.misc import execute_command as cmd
+from gtecs.misc import execute_command as cmd
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 

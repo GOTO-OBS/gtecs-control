@@ -1,8 +1,6 @@
 """
 Flat field catalog from WHT blank field list
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import warnings
 
 from astropy import units as u
@@ -11,8 +9,8 @@ from astropy.table import Table
 
 import numpy as np
 
-from ..tecs_modules import astronomy as ast
-from ..tecs_modules import params
+from . import astronomy as ast
+from . import params
 
 data = [
     {'Name': 'MAblank1', 'RA2000': '01 00 00', 'DE2000': '+00 07 00', 'bmag': 11.4, 'rmag': 12.3},

@@ -2,18 +2,15 @@
 takeBiasesAndDarks [nExp]
 Script to take bias and dark frames
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import sys
 import time
 
 import numpy as np
 
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.misc import execute_command as cmd
-from gtecs.tecs_modules.observing import (wait_for_exposure_queue,
-                                          prepare_for_images)
+from gtecs import params
+from gtecs.misc import execute_command as cmd
+from gtecs.observing import (wait_for_exposure_queue, prepare_for_images)
 
 def run(nexp=5):
     """

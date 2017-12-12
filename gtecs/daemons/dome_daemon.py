@@ -1,42 +1,37 @@
 #!/usr/bin/env python
+"""
+Daemon to control an AstroHaven dome
+"""
 
-########################################################################
-#                            dome_daemon.py                            #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#             G-TeCS daemon to control an AstroHaven dome              #
-#                     Martin Dyer, Sheffield, 2015                     #
-#           ~~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~~~~           #
-#                   Based on the SLODAR/pt5m system                    #
-########################################################################
-
-### Import ###
-# Python modules
-from __future__ import absolute_import
-from __future__ import print_function
-import os, sys
+import os
+import sys
+import time
+import datetime
 from math import *
-import time, datetime
 import Pyro4
 import threading
-# TeCS modules
-from gtecs.tecs_modules import flags
-from gtecs.tecs_modules import logger
-from gtecs.tecs_modules import misc
-from gtecs.tecs_modules import params
-from gtecs.tecs_modules.slack import send_slack_msg
+
+from gtecs import flags
+from gtecs import logger
+from gtecs import misc
+from gtecs import params
+from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
+from gtecs.daemons import HardwareDaemon
 
-from gtecs.tecs_modules.daemons import HardwareDaemon
 
-########################################################################
-# Dome daemon class
+DAEMON_ID = 'dome'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
 
 class DomeDaemon(HardwareDaemon):
     """Dome hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'dome')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 0
@@ -79,7 +74,7 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Primary control thread
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
@@ -104,7 +99,7 @@ class DomeDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('dome'):
+                if not misc.dependencies_are_alive(self.daemon_id):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -437,7 +432,7 @@ class DomeDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread stopped')
         return
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
@@ -451,6 +446,7 @@ class DomeDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
@@ -501,6 +497,7 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Opening dome'
 
+
     def close_dome(self, side='both', frac=1):
         """Close the dome"""
         # Check restrictions
@@ -543,6 +540,7 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Closing dome'
 
+
     def halt_dome(self):
         """Stop the dome moving"""
         # Check restrictions
@@ -554,32 +552,24 @@ class DomeDaemon(HardwareDaemon):
 
         return 'Halting dome'
 
-########################################################################
 
-def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
-    host = params.DAEMONS['dome']['HOST']
-    port = params.DAEMONS['dome']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('dome'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = DomeDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        dome_daemon = DomeDaemon()
-        uri = pyro_daemon.register(dome_daemon, objectId='dome')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        dome_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=dome_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    dome_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-if __name__ == "__main__":
-    start()
