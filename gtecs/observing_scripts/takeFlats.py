@@ -14,8 +14,7 @@ from astropy.io import fits
 
 from gtecs import params
 from gtecs.misc import execute_command as cmd
-from gtecs.time_date import nightStarting
-from gtecs.astronomy import startTime
+from gtecs.astronomy import startTime, nightStarting
 from gtecs.observing import (wait_for_exposure_queue, last_written_image,
                              prepare_for_images, goto, random_offset,
                              wait_for_telescope)

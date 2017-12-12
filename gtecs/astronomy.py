@@ -4,6 +4,7 @@ Astronomy utilities
 
 import math
 import warnings
+import datetime
 
 import ephem
 
@@ -261,6 +262,15 @@ def localMidnight(date):
     noon = Time(date + " 12:00:00")
     observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
+
+
+def nightStarting():
+    """
+    Return the date at the start of the current astronomical night in format Y-M-D.
+    """
+    now = datetime.datetime.utcnow()
+    if now.hour < 12: now = now - datetime.timedelta(days=1)
+    return now.strftime("%Y-%m-%d")
 
 
 @u.quantity_input(sunAlt=u.deg)

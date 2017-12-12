@@ -12,8 +12,7 @@ import numpy as np
 from astropy.time import Time
 
 from . import params
-from .time_date import nightStarting
-from .astronomy import tel_str, check_alt_limit
+from .astronomy import tel_str, check_alt_limit, nightStarting
 from .misc import execute_command as cmd
 from .daemons import daemon_function
 
