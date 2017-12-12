@@ -18,14 +18,13 @@ import astropy.units as u
 from . import params
 from . import misc
 from . import astronomy
-from .time_date import nightStarting
 from .astronomy import sun_alt as get_sun_alt
 
 
 def image_location(run_number, tel):
     """Construct the image file location based on the run and tel number"""
     # Find the directory, using the date the observing night began
-    night = nightStarting()
+    night = astronomy.nightStarting()
     direc = params.IMAGE_PATH + night
     if not os.path.exists(direc):
         os.mkdir(direc)
