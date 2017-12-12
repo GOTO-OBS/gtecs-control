@@ -20,12 +20,18 @@ from gtecs.daemons import HardwareDaemon
 from gtecs.fits import image_location, write_fits
 
 
+DAEMON_ID = 'cam'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
+
 class CamDaemon(HardwareDaemon):
     """Camera hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'cam')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 1
@@ -93,7 +99,7 @@ class CamDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('cam'):
+                if not misc.dependencies_are_alive(self.daemon_id):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -497,30 +503,23 @@ class CamDaemon(HardwareDaemon):
         return future_image
 
 
-def start():
-    """Create Pyro server, register the daemon and enter request loop"""
-
-    host = params.DAEMONS['cam']['HOST']
-    port = params.DAEMONS['cam']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('cam'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = CamDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        cam_daemon = CamDaemon()
-        uri = pyro_daemon.register(cam_daemon, objectId='cam')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        cam_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=cam_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    cam_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-
-if __name__ == "__main__":
-    start()

@@ -16,12 +16,18 @@ from gtecs import params
 from gtecs.daemons import HardwareDaemon
 
 
+DAEMON_ID = 'filt'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+
+
 class FiltDaemon(HardwareDaemon):
     """Filter wheel hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'filt')
+        self.daemon_id = DAEMON_ID
+        HardwareDaemon.__init__(self, self.daemon_id)
 
         ### command flags
         self.get_info_flag = 1
@@ -72,7 +78,7 @@ class FiltDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('filt'):
+                if not misc.dependencies_are_alive(self.daemon_id):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -271,30 +277,23 @@ class FiltDaemon(HardwareDaemon):
         return s
 
 
-def start():
-    """Create Pyro server, register the daemon and enter request loop"""
-
-    host = params.DAEMONS['filt']['HOST']
-    port = params.DAEMONS['filt']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('filt'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = FiltDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        filt_daemon = FiltDaemon()
-        uri = pyro_daemon.register(filt_daemon, objectId='filt')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        filt_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=filt_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    filt_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-
-if __name__ == "__main__":
-    start()
