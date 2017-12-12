@@ -4,7 +4,7 @@ from gtecs.params import GTECS_VERSION
 
 setup(name='gtecs',
       version=GTECS_VERSION,
-      description='G-TECS control system for GOTO',
+      description='G-TeCS control system for GOTO',
       url='http://github.com/GOTO/g-tecs',
       author='Martin Dyer',
       author_email='martin.dyer@sheffield.ac.uk',
