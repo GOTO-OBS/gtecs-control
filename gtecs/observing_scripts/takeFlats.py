@@ -45,7 +45,7 @@ def take_sky(expT, current_filter, name):
 
 
 def run(eve, alt):
-    '''run just after sunset or just after start of twilight'''
+    """run just after sunset or just after start of twilight"""
     # make sure hardware is ready
     prepare_for_images()
 

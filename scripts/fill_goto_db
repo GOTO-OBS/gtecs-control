@@ -40,7 +40,7 @@ EXP_SETTINGS = dict(expTime=120,
 
 
 def get_userkey(username, description=''):
-    '''Get user key of a user, and create it if it doesn't exit'''
+    """Get user key of a user, and create it if it doesn't exit"""
 
     with db.open_session() as session:
         try:
@@ -56,7 +56,7 @@ def get_userkey(username, description=''):
 
 
 def get_tiles(fov, overlap, nside=256):
-    '''Define survey tiles using GOTO-tile'''
+    """Define survey tiles using GOTO-tile"""
     tiles = gototile.grid.tileallsky(fov, nside, overlap)
     coords = tiles[2]
     ras, decs = coords.ra.value, coords.dec.value

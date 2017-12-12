@@ -44,9 +44,9 @@ class Power:
 
     @property
     def failed(self):
-        '''
+        """
         return True if any power supplies have failed and UPS has kicked in
-        '''
+        """
         acceptable_status_vals = ['Normal', 'onBatteryTest']
         return any([self.ups_units[ukey].status() not in acceptable_status_vals
                     for ukey in self.ups_units])

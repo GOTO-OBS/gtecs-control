@@ -337,9 +337,8 @@ class ExqDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['exq']['HOST']
     port = params.DAEMONS['exq']['PORT']
 

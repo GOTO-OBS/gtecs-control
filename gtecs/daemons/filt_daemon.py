@@ -272,9 +272,8 @@ class FiltDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['filt']['HOST']
     port = params.DAEMONS['filt']['PORT']
 

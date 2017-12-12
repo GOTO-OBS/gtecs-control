@@ -54,7 +54,7 @@ EXP_SETTINGS = dict(expTime=120,
 
 
 def add_to_database(pointings, event_time, event_name, survey_name, filename):
-    '''Add an event and its tiles to the GOTO database'''
+    """Add an event and its tiles to the GOTO database"""
 
     with db.open_session() as session:
         # Connect to the user, or create it if it doesn't exist

@@ -13,7 +13,7 @@ import getpass
 
 
 def parse_ra(ra_str):
-    '''
+    """
     Parse an RA string and return a float in decimal degrees, or ValueError
     ------------------
     Valid formats:
@@ -23,7 +23,7 @@ def parse_ra(ra_str):
             e.g. "3 2 1" OR "10:0:0" OR "8 56 25.7"
     ------------------
     Will also check for limits (0 <= hours < 24 etc.)
-    '''
+    """
 
     ra_list = ra_str.replace(':',' ').split()
 
@@ -61,7 +61,7 @@ def parse_ra(ra_str):
 
 
 def parse_dec(dec_str):
-    '''
+    """
     Parse an Dec string and return a float in decimal degrees, or ValueError
     ------------------
     Valid formats:
@@ -73,7 +73,7 @@ def parse_dec(dec_str):
             e.g. "+ 201 9 55" OR "+ 12:4:2.54" OR "- 0 44 19"
     ------------------
     Will also check for limits (0 <= minutes < 60 etc.)
-    '''
+    """
 
     dec_list = dec_str.replace(':',' ').split()
 

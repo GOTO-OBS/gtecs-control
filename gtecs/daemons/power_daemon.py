@@ -383,9 +383,8 @@ class PowerDaemon(HardwareDaemon):
 
 
 def start():
-    '''
-    Create Pyro server, register the daemon and enter request loop
-    '''
+    """Create Pyro server, register the daemon and enter request loop"""
+
     host = params.DAEMONS['power']['HOST']
     port = params.DAEMONS['power']['PORT']
 
