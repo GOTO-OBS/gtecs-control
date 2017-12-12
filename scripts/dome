@@ -12,6 +12,7 @@ import json
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import flags
 from gtecs import daemons
 
@@ -184,24 +185,24 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' dome [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('start') + '                       - start the daemon' + '\n' +\
-    '  dome ' + misc.bold('shutdown') + '                    - shutdown the daemon' + '\n' +\
-    '  dome ' + misc.bold('restart') + '                     - restart the daemon' + '\n' +\
-    '  dome ' + misc.bold('kill') + '                        - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  dome ' + misc.bold('ping') + '                        - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Dome commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
-    '  dome ' + misc.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
-    '  dome ' + misc.bold('halt') + '/' + misc.bold('stop')+ '                   - stop the dome moving' + '\n' +\
-    '  dome ' + misc.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
-    '  dome ' + misc.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
-    '  dome ' + misc.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  dome ' + misc.bold('i') + '                           - enter interactive mode' + '\n' +\
-    '  dome ' + misc.bold('q') + '/' + misc.bold('exit') + '                      - quit interactive mode' + '\n' +\
-    '  dome ' + misc.bold('?') + '/' + misc.bold('help') + '                      - print these instructions'
+    help_str = style.bold('Usage:') + ' dome [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  dome ' + style.bold('start') + '                       - start the daemon' + '\n' +\
+    '  dome ' + style.bold('shutdown') + '                    - shutdown the daemon' + '\n' +\
+    '  dome ' + style.bold('restart') + '                     - restart the daemon' + '\n' +\
+    '  dome ' + style.bold('kill') + '                        - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  dome ' + style.bold('ping') + '                        - ping the daemon' + '\n' +\
+    ' ' + style.undl('Dome commands') + ':' + '\n' +\
+    '  dome ' + style.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
+    '  dome ' + style.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
+    '  dome ' + style.bold('halt') + '/' + style.bold('stop')+ '                   - stop the dome moving' + '\n' +\
+    '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
+    '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
+    '  dome ' + style.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  dome ' + style.bold('i') + '                           - enter interactive mode' + '\n' +\
+    '  dome ' + style.bold('q') + '/' + style.bold('exit') + '                      - quit interactive mode' + '\n' +\
+    '  dome ' + style.bold('?') + '/' + style.bold('help') + '                      - print these instructions'
     print(help_str)
 
 

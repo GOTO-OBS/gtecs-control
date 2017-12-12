@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -162,23 +163,23 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' filt [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  filt ' + misc.bold('start') + '             - start the daemon' + '\n' +\
-    '  filt ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  filt ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  filt ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  filt ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Filter wheel commands') + ':' + '\n' +\
-    '  filt ' + misc.bold('set') + ' [tels] filter' + ' - set wheel to given filter' + '\n' +\
-    '  filt ' + misc.bold('home') + ' [tels]' + '       - home given filter' + '\n' +\
-    '  filt ' + misc.bold('list') + '              - lists the possible filters' + '\n' +\
-    '  filt ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
-    '  filt ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  filt ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  filt ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  filt ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    help_str = style.bold('Usage:') + ' filt [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  filt ' + style.bold('start') + '             - start the daemon' + '\n' +\
+    '  filt ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  filt ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
+    '  filt ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  filt ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
+    ' ' + style.undl('Filter wheel commands') + ':' + '\n' +\
+    '  filt ' + style.bold('set') + ' [tels] filter' + ' - set wheel to given filter' + '\n' +\
+    '  filt ' + style.bold('home') + ' [tels]' + '       - home given filter' + '\n' +\
+    '  filt ' + style.bold('list') + '              - lists the possible filters' + '\n' +\
+    '  filt ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  filt ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  filt ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  filt ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  filt ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
     print(help_str)
 
 

@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -393,30 +394,30 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' exq [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  exq ' + misc.bold('start') + '          - start the daemon' + '\n' +\
-    '  exq ' + misc.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
-    '  exq ' + misc.bold('restart') + '        - restart the daemon' + '\n' +\
-    '  exq ' + misc.bold('kill') + '           - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  exq ' + misc.bold('ping') + '           - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Exposure queue commands') + ':' + '\n' +\
-    '  exq ' + misc.bold('image') + ' [tels] exptime filter binning [object] [imgtype]' + '\n' +\
-    '  exq ' + misc.bold('multimage') + ' Nexp [tels] exptime filter binning [object] [imgtype]' + '\n' +\
-    '  exq ' + misc.bold('dark') + '  [tels] exptime binning' + '\n' +\
-    '  exq ' + misc.bold('multdark') + ' Nexp [tels] exptime binning' + '\n' +\
-    '  exq ' + misc.bold('bias') + '  [tels] binning' + '\n' +\
-    '  exq ' + misc.bold('multbias') + ' Nexp [tels] binning' + '\n' +\
-    '  exq ' + misc.bold('pause') + '          - pause taking exposures' + '\n' +\
-    '  exq ' + misc.bold('unpause') + '/' + misc.bold('resume') + ' - resumes taking exposures' + '\n' +\
-    '  exq ' + misc.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
-    '  exq ' + misc.bold('clear') + '          - empty the queue' + '\n' +\
-    '  exq ' + misc.bold('info') + ' [v]' + '       - report current status' + '\n' +\
-    '  exq ' + misc.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  exq ' + misc.bold('i') + '              - enter interactive mode' + '\n' +\
-    '  exq ' + misc.bold('q') + '/' + misc.bold('exit') + '         - quit interactive mode' + '\n' +\
-    '  exq ' + misc.bold('?') + '/' + misc.bold('help') + '         - print these instructions'
+    help_str = style.bold('Usage:') + ' exq [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  exq ' + style.bold('start') + '          - start the daemon' + '\n' +\
+    '  exq ' + style.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
+    '  exq ' + style.bold('restart') + '        - restart the daemon' + '\n' +\
+    '  exq ' + style.bold('kill') + '           - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  exq ' + style.bold('ping') + '           - ping the daemon' + '\n' +\
+    ' ' + style.undl('Exposure queue commands') + ':' + '\n' +\
+    '  exq ' + style.bold('image') + ' [tels] exptime filter binning [object] [imgtype]' + '\n' +\
+    '  exq ' + style.bold('multimage') + ' Nexp [tels] exptime filter binning [object] [imgtype]' + '\n' +\
+    '  exq ' + style.bold('dark') + '  [tels] exptime binning' + '\n' +\
+    '  exq ' + style.bold('multdark') + ' Nexp [tels] exptime binning' + '\n' +\
+    '  exq ' + style.bold('bias') + '  [tels] binning' + '\n' +\
+    '  exq ' + style.bold('multbias') + ' Nexp [tels] binning' + '\n' +\
+    '  exq ' + style.bold('pause') + '          - pause taking exposures' + '\n' +\
+    '  exq ' + style.bold('unpause') + '/' + style.bold('resume') + ' - resumes taking exposures' + '\n' +\
+    '  exq ' + style.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
+    '  exq ' + style.bold('clear') + '          - empty the queue' + '\n' +\
+    '  exq ' + style.bold('info') + ' [v]' + '       - report current status' + '\n' +\
+    '  exq ' + style.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  exq ' + style.bold('i') + '              - enter interactive mode' + '\n' +\
+    '  exq ' + style.bold('q') + '/' + style.bold('exit') + '         - quit interactive mode' + '\n' +\
+    '  exq ' + style.bold('?') + '/' + style.bold('help') + '         - print these instructions'
     print(help_str)
 
 

@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -161,23 +162,23 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' foc [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  foc ' + misc.bold('start') + '             - start the daemon' + '\n' +\
-    '  foc ' + misc.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  foc ' + misc.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  foc ' + misc.bold('kill') + '              - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  foc ' + misc.bold('ping') + '              - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Focuser commands') + ':' + '\n' +\
-    '  foc ' + misc.bold('move') + ' [tels] steps' + ' - move by the given steps' + '\n' +\
-    '  foc ' + misc.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
-    '  foc ' + misc.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
-    '  foc ' + misc.bold('info') + ' [v]' + '          - report current status' + '\n' +\
-    '  foc ' + misc.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  foc ' + misc.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  foc ' + misc.bold('q') + '/' + misc.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  foc ' + misc.bold('?') + '/' + misc.bold('help') + '            - print these instructions'
+    help_str = style.bold('Usage:') + ' foc [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  foc ' + style.bold('start') + '             - start the daemon' + '\n' +\
+    '  foc ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
+    '  foc ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
+    '  foc ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  foc ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
+    ' ' + style.undl('Focuser commands') + ':' + '\n' +\
+    '  foc ' + style.bold('move') + ' [tels] steps' + ' - move by the given steps' + '\n' +\
+    '  foc ' + style.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
+    '  foc ' + style.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
+    '  foc ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  foc ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  foc ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
+    '  foc ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
+    '  foc ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
     print(help_str)
 
 

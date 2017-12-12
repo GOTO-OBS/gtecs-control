@@ -11,6 +11,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs import style
 from gtecs import daemons
 
 
@@ -207,25 +208,25 @@ def print_info_s(info):
 
 
 def print_instructions():
-    help_str = misc.bold('Usage:') + ' cam [command]' + '\n' +\
-    ' ' + misc.undl('Daemon commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('start') + '                        - start the daemon' + '\n' +\
-    '  cam ' + misc.bold('shutdown') + '                     - shutdown the daemon' + '\n' +\
-    '  cam ' + misc.bold('restart') + '                      - restart the daemon' + '\n' +\
-    '  cam ' + misc.bold('kill') + '                         - kill the daemon (' + misc.rtxt('emergency use') + ')' + '\n' +\
-    '  cam ' + misc.bold('ping') + '                         - ping the daemon' + '\n' +\
-    ' ' + misc.undl('Camera commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('image') + ' [tels] exptime binning' + ' - take a normal exposure' + '\n' +\
-    '  cam ' + misc.bold('dark') + ' [tels] exptime binning' + '  - take a dark frame' + '\n' +\
-    '  cam ' + misc.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
-    '  cam ' + misc.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\
-    '  cam ' + misc.bold('temp') + ' [tels] temp' + '             - set camera temperature' + '\n' +\
-    '  cam ' + misc.bold('info') + ' [v]' + '                     - report current status' + '\n' +\
-    '  cam ' + misc.bold('log') + ' [stdout]' + '                 - print daemon log (tail alias)' + '\n' +\
-    ' ' + misc.undl('Control commands') + ':' + '\n' +\
-    '  cam ' + misc.bold('i') + '                            - enter interactive mode' + '\n' +\
-    '  cam ' + misc.bold('q') + '/' + misc.bold('exit') + '                       - quit interactive mode' + '\n' +\
-    '  cam ' + misc.bold('?') + '/' + misc.bold('help') + '                       - print these instructions'
+    help_str = style.bold('Usage:') + ' cam [command]' + '\n' +\
+    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
+    '  cam ' + style.bold('start') + '                        - start the daemon' + '\n' +\
+    '  cam ' + style.bold('shutdown') + '                     - shutdown the daemon' + '\n' +\
+    '  cam ' + style.bold('restart') + '                      - restart the daemon' + '\n' +\
+    '  cam ' + style.bold('kill') + '                         - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  cam ' + style.bold('ping') + '                         - ping the daemon' + '\n' +\
+    ' ' + style.undl('Camera commands') + ':' + '\n' +\
+    '  cam ' + style.bold('image') + ' [tels] exptime binning' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + style.bold('dark') + ' [tels] exptime binning' + '  - take a dark frame' + '\n' +\
+    '  cam ' + style.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
+    '  cam ' + style.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\
+    '  cam ' + style.bold('temp') + ' [tels] temp' + '             - set camera temperature' + '\n' +\
+    '  cam ' + style.bold('info') + ' [v]' + '                     - report current status' + '\n' +\
+    '  cam ' + style.bold('log') + ' [stdout]' + '                 - print daemon log (tail alias)' + '\n' +\
+    ' ' + style.undl('Control commands') + ':' + '\n' +\
+    '  cam ' + style.bold('i') + '                            - enter interactive mode' + '\n' +\
+    '  cam ' + style.bold('q') + '/' + style.bold('exit') + '                       - quit interactive mode' + '\n' +\
+    '  cam ' + style.bold('?') + '/' + style.bold('help') + '                       - print these instructions'
     print(help_str)
 
 
