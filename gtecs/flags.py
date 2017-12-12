@@ -5,7 +5,6 @@ Classes to read external flag files
 import time
 import json
 import copy
-from six import iteritems
 
 from astropy.time import Time
 
@@ -75,13 +74,13 @@ class Conditions:
 
         # store a summary of all flags, excluding dark
         self._summary = 0
-        for key, value in iteritems(conditions_dict):
+        for key, value in conditions_dict.items():
             if key != 'dark':
                 self._summary += value
 
         # and store a separate summary of critical flags
         self._crit_sum = 0
-        for key, value in iteritems(conditions_dict):
+        for key, value in conditions_dict.items():
             if key in ['diskspace', 'low_battery']:
                 self._crit_sum += value
             overrides = Overrides()

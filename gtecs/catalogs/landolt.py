@@ -1,8 +1,6 @@
 """
 Landolt 2009 catalog of standard stars
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import pkg_resources
 import os
 import warnings

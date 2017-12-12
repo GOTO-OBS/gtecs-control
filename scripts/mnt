@@ -8,7 +8,6 @@ import sys
 import time
 import readline
 import Pyro4
-from six.moves import input
 
 from astropy.time import Time
 from astropy.coordinates import Angle, SkyCoord, get_body

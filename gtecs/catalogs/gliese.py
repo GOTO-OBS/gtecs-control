@@ -1,8 +1,6 @@
 """
 Gliese 1991 catalog of nearby stars
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import pkg_resources
 import os
 import warnings

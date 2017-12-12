@@ -3,8 +3,6 @@ takeStandards
 Script to take Landolt standard star observations
 with a range of colours and airmasses.
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import time
 

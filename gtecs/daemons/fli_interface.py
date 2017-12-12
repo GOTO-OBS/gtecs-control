@@ -9,7 +9,6 @@ from math import *
 import Pyro4
 from concurrent import futures
 import socket
-from six.moves import range
 from concurrent.futures import ThreadPoolExecutor
 
 from fliapi import USBCamera, USBFocuser, USBFilterWheel

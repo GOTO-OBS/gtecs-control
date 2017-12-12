@@ -5,8 +5,6 @@ Script to take a series of images running through focus
 It assumes you're already on a reasonable patch of sky and that you're
 already focused (see autoFocus script)
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import os
 import sys

@@ -7,12 +7,6 @@ import sys
 import time
 import abc
 import signal
-import six
-if six.PY2:
-    from commands import getoutput
-else:
-    from subprocess import getoutput
-from six.moves import range
 import Pyro4
 import subprocess
 import serial
@@ -29,7 +23,7 @@ def get_hostname():
     if 'HOSTNAME' in os.environ:
         return os.environ['HOSTNAME']
     else:
-        tmp = getoutput('hostname')
+        tmp = subprocess.getoutput('hostname')
         return tmp.strip()
 
 
@@ -44,9 +38,9 @@ def get_process_ID(process_name, host):
         username = os.environ['LOGNAME']
 
     if host == 'localhost' or host == get_hostname():
-        all_processes = getoutput('ps -fwwu %s | grep -i python' % username)
+        all_processes = subprocess.getoutput('ps -fwwu %s | grep -i python' % username)
     else:
-        all_processes = getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
+        all_processes = subprocess.getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
 
     for line in all_processes.split('\n'):
         if line.endswith(process_name):
@@ -133,7 +127,7 @@ def execute_command(cmd):
 
 def ping_host(hostname,count=1,ttl=1):
     '''Ping a network address and return the number of responses'''
-    ping = getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
+    ping = subprocess.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
     out = ping.split('\n')
     packets_received = 0
     for line in range(len(out)):

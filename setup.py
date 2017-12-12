@@ -1,4 +1,3 @@
-from __future__ import print_function
 from setuptools import setup
 import glob
 from gtecs.params import GTECS_VERSION

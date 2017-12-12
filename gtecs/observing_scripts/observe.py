@@ -2,8 +2,6 @@
 observe [pID] [minTime]
 Script to control observing a single pointing
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import sys
 import time

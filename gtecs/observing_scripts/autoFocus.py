@@ -12,8 +12,6 @@ on, and the current HFD, you can in principle move straight to focus.
 The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import time
 import argparse
