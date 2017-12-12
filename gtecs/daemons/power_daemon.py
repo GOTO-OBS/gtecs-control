@@ -10,7 +10,6 @@ import datetime
 from math import *
 import Pyro4
 import threading
-from six.moves import range
 
 from gtecs import logger
 from gtecs import misc

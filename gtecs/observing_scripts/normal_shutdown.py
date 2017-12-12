@@ -9,8 +9,6 @@ This script should perform the following simple tasks:
     * park the scope
     * close the dome
 """
-from __future__ import absolute_import
-from __future__ import print_function
 
 import time
 

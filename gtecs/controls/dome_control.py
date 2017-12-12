@@ -5,17 +5,10 @@ Classes to control telescope domes and dehumidifiers
 import os
 import sys
 import time
-import subprocess
-import six
-if six.PY2:
-    from commands import getoutput
-else:
-    from subprocess import getoutput
 import serial
 import json
 import threading
-from six.moves import map
-from six.moves import range
+import subprocess
 
 from gtecs import flags
 from gtecs import params
@@ -280,7 +273,7 @@ class AstroHavenDome:
     def _read_arduino(self):
         loc = params.ARDUINO_LOCATION
         try:
-            arduino = getoutput('curl -s %s' %loc)
+            arduino = subprocess.getoutput('curl -s %s' %loc)
             data = json.loads(arduino)
             self._parse_arduino_status(data)
             return 0
@@ -540,7 +533,7 @@ class AstroHavenDome:
             # but only in manual mode and only if autoclose is off
            pass
         else:
-            curl = getoutput('curl -s {}?s{}'.format(loc, duration))
+            curl = subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
         if sleep:
             time.sleep(duration)
         return
@@ -596,7 +589,7 @@ class OldAstroHavenDome:
         status = {'dome':'ERROR','hatch':'ERROR'}
         pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
         try:
-            curl = getoutput('curl -s dome')
+            curl = subprocess.getoutput('curl -s dome')
             ard = remove_html_tags(curl).split()
             for i in range(len(ard)):
                 if ard[i] == 'pin':
@@ -661,7 +654,7 @@ class OldAstroHavenDome:
 
     def sound_alarm(self,sleep=True):
         '''Sound the dome alarm using the arduino'''
-        curl = getoutput('curl -s dome?s')
+        curl = subprocess.getoutput('curl -s dome?s')
         if sleep:
             time.sleep(5)
 

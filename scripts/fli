@@ -8,7 +8,6 @@ import sys
 import time
 import readline
 import Pyro4
-from six.moves import input
 
 from gtecs import misc
 from gtecs import params

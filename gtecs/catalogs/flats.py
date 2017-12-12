@@ -1,8 +1,6 @@
 """
 Flat field catalog from WHT blank field list
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import warnings
 
 from astropy import units as u

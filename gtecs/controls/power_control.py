@@ -9,7 +9,6 @@ import subprocess
 import threading
 import time
 import shutil
-from six.moves import range
 from six import int2byte, byte2int, indexbytes
 
 
