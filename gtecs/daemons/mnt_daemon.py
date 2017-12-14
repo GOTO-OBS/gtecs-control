@@ -320,9 +320,9 @@ class MntDaemon(HardwareDaemon):
             raise misc.DaemonDependencyError('Dependencies are not running')
 
         # Check input
-        if not (0 <= alt <= 90):
+        if not (0 <= alt < 90):
             raise ValueError('Alt in degrees must be between 0 and 90')
-        if not (0 <= az <= 360):
+        if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
         if alt < params.MIN_ELEVATION:
             raise misc.HorizonError('Target too low, cannot slew')

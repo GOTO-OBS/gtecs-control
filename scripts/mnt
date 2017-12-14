@@ -279,9 +279,13 @@ def query(command, args, daemon_ID):
         # parse arguments
         if len(args) == 2:
             alt_deg = float(args[0])
-            assert 0 <= alt_deg <= 90
+            if alt_deg == 90:
+                alt_deg = 89.99999
+            assert 0 <= alt_deg < 90
             az_deg = float(args[1])
-            assert 0 <= az_deg <= 360
+            if az_deg == 360:
+                az_deg = 0
+            assert 0 <= az_deg < 360
         else:
             raise misc.InputError('Invalid arguments')
         # send command
