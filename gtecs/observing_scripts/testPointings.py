@@ -9,9 +9,8 @@ from astropy.time import Time
 
 from gtecs import params
 from gtecs.misc import execute_command as cmd
-from gtecs.astronomy import radec_from_altaz
 from gtecs.observing import (prepare_for_images, wait_for_exposure_queue,
-                             goto, wait_for_telescope)
+                             goto_altaz, wait_for_telescope)
 
 
 def take_image_set(expT, name):
@@ -38,10 +37,10 @@ def run():
     for altaz in altaz_list:
         alt, az = altaz
         print('Slewing to Alt {}, Az {}'.format(alt, az))
-        ra, dec = radec_from_altaz(alt, az, Time.now())
-        goto(ra, dec)
+        goto_altaz(alt, az)
         time.sleep(10)
-        wait_for_telescope(120)  # 120s timeout
+        wait_for_telescope(120, targ_dist=0.1)  # 120s timeout
+                                                # lower distance for altaz
 
         for exp_time in exposure_list:
             take_image_set(exp_time, 'Test Pointing')
