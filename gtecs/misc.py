@@ -371,6 +371,18 @@ def valid_ints(array, allowed):
     return valid
 
 
+def valid_strings(array, allowed):
+    valid = []
+    for i in array:
+        if i == '':
+            pass
+        elif i.upper() not in [str(x) for x in allowed]:
+            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
+        elif i.upper() not in valid:
+            valid += [i.upper()]
+    return valid
+
+
 def is_num(value):
     try:
         float(value)
