@@ -150,7 +150,7 @@ def wait_for_focuser(timeout):
 
 def goto(ra, dec):
     """
-    Move telescope and wait until there.
+    Move telescope to given RA/Dec.
 
     Parameters
     ----------
@@ -166,6 +166,22 @@ def goto(ra, dec):
     cmd("mnt dec " + dec_string)
     time.sleep(1)
     cmd("mnt slew")
+
+
+def goto_altaz(alt, az):
+    """
+    Move telescope to given Alt/Az.
+
+    Parameters
+    ----------
+    alt : float
+        altitude in decimal degrees
+    az : float
+        azimuth in decimal degrees
+    """
+    if alt < params.MIN_ELEVATION:
+        raise ValueError('target too low, cannot set target')
+    cmd('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
 def wait_for_telescope(timeout=None, targ_dist=0.003):
