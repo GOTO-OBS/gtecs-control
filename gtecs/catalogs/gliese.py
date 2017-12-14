@@ -60,7 +60,7 @@ def focus_star(time):
         the best Gliese Star for focusing
     """
     coords = SkyCoord(gliese_table['RAJ2000'], gliese_table['DEJ2000'], unit=(u.hour, u.deg))
-    alt, az = ast.altaz(coords.ra.deg, coords.dec.deg, time)
+    alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     jmag = gliese_table['Jmag']
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

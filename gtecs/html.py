@@ -205,12 +205,12 @@ def write_queue_page():
 
         f.write('  SunAlt: ')
         sun = coord.get_sun(time)
-        sun_alt, _ = astronomy.altaz(sun.ra.value, sun.dec.value, time)
+        sun_alt, _ = astronomy.altaz_from_radec(sun.ra.value, sun.dec.value, time)
         f.write('%.1f deg' %sun_alt)
 
         f.write('  MoonAlt: ')
         moon = coord.get_moon(time)
-        moon_alt, _ = astronomy.altaz(moon.ra.value, moon.dec.value, time)
+        moon_alt, _ = astronomy.altaz_from_radec(moon.ra.value, moon.dec.value, time)
         f.write('%.1f deg' %moon_alt)
 
         f.write('  MoonPhase: ')
