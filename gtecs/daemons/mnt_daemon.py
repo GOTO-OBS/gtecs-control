@@ -38,6 +38,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         self.slew_radec_flag = 0
         self.slew_target_flag = 0
+        self.slew_altaz_flag = 0
         self.start_tracking_flag = 0
         self.full_stop_flag = 0
         self.set_blinky_mode_flag = 0
@@ -55,6 +56,8 @@ class MntDaemon(HardwareDaemon):
         self.target_dec = None
         self.temp_ra = None
         self.temp_dec = None
+        self.temp_alt = None
+        self.temp_az = None
         self.utc = Time.now()
         self.utc.precision = 0  # only integer seconds
         self.utc_str = self.utc.iso
@@ -140,7 +143,7 @@ class MntDaemon(HardwareDaemon):
             # slew to given coordinates
             if self.slew_radec_flag:
                 try:
-                    self.logfile.info('Slewing to %.2f,%.2f',
+                    self.logfile.info('Slewing to ra %.2f, dec%.2f',
                                       self.temp_ra, self.temp_dec)
                     c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
                     if c: self.logfile.info(c)
@@ -161,6 +164,20 @@ class MntDaemon(HardwareDaemon):
                     self.logfile.error('slew_target command failed')
                     self.logfile.debug('', exc_info=True)
                 self.slew_target_flag = 0
+
+            # slew to given alt/az
+            if self.slew_altaz_flag:
+                try:
+                    self.logfile.info('Slewing to alt %.2f, az %.2f',
+                                      self.temp_alt, self.temp_az)
+                    c = self.sitech.slew_to_altaz(self.temp_alt, self.temp_az)
+                    if c: self.logfile.info(c)
+                except:
+                    self.logfile.error('slew_altaz command failed')
+                    self.logfile.debug('', exc_info=True)
+                self.temp_alt = None
+                self.temp_az = None
+                self.slew_altaz_flag = 0
 
             # start tracking
             if self.start_tracking_flag:
@@ -294,6 +311,40 @@ class MntDaemon(HardwareDaemon):
         self.slew_target_flag = 1
 
         return 'Slewing to target'
+
+
+    def slew_to_altaz(self, alt, az):
+        """Slew to specified alt/az"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not (0 <= alt <= 90):
+            raise ValueError('Alt in degrees must be between 0 and 90')
+        if not (0 <= az <= 360):
+            raise ValueError('Az in degrees must be between 0 and 360')
+        if alt < params.MIN_ELEVATION:
+            raise misc.HorizonError('Target too low, cannot slew')
+
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Slewing':
+            raise misc.HardwareStatusError('Already slewing')
+        elif self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+        elif self.mount_status == 'IN BLINKY MODE':
+            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+
+        # Set values
+        self.temp_alt = alt
+        self.temp_az = az
+
+        # Set flag
+        self.slew_altaz_flag = 1
+
+        return 'Slewing to alt/az'
 
 
     def start_tracking(self):
