@@ -187,7 +187,8 @@ class ExqDaemon(HardwareDaemon):
         self.exp_queue.append(exposure)
 
         # Format return string
-        s = 'Added exposure, now %i items in queue' %len(self.exp_queue)
+        s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
+        s += ' now {} items in queue'.format(len(self.exp_queue))
         if self.paused:
             s += ' [paused]'
         return s
@@ -228,7 +229,9 @@ class ExqDaemon(HardwareDaemon):
             self.exp_queue.append(exposure)
 
         # Format return string
-        s = 'Added %i exposure(s), now %i items in queue' %(Nexp, len(self.exp_queue))
+        s = 'Added {}x {:.0f}s {} exposure(s),'.format(Nexp, exptime,
+                                                      filt.upper() if filt else 'X')
+        s += ' now {} items in queue'.format(len(self.exp_queue))
         if self.paused:
             s += ' [paused]'
         return s
