@@ -86,7 +86,7 @@ def best_flat(time):
         the best FlatField
     """
     coords = SkyCoord(flats_table['ra'], flats_table['decl'], unit=(u.hour, u.deg))
-    alt, az = ast.altaz(coords.ra.deg, coords.dec.deg, time)
+    alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     row = flats_table[np.argmax(alt)]
     flat_field = FlatField(row['name'], row['ra'], row['decl'], row['bmag'], row['rmag'])
     return flat_field

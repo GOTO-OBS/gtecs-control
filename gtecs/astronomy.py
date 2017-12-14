@@ -173,7 +173,7 @@ def observatory_location():
                          height=params.SITE_ALTITUDE)
 
 
-def altaz(ra_deg, dec_deg, now):
+def altaz_from_radec(ra_deg, dec_deg, now):
     """
     Calculate Altitude and Azimuth of coordinates.
 
@@ -360,7 +360,7 @@ def check_alt_limit(targ_ra, targ_dec, now):
     flag : int
         1 if below altitude limit, 0 if above
     """
-    targ_alt, targ_az = altaz(targ_ra, targ_dec, now)
+    targ_alt, targ_az = altaz_from_radec(targ_ra, targ_dec, now)
     if targ_alt < params.MIN_ELEVATION:
         return 1
     else:
@@ -439,7 +439,7 @@ def get_moon_params(now):
 
     """
     coords = get_moon(now)
-    alt, az = altaz(coords.ra.degree, coords.dec.degree, now)
+    alt, az = altaz_from_radec(coords.ra.degree, coords.dec.degree, now)
     illumination = moon_illumination(now)
 
     if 0 <= illumination < 0.25:
