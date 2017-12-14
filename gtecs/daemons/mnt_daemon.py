@@ -17,7 +17,7 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls import mnt_control
-from gtecs.astronomy import find_ha, check_alt_limit
+from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
 from gtecs.daemons import HardwareDaemon
 
 
@@ -340,6 +340,9 @@ class MntDaemon(HardwareDaemon):
         # Set values
         self.temp_alt = alt
         self.temp_az = az
+        ra, dec = radec_from_altaz(alt, az, Time.now())
+        self.target_ra = ra*24/360.
+        self.target_dec = dec
 
         # Set flag
         self.slew_altaz_flag = 1
