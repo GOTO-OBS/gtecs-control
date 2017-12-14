@@ -168,7 +168,7 @@ def goto(ra, dec):
     cmd("mnt slew")
 
 
-def wait_for_telescope(timeout=None):
+def wait_for_telescope(timeout=None, targ_dist=0.003):
     """
     Wait for telescope to be ready
 
@@ -176,6 +176,8 @@ def wait_for_telescope(timeout=None):
     ----------
     timeout : float
         time in seconds after which to timeout. None to wait forever
+    targ_dist : float
+        distance in degrees from the target to consider returning after
     """
     start_time = time.time()
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
@@ -188,7 +190,7 @@ def wait_for_telescope(timeout=None):
                 mnt_info = mnt.get_info()
         except Pyro4.errors.ConnectionClosedError:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.003:
+        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < targ_dist:
             still_moving = False
 
         if timeout and (time.time() - start_time) > timeout:
