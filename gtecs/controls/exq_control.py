@@ -157,14 +157,14 @@ class ExposureQueue(MutableSequence):
 
     def get(self):
         """Return info() for all exposures in the queue"""
-        s = '%i items in queue:\n' %len(self.data)
+        s = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += str(n+1) + ': ' + exposure.info()
+            s += '{:0>3.0f}: {}'.format(n+1, exposure.info())
         return s.rstrip()
 
     def get_simple(self):
         """Return string for all exposures in the queue"""
-        s = '%i items in queue:\n' %len(self.data)
+        s = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += str(n+1) + ': ' + exposure.as_line()
+            s += '{:0>3.0f}: {}'.format(n+1, exposure.as_line())
         return s.rstrip()
