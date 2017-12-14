@@ -190,16 +190,46 @@ def altaz_from_radec(ra_deg, dec_deg, now):
 
     Returns
     --------
-    alt : float
+    alt_deg : float
         altitude in degrees
-    az : float
+    az_deg : float
         azimuth in degrees
     """
     loc = observatory_location()
-    coo = SkyCoord(ra_deg*u.deg, dec_deg*u.deg)  # ICRS J2000
+    radec_coo = SkyCoord(ra_deg*u.deg, dec_deg*u.deg)  # ICRS J2000
     altaz_frame = AltAz(obstime=now, location=loc)
-    altaz_coo = coo.transform_to(altaz_frame)
+    altaz_coo = radec_coo.transform_to(altaz_frame)
     return (altaz_coo.alt.degree, altaz_coo.az.degree)
+
+
+def radec_from_altaz(alt_deg, az_deg, now):
+    """
+    Calculate RA and Dec coordinates at a given Altitude and Azimuth.
+
+    Refraction from atmosphere is ignored.
+
+    Parameters
+    ----------
+    alt_deg : float or numpy.ndarray
+        altitude in degrees
+    az_deg : float or numpy.ndarray
+        azimuth in degrees
+    now : `~astropy.time.Time`
+        time(s) to calculate Altitude and Azimuth
+
+    Returns
+    --------
+    ra_deg : float
+        ight ascension in degrees
+    dec_deg : float
+        declination in degrees
+    """
+    loc = observatory_location()
+    altaz = AltAz(az=az_deg*u.deg, alt=alt_deg*u.deg, obstime=now, location=loc)
+    altaz_coo = SkyCoord(altaz)
+    radec_frame = 'icrs'  # ICRS J2000
+    radec_coo = altaz_coo.transform_to(radec_frame)
+    return (radec_coo.ra.degree, radec_coo.dec.degree)
 
 
 def sun_alt(now):
