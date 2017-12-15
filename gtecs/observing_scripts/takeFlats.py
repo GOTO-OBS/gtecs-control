@@ -1,5 +1,5 @@
 """
-takeFlats [EVE|MORN]
+takeFlats [EVE|MORN] [-l]
 Script to take flat frames in the morning or evening
 """
 
@@ -16,7 +16,7 @@ from gtecs import params
 from gtecs.misc import execute_command as cmd
 from gtecs.astronomy import startTime, nightStarting
 from gtecs.observing import (wait_for_exposure_queue, last_written_image,
-                             prepare_for_images, goto, random_offset,
+                             prepare_for_images, goto, offset,
                              wait_for_telescope)
 from gtecs.catalogs import flats
 
@@ -36,14 +36,16 @@ def take_sky(expT, current_filter, name):
     ))
     time.sleep(0.1)
     wait_for_exposure_queue(180)
-    random_offset(60)  # make random offset to move stars
+    offset('n', 60)  # make an offset to move stars
+    time.sleep(0.1)
+    offset('w', 60)  # make an offset to move stars
     time.sleep(0.1)
     fnames = last_written_image()
     skyMean = mean_sky_brightness(fnames)
     return skyMean
 
 
-def run(eve, alt):
+def run(eve, alt, late=False):
     """run just after sunset or just after start of twilight"""
     # make sure hardware is ready
     prepare_for_images()
@@ -55,7 +57,7 @@ def run(eve, alt):
     today = nightStarting()
     start_time = startTime(today, alt, eve)
     time_to_go = Time.now() - start_time
-    if time_to_go > 10*u.min:
+    if time_to_go > 10*u.min and not late:
         print("Too late for flats")
         sys.exit(1)
     print('starting in ', -time_to_go.to(u.min))
@@ -133,17 +135,21 @@ def run(eve, alt):
 
 
 if __name__ == "__main__":
-    try:
-        assert len(sys.argv) == 2
-        assert sys.argv[1].upper() in ['EVE','MORN']
-    except:
+    if len(sys.argv) < 2 or sys.argv[1].upper() not in ['EVE','MORN']:
         print("usage: takeFlats EVE|MORN")
         sys.exit(1)
-    if sys.argv[1].upper() == 'EVE':
+    else:
+        period = sys.argv[1].upper()
+    if len(sys.argv) > 2 and sys.argv[2] in ['l', 'late', '-l', '--late']:
+        late = True
+    else:
+        late = False
+
+    if period == 'EVE':
         eve = True
         alt = -3*u.deg
     else:
         eve = False
         alt = -10*u.deg
 
-    run(eve, alt)
+    run(eve, alt, late)
