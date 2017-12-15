@@ -1,8 +1,9 @@
 """
-testPointings
-Script to take images at a wide range of pointings for analysis
+testPointings [nAlt] [nAz]
+Script to take images at a range of pointings
 """
 
+import sys
 import time
 
 from astropy.time import Time
@@ -20,17 +21,30 @@ def take_image_set(expT, name):
     time.sleep(0.1)
 
 
-def run():
+def run(nAlt, nAz):
     # make sure hardware is ready
     prepare_for_images()
 
-    # generate altaz pointings
-    alt_list = [60, 45]
-    az_list = [0, 180]
+    # generate alt list
+    if nAlt > 4:
+        nAlt = 4
+    alt_list = [45, 60, 75][:nAlt-1][::-1]
+
+    # generate az list
+    if nAz > 4:
+        nAz = 4
+    az_list = [i for i in range(0,360,int(360/nAz))]
+
+    # generate pointings
     altaz_list = [(90, 0)] # don't repeat zenith at different azimuths
     for az in az_list:
         for alt in alt_list:
             altaz_list.append((alt, az))
+
+    print('Generated {} AltAz pointings:'.format(len(altaz_list)))
+    print(altaz_list)
+
+    time.sleep(5)
 
     exposure_list = [15, 30, 60, 120, 240, 480]
 
@@ -49,4 +63,14 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    if len(sys.argv) == 1:
+        nAlt = 2
+        nAz = 2
+    elif len(sys.argv) == 2:
+        nAlt = int(sys.argv[1])
+        nAz = 2
+    else:
+        nAlt = int(sys.argv[1])
+        nAz = int(sys.argv[2])
+
+    run(nAlt, nAz)
