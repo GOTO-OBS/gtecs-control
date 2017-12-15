@@ -151,7 +151,7 @@ class SiTech:
     @property
     def status(self):
         self._update_status()
-        if self._connection_error:
+        if self._connection_error and not params.FAKE_MOUNT:
             status = 'CONNECTION ERROR'
         elif self._parked:
             status = 'Parked'

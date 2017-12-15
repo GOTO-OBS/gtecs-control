@@ -168,6 +168,7 @@ DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
 SITECH_HOST = config['SITECH_HOST']
 SITECH_PORT = config['SITECH_PORT']
 FREEZE_DEC = config['FREEZE_DEC']
+FAKE_MOUNT = config['FAKE_MOUNT']
 
 
 # Filter wheel parameters

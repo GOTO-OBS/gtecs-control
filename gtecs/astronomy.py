@@ -6,8 +6,6 @@ import math
 import warnings
 import datetime
 
-import ephem
-
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 
@@ -175,7 +173,7 @@ def observatory_location():
                          height=params.SITE_ALTITUDE)
 
 
-def altaz(ra_deg, dec_deg, now):
+def altaz_from_radec(ra_deg, dec_deg, now):
     """
     Calculate Altitude and Azimuth of coordinates.
 
@@ -192,16 +190,46 @@ def altaz(ra_deg, dec_deg, now):
 
     Returns
     --------
-    alt : float
+    alt_deg : float
         altitude in degrees
-    az : float
+    az_deg : float
         azimuth in degrees
     """
     loc = observatory_location()
-    coo = SkyCoord(ra_deg*u.deg, dec_deg*u.deg)  # ICRS J2000
+    radec_coo = SkyCoord(ra_deg*u.deg, dec_deg*u.deg)  # ICRS J2000
     altaz_frame = AltAz(obstime=now, location=loc)
-    altaz_coo = coo.transform_to(altaz_frame)
+    altaz_coo = radec_coo.transform_to(altaz_frame)
     return (altaz_coo.alt.degree, altaz_coo.az.degree)
+
+
+def radec_from_altaz(alt_deg, az_deg, now):
+    """
+    Calculate RA and Dec coordinates at a given Altitude and Azimuth.
+
+    Refraction from atmosphere is ignored.
+
+    Parameters
+    ----------
+    alt_deg : float or numpy.ndarray
+        altitude in degrees
+    az_deg : float or numpy.ndarray
+        azimuth in degrees
+    now : `~astropy.time.Time`
+        time(s) to calculate Altitude and Azimuth
+
+    Returns
+    --------
+    ra_deg : float
+        ight ascension in degrees
+    dec_deg : float
+        declination in degrees
+    """
+    loc = observatory_location()
+    altaz = AltAz(az=az_deg*u.deg, alt=alt_deg*u.deg, obstime=now, location=loc)
+    altaz_coo = SkyCoord(altaz)
+    radec_frame = 'icrs'  # ICRS J2000
+    radec_coo = altaz_coo.transform_to(radec_frame)
+    return (radec_coo.ra.degree, radec_coo.dec.degree)
 
 
 def sun_alt(now):
@@ -302,45 +330,6 @@ def startTime(date, sunAlt, eve=True):
                                       horizon=sunAlt)
 
 
-def altaz_ephem(ra_deg, dec_deg, now):
-    """
-    Calculate Altitude and Azimuth of coordinates using PyEphem.
-    Much faster than with AstroPy, annoyingly.
-
-    Parameters
-    ----------
-    ra_deg : float or numpy.ndarray
-        right ascension in degrees
-    dec_deg : float or numpy.ndarray
-        declination in degrees
-    now : `~astropy.time.Time`
-        time(s) to calculate Altitude and Azimuth
-
-    Returns
-    --------
-    alt : float
-        altitude in degrees
-    az : float
-        azimuth in degrees
-    """
-    loc = ephem.Observer()
-    loc.lon = str(params.SITE_LONGITUDE)
-    loc.lat = str(params.SITE_LATITUDE)
-    loc.elevation = params.SITE_ALTITUDE
-    loc.date = now.datetime.strftime('%Y/%m/%d %H:%M:%S')
-
-    ra_string = str(ephem.hours((ephem.degrees(float(ra_deg)*math.pi/180))))
-    dec_string = str(ephem.degrees(float(dec_deg)*math.pi/180))
-    line = "target,f," + ra_string + "," + dec_string + ",0"
-    target = ephem.readdb(line)
-    target.compute(loc)
-
-    alt_now = target.alt * 180/math.pi
-    az_now = target.az * 180/math.pi
-
-    return (alt_now, az_now)
-
-
 def airmass(alt):
     return 1/math.cos((math.pi)/2)-alt
 
@@ -401,7 +390,7 @@ def check_alt_limit(targ_ra, targ_dec, now):
     flag : int
         1 if below altitude limit, 0 if above
     """
-    targ_alt, targ_az = altaz(targ_ra, targ_dec, now)
+    targ_alt, targ_az = altaz_from_radec(targ_ra, targ_dec, now)
     if targ_alt < params.MIN_ELEVATION:
         return 1
     else:
@@ -480,7 +469,7 @@ def get_moon_params(now):
 
     """
     coords = get_moon(now)
-    alt, az = altaz(coords.ra.degree, coords.dec.degree, now)
+    alt, az = altaz_from_radec(coords.ra.degree, coords.dec.degree, now)
     illumination = moon_illumination(now)
 
     if 0 <= illumination < 0.25:

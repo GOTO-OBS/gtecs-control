@@ -26,7 +26,7 @@ if __name__ == "__main__":
         print('Usage: obs_script <script name> [args]')
         print('Valid observation scripts:')
         for s in sorted(script_names):
-            print('  - {: <25} '.format(script_docs[s][0]), script_docs[s][1])
+            print('  - {: <26} '.format(script_docs[s][0]), script_docs[s][1])
     else:
         name = sys.argv[1]
         args = sys.argv[2:]

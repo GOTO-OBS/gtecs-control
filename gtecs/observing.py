@@ -69,7 +69,7 @@ def prepare_for_images():
         cmd('exq clear')
         while not exposure_queue_is_empty():
             time.sleep(1)
-        cmd('exq resume')
+    cmd('exq resume')
 
     # Home the filter wheels
     if not filters_are_homed():
@@ -150,7 +150,7 @@ def wait_for_focuser(timeout):
 
 def goto(ra, dec):
     """
-    Move telescope and wait until there.
+    Move telescope to given RA/Dec.
 
     Parameters
     ----------
@@ -168,7 +168,23 @@ def goto(ra, dec):
     cmd("mnt slew")
 
 
-def wait_for_telescope(timeout=None):
+def goto_altaz(alt, az):
+    """
+    Move telescope to given Alt/Az.
+
+    Parameters
+    ----------
+    alt : float
+        altitude in decimal degrees
+    az : float
+        azimuth in decimal degrees
+    """
+    if alt < params.MIN_ELEVATION:
+        raise ValueError('target too low, cannot set target')
+    cmd('mnt slew_altaz ' + str(alt) + ' ' + str(az))
+
+
+def wait_for_telescope(timeout=None, targ_dist=0.003):
     """
     Wait for telescope to be ready
 
@@ -176,6 +192,8 @@ def wait_for_telescope(timeout=None):
     ----------
     timeout : float
         time in seconds after which to timeout. None to wait forever
+    targ_dist : float
+        distance in degrees from the target to consider returning after
     """
     start_time = time.time()
     MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
@@ -188,7 +206,7 @@ def wait_for_telescope(timeout=None):
                 mnt_info = mnt.get_info()
         except Pyro4.errors.ConnectionClosedError:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < 0.003:
+        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < targ_dist:
             still_moving = False
 
         if timeout and (time.time() - start_time) > timeout:
