@@ -12,8 +12,8 @@ from astropy.time import Time
 
 import numpy as np
 
-from . import astronomy as ast
-from . import params
+from .. import astronomy as ast
+from .. import params
 
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
 gliese_table_path = os.path.join(gtecs_data_dir, 'Gliese91.fit')
