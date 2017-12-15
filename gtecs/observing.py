@@ -69,7 +69,7 @@ def prepare_for_images():
         cmd('exq clear')
         while not exposure_queue_is_empty():
             time.sleep(1)
-        cmd('exq resume')
+    cmd('exq resume')
 
     # Home the filter wheels
     if not filters_are_homed():
