@@ -236,6 +236,22 @@ def random_offset(offset_size):
     time.sleep(2)
 
 
+def offset(direction, size):
+    """
+    Make a offset in the given direction and of the given size
+
+    Parameters
+    ----------
+    direction : string
+        compass direction to move, one of ['n', 's', 'e', 'w']
+    size : float
+        offset size in arcseconds
+    """
+    cmd("mnt {} {}".format(direction, size))
+    # wait a short while for it to move
+    time.sleep(2)
+
+
 def last_written_image():
     """
     Returns the last written image files

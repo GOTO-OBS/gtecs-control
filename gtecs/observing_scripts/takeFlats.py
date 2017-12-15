@@ -16,7 +16,7 @@ from gtecs import params
 from gtecs.misc import execute_command as cmd
 from gtecs.astronomy import startTime, nightStarting
 from gtecs.observing import (wait_for_exposure_queue, last_written_image,
-                             prepare_for_images, goto, random_offset,
+                             prepare_for_images, goto, offset,
                              wait_for_telescope)
 from gtecs.catalogs import flats
 
@@ -36,7 +36,9 @@ def take_sky(expT, current_filter, name):
     ))
     time.sleep(0.1)
     wait_for_exposure_queue(180)
-    random_offset(60)  # make random offset to move stars
+    offset('n', 60)  # make an offset to move stars
+    time.sleep(0.1)
+    offset('w', 60)  # make an offset to move stars
     time.sleep(0.1)
     fnames = last_written_image()
     skyMean = mean_sky_brightness(fnames)
