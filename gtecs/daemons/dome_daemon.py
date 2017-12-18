@@ -40,7 +40,7 @@ class DomeDaemon(HardwareDaemon):
         self.halt_flag = 0
 
         ### dome variables
-        self.info = {}
+        self.info = None
         self.dome_status = {'dome':'unknown', 'hatch':'unknown', 'estop':'unknown', 'monitorlink':'unknown'}
 
         self.count = 0
@@ -446,6 +446,15 @@ class DomeDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
+
+    def get_simple_info(self):
+        """Return simple exposure queue status dict"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
 
 
     def open_dome(self, side='both', frac=1):

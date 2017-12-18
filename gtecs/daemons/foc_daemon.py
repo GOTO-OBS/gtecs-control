@@ -29,7 +29,7 @@ class FocDaemon(HardwareDaemon):
         self.home_focuser_flag = 0
 
         ### focuser variables
-        self.info = {}
+        self.info = None
 
         self.limit = {}
         self.current_pos = {}
@@ -207,6 +207,15 @@ class FocDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
+
+    def get_simple_info(self):
+        """Return simple exposure queue status dict"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
 
 
     def set_focuser(self, new_pos, tel_list):

@@ -51,6 +51,15 @@ class SchedulerDaemon(InterfaceDaemon):
         return info
 
 
+    def get_simple_info(self):
+        """Return simple exposure queue status dict"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
+
+
 if __name__ == "__main__":
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(DAEMON_ID):
