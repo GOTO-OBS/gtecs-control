@@ -8,6 +8,7 @@ import abc
 
 from . import params
 from .misc import execute_command
+from .daemons import daemon_info, daemon_function
 
 
 class HardwareMonitor:
@@ -40,11 +41,8 @@ class HardwareMonitor:
     def getInfo(self):
         inf = None
         if self.daemonID is not None:
-            daem_address = params.DAEMONS[self.daemonID]['ADDRESS']
             try:
-                with Pyro4.Proxy(daem_address) as proxy:
-                    proxy._pyroTimeout = params.PROXY_TIMEOUT
-                    inf = proxy.get_info()
+                inf = daemon_info(self.daemonID)
                 assert isinstance(inf, dict)
             except:
                 inf = None
@@ -55,11 +53,9 @@ class HardwareMonitor:
     def pingDaemon(self):
         """Ping a daemon - return 0 for alive and 1 for (maybe) dead"""
         if self.daemonID is not None:
-            daem_address = params.DAEMONS[self.daemonID]['ADDRESS']
             try:
-                with Pyro4.Proxy(daem_address) as proxy:
-                    proxy._pyroTimeout = params.PROXY_TIMEOUT
-                    assert proxy.ping() == 'ping'
+                ping = daemon_function(self.daemonID, 'ping')
+                assert ping == 'ping'
                 return 0
             except:
                 return 1
