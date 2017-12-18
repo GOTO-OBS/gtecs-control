@@ -10,6 +10,7 @@ import Pyro4
 
 from gtecs import misc
 from gtecs import params
+from gtecs.daemons import daemon_info
 
 
 INFO_TIMEOUT = 10.
@@ -19,9 +20,7 @@ DOME_DAEMON_ADDRESS = params.DAEMONS['dome']['ADDRESS']
 
 start_time = time.time()
 while True:
-    dome = Pyro4.Proxy(DOME_DAEMON_ADDRESS)
-    dome._pyroTimeout = params.PROXY_TIMEOUT
-    info = dome.get_info()
+    info = daemon_info('dome')
     if type(info) == dict:
         break
     if time.time() - start_time > INFO_TIMEOUT:
