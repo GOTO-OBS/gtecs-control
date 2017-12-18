@@ -155,7 +155,7 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_rain = rain_array[rain_array != -999]
 
                 self.good['rain'] = np.all(valid_rain == False)
-                self.valid['rain'] = len(valid_rain) >= 2
+                self.valid['rain'] = len(valid_rain) >= 1
 
 
                 # WINDSPEED
