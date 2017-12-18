@@ -112,6 +112,7 @@ for intf in FLI_INTERFACES:
 
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+CURL_WAIT_TIME = config['CURL_WAIT_TIME']
 
 USE_ING_WEATHER = config['USE_ING_WEATHER']
 
