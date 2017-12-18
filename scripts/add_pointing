@@ -318,6 +318,8 @@ if __name__ == '__main__':
         print(mp)
 
         # create first batch of Pointings
-        p = mp.get_next_pointing()
+        # no dont
+        # Let the caretaker do that, this might be why we get duplicates
+        #p = mp.get_next_pointing()
 
-        db.insert_items(session, [p])
+        #db.insert_items(session, [p])
