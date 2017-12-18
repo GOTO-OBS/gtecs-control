@@ -197,7 +197,7 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
                         self.exposing_flag[intf][HW] = 1
-                        self.get_info_flag = 1
+                        self.get_info_flag = 1 # force info update with "and" below
                 except:
                     self.logfile.error('take_exposure command failed')
                     self.logfile.debug('', exc_info=True)
@@ -206,7 +206,7 @@ class CamDaemon(HardwareDaemon):
             # take exposure part two - finish
             for tel in self.active_tel:
                 intf, HW = params.TEL_DICT[tel]
-                if self.exposing_flag[intf][HW] == 1:
+                if self.exposing_flag[intf][HW] == 1 and self.get_info_flag == 0:
                     fli = fli_proxies[intf]
                     try:
                         fli._pyroReconnect()

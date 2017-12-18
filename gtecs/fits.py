@@ -260,7 +260,7 @@ def update_header(header, tel, cam_info):
     header["FOCTEMPX"] = (foc_temp_ext, "Focuser external temperature, C")
 
 
-    #Filter wheel info
+    # Filter wheel info
     filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
     filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
@@ -284,6 +284,35 @@ def update_header(header, tel, cam_info):
     header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(filter_list_str))
     header["FILTNUM "] = (filt_num, "Filter wheel position number")
     header["FILTPOS "] = (filt_pos, "Filter wheel motor position")
+
+
+    # Dome info
+    dome = Pyro4.Proxy(params.DAEMONS['dome']['ADDRESS'])
+    dome._pyroTimeout = params.PROXY_TIMEOUT
+    try:
+        info = dome.get_info()
+        north_status = info['north']
+        south_status = info['south']
+        if north_status == 'ERROR' or south_status == 'ERROR':
+            dome_status = 'ERROR'
+        elif north_status == 'closed' and south_status == 'closed':
+            dome_status = 'closed'
+        elif north_status == 'full_open' and south_status == 'full_open':
+            dome_status = 'full_open'
+        elif north_status == 'part_open' or south_status == 'part_open':
+            dome_status = 'part_open'
+        else:
+            dome_status = 'ERROR'
+
+        dome_open = info['dome'] == 'open'
+
+    except:
+        dome_status = 'NA'
+        dome_open = 'NA'
+
+    header["DOMESTAT"] = (dome_status, "Dome status")
+    header["DOMEOPEN"] = (dome_open, "Dome is open")
+
 
     # Mount info
     mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
