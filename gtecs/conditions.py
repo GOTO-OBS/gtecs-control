@@ -17,7 +17,8 @@ from .controls.power_control import APCUPS, FakeUPS
 def curl_data_from_url(url, outfile, encoding=None):
     """Fetch data from a URL, store it in a file and return the contents"""
 
-    curl_command = 'curl -s -m 10 -o {} {}'.format(outfile, url)
+    wait_time = params.CURL_WAIT_TIME
+    curl_command = 'curl -s -m {} -o {} {}'.format(wait_time, outfile, url)
     try:
         p = subprocess.Popen(curl_command, shell=True, close_fds=True)
         p.wait()
