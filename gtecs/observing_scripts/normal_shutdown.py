@@ -34,10 +34,11 @@ def run():
     cmd('fli shutdown')
 
     # Power off the FLI hardware
-    for tel in params.TEL_DICT:
-        cmd('power off filt{}'.format(tel))
-        cmd('power off foc{}'.format(tel))
-        cmd('power off cam{}'.format(tel))
+    # NB in normal_startup we start only for tel in params.TEL_DICT,
+    # here we shut them all down in case one unintentially started
+    cmd('power off filts')
+    cmd('power off focs')
+    cmd('power off cams')
 
     # Park the mount
     cmd('mnt park')
