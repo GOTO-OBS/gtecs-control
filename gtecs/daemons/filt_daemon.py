@@ -35,7 +35,7 @@ class FiltDaemon(HardwareDaemon):
         self.home_filter_flag = 0
 
         ### filter wheel variables
-        self.info = {}
+        self.info = None
 
         self.current_pos = {}
         self.current_filter_num = {}
@@ -202,6 +202,15 @@ class FiltDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
+
+    def get_simple_info(self):
+        """Return simple exposure queue status dict"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
 
 
     def set_filter(self, new_filter, tel_list):
