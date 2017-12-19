@@ -14,28 +14,28 @@ from astropy.time import Time
 from . import params
 from .astronomy import tel_str, check_alt_limit, nightStarting
 from .misc import execute_command as cmd
-from .daemons import daemon_function
+from .daemons import daemon_function, daemon_info
 
 
 def check_schedule(time, write_html):
     """
     Check the schedule
     """
-    SCHEDULER_DAEMON_ADDRESS = params.DAEMONS['scheduler']['ADDRESS']
-    with Pyro4.Proxy(SCHEDULER_DAEMON_ADDRESS) as scheduler:
-        scheduler._pyroTimeout = params.PROXY_TIMEOUT
-        new_pointing = scheduler.check_queue(time, write_html)
+    try:
+        new_pointing = daemon_function('scheduler', 'check_queue', [time, write_html])
         if new_pointing is not None:
             return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
         else:
             return None, None, None
+    except:
+        return None, None, None
 
 
 def check_dome_closed():
     """
     Check the dome, returns True if the dome is closed or False if it's open
     """
-    dome_info = daemon_function('dome', 'get_info')
+    dome_info = daemon_info('dome')
     return dome_info['dome'] == 'closed'
 
 
@@ -43,10 +43,7 @@ def get_cam_temps():
     """
     Get a dict of camera temps
     """
-    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
-        cam._pyroTimeout = params.PROXY_TIMEOUT
-        cam_info = cam.get_info()
+    cam_info = daemon_info('cam')
     values = {}
     for tel in params.TEL_DICT:
         key = 'ccd_temp{}'.format(tel)
@@ -108,10 +105,7 @@ def get_current_focus():
     """
     Find the current focus positions
     """
-    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
-    with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
-        foc._pyroTimeout = params.PROXY_TIMEOUT
-        foc_info = foc.get_info()
+    foc_info = daemon_info('foc')
     values = {}
     for tel in params.TEL_DICT:
         key = 'current_pos{}'.format(tel)
@@ -128,17 +122,14 @@ def wait_for_focuser(timeout):
     timeout : float
         time in seconds after which to timeout
     """
-    FOC_DAEMON_ADDRESS = params.DAEMONS['foc']['ADDRESS']
     start_time = time.time()
     still_moving = True
     timed_out = False
     status_keys = ['status{}'.format(tel) for tel in params.TEL_DICT]
     while still_moving and not timed_out:
         try:
-            with Pyro4.Proxy(FOC_DAEMON_ADDRESS) as foc:
-                foc._pyroTimeout = params.PROXY_TIMEOUT
-                foc_info = foc.get_info()
-        except Pyro4.errors.ConnectionClosedError:
+            foc_info = daemon_info('foc')
+        except:
             pass
         if np.all([foc_info[key] == 'Ready' for key in status_keys]):
             still_moving = False
@@ -196,15 +187,12 @@ def wait_for_telescope(timeout=None, targ_dist=0.003):
         distance in degrees from the target to consider returning after
     """
     start_time = time.time()
-    MNT_DAEMON_ADDRESS = params.DAEMONS['mnt']['ADDRESS']
     still_moving = True
     timed_out = False
     while still_moving and not timed_out:
         try:
-            with Pyro4.Proxy(MNT_DAEMON_ADDRESS) as mnt:
-                mnt._pyroTimeout = params.PROXY_TIMEOUT
-                mnt_info = mnt.get_info()
-        except Pyro4.errors.ConnectionClosedError:
+            mnt_info = daemon_info('mnt')
+        except:
             pass
         if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < targ_dist:
             still_moving = False
@@ -271,29 +259,20 @@ def last_written_image():
 
 def exposure_queue_is_empty():
     """Check if the image queue is empty"""
-    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
-    with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
-        exq._pyroTimeout = params.PROXY_TIMEOUT
-        exq_info = exq.get_info()
+    exq_info = daemon_info('exq')
     return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
     """Check if all the filter wheels are homed"""
-    FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-    with Pyro4.Proxy(FILT_DAEMON_ADDRESS) as filt:
-        filt._pyroTimeout = params.PROXY_TIMEOUT
-        filt_info = filt.get_info()
+    filt_info = daemon_info('filt')
     return all([filt_info[key] for key in filt_info if key.startswith('homed')])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature"""
     target_temp = params.CCD_TEMP
-    CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-    with Pyro4.Proxy(CAM_DAEMON_ADDRESS) as cam:
-        cam._pyroTimeout = params.PROXY_TIMEOUT
-        cam_info = cam.get_info()
+    cam_info = daemon_info('cam')
     return all([cam_info[key] < target_temp + 0.1
                 for key in cam_info
                 if key.startswith('ccd_temp')])
@@ -309,23 +288,19 @@ def wait_for_exposure_queue(timeout=None):
         time in seconds after which to timeout. None to wait forever
     """
     # we should not return straight away, but wait until queue is empty
-    EXQ_DAEMON_ADDRESS = params.DAEMONS['exq']['ADDRESS']
     start_time = time.time()
     still_working = True
     timed_out = False
     while still_working and not timed_out:
         time.sleep(10)
         try:
-            with Pyro4.Proxy(EXQ_DAEMON_ADDRESS) as exq:
-                exq._pyroTimeout = params.PROXY_TIMEOUT
-                exq_info = exq.get_info()
+            exq_info = daemon_info('exq')
 
             nexp = exq_info['queue_length']
             status = exq_info['status']
             if nexp == 0 and status == 'Ready':
                 still_working = False
-        except Pyro4.errors.ConnectionClosedError:
-            # for now, silently pass failures to contact exq daemon
+        except:
             pass
 
         if timeout and time.time() - start_time > timeout:

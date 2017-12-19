@@ -49,7 +49,7 @@ class MntDaemon(HardwareDaemon):
         self.set_target_flag = 0
 
         ### mount variables
-        self.info = {}
+        self.info = None
         self.step = params.DEFAULT_OFFSET_STEP
         self.mount_status = 'Unknown'
         self.target_ra = None
@@ -249,6 +249,15 @@ class MntDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.5)
         return self.info
+
+
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
 
 
     def slew_to_radec(self, ra, dec):
