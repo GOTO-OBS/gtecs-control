@@ -19,6 +19,7 @@ from . import params
 from . import misc
 from . import astronomy
 from .astronomy import sun_alt as get_sun_alt
+from .daemons import daemon_info
 
 
 def image_location(run_number, tel):
@@ -240,10 +241,8 @@ def update_header(header, tel, cam_info):
 
 
     # Focuser info
-    foc = Pyro4.Proxy(params.DAEMONS['foc']['ADDRESS'])
-    foc._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = foc.get_info()
+        info = daemon_info('foc')
         foc_serial = info['serial_number'+str(tel)]
         foc_pos = info['current_pos'+str(tel)]
         foc_temp_int = info['int_temp'+str(tel)]
@@ -261,10 +260,8 @@ def update_header(header, tel, cam_info):
 
 
     # Filter wheel info
-    filt = Pyro4.Proxy(params.DAEMONS['filt']['ADDRESS'])
-    filt._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = filt.get_info()
+        info = daemon_info('filt')
         filt_serial = info['serial_number'+str(tel)]
         if info['current_filter_num'+str(tel)] != -1:
             filt_filter_num = info['current_filter_num'+str(tel)]
@@ -287,10 +284,8 @@ def update_header(header, tel, cam_info):
 
 
     # Dome info
-    dome = Pyro4.Proxy(params.DAEMONS['dome']['ADDRESS'])
-    dome._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = dome.get_info()
+        info = daemon_info('dome')
         north_status = info['north']
         south_status = info['south']
         if north_status == 'ERROR' or south_status == 'ERROR':
@@ -315,10 +310,8 @@ def update_header(header, tel, cam_info):
 
 
     # Mount info
-    mnt = Pyro4.Proxy(params.DAEMONS['mnt']['ADDRESS'])
-    mnt._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = mnt.get_info()
+        info = daemon_info('mnt')
         targ_ra = info['target_ra']
         if targ_ra:
             targ_ra_str = Angle(targ_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
@@ -400,10 +393,8 @@ def update_header(header, tel, cam_info):
     header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
 
     # Conditions info
-    conditions = Pyro4.Proxy(params.DAEMONS['conditions']['ADDRESS'])
-    conditions._pyroTimeout = params.PROXY_TIMEOUT
     try:
-        info = conditions.get_info()
+        info = daemon_info('conditions')
 
         ext_weather = info['weather']['goto']
 

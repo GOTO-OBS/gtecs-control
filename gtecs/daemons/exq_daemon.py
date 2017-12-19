@@ -32,7 +32,7 @@ class ExqDaemon(HardwareDaemon):
         HardwareDaemon.__init__(self, self.daemon_id)
 
         ### exposure queue variables
-        self.info = {}
+        self.info = None
 
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
@@ -154,6 +154,15 @@ class ExqDaemon(HardwareDaemon):
         info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
         # Return the updated info dict
+        return info
+
+
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
+        try:
+            info = self.get_info()
+        except:
+            return None
         return info
 
 

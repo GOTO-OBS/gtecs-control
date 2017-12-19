@@ -51,6 +51,15 @@ class SchedulerDaemon(InterfaceDaemon):
         return info
 
 
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
+
+
 if __name__ == "__main__":
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(DAEMON_ID):

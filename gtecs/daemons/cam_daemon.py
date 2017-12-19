@@ -40,7 +40,7 @@ class CamDaemon(HardwareDaemon):
         self.set_temp_flag = 0
 
         ### camera variables
-        self.info = {}
+        self.info = None
 
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
@@ -134,6 +134,16 @@ class CamDaemon(HardwareDaemon):
                     # save info
                     info = {}
                     info['current_exposure'] = self.current_exposure
+                    if self.current_exposure != None:
+                        info['current_tel_list'] = self.current_exposure.tel_list
+                        info['current_exptime'] = self.current_exposure.exptime
+                        info['current_binning'] = self.current_exposure.binning
+                        info['current_frametype'] = self.current_exposure.frametype
+                        info['current_target'] = self.current_exposure.target
+                        info['current_imgtype'] = self.current_exposure.imgtype
+                        info['current_set_pos'] = self.current_exposure.set_pos
+                        info['current_set_total'] = self.current_exposure.set_total
+                        info['current_expID'] = self.current_exposure.expID
                     for tel in params.TEL_DICT:
                         intf, HW = params.TEL_DICT[tel]
                         tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
@@ -301,6 +311,18 @@ class CamDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.1)
         return self.info
+
+
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        # remove custom class
+        if info:
+            del info['current_exposure']
+        return info
 
 
     def take_image(self, exptime, binning, imgtype, tel_list):

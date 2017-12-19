@@ -38,7 +38,7 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 0
 
         ### power variables
-        self.info = {}
+        self.info = None
 
         self.power_status = {}
 
@@ -262,6 +262,15 @@ class PowerDaemon(HardwareDaemon):
         # Wait, then return the updated info dict
         time.sleep(0.5)
         return self.info
+
+
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
+        try:
+            info = self.get_info()
+        except:
+            return None
+        return info
 
 
     def on(self, outlet_list, unit=''):
