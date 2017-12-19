@@ -157,8 +157,8 @@ class ExqDaemon(HardwareDaemon):
         return info
 
 
-    def get_simple_info(self):
-        """Return simple exposure queue status dict"""
+    def get_info_simple(self):
+        """Return plain status dict, or None"""
         try:
             info = self.get_info()
         except:
