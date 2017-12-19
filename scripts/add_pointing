@@ -220,6 +220,10 @@ def fill_mpointing(mpointing):
         mpointing['intervals'] = 5
         mpointing['valid_durations'] = 4
 
+    ### MinAlt
+    while mpointing['minAlt'] is None:
+        mpointing['minAlt'] = int(input('Minimum altitude (deg, min=30): '))
+
     return mpointing
 
 
@@ -251,11 +255,11 @@ if __name__ == '__main__':
                          'start_rank': None,
                          'num_repeats': None,
                          'intervals': None,
+                         'minAlt': None,
                          # auto filled values
                          'minTime': None,
-                         'valid_durations': 1439,
+                         'valid_durations': None,
                          # default values:
-                         'minAlt': 30,
                          'maxSunAlt': -15,
                          'maxMoon': 'B',
                          'ToO': 0,
