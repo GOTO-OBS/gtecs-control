@@ -2,6 +2,7 @@
 """
 Daemon to control FLI focusers via fli_interface
 """
+
 import sys
 import time
 import datetime
@@ -13,6 +14,11 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon
+
+
+DAEMON_ID = 'foc'
+DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
+DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class FocDaemon(HardwareDaemon):
@@ -332,30 +338,23 @@ class FocDaemon(HardwareDaemon):
         return s
 
 
-def start():
-    """Create Pyro server, register the daemon and enter request loop"""
-
-    host = params.DAEMONS['foc']['HOST']
-    port = params.DAEMONS['foc']['PORT']
-
+if __name__ == "__main__":
     # Check the daemon isn't already running
-    if not misc.there_can_only_be_one('foc'):
+    if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
 
+    # Create the daemon object
+    daemon = FocDaemon()
+
     # Start the daemon
-    with Pyro4.Daemon(host=host, port=port) as pyro_daemon:
-        foc_daemon = FocDaemon()
-        uri = pyro_daemon.register(foc_daemon, objectId='foc')
+    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
         Pyro4.config.COMMTIMEOUT = 5.
 
         # Start request loop
-        foc_daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=foc_daemon.status_function)
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
 
     # Loop has closed
-    foc_daemon.logfile.info('Daemon successfully shut down')
+    daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
-
-
-if __name__ == "__main__":
-    start()
