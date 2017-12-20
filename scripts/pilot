@@ -269,7 +269,7 @@ class Pilot:
 
     async def checkSchedule(self):
         """
-        Check scheduler and update current job every 10 seconds.
+        Check scheduler and update current job every 30 seconds.
         """
         while True:
             if self.paused:
@@ -286,7 +286,7 @@ class Pilot:
                 self.log.info('current Job: {}, new Job: {} - NEW'.format(self.currentID, self.newID))
             else:
                 self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
-            await asyncio.sleep(10)
+            await asyncio.sleep(30)
 
     async def hardwareChecks(self):
         """
