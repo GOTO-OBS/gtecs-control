@@ -463,16 +463,16 @@ status_list = Enum(
 )
 
 
-class Repeat(Base):
+class ExposureSet(Base):
 
     """
-    A class to represent a Repeat observation.
+    A class to represent an Exposure Set: a set of repeated identical exposures.
 
     Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an Repeat, and set its attributes
+    underlying database. You can create an ExposureSet, and set its attributes
     without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the repeatID)
-    will be None until the Repeat is added to the database.
+    an active database session, and some properties (like the expID)
+    will be None until the ExposureSet is added to the database.
 
     The constructor must use keyword arguments and the arguments below
     should be supplied or set before insertion into the database.
@@ -480,451 +480,78 @@ class Repeat(Base):
 
     Args
     ----
-        repeatNum : int
-            an integer indicating which repeat in a sequence this is
-        waitTime : float
-            time to wait since the previous repeat before observing, in minutes
-        valid_duration : float
-            amount of time repeat should stay valid in the queue, in minutes.
-            must be less than waitTime
-        mpointingID : int
-            unique key linking this repeat to an Mpointing
-        status : string, optional
-            status indicator. default='upcoming', meaning repeat will be attempted
-            at some point in the future
+        typeFlag : string
+            indicates the type of exposure set.
+            one of SCIENCE, FOCUS, STD, FLAT, BIAS, DARK
+        filt : string
+            filter to use
+        expTime : float
+            exposure time in seconds
+        numexp : int
+            number of exposures within the set
+        binning : int
+            binning to apply
 
-    A Repeat also has the following properties which are
+        raoff : float, optional
+            the size of the random offset to apply between each exposure
+            if not set, no offset will be made
+        decoff : float, optional
+            the size of the random offset to apply between each exposure
+            if not set, no offset will be made
+        otaMask : int, optional
+            if set, this is a binary mask which will determine which OTAs
+            carry out the exposure. So a value of 5 (binary 0101) will be
+            carried out on OTAs 1 and 3.
+        mpointingID : int, optional
+            unique key linking to an `Mpointing`
+        pointingID : int, optional
+            unique key linking to an `Pointing`
+
+    An ExposureSet also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
     Attributes
     ----------
-        ts : `datetime.datetime`
-            timestamp indicating last time this repeat was changed in DB
+        expID : int
+            primary key for ExposureSets
         mpointing : `Mpointing`
-            the `Mpointing` associated with this SurveyTile if any
-
-    Examples
-    --------
-
-        >>> from gtecs.database import *
-
-        make a Repeat (an Mpointing with mpointingID = 1 is already in the database)
-
-        >>> r = Repeat(repeatNum=1, waitTime=100, valid_duration=99, mpointingID=1)
-        >>> session = load_session()
-        >>> session.add(r)
-        Repeat(repeatID=7, repeatNum=1, waitTime=100.0, valid_duration=99.0, status=upcoming, mpointingID=1)
+            the `Mpointing` associated with this `ExposureSet`, if any
+        pointing : `Pointing`
+            the `Pointing` associated with this `ExposureSet`, if any
 
     """
+    __tablename__ = "exposure_sets"
 
-    __tablename__ = "repeats"
+    expID = Column(Integer, primary_key=True)
+    raoff = Column(Float, server_default='0.0')
+    decoff = Column(Float, server_default='0.0')
+    typeFlag = Column(Enum('SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD'))
+    filt = Column('filter', String(2))
+    expTime = Column(Float)
+    numexp = Column(Integer)
+    binning = Column(Integer)
+    otaMask = Column(Integer, nullable=True)
 
-    repeatID = Column(Integer, primary_key=True)
-    repeatNum = Column(Integer)
-    waitTime = Column(Integer)
-    valid_duration = Column(Integer)
-    status = Column(status_list, server_default='upcoming')
-    ts = Column(DateTime)
+    pointingID = Column('pointings_pointingID', Integer,
+                        ForeignKey('pointings.pointingID'),
+                        nullable=False)
+    pointing = relationship("Pointing", backref="exposure_sets", uselist=False)
+
     mpointingID = Column('mpointings_mpointingID', Integer,
                          ForeignKey('mpointings.mpointingID'),
                          nullable=False)
-
-    #@validates('waitTime', 'valid_duration')
-    #def validate_timings(self, key, field):
-    #    if key == 'waitTime' and self.valid_duration is not None:
-    #        if field < self.valid_duration and field > 0:
-    #            raise AssertionError('waitTime must be > valid_duration')
-    #    elif key == 'valid_duration' and self.waitTime is not None:
-    #        if self.waitTime < field and self.waitTime > 0:
-    #            raise AssertionError('waitTime must be > valid_duration')
-    #    return field
-
-    # relationships
-    mpointing = relationship("Mpointing", back_populates="repeats", uselist=False)
-    pointing = relationship("Pointing", back_populates="repeat", uselist=False)
+    mpointing = relationship("Mpointing", backref="exposure_sets", uselist=False)
 
     def __repr__(self):
-        template = ("Repeat(repeatID={}, repeatNum={}, waitTime={}, " +
-                    "valid_duration={}, status={}, mpointingID={})")
-        return template.format(self.repeatID, self.repeatNum, self.waitTime,
-                               self.valid_duration, self.status, self.mpointingID)
-
-
-class Mpointing(Base):
-
-    """
-    A class to represent an Mpointing.
-
-    Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an Mpointing, and set its attributes
-    without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the mpointingID)
-    will be None until the Mpointing is added to the database.
-
-    The constructor must use keyword arguments and the arguments below
-    should be supplied or set before insertion into the database.
-    See Examples for details.
-
-    Args
-    ----
-        userKey : int
-            unique key identifying user to whom this Mpointing belongs
-        objectName : String
-            object name
-        ra : float, optional
-            J2000 right ascension in decimal degrees
-            if ra is not given and this Mpointing is linked to a SurveyTile
-            then the ra will be extracted from the SurveyTile
-        decl : float, optional
-            J2000 declination in decimal degrees
-            if decl is not given and this Mpointing is linked to a SurveyTile
-            then the decl will be extracted from the SurveyTile
-        start_rank : Integer
-            rank to use for first pointing in series
-        minAlt : float
-            minimum altitude to observer at
-        minTime : float
-            minimum time needed to schedule pointing
-        maxSunAlt : float
-            altitude constraint on Sun
-        maxMoon : string
-            Moon constraint. one of 'D', 'G', 'B'.
-        ToO : int
-            0 or 1 to indicate if this is a ToO or not
-        num_repeats : int
-            number of times to attempt pointing. less than or equal to zero means repeat infinitely.
-        intervals : float or list of float
-            intervals between repeats in minutes. This can
-            be specified during initialisation along with
-            `valid_durations`. If a list, should be one less than `num_repeats`.
-        valid_durations : float or list of float
-            the amount of time the pointing should be valid in
-            the queue. Must be less than the corresponding interval.
-
-        eventTileID : int, optional
-            unique key linking to `EventTile`
-        surveyTileID : int, optional
-            unique key linking to `SurveyTile`
-        eventID : int, optional
-            unique key linking to `Event`
-        surveyID : int, optional
-            unique key linking to `Survey`
-
-    An Mpointing also has the following properties which are
-    populated through database queries, but not needed for
-    object creation:
-
-    Attributes
-    ----------
-        mpointingID : int
-            primary key for mpointings
-        rank : int
-            rank for next pointing to be scheduled
-        scheduled : bool
-            True is a pointing is currently in the queue
-        num_remain : int
-            number of remaining pointings
-        num_completed : int
-            number of successfully completed pointings
-        exposure_sets : list of `ExposureSet`
-            the `ExposureSet` objects associated with this `Mpointing`, if any
-        repeats : list of `Repeat`
-            the `Repeat` objects associated with this `Mpointing`, if any
-        surveyTile : `SurveyTile`
-            the `SurveyTile` associated with this `Mpointing`, if any
-        eventTile : `EventTile`
-            the `EventTile` associated with this `Mpointing`, if any
-        event : `Event`
-            the `Event` associated with this `Mpointing`, if any
-        survey : `Survey`
-            the `Survey` associated with this `Mpointing`, if any
-
-    Examples
-    --------
-
-        >>> from gtecs.database import *
-        >>> mp = Mpointing()
-        >>> mp
-        Mpointing(mpointingID=None, objectName=None, ra=None, decl=None, rank=None,
-        start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
-        ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
-        userKey=None, eventTileID=None, surveyTile=None)
-
-        make a more useful Mpointing - repeating on increasing intervals, which stay in the
-        queue for 5 minutes.
-
-        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600,
-        ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
-        ... valid_durations=5, maxSunAlt=-15)
-        >>> mp
-        Mpointing(mpointingID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
-        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, eventTileID=None,
-        surveyTile=None)
-
-        notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
-
-        >>> mp.repeats
-        [Repeat(repeatID=None, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
-        ]
-
-        That is because `num_repeats` and `num_remain` are queried from the database. If we add the Mpointing
-        we see that these values are populated, and the repeats are added to the database and get IDs
-
-        >>> session.add(mp)
-        >>> session.commit()
-        >>> mp
-        Mpointing(mpointingID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
-        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
-        eventTileID=None, surveyTile=None)
-        >>> mp.repeats
-        [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
-         Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=3, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=4, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=5, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=6, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
-        ]
-
-        we can add more repeats directly.
-
-        >>> mp.repeats.append(Repeat(repeatNum=6, waitTime=100, valid_duration=5, status='upcoming'))
-        >>> session.commit()
-        >>> mp.num_repeats
-        7
-
-        To be useful, an Mpointing should have a list of `ExposureSet`s associated with it. We
-        can either add these to the `exposure_sets` attribute directly:
-
-        >>> e1 = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
-        >>> mp.exposure_sets.append(e1)
-
-        or create `ExposureSet` instances with the `mpointingID` attribute set, and the database will take
-        care of the rest:
-
-        >>> e2 = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, mpointingID=1)
-        >>> e3 = ExposureSet(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, mpointingID=1)
-        >>> insert_items(session, [e2, e3])
-        >>> session.commit()
-        >>> mp.exposure_sets
-        [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
-
-        >>> session.close()
-
-    """
-
-    __tablename__ = "mpointings"
-
-    mpointingID = Column(Integer, primary_key=True)
-    objectName = Column('object', String)
-    ra = Column(Float)
-    decl = Column(Float)
-    rank = Column(Integer)
-    start_rank = Column(Integer)
-    minAlt = Column(Float)
-    maxSunAlt = Column(Float)
-    minTime = Column(Float)
-    maxMoon = Column(String(1))
-    ToO = Column(Integer)
-    infinite = Column(Integer, default=False)
-    scheduled = Column(Integer, default=False)
-
-    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
-                     nullable=True)
-    event = relationship("Event", backref="mpointings")
-
-    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
-                     nullable=False)
-    user = relationship("User", backref="mpointings", uselist=False)
-
-    eventTileID = Column('event_tiles_tileID', Integer,
-                        ForeignKey('event_tiles.tileID'), nullable=True)
-    eventTile = relationship("EventTile", back_populates="mpointing", uselist=False)
-
-    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
-                     nullable=True)
-    survey = relationship("Survey", backref="mpointings")
-
-    surveyTileID = Column('survey_tiles_tileID', Integer,
-                          ForeignKey('survey_tiles.tileID'), nullable=True)
-    surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
-
-    repeats = relationship("Repeat", back_populates="mpointing", viewonly=True)
-    num_repeats = column_property(
-        select([func.count(Repeat.repeatID)]).where(Repeat.mpointingID == mpointingID).correlate_except(Repeat)
-    )
-    num_remain = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
-                                                    Repeat.status == 'upcoming')).correlate_except(Repeat)
-    )
-    num_completed = column_property(
-        select([func.count(Repeat.repeatID)]).where(and_(Repeat.mpointingID == mpointingID,
-                                                    Repeat.status == 'completed')).correlate_except(Repeat)
-    )
-
-    def __repr__(self):
-        template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
-                    "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
-                    "minTime={}, maxMoon={}, ToO={}, num_repeats={}, num_completed={}, " +
-                    "num_remain={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
+        template = ("ExposureSet(expID={}, raoff={}, decoff={}, typeFlag={}, " +
+                    "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
+                    "pointingID={}, mpointingID={})")
         return template.format(
-            self.mpointingID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
-            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
-            self.num_repeats, self.num_completed, self.num_remain, self.scheduled, self.eventID,
-            self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
+            self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
+            self.expTime, self.numexp, self.binning, self.otaMask,
+            self.pointingID, self.mpointingID
         )
-
-    def __init__(self, objectName=None, ra=None, decl=None,
-                 start_rank=None, minAlt=None, minTime=None,
-                 maxMoon=None, maxSunAlt=None, ToO=None, num_repeats=None,
-                 intervals=None, valid_durations=None, **kwargs):
-        self.ra = ra
-        self.decl = decl
-        self.objectName = objectName
-        self.start_rank = start_rank
-        self.maxMoon = maxMoon
-        self.minAlt = minAlt
-        self.minTime = minTime
-        self.maxSunAlt = maxSunAlt
-        self.ToO = ToO
-        self.rank = self.start_rank
-        self.scheduled = False
-        self.infinite = False
-
-        # now add repeats and intervals
-        if intervals is not None and valid_durations is not None:
-
-            # first convert to lists
-            try:
-                if len(intervals) != num_repeats-1:
-                    raise ValueError("number of intervals should be one less than number of repeats or be scalar")
-                intervals = [0] + intervals
-            except TypeError:
-                # intervals was scalar
-                if num_repeats <= 0:
-                    self.infinite = True
-                    num_repeats = 1
-
-                if num_repeats == 1:
-                    intervals = [intervals]
-                else:
-                    intervals = [0] + [intervals] * (num_repeats-1)
-            try:
-                if len(valid_durations) != num_repeats:
-                    raise ValueError("number of durations should match number of repeats or be scalar")
-            except TypeError:
-                valid_durations = [valid_durations] * num_repeats
-
-            # now add
-            repeatNum = 0
-            for interval, duration in zip(intervals, valid_durations):
-                self.repeats.append(
-                    Repeat(repeatNum=repeatNum, waitTime=interval,
-                           valid_duration=duration, status='upcoming')
-                )
-                repeatNum += 1
-
-        if 'eventID' in kwargs:
-            self.eventID = kwargs['eventID']
-        if 'event' in kwargs:
-            self.event = kwargs['event']
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-        if 'userKey' in kwargs:
-            self.userKey = kwargs['userKey']
-        if 'surveyID' in kwargs:
-            self.surveyID = kwargs['surveyID']
-        if 'survey' in kwargs:
-            self.survey = kwargs['survey']
-        if 'surveyTile' in kwargs:
-            self.surveyTile = kwargs['surveyTile']
-        if 'surveyTileID' in kwargs:
-            self.surveyTileID = kwargs['surveyTileID']
-        if 'eventTile' in kwargs:
-            self.eventTile = kwargs['eventTile']
-        if 'eventTileID' in kwargs:
-            self.eventTileID = kwargs['eventTileID']
-
-    def get_next_last_repeats(self):
-        """
-        Return the next repeat to be executed, and the last one executed.
-
-        Assumes this object is still associated to an active session.
-
-        Returns
-        -------
-        next, last : `gtecs.database.Repeat`
-            The next repeat to schedule and the last repeat done (may be None).
-        """
-        sorted_repeats = sorted([rp for rp in self.repeats if rp.status == 'upcoming'], key=attrgetter('repeatNum'))
-        if sorted_repeats:
-            nr = sorted_repeats[0]
-        else:
-            nr = None
-        sorted_repeats = sorted([rp for rp in self.repeats if rp.status not in ['upcoming', 'running']], key=attrgetter('repeatNum'), reverse=True)
-        if sorted_repeats:
-            lr = sorted_repeats[0]
-        else:
-            lr = None
-        return nr, lr
-
-    def get_next_pointing(self):
-        """
-        Retrieve the next pointing which needs to be scheduled.
-
-        The start and stop UTC of the pointing are determined from
-        the status of the previous pointing.
-
-        Assumes this object is still associated with an active session.
-
-        Returns
-        -------
-        pointing : `Pointing`
-            the next pointing that should be sent to the database. Is None
-            if there is no suitable pointing remaining, or if there is
-            a pointing from this Mpointing already scheduled
-        """
-
-        # case A: already scheduled, return None
-        if self.scheduled:
-            return None
-
-        next_repeat, last_repeat = self.get_next_last_repeats()
-
-        if next_repeat is None:
-            return None
-
-        if last_repeat is None:
-            # no completed or aborted repeats yet
-            last_repeat = self.repeats[0]
-
-        last_repeat_status = last_repeat.status
-
-        if last_repeat_status == 'completed':
-            startUTC = Time.now() + next_repeat.waitTime * u.minute
-        else:
-            startUTC = Time.now()
-        stopUTC = startUTC + next_repeat.valid_duration * u.minute
-
-        # now create a pointing
-        p = Pointing(
-            objectName=self.objectName, ra=self.ra,
-            decl=self.decl, rank=self.rank, minAlt=self.minAlt,
-            maxSunAlt=self.maxSunAlt, minTime=self.minTime, maxMoon=self.maxMoon,
-            startUTC=startUTC, stopUTC=stopUTC, ToO=self.ToO, status='pending',
-            repeatID=next_repeat.repeatID, userKey=self.userKey, eventID=self.eventID,
-            mpointingID=self.mpointingID, eventTileID=self.eventTileID, surveyID=self.surveyID, surveyTileID=self.surveyTileID
-        )
-        # add the exposures
-        p.exposure_sets = self.exposure_sets
-        return p
 
 
 class Pointing(Base):
@@ -1099,9 +726,9 @@ class Pointing(Base):
                          nullable=True)
     mpointing = relationship("Mpointing", backref="pointings", uselist=False)
 
-    repeatID = Column('repeats_repeatID', Integer,
-                      ForeignKey('repeats.repeatID'), nullable=True)
-    repeat = relationship("Repeat", back_populates="pointing", uselist=False)
+    blockID = Column('observing_blocks_blockID', Integer,
+                      ForeignKey('observing_blocks.blockID'), nullable=True)
+    observing_block = relationship("ObservingBlock", back_populates="pointings", uselist=False)
 
     eventTileID = Column('event_tiles_tileID', Integer,
                         ForeignKey('event_tiles.tileID'), nullable=True)
@@ -1120,25 +747,25 @@ class Pointing(Base):
                     "rank={}, minAlt={}, maxSunAlt={}, " +
                     "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
                     "stopUTC={}, status={}, eventID={}, userKey={}, " +
-                    "mpointingID={}, repeatID={}, eventTileID={}, surveyID={}, surveyTileID={})")
+                    "mpointingID={}, blockID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.pointingID, self.objectName, self.ra, self.decl, self.rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
             self.startUTC, self.stopUTC, self.status, self.eventID,
-            self.userKey, self.mpointingID, self.repeatID, self.eventTileID, self.surveyID, self.surveyTileID
+            self.userKey, self.mpointingID, self.blockID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
 
-class ExposureSet(Base):
+class ObservingBlock(Base):
 
     """
-    A class to represent an Exposure Set: a set of repeated identical exposures.
+    A class to represent a block of observing time.
 
     Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an ExposureSet, and set its attributes
+    underlying database. You can create a ObservingBlock, and set its attributes
     without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the expID)
-    will be None until the ExposureSet is added to the database.
+    an active database session, and some properties (like the blockID)
+    will be None until the ObservingBlock is added to the database.
 
     The constructor must use keyword arguments and the arguments below
     should be supplied or set before insertion into the database.
@@ -1146,78 +773,509 @@ class ExposureSet(Base):
 
     Args
     ----
-        typeFlag : string
-            indicates the type of exposure set.
-            one of SCIENCE, FOCUS, STD, FLAT, BIAS, DARK
-        filt : string
-            filter to use
-        expTime : float
-            exposure time in seconds
-        numexp : int
-            number of exposures within the set
-        binning : int
-            binning to apply
+        blockNum : int
+            an integer indicating which block in a sequence this is
+        valid_time : float
+            amount of time a pointing in this block should stay valid in the queue, in minutes.
+        wait_time : float
+            time to wait after this block before allowing the next pointing, in minutes
 
-        raoff : float, optional
-            the size of the random offset to apply between each exposure
-            if not set, no offset will be made
-        decoff : float, optional
-            the size of the random offset to apply between each exposure
-            if not set, no offset will be made
-        otaMask : int, optional
-            if set, this is a binary mask which will determine which OTAs
-            carry out the exposure. So a value of 5 (binary 0101) will be
-            carried out on OTAs 1 and 3.
-        mpointingID : int, optional
-            unique key linking to an `Mpointing`
-        pointingID : int, optional
-            unique key linking to an `Pointing`
+        mpointingID : int
+            unique key linking this repeat to an Mpointing
 
-    An ExposureSet also has the following properties which are
+    An ObservingBlock also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
     Attributes
     ----------
-        expID : int
-            primary key for ExposureSets
-        mpointing : `Mpointing`
-            the `Mpointing` associated with this `ExposureSet`, if any
-        pointing : `Pointing`
-            the `Pointing` associated with this `ExposureSet`, if any
+        current : bool
+            True if this ObservingBlock is the one that is currently linked to
+            a Pointing in the queue
+        pointings : list of `Pointing`
+            a list of any `Pointing`s associated with this block, if any
+
+    Examples
+    --------
+
+        >>> from gtecs.database import *
+
+        make an ObservingBlock
+        (an Mpointing with mpointingID = 1 is already in the database)
+
+        >>> b = ObservingBlock(blockNum=1, valid_time=60, wait_time=120, mpointingID=1)
+        >>> session = load_session()
+        >>> session.add(b)
+        ObservingBlock(blockID=7, blockNum=1, valid_time=60.0, wait_time=120.0, current=False, mpointingID=1)
 
     """
-    __tablename__ = "exposure_sets"
 
-    expID = Column(Integer, primary_key=True)
-    raoff = Column(Float, server_default='0.0')
-    decoff = Column(Float, server_default='0.0')
-    typeFlag = Column(Enum('SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD'))
-    filt = Column('filter', String(2))
-    expTime = Column(Float)
-    numexp = Column(Integer)
-    binning = Column(Integer)
-    otaMask = Column(Integer, nullable=True)
+    __tablename__ = "observing_blocks"
 
-    pointingID = Column('pointings_pointingID', Integer,
-                        ForeignKey('pointings.pointingID'),
-                        nullable=False)
-    pointing = relationship("Pointing", backref="exposure_sets", uselist=False)
-
+    blockID = Column(Integer, primary_key=True)
+    blockNum = Column(Integer)
+    valid_time = Column(Integer)
+    wait_time = Column(Integer)
+    current = Column(Integer, default=False)
     mpointingID = Column('mpointings_mpointingID', Integer,
                          ForeignKey('mpointings.mpointingID'),
                          nullable=False)
-    mpointing = relationship("Mpointing", backref="exposure_sets", uselist=False)
+
+    # relationships
+    mpointing = relationship("Mpointing", back_populates="observing_blocks", uselist=False)
+    pointings = relationship("Pointing", back_populates="observing_block")
 
     def __repr__(self):
-        template = ("ExposureSet(expID={}, raoff={}, decoff={}, typeFlag={}, " +
-                    "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
-                    "pointingID={}, mpointingID={})")
+        template = ("ObservingBlock(blockID={}, blockNum={}, valid_time={}, " +
+                    "wait_time={}, current={}, mpointingID={})")
+        return template.format(self.blockID, self.blockNum, self.valid_time,
+                               self.wait_time, self.current, self.mpointingID)
+
+
+class Mpointing(Base):
+
+    """
+    A class to represent an Mpointing.
+
+    Like all SQLAlchemy model classes, this object links to the
+    underlying database. You can create an Mpointing, and set its attributes
+    without a database session. Accessing some attributes may require
+    an active database session, and some properties (like the mpointingID)
+    will be None until the Mpointing is added to the database.
+
+    The constructor must use keyword arguments and the arguments below
+    should be supplied or set before insertion into the database.
+    See Examples for details.
+
+    Args
+    ----
+        userKey : int
+            unique key identifying user to whom this Mpointing belongs
+        objectName : String
+            object name
+        ra : float, optional
+            J2000 right ascension in decimal degrees
+            if ra is not given and this Mpointing is linked to a SurveyTile
+            then the ra will be extracted from the SurveyTile
+        decl : float, optional
+            J2000 declination in decimal degrees
+            if decl is not given and this Mpointing is linked to a SurveyTile
+            then the decl will be extracted from the SurveyTile
+        start_rank : Integer
+            rank to use for first pointing in series
+        minAlt : float
+            minimum altitude to observer at
+        minTime : float
+            minimum time needed to schedule pointing
+        maxSunAlt : float
+            altitude constraint on Sun
+        maxMoon : string
+            Moon constraint. one of 'D', 'G', 'B'.
+        ToO : int
+            0 or 1 to indicate if this is a ToO or not
+        num_todo : int
+            number of (sucsessful) observations required.
+            less than or equal to zero means repeat infinitely.
+        valid_time : float or list of float
+            the amount of time the pointing(s) should be valid in the queue.
+            if num_todo is greater than times given the list will be looped.
+        wait_time : float or list of float
+            time to wait between pointings in minutes.
+            if num_todo is greater than times given the list will be looped.
+
+        eventTileID : int, optional
+            unique key linking to `EventTile`
+        surveyTileID : int, optional
+            unique key linking to `SurveyTile`
+        eventID : int, optional
+            unique key linking to `Event`
+        surveyID : int, optional
+            unique key linking to `Survey`
+
+    An Mpointing also has the following properties which are
+    populated through database queries, but not needed for
+    object creation:
+
+    Attributes
+    ----------
+        mpointingID : int
+            primary key for mpointings
+        rank : int
+            rank for next pointing to be scheduled
+        scheduled : bool
+            True if a pointing is currently pending in the queue
+        num_completed : int
+            number of successfully completed pointings
+        num_remaining : int
+            number of pointings still to do (same as num_todo - num_completed)
+        exposure_sets : list of `ExposureSet`
+            the `ExposureSet` objects associated with this `Mpointing`, if any
+        observing_blocks : list of `ObservingBlock`
+            the `ObservingBlock` objects associated with this `Mpointing`, if any
+        surveyTile : `SurveyTile`
+            the `SurveyTile` associated with this `Mpointing`, if any
+        eventTile : `EventTile`
+            the `EventTile` associated with this `Mpointing`, if any
+        event : `Event`
+            the `Event` associated with this `Mpointing`, if any
+        survey : `Survey`
+            the `Survey` associated with this `Mpointing`, if any
+
+    Examples
+
+    NEEDS UPDATING
+    --------
+
+        >>> from gtecs.database import *
+        >>> mp = Mpointing()
+        >>> mp
+        Mpointing(mpointingID=None, objectName=None, ra=None, decl=None, rank=None,
+        start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
+        ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
+        userKey=None, eventTileID=None, surveyTile=None)
+
+        make a more useful Mpointing - repeating on increasing intervals, which stay in the
+        queue for 5 minutes.
+
+        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600,
+        ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
+        ... valid_durations=5, maxSunAlt=-15)
+        >>> mp
+        Mpointing(mpointingID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
+        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, eventTileID=None,
+        surveyTile=None)
+
+        notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
+
+        >>> mp.repeats
+        [Repeat(repeatID=None, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=None, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        ]
+
+        That is because `num_repeats` and `num_remain` are queried from the database. If we add the Mpointing
+        we see that these values are populated, and the repeats are added to the database and get IDs
+
+        >>> session.add(mp)
+        >>> session.commit()
+        >>> mp
+        Mpointing(mpointingID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
+        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
+        eventTileID=None, surveyTile=None)
+        >>> mp.repeats
+        [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
+         Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=3, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=4, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=5, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
+         Repeat(repeatID=6, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
+        ]
+
+        we can add more repeats directly.
+
+        >>> mp.repeats.append(Repeat(repeatNum=6, waitTime=100, valid_duration=5, status='upcoming'))
+        >>> session.commit()
+        >>> mp.num_repeats
+        7
+
+        To be useful, an Mpointing should have a list of `ExposureSet`s associated with it. We
+        can either add these to the `exposure_sets` attribute directly:
+
+        >>> e1 = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=20, numexp=20, binning=2)
+        >>> mp.exposure_sets.append(e1)
+
+        or create `ExposureSet` instances with the `mpointingID` attribute set, and the database will take
+        care of the rest:
+
+        >>> e2 = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> e3 = ExposureSet(typeFlag='SCIENCE', filt='R', expTime=20, numexp=20, binning=2, mpointingID=1)
+        >>> insert_items(session, [e2, e3])
+        >>> session.commit()
+        >>> mp.exposure_sets
+        [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
+
+        >>> session.close()
+
+    """
+
+    __tablename__ = "mpointings"
+
+    mpointingID = Column(Integer, primary_key=True)
+    objectName = Column('object', String)
+    ra = Column(Float)
+    decl = Column(Float)
+    rank = Column(Integer)
+    start_rank = Column(Integer)
+    minAlt = Column(Float)
+    maxSunAlt = Column(Float)
+    minTime = Column(Float)
+    maxMoon = Column(String(1))
+    ToO = Column(Integer)
+    infinite = Column(Integer, default=False)
+    scheduled = Column(Integer, default=False)
+    num_todo = Column(Integer)
+
+    eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
+                     nullable=True)
+    event = relationship("Event", backref="mpointings")
+
+    userKey = Column('users_userKey', Integer, ForeignKey('users.userKey'),
+                     nullable=False)
+    user = relationship("User", backref="mpointings", uselist=False)
+
+    eventTileID = Column('event_tiles_tileID', Integer,
+                        ForeignKey('event_tiles.tileID'), nullable=True)
+    eventTile = relationship("EventTile", back_populates="mpointing", uselist=False)
+
+    surveyID = Column('surveys_surveyID', Integer, ForeignKey('surveys.surveyID'),
+                     nullable=True)
+    survey = relationship("Survey", backref="mpointings")
+
+    surveyTileID = Column('survey_tiles_tileID', Integer,
+                          ForeignKey('survey_tiles.tileID'), nullable=True)
+    surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
+
+    observing_blocks = relationship("ObservingBlock", back_populates="mpointing", viewonly=True)
+
+    num_completed = column_property(
+        select([func.count(Pointing.pointingID)]).where(
+            and_(Pointing.mpointingID == mpointingID,
+                 Pointing.status == 'completed')
+                ).correlate_except(Pointing))
+
+    def __repr__(self):
+        template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
+                    "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
+                    "minTime={}, maxMoon={}, ToO={}, num_todo={}, num_completed={}, " +
+                    "num_remaining={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
-            self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
-            self.expTime, self.numexp, self.binning, self.otaMask,
-            self.pointingID, self.mpointingID
+            self.mpointingID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
+            self.num_todo, self.num_completed, self.num_remaining, self.scheduled, self.eventID,
+            self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
         )
+
+    def __init__(self, objectName=None, ra=None, decl=None,
+                 start_rank=None, minAlt=None, minTime=None,
+                 maxMoon=None, maxSunAlt=None, ToO=None, num_todo=None,
+                 valid_time=None, wait_time=None, **kwargs):
+        self.ra = ra
+        self.decl = decl
+        self.objectName = objectName
+        self.start_rank = start_rank
+        self.maxMoon = maxMoon
+        self.minAlt = minAlt
+        self.minTime = minTime
+        self.maxSunAlt = maxSunAlt
+        self.ToO = ToO
+        self.rank = self.start_rank
+        self.scheduled = False
+        self.infinite = False
+        self.num_todo = num_todo
+
+        # now add repeats and intervals
+        if valid_time is not None and wait_time is not None:
+
+            # first convert to lists
+            if not isinstance(valid_time, list):
+                valid_times = [valid_time]
+            else:
+                valid_times = valid_time
+            if not isinstance(wait_time, list):
+                wait_times = [wait_time]
+            else:
+                wait_times = wait_time
+
+            # check if infinite
+            if num_todo <= 0:
+                self.infinite = True
+                num_todo = 1
+
+            # create ObservingBlock objects
+            for i in range(max(len(valid_times), len(wait_times))):
+                valid = valid_times[i%len(valid_times)]
+                wait = wait_times[i%len(wait_times)]
+
+                block = ObservingBlock(blockNum=i+1, valid_time=valid, wait_time=wait)
+                self.observing_blocks.append(block)
+
+        if 'eventID' in kwargs:
+            self.eventID = kwargs['eventID']
+        if 'event' in kwargs:
+            self.event = kwargs['event']
+        if 'user' in kwargs:
+            self.user = kwargs['user']
+        if 'userKey' in kwargs:
+            self.userKey = kwargs['userKey']
+        if 'surveyID' in kwargs:
+            self.surveyID = kwargs['surveyID']
+        if 'survey' in kwargs:
+            self.survey = kwargs['survey']
+        if 'surveyTile' in kwargs:
+            self.surveyTile = kwargs['surveyTile']
+        if 'surveyTileID' in kwargs:
+            self.surveyTileID = kwargs['surveyTileID']
+        if 'eventTile' in kwargs:
+            self.eventTile = kwargs['eventTile']
+        if 'eventTileID' in kwargs:
+            self.eventTileID = kwargs['eventTileID']
+
+    @property
+    def num_remaining(self):
+        if self.num_completed:
+            return self.num_todo - self.num_completed
+        else:
+            return self.num_todo
+
+
+    def get_current_block(self):
+        """
+        Return the current observing block.
+
+        Assumes this object is still associated to an active session.
+
+        Returns
+        -------
+        current : `gtecs.database.ObservingBlock`
+            The current observing block (may be None).
+        """
+        current_block = [block for block in self.observing_blocks if block.current]
+        if len(current_block) == 0:
+            return None
+        elif len(current_block) > 1:
+            raise ValueError('Multiple observing blocks marked as current')
+        else:
+            return current_block[0]
+
+
+    def get_last_block(self):
+        """
+        Return the last observing block executed.
+
+        Assumes this object is still associated to an active session.
+
+        Returns
+        -------
+        last : `gtecs.database.ObservingBlock`
+            The last block done (may be None).
+        """
+        current_block = self.get_current_block()
+        if not current_block:
+            return None
+
+        current_num = current_block.blockNum
+        if current_num == 1:
+            last_num = len(self.observing_blocks)
+        else:
+            last_num = current_num - 1
+
+        last_block = [block for block in self.observing_blocks
+                      if block.blockNum == last_num][0]
+        return last_block
+
+
+    def get_next_block(self):
+        """
+        Return the next observing block to be executed.
+
+        Assumes this object is still associated to an active session.
+
+        Returns
+        -------
+        next : `gtecs.database.ObservingBlock`
+            The next block to do after the current one (may be None).
+        """
+        current_block = self.get_current_block()
+        if not current_block and self.num_completed:
+            return None
+
+        if self.num_remaining == 0:
+            # current block is the last one
+            return None
+
+        if current_block:
+            current_num = current_block.blockNum
+            # decide to go onto the next block iff the last one was completed
+            latest_pointing = current_block.pointings[-1]
+            if latest_pointing.status == 'completed':
+                if current_num == len(self.observing_blocks):
+                    next_num = 1
+                else:
+                    next_num = current_num + 1
+            else:
+                next_num = current_num
+        else:
+            # just starting
+            next_num = 1
+
+        next_block = [block for block in self.observing_blocks
+                      if block.blockNum == next_num][0]
+        return next_block
+
+
+    def get_next_pointing(self):
+        """
+        Retrieve the next pointing which needs to be scheduled.
+
+        The start and stop UTC of the pointing are determined from
+        the status of the previous pointing.
+
+        Assumes this object is still associated with an active session.
+
+        Returns
+        -------
+        pointing : `Pointing`
+            the next pointing that should be sent to the database. Is None
+            if there is no suitable pointing remaining, or if there is
+            a pointing from this Mpointing already scheduled
+        """
+
+        # case A: already scheduled, return None
+        if self.scheduled:
+            return None
+
+        # case B: all the observations have been completed
+        if self.num_remaining == 0:
+            return None
+
+        current_block = self.get_current_block()
+        next_block = self.get_next_block()
+
+        if current_block and current_block != next_block:
+            startUTC = Time.now() + current_block.wait_time * u.minute
+        else:
+            startUTC = Time.now()
+        stopUTC = startUTC + next_block.valid_time * u.minute
+
+        # now create a pointing
+        p = Pointing(objectName=self.objectName,
+                     ra=self.ra,
+                     decl=self.decl,
+                     rank=self.rank,
+                     minAlt=self.minAlt,
+                     maxSunAlt=self.maxSunAlt,
+                     minTime=self.minTime,
+                     maxMoon=self.maxMoon,
+                     ToO=self.ToO,
+                     startUTC=startUTC,
+                     stopUTC=stopUTC,
+                     status='pending',
+                     userKey=self.userKey,
+                     mpointingID=self.mpointingID,
+                     blockID=next_block.blockID,
+                     eventID=self.eventID,
+                     eventTileID=self.eventTileID,
+                     surveyID=self.surveyID,
+                     surveyTileID=self.surveyTileID,
+                     )
+        # add the exposures
+        p.exposure_sets = self.exposure_sets
+        return p
 
 
 class ObslogEntry(Base):

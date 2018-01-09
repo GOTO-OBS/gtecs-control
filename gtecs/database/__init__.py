@@ -2,7 +2,7 @@ import hashlib
 
 from .engine import load_session, open_session
 from .models import (User, Event, EventTile, Survey, SurveyTile,
-                     Pointing, Mpointing, Repeat, ExposureSet, ObslogEntry)
+                     Pointing, Mpointing, ObservingBlock, ExposureSet, ObslogEntry)
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_
 
