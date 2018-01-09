@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `ToO` TINYINT(1) UNSIGNED NOT NULL,
   `startUTC` DATETIME NOT NULL,
   `stopUTC` DATETIME NULL COMMENT 'If Null then the pointing will never expire, and will remain until observed',
+  `finish_time` DATETIME NULL,
   `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `users_userKey` INT(11) NOT NULL,
   `mpointings_mpointingID` INT NULL,
@@ -428,6 +429,18 @@ BEGIN
 	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed' AND isinfinite = 0) THEN
         /* only add 10 to the rank if the pointing was completed and it's not an infinite Mpointing*/
 		UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+	END IF;
+END$$
+
+
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_BEFORE_UPDATE` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_BEFORE_UPDATE` BEFORE UPDATE ON `pointings` FOR EACH ROW
+BEGIN
+	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
+        /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
+        SET NEW.`finish_time` = NOW();
 	END IF;
 END$$
 

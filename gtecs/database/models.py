@@ -621,7 +621,10 @@ class Pointing(Base):
     Attributes
     ----------
         pointingID : int
-            primary key for mpointings
+            primary key for pointings
+        finish_time : datetime.datetime, or None
+            if the pointing has finished (either completed or cancelled for
+            some reason) this will give the time it was updated
         exposure_sets : list of `ExposureSet`
             the `ExposureSet` objects associated with this `Pointing`, if any
         eventTile : `EventTile`
@@ -690,6 +693,7 @@ class Pointing(Base):
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
     ToO = Column(Integer)
+    finish_time = Column(DateTime, default=None)
     status = Column(status_list, default='pending')
 
     # use validators to allow various types of input for UTC
