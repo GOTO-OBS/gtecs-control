@@ -1223,9 +1223,11 @@ class Mpointing(Base):
 
         if current_block:
             current_num = current_block.blockNum
-            # decide to go onto the next block iff the last one was completed
+            # decide to go onto the next block:
+            #  - if the last block's pointing was completed
+            #  - if the last block's pointing's valid time has expired
             latest_pointing = current_block.pointings[-1]
-            if latest_pointing.status == 'completed':
+            if latest_pointing.status in ['completed', 'expired']:
                 if current_num == len(self.observing_blocks):
                     next_num = 1
                 else:
@@ -1258,30 +1260,33 @@ class Mpointing(Base):
             a pointing from this Mpointing already scheduled
         """
 
-        # case A: already scheduled, return None
+        # already scheduled, return None
         if self.scheduled:
             return None
 
-        # case B: all the observations have been completed
+        # all the observations have been completed
         if self.num_remaining == 0:
             return None
 
         current_block = self.get_current_block()
         next_block = self.get_next_block()
 
-        # case C: no current block, should only happen for the first pointing
-        if not current_block:
+        # no current block or pointings, should only happen the first time
+        if not current_block or len(current_block.pointings) == 0:
             startUTC = self.startUTC
         else:
             latest_pointing = current_block.pointings[-1]
-            # check if current block was completed
-            if next_block == current_block:
-                # case D: need to redo the current block
-                startUTC = latest_pointing.startUTC
-            else:
-                # case E: go on to the next block
+            # check if we can go on to the next block
+            if next_block != current_block:
+                # the current block was completed (or expired in the queue)
+                # go on to the next block
                 startUTC = Time(latest_pointing.stopUTC) + current_block.wait_time * u.minute
-        stopUTC = Time(startUTC) + next_block.valid_time * u.minute
+            else:
+                # the current block wasn't completed, and there's still time left
+                # (e.g. aborted, interrrupted)
+                # need to re-insert the current block with a new pointing
+                startUTC = latest_pointing.startUTC
+         stopUTC = Time(startUTC) + next_block.valid_time * u.minute
 
         # now create a pointing
         p = Pointing(objectName=self.objectName,
