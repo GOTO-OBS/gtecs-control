@@ -883,6 +883,9 @@ class Mpointing(Base):
             time to wait between pointings in minutes.
             if num_todo is greater than times given the list will be looped.
 
+        startUTC : string, `astropy.time.Time` or datetime.datetime, optional
+            UTC time from which Mpointing is considered valid and can be started
+             if not given then set to now, so the Mpointing will start immediately
         eventTileID : int, optional
             unique key linking to `EventTile`
         surveyTileID : int, optional
@@ -1016,6 +1019,7 @@ class Mpointing(Base):
     minTime = Column(Float)
     maxMoon = Column(String(1))
     ToO = Column(Integer)
+    startUTC = Column(DateTime)
     infinite = Column(Integer, default=False)
     scheduled = Column(Integer, default=False)
     num_todo = Column(Integer)
@@ -1104,6 +1108,11 @@ class Mpointing(Base):
                 block = ObservingBlock(blockNum=i+1, valid_time=valid, wait_time=wait)
                 self.observing_blocks.append(block)
 
+        if 'startUTC' in kwargs:
+            self.startUTC = kwargs['startUTC']
+        else:
+            self.startUTC = Time.now()
+
         if 'eventID' in kwargs:
             self.eventID = kwargs['eventID']
         if 'event' in kwargs:
@@ -1124,6 +1133,20 @@ class Mpointing(Base):
             self.eventTile = kwargs['eventTile']
         if 'eventTileID' in kwargs:
             self.eventTileID = kwargs['eventTileID']
+
+    # use validators to allow various types of input for UTC
+    @validates('startUTC', 'stopUTC')
+    def munge_times(self, key, field):
+        if isinstance(field, datetime.datetime):
+            value = field.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(field, Time):
+            field.precision = 0  # no D.P on seconds
+            value = field.iso
+        else:
+            # just hope the string works!
+            value = str(field)
+
+        return value
 
     @property
     def num_remaining(self):
@@ -1246,11 +1269,19 @@ class Mpointing(Base):
         current_block = self.get_current_block()
         next_block = self.get_next_block()
 
-        if current_block and current_block != next_block:
-            startUTC = Time.now() + current_block.wait_time * u.minute
+        # case C: no current block, should only happen for the first pointing
+        if not current_block:
+            startUTC = self.startUTC
         else:
-            startUTC = Time.now()
-        stopUTC = startUTC + next_block.valid_time * u.minute
+            latest_pointing = current_block.pointings[-1]
+            # check if current block was completed
+            if next_block == current_block:
+                # case D: need to redo the current block
+                startUTC = latest_pointing.startUTC
+            else:
+                # case E: go on to the next block
+                startUTC = Time(latest_pointing.stopUTC) + current_block.wait_time * u.minute
+        stopUTC = Time(startUTC) + next_block.valid_time * u.minute
 
         # now create a pointing
         p = Pointing(objectName=self.objectName,
