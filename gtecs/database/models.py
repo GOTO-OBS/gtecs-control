@@ -596,8 +596,10 @@ class Pointing(Base):
             0 or 1 to indicate if this is a ToO or not
         startUTC : string, `astropy.time.Time` or datetime.datetime
             UTC time from which pointing is considered valid and can be started
-        stopUTC : string, `astropy.time.Time` or datetime.datetime
+        stopUTC : string, `astropy.time.Time` or datetime.datetime, or None
             the latest UTC time at which pointing may be started
+            can be None, if so the pointing will stay in the queue indefinitely
+            (it can't be marked as expired) and will only leave when observed
 
         status : string, optional
             status of pointing, default 'pending'
@@ -692,9 +694,12 @@ class Pointing(Base):
 
     # use validators to allow various types of input for UTC
     # also enforce stopUTC > startUTC
+    # NB stopUTC can be None, for never-expiring pointings
     @validates('startUTC', 'stopUTC')
     def munge_times(self, key, field):
-        if isinstance(field, datetime.datetime):
+        if key == 'stopUTC' and field is None:
+            value = None
+        elif isinstance(field, datetime.datetime):
             value = field.strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(field, Time):
             field.precision = 0  # no D.P on seconds
@@ -706,7 +711,7 @@ class Pointing(Base):
         if (key == 'startUTC' and self.stopUTC is not None):
             if Time(value) >= Time(self.stopUTC):
                 raise AssertionError("stopUTC must be later than startUTC")
-        elif key == 'stopUTC' and self.startUTC is not None:
+        elif key == 'stopUTC' and value is not None and self.startUTC is not None:
             if Time(self.startUTC) >= Time(value):
                 raise AssertionError("stopUTC must be later than startUTC")
 
@@ -1105,6 +1110,10 @@ class Mpointing(Base):
                 valid = valid_times[i%len(valid_times)]
                 wait = wait_times[i%len(wait_times)]
 
+                # check if non-expiring
+                if valid < 0:
+                    valid = -1
+
                 block = ObservingBlock(blockNum=i+1, valid_time=valid, wait_time=wait)
                 self.observing_blocks.append(block)
 
@@ -1272,13 +1281,22 @@ class Mpointing(Base):
             #  - if the last block's pointing was completed
             #  - if the last block's pointing's valid time has expired
             if latest_pointing.status in ['completed', 'expired']:
-                startUTC = Time(latest_pointing.stopUTC) + current_block.wait_time * u.minute
+                if latest_pointing.stopUTC:
+                    startUTC = Time(latest_pointing.stopUTC) + current_block.wait_time * u.minute
+                else:
+                    # non-expiring pointings have no stopUTC
+                    startUTC = Time.now() + current_block.wait_time * u.minute
             else:
                 # the current block wasn't completed, and there's still time left
                 # (e.g. aborted, interrrupted)
                 # need to re-insert the current block with a new pointing
                 startUTC = latest_pointing.startUTC
-        stopUTC = Time(startUTC) + next_block.valid_time * u.minute
+
+        if next_block.valid_time < 0:
+            # non-expiring pointings
+            stopUTC = None
+        else:
+            stopUTC = Time(startUTC) + next_block.valid_time * u.minute
 
         # now create a pointing
         p = Pointing(objectName=self.objectName,
