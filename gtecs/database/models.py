@@ -875,7 +875,7 @@ class Mpointing(Base):
             0 or 1 to indicate if this is a ToO or not
         num_todo : int
             number of (sucsessful) observations required.
-            less than or equal to zero means repeat infinitely.
+            less than zero means repeat infinitely.
         valid_time : float or list of float
             the amount of time the pointing(s) should be valid in the queue.
             if num_todo is greater than times given the list will be looped.
@@ -1096,9 +1096,9 @@ class Mpointing(Base):
                 wait_times = wait_time
 
             # check if infinite
-            if num_todo <= 0:
+            if num_todo < 0:
                 self.infinite = True
-                self.num_todo = 1
+                self.num_todo = -1
 
             # create ObservingBlock objects
             for i in range(max(len(valid_times), len(wait_times))):
@@ -1151,7 +1151,7 @@ class Mpointing(Base):
     @property
     def num_remaining(self):
         if self.infinite:
-            return 1
+            return -1
         if self.num_completed:
             return self.num_todo - self.num_completed
         else:
