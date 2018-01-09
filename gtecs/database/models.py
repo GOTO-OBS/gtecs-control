@@ -1098,7 +1098,7 @@ class Mpointing(Base):
             # check if infinite
             if num_todo <= 0:
                 self.infinite = True
-                num_todo = 1
+                self.num_todo = 1
 
             # create ObservingBlock objects
             for i in range(max(len(valid_times), len(wait_times))):
@@ -1150,6 +1150,8 @@ class Mpointing(Base):
 
     @property
     def num_remaining(self):
+        if self.infinite:
+            return 1
         if self.num_completed:
             return self.num_todo - self.num_completed
         else:

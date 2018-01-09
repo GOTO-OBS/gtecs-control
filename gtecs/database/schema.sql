@@ -419,12 +419,14 @@ DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_UPDATE` $$
 USE `goto_obs`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
 BEGIN
+	DECLARE isinfinite INT;
+	SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
         /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
 		UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 	END IF;
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed') THEN
-        /* only add 10 to the rank if the pointing was completed */
+	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed' AND isinfinite = 0) THEN
+        /* only add 10 to the rank if the pointing was completed and it's not an infinite Mpointing*/
 		UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 	END IF;
 END$$
