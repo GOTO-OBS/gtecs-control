@@ -1236,12 +1236,16 @@ class Mpointing(Base):
             # current block is the last one
             return None
 
-        if current_block:
-            current_num = current_block.blockNum
-            next_num = (current_num % len(self.observing_blocks)) + 1
-        else:
+        if not current_block or len(current_block.pointings) == 0:
             # just starting
             next_num = 1
+        else:
+            current_num = current_block.blockNum
+            latest_pointing = current_block.pointings[-1]
+            if latest_pointing.status in ['completed', 'expired']:
+                next_num = (current_num % len(self.observing_blocks)) + 1
+            else:
+                next_num = current_num
 
         next_block = [block for block in self.observing_blocks
                       if block.blockNum == next_num][0]
