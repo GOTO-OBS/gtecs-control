@@ -16,6 +16,8 @@ Base = declarative_base()
 pointing_status_list = Enum('pending', 'running', 'completed',
                             'aborted', 'interrupted', 'expired', 'deleted')
 
+mpointing_status_list = Enum('unscheduled', 'scheduled', 'completed', 'aborted', 'expired', 'deleted')
+
 class Event(Base):
 
     """
@@ -742,16 +744,18 @@ class Pointing(Base):
     surveyTile = relationship("SurveyTile", back_populates="pointings", uselist=False)
 
     def __repr__(self):
-        template = ("Pointing(pointingID={}, objectName={}, ra={}, decl={}, " +
-                    "rank={}, minAlt={}, maxSunAlt={}, " +
-                    "minTime={}, maxMoon={}, ToO={}, startUTC={}, " +
-                    "stopUTC={}, status={}, eventID={}, userKey={}, " +
-                    "mpointingID={}, blockID={}, eventTileID={}, surveyID={}, surveyTileID={})")
+        template = ("Pointing(pointingID={}, status='{}', " +
+                    "objectName={}, ra={}, decl={}, rank={}, " +
+                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, " +
+                    "ToO={}, startUTC={}, stopUTC={}, " +
+                    "userKey={}, mpointingID={}, blockID={}, " +
+                    "eventID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
-            self.pointingID, self.objectName, self.ra, self.decl, self.rank,
-            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
-            self.startUTC, self.stopUTC, self.status, self.eventID,
-            self.userKey, self.mpointingID, self.blockID, self.eventTileID, self.surveyID, self.surveyTileID
+            self.pointingID, self.status, self.objectName, self.ra, self.decl, self.rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon,
+            bool(self.ToO), self.startUTC, self.stopUTC, self.userKey,
+            self.mpointingID, self.blockID,
+            self.eventID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
 
@@ -882,9 +886,15 @@ class Mpointing(Base):
             time to wait between pointings in minutes.
             if num_todo is greater than times given the list will be looped.
 
+        status : string, optional
+            status of mpointing, default 'unscheduled'
         startUTC : string, `astropy.time.Time` or datetime.datetime, optional
             UTC time from which Mpointing is considered valid and can be started
-             if not given then set to now, so the Mpointing will start immediately
+            if not given then set to now, so the Mpointing will start immediately
+        stopUTC : string, `astropy.time.Time` or datetime.datetime, optional
+            the latest UTC time after which pointings must stop
+            if not given the Mpointing will continue creating pointings until
+            it is completed
         eventTileID : int, optional
             unique key linking to `EventTile`
         surveyTileID : int, optional
@@ -904,8 +914,6 @@ class Mpointing(Base):
             primary key for mpointings
         rank : int
             rank for next pointing to be scheduled
-        scheduled : bool
-            True if a pointing is currently pending in the queue
         num_completed : int
             number of successfully completed pointings
         num_remaining : int
@@ -1019,10 +1027,11 @@ class Mpointing(Base):
     maxMoon = Column(String(1))
     ToO = Column(Integer)
     startUTC = Column(DateTime)
+    stopUTC = Column(DateTime)
     infinite = Column(Integer, default=False)
-    scheduled = Column(Integer, default=False)
     num_todo = Column(Integer)
     num_completed = Column(Integer)
+    status = Column(mpointing_status_list, default='unscheduled')
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=True)
@@ -1047,21 +1056,25 @@ class Mpointing(Base):
     observing_blocks = relationship("ObservingBlock", back_populates="mpointing", viewonly=True)
 
     def __repr__(self):
-        template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
-                    "rank={}, start_rank={}, minAlt={}, maxSunAlt={}, " +
-                    "minTime={}, maxMoon={}, ToO={}, num_todo={}, num_completed={}, " +
-                    "num_remaining={}, scheduled={}, eventID={}, userKey={}, eventTileID={}, surveyID={}, surveyTileID={})")
+        template = ("Mpointing(mpointingID={}, status='{}', num_todo={}, num_completed={}, num_remaining={}, infinite={}, " +
+                    "objectName={}, ra={}, decl={}, rank={}, start_rank={}, " +
+                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, " +
+                    "ToO={}, startUTC={}, stopUTC={}, " +
+                    "userKey={}, eventID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
-            self.mpointingID, self.objectName, self.ra, self.decl, self.rank, self.start_rank,
-            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.ToO,
-            self.num_todo, self.num_completed, self.num_remaining, self.scheduled, self.eventID,
-            self.userKey, self.eventTileID, self.surveyID, self.surveyTileID
+            self.mpointingID, self.status, self.num_todo, self.num_completed,
+            self.num_remaining, bool(self.infinite),
+            self.objectName, self.ra, self.decl, self.rank, self.start_rank,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon,
+            bool(self.ToO), self.startUTC, self.stopUTC,
+            self.userKey, self.eventID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
     def __init__(self, objectName=None, ra=None, decl=None,
                  start_rank=None, minAlt=None, minTime=None,
-                 maxMoon=None, maxSunAlt=None, ToO=None, num_todo=None,
-                 valid_time=None, wait_time=None, **kwargs):
+                 maxMoon=None, maxSunAlt=None, ToO=None, startUTC=Time.now(),
+                 stopUTC=None, num_todo=None, valid_time=None, wait_time=None,
+                 status='unscheduled', **kwargs):
         self.ra = ra
         self.decl = decl
         self.objectName = objectName
@@ -1071,8 +1084,10 @@ class Mpointing(Base):
         self.minTime = minTime
         self.maxSunAlt = maxSunAlt
         self.ToO = ToO
+        self.startUTC = startUTC
+        self.stopUTC = stopUTC
         self.rank = self.start_rank
-        self.scheduled = False
+        self.status = status
         self.infinite = False
         self.num_todo = num_todo
         self.num_completed = 0
@@ -1107,11 +1122,6 @@ class Mpointing(Base):
                 block = ObservingBlock(blockNum=i+1, valid_time=valid, wait_time=wait)
                 self.observing_blocks.append(block)
 
-        if 'startUTC' in kwargs:
-            self.startUTC = kwargs['startUTC']
-        else:
-            self.startUTC = Time.now()
-
         if 'eventID' in kwargs:
             self.eventID = kwargs['eventID']
         if 'event' in kwargs:
@@ -1134,9 +1144,13 @@ class Mpointing(Base):
             self.eventTileID = kwargs['eventTileID']
 
     # use validators to allow various types of input for UTC
+    # also enforce stopUTC > startUTC
+    # NB stopUTC is None be default
     @validates('startUTC', 'stopUTC')
     def munge_times(self, key, field):
-        if isinstance(field, datetime.datetime):
+        if key == 'stopUTC' and field is None:
+            value = None
+        elif isinstance(field, datetime.datetime):
             value = field.strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(field, Time):
             field.precision = 0  # no D.P on seconds
@@ -1144,6 +1158,13 @@ class Mpointing(Base):
         else:
             # just hope the string works!
             value = str(field)
+
+        if (key == 'startUTC' and self.stopUTC is not None):
+            if Time(value) >= Time(self.stopUTC):
+                raise AssertionError("stopUTC must be later than startUTC")
+        elif key == 'stopUTC' and value is not None and self.startUTC is not None:
+            if Time(self.startUTC) >= Time(value):
+                raise AssertionError("stopUTC must be later than startUTC")
 
         return value
 
@@ -1254,8 +1275,8 @@ class Mpointing(Base):
             a pointing from this Mpointing already scheduled
         """
 
-        # already scheduled, return None
-        if self.scheduled:
+        # already scheduled or finished, return None
+        if self.status != 'unscheduled':
             return None
 
         # all the observations have been completed
@@ -1290,6 +1311,13 @@ class Mpointing(Base):
             stopUTC = None
         else:
             stopUTC = Time(startUTC) + next_block.valid_time * u.minute
+            if self.stopUTC and stopUTC > self.stopUTC:
+                # force pointings to stop by an Mpointing's stopUTC, if given
+                stopUTC = self.stopUTC
+
+        if startUTC >= stopUTC:
+            # can happen if the Mpointing has a stopUTC
+            return None
 
         # now create a pointing
         p = Pointing(objectName=self.objectName,

@@ -433,7 +433,7 @@ def get_survey_tile_by_name(session, survey_name, tile_name):
     return tile
 
 
-def get_stale_pointing_ids(session, time=None):
+def get_expired_pointing_ids(session, time=None):
     """
     Finds all the pointings still pending whose valid period has expired.
 
@@ -447,7 +447,7 @@ def get_stale_pointing_ids(session, time=None):
 
     Returns
     -------
-    staleIDs : list
+    pointingIDs : list
         a list of all matching Pointing IDs
     """
     if time is None:
@@ -456,10 +456,39 @@ def get_stale_pointing_ids(session, time=None):
         now = time.iso
     query = session.query(Pointing.pointingID).filter(
         Pointing.status == 'pending',
-        Pointing.stopUTC < now
+        Pointing.stopUTC < now,
     )
     # return values, unpacking tuples
     return [pID for (pID,) in query.all()]
+
+
+def get_expired_mpointing_ids(session, time=None):
+    """
+    Finds all the mpointings still unscheduled whose valid period has expired.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+    time : `~astropy.time.Time`
+        If given, the time to evaluate time period at.
+        Defaults to the current time.
+
+    Returns
+    -------
+    mpointingIDs : list
+        a list of all matching Mpointing IDs
+    """
+    if time is None:
+        now = Time.now().iso
+    else:
+        now = time.iso
+    query = session.query(Mpointing.mpointingID).filter(
+        Mpointing.status == 'unscheduled',
+        Mpointing.stopUTC < now,
+    )
+    # return values, unpacking tuples
+    return [mpID for (mpID,) in query.all()]
 
 
 def insert_items(session, items):

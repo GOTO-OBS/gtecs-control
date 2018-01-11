@@ -119,6 +119,7 @@ DROP TABLE IF EXISTS `goto_obs`.`mpointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `mpointingID` INT NOT NULL AUTO_INCREMENT,
+  `status` ENUM('unscheduled', 'scheduled', 'completed', 'aborted', 'expired', 'deleted') NOT NULL DEFAULT 'unscheduled',
   `object` TEXT NOT NULL,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
@@ -129,9 +130,9 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `minTime` FLOAT NOT NULL,
   `maxMoon` CHAR(1) NOT NULL,
   `ToO` TINYINT(1) NOT NULL DEFAULT 0,
-  `scheduled` TINYINT(1) NOT NULL DEFAULT 0,
   `infinite` TINYINT(1) NOT NULL DEFAULT 0,
   `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
+  `stopUTC` DATETIME NULL COMMENT 'If Null then the Mpointing will continue until it is complete',
   `num_todo` INT NOT NULL,
   `num_completed` INT NOT NULL DEFAULT 0,
   `users_userKey` INT(11) NOT NULL,
@@ -143,7 +144,6 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   INDEX `fk_mpointing_events1_idx` (`events_eventID` ASC),
   INDEX `fk_mpointing_users1_idx` (`users_userKey` ASC),
   INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
-  INDEX `scheduled_idx` (`scheduled` ASC),
   INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_mpointings_surveys1_idx` (`surveys_surveyID` ASC),
   CONSTRAINT `fk_mpointing_events1`
@@ -389,6 +389,18 @@ END$$
 
 
 USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`mpointings_BEFORE_UPDATE` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`mpointings_BEFORE_UPDATE` BEFORE UPDATE ON `mpointings` FOR EACH ROW
+BEGIN
+	IF (NEW.`num_completed` = NEW.`num_todo` and NEW.`infinite` = 0) THEN
+        /* the Mpointing is finished (infinite Mpointings can never be completed!)*/
+        SET NEW.`status` = 'completed';
+	END IF;
+END$$
+
+
+USE `goto_obs`$$
 DROP TRIGGER IF EXISTS `goto_obs`.`pointings_BEFORE_INSERT` $$
 USE `goto_obs`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_BEFORE_INSERT` BEFORE INSERT ON `pointings` FOR EACH ROW
@@ -411,29 +423,7 @@ BEGIN
 		UPDATE `observing_blocks` SET `current` = 1 WHERE (NEW.`observing_blocks_blockID` = `observing_blocks`.`blockID`);
     END IF;
 	IF (NEW.`mpointings_mpointingID` is not NULL) AND (NEW.status = 'pending') THEN
-		UPDATE `mpointings` SET `scheduled` = 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-    END IF;
-END$$
-
-
-USE `goto_obs`$$
-DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_UPDATE` $$
-USE `goto_obs`$$
-CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
-BEGIN
-	DECLARE isinfinite INT;
-	SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
-        /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
-		UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	END IF;
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed') THEN
-		/* increase the Mpointing's completed count */
-        UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-        IF isinfinite = 0 THEN
-			/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
-			UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-		END IF;
+		UPDATE `mpointings` SET `status` = 'scheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
     END IF;
 END$$
 
@@ -447,6 +437,28 @@ BEGIN
         /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
         SET NEW.`finish_time` = NOW();
 	END IF;
+END$$
+
+
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_UPDATE` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
+BEGIN
+	DECLARE isinfinite INT;
+	SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
+        /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
+		UPDATE `mpointings` SET `status` = 'unscheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+	END IF;
+	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed') THEN
+		/* increase the Mpointing's completed count */
+        UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+        IF isinfinite = 0 THEN
+			/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
+			UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+		END IF;
+    END IF;
 END$$
 
 
