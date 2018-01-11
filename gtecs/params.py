@@ -226,7 +226,6 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
 
 # Observing parameters
-MOONDIST_LIMIT = config['MOONDIST_LIMIT']
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 
 

@@ -122,7 +122,8 @@ def time_to_set(observer, targets, now):
 
 class Pointing:
     def __init__(self, id, ra, dec, priority, tileprob, too, maxsunalt,
-                 minalt, mintime, maxmoon, start, stop, current, survey):
+                 minalt, mintime, maxmoon, minmoonsep, start, stop,
+                 current, survey):
         self.id = int(id)
         self.ra = float(ra)
         self.dec = float(dec)
@@ -133,6 +134,7 @@ class Pointing:
         self.minalt = float(minalt)
         self.mintime = float(mintime)
         self.maxmoon = maxmoon
+        self.minmoonsep = minmoonsep
         self.start = start
         self.stop = stop
         self.current = bool(current)
@@ -156,9 +158,10 @@ class Pointing:
                     lines.append(line)
         # first line is the pointing
         (id, ra, dec, priority, tileprob, too, sunalt, minalt,
-         mintime, moon, start, stop) = lines[0].split()
+         mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
         pointing = cls(id, ra, dec, priority, tileprob, too, sunalt,
-                       minalt, mintime, moon, start, stop, False, False)
+                       minalt, mintime, maxmoon, minmoonsep, start, stop,
+                       False, False)
         return pointing
 
     @classmethod
@@ -181,20 +184,21 @@ class Pointing:
             current = False
 
         # create pointing object
-        pointing = cls(id        = dbPointing.pointingID,
-                       ra        = dbPointing.ra,
-                       dec       = dbPointing.decl,
-                       priority  = dbPointing.rank,
-                       tileprob  = tileprob,
-                       too       = dbPointing.ToO,
-                       maxsunalt = dbPointing.maxSunAlt,
-                       minalt    = dbPointing.minAlt,
-                       mintime   = dbPointing.minTime,
-                       maxmoon   = dbPointing.maxMoon,
-                       start     = dbPointing.startUTC,
-                       stop      = dbPointing.stopUTC,
-                       current   = current,
-                       survey    = survey)
+        pointing = cls(id         = dbPointing.pointingID,
+                       ra         = dbPointing.ra,
+                       dec        = dbPointing.decl,
+                       priority   = dbPointing.rank,
+                       tileprob   = tileprob,
+                       too        = dbPointing.ToO,
+                       maxsunalt  = dbPointing.maxSunAlt,
+                       minalt     = dbPointing.minAlt,
+                       mintime    = dbPointing.minTime,
+                       maxmoon    = dbPointing.maxMoon,
+                       minmoonsep = dbPointing.minMoonSep,
+                       start      = dbPointing.startUTC,
+                       stop       = dbPointing.stopUTC,
+                       current    = current,
+                       survey     = survey)
         return pointing
 
 
@@ -212,6 +216,7 @@ class PointingQueue:
         self.maxsunalt_arr = []
         self.minalt_arr = []
         self.maxmoon_arr = []
+        self.minmoonsep_arr = []
         self.priority_arr = []
         self.tileprob_arr = []
         if len(self.pointings) > 0:
@@ -228,8 +233,7 @@ class PointingQueue:
 
     def initialise(self):
         """Setup the queue and constraints when initialised."""
-        limits = {'B': 1.0, 'G': 0.65, 'D': 0.25}
-        moondist_limit = params.MOONDIST_LIMIT * u.deg
+        moon_phases = {'B': 1.0, 'G': 0.65, 'D': 0.25}
 
         # create pointing data arrays
         for pointing in self.pointings:
@@ -240,7 +244,8 @@ class PointingQueue:
             self.stop_arr.append(pointing.stop)
             self.maxsunalt_arr.append(pointing.maxsunalt)
             self.minalt_arr.append(pointing.minalt)
-            self.maxmoon_arr.append(limits[pointing.maxmoon])
+            self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
+            self.minmoonsep_arr.append(pointing.minmoonsep)
             self.priority_arr.append(pointing.priority)
             self.tileprob_arr.append(pointing.tileprob)
 
@@ -254,6 +259,7 @@ class PointingQueue:
         self.maxsunalt_arr = np.array(self.maxsunalt_arr)
         self.minalt_arr = np.array(self.minalt_arr)
         self.maxmoon_arr = np.array(self.maxmoon_arr)
+        self.minmoonsep_arr = np.array(self.minmoonsep_arr)
         self.priority_arr = np.array(self.priority_arr)
         self.tileprob_arr = np.array(self.tileprob_arr)
 
@@ -264,12 +270,13 @@ class PointingQueue:
         self.mintimes = u.Quantity(self.mintime_arr, unit=u.s)
         self.maxsunalts = u.Quantity(self.maxsunalt_arr, unit=u.deg)
         self.minalts = u.Quantity(self.minalt_arr, unit=u.deg)
+        self.minmoonseps = u.Quantity(self.minmoonsep_arr, unit=u.deg)
 
         self.constraints = [AtNightConstraint(self.maxsunalts),
                             AltitudeConstraint(self.minalts, None),
                             ArtificialHorizonConstraint(),
                             MoonIlluminationConstraint(None, self.maxmoon_arr),
-                            MoonSeparationConstraint(moondist_limit, None)]
+                            MoonSeparationConstraint(self.minmoonseps, None)]
         self.constraint_names = ['SunAlt',
                                  'MinAlt',
                                  'ArtHoriz',

@@ -584,6 +584,8 @@ class Pointing(Base):
             altitude constraint on Sun
         maxMoon : string
             Moon constraint. one of 'D', 'G', 'B'.
+        minMoonSep : float
+            distance constraint from the Moon, degrees
         ToO : int
             0 or 1 to indicate if this is a ToO or not
         startUTC : string, `astropy.time.Time` or datetime.datetime
@@ -682,6 +684,7 @@ class Pointing(Base):
     maxSunAlt = Column(Float, default=-15)
     minTime = Column(Float)
     maxMoon = Column(String(1))
+    minMoonSep = Column(Float, default=30)
     ToO = Column(Integer)
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
@@ -746,13 +749,13 @@ class Pointing(Base):
     def __repr__(self):
         template = ("Pointing(pointingID={}, status='{}', " +
                     "objectName={}, ra={}, decl={}, rank={}, " +
-                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, " +
+                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, minMoonSep={}, " +
                     "ToO={}, startUTC={}, stopUTC={}, " +
                     "userKey={}, mpointingID={}, blockID={}, " +
                     "eventID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.pointingID, self.status, self.objectName, self.ra, self.decl, self.rank,
-            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.minMoonSep,
             bool(self.ToO), self.startUTC, self.stopUTC, self.userKey,
             self.mpointingID, self.blockID,
             self.eventID, self.eventTileID, self.surveyID, self.surveyTileID
@@ -874,6 +877,8 @@ class Mpointing(Base):
             altitude constraint on Sun
         maxMoon : string
             Moon constraint. one of 'D', 'G', 'B'.
+        minMoonSep : float
+            distance constraint from the Moon, degrees
         ToO : int
             0 or 1 to indicate if this is a ToO or not
         num_todo : int
@@ -1025,6 +1030,7 @@ class Mpointing(Base):
     maxSunAlt = Column(Float)
     minTime = Column(Float)
     maxMoon = Column(String(1))
+    minMoonSep = Column(Float)
     ToO = Column(Integer)
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
@@ -1058,21 +1064,21 @@ class Mpointing(Base):
     def __repr__(self):
         template = ("Mpointing(mpointingID={}, status='{}', num_todo={}, num_completed={}, num_remaining={}, infinite={}, " +
                     "objectName={}, ra={}, decl={}, rank={}, start_rank={}, " +
-                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, " +
+                    "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, minMoonSep={}, " +
                     "ToO={}, startUTC={}, stopUTC={}, " +
                     "userKey={}, eventID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.mpointingID, self.status, self.num_todo, self.num_completed,
             self.num_remaining, bool(self.infinite),
             self.objectName, self.ra, self.decl, self.rank, self.start_rank,
-            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon,
+            self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.minMoonSep,
             bool(self.ToO), self.startUTC, self.stopUTC,
             self.userKey, self.eventID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
     def __init__(self, objectName=None, ra=None, decl=None,
                  start_rank=None, minAlt=None, minTime=None,
-                 maxMoon=None, maxSunAlt=None, ToO=None, startUTC=Time.now(),
+                 maxMoon=None, minMoonSep=None, maxSunAlt=None, ToO=None, startUTC=Time.now(),
                  stopUTC=None, num_todo=None, valid_time=None, wait_time=None,
                  status='unscheduled', **kwargs):
         self.ra = ra
@@ -1080,6 +1086,7 @@ class Mpointing(Base):
         self.objectName = objectName
         self.start_rank = start_rank
         self.maxMoon = maxMoon
+        self.minMoonSep = minMoonSep
         self.minAlt = minAlt
         self.minTime = minTime
         self.maxSunAlt = maxSunAlt
@@ -1328,6 +1335,7 @@ class Mpointing(Base):
                      maxSunAlt=self.maxSunAlt,
                      minTime=self.minTime,
                      maxMoon=self.maxMoon,
+                     minMoonSep=self.minMoonSep,
                      ToO=self.ToO,
                      startUTC=startUTC,
                      stopUTC=stopUTC,
