@@ -262,6 +262,7 @@ if __name__ == '__main__':
                          # default values:
                          'maxSunAlt': -15,
                          'maxMoon': 'B',
+                         'minMoonSep': 30,
                          'ToO': 0,
                          }
 

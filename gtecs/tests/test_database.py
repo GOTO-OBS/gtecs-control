@@ -47,7 +47,7 @@ with open_session() as session:
 with open_session() as session:
     userKey = get_userkey(session, 'sl')
     p = Pointing(objectName='IP Peg', ra=350.785625, decl=18.416472, rank=9, minAlt=30, maxSunAlt=-15,
-                 minTime=3600, maxMoon='G', ToO=0, startUTC=Time.now(),
+                 minTime=3600, maxMoon='G', minMoonSep=30, ToO=0, startUTC=Time.now(),
                  stopUTC=Time.now()+3*u.day, userKey=userKey)
     e = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2)
     p.exposure_sets.append(e)
@@ -90,7 +90,7 @@ print("{} expired pointings\n".format(len(expired)))
 
 # create an Mpointing
 mp = Mpointing(objectName='M31', ra=10.685, decl=41.2875, start_rank=9, minAlt=30,
-               minTime=3600, ToO=0, maxMoon='B', num_repeats = 5, userKey=24,
+               minTime=3600, ToO=0, maxMoon='B', minMoonSep=30, num_repeats = 5, userKey=24,
                intervals=1440, valid_durations=1400, maxSunAlt=-15)
 # and add RGBL exposure set
 L = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=120, numexp=3, binning=2)
