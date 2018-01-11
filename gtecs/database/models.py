@@ -13,6 +13,8 @@ from astropy import units as u
 
 Base = declarative_base()
 
+pointing_status_list = Enum('pending', 'running', 'completed',
+                            'aborted', 'interrupted', 'expired', 'deleted')
 
 class Event(Base):
 
@@ -451,18 +453,6 @@ class SurveyTile(Base):
             self.tileID, self.ra, self.decl, self.name, self.surveyID)
 
 
-status_list = Enum(
-    'pending',
-    'aborted',
-    'completed',
-    'running',
-    'deleted',
-    'upcoming',
-    'interrupted',
-    'expired'
-)
-
-
 class ExposureSet(Base):
 
     """
@@ -694,7 +684,7 @@ class Pointing(Base):
     stopUTC = Column(DateTime)
     ToO = Column(Integer)
     finish_time = Column(DateTime, default=None)
-    status = Column(status_list, default='pending')
+    status = Column(pointing_status_list, default='pending')
 
     # use validators to allow various types of input for UTC
     # also enforce stopUTC > startUTC
