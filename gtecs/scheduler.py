@@ -149,6 +149,17 @@ class Pointing:
     def __ne__(self, other):
         return not self == other
 
+    def __repr__(self):
+        template = ("Pointing(id={}, ra={}, dec={}, priority={}, tileprob={}, " +
+                    "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
+                    "minmoonsep={}, start={}, stop={}, " +
+                    "current={}, survey={})")
+        return template.format(
+            self.id, self.ra, self.dec, self.priority, self.tileprob,
+            self.too, self.maxsunalt, self.minalt, self.mintime,
+            self.maxmoon, self.minmoonsep, self.start, self.stop,
+            self.current, self.survey)
+
     @classmethod
     def from_file(cls, fname):
         lines = []
@@ -224,6 +235,10 @@ class PointingQueue:
 
     def __len__(self):
         return len(self.pointings)
+
+    def __repr__(self):
+        template = ("PointingQueue(length={})")
+        return template.format(len(self.pointings))
 
     def get_current_pointing(self):
         """Return the current pointing from the queue"""
