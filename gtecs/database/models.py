@@ -614,7 +614,7 @@ class Pointing(Base):
     ----------
         pointingID : int
             primary key for pointings
-        finish_time : datetime.datetime, or None
+        finishUTC : datetime.datetime, or None
             if the pointing has finished (either completed or cancelled for
             some reason) this will give the time it was updated
         exposure_sets : list of `ExposureSet`
@@ -682,10 +682,10 @@ class Pointing(Base):
     maxSunAlt = Column(Float, default=-15)
     minTime = Column(Float)
     maxMoon = Column(String(1))
+    ToO = Column(Integer)
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
-    ToO = Column(Integer)
-    finish_time = Column(DateTime, default=None)
+    finishUTC = Column(DateTime, default=None)
     status = Column(pointing_status_list, default='pending')
 
     # use validators to allow various types of input for UTC
