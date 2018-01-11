@@ -51,7 +51,7 @@ with db.open_session() as session:
                     status = style.btxt('pending')
                 else:
                     wait = Time(pointing.startUTC) - t
-                    status = 'waiting ({:.1f}h)'.format(wait.to('hour').value)
+                    status = 'upcoming ({:.1f}h)'.format(wait.to('hour').value)
             else:
                 status = pointing.status
             print(status, end='\n')
