@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `infinite` TINYINT(1) NOT NULL DEFAULT 0,
   `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
   `num_todo` INT NOT NULL,
+  `num_completed` INT NOT NULL DEFAULT 0,
   `users_userKey` INT(11) NOT NULL,
   `surveys_surveyID` INT NULL,
   `survey_tiles_tileID` INT NULL,
@@ -426,10 +427,14 @@ BEGIN
         /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
 		UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 	END IF;
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed' AND isinfinite = 0) THEN
-        /* only add 10 to the rank if the pointing was completed and it's not an infinite Mpointing*/
-		UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	END IF;
+	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed') THEN
+		/* increase the Mpointing's completed count */
+        UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+        IF isinfinite = 0 THEN
+			/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
+			UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+		END IF;
+    END IF;
 END$$
 
 

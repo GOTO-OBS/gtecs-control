@@ -1022,6 +1022,7 @@ class Mpointing(Base):
     infinite = Column(Integer, default=False)
     scheduled = Column(Integer, default=False)
     num_todo = Column(Integer)
+    num_completed = Column(Integer)
 
     eventID = Column('events_eventID', Integer, ForeignKey('events.eventID'),
                      nullable=True)
@@ -1044,12 +1045,6 @@ class Mpointing(Base):
     surveyTile = relationship("SurveyTile", back_populates="mpointing", uselist=False)
 
     observing_blocks = relationship("ObservingBlock", back_populates="mpointing", viewonly=True)
-
-    num_completed = column_property(
-        select([func.count(Pointing.pointingID)]).where(
-            and_(Pointing.mpointingID == mpointingID,
-                 Pointing.status == 'completed')
-                ).correlate_except(Pointing))
 
     def __repr__(self):
         template = ("Mpointing(mpointingID={}, objectName={}, ra={}, decl={}, " +
@@ -1080,6 +1075,7 @@ class Mpointing(Base):
         self.scheduled = False
         self.infinite = False
         self.num_todo = num_todo
+        self.num_completed = 0
 
         # now add repeats and intervals
         if valid_time is not None and wait_time is not None:
@@ -1155,10 +1151,8 @@ class Mpointing(Base):
     def num_remaining(self):
         if self.infinite:
             return -1
-        if self.num_completed:
-            return self.num_todo - self.num_completed
         else:
-            return self.num_todo
+            return self.num_todo - self.num_completed
 
 
     def get_current_block(self):
@@ -1219,7 +1213,8 @@ class Mpointing(Base):
             The next block to do after the current one (may be None).
         """
         current_block = self.get_current_block()
-        if not current_block and self.num_completed:
+        if not current_block and self.num_completed > 0:
+            # no current block (for some reason, aside from just starting)
             return None
 
         if self.num_remaining == 0:
