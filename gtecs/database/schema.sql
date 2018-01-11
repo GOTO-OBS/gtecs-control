@@ -202,7 +202,7 @@ DROP TABLE IF EXISTS `goto_obs`.`pointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `pointingID` INT(24) NOT NULL AUTO_INCREMENT,
-  `status` ENUM('running', 'aborted', 'completed', 'interrupted', 'pending', 'deleted', 'expired') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending', 'running', 'completed', 'aborted', 'interrupted', 'expired', 'deleted') NOT NULL DEFAULT 'pending',
   `object` TEXT NOT NULL COMMENT 'object name',
   `ra` FLOAT NOT NULL COMMENT 'in decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'in decimal degrees',
