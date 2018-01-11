@@ -26,7 +26,7 @@ while True:
     # prune stale pointings
     with db.open_session() as session:
         print('Getting any expired pointings...')
-        stale_pointings = db.get_stale_pointing_ids(session)
+        stale_pointings = db.get_expired_pointing_ids(session)
 
         if len(stale_pointings) > 0:
             print('> Marking {} pointings as expired'.format(len(stale_pointings)))
