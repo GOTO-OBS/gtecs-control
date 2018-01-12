@@ -217,7 +217,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `ToO` TINYINT(1) UNSIGNED NOT NULL,
   `startUTC` DATETIME NOT NULL,
   `stopUTC` DATETIME NULL COMMENT 'If Null then the pointing will never expire, and will remain until observed',
-  `finishUTC` DATETIME NULL,
+  `startedUTC` DATETIME NULL,
+  `stoppedUTC` DATETIME NULL,
   `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `users_userKey` INT(11) NOT NULL,
   `mpointings_mpointingID` INT NULL,
@@ -435,9 +436,15 @@ DROP TRIGGER IF EXISTS `goto_obs`.`pointings_BEFORE_UPDATE` $$
 USE `goto_obs`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_BEFORE_UPDATE` BEFORE UPDATE ON `pointings` FOR EACH ROW
 BEGIN
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
-        /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
-        SET NEW.`finishUTC` = NOW();
+	IF (NEW.`ts` <> OLD.`ts`) THEN
+    	IF (OLD.`status` != 'running' AND NEW.`status` = 'running') THEN
+			/* the pointing has started */
+			SET NEW.`startedUTC` = NOW();
+        END IF;
+		IF (OLD.`status` IN ('pending', 'running') AND NEW.`status` NOT IN ('pending', 'running')) THEN
+			/* the pointing has finished somehow (completed, aborted, interrupted, expired...) */
+			SET NEW.`stoppedUTC` = NOW();
+        END IF;
 	END IF;
 END$$
 
@@ -448,19 +455,22 @@ USE `goto_obs`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
 BEGIN
 	DECLARE isinfinite INT;
-	SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` NOT IN ('pending', 'running')) THEN
-        /* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
-		UPDATE `mpointings` SET `status` = 'unscheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	END IF;
-	IF (NEW.`ts` <> OLD.`ts` AND NEW.`status` = 'completed') THEN
-		/* increase the Mpointing's completed count */
-        UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-        IF isinfinite = 0 THEN
-			/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
-			UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+	IF (NEW.`ts` <> OLD.`ts`) THEN
+		IF NEW.`status` NOT IN ('pending', 'running') THEN
+			/* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
+			UPDATE `mpointings` SET `status` = 'unscheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
 		END IF;
-    END IF;
+		IF NEW.`status` = 'completed' THEN
+			/* increase the Mpointing's completed count */
+			UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			/* check if the Mpointing is infinite */
+			SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			IF isinfinite = 0 THEN
+				/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
+				UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			END IF;
+		END IF;
+	END IF;
 END$$
 
 
