@@ -616,7 +616,10 @@ class Pointing(Base):
     ----------
         pointingID : int
             primary key for pointings
-        finishUTC : datetime.datetime, or None
+        startedUTC : datetime.datetime, or None
+            if the pointing has started (been marked running)
+            this will give the time it was updated
+        stoppedUTC : datetime.datetime, or None
             if the pointing has finished (either completed or cancelled for
             some reason) this will give the time it was updated
         exposure_sets : list of `ExposureSet`
@@ -688,7 +691,8 @@ class Pointing(Base):
     ToO = Column(Integer)
     startUTC = Column(DateTime)
     stopUTC = Column(DateTime)
-    finishUTC = Column(DateTime, default=None)
+    startedUTC = Column(DateTime, default=None)
+    stoppedUTC = Column(DateTime, default=None)
     status = Column(pointing_status_list, default='pending')
 
     # use validators to allow various types of input for UTC
@@ -750,14 +754,14 @@ class Pointing(Base):
         template = ("Pointing(pointingID={}, status='{}', " +
                     "objectName={}, ra={}, decl={}, rank={}, " +
                     "minAlt={}, maxSunAlt={}, minTime={}, maxMoon={}, minMoonSep={}, " +
-                    "ToO={}, startUTC={}, stopUTC={}, " +
+                    "ToO={}, startUTC={}, stopUTC={}, startedUTC={}, stoppedUTC={}, " +
                     "userKey={}, mpointingID={}, blockID={}, " +
                     "eventID={}, eventTileID={}, surveyID={}, surveyTileID={})")
         return template.format(
             self.pointingID, self.status, self.objectName, self.ra, self.decl, self.rank,
             self.minAlt, self.maxSunAlt, self.minTime, self.maxMoon, self.minMoonSep,
-            bool(self.ToO), self.startUTC, self.stopUTC, self.userKey,
-            self.mpointingID, self.blockID,
+            bool(self.ToO), self.startUTC, self.stopUTC, self.startedUTC, self.stoppedUTC,
+            self.userKey, self.mpointingID, self.blockID,
             self.eventID, self.eventTileID, self.surveyID, self.surveyTileID
         )
 
