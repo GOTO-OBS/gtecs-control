@@ -410,6 +410,34 @@ def get_mpointing_by_id(session, mpointingID):
     return mpointing
 
 
+def get_exposure_set_by_id(session, expID):
+    """
+    Get a single ExposureSet, filtered by ID.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        a session object - see `load_session` or `open_session` for details
+    expID : int
+        the id number of the ExposureSet
+
+    Returns
+    -------
+    exposure_set : `ExposureSet`
+        the matching ExposureSet
+
+    Raises
+    ------
+    ValueError : if no matching ExposureSet is found in the database
+    """
+    query = session.query(ExposureSet)
+    query = query.filter(ExposureSet.expID == expID)
+    exposure_set = query.one_or_none()
+    if not exposure_set:
+        raise ValueError('No matching ExposureSet found')
+    return exposure_set
+
+
 def get_survey_tile_by_name(session, survey_name, tile_name):
     """
     Get a tile in a survey from the name of the survey and tile.

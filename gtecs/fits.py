@@ -144,84 +144,138 @@ def update_header(header, tel, cam_info):
     # Database info
     from_db = False
     expsetID = 'NA'
-    pointingID = 'NA'
-    ToO_flag = 'NA'
-    rank = 'NA'
-    userID = 'NA'
-    userName = 'NA'
-    mpointingID = 'NA'
-    repeatID = 'NA'
-    repeatNum = 'NA'
-    eventTileID = 'NA'
-    eventTileProb = 'NA'
-    surveyTileID = 'NA'
-    eventID = 'NA'
-    eventName = 'NA'
-    eventIVO = 'NA'
-    eventSource = 'NA'
 
-    expsetID = current_exposure.expID
-    if expsetID != 0:
+    pointingID = 'NA'
+    pointing_rank = 'NA'
+    pointing_ToO = 'NA'
+    pointing_minalt = 'NA'
+    pointing_maxsunalt = 'NA'
+    pointing_mintime = 'NA'
+    pointing_maxmoon = 'NA'
+    pointing_minmoonsep = 'NA'
+    pointing_starttime = 'NA'
+    pointing_stoptime = 'NA'
+    userID = 'NA'
+    user_name = 'NA'
+    user_fullname = 'NA'
+
+    mpointingID = 'NA'
+    mpointing_baserank = 'NA'
+    mpointing_obsnum = 'NA'
+    mpointing_target = 'NA'
+    mpointing_infinite = 'NA'
+    obs_blockID = 'NA'
+    obs_block_num = 'NA'
+
+    eventID = 'NA'
+    event_name = 'NA'
+    event_IVO = 'NA'
+    event_source = 'NA'
+    event_tileID = 'NA'
+    event_tile_obsprob = 'NA'
+    event_tile_baseprob = 'NA'
+
+    surveyID = 'NA'
+    survey_name = 'NA'
+    survey_tileID = 'NA'
+    survey_tile_name = 'NA'
+
+    if current_exposure.expID != 0:
         from_db = True
         from gtecs import database as db
         with db.open_session() as session:
-            expset = session.query(db.ExposureSet).filter(
-                     db.ExposureSet.expID == expsetID).one_or_none()
+            expsetID = current_exposure.expID
+            try:
+                expset = get_exposure_set_by_id(session, expsetID)
+            except:
+                expset = None
 
-            if expset.pointingID:
-                pointingID = expset.pointingID
-                pointing = session.query(db.Pointing).filter(
-                           db.Pointing.pointingID == pointingID).one_or_none()
-                rank = pointing.rank
-                ToO_flag = bool(pointing.ToO)
+            if expset and expset.pointingID:
+                pointing = expset.pointing
+                pointingID = pointing.pointingID
+                pointing_rank = pointing.rank
+                pointing_ToO = bool(pointing.ToO)
+                pointing_minalt = pointing.minAlt
+                pointing_maxsunalt = pointing.maxSunAlt
+                pointing_mintime = pointing.minTime
+                pointing_maxmoon = pointing.maxMoon
+                pointing_minmoonsep = pointing.minMoonSep
+                pointing_starttime = pointing.startUTC
+                pointing_stoptime = pointing.stopUTC
+                if not pointing_stoptime:
+                    pointing_stoptime = 'NA'
+                user = pointing.user
                 userID = pointing.userKey
-                user = session.query(db.User).filter(
-                       db.User.userKey == userID).one_or_none()
-                userName = user.fullName
+                user_name = pointing.user.userName
+                user_fullname = pointing.user.fullName
 
                 if pointing.mpointingID:
-                    mpointingID = expset.mpointingID
+                    mpointingID = pointing.mpointingID
+                    mpointing_baserank = pointing.mpointing.start_rank
+                    mpointing_obsnum = pointing.mpointing.num_completed
+                    mpointing_target = pointing.mpointing.num_todo
+                    mpointing_infinite = bool(pointing.mpointing.infinite)
 
-                if pointing.repeatID:
-                    repeatID = pointing.repeatID
-                    repeat = session.query(db.Repeat).filter(
-                               db.Repeat.repeatID == repeatID).one_or_none()
-                    repeatNum = repeat.repeatNum
-
-                if pointing.eventTileID:
-                    eventTileID = pointing.eventTileID
-                    eventTile = session.query(db.EventTile).filter(
-                               db.EventTile.eventTileID == pointingID).one_or_none()
-                    eventTileProb = eventTile.probability
-
-                if pointing.surveyTileID:
-                    surveyTileID = pointing.surveyTileID
+                if pointing.blockID:
+                    obs_blockID = pointing.blockID
+                    obs_block_num = pointing.observing_block.blockNum
 
                 if pointing.eventID:
                     eventID = pointing.eventID
-                    event = session.query(db.Event).filter(
-                               db.Event.eventID == eventID).one_or_none()
-                    eventName = event.name
-                    eventIVO = event.ivo
-                    eventSource = event.source
+                    event_name = pointing.event.name
+                    event_IVO = pointing.event.ivo
+                    event_source = pointing.event.source
 
-    header["FROMDB  "] = (from_db, "Exposure linked to database set")
-    header["EXPS-ID "] = (expsetID, "Database ExposureSet ID")
-    header["PNT-ID  "] = (pointingID, "Database Pointing ID")
-    header["TOO     "] = (ToO_flag, "ToO flag for this Pointing")
-    header["RANK    "] = (rank, "Rank of this Pointing")
-    header["USER-ID "] = (userID, "Database User ID who submitted this Pointing")
-    header["USER    "] = (userName, "User who submitted this Pointing")
-    header["MPNT-ID "] = (mpointingID, "Database Mpointing ID")
-    header["REP-ID  "] = (repeatID, "Database Repeat ID")
-    header["REP-N   "] = (repeatNum, "Number of this Repeat")
-    header["GW-ID   "] = (eventTileID, "Database Event tile ID")
-    header["GW-PROB "] = (eventTileProb, "Event tile contained probability")
-    header["SVY-ID  "] = (surveyTileID, "Database Survey tile ID")
-    header["EVENT-ID"] = (eventID, "Database Event ID")
-    header["EVENT   "] = (eventName, "Event name for this Pointing")
-    header["IVO     "] = (eventIVO, "IVOA identifier for this event")
-    header["SOURCE  "] = (eventSource, "Source of this event")
+                if pointing.eventTileID:
+                    event_tileID = pointing.eventTileID
+                    event_tile_obsprob = pointing.eventTile.probability
+                    event_tile_baseprob = pointing.eventTile.unobserved_probability
+
+                if pointing.surveyID:
+                    surveyID = pointing.surveyID
+                    survey_name = pointing.survey.name
+
+                if pointing.surveyTileID:
+                    survey_tileID = pointing.surveyTileID
+                    survey_tile_name = pointing.surveyTile.name
+
+    header["FROMDB  "] = (from_db, "Exposure linked to database set?")
+    header["DB-EXPS "] = (expsetID, "Database ExposureSet ID")
+
+    header["DB-PNT  "] = (pointingID, "Database Pointing ID")
+    header["RANK    "] = (pointing_rank, "Rank of this pointing when observed")
+    header["TOO     "] = (pointing_ToO, "ToO flag for this pointing")
+    header["LIM-ALT "] = (pointing_minalt, "Minimum altitude limit for this pointing")
+    header["LIM-SALT"] = (pointing_maxsunalt, "Maximum Sun altitude limit for this pointing")
+    header["LIM-MPHS"] = (pointing_maxmoon, "Maximum Moon phase limit for this pointing")
+    header["LIM-MDIS"] = (pointing_minmoonsep, "Minimum Moon distance limit for this pointing")
+    header["LIM-TIME"] = (pointing_mintime, "Minimum valid time limit for this pointing")
+    header["LIM-STRT"] = (pointing_starttime, "Valid start time limit for this pointing")
+    header["LIM-STOP"] = (pointing_stoptime, "Valid stop time limit for this pointing")
+    header["DB-USER "] = (userID, "Database User ID who submitted this pointing")
+    header["USERNAME"] = (user_name, "Username that submitted this pointing")
+    header["USERFULL"] = (user_fullname, "User who submitted this pointing")
+
+    header["DB-MPNT "] = (mpointingID, "Database Mpointing ID")
+    header["BASERANK"] = (mpointing_baserank, "Initial rank of this Mpointing")
+    header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
+    header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
+    header["INFINITE"] = (mpointing_obsnum, "Is this an infinitely repeating pointing?")
+    header["DB-OBSBK"] = (obs_blockID, "Database ObservingBlock ID")
+    header["OBSBKNUM"] = (obs_block_num, "Number of this observing block")
+
+    header["DB-EVENT"] = (eventID, "Database Event ID")
+    header["EVENT   "] = (event_name, "Event name for this pointing")
+    header["IVO     "] = (event_IVO, "IVOA identifier for this event")
+    header["SOURCE  "] = (event_source, "Source of this event")
+    header["DB-ETILE"] = (event_tileID, "Database EventTile ID")
+    header["TILEPROB"] = (event_tile_obsprob, "Event tile observed probability")
+    header["BASEPROB"] = (event_tile_baseprob, "Event tile contained probability")
+
+    header["DB-SURVY"] = (surveyID, "Database Survey ID")
+    header["SURVEY  "] = (survey_name, "Name of this survey")
+    header["DB-STILE"] = (survey_tileID, "Database SurveyTile ID")
+    header["TILENAME"] = (survey_tile_name, "Name of this survey tile")
 
     # Camera info
     cam_serial = cam_info['serial_number'+str(tel)]
