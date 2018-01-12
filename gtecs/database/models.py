@@ -1326,9 +1326,9 @@ class Mpointing(Base):
                 # force pointings to stop by an Mpointing's stopUTC, if given
                 stopUTC = self.stopUTC
 
-        if startUTC >= stopUTC:
-            # can happen if the Mpointing has a stopUTC
-            return None
+            if startUTC >= stopUTC:
+                # can happen if the Mpointing has a stopUTC
+                return None
 
         # now create a pointing
         p = Pointing(objectName=self.objectName,

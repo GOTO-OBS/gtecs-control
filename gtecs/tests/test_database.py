@@ -14,10 +14,10 @@ from gtecs.database import _make_random_pointing
 
 # add a user
 with open_session() as session:
-    add_user(session, 'sl', 'dowhhvs5a', "Stuart Littlefair")
+    add_user(session, 'goto', 'password', "GOTO Test Observer")
 
     # create an event
-    e = Event(ivo='ivo://pt5mTest', name='pt5mVar3', source='pt5m')
+    e = Event(ivo='ivo://gotoTest', name='gotoVar3', source='made-up')
 
     # and an event tile
     et = EventTile(ra=100, decl=20, probability=0.1)
@@ -45,11 +45,25 @@ with open_session() as session:
 
 # OK, new Session. Let's make a Pointing
 with open_session() as session:
-    userKey = get_userkey(session, 'sl')
-    p = Pointing(objectName='IP Peg', ra=350.785625, decl=18.416472, rank=9, minAlt=30, maxSunAlt=-15,
-                 minTime=3600, maxMoon='G', minMoonSep=30, ToO=0, startUTC=Time.now(),
-                 stopUTC=Time.now()+3*u.day, userKey=userKey)
-    e = ExposureSet(typeFlag='SCIENCE', filt='G', expTime=20, numexp=20, binning=2)
+    userKey = get_userkey(session, 'goto')
+    p = Pointing(objectName='IP Peg',
+                 ra=350.785625,
+                 decl=18.416472,
+                 rank=9,
+                 minAlt=30,
+                 maxSunAlt=-15,
+                 minTime=3600,
+                 maxMoon='G',
+                 minMoonSep=30,
+                 ToO=0,
+                 startUTC=Time.now(),
+                 stopUTC=Time.now()+3*u.day,
+                 userKey=userKey)
+    e = ExposureSet(typeFlag='SCIENCE',
+                    filt='G',
+                    expTime=20,
+                    numexp=20,
+                    binning=2)
     p.exposure_sets.append(e)
     session.add(p)
 
@@ -65,33 +79,44 @@ with open_session() as session:
 with open_session() as session:
     npoints = len(get_pointings(session))
     current, pending = get_queue(session)
-    stale = get_stale_pointing_ids(session)
+    expired = get_expired_pointing_ids(session)
     nqueue = len(pending)
 print("{} points in database".format(npoints))
 print("{} points in queue".format(nqueue))
-print("{} stale pointings\n".format(len(stale)))
+print("{} expired pointings\n".format(len(expired)))
 
-# clean stale pointings
-print('Cleaning stale pointings')
+# clean expired pointings
+print('Cleaning expired pointings')
 with open_session() as session:
-    bulk_update_pointing_status(session, stale, 'expired')
+    bulk_update_pointing_status(session, expired, 'expired')
 
 # now check how many we have
 with open_session() as session:
     npoints = len(get_pointings(session))
     current, pending = get_queue(session)
-    stale = get_stale_pointing_ids(session)
-    expired = get_pointings(session, status='expired')
+    expired = get_expired_pointing_ids(session)
+    marked = get_pointings(session, status='expired')
     nqueue = len(pending)
 print("{} points in database".format(npoints))
 print("{} points in queue".format(nqueue))
-print("{} stale pointings".format(len(stale)))
-print("{} expired pointings\n".format(len(expired)))
+print("{} unmarked expired pointings".format(len(expired)))
+print("{} marked expired pointings\n".format(len(marked)))
 
 # create an Mpointing
-mp = Mpointing(objectName='M31', ra=10.685, decl=41.2875, start_rank=9, minAlt=30,
-               minTime=3600, ToO=0, maxMoon='B', minMoonSep=30, num_repeats = 5, userKey=24,
-               intervals=1440, valid_durations=1400, maxSunAlt=-15)
+mp = Mpointing(objectName='M31',
+               ra=10.685,
+               decl=41.2875,
+               start_rank=9,
+               minAlt=30,
+               maxSunAlt=-15,
+               minTime=3600,
+               ToO=0,
+               maxMoon='B',
+               minMoonSep=30,
+               num_todo = 5,
+               userKey=24,
+               valid_time=[60,120],
+               wait_time=60)
 # and add RGBL exposure set
 L = ExposureSet(typeFlag='SCIENCE', filt='L', expTime=120, numexp=3, binning=2)
 R = ExposureSet(typeFlag='SCIENCE', filt='R', expTime=120, numexp=3, binning=2)
@@ -105,14 +130,14 @@ time.sleep(5)
 
 # now let's go through a caretaker step
 with open_session() as s:
-    # first remove stale pointings
-    stale = get_stale_pointing_ids(s)
-    if len(stale) > 0:
-        bulk_update_pointing_status(s, stale, 'expired')
-    print('Marked {} pointings as stale'.format(len(stale)))
+    # first remove expired pointings
+    expired = get_expired_pointing_ids(s)
+    if len(expired) > 0:
+        bulk_update_pointing_status(s, expired, 'expired')
+    print('Marked {} pointings as expired'.format(len(expired)))
 
     # which Mpointings need pointings submitting?
-    mps_to_schedule = get_mpointings(s, only_active=True, scheduled=False)
+    mps_to_schedule = get_mpointings(s, status='unscheduled')
     print('There are {} Mpointings to schedule'.format(len(mps_to_schedule)))
 
     pointings_to_add = []
@@ -125,18 +150,15 @@ with open_session() as s:
 
 # check that scheduling worked the way we expected
 def summary(mp):
-    if mp.scheduled:
-        print('Scheduled, num_remain = {}'.format(mp.num_remain))
-    else:
-        print('Unscheduled, num_remain = {}'.format(mp.num_remain))
+    print('{}, num_remaining = {}'.format(mp.status.upper(), mp.num_remaining))
     print([p.status for p in mp.pointings])
-    print([(r.repeatNum, r.status) for r in mp.repeats], '\n')
+    print([(b.blockNum, b.valid_time, b.wait_time, b.current) for b in mp.observing_blocks], '\n')
 
 with open_session() as s:
     mp = get_mpointing_by_id(s, 1)
     summary(mp)
 
-# now lets pretend we're observing the repeat object and check the triggers
+# now lets pretend we're observing the Mpointing and check the triggers
 s = load_session()
 mp = get_mpointing_by_id(s, 1)
 keepGoing = True
@@ -166,15 +188,15 @@ s.close()
 
 with open_session() as s:
     # check the list of mps to schedule is empty
-    mps_to_schedule = get_mpointings(s, only_active=True, scheduled=False)
+    mps_to_schedule = get_mpointings(s, status='unscheduled')
     print('There are {} Mpointings to schedule'.format(len(mps_to_schedule)))
 
     npoints = len(get_pointings(s))
     current, pending = get_queue(s)
-    stale = get_stale_pointing_ids(s)
-    expired = get_pointings(s, status='expired')
+    expired = get_expired_pointing_ids(s)
+    marked = get_pointings(s, status='expired')
     nqueue = len(pending)
 print("{} points in database".format(npoints))
 print("{} points in queue".format(nqueue))
-print("{} stale pointings".format(len(stale)))
-print("{} expired pointings\n".format(len(expired)))
+print("{} unmarked expired pointings".format(len(expired)))
+print("{} marked expired pointings\n".format(len(marked)))
