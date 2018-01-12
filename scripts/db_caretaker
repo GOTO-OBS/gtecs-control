@@ -22,39 +22,55 @@ def ThereCanOnlyBeOne():
 
 ThereCanOnlyBeOne()
 
-while True:
-    # prune stale pointings
-    with db.open_session() as session:
-        print('Getting any expired pointings...')
-        stale_pointings = db.get_expired_pointing_ids(session)
+WAIT_TIME = 600 # should be param
 
-        if len(stale_pointings) > 0:
-            print('> Marking {} pointings as expired'.format(len(stale_pointings)))
+while True:
+    # mark expired Pointings
+    with db.open_session() as session:
+        print('Getting any expired Pointings...')
+        expired_pointings = db.get_expired_pointing_ids(session)
+
+        if len(expired_pointings) > 0:
+            print('> Marking {} Pointings as expired'.format(len(expired_pointings)))
             start = time.time()
-            db.bulk_update_pointing_status(session, stale_pointings, 'expired')
+            db.bulk_update_pointing_status(session, expired_pointings, 'expired')
             print('>    took {:.2f} secs'.format(time.time()-start))
         else:
             print('> None found')
 
-    # schedule pointings for unscheduled MPs
+    # mark expired Mpointings
     with db.open_session() as session:
-        print('Getting any unscheduled mpointings...')
-        unscheduled_mps = session.query(db.Mpointing).filter(
-            db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
+        print('Getting any expired Mpointings...')
+        expired_mpointings = db.get_expired_mpointing_ids(session)
+
+        if len(expired_mpointings) > 0:
+            print('> Marking {} Mpointings as expired'.format(len(expired_mpointings)))
+            start = time.time()
+            db.bulk_update_mpointing_status(session, expired_mpointings, 'expired')
+            print('>    took {:.2f} secs'.format(time.time()-start))
+        else:
+            print('> None found')
+
+    # schedule Pointings for unscheduled Mpointings
+    with db.open_session() as session:
+        print('Getting any unscheduled Mpointings...')
+        unscheduled_mps = db.get_mpointings(session, status='unscheduled')
 
         if len(unscheduled_mps) > 0:
-            print('> Creating {} new pointings'.format(len(unscheduled_mps)))
+            print('> Creating {} new Pointings'.format(len(unscheduled_mps)))
             start = time.time()
             pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
             pointings = [p for p in pointings if p is not None]
             print('>    took {:.2f} secs'.format(time.time()-start))
 
-            print('> Inserting {} pointings into DB'.format(len(pointings)))
+            print('> Inserting {} Pointings into DB'.format(len(pointings)))
             start = time.time()
             db.insert_items(session, pointings)
             print('>    took {:.2f} secs'.format(time.time()-start))
         else:
             print('> None found')
 
+    print('Done, waiting for {}s'.format(WAIT_TIME))
+
     print('~~~~~~~~~~~~~~~~~~~')
-    time.sleep(600)
+    time.sleep(WAIT_TIME)

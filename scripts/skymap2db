@@ -39,9 +39,9 @@ MPOINTING_SETTINGS = dict(start_rank=2,
                           maxMoon='B',
                           minMoonSep=30,
                           ToO=0,
-                          num_repeats=5,
-                          intervals=1440,
-                          valid_durations=1439)
+                          num_todo=5,
+                          valid_time=1440,
+                          wait_time=0)
 
 ## Constant ExposureSet values
 EXP_SETTINGS = dict(expTime=120,
@@ -102,14 +102,6 @@ def add_to_database(pointings, event_time, event_name, survey_name, filename):
             mpointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
 
             session.add(mpointing)
-
-        # find the Mpointings that are unscheduled
-        unscheduled_mps = session.query(db.Mpointing).filter(
-            db.Mpointing.scheduled == 0).options(joinedload('repeats')).all()
-
-        # create first batch of Pointings
-        pointings = [mp.get_next_pointing() for mp in unscheduled_mps]
-        db.insert_items(session, pointings)
 
 
 def run(filename, telescope, survey_name, hp_lim=0.001, n_lim=200):

@@ -236,6 +236,7 @@ def write_queue_page():
                 '<td><b> MinAlt </b></td>' +
                 '<td><b> MaxSun </b></td>' +
                 '<td><b> MaxMoon </b></td>' +
+                '<td><b> MinMoonSep </b></td>' +
                 '<td><b> User </b></td>' +
                 '<td><b> Start UTC </b></td>' +
                 '<td><b> Stop UTC </b></td>' +
@@ -288,6 +289,7 @@ def write_queue_page():
                     '<td>' + str(dbPointing.minAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxSunAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxMoon) + '</td>' +
+                    '<td>' + str(dbPointing.minMoonSep) + '</td>' +
                     '<td>' + str(username) + '</td>' +
                     '<td>' + str(dbPointing.startUTC) + '</td>' +
                     '<td>' + str(dbPointing.stopUTC) + '</td>' +

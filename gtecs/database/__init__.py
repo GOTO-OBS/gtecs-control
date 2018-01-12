@@ -577,6 +577,33 @@ def bulk_update_pointing_status(session, pointingIDs, status):
     session.bulk_update_mappings(Pointing, mappings)
 
 
+def bulk_update_mpointing_status(session, mpointingIDs, status):
+    """
+    Set the status of a large number of mpointings.
+
+    Setting the status of an mpointing, or updating any DB item, does not
+    need this function. One can use:
+
+    >>> with open_session() as session:
+    >>>     mpointing = get_mpointing_by_id(session, 17074)
+    >>>     mpointing.status = 'completed'
+
+    However, for large numbers of mpointings this is inefficient. Use this
+    routine instead.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.Session.session`
+        the session object
+    mpointingIDs : list
+        a list of mpointingIDs to update
+    status : string
+        status to set mpointings to
+    """
+    mappings = [dict(mpointingID=mpID, status=status) for mpID in mpointingIDs]
+    session.bulk_update_mappings(Mpointing, mappings)
+
+
 def _make_random_pointing(userKey, numexps=None, time=None):
     """
     Make a random pointing for testing.
