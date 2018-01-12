@@ -154,7 +154,7 @@ class User(Base):
     fullName = Column(String)
 
     def __repr__(self):
-        return "User(userKey={}, username={}, fullName={})".format(
+        return "User(userKey={}, userName={}, fullName={})".format(
             self.userKey, self.userName, self.fullName
         )
 
