@@ -16,7 +16,8 @@ Base = declarative_base()
 pointing_status_list = Enum('pending', 'running', 'completed',
                             'aborted', 'interrupted', 'expired', 'deleted')
 
-mpointing_status_list = Enum('unscheduled', 'scheduled', 'completed', 'aborted', 'expired', 'deleted')
+mpointing_status_list = Enum('unscheduled', 'scheduled', 'completed',
+                             'aborted', 'expired', 'deleted')
 
 class Event(Base):
 
@@ -1132,6 +1133,8 @@ class Mpointing(Base):
 
                 block = ObservingBlock(blockNum=i+1, valid_time=valid, wait_time=wait)
                 self.observing_blocks.append(block)
+            if len(self.observing_blocks):
+                self.observing_blocks[0].current=1
 
         if 'eventID' in kwargs:
             self.eventID = kwargs['eventID']
@@ -1154,11 +1157,20 @@ class Mpointing(Base):
         if 'eventTileID' in kwargs:
             self.eventTileID = kwargs['eventTileID']
 
-    # use validators to allow various types of input for UTC
-    # also enforce stopUTC > startUTC
-    # NB stopUTC is None be default
+        # when created, also create the first pointing
+        pointing = self.get_next_pointing()
+        self.pointings.append(pointing)
+        if pointing:
+            self.status = 'scheduled'
+
+
     @validates('startUTC', 'stopUTC')
     def munge_times(self, key, field):
+        """
+        Use validators to allow various types of input for UTC
+        Also enforce stopUTC > startUTC
+        NB stopUTC is None be default
+        """
         if key == 'stopUTC' and field is None:
             value = None
         elif isinstance(field, datetime.datetime):
@@ -1178,6 +1190,7 @@ class Mpointing(Base):
                 raise AssertionError("stopUTC must be later than startUTC")
 
         return value
+
 
     @property
     def num_remaining(self):
@@ -1249,13 +1262,14 @@ class Mpointing(Base):
             # no current block (for some reason, aside from just starting)
             return None
 
-        if self.num_remaining == 0:
+        elif not current_block or len(current_block.pointings) == 0:
+            # just starting
+            next_num = 1
+
+        elif self.num_remaining == 0:
             # current block is the last one
             return None
 
-        if not current_block or len(current_block.pointings) == 0:
-            # just starting
-            next_num = 1
         else:
             current_num = current_block.blockNum
             latest_pointing = current_block.pointings[-1]
@@ -1346,7 +1360,7 @@ class Mpointing(Base):
                      status='pending',
                      userKey=self.userKey,
                      mpointingID=self.mpointingID,
-                     blockID=next_block.blockID,
+                     observing_block=next_block,
                      eventID=self.eventID,
                      eventTileID=self.eventTileID,
                      surveyID=self.surveyID,
