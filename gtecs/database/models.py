@@ -138,11 +138,11 @@ class User(Base):
         >>> session.add(pointing)
         >>> session.commit()
         >>> bob.pointings
-        [Pointing(pointingID=19073, objectName=randObj, ra=228.687,
-        decl=-53.5477, rank=67, minAlt=30.0, maxSunAlt=-15.0,
-        minTime=428.848, maxMoon=D, ToO=1, startUTC=2016-08-17 14:45:15,
-        stopUTC=2016-08-26 14:45:15, status=pending, eventID=None,
-        userKey=25, mpointingID=None, repeatID=None, eventTileID=None)]
+        [Pointing(pointingID=None, status='pending', objectName=randObj, ra=352.133, decl=28.464, rank=84,
+        minAlt=30, maxSunAlt=-15, minTime=1575.8310236068696, maxMoon=D, minMoonSep=30, ToO=True,
+        startUTC=2018-01-16 16:46:12, stopUTC=2018-01-18 16:46:12, startedUTC=None, stoppedUTC=None,
+        userKey=25, mpointingID=None, blockID=None, eventID=None, eventTileID=None, surveyID=None,
+        surveyTileID=None)]
         >>> session.close()
 
     """
@@ -642,16 +642,21 @@ class Pointing(Base):
         >>> from gtecs.database import *
         >>> from astropy import units as u
         >>> from astropy.time import Time
+        >>> session = load_session()
+
+        Create a pointing:
+
         >>> p = Pointing(objectName='IP Peg', ra=350.785625, decl=18.416472, rank=9, minAlt=30, maxSunAlt=-15,
-        ... minTime=3600, maxMoon='G', ToO=0, startUTC=Time.now(), stopUTC=Time.now()+3*u.day, userKey=24)
+        ... minTime=3600, maxMoon='G', minMoonSep=30, ToO=0, startUTC=Time.now(), stopUTC=Time.now()+3*u.day, userKey=24)
         >>> p
-        Pointing(pointingID=None, objectName=IP Peg, ra=350.785625, decl=18.416472, rank=9, minAlt=30,
-        maxSunAlt=-15, minTime=3600, maxMoon=G, ToO=0, startUTC=2016-08-16 20:27:57, stopUTC=2016-08-19 20:27:57,
-        status=None, eventID=None, userKey=24, mpointingID=None, repeatID=None, eventTileID=None, surveyID=None, surveyTileID=None)
+        Pointing(pointingID=None, status='None', objectName=IP Peg, ra=350.785625, decl=18.416472, rank=9, minAlt=30,
+        maxSunAlt=-15, minTime=3600, maxMoon=G, minMoonSep=None, ToO=False, startUTC=2018-01-12 17:39:54,
+        stopUTC=2018-01-15 17:39:54, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=None, blockID=None,
+        eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
 
-        we can insert it into the database and the status and pointingID will be set:
+        We can insert it into the database and the status and pointingID will be set:
 
-        >>> session.add()
+        >>> session.add(p)
         >>> session.commit()
         >>> p.status, p.pointingID
         ('pending', 17073)
@@ -782,6 +787,10 @@ class ObservingBlock(Base):
     should be supplied or set before insertion into the database.
     See Examples for details.
 
+    Note you shouldn't ever have to manually create ObservingBlocks.
+    They're used internally by Mpointings to keep track of Pointings and all
+    the ones an Mpointing requires are created when the Mpointing is.
+
     Args
     ----
         blockNum : int
@@ -791,8 +800,11 @@ class ObservingBlock(Base):
         wait_time : float
             time to wait after this block before allowing the next pointing, in minutes
 
-        mpointingID : int
-            unique key linking this repeat to an Mpointing
+        mpointingID : int, optional
+            unique key linking this ObservingBlock to an Mpointing
+        current : bool, optional
+            True if this ObservingBlock is the one that is currently linked to
+            a Pointing in the queue
 
     An ObservingBlock also has the following properties which are
     populated through database queries, but not needed for
@@ -800,9 +812,6 @@ class ObservingBlock(Base):
 
     Attributes
     ----------
-        current : bool
-            True if this ObservingBlock is the one that is currently linked to
-            a Pointing in the queue
         pointings : list of `Pointing`
             a list of any `Pointing`s associated with this block, if any
 
@@ -943,63 +952,183 @@ class Mpointing(Base):
 
     Examples
 
-    NEEDS UPDATING
     --------
 
         >>> from gtecs.database import *
-        >>> mp = Mpointing()
-        >>> mp
-        Mpointing(mpointingID=None, objectName=None, ra=None, decl=None, rank=None,
-        start_rank=None, minAlt=None, maxSunAlt=None, minTime=None, maxMoon=None,
-        ToO=None, num_repeats=None, num_completed=None, num_remain=None, scheduled=False, eventID=None,
-        userKey=None, eventTileID=None, surveyTile=None)
+        >>> from astropy.time import Time
 
-        make a more useful Mpointing - repeating on increasing intervals, which stay in the
-        queue for 5 minutes.
+        make an Mpointing - starting at midnight, 5 pointings that stay in the queue
+        for 5 minutes and the next one is valid 10 minutes after the previous.
 
         >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600,
-        ... ToO=0, maxMoon='B', num_repeats=6, userKey=24, intervals=[10,20,30,40,50],
-        ... valid_durations=5, maxSunAlt=-15)
+        ... maxSunAlt=-15, ToO=0, maxMoon='B', minMoonSep=30, num_todo=5, userKey=24, valid_time=5,
+        ... wait_time=10, startUTC=Time('2018-01-01 00:00:00'))
         >>> mp
-        Mpointing(mpointingID=None, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15, minTime=3600,
-        maxMoon=B, ToO=0, num_repeats=None, num_completed=None, scheduled=None, eventID=False, userKey=24, eventTileID=None,
-        surveyTile=None)
+        Mpointing(mpointingID=None, status='scheduled', num_todo=5, num_completed=0, num_remaining=5,
+        infinite=False, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
+        minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None,
+        userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
 
-        notice how `num_repeats` and `num_remain` are None, even though when we look at the repeats attribute we find
+        Note that the mpointingID is None, because that will be filled out when we add it to the database
 
-        >>> mp.repeats
-        [Repeat(repeatID=None, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=None, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
-        ]
+        Looking at the ObservingBlocks you can see that we only need one, and it has been generated
 
-        That is because `num_repeats` and `num_remain` are queried from the database. If we add the Mpointing
-        we see that these values are populated, and the repeats are added to the database and get IDs
+        >>> mp.observing_blocks
+        [ObservingBlock(blockID=None, blockNum=1, valid_time=5, wait_time=10, current=1, mpointingID=None)]
 
-        >>> session.add(mp)
-        >>> session.commit()
+        This block will be repeated 5 times, as requested.
+
+        The first pointing has also already been created, which is why the Mpointing status is scheduled
+
+        >>> mp.pointings
+        [Pointing(pointingID=None, status='pending', objectName=M31, ra=22, decl=-5, rank=9, minAlt=30,
+        maxSunAlt=-15, minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00,
+        stopUTC=2018-01-01 00:05:00, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=None,
+        blockID=None, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)]
+
+        ~~~~~~~~~~~~~~~~~~~~~
+
+        For a more complicated example, give a list to wait_time to have the intervals between pointings increase.
+
+        >>> mp = Mpointing(objectName='M31', ra=22, decl=-5, start_rank=9, minAlt=30, minTime=3600,
+        ... maxSunAlt=-15, ToO=0, maxMoon='B', minMoonSep=30, num_todo=5, userKey=24, valid_time=5,
+        ... wait_time=[10,20,30], startUTC=Time('2018-01-01 00:00:00'))
         >>> mp
-        Mpointing(mpointingID=1, objectName=M31, ra=22.0, decl=-5.0, rank=9, start_rank=9, minAlt=30.0, maxSunAlt=-15.0,
-        minTime=3600.0, maxMoon=B, ToO=0, num_repeats=6, num_completed=0, scheduled=0, eventID=0, userKey=24,
-        eventTileID=None, surveyTile=None)
-        >>> mp.repeats
-        [Repeat(repeatID=1, repeatNum=0, waitTime=0, valid_duration=1, status=upcoming, mpointingID=None)
-         Repeat(repeatID=2, repeatNum=1, waitTime=10, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=3, repeatNum=2, waitTime=20, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=4, repeatNum=3, waitTime=30, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=5, repeatNum=4, waitTime=40, valid_duration=1, status=upcoming, mpointingID=None),
-         Repeat(repeatID=6, repeatNum=5, waitTime=50, valid_duration=1, status=upcoming, mpointingID=None),
-        ]
+        Mpointing(mpointingID=None, status='scheduled', num_todo=5, num_completed=0, num_remaining=5,
+        infinite=False, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
+        minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None,
+        userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
+        >>> mp.observing_blocks
+        [ObservingBlock(blockID=None, blockNum=1, valid_time=5, wait_time=10, current=1, mpointingID=None),
+         ObservingBlock(blockID=None, blockNum=2, valid_time=5, wait_time=20, current=None, mpointingID=None),
+         ObservingBlock(blockID=None, blockNum=3, valid_time=5, wait_time=30, current=None, mpointingID=None)]
 
-        we can add more repeats directly.
+        Note this time that we only created 3 blocks, but are asking for 5 observations.
+        That's not a problem, as the blocks will simply repeat.
+        In this case the sequence will look like this:
+        [note we set the Mpointing start time to midnight]
+        Pointing 1: startUTC=00:00, stopUTC=00:05 (valid for 5 minutes)
+        Pointing 2: startUTC=00:15, stopUTC=00:20 (wait for 10, then valid for 5)
+        Pointing 3: startUTC=00:40, stopUTC=00:45 (wait for 20, then valid for 5)
+        Pointing 4: startUTC=01:15, stopUTC=01:20 (wait for 30, then valid for 5)
+        Pointing 5: startUTC=01:30, stopUTC=01:35 (wait for 10, then valid for 5)
 
-        >>> mp.repeats.append(Repeat(repeatNum=6, waitTime=100, valid_duration=5, status='upcoming'))
-        >>> session.commit()
-        >>> mp.num_repeats
-        7
+        We can see what would happen by manually running through the pointings and pretending to be the caretaker.
+
+        First add the Mpointing to the database:
+
+        >>> s = load_session()
+        >>> s.add(mp)
+        >>> s.commit()
+        >>> mp.pointings
+        [Pointing(pointingID=17100, status='pending', objectName=M31, ra=22.0, decl=-5.0, rank=9, minAlt=30.0,
+        maxSunAlt=-15.0, minTime=3600.0, maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00,
+        stopUTC=2018-01-01 00:05:00, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=2, blockID=1,
+        eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)]
+
+        Note that the pointingID, mpointingID and blockID have been filled out.
+        Also that the start time is midnight and the stop time is 5 past, as expected.
+        See what happens if we mark the pointing as completed:
+
+        >>> mp.pointings[0].status = 'completed'
+        >>> s.commit()
+        >>> mp
+        Mpointing(mpointingID=2, status='unscheduled', num_todo=5, num_completed=1, num_remaining=4,
+        infinite=False, objectName=M31, ra=22.0, decl=-5.0, rank=19, start_rank=9, minAlt=30.0,
+        maxSunAlt=-15.0, minTime=3600.0, maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00,
+        stopUTC=None, userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
+
+        See that the num_completed atribute has gone up, the num_remaining has gone down
+        and the mpointing status has changed to 'unscheduled'.
+
+        To schedule the next pointing, you create it from the Mpointing and then add it to
+        the database.
+
+        >>> p = mp.get_next_pointing()
+        >>> s.add(p)
+        >>> s.commit()
+        >>> p
+        Pointing(pointingID=17102, status='pending', objectName=M31, ra=22.0, decl=-5.0, rank=19, minAlt=30.0,
+        maxSunAlt=-15.0, minTime=3600.0, maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:15:00,
+        stopUTC=2018-01-01 00:20:00, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=2, blockID=2,
+        eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
+        >>> mp
+        Mpointing(mpointingID=2, status='scheduled', num_todo=5, num_completed=1, num_remaining=4, infinite=False,
+        objectName=M31, ra=22.0, decl=-5.0, rank=19, start_rank=9, minAlt=30.0, maxSunAlt=-15.0, minTime=3600.0,
+        maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None, userKey=24, eventID=None,
+        eventTileID=None, surveyID=None, surveyTileID=None)
+
+        See that the Mpointing is back the scheduled.
+        Also, note that the new pointing has start time of 00:15 and stop of 00:20. That's as we expected, because
+        it's linked to the second observing block not the first (see blockID).
+
+        If you look at the observing blocks you can see the next one is marked as current.
+
+        >>> mp.observing_blocks
+        [ObservingBlock(blockID=1, blockNum=1, valid_time=5.0, wait_time=10.0, current=0, mpointingID=2),
+        ObservingBlock(blockID=2, blockNum=2, valid_time=5.0, wait_time=20.0, current=1, mpointingID=2),
+        ObservingBlock(blockID=3, blockNum=3, valid_time=5.0, wait_time=30.0, current=0, mpointingID=2)]
+
+        Let's run through the remaining pointings.
+
+        >>> p.status = 'completed'
+        >>> s.commit()
+        >>> mp.status
+        'unscheduled'
+        >>> mp.num_completed
+        2
+
+        >>> p = mp.get_next_pointing() # Pointing 3 of 5
+        >>> s.add(p)
+        >>> s.commit()
+        >>> p.blockID
+        3
+        >>> mp.status
+        'scheduled'
+
+        >>> p.status = 'completed'
+        >>> s.commit()
+        >>> mp.status
+        'unscheduled'
+        >>> mp.num_completed
+        3
+
+        >>> p = mp.get_next_pointing() # Pointing 4 of 5
+        >>> s.add(p)
+        >>> s.commit()
+        >>> p.blockID
+        1
+        >>> mp.status
+        'scheduled'
+
+        >>> p.status = 'completed'
+        >>> s.commit()
+        >>> mp.status
+        'unscheduled'
+        >>> mp.num_completed
+        4
+
+        >>> p = mp.get_next_pointing() # Pointing 5 of 5
+        >>> s.add(p)
+        >>> s.commit()
+        >>> p.blockID
+        2
+        >>> mp.status
+        'scheduled'
+
+        >>> p.status = 'completed'
+        >>> s.commit()
+        >>> mp.status
+        'completed'
+        >>> mp
+        Mpointing(mpointingID=2, status='completed', num_todo=5, num_completed=5, num_remaining=0,
+        infinite=False, objectName=M31, ra=22.0, decl=-5.0, rank=59, start_rank=9, minAlt=30.0,
+        maxSunAlt=-15.0, minTime=3600.0, maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00,
+        stopUTC=None, userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
+
+        And the Mpointing is completed.
+
+        ~~~~~~~~~~~~~~~~~~~~~
 
         To be useful, an Mpointing should have a list of `ExposureSet`s associated with it. We
         can either add these to the `exposure_sets` attribute directly:
@@ -1018,6 +1147,8 @@ class Mpointing(Base):
         [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
          ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
          ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
+
+        These exposure sets will be copied to the Pointings when they're created.
 
         >>> session.close()
 
@@ -1104,7 +1235,7 @@ class Mpointing(Base):
         self.num_todo = num_todo
         self.num_completed = 0
 
-        # now add repeats and intervals
+        # now add observing blocks
         if valid_time is not None and wait_time is not None:
 
             # first convert to lists
