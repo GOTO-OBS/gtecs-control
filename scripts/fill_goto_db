@@ -101,9 +101,9 @@ def run(fov, overlap):
         for tile in tiles:
             mp = db.Mpointing(userKey=user_key,
                               objectName='T{}'.format(tile.name),
-                              surveyID = survey.surveyID,
-                              surveyTileID = tile.tileID,
                               **SURVEY_SETTINGS)
+            mp.surveyID = survey.surveyID
+            mp.surveyTileID = tile.tileID
             mp.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
             mpointings.append(mp)
         print('  took {:.2f} secs'.format(time.time()-start))

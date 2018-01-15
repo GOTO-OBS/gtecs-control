@@ -94,11 +94,10 @@ def add_to_database(pointings, event_time, event_name, survey_name, filename):
 
             mpointing = db.Mpointing(userKey=userkey,
                                      objectName=object_name,
-                                     surveyTile = survey_tile,
-                                     event = event,
-                                     eventTile = tile,
                                      **MPOINTING_SETTINGS)
-
+            mpointing.surveyTile = survey_tile
+            mpointing.event = event
+            mpointing.eventTile = tile
             mpointing.exposure_sets.append(db.ExposureSet(**EXP_SETTINGS))
 
             session.add(mpointing)

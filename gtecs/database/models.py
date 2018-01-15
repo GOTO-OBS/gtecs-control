@@ -964,7 +964,7 @@ class Mpointing(Base):
         ... maxSunAlt=-15, ToO=0, maxMoon='B', minMoonSep=30, num_todo=5, userKey=24, valid_time=5,
         ... wait_time=10, startUTC=Time('2018-01-01 00:00:00'))
         >>> mp
-        Mpointing(mpointingID=None, status='scheduled', num_todo=5, num_completed=0, num_remaining=5,
+        Mpointing(mpointingID=None, status='unscheduled', num_todo=5, num_completed=0, num_remaining=5,
         infinite=False, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
         minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None,
         userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
@@ -978,14 +978,6 @@ class Mpointing(Base):
 
         This block will be repeated 5 times, as requested.
 
-        The first pointing has also already been created, which is why the Mpointing status is scheduled
-
-        >>> mp.pointings
-        [Pointing(pointingID=None, status='pending', objectName=M31, ra=22, decl=-5, rank=9, minAlt=30,
-        maxSunAlt=-15, minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00,
-        stopUTC=2018-01-01 00:05:00, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=None,
-        blockID=None, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)]
-
         ~~~~~~~~~~~~~~~~~~~~~
 
         For a more complicated example, give a list to wait_time to have the intervals between pointings increase.
@@ -994,7 +986,7 @@ class Mpointing(Base):
         ... maxSunAlt=-15, ToO=0, maxMoon='B', minMoonSep=30, num_todo=5, userKey=24, valid_time=5,
         ... wait_time=[10,20,30], startUTC=Time('2018-01-01 00:00:00'))
         >>> mp
-        Mpointing(mpointingID=None, status='scheduled', num_todo=5, num_completed=0, num_remaining=5,
+        Mpointing(mpointingID=None, status='unscheduled', num_todo=5, num_completed=0, num_remaining=5,
         infinite=False, objectName=M31, ra=22, decl=-5, rank=9, start_rank=9, minAlt=30, maxSunAlt=-15,
         minTime=3600, maxMoon=B, minMoonSep=30, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None,
         userKey=24, eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)
@@ -1020,13 +1012,20 @@ class Mpointing(Base):
         >>> s = load_session()
         >>> s.add(mp)
         >>> s.commit()
+
+        Then create the first pointing and add it to the database.
+
+        >>> p = mp.get_next_pointing()
+        >>> s.add(p)
+        >>> s.commit()
         >>> mp.pointings
         [Pointing(pointingID=17100, status='pending', objectName=M31, ra=22.0, decl=-5.0, rank=9, minAlt=30.0,
         maxSunAlt=-15.0, minTime=3600.0, maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00,
         stopUTC=2018-01-01 00:05:00, startedUTC=None, stoppedUTC=None, userKey=24, mpointingID=2, blockID=1,
         eventID=None, eventTileID=None, surveyID=None, surveyTileID=None)]
 
-        Note that the pointingID, mpointingID and blockID have been filled out.
+        Note that the pointingID, mpointingID and blockID have been filled out,
+        and this Pointing has blockID=1.
         Also that the start time is midnight and the stop time is 5 past, as expected.
         See what happens if we mark the pointing as completed:
 
@@ -1041,8 +1040,7 @@ class Mpointing(Base):
         See that the num_completed atribute has gone up, the num_remaining has gone down
         and the mpointing status has changed to 'unscheduled'.
 
-        To schedule the next pointing, you create it from the Mpointing and then add it to
-        the database.
+        Create the next pointing and add it:
 
         >>> p = mp.get_next_pointing()
         >>> s.add(p)
@@ -1058,25 +1056,27 @@ class Mpointing(Base):
         maxMoon=B, minMoonSep=30.0, ToO=False, startUTC=2018-01-01 00:00:00, stopUTC=None, userKey=24, eventID=None,
         eventTileID=None, surveyID=None, surveyTileID=None)
 
-        See that the Mpointing is back the scheduled.
+        See that the Mpointing is back to scheduled.
         Also, note that the new pointing has start time of 00:15 and stop of 00:20. That's as we expected, because
-        it's linked to the second observing block not the first (see blockID).
+        it's linked to the second observing block not the first (see blockID=2).
 
-        If you look at the observing blocks you can see the next one is marked as current.
+        If you look at the observing blocks you can see the next one is now marked as current.
 
         >>> mp.observing_blocks
         [ObservingBlock(blockID=1, blockNum=1, valid_time=5.0, wait_time=10.0, current=0, mpointingID=2),
         ObservingBlock(blockID=2, blockNum=2, valid_time=5.0, wait_time=20.0, current=1, mpointingID=2),
         ObservingBlock(blockID=3, blockNum=3, valid_time=5.0, wait_time=30.0, current=0, mpointingID=2)]
 
-        Let's run through the remaining pointings.
+        Mark this one as completed, and you'll see the Mpointing is updated.
 
         >>> p.status = 'completed'
         >>> s.commit()
-        >>> mp.status
-        'unscheduled'
         >>> mp.num_completed
         2
+        >>> mp.status
+        'unscheduled'
+
+        Let's run through the remaining pointings:
 
         >>> p = mp.get_next_pointing() # Pointing 3 of 5
         >>> s.add(p)
@@ -1088,10 +1088,10 @@ class Mpointing(Base):
 
         >>> p.status = 'completed'
         >>> s.commit()
-        >>> mp.status
-        'unscheduled'
         >>> mp.num_completed
         3
+        >>> mp.status
+        'unscheduled'
 
         >>> p = mp.get_next_pointing() # Pointing 4 of 5
         >>> s.add(p)
@@ -1103,10 +1103,10 @@ class Mpointing(Base):
 
         >>> p.status = 'completed'
         >>> s.commit()
-        >>> mp.status
-        'unscheduled'
         >>> mp.num_completed
         4
+        >>> mp.status
+        'unscheduled'
 
         >>> p = mp.get_next_pointing() # Pointing 5 of 5
         >>> s.add(p)
@@ -1115,9 +1115,11 @@ class Mpointing(Base):
         2
         >>> mp.status
         'scheduled'
-
+s
         >>> p.status = 'completed'
         >>> s.commit()
+        >>> mp.num_completed
+        5
         >>> mp.status
         'completed'
         >>> mp
@@ -1287,12 +1289,6 @@ class Mpointing(Base):
             self.eventTile = kwargs['eventTile']
         if 'eventTileID' in kwargs:
             self.eventTileID = kwargs['eventTileID']
-
-        # when created, also create the first pointing
-        pointing = self.get_next_pointing()
-        self.pointings.append(pointing)
-        if pointing:
-            self.status = 'scheduled'
 
 
     @validates('startUTC', 'stopUTC')
