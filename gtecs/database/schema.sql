@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`observing_blocks` (
   `blockID` INT NOT NULL AUTO_INCREMENT,
   `blockNum` INT NOT NULL,
   `current` INT NOT NULL DEFAULT 0,
-  `valid_time` FLOAT NOT NULL COMMENT 'how long after the startUTC the repeat should be valid for in minutes.',
+  `valid_time` FLOAT NOT NULL COMMENT 'how long after the startUTC the pointing should be valid for in minutes',
   `wait_time` FLOAT NOT NULL COMMENT 'time to wait after this pointing before scheduling the next',
   `mpointings_mpointingID` INT NOT NULL,
   PRIMARY KEY (`blockID`),
