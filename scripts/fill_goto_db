@@ -37,7 +37,7 @@ EXP_SETTINGS = dict(expTime=120,
                     typeFlag='SCIENCE',
                     filt='L',
                     binning=1,
-                    otaMask=None)
+                    utMask=None)
 
 
 def get_userkey(username, description=''):

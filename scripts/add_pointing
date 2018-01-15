@@ -276,7 +276,7 @@ if __name__ == '__main__':
                             'typeFlag': 'SCIENCE',
                             'raoff': 0,
                             'decoff': 0,
-                            'otaMask': None,
+                            'utMask': None,
                             }
 
     with db.open_session() as session:

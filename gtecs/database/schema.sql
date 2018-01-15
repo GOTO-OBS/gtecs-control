@@ -285,7 +285,7 @@ DROP TABLE IF EXISTS `goto_obs`.`exposure_sets` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`exposure_sets` (
   `expID` INT(24) NOT NULL AUTO_INCREMENT,
-  `otaMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
+  `utMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
   `typeFlag` ENUM('SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD') NOT NULL,
   `filter` CHAR(2) NOT NULL,
   `exptime` FLOAT NOT NULL,
