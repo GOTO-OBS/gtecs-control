@@ -150,7 +150,7 @@ def write_exp_file(pointingID, dbExps):
             for dbExp in dbExps:
                 f.write('<tr>' +
                         '<td align=right><b>' + str(i) + '</b></td>' +
-                        '<td> ' + str(dbExp.otaMask) + ' </td>' +
+                        '<td> ' + str(dbExp.utMask) + ' </td>' +
                         '<td> ' + str(dbExp.numexp) + ' </td>' +
                         '<td> ' + str(dbExp.expTime) + ' </td>' +
                         '<td> ' + str(dbExp.filt) + ' </td>' +

@@ -491,10 +491,10 @@ class ExposureSet(Base):
         decoff : float, optional
             the size of the random offset to apply between each exposure
             if not set, no offset will be made
-        otaMask : int, optional
-            if set, this is a binary mask which will determine which OTAs
-            carry out the exposure. So a value of 5 (binary 0101) will be
-            carried out on OTAs 1 and 3.
+        utMask : int, optional
+            if set, this is a binary mask which will determine which unit
+            telescopes carry out the exposure. A value of 5 (binary 0101) will
+            be exposed by cameras 1 and 3.
         mpointingID : int, optional
             unique key linking to an `Mpointing`
         pointingID : int, optional
@@ -524,7 +524,7 @@ class ExposureSet(Base):
     expTime = Column(Float)
     numexp = Column(Integer)
     binning = Column(Integer)
-    otaMask = Column(Integer, nullable=True)
+    utMask = Column(Integer, nullable=True)
 
     pointingID = Column('pointings_pointingID', Integer,
                         ForeignKey('pointings.pointingID'),
@@ -538,11 +538,11 @@ class ExposureSet(Base):
 
     def __repr__(self):
         template = ("ExposureSet(expID={}, raoff={}, decoff={}, typeFlag={}, " +
-                    "filt={}, expTime={}, numexp={}, binning={}, otaMask={}, " +
+                    "filt={}, expTime={}, numexp={}, binning={}, utMask={}, " +
                     "pointingID={}, mpointingID={})")
         return template.format(
             self.expID, self.raoff, self.decoff, self.typeFlag, self.filt,
-            self.expTime, self.numexp, self.binning, self.otaMask,
+            self.expTime, self.numexp, self.binning, self.utMask,
             self.pointingID, self.mpointingID
         )
 
@@ -675,9 +675,9 @@ class Pointing(Base):
         >>> insert_items(session, [e2, e3])
         >>> session.commit()
         >>> p.exposure_sets
-        [ExposureSet(expID=126601, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
-         ExposureSet(expID=126602, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None),
-         ExposureSet(expID=126603, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=17073, mpointingID=None)]
+        [ExposureSet(expID=126601, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=17073, mpointingID=None),
+         ExposureSet(expID=126602, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=17073, mpointingID=None),
+         ExposureSet(expID=126603, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=17073, mpointingID=None)]
 
         >>> session.close()
 
@@ -1144,9 +1144,9 @@ class Mpointing(Base):
         >>> insert_items(session, [e2, e3])
         >>> session.commit()
         >>> mp.exposure_sets
-        [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1),
-         ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, otaMask=None, pointingID=None, mpointingID=1)]
+        [ExposureSet(expID=126598, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=L, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126599, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=G, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=None, mpointingID=1),
+         ExposureSet(expID=126600, raoff=0.0, decoff=0.0, typeFlag=SCIENCE, filt=R, expTime=20.0, numexp=20, binning=2, utMask=None, pointingID=None, mpointingID=1)]
 
         These exposure sets will be copied to the Pointings when they're created.
 

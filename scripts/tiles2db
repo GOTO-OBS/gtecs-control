@@ -124,7 +124,7 @@ def save_exposure_set(session, pointing):
     exptype = 'SCIENCE'
     filt = 'L'
     binfac = 1
-    otamask = None
+    utmask = None
     raoff = 0
     decoff = 0
 
@@ -133,7 +133,7 @@ def save_exposure_set(session, pointing):
                         typeFlag=exptype,
                         filt=filt,
                         binning=binfac,
-                        otaMask=otamask,
+                        utMask=utmask,
                         raoff=raoff,
                         decoff=decoff,
                         pointing=pointing)
