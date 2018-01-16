@@ -18,6 +18,7 @@ import astropy.units as u
 from . import params
 from . import misc
 from . import astronomy
+from . import database as db
 from .astronomy import sun_alt as get_sun_alt
 from .daemons import daemon_info
 
@@ -43,6 +44,9 @@ def write_fits(image, filename, tel, cam_info):
 
     # update the image header
     update_header(hdu.header, tel, cam_info)
+
+    # write the image log to the database
+    write_image_log(filename, hdu.header)
 
     # recreate the hdulist, and write to file
     hdulist = pyfits.HDUList([hdu])
@@ -182,7 +186,6 @@ def update_header(header, tel, cam_info):
 
     if current_exposure.expID != 0:
         from_db = True
-        from gtecs import database as db
         with db.open_session() as session:
             expsetID = current_exposure.expID
             try:
@@ -498,3 +501,35 @@ def update_header(header, tel, cam_info):
 
     header["INT-TEMP"] = (int_temp, "Internal temperature, Celsius (dome)")
     header["INT-HUM "] = (int_hum, "Internal humidity, percent (dome)")
+
+
+def write_image_log(filename, header):
+    """Add an image log to the database for this frame"""
+    filename = filename.split('/')[-1]
+    runNumber = int(header["RUN     "])
+    ut = int(header["UT      "])
+    utMask = int(header["UTMASK  "])
+    startUTC = Time(header["DATE-OBS"])
+    writeUTC = Time(header["DATE    "])
+    set_position = int(header["SET-POS "])
+    set_total = int(header["SET-TOT "])
+
+    expID = None
+    pointingID = None
+    mpointingID = None
+
+    if header["DB-EXPS "] is not 'NA':
+        expID = header["DB-EXPS "]
+    if header["DB-PNT  "] is not 'NA':
+        pointingID = header["DB-PNT  "]
+    if header["DB-MPNT "] is not 'NA':
+        mpointingID = header["DB-MPNT "]
+
+    log = db.ImageLog(filename=filename, runNumber=runNumber, ut=ut,
+                   utMask=utMask, startUTC=startUTC, writeUTC=writeUTC,
+                   set_position=set_position, set_total=set_total,
+                   expID=expID, pointingID=pointingID, mpointingID=mpointingID)
+
+    with db.open_session() as session:
+        session.add(log)
+        session.commit()
