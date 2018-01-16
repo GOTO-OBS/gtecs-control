@@ -119,9 +119,9 @@ def print_info(info):
             if humidity == -999:
                 humidity_str = style.rtxt(' ERR')
             elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = style.gtxt('{:>3.1f}'.format(humidity))
+                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
-                humidity_str = style.rtxt('{:>3.1f}'.format(humidity))
+                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
             if windspeed == -999:
                 windspeed_str = style.rtxt('  ERR')
@@ -150,7 +150,7 @@ def print_info(info):
 
 
             print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}C  {}%  {} km/s  {}  dt={}'.format(temperature_str,
+            weather_str = '{}C  {}%  {} km/h  {}  dt={}'.format(temperature_str,
                                                                 humidity_str,
                                                                 windspeed_str,
                                                                 rain_str,
@@ -167,9 +167,9 @@ def print_info(info):
             if int_humidity == -999:
                 int_humidity_str = style.rtxt(' ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                int_humidity_str = style.gtxt('{:>3.1f}'.format(int_humidity))
+                int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
-                int_humidity_str = style.rtxt('{:>3.1f}'.format(int_humidity))
+                int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
 
             if dt == -999:
                 dt_str = style.rtxt('ERR')
