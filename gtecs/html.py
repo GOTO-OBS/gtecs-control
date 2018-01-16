@@ -99,9 +99,12 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
             start.format = 'iso'
             start.precision = 0
             f.write('start_time = ' + str(start) + '<br>\n')
-            stop = Time(dbPointing.stopUTC)
-            stop.format = 'iso'
-            stop.precision = 0
+            if dbPointing.stopUTC:
+                stop = Time(dbPointing.stopUTC)
+                stop.format = 'iso'
+                stop.precision = 0
+            else:
+                stop = 'None'
             f.write('stop_time = ' + str(stop) + '<br>\n')
 
             target = coord.ICRS(dbPointing.ra*u.deg, dbPointing.decl*u.deg)

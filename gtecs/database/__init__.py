@@ -202,8 +202,10 @@ def get_filtered_queue(session, time=None, rank_limit=None, location=None,
         time = Time.now()
     now = time.iso
 
-    queue = queue.filter(Pointing.startUTC < now,
-                         now < Pointing.stopUTC)
+    # are we after the start time?
+    queue = queue.filter(Pointing.startUTC < now)
+    # are we before the stop time (if any)?
+    queue = queue.filter(or_(Pointing.stopUTC > now, Pointing.stopUTC==None))
 
     # now limit by RA and Dec
     if location is not None:
