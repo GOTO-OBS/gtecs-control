@@ -186,10 +186,9 @@ def update_header(header, tel, cam_info):
         with db.open_session() as session:
             expsetID = current_exposure.expID
             try:
-                expset = get_exposure_set_by_id(session, expsetID)
+                expset = db.get_exposure_set_by_id(session, expsetID)
             except:
                 expset = None
-
             if expset and expset.pointingID:
                 pointing = expset.pointing
                 pointingID = pointing.pointingID
@@ -200,10 +199,11 @@ def update_header(header, tel, cam_info):
                 pointing_mintime = pointing.minTime
                 pointing_maxmoon = pointing.maxMoon
                 pointing_minmoonsep = pointing.minMoonSep
-                pointing_starttime = pointing.startUTC
-                pointing_stoptime = pointing.stopUTC
-                if not pointing_stoptime:
-                    pointing_stoptime = 'NA'
+                pointing_starttime = pointing.startUTC.strftime("%Y-%m-%dT%H:%M:%S")
+                if pointing.stopUTC:
+                    pointing_stoptime = pointing.stopUTC.strftime("%Y-%m-%dT%H:%M:%S")
+                else:
+                    pointing_stoptime = 'None'
                 user = pointing.user
                 userID = pointing.userKey
                 user_name = pointing.user.userName
@@ -260,7 +260,7 @@ def update_header(header, tel, cam_info):
     header["BASERANK"] = (mpointing_baserank, "Initial rank of this Mpointing")
     header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
     header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
-    header["INFINITE"] = (mpointing_obsnum, "Is this an infinitely repeating pointing?")
+    header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
     header["DB-OBSBK"] = (obs_blockID, "Database ObservingBlock ID")
     header["OBSBKNUM"] = (obs_block_num, "Number of this observing block")
 
