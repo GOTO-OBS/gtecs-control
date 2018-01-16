@@ -312,8 +312,12 @@ class PointingQueue:
 
         self.starts_t = Time(self.start_arr[self.time_mask],
                              scale='utc', format='datetime')
-        self.stops_t = Time(self.stop_arr[self.time_mask],
-                            scale='utc', format='datetime')
+        # The stop time can be None for non-expiring pointings,
+        # but the constraint needs a Time so just say a long time from now.
+        longtime = Time.now() + 10*u.year
+        self.stops_t = Time([stoptime if stoptime else longtime.datetime
+                             for stoptime in self.stop_arr[self.time_mask]],
+                             scale='utc', format='datetime')
 
         self.time_constraint = [TimeConstraint(self.starts_t, self.stops_t)]
         self.time_constraint_name = ['Time']
