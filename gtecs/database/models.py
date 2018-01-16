@@ -1498,19 +1498,21 @@ s
         return p
 
 
-class ObslogEntry(Base):
+class ImageLog(Base):
 
     """
-    A class to represent an entry in the Obslog table.
+    A class to store a record of a FITS image file created by the camera daemon.
 
-    The Obslog is a duplication of a subset of the information in the
-    FITS headers of a single file, allowing easy retrieval of information.
+    The ImageLog is a simple way to link pointings in the database to physical
+    FITS files. An ImageLog should be created by the camera daemon each time
+    an exposure is taken, even if taken manually rather than originating from
+    the database.
 
     Like all SQLAlchemy model classes, this object links to the
-    underlying database. You can create an ObslogEntry, and set its attributes
+    underlying database. You can create an ImageLog, and set its attributes
     without a database session. Accessing some attributes may require
-    an active database session, and some properties (like the obsID)
-    will be None until the exposure is added to the database.
+    an active database session, and some properties (like the logID)
+    will be None until the log is added to the database.
 
     The constructor must use keyword arguments and the arguments below
     should be supplied or set before insertion into the database.
@@ -1518,77 +1520,105 @@ class ObslogEntry(Base):
 
     Args
     ----
-        frame : string
-            the frame ID number which identifies the corresponding FITS file
-        utStart : string
-            UT time at start of exposure (format 2016-08-22 12:00:01)
-        objectName : string
-            the same object name as listed in FITS headers
-        frameType : string
-            see `ExposureSet.typeFlag`
-        ra : float
-            J2000 right ascension in decimal degrees
-        decl : float
-            J2000 declination in decimal degrees
-        expTime : float
-            exposure time in seconds
-        airmass : float
-            airmass at start of observation
-        filt : string
-            filter used
-        binning : int
-            binning used
-        focus : int
-            position of focuser
-        temp : float
-            external temperature, degrees celsius
-        pointingID : int
-            the unique key of the pointing which generated this frame
-        otaID : int
-            the unique key identifying the OTA
-        camID : int
-            a unique key identifying the camera
+        filename : string
+            the name of the image file
+        runNumber : int
+            the run ID number for this exposure
+        ut : int
+            the unit telescope this frame was captured on
+        utMask : int
+            a binary mask for which unit telescopes carried out this exposure.
+            A value of 5 (binary 0101) will have been exposed by cameras 1 and 3.
+        startUTC : string, `astropy.time.Time` or datetime.datetime
+            the time that the exposure began
+        writeUTC : string, `astropy.time.Time` or datetime.datetime
+            the time that the image file was written
 
-    An ObslogEntry also has the following property which is
+        set_position : int, optional
+            position of this exposure in a set, if it's in one
+            if not, it will default to 1
+        set_total : int, optional
+            total number of exposures in this set, if any
+            if not given, it will default to 1
+        expID : int, optional
+            the unique key of the exposure set this frame was part of
+        pointingID : int, optional
+            the unique key of the pointing which generated this frame
+        mpointingID : int, optional, optional
+            unique key of the mpointing which generated the pointing which
+            generated this frame
+
+    An ImageLog also has the following properties which are
     populated through database queries, but not needed for
     object creation:
 
     Attributes
     ----------
+        logID : int
+            primary key for image logs
+        exposure_set : `ExposureSet`
+            the `ExposureSet` object associated with this `ImageLog`, if any
         pointing : `Pointing`
-            the `Pointing` associated with this `ObslogEntry`
-
+            the `Pointing` associated with this `ImageLog`, if any
+        mpointing : `Mpointing`
+            the `Mpointing` associated with this `ImageLog`, if any
     """
-    __tablename__ = "obslog"
+    __tablename__ = "image_logs"
 
-    obsID = Column(Integer, primary_key=True)
-    otaID = Column(Integer)
-    camID = Column(Integer)
-    frame = Column(String)
-    utStart = Column("UTstart", DateTime)
-    objectName = Column("object", String)
-    frameType = Column("type", String)
-    ra = Column(Float)
-    decl = Column(Float)
-    expTime = Column(Float)
-    airmass = Column(Float)
-    filt = Column('filter', String(2))
-    binning = Column(Integer)
-    focus = Column(Float)
-    temp = Column(Float)
+    logID = Column(Integer, primary_key=True)
+    filename = Column(String)
+    runNumber = Column(Integer)
+    ut = Column(Integer)
+    utMask = Column(Integer)
+    startUTC = Column(DateTime)
+    writeUTC = Column(DateTime)
+    set_position = Column(Integer, default=1)
+    set_total = Column(Integer, default=1)
+
+    expID = Column('exposure_sets_expID', Integer,
+                    ForeignKey('exposure_sets.expID'), nullable=True)
+    exposure_set = relationship("ExposureSet", backref="image_logs",
+                   uselist=False)
 
     pointingID = Column('pointings_pointingID', Integer,
-                        ForeignKey('pointings.pointingID'),
-                        nullable=False)
-    pointing = relationship("Pointing", backref="obslog", uselist=False)
+                    ForeignKey('pointings.pointingID'), nullable=True)
+    pointing = relationship("Pointing", backref="image_logs", uselist=False)
+
+    mpointingID = Column('mpointings_mpointingID', Integer,
+                    ForeignKey('mpointings.mpointingID'), nullable=True)
+    mpointing = relationship("Mpointing", backref="image_logs", uselist=False)
+
 
     def __repr__(self):
-        template = ("ObslogEntry(obsID={}, frame={}, utStart={}, " +
-                    "objectName={}, frameType={}, ra={}, decl={}, " +
-                    "expTime={}, airmass={}, filt={}, binning={}, focus={}, " +
-                    "temp={}, pointingID={}, otaID={}, camID={})")
+        template = ("ImageLog(logID={}, filename={}, runNumber={}, " +
+                    "ut={}, utMask={}, startUTC={}, writeUTC={}, " +
+                    "expID={}, pointingID={}, mpointingID={})")
         return template.format(
-            self.obsID, self.frame, self.utStart, self.objectName, self.frameType,
-            self.ra, self.decl, self.expTime, self.airmass, self.filt, self.binning,
-            self.focus, self.temp, self.pointingID, self.otaID, self.camID
+            self.logID, self.filename, self.runNumber, self.ut, self.utMask,
+            self.startUTC, self.writeUTC, self.expID, self.pointingID,
+            self.mpointingID
         )
+
+    @validates('startUTC', 'writeUTC')
+    def munge_times(self, key, field):
+        """
+        Use validators to allow various types of input for UTC
+        Also enforce writeUTC > startUTC
+        """
+        if isinstance(field, datetime.datetime):
+            value = field.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(field, Time):
+            field.precision = 0  # no D.P on seconds
+            value = field.iso
+        else:
+            # just hope the string works!
+            value = str(field)
+
+        if (key == 'startUTC' and self.writeUTC is not None):
+            if Time(value) >= Time(self.writeUTC):
+                raise AssertionError("writeUTC must be later than startUTC")
+        elif key == 'writeUTC' and self.writeUTC is not None:
+            if Time(self.startUTC) >= Time(value):
+                raise AssertionError("writeUTC must be later than startUTC")
+
+        return value

@@ -314,35 +314,41 @@ DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
--- Table `goto_obs`.`obslog`
+-- Table `goto_obs`.`image_logs`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `goto_obs`.`obslog` ;
+DROP TABLE IF EXISTS `goto_obs`.`image_logs` ;
 
-CREATE TABLE IF NOT EXISTS `goto_obs`.`obslog` (
-  `obsID` INT(24) NOT NULL,
-  `frame` VARCHAR(30) NOT NULL COMMENT 'frame or file number',
-  `UTstart` DATETIME NOT NULL,
-  `object` TEXT NOT NULL,
-  `type` TEXT NOT NULL,
-  `ra` FLOAT NOT NULL,
-  `decl` FLOAT NOT NULL,
-  `exptime` FLOAT NOT NULL,
-  `airmass` FLOAT NOT NULL,
-  `filter` CHAR(2) NOT NULL,
-  `binning` INT(11) UNSIGNED NOT NULL,
-  `foc` INT(11) UNSIGNED NOT NULL,
-  `temp` FLOAT NOT NULL,
-  `otaID` INT NOT NULL COMMENT 'identifies OTA',
-  `camID` INT NOT NULL COMMENT 'identifies camera',
-  `pointings_pointingID` INT(12) NOT NULL,
-  PRIMARY KEY (`obsID`),
-  UNIQUE INDEX `frame` (`frame` ASC),
-  INDEX `fk_obslog_pointings1_idx` (`pointings_pointingID` ASC),
-  INDEX `ota_key` (`otaID` ASC),
-  INDEX `cam_key` (`camID` ASC),
-  CONSTRAINT `fk_obslog_pointings1`
+CREATE TABLE IF NOT EXISTS `goto_obs`.`image_logs` (
+  `logID` INT(24) NOT NULL AUTO_INCREMENT,
+  `filename` VARCHAR(30) NOT NULL COMMENT 'full FITS file name, including extension',
+  `runNumber` INT NOT NULL,
+  `ut` INT NOT NULL,
+  `utMask` INT NOT NULL,
+  `startUTC` DATETIME NOT NULL,
+  `writeUTC` DATETIME NOT NULL,
+  `set_position` INT NOT NULL DEFAULT 1,
+  `set_total` INT NOT NULL DEFAULT 1,
+  `exposure_sets_expID` INT NULL DEFAULT NULL,
+  `pointings_pointingID` INT NULL DEFAULT NULL,
+  `mpointings_mpointingID` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`logID`),
+  UNIQUE INDEX `filename` (`filename` ASC),
+  INDEX `fk_image_logs_exposure_sets1_idx` (`exposure_sets_expID` ASC),
+  INDEX `fk_image_logs_pointings1_idx` (`pointings_pointingID` ASC),
+  INDEX `fk_image_logs_mpointings1_idx` (`mpointings_mpointingID` ASC),
+  CONSTRAINT `fk_image_logs_exposure_sets1`
+    FOREIGN KEY (`exposure_sets_expID`)
+    REFERENCES `goto_obs`.`exposure_sets` (`expID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_image_logs_pointings1`
     FOREIGN KEY (`pointings_pointingID`)
     REFERENCES `goto_obs`.`pointings` (`pointingID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_image_logs_mpointings1`
+    FOREIGN KEY (`mpointings_mpointingID`)
+    REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
