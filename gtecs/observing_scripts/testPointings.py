@@ -44,9 +44,25 @@ def run(nAlt, nAz):
     print('Generated {} AltAz pointings:'.format(len(altaz_list)))
     print(altaz_list)
 
-    time.sleep(5)
-
     exposure_list = [15, 30, 60, 120, 240, 480]
+
+    print('Exposure times:')
+    print(exposure_list)
+
+    total_exptime = (sum(exposure_list) * len(altaz_list))/60.
+    print('Total exposure time: {} mins'.format(total_exptime))
+
+    total_readout = 0.5 * len(exposure_list) * len(altaz_list)
+    total_slew = 0.5 * len(altaz_list)
+    print('Estimated total time: {} mins'.format(total_exptime + total_readout + total_slew))
+
+    cont = 'na'
+    while cont not in ['y','n']:
+        cont = input('Continue? [y/n]: ')
+    if cont == 'n':
+        sys.exit()
+
+    print('OK, starting routine...')
 
     for altaz in altaz_list:
         alt, az = altaz
