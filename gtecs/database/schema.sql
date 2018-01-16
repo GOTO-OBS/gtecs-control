@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `stopUTC` DATETIME NULL COMMENT 'If Null then the pointing will never expire, and will remain until observed',
   `startedUTC` DATETIME NULL,
   `stoppedUTC` DATETIME NULL,
-  `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `ts` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `users_userKey` INT(11) NOT NULL,
   `mpointings_mpointingID` INT NULL,
   `observing_blocks_blockID` INT NULL,
