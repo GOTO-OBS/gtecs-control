@@ -196,43 +196,46 @@ def get_local_weather(source):
                     }
 
     try:
-        if vaisala:
+        if vaisala and data['temperature_valid']:
             weather_dict['temperature'] = float(data['temperature'])
-        else:
+        elif not vaisala:
             weather_dict['temperature'] = float(data['ext_temperature'])
     except:
         print('Error parsing temperature for {}'.format(source))
 
     try:
-        weather_dict['pressure'] = float(data['pressure'])
+        if (vaisala and data['pressure_valid']) or not vaisala:
+            weather_dict['pressure'] = float(data['pressure'])
     except:
         print('Error parsing pressure for {}'.format(source))
 
     try:
-        weather_dict['windspeed'] = float(data['wind_speed'])
+        if (vaisala and data['wind_speed_valid']) or not vaisala:
+            weather_dict['windspeed'] = float(data['wind_speed'])
     except:
         print('Error parsing wind speed for {}'.format(source))
 
     try:
-        weather_dict['winddir'] = float(data['wind_direction'])
+        if (vaisala and data['wind_direction_valid']) or not vaisala:
+            weather_dict['winddir'] = float(data['wind_direction'])
     except:
         print('Error parsing wind direction for {}'.format(source))
 
     try:
-        if vaisala:
+        if vaisala and data['relative_humidity_valid']:
             weather_dict['humidity'] = float(data['relative_humidity'])
-        else:
+        elif not vaisala:
             weather_dict['humidity'] = float(data['ext_humidity'])
     except:
         print('Error parsing humidity for {}'.format(source))
 
     try:
-        if vaisala:
+        if vaisala and data['rain_intensity_valid']:
             if float(data['rain_intensity']) > 0:
                 weather_dict['rain'] = True
             else:
                 weather_dict['rain'] = False
-        else:
+        elif not vaisala:
             del weather_dict['rain']
     except:
         print('Error parsing rain for {}'.format(source))
