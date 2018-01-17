@@ -62,9 +62,9 @@ class DomeDaemon(HardwareDaemon):
         self.warnings_check_time = 0
         self.warnings_check_period = 3 #params.DOME_CHECK_PERIOD
 
-        self.check_humidity_flag = 1
-        self.humidity_check_time = 0
-        self.humidity_check_period = 60
+        self.check_conditions_flag = 1
+        self.conditions_check_time = 0
+        self.conditions_check_period = 60
 
         self.dependency_error = 0
         self.dependency_check_time = 0
@@ -186,40 +186,59 @@ class DomeDaemon(HardwareDaemon):
                     self.logfile.debug('', exc_info=True)
                 self.check_warnings_flag = 0
 
-            # autocheck dome humidity every Z seconds (if not already forced)
-            delta = self.time_check - self.humidity_check_time
-            if delta > self.humidity_check_period:
-                self.check_humidity_flag = 1
+            # autocheck dome conditions every Z seconds (if not already forced)
+            delta = self.time_check - self.conditions_check_time
+            if delta > self.conditions_check_period:
+                self.check_conditions_flag = 1
 
-            # check dome humidity
-            if self.check_humidity_flag:
+            # check dome internal conditions
+            if self.check_conditions_flag:
                 try:
-                    # get current dome humidity
-                    humidity = dehumidifier.humidity()
+                    # get current dome conditions
+                    conditions = dehumidifier.conditions()
+                    print(conditions, dehumidifier.status())
+                    humidity = conditions['humidity']
+                    temperature = conditions['temperature']
 
                     currently_open = (self.dome_status['north'] != 'closed' or
                                       self.dome_status['south'] != 'closed')
 
-                    if (humidity > params.MAX_INTERNAL_HUMIDITY and
-                        not currently_open and
-                        dehumidifier.status() == '0'):
-                        self.logfile.info('Internal humidity {}% is above {}%'.format(humidity, params.MAX_INTERNAL_HUMIDITY))
-                        self.logfile.info('Turning on dehumidifier')
-                        dehumidifier.on()
+                    if dehumidifier.status() == '0' and not currently_open:
+                        if humidity > params.MAX_INTERNAL_HUMIDITY:
+                            string = 'Internal humidity {}% is above {}%'
+                            string = string.format(humidity, params.MAX_INTERNAL_HUMIDITY)
+                            self.logfile.info(string)
+                        if temperature < params.MIN_INTERNAL_TEMPERATURE:
+                            string = 'Internal temperature {}C is below {}C'
+                            string = string.format(temperature, params.MIN_INTERNAL_TEMPERATURE)
+                            self.logfile.info(string)
+                        if (humidity > params.MAX_INTERNAL_HUMIDITY or
+                            temperature < params.MIN_INTERNAL_TEMPERATURE):
+                            self.logfile.info('Turning on dehumidifier')
+                            dehumidifier.on()
 
-                    if (humidity < params.MAX_INTERNAL_HUMIDITY-10 and
-                        dehumidifier.status() == '1'):
-                        self.logfile.info('Internal humidity {}% is below {}%'.format(humidity, params.MAX_INTERNAL_HUMIDITY-10))
+                    if dehumidifier.status() == '1' and not currently_open:
+                        if (humidity < params.MAX_INTERNAL_HUMIDITY-10 and
+                            temperature > params.MIN_INTERNAL_TEMPERATURE+1):
+                            string = 'Internal humidity {}% is below {}%'
+                            string = string.format(humidity, params.MAX_INTERNAL_HUMIDITY-10)
+                            self.logfile.info(string)
+                            string = 'and internal temperature {}C is above {}C'
+                            string = string.format(temperature, params.MIN_INTERNAL_TEMPERATURE+1)
+                            self.logfile.info(string)
+                            self.logfile.info('Turning off dehumidifier')
+                            dehumidifier.off()
+
+                    if dehumidifier.status() == '1' and currently_open:
+                        self.logfile.info('Dome is open')
                         self.logfile.info('Turning off dehumidifier')
                         dehumidifier.off()
 
-                    if (currently_open and dehumidifier.status() == '1'):
-                        self.logfile.info('Dome is open: turning off dehumidifier')
-                        dehumidifier.off()
+                    self.conditions_check_time = time.time()
                 except:
                     self.logfile.error('check_humidity command failed')
                     self.logfile.debug('', exc_info=True)
-                self.check_status_flag = 0
+                self.check_conditions_flag = 0
 
             ### control functions
             # request info
