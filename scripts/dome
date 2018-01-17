@@ -127,6 +127,19 @@ def query(command, args, daemon_ID):
         reply = daemons.daemon_function(daemon_ID, 'halt_dome')
         print(reply)
 
+    elif command in ['dehumidifier', 'dehumid', 'dehum']:
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise misc.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise misc.InputError("Command must be 'on' or 'off'")
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'override_dehumidifier', [command])
+        print(reply)
+
     # Other functions
     elif command == 'autoclose':
         # parse arguments
@@ -187,6 +200,7 @@ def print_instructions():
     '  dome ' + style.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
     '  dome ' + style.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
     '  dome ' + style.bold('halt') + '/' + style.bold('stop')+ '                   - stop the dome moving' + '\n' +\
+    '  dome ' + style.bold('dehumidifier') + ' [on|off]       - force dehumidifier on/off' + '\n' +\
     '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
     '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
     '  dome ' + style.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
