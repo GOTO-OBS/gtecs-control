@@ -673,10 +673,18 @@ class FakeDehumidifier:
     def status(self):
         return self._status
 
-    def humidity(self):
-        dome_humidity = get_roomalert('dome')['int_humidity']
-        pier_humidity = get_roomalert('pier')['int_humidity']
-        return max([dome_humidity, pier_humidity])
+    def conditions(self):
+        dome_conditions = get_roomalert('dome')
+        dome_hum = dome_conditions['int_humidity']
+        dome_temp = dome_conditions['int_temperature']
+
+        pier_conditions = get_roomalert('pier')
+        pier_hum = dome_conditions['int_humidity']
+        pier_temp = dome_conditions['int_temperature']
+
+        conditions = {'humidity'    : max([dome_hum, pier_hum]),
+                      'temperature' : min([dome_temp, pier_temp])}
+        return conditions
 
 
 class Dehumidifier:
@@ -695,7 +703,15 @@ class Dehumidifier:
     def status(self):
         return self.power.status()[0]
 
-    def humidity(self):
-        dome_humidity = get_roomalert('dome')['int_humidity']
-        pier_humidity = get_roomalert('pier')['int_humidity']
-        return max([dome_humidity, pier_humidity])
+    def conditions(self):
+        dome_conditions = get_roomalert('dome')
+        dome_hum = dome_conditions['int_humidity']
+        dome_temp = dome_conditions['int_temperature']
+
+        pier_conditions = get_roomalert('pier')
+        pier_hum = dome_conditions['int_humidity']
+        pier_temp = dome_conditions['int_temperature']
+
+        conditions = {'humidity'    : max([dome_hum, pier_hum]),
+                      'temperature' : min([dome_temp, pier_temp])}
+        return conditions
