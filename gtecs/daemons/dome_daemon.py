@@ -38,6 +38,7 @@ class DomeDaemon(HardwareDaemon):
         self.open_flag = 0
         self.close_flag = 0
         self.halt_flag = 0
+        self.override_dehumid_flag = 0
 
         ### dome variables
         self.info = None
@@ -53,6 +54,8 @@ class DomeDaemon(HardwareDaemon):
         self.move_frac = 1
         self.move_started = 0
         self.move_start_time = 0
+
+        self.dehumid_command = 'none'
 
         self.check_status_flag = 1
         self.status_check_time = 0
@@ -216,8 +219,13 @@ class DomeDaemon(HardwareDaemon):
                             temperature < params.MIN_INTERNAL_TEMPERATURE):
                             self.logfile.info('Turning on dehumidifier')
                             dehumidifier.on()
+                        elif self.override_dehumid_flag and self.dehumid_command == 'on':
+                            self.logfile.info('Turning on dehumidifier (manual)')
+                            dehumidifier.on()
+                            self.override_dehumid_flag = 0
+                            self.dehumid_command = 'none'
 
-                    if dehumidifier.status() == '1' and not currently_open:
+                    elif dehumidifier.status() == '1' and not currently_open:
                         if (humidity < params.MAX_INTERNAL_HUMIDITY-10 and
                             temperature > params.MIN_INTERNAL_TEMPERATURE+1):
                             string = 'Internal humidity {}% is below {}%'
@@ -228,6 +236,11 @@ class DomeDaemon(HardwareDaemon):
                             self.logfile.info(string)
                             self.logfile.info('Turning off dehumidifier')
                             dehumidifier.off()
+                        elif self.override_dehumid_flag and self.dehumid_command == 'off':
+                            self.logfile.info('Turning off dehumidifier (manual)')
+                            dehumidifier.off()
+                            self.override_dehumid_flag = 0
+                            self.dehumid_command = 'none'
 
                     if dehumidifier.status() == '1' and currently_open:
                         self.logfile.info('Dome is open')
@@ -579,6 +592,45 @@ class DomeDaemon(HardwareDaemon):
         self.halt_flag = 1
 
         return 'Halting dome'
+
+
+    def override_dehumidifier(self, command):
+        """Turn the dehumidifier on or off before the automatic command"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not command in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.3)
+        dehumid_status = self.info['dehumidifier']
+        currently_open = self.info['dome'] != 'closed'
+        if command == 'on' and currently_open:
+            raise misc.HardwareStatusError("Dome is open, dehumidifier won't turn on")
+        elif command == 'on' and dehumid_status == 'on':
+            raise misc.HardwareStatusError('Dehumidifier is already on')
+        elif command == 'off' and dehumid_status == 'off':
+            raise misc.HardwareStatusError('Dehumidifier is already off')
+
+        # Set values
+        self.dehumid_command = command
+
+        # Set flag
+        if command == 'on':
+            self.logfile.info('Turning on dehumidifier (manual command)')
+        elif command == 'off':
+            self.logfile.info('Turning off dehumidifier (manual command)')
+        self.override_dehumid_flag = 1
+        self.check_conditions_flag = 1
+
+        if command == 'on':
+            return 'Turning on dehumidifier (the daemon may turn it off again)'
+        elif command == 'off':
+            return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
 if __name__ == "__main__":
