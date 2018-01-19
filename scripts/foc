@@ -47,7 +47,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -164,7 +164,7 @@ def print_instructions():
     '  foc ' + style.bold('move') + ' [tels] steps' + ' - move by the given steps' + '\n' +\
     '  foc ' + style.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
     '  foc ' + style.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
-    '  foc ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  foc ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
     '  foc ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  foc ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\

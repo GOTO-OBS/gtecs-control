@@ -51,7 +51,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -366,7 +366,7 @@ def print_instructions():
     '  mnt ' + style.bold('n') + '/' + style.bold('s') + '/' + style.bold('e') + '/' + style.bold('w') + ' [step]' + '     - offset in direction by one step' + '\n' +\
     '  mnt ' + style.bold('step') + ' size' + '          - set offset step size (arcsec, default=10)' + '\n' +\
     '  mnt ' + style.bold('blinky') + ' on|off' + '      - turn on or off blinky mode' + '\n' +\
-    '  mnt ' + style.bold('info') + ' [v]' + '           - report current status' + '\n' +\
+    '  mnt ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '    - report current status' + '\n' +\
     '  mnt ' + style.bold('log') + ' [stdout]' + '       - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  mnt ' + style.bold('i') + '                  - enter interactive mode' + '\n' +\
