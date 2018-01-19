@@ -49,7 +49,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -203,7 +203,7 @@ def print_instructions():
     '  dome ' + style.bold('dehumidifier') + ' [on|off]       - force dehumidifier on/off' + '\n' +\
     '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
     '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
-    '  dome ' + style.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
+    '  dome ' + style.bold('log') + '/' + style.bold('status') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  dome ' + style.bold('i') + '                           - enter interactive mode' + '\n' +\
     '  dome ' + style.bold('q') + '/' + style.bold('exit') + '                      - quit interactive mode' + '\n' +\

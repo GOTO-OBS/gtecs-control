@@ -50,7 +50,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         if not reply:
@@ -194,7 +194,7 @@ def print_instructions():
     '  conditions ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
     '  conditions ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
     '  conditions ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  conditions ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  conditions ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
     '  conditions ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  conditions ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\

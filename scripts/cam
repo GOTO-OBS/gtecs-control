@@ -47,7 +47,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -212,7 +212,7 @@ def print_instructions():
     '  cam ' + style.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
     '  cam ' + style.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\
     '  cam ' + style.bold('temp') + ' [tels] temp' + '             - set camera temperature' + '\n' +\
-    '  cam ' + style.bold('info') + ' [v]' + '                     - report current status' + '\n' +\
+    '  cam ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '              - report current status' + '\n' +\
     '  cam ' + style.bold('log') + ' [stdout]' + '                 - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  cam ' + style.bold('i') + '                            - enter interactive mode' + '\n' +\
