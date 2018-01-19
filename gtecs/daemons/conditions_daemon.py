@@ -250,26 +250,26 @@ class ConditionsDaemon(HardwareDaemon):
                 update_time = time.time()
                 for name in self.flag_names:
                     if not self.valid[name]:
-                        print('Setting {} to ERROR (2)'.format(name))
+                        self.logfile.info('Setting {} to ERROR (2)'.format(name))
                         self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
                         dt = update_time - self.change_time[name]
                         delay = self.good_delay[name]
                         if dt > delay:
                             self.change_time[name] = update_time
-                            print('Setting {} to good (0)'.format(name))
+                            self.logfile.info('Setting {} to good (0)'.format(name))
                             self.flags[name] = 0
                         else:
-                            print(name, 'is good but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                            self.logfile.info(name, 'is good but delay is {:.0f}/{:.0f}'.format(dt, delay))
                     elif not self.good[name] and self.flags[name] != 1:
                         dt = update_time - self.change_time[name]
                         delay = self.bad_delay[name]
                         if dt > delay:
                             self.change_time[name] = update_time
-                            print('Setting {} to bad (1)'.format(name))
+                            self.logfile.info('Setting {} to bad (1)'.format(name))
                             self.flags[name] = 1
                         else:
-                            print(name, 'is bad but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                            self.logfile.info(name, 'is bad but delay is {:.0f}/{:.0f}'.format(dt, delay))
                     else:
                         self.change_time[name] = update_time
 
