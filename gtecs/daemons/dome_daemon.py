@@ -10,6 +10,7 @@ import datetime
 from math import *
 import Pyro4
 import threading
+import json
 
 from gtecs import flags
 from gtecs import logger
@@ -173,16 +174,26 @@ class DomeDaemon(HardwareDaemon):
                             self.logfile.info('Closing dome (emergency!)')
                             if not self.close_flag:
                                 send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
+                                if self.open_flag: # stop opening!
+                                    self.halt_flag = 1
+                                    time.sleep(2)
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
-                        elif (conditions.bad and not overrides.autoclose):
-                            self.logfile.info('Conditions bad, auto-closing dome')
-                            if not self.close_flag:
-                                self.close_flag = 1
-                                self.move_side = 'both'
-                                self.move_frac = 1
-
+                        elif conditions.bad:
+                            # Don't close in manual mode if autoclose is disabled
+                            # NB: Always close in robotic mode
+                            if overrides.robotic and overrides.autoclose:
+                                self.logfile.info('Conditions bad, but in manual mode and autoclose disabled!')
+                            else:
+                                self.logfile.info('Conditions bad, auto-closing dome')
+                                if not self.close_flag:
+                                    if self.open_flag: # stop opening!
+                                        self.halt_flag = 1
+                                        time.sleep(2)
+                                    self.close_flag = 1
+                                    self.move_side = 'both'
+                                    self.move_frac = 1
                     self.warnings_check_time = time.time()
                 except:
                     self.logfile.error('check_warnings command failed')
@@ -381,6 +392,14 @@ class DomeDaemon(HardwareDaemon):
                         self.close_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
+                        # whenever the dome is closed, turn autoclose back on
+                        overrides_file = params.CONFIG_PATH + 'overrides_flags'
+                        overrides = flags.load_json(overrides_file)
+                        if overrides['autoclose'] == 1:
+                            overrides['autoclose'] = 0
+                            with open(overrides_file, 'w') as f:
+                                json.dump(overrides, f)
+                            self.logfile.info('Re-enabled dome auto-close')
 
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
@@ -491,11 +510,17 @@ class DomeDaemon(HardwareDaemon):
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
+        bad_idea = False
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if flags.Conditions().bad and not flags.Overrides().autoclose:
-            raise misc.HardwareStatusError('Conditions bad, dome will not open')
+        if flags.Conditions().bad:
+            if flags.Overrides().robotic and flags.Overrides().autoclose:
+                # Allow opening in bad conditions if in manual mode
+                # and autoclose is disabled
+                bad_idea = True
+            else:
+                raise misc.HardwareStatusError('Conditions bad, dome will not open')
         elif flags.Power().failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
         elif os.path.isfile(params.EMERGENCY_FILE):
@@ -536,6 +561,8 @@ class DomeDaemon(HardwareDaemon):
         self.logfile.info('Starting: Opening dome')
         self.open_flag = 1
 
+        if bad_idea:
+            return 'Opening dome, even though conditions are bad! BE CAREFUL'
         return 'Opening dome'
 
 

@@ -143,7 +143,15 @@ def query(command, args, daemon_ID):
     # Other functions
     elif command == 'autoclose':
         # parse arguments
-        if args[0] == 'on':
+        if len(args) == 0:
+            if flags.Overrides().autoclose:
+                print('Autoclose is currently DISABLED')
+                print('It will re-enable when the dome is next closed')
+                return
+            else:
+                print('Autoclose is currently on')
+                return
+        elif args[0] == 'on':
             override = False
         elif args[0] == 'off':
             override = True
@@ -153,10 +161,11 @@ def query(command, args, daemon_ID):
         overrides = flags.load_json(params.CONFIG_PATH + 'overrides_flags')
         if not override:
             overrides['autoclose'] = 0
-            print('Dome will autoclose in bad weather')
+            print('Dome will autoclose in manual mode if conditions are bad')
         else:
             overrides['autoclose'] = 1
-            print('Autoclose override set: Dome will NOT close in bad weather')
+            print('Autoclose override set: Dome will NOT close in manual mode if conditions are bad')
+            print('                        This will reset the next time the dome is closed')
         with open(params.CONFIG_PATH + 'overrides_flags', 'w') as f:
             json.dump(overrides, f)
 
@@ -171,6 +180,7 @@ def print_info(info):
     print('South:        %s' %info['south'].capitalize())
     print('Hatch:        %s' %info['hatch'].capitalize())
     print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
+    print('Auto-close:   %s' %(style.rtxt('OFF') if flags.Overrides().autoclose else 'On'))
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -181,11 +191,15 @@ def print_info(info):
 def print_info_s(info):
     if (('open' in info['north']) or ('open' in info['south']) or
         ('ing'  in info['north']) or ('ing' in info['south'])):
-        print('DOME:    [Open]')
+        if flags.Overrides().autoclose:
+            print('DOME:    [Open] - ' + style.rtxt('Autoclose Disabled'))
+        else:
+            print('DOME:    [Open]')
     else:
         print('DOME:    [%s]' %info['north'].capitalize())
     print('HATCH:   [%s]' %info['hatch'].capitalize())
     print('DEHUM:   [%s]' %info['dehumidifier'].capitalize())
+
 
 
 def print_instructions():
