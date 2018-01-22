@@ -526,9 +526,8 @@ class AstroHavenDome:
         """
         loc = params.ARDUINO_LOCATION
         overrides = flags.Overrides()
-        if (params.SILENCE_ALARM_IN_MANUAL_MODE
-            and overrides.robotic
-            and overrides.autoclose):
+        if (overrides.robotic and overrides.autoclose
+            and params.SILENCE_ALARM_IN_MANUAL_MODE):
             # give the option to silence the alarm,
             # but only in manual mode and only if autoclose is off
            pass
