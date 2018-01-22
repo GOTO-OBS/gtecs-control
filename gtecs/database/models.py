@@ -849,7 +849,7 @@ class ObservingBlock(Base):
         template = ("ObservingBlock(blockID={}, blockNum={}, valid_time={}, " +
                     "wait_time={}, current={}, mpointingID={})")
         return template.format(self.blockID, self.blockNum, self.valid_time,
-                               self.wait_time, self.current, self.mpointingID)
+                               self.wait_time, bool(self.current), self.mpointingID)
 
 
 class Mpointing(Base):
@@ -1454,7 +1454,7 @@ s
                     startUTC = Time.now() + current_block.wait_time * u.minute
             else:
                 # the current block wasn't completed, and there's still time left
-                # (e.g. aborted, interrrupted)
+                # (e.g. aborted, interrupted)
                 # need to re-insert the current block with a new pointing
                 startUTC = latest_pointing.startUTC
 
