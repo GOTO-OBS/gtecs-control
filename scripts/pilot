@@ -492,6 +492,34 @@ class Pilot:
             midnight = localMidnight(nightStarting())
             if now > midnight and sun_alt(now) > until_sun_alt:
                 self.log.info('observing completed!')
+                # finish observing
+                execute_command('exq clear')
+                execute_command('cam abort')
+                # in fringe case where we've interrupted a job it needs
+                # to be cancelled.
+                await self.cancelRunningScript()
+
+                # Mark the pointing
+                # this will fail if obsStartTime not currently defined
+                try:
+                    timeElapsed = time.time() - self.obsStartTime - self.queuePausedDuration
+                except:
+                    # in which case...
+                    timeElapsed = 0
+                self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
+                    self.currentMinTime, timeElapsed
+                ))
+                if timeElapsed > self.currentMinTime:
+                    markJobCompleted(self.currentID)
+                    self.log.info('job completed: {}'.format(self.currentID))
+                else:
+                    markJobInterrupted(self.currentID)
+                    self.log.info('job interrupted: {}'.format(self.currentID))
+
+                self.currentID = None
+                self.currentPriority = None
+                self.currentMinTime = None
+
                 return
 
             # see if a new target has arrived and mark job appropriately
