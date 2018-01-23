@@ -19,7 +19,7 @@ from gtecs import database as db
 
 MP_SETTINGS = dict(start_rank=998,
                    minAlt=35,
-                   minTime=120,
+                   minTime=(120+30)*3,
                    maxSunAlt=-12,
                    maxMoon='B',
                    ToO=0,
@@ -27,7 +27,7 @@ MP_SETTINGS = dict(start_rank=998,
                    intervals=4320, #3 days
                    valid_durations=525600)
 
-EXP_SETTINGS = dict(expTime=(120+30)*3,
+EXP_SETTINGS = dict(expTime=120,
                     raoff=0.,
                     decoff=0.,
                     #numexp=3,
