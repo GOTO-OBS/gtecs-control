@@ -1,0 +1,159 @@
+#!/usr/bin/env python
+"""
+A script add a mini-survey into the G-TeCS database
+"""
+
+import sys
+import time
+import getpass
+import argparse
+
+from sqlalchemy.orm import joinedload
+
+import numpy as np
+
+import astropy.units as u
+
+from gtecs import database as db
+
+
+MP_SETTINGS = dict(start_rank=998,
+                   minAlt=35,
+                   minTime=(120+30)*3,
+                   maxSunAlt=-12,
+                   maxMoon='B',
+                   ToO=0,
+                   num_repeats=0,
+                   intervals=4320, #3 days
+                   valid_durations=525600)
+
+EXP_SETTINGS = dict(expTime=120,
+                    raoff=0.,
+                    decoff=0.,
+                    #numexp=3,
+                    typeFlag='SCIENCE',
+                    #filt='L',
+                    binning=1,
+                    otaMask=None)
+
+
+def get_userkey(username, description=''):
+    """Get user key of a user, and create it if it doesn't exit"""
+
+    with db.open_session() as session:
+        try:
+            user_key = db.get_userkey(session, username)
+        except:
+            # Create user if it doesn't exist
+            prompt = "Creating {} user - give password: ".format(username)
+            passwd = getpass.getpass(prompt=prompt)
+            db.add_user(session, username, passwd, description)
+            session.commit()
+            user_key = db.get_userkey(session, username)
+    return user_key
+
+
+def get_coords(fov, overlap, centre, area):
+    """Define mini-survey tiles centres"""
+
+    step = {}
+    for key in ('ra', 'dec'):
+        overlap[key] = min(max(overlap[key], 0), 0.9)
+        step[key] = fov[key] * (1-overlap[key])
+
+    side = np.sqrt(area)
+
+    n_tiles = {}
+    for key in ('ra', 'dec'):
+        n_tiles[key] = int(np.around(side/step[key]))
+
+    tot_tiles = n_tiles['ra']*n_tiles['dec']
+    tot_area = tot_tiles*step['ra']*step['dec']
+    print('Created {} tiles covering {:.0f} sq deg'.format(tot_tiles, tot_area))
+
+    sides = (n_tiles['dec']-1)/2
+    decs = np.arange(centre['dec']-step['dec']*sides,
+                     centre['dec']+step['dec']*(sides+1),
+                     step['dec'])[:n_tiles['dec']]
+
+    allras = []
+    alldecs = []
+    for dec in decs:
+        sides = (n_tiles['ra']-1)/2
+        s = step['ra']/np.cos(dec*np.pi/180.)
+        ras = np.arange(centre['ra']-s*sides,
+                        centre['ra']+s*(sides+1),
+                        s)[:n_tiles['ra']]
+        for i in range(len(ras)):
+            if ras[i] < 0:
+                ras[i] = 360+ras[i]
+
+        allras.append(ras)
+        alldecs.append([dec]*len(ras))
+
+    allras = np.concatenate(allras)
+    alldecs = np.concatenate(alldecs)
+    names = np.arange(len(alldecs))+1
+
+    return allras, alldecs, names
+
+
+def run(fov, overlap, centre, area, name):
+    # Create the tile centres
+    ras, decs, names = get_coords(fov, overlap, centre, area)
+
+    # Add to the database
+    tiles = []
+    mpointings = []
+    user_key = get_userkey('goto', 'GOTO Survey')
+    with db.open_session() as session:
+        # create Mpointings
+        print('Creating mpointings...')
+        start = time.time()
+        for ra, dec, tile_num in zip(ras, decs, names):
+            mp = db.Mpointing(userKey=user_key,
+                              objectName='{}_survey_T{}'.format(name, tile_num),
+                              ra=float(ra),
+                              decl=float(dec),
+                              **MP_SETTINGS)
+            for filt in ['L','R','G','B']:
+                if filt == 'L':
+                    numexp = 3
+                else:
+                    numexp = 1
+                mp.exposure_sets.append(db.ExposureSet(numexp=numexp,
+                                                       filt=filt,
+                                                       **EXP_SETTINGS))
+            mpointings.append(mp)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+        print('Adding {} mpointings to database...'.format(len(mpointings)))
+        start = time.time()
+        db.insert_items(session, mpointings)
+        print('  took {:.2f} secs'.format(time.time()-start))
+
+
+if __name__ == '__main__':
+    description = """Create a mini-survey around a given centre."""
+
+    parser = argparse.ArgumentParser(description=description,
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('ra_fov', help="FoV in RA", type=float, default=5.6)
+    parser.add_argument('dec_fov', help="FoV in Dec", type=float, default=2.5)
+    parser.add_argument('ra_overlap', help="Overlap in RA", type=float, default=0.1)
+    parser.add_argument('dec_overlap', help="Overlap in Dec", type=float, default=0.5)
+    parser.add_argument('ra_centre', help="Survey centre in RA", type=float)
+    parser.add_argument('dec_centre', help="Survey centre in Dec", type=float)
+    parser.add_argument('area', help="Sq deg area for the survey to cover", type=float)
+    parser.add_argument('name', help="Survey name", type=str)
+
+    args = parser.parse_args()
+
+    fov = {'ra':args.ra_fov, 'dec':args.dec_fov}
+    overlap = {'ra':args.ra_overlap, 'dec':args.dec_overlap}
+    centre = {'ra':args.ra_centre, 'dec':args.dec_centre}
+    area = args.area
+    name = args.name
+
+    run(fov, overlap, centre, area, name)
