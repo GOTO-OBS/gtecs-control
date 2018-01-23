@@ -107,12 +107,6 @@ def run(fov, overlap, centre, area, name):
     mpointings = []
     user_key = get_userkey('goto', 'GOTO Survey')
     with db.open_session() as session:
-        # create a Survey
-        survey_name = '{}_survey'.format(name)
-        survey = db.Survey(name=survey_name)
-        session.add(survey)
-        session.commit()
-
         # create Mpointings
         print('Creating mpointings...')
         start = time.time()
@@ -130,7 +124,6 @@ def run(fov, overlap, centre, area, name):
                 mp.exposure_sets.append(db.ExposureSet(numexp=numexp,
                                                        filt=filt,
                                                        **EXP_SETTINGS))
-            mp.surveyID = survey.surveyID
             mpointings.append(mp)
         print('  took {:.2f} secs'.format(time.time()-start))
 
