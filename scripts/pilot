@@ -587,15 +587,19 @@ class Pilot:
         if self.runningScriptTransport is not None:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
-                self.log.info("killing {}".format(self.runningScriptProtocol.jobName))
+                name = self.runningScriptProtocol.jobName
+                self.log.info("killing {}".format(name))
 
                 execute_command('exq clear')
                 execute_command('cam abort')
-                # if we were observing, mark as aborted and clear queue
-                if self.runningScriptProtocol.jobName == 'OBS' and self.currentID is not None:
+
+                # if we were observing, mark as aborted
+                if name == 'OBS' and self.currentID is not None:
                     markJobAborted(self.currentID)
+
                 self.runningScriptTransport.terminate()
                 await self.runningScriptResult
+                self.log.info("killed {}".format(name))
 
     async def startScript(self, name, protocol, cmd):
         """
@@ -633,10 +637,12 @@ class Pilot:
             stderr=None
         )
         # start the process and get transport and protocol for control of it
+        self.log.info("starting {}".format(name))
         self.runningScriptTransport, self.runningScriptProtocol = await proc
         # process started, await completion
         retcode, result = await self.runningScriptResult
         # done
+        self.log.info("finished {}".format(name))
         return retcode, result
 
     async def checkDayTime(self):
@@ -674,6 +680,7 @@ class Pilot:
                 self.log.info(self.whypause)
             await asyncio.sleep(sleepTime)
 
+        self.log.info('stopTime reached, night is over')
         await self.shutdown()
 
         self.log.info("done")
@@ -702,6 +709,7 @@ class Pilot:
                 domeShut = True
             self.log.info('Waiting for dome to close')
             await asyncio.sleep(10)
+        self.log.info('Dome closed')
 
     async def shutdown(self):
         """
