@@ -864,7 +864,9 @@ if __name__ == "__main__":
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
-    stopSignal = pilot.waitForNightsEnd(sunrise + 20*u.min)
+        stop_time = sunrise + 20*u.minute
+    print('Pilot will shut down at', stop_time)
+    stopSignal = pilot.waitForNightsEnd(stop_time)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
