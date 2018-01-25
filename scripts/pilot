@@ -705,22 +705,27 @@ class Pilot:
 
     async def shutdown(self):
         """
-        Perform a normal shutdown.
+        Shut down the system
 
-        Close any running jobs and exit
+        Close any running scripts and jobs, run the shutdown script, ensure the
+        dome is closed and finish.
         """
-        # close any running tasks. do this first, so check_flags
-        # doesn't initiate two shutdowns
-        for future in self.running_tasks:
-            future.cancel()
-
-        # if we have external subprocess running, stop it
-        self.log.warn('cancelling running scripts')
+        # first, cancel any currently running script
         await self.cancelRunningScript()
 
-        # park the scope
-        self.log.warn('parking')
-        self.park_scope()
+        # close any running tasks, so check_flags
+        # doesn't initiate two shutdowns
+        self.log.warn('cancelling running tasks')
+        for task in self.running_tasks:
+            task.cancel()
+
+
+        # start shutdown script
+        self.log.warn('running shutdown script')
+        cmd=[os.path.join(SCRIPT_PATH, 'normal_shutdown.py')]
+        retcode, result = await self.startScript('SHUTDOWN', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('SHUTDOWN ended abnormally')
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
@@ -728,27 +733,15 @@ class Pilot:
         self.log.warn('making sure dome is closed')
         await self.reallyReallyCloseDome()
 
-        # if we have external subprocess running, stop it
-        self.log.warn('cancelling running scripts again')
-        await self.cancelRunningScript()
+        self.log.warn('shutdown process complete')
 
     async def emergency_shutdown(self):
         """
-        Stop what we're doing.
-
-        Power off, shutdown daemons and exit Pilot
+        Send a warning and then shut down
         """
-        self.log.warn('performing emergency shutdown')
+        self.log.warn('performing emergency shutdown!')
         send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown')
         await self.shutdown()
-
-        # power off
-        self.log.warn('powering off hardware')
-        cmd = [os.path.join(SCRIPT_PATH, 'normal_shutdown.py')]
-        retcode, result = await self.startScript('EON', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warn('EON ended abnormally')
-
 
     async def open_dome(self):
         self.log.warn('opening dome')
@@ -827,10 +820,7 @@ class Pilot:
         en0 = dict(name='FLATS', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                    protocol=SimpleProtocol)
-        en1 = dict(name='SHUTDOWN', sunAlt=0,
-                   cmd=[os.path.join(SCRIPT_PATH, 'normal_shutdown.py')],
-                   protocol=SimpleProtocol)
-        self.morning_jobs = [en0, en1]
+        self.morning_jobs = [en0]
 
 
 if __name__ == "__main__":
