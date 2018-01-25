@@ -104,8 +104,11 @@ def antisun_flat(time):
     sun_altaz = sun.transform_to(altaz_frame)
     sun_az = sun_altaz.az.degree
 
+    az = sun_az + 180
+    if az >= 360:
+        az = az - 360
     alt = 75 # fixed
-    ra, dec = ast.radec_from_altaz(alt, sun_az, time)
+    ra, dec = ast.radec_from_altaz(alt, az, time)
 
     # format
     c = SkyCoord(ra, dec, unit=(u.deg, u.deg))
