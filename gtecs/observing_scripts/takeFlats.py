@@ -66,7 +66,8 @@ def run(eve, alt, late=False):
         time.sleep(-time_to_go.to(u.second).value - 30)
 
     # OK! Let's go
-    flat = flats.best_flat(Time.now())
+    #flat = flats.best_flat(Time.now())
+    flat = flats.antisun_flat(Time.now())
     print('Slewing to flat', flat)
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
