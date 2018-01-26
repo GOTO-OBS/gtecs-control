@@ -406,7 +406,7 @@ class Pilot:
                 execute_command('cam abort')
                 if self.domeOpen:
                     self.close_dome()
-                await self.cancelRunningScript()
+                await self.cancelRunningScript('conditions bad')
                 self.park_scope()
             elif reason == 'hw':
                 if self.runningScriptProtocol is not None:
@@ -418,7 +418,7 @@ class Pilot:
                         # other scripts cannot handle losing frames
                         execute_command('exq clear')
                         execute_command('cam abort')
-                        await self.cancelRunningScript()
+                        await self.cancelRunningScript('hardware fault')
             else:
                 self.log.info('pausing for pilot for manual override')
                 self.log.info('current job will continue')
@@ -497,7 +497,7 @@ class Pilot:
                 execute_command('cam abort')
                 # in fringe case where we've interrupted a job it needs
                 # to be cancelled.
-                await self.cancelRunningScript()
+                await self.cancelRunningScript('obs finished')
 
                 # Mark the pointing
                 # this will fail if obsStartTime not currently defined
@@ -555,7 +555,7 @@ class Pilot:
                     self.currentMinTime = None
                     # in fringe case where we've interrupted a job it needs
                     # to be cancelled.
-                    await self.cancelRunningScript()
+                    await self.cancelRunningScript('obs parking')
                 else:
                     cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
                            str(self.newID), str(int(self.newMinTime))]
@@ -578,7 +578,7 @@ class Pilot:
                      self.log.info('still observing {}'.format(self.currentID))
                 await asyncio.sleep(5)
 
-    async def cancelRunningScript(self):
+    async def cancelRunningScript(self, why):
         """
         Cancel the currently running Python script.
 
@@ -588,7 +588,7 @@ class Pilot:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
                 name = self.runningScriptProtocol.jobName
-                self.log.info("killing {}".format(name))
+                self.log.info('killing {}, reason: "{}"').format(name, why)
 
                 execute_command('exq clear')
                 execute_command('cam abort')
@@ -617,7 +617,7 @@ class Pilot:
             any additional elements are the arguments to the script.
         """
         # first, cancel any currently running script
-        await self.cancelRunningScript()
+        await self.cancelRunningScript(why='new script starting')
 
         # future to store result in
         self.runningScriptResult = asyncio.Future()
@@ -720,7 +720,7 @@ class Pilot:
         """
 
         # first, cancel any currently running script
-        await self.cancelRunningScript()
+        await self.cancelRunningScript(why='shutdown started')
 
         # close any running tasks, so check_flags
         # doesn't initiate two shutdowns
