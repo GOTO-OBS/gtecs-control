@@ -305,6 +305,12 @@ class Pilot:
                 await asyncio.sleep(sleepTime)
                 continue
 
+            if self.runningScriptProtocol is not None:
+                if self.runningScriptProtocol.jobName == 'START':
+                    self.log.info('hardware checks disabled until after startup is finished')
+                    await asyncio.sleep(sleepTime)
+                    continue
+
             errCount = 0
             self.log.info('running hardware checks')
             log_str = 'hardware check results: '
@@ -391,7 +397,7 @@ class Pilot:
             if reason == 'manual':
                 msg += "manual override"
             if reason == 'cond':
-                msg += 'weather\n'
+                msg += 'conditions bad\n'
                 msg += '{!r}'.format(self.conditions.__dict__)
             if reason == 'hw':
                 msg += 'hardware fault'
@@ -410,7 +416,10 @@ class Pilot:
                 self.park_scope()
             elif reason == 'hw':
                 if self.runningScriptProtocol is not None:
-                    if self.runningScriptProtocol.jobName == 'OBS':
+                    if self.runningScriptProtocol.jobName == 'START':
+                        # don't cancel startup due to hardware issue
+                        pass
+                    elif self.runningScriptProtocol.jobName == 'OBS':
                         # just pause the queue until fixed
                         execute_command('exq pause')
                         execute_command('cam abort')
