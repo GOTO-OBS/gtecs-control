@@ -689,12 +689,13 @@ class Pilot:
             the time to sleep between checks against `stopTime`
         """
         while Time.now() < stopTime:
-            status_str = Time.now().iso
-            if self.paused:
-                status_str += " (paused)"
+            now = Time.now()
+            now.precision = 0
+            stopTime.precision = 0
+            status_str = 'NOW: {}  END: {}'.format(now.iso, stopTime.iso)
             self.log.info(status_str)
             if self.paused:
-                self.log.info(self.whypause)
+                self.log.info('paused: {!r}'.format(self.whypause))
             await asyncio.sleep(sleepTime)
 
         self.log.info('stopTime reached, night is over')
@@ -902,7 +903,6 @@ if __name__ == "__main__":
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
         stop_time = sunrise + 20*u.minute
-    print('Pilot will shut down at', stop_time)
     stopSignal = pilot.waitForNightsEnd(stop_time)
 
     try:
