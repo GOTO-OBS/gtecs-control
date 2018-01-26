@@ -82,6 +82,7 @@ class Pilot:
         self.morning_jobs = []  # after observing
         self.ready_to_observe = False
         self.daytime = True
+        self.startup_complete = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = dict(
@@ -172,12 +173,14 @@ class Pilot:
             execute_command('filt home')
             while not filters_are_homed():
                 asyncio.sleep(1)
+        self.log.info('filters are homed')
 
         # Bring the CCDs down to temperature
         if not cameras_are_cool():
             execute_command('cam temp {}'.format(params.CCD_TEMP))
             while not cameras_are_cool():
                 asyncio.sleep(1)
+        self.log.info('cameras are cool')
 
     async def runThroughJobList(self, jobList, rising=False, respect_pause=True,
                                 respect_sunalt = True):
@@ -223,6 +226,12 @@ class Pilot:
         late : bool
             If true, we will do the startup jobs even if it's too late
         """
+        # startup. Do this always, unless we're restarting
+        if not restart:
+            if not self.startup_complete:
+                await self.startup()
+        self.startup_complete = True
+
         # daytime jobs. Do these even in bad weather.
         if not restart:
             if late:
@@ -305,11 +314,10 @@ class Pilot:
                 await asyncio.sleep(sleepTime)
                 continue
 
-            if self.runningScriptProtocol is not None:
-                if self.runningScriptProtocol.jobName == 'START':
-                    self.log.info('hardware checks disabled until after startup is finished')
-                    await asyncio.sleep(sleepTime)
-                    continue
+            if not self.startup_complete:
+                self.log.info('hardware checks disabled until after startup')
+                await asyncio.sleep(sleepTime)
+                continue
 
             errCount = 0
             self.log.info('running hardware checks')
@@ -416,7 +424,7 @@ class Pilot:
                 self.park_scope()
             elif reason == 'hw':
                 if self.runningScriptProtocol is not None:
-                    if self.runningScriptProtocol.jobName == 'START':
+                    if self.runningScriptProtocol.jobName == 'STARTUP':
                         # don't cancel startup due to hardware issue
                         pass
                     elif self.runningScriptProtocol.jobName == 'OBS':
@@ -720,6 +728,22 @@ class Pilot:
             await asyncio.sleep(10)
         self.log.info('Dome closed')
 
+    async def startup(self):
+        """
+        Start up the system
+
+        Runs the startup script, and sets the startup_complete flag
+        """
+
+        # start startup script
+        self.log.info('running startup script')
+        cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')]
+        retcode, result = await self.startScript('STARTUP', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('STARTUP ended abnormally')
+
+        self.log.info('startup process complete')
+
     async def shutdown(self):
         """
         Shut down the system
@@ -821,29 +845,29 @@ class Pilot:
         self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
-        sn0 = dict(name='START', sunAlt=12,
-                   cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')],
-                   protocol=SimpleProtocol)
-        sn1 = dict(name='DARKS', sunAlt=7,
+        # daytime jobs: to do before opening the dome
+        d0 = dict(name='DARKS', sunAlt=7,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
                    protocol=SimpleProtocol)
-        self.daytime_jobs = [sn0, sn1]
+        self.daytime_jobs = [d0]
 
-        sn4 = dict(name='FLATS', sunAlt=-1,
+        # evening jobs: to do after opening but before starting observing
+        e0 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
                    protocol=SimpleProtocol)
-        sn5 = dict(name='STD', sunAlt=-10,
+        e1 = dict(name='STD', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
-        sn6 = dict(name='FOC', sunAlt=-12,
+        e2 = dict(name='FOC', sunAlt=-12,
                    cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), 'L'],
                    protocol=SimpleProtocol)
-        self.evening_jobs = [sn4, sn5, sn6]
+        self.evening_jobs = [e0, e1, e2]
 
-        en0 = dict(name='FLATS', sunAlt=-10,
+        # morning jobs: to do after finishing observing but before closing
+        m0 = dict(name='FLATS', sunAlt=-10,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                    protocol=SimpleProtocol)
-        self.morning_jobs = [en0]
+        self.morning_jobs = [m0]
 
 
 if __name__ == "__main__":
