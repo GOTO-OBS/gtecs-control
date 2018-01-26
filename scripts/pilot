@@ -196,7 +196,7 @@ class Pilot:
                 OK = True
             # and go!
             if OK:
-                if self.testing:
+                if self.testing or not respect_sunalt:
                     # wait for each script to finish
                     await self.startScript(job['name'], job['protocol'], job['cmd'])
                 else:
