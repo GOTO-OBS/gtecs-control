@@ -605,7 +605,7 @@ class Pilot:
             # check job is still running
             if self.runningScriptTransport.get_returncode() is None:
                 name = self.runningScriptProtocol.jobName
-                self.log.info('killing {}, reason: "{}"').format(name, why)
+                self.log.info('killing {}, reason: "{}"'.format(name, why))
 
                 execute_command('exq clear')
                 execute_command('cam abort')
