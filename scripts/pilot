@@ -718,6 +718,7 @@ class Pilot:
         Close any running scripts and jobs, run the shutdown script, ensure the
         dome is closed and finish.
         """
+
         # first, cancel any currently running script
         await self.cancelRunningScript()
 
@@ -726,7 +727,6 @@ class Pilot:
         self.log.warn('cancelling running tasks')
         for task in self.running_tasks:
             task.cancel()
-
 
         # start shutdown script
         self.log.warn('running shutdown script')
@@ -749,6 +749,12 @@ class Pilot:
         """
         self.log.warn('performing emergency shutdown!')
         send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown')
+
+        self.log.warn('closing dome immediately')
+        if self.domeOpen:
+            self.close_dome()
+
+        self.log.warn('running shutdown')
         await self.shutdown()
 
     async def open_dome(self):
