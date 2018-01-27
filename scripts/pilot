@@ -697,9 +697,9 @@ class Pilot:
         """
         while Time.now() < stopTime:
             now = Time.now()
-            now.precision = 0
             stopTime.precision = 0
-            status_str = 'NOW: {}  END: {}'.format(now.iso, stopTime.iso)
+            delta = stopTime - now
+            status_str = 'end of night at {} ({:.0f} mins)'.format(stopTime.iso, delta.to('min').value)
             self.log.info(status_str)
             if self.paused:
                 self.log.info('paused: {!r}'.format(self.whypause))
