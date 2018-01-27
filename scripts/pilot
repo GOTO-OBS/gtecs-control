@@ -82,7 +82,6 @@ class Pilot:
         self.evening_jobs = []  # after dome opens
         self.morning_jobs = []  # after observing
         self.ready_to_observe = False
-        self.daytime = True
         self.startup_complete = False
 
         # hardware to keep track of and fix if necessary
@@ -316,11 +315,6 @@ class Pilot:
         while True:
             if self.overrides.robotic:
                 self.log.info('hardware checks suspended in manual mode')
-                await asyncio.sleep(sleepTime)
-                continue
-
-            if self.daytime:
-                self.log.info('hardware checks disabled in daytime mode')
                 await asyncio.sleep(sleepTime)
                 continue
 
@@ -673,14 +667,6 @@ class Pilot:
         self.log.info("finished {}".format(name))
         return retcode, result
 
-    async def checkDayTime(self):
-        """
-        Function checks to see if we should disable daytime mode
-        """
-        await self.waitingForTheSun(9, 'night time')
-        self.daytime = False
-        asyncio.sleep(60)
-
     async def waitForNightsEnd(self, stopTime, sleepTime=120):
         """
         Function returns when night is done.
@@ -900,7 +886,6 @@ if __name__ == "__main__":
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
-        asyncio.ensure_future(pilot.checkDayTime()),  # set daytime flag to false
         asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
         asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
