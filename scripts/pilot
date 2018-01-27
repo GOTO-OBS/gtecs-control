@@ -864,10 +864,10 @@ class Pilot:
         e0 = dict(name='FLATS', sunAlt=-1,
                    cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
                    protocol=SimpleProtocol)
-        e1 = dict(name='STD', sunAlt=-10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
-                   protocol=SimpleProtocol)
-        e2 = dict(name='FOC', sunAlt=-12,
+        #e1 = dict(name='STD', sunAlt=-10,
+        #           cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
+        #           protocol=SimpleProtocol)
+        e1 = dict(name='FOC', sunAlt=-11,
                    cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py')],
                    protocol=SimpleProtocol)
         self.evening_jobs = [e0, e1, e2]
