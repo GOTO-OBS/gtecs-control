@@ -101,7 +101,7 @@ class Pilot:
 
         # dictionary of reasons to pause
         self.whypause = dict(hw=False, cond=False, manual=False)
-        self.queuePausedDuration = 0
+        self.time_paused = 0
 
         # paranoia Time
         self.domeOpen = 0   # should dome be open?
@@ -288,7 +288,7 @@ class Pilot:
         # set flag so dome does not reopen
         self.ready_to_observe = False
 
-    async def checkSchedule(self):
+    async def check_scheduler(self):
         """
         Check scheduler and update current job every 30 seconds.
         """
@@ -315,7 +315,7 @@ class Pilot:
                 self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
             await asyncio.sleep(30)
 
-    async def hardwareChecks(self):
+    async def check_hardware(self):
         """
         Continuously monitor hardware and try to fix any issues.
         """
@@ -472,7 +472,7 @@ class Pilot:
         # is actually open or HW is fixed etc.
         self.whypause[reason] = pause
 
-    async def doubleCheckDome(self):
+    async def check_dome(self):
         """
         Be extra cautious and double check that dome is closed if it should be
         """
@@ -493,10 +493,10 @@ class Pilot:
                     self.close_dome()
             await asyncio.sleep(10)
 
-    async def calcPauseTime(self):
+    async def check_time_paused(self):
         while True:
             if self.paused:
-                self.queuePausedDuration += 60
+                self.time_paused += 60
             await asyncio.sleep(60)
 
     async def observe(self, until_sun_alt=-15):
@@ -533,7 +533,7 @@ class Pilot:
                 # Mark the pointing
                 # this will fail if obsStartTime not currently defined
                 try:
-                    timeElapsed = time.time() - self.obsStartTime - self.queuePausedDuration
+                    timeElapsed = time.time() - self.obsStartTime - self.time_paused
                 except:
                     # in which case...
                     timeElapsed = 0
@@ -559,7 +559,7 @@ class Pilot:
                     self.log.info("got new job from scheduler %s", self.newID)
                     # this will fail if obsStartTime not currently defined
                     try:
-                        timeElapsed = time.time() - self.obsStartTime - self.queuePausedDuration
+                        timeElapsed = time.time() - self.obsStartTime - self.time_paused
                     except:
                         # in which case...
                         timeElapsed = 0
@@ -593,7 +593,7 @@ class Pilot:
                     self.log.info('starting Job {}'.format(self.newID))
                     markJobRunning(self.newID)
                     self.obsStartTime = time.time()
-                    self.queuePausedDuration = 0
+                    self.time_paused = 0
                     # start job, will cancel current one automatically
                     asyncio.ensure_future(
                         self.startScript('OBS', SimpleProtocol, cmd)
@@ -895,12 +895,12 @@ if __name__ == "__main__":
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
-        asyncio.ensure_future(pilot.hardwareChecks()),  # periodically check hardware
-        asyncio.ensure_future(pilot.calcPauseTime()),  # keep track of time paused
+        asyncio.ensure_future(pilot.check_hardware()),  # periodically check hardware
+        asyncio.ensure_future(pilot.check_time_paused()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
-        asyncio.ensure_future(pilot.checkSchedule()),  # start checking the schedule
+        asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
+        asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
         asyncio.ensure_future(pilot.nightMarshall(args.restart, args.late)),  # run through scheduled jobs
-        asyncio.ensure_future(pilot.doubleCheckDome())  # keep a close eye on dome
     ])
 
     # keep the pilot runing until the end of the night
