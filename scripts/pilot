@@ -20,7 +20,8 @@ from gtecs.slack import send_slack_msg
 from gtecs.database import (markJobCompleted, markJobAborted,
                             markJobInterrupted, markJobRunning)
 from gtecs.misc import execute_command, send_email
-from gtecs.astronomy import sun_alt, startTime, localMidnight, nightStarting
+from gtecs.astronomy import startTime, localMidnight, nightStarting
+from gtecs.astronomy import sun_alt as get_sun_alt
 from gtecs.observing import filters_are_homed, cameras_are_cool, check_schedule
 from gtecs.flags import Conditions, Overrides
 from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
@@ -118,52 +119,60 @@ class Pilot:
         """
         return True in self.whypause.values()
 
-    async def waitingForTheSun(self, sunAlt, rising=False):
+    async def waitingForTheSun(self, sun_alt, rising=False, ignore_late=False):
         """
         This coroutine will not return until the sun reaches the given altitude
 
         Parameters
         ----------
-        sunAlt : float
+        sun_alt : float
             sun altitude in degrees to wait for
         rising : bool
             whether the sun is rising or setting
-        testing : bool, optional
-            if true, immediately returns OK without checking the sun.
-            used for testing the pilot only
+        ignore_late : bool, optional
+            if true, will ignore checks for if you're too late
+            (will still wait if you're too early)
 
         Returns
         --------
         OK : bool
             True if you are safe to go, False if we think you are too late
         """
+        # if the pilot is in testing mode then return immediately
         if self.testing:
             return True
 
         now = Time.now()
+
+        # check if we're on the wrong side of midnight
         midnight = localMidnight(nightStarting())
-        # check against sun rising or setting
-        if (rising and now < midnight) or (not rising and now > midnight):
+        if not rising and now > midnight:
             # wow, you're really late
             return False
-
-        sun_alt_now = sun_alt(now)
-        if rising and (sun_alt_now - sunAlt) > 5:
-            return False
-        if not rising and (sunAlt - sun_alt_now) > 5:
+        elif rising and now < midnight:
             return False
 
+        # check if we've missed the sun (with a 5 degree margin)
+        if not ignore_late:
+            sun_alt_now = get_sun_alt(now)
+            if not rising and sun_alt_now < (sun_alt - 5):
+                # missed your chance
+                return False
+            elif rising and sun_alt_now > (sun_alt + 5):
+                return False
+
+        # we're on time, so wait until the sun is in the right position
         our_watch_has_ended = False
         while not our_watch_has_ended:
             await asyncio.sleep(60)
             now = Time.now()
-            sun_alt_now = sun_alt(now)
-            self.log.info('waiting for sun altitude {}'.format(sunAlt))
-            self.log.info('sun altitude now = {}'.format(sun_alt_now))
-            if rising:
-                our_watch_has_ended = sun_alt_now > sunAlt
+            sun_alt_now = get_sun_alt(now)
+            self.log.info('sun alt = {:.1f}, waiting for {:.1f}'.format(sun_alt_now, sun_alt))
+
+            if not rising:
+                our_watch_has_ended = sun_alt_now < sun_alt
             else:
-                our_watch_has_ended = sun_alt_now < sunAlt
+                our_watch_has_ended = sun_alt_now > sun_alt
 
         return True
 
@@ -182,8 +191,9 @@ class Pilot:
                 asyncio.sleep(1)
         self.log.info('cameras are cool')
 
-    async def runThroughJobList(self, jobList, rising=False, respect_pause=True,
-                                respect_sunalt = True):
+    async def runThroughJobList(self, jobList, rising=False,
+                                respect_pause=True,
+                                ignore_late = False):
         """
         Just pop jobs off a list and run them at correct sun_alt
         """
@@ -193,13 +203,10 @@ class Pilot:
                 continue
             job = jobList.pop(0)
             # wait for the right sun altitude
-            if respect_sunalt:
-                OK = await self.waitingForTheSun(job['sunAlt'], rising=rising)
-            else:
-                OK = True
+            OK = await self.waitingForTheSun(job['sunAlt'], rising, ignore_late)
             # and go!
             if OK:
-                if self.testing or not respect_sunalt:
+                if self.testing or ignore_late:
                     # wait for each script to finish
                     await self.startScript(job['name'], job['protocol'], job['cmd'])
                 else:
@@ -224,7 +231,8 @@ class Pilot:
             If true, we will skip startup jobs and get straight to observing
 
         late : bool
-            If true, we will do the startup jobs even if it's too late
+            If true, we will try to do evening jobs even if it's too late
+            (note FLATS will fail anyway)
         """
         # startup. Do this always, unless we're restarting
         if not restart:
@@ -234,13 +242,9 @@ class Pilot:
 
         # daytime jobs. Do these even in bad weather.
         if not restart:
-            if late:
-                await self.runThroughJobList(self.daytime_jobs, rising=False,
+            await self.runThroughJobList(self.daytime_jobs, rising=False,
                                              respect_pause=False,
-                                             respect_sunalt=False)
-            else:
-                await self.runThroughJobList(self.daytime_jobs, rising=False,
-                                             respect_pause=False)
+                                             ignore_late=late)
 
         # make sure filters are homed and cams are cool, in case of restart
         await self.prepare_for_images_async()
@@ -259,7 +263,8 @@ class Pilot:
 
         # run through the routine evening tasks
         if not restart:
-            await self.runThroughJobList(self.evening_jobs, rising=False)
+            await self.runThroughJobList(self.evening_jobs, rising=False,
+                                             ignore_late=late)
 
         # got here as soon as last evening_job scheduled. wait for darkness
         await self.waitingForTheSun(-15)
@@ -271,7 +276,8 @@ class Pilot:
             await self.observe(until_sun_alt=-15)
 
         # observing is done. do morning tasks
-        await self.runThroughJobList(self.morning_jobs, rising=True)
+        await self.runThroughJobList(self.morning_jobs, rising=True,
+                                     ignore_late=False)
 
         # set flag so dome does not reopen
         self.ready_to_observe = False
@@ -507,7 +513,8 @@ class Pilot:
             # should we stop for the sun?
             now = Time.now()
             midnight = localMidnight(nightStarting())
-            if now > midnight and sun_alt(now) > until_sun_alt:
+            sun_alt_now = get_sun_alt(now)
+            if now > midnight and sun_alt_now > until_sun_alt:
                 self.log.info('observing completed!')
                 # finish observing
                 execute_command('exq clear')
