@@ -917,6 +917,14 @@ if __name__ == "__main__":
         loop.run_until_complete(stopSignal)
     except asyncio.CancelledError:
         print('Tasks cancelled')
+    except KeyboardInterrupt:
+        print('...ctrl-C detected, closing nicely...')
+        for task in pilot.running_tasks:
+            task.cancel()
+        try:
+            loop.run_until_complete(asyncio.gather(*pilot.running_tasks))
+        except:
+            print('tasks cancelled')
     finally:
         print("Pilot Done")
         loop.close()
