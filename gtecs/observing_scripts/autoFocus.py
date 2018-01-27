@@ -321,7 +321,7 @@ def run(filt):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('filt')
+    parser.add_argument('filt', nargs='?',  default='L')
     args = parser.parse_args()
 
     if args.filt not in params.FILTER_LIST:
