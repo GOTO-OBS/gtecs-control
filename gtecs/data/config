@@ -79,6 +79,10 @@ MOONDIST_LIMIT = 20
 MOONELEV_LIMIT = -5
 
 ########################################################################
+# Pilot parameters
+NUM_DARKS = 9
+
+########################################################################
 # Database parameters
 DATABASE_USER = goto
 DATABASE_PASSWORD = gotoobs

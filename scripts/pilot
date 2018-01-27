@@ -855,7 +855,7 @@ class Pilot:
     def assignJobs(self):
         # daytime jobs: to do before opening the dome
         d0 = dict(name='DARKS', sunAlt=7,
-                   cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3'],
+                   cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), str(params.NUM_DARKS)],
                    protocol=SimpleProtocol)
         self.daytime_jobs = [d0]
 
@@ -867,7 +867,7 @@ class Pilot:
                    cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
                    protocol=SimpleProtocol)
         e2 = dict(name='FOC', sunAlt=-12,
-                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py'), 'L'],
+                   cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py')],
                    protocol=SimpleProtocol)
         self.evening_jobs = [e0, e1, e2]
 
