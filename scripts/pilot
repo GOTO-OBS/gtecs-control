@@ -119,7 +119,8 @@ class Pilot:
         """
         return True in self.whypause.values()
 
-    async def waitingForTheSun(self, sun_alt, rising=False, ignore_late=False):
+    async def waitingForTheSun(self, sun_alt, why,
+                               rising=False, ignore_late=False):
         """
         This coroutine will not return until the sun reaches the given altitude
 
@@ -127,6 +128,8 @@ class Pilot:
         ----------
         sun_alt : float
             sun altitude in degrees to wait for
+        why : str
+            a brief reason why we're waiting, helpful for the log
         rising : bool
             whether the sun is rising or setting
         ignore_late : bool, optional
@@ -167,7 +170,7 @@ class Pilot:
             await asyncio.sleep(60)
             now = Time.now()
             sun_alt_now = get_sun_alt(now)
-            self.log.info('sun alt = {:.1f}, waiting for {:.1f}'.format(sun_alt_now, sun_alt))
+            self.log.info('sun alt = {:.1f}, waiting for {:.1f} ({})'.format(sun_alt_now, sun_alt, why))
 
             if not rising:
                 our_watch_has_ended = sun_alt_now < sun_alt
@@ -203,7 +206,8 @@ class Pilot:
                 continue
             job = jobList.pop(0)
             # wait for the right sun altitude
-            OK = await self.waitingForTheSun(job['sunAlt'], rising, ignore_late)
+            OK = await self.waitingForTheSun(job['sunAlt'], job['name'],
+                                             rising, ignore_late)
             # and go!
             if OK:
                 if self.testing or ignore_late:
@@ -250,7 +254,7 @@ class Pilot:
         await self.prepare_for_images_async()
 
         # wait for the right sunalt to open dome
-        await self.waitingForTheSun(0.5)
+        await self.waitingForTheSun(0.5, 'open dome')
 
         # no point opening if we are paused due to bad weather or hw fault
         while self.paused or not self.initialHardwareCheckComplete:
@@ -267,7 +271,7 @@ class Pilot:
                                              ignore_late=late)
 
         # got here as soon as last evening_job scheduled. wait for darkness
-        await self.waitingForTheSun(-15)
+        await self.waitingForTheSun(-15, 'darkness')
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
         if self.testing:
@@ -673,7 +677,7 @@ class Pilot:
         """
         Function checks to see if we should disable daytime mode
         """
-        await self.waitingForTheSun(9)
+        await self.waitingForTheSun(9, 'night time')
         self.daytime = False
         asyncio.sleep(60)
 
