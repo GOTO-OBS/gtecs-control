@@ -845,9 +845,11 @@ class Pilot:
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] == 'Parked':
             self.log.warn('unparking scope')
-            if not params.FREEZE_DEC:
-                execute_command('mnt unpark')
+            execute_command('mnt unpark')
             await asyncio.sleep(5)
+            # slew to above horizon, to stop errors
+            execute_command('mnt slew_altaz 50 0')
+            await asyncio.sleep(10)
 
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] != 'Tracking':
