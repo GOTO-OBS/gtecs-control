@@ -81,8 +81,9 @@ class Pilot:
         self.daytime_jobs = []  # before dome opens
         self.evening_jobs = []  # after dome opens
         self.morning_jobs = []  # after observing
-        self.ready_to_observe = False
         self.startup_complete = False
+        self.ready_to_observe = False
+        self.observing = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = dict(
@@ -270,6 +271,7 @@ class Pilot:
                                              ignore_late=late)
 
         # got here as soon as last evening_job scheduled. wait for darkness
+        self.observing = True
         await self.waitingForTheSun(-15, 'darkness')
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
@@ -277,6 +279,7 @@ class Pilot:
             await self.observe(until_sun_alt=90)
         else:
             await self.observe(until_sun_alt=-15)
+        self.observing = False
 
         # observing is done. do morning tasks
         await self.runThroughJobList(self.morning_jobs, rising=True,
@@ -290,7 +293,13 @@ class Pilot:
         Check scheduler and update current job every 30 seconds.
         """
         while True:
+            if not self.observing:
+                self.log.info('scheduler checks disabled until observing')
+                await asyncio.sleep(30)
+                continue
+
             if self.paused:
+                self.log.info('scheduler checks disabled while paused')
                 await asyncio.sleep(10)
                 continue
 
