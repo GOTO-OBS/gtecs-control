@@ -314,6 +314,9 @@ def update_header(header, tel, cam_info):
     # Mount info
     try:
         info = daemon_info('mnt')
+
+        mount_tracking = info['status'] == 'Tracking'
+
         targ_ra = info['target_ra']
         if targ_ra:
             targ_ra_str = Angle(targ_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
@@ -350,6 +353,7 @@ def update_header(header, tel, cam_info):
         moon_dist = numpy.around(moon_dist, decimals=2)
 
     except:
+        mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
         targ_dist = 'NA'
@@ -361,6 +365,8 @@ def update_header(header, tel, cam_info):
         airmass = 'NA'
         equinox = 'NA'
         moon_dist = 'NA'
+
+    header["TRACKING"] = (mount_tracking, "Mount is tracking")
 
     header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
     header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
