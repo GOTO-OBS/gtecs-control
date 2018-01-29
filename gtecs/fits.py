@@ -93,6 +93,7 @@ def update_header(header, tel, cam_info):
     header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
     status = Status()
+    header["SYS-MODE"] = (status.mode, "Current telescope system mode")
     header["OBSERVER"] = (status.observer, "Who started the exposure")
     header["OBJECT  "] = (current_exposure.target, "Observed object name")
 
