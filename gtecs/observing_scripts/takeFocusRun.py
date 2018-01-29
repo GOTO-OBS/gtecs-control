@@ -120,14 +120,12 @@ def run(filt):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument('filt')
+    parser = argparse.ArgumentParser(description=__doc__,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('filt', nargs='?',  default='L')
     args = parser.parse_args()
-    filt = args.filt
-    if filt not in params.FILTER_LIST:
+
+    if args.filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    run(filt)
+    run(args.filt)

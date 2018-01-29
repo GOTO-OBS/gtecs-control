@@ -6,6 +6,7 @@ import warnings
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
+from astropy.coordinates import AltAz, get_sun
 
 import numpy as np
 
@@ -89,6 +90,32 @@ def best_flat(time):
     alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     row = flats_table[np.argmax(alt)]
     flat_field = FlatField(row['name'], row['ra'], row['decl'], row['bmag'], row['rmag'])
+    return flat_field
+
+
+def antisun_flat(time):
+    """
+    Get the anti-Sun flat position
+    """
+
+    sun = get_sun(time)
+    loc = ast.observatory_location()
+    altaz_frame = AltAz(obstime=time, location=loc)
+    sun_altaz = sun.transform_to(altaz_frame)
+    sun_az = sun_altaz.az.degree
+
+    az = sun_az + 180
+    if az >= 360:
+        az = az - 360
+    alt = 75 # fixed
+    ra, dec = ast.radec_from_altaz(alt, az, time)
+
+    # format
+    c = SkyCoord(ra, dec, unit=(u.deg, u.deg))
+    ra = '{:02.0f} {:02.0f} {:02.0f}'.format(*c.ra.hms)
+    dec = '{:+02.0f} {:02.0f} {:02.0f}'.format(*c.dec.dms)
+
+    flat_field = FlatField('Anti-Sun', ra, dec, 10, 10)
     return flat_field
 
 

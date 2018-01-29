@@ -160,8 +160,8 @@ class DomeMonitor(HardwareMonitor):
         if mode == 'open':
             # dome open commands may need repeating if cond change hasnt propogated
             self.recoveryProcedure[1] = [30., 'dome open']
-            self.recoveryProcedure[2] = [60., 'dome close both 0.1']
-            self.recoveryProcedure[3] = [90., 'dome open']
+            self.recoveryProcedure[2] = [120., 'dome close both 0.1']
+            self.recoveryProcedure[3] = [120., 'dome open']
             self.recoveryProcedure[4] = [180., 'dome open']
             self.recoveryProcedure[4] = [240., 'dome close']
             self.recoveryProcedure[4] = [360., 'dome open']
@@ -178,6 +178,8 @@ class MountMonitor(HardwareMonitor):
         self.availableModes.extend(['parked', 'tracking'])
         self.slew_start_time = 0
         self.currently_slewing = False
+        self.off_target_start_time = 0
+        self.currently_off_target = False
 
     def _check(self, obsMode=None):
         if obsMode == 'tracking':
@@ -192,9 +194,15 @@ class MountMonitor(HardwareMonitor):
                         if time.time() - self.slew_start_time > 100:
                             self.errors.append('Slew taking too long')
                 else:
-                    self.errors.append('Not on target')
+                    if not self.currently_off_target:
+                        self.currently_off_target = True
+                        self.off_target_start_time = time.time()
+                    else:
+                        if time.time() - self.off_target_start_time > 30:
+                            self.errors.append('Not on target')
             else:
                 self.currently_slewing = False
+                self.currently_off_target = False
 
         elif obsMode == 'parked' and params.FREEZE_DEC:
             if self.info['status'] != 'Stopped':
