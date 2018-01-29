@@ -53,6 +53,7 @@ if result != True:
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
+ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # File locations (need to alter depending on system)
 HOST = socket.gethostname()
