@@ -1,4 +1,4 @@
 {
     "mode": "robotic",
-    "autoclose": 0,
+    "autoclose": 1,
 }
