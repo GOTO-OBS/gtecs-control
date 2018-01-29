@@ -443,8 +443,8 @@ def ut_string_to_list(ut_string):
 
 def get_observer():
     """Find the name of the current observer"""
-    override_flags = flags.Overrides()
-    if not override_flags.robotic:
+    status = flags.Status()
+    if status.mode == 'robotic':
         # The pilot is in control
         return 'GOTO-pilot'
     elif os.path.exists(params.CONFIG_PATH + 'observer'):

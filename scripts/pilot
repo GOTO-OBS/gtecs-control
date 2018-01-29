@@ -22,7 +22,7 @@ from gtecs.database import (markJobCompleted, markJobAborted,
 from gtecs.misc import execute_command, send_email
 from gtecs.astronomy import sun_alt, startTime, localMidnight, nightStarting
 from gtecs.observing import filters_are_homed, cameras_are_cool, check_schedule
-from gtecs.flags import Conditions, Overrides
+from gtecs.flags import Conditions, Status
 from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                      MountMonitor, DomeMonitor,
                                      ExposureQueueMonitor, FocuserMonitor)
@@ -94,7 +94,7 @@ class Pilot:
         )
 
         # override and conditions flags
-        self.overrides = Overrides()
+        self.status = Status()
         self.conditions = Conditions()
 
         # dictionary of reasons to pause
@@ -295,7 +295,7 @@ class Pilot:
         # monitor until stopped
         sleepTime = 60
         while True:
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 self.log.info('hardware checks suspended in manual mode')
                 await asyncio.sleep(sleepTime)
                 continue
@@ -343,12 +343,12 @@ class Pilot:
         while True:
 
             # overrides
-            self.overrides = Overrides()
+            self.status = Status()
             # conditions flags
             self.conditions = Conditions()
 
             # handle overrides first
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 await self.handlePause('manual', True)
             else:
                 await self.handlePause('manual', False)
@@ -361,7 +361,7 @@ class Pilot:
                 await self.handlePause('cond', False)
 
             # emergency file
-            if os.path.isfile(params.EMERGENCY_FILE):
+            if self.status.emergency_shutdown:
                 asyncio.ensure_future(self.emergency_shutdown())
 
             await asyncio.sleep(10)
@@ -447,7 +447,7 @@ class Pilot:
         Be extra cautious and double check that dome is closed if it should be
         """
         while True:
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 self.log.info('dome checks suspended in manual mode')
                 await asyncio.sleep(10)
                 continue

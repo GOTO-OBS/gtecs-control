@@ -3,18 +3,16 @@
 A simple script to change into robotic mode
 """
 
-import json
-
+from gtecs import flags
 from gtecs import params
 
+status = flags.Status()
 
+# set observer
 with open(params.CONFIG_PATH + 'observer', 'w') as f:
     f.write('GOTO-pilot')
 
-with open(params.CONFIG_PATH + 'overrides_flags', 'r') as f:
-    data = json.load(f)
-    data['robotic'] = 0 # Set override to False
-with open(params.CONFIG_PATH + 'overrides_flags', 'w') as f:
-    json.dump(data, f)
+# set mode to manual
+status.mode = 'robotic'
 
 print('System now in Robotic mode, the pilot is in control')
