@@ -20,6 +20,7 @@ from . import misc
 from . import astronomy
 from .astronomy import sun_alt as get_sun_alt
 from .daemons import daemon_info
+from .flags import Status
 
 
 def image_location(run_number, tel):
@@ -91,8 +92,8 @@ def update_header(header, tel, cam_info):
 
     header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
-    observer = misc.get_observer()
-    header["OBSERVER"] = (observer, "Who started the exposure")
+    status = Status()
+    header["OBSERVER"] = (status.observer, "Who started the exposure")
     header["OBJECT  "] = (current_exposure.target, "Observed object name")
 
     header["SET-POS "] = (current_exposure.set_pos, "Position of this exposure in this set")

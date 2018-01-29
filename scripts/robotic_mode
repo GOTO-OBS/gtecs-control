@@ -8,11 +8,7 @@ from gtecs import params
 
 status = flags.Status()
 
-# set observer
-with open(params.CONFIG_PATH + 'observer', 'w') as f:
-    f.write('GOTO-pilot')
-
-# set mode to manual
+# set mode to robotic
+# this will also set the observer to "GOTO-pilot" and turn on dome autoclose
 status.mode = 'robotic'
-
 print('System now in Robotic mode, the pilot is in control')

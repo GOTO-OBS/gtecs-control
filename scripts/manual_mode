@@ -12,11 +12,9 @@ status = flags.Status()
 username = input('Please enter your name for the record: ')
 if len(username) == 0:
     username = 'Unknown'
-with open(params.CONFIG_PATH + 'observer', 'w') as f:
-    f.write(username)
+status.observer = username
 print('Thank you "{}", everything will now be blamed on you'.format(username))
 
 # set mode to manual
 status.mode = 'manual'
-
 print('System now in Manual mode, you are in control')
