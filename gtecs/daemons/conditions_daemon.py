@@ -260,7 +260,7 @@ class ConditionsDaemon(HardwareDaemon):
                             self.logfile.info('Setting {} to good (0)'.format(name))
                             self.flags[name] = 0
                         else:
-                            self.logfile.info(name, 'is good but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                            self.logfile.info('{} is good but delay is {:.0f}/{:.0f}'.format(name, dt, delay))
                     elif not self.good[name] and self.flags[name] != 1:
                         dt = update_time - self.change_time[name]
                         delay = self.bad_delay[name]
@@ -269,7 +269,7 @@ class ConditionsDaemon(HardwareDaemon):
                             self.logfile.info('Setting {} to bad (1)'.format(name))
                             self.flags[name] = 1
                         else:
-                            self.logfile.info(name, 'is bad but delay is {:.0f}/{:.0f}'.format(dt, delay))
+                            self.logfile.info('{} is bad but delay is {:.0f}/{:.0f}'.format(name, dt, delay))
                     else:
                         self.change_time[name] = update_time
 
