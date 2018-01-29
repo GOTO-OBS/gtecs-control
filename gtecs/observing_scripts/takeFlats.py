@@ -31,7 +31,7 @@ def mean_sky_brightness(fnames):
 
 
 def take_sky(expT, current_filter, name):
-    cmd('exq image {} {} 1 "{}" FLAT'.format(
+    cmd('exq image {:.1f} {} 1 "{}" FLAT'.format(
         expT, current_filter, name
     ))
     time.sleep(0.1)
@@ -66,7 +66,8 @@ def run(eve, alt, late=False):
         time.sleep(-time_to_go.to(u.second).value - 30)
 
     # OK! Let's go
-    flat = flats.best_flat(Time.now())
+    #flat = flats.best_flat(Time.now())
+    flat = flats.antisun_flat(Time.now())
     print('Slewing to flat', flat)
     coordinate = flat.coord
     goto(coordinate.ra.deg, coordinate.dec.deg)
@@ -116,7 +117,7 @@ def run(eve, alt, late=False):
         # take a look see
         skyMean = take_sky(expT, current_filter, flat.name)
         scaling_factor = 25000.0 / skyMean
-        print('Rescaling exposure time from {} to {}'.format(
+        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(
             expT, expT*scaling_factor
         ))
         expT = expT*scaling_factor
