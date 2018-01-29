@@ -166,6 +166,8 @@ class Status:
         if value.lower() not in self.valid_modes:
             raise ValueError('Invalid mode: "{}"'.format(value))
         self._update_flags('mode', value)
+        if value == 'robotic':
+            self._update_flags('autoclose', 1)
 
     @property
     def autoclose(self):
