@@ -2,6 +2,7 @@
 Classes to read external flag files
 """
 
+import os
 import time
 import json
 import copy
@@ -83,8 +84,8 @@ class Conditions:
         for key, value in conditions_dict.items():
             if key in ['diskspace', 'low_battery']:
                 self._crit_sum += value
-            overrides = Overrides()
-            if key == 'hatch' and not overrides.robotic:
+            status = Status()
+            if key == 'hatch' and status.mode == 'robotic':
                 self._crit_sum += value
 
     def age(self):
@@ -123,12 +124,60 @@ class Conditions:
         return self._crit_sum
 
 
-class Overrides:
+class Status:
     def __init__(self):
-        data = load_json(params.CONFIG_PATH + 'overrides_flags')
-        self.__dict__ = copy.copy(data)
+        self.flags_file = params.CONFIG_PATH + 'status_flags'
+        self.emergency_file = params.EMERGENCY_FILE
+        self.valid_modes = ['robotic', 'manual']
+        self._load()
+
+    def _load(self):
+        data = load_json(self.flags_file)
+        if data['mode'].lower() not in self.valid_modes:
+            raise ValueError('Invalid mode: "{}"'.format(data['mode']))
+        self._mode = data['mode'].lower()
+        self._autoclose = bool(data['autoclose'])
+        self.emergency_shutdown = os.path.isfile(self.emergency_file)
+
+    def _update_flags(self, key, value):
+        with open(self.flags_file, 'r') as f:
+            data = json.load(f)
+        if key not in data:
+            raise KeyError(key)
+        data[key] = value
+        with open(self.flags_file, 'w') as f:
+            json.dump(data, f)
+        self._load()
 
     def __repr__(self):
-        class_name = type(self).__name__
-        repr_str = ', '.join(['='.join((k, str(v))) for k, v in self.__dict__.items()])
-        return '{}({})'.format(class_name, repr_str)
+        self._load()
+        repr_str = "mode='{}', ".format(self._mode)
+        repr_str += "autoclose={}, ".format(self._autoclose)
+        repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
+        return "Status({})".format(repr_str)
+
+    @property
+    def mode(self):
+        self._load()
+        return self._mode
+
+    @mode.setter
+    def mode(self, value):
+        if value.lower() not in self.valid_modes:
+            raise ValueError('Invalid mode: "{}"'.format(value))
+        self._update_flags('mode', value)
+
+    @property
+    def autoclose(self):
+        self._load()
+        return self._autoclose
+
+    @autoclose.setter
+    def autoclose(self, value):
+        self._update_flags('autoclose', int(bool(value)))
+
+    def create_shutdown_file(self):
+        """Create the emergency shutdown file"""
+        cmd = 'touch ' + self.emergency_file
+        os.system(cmd)
+        self._load()
