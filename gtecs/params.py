@@ -232,6 +232,10 @@ MOONDIST_LIMIT = config['MOONDIST_LIMIT']
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 
 
+# Pilot parameters
+NUM_DARKS = config['NUM_DARKS']
+
+
 # Database parameters
 DATABASE_USER = config['DATABASE_USER']
 DATABASE_PASSWORD = config['DATABASE_PASSWORD']
