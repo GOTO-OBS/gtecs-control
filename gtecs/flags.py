@@ -139,6 +139,18 @@ class Status:
         self._observer = str(data['observer'])
         self._autoclose = bool(data['autoclose'])
         self.emergency_shutdown = os.path.isfile(self.emergency_file)
+        if self.emergency_shutdown:
+            with open(self.emergency_file, 'r') as f:
+                reason = f.readlines()
+                if len(reason):
+                    self.emergency_shutdown_time = reason[0].strip()
+                    self.emergency_shutdown_reason = reason[1].strip()
+                else:
+                    self.emergency_shutdown_time = 'unknown'
+                    self.emergency_shutdown_reason = 'unknown'
+        else:
+            self.emergency_shutdown_time = None
+            self.emergency_shutdown_reason = None
 
     def _update_flags(self, key, value):
         with open(self.flags_file, 'r') as f:
@@ -190,8 +202,13 @@ class Status:
     def autoclose(self, value):
         self._update_flags('autoclose', int(bool(value)))
 
-    def create_shutdown_file(self):
+    def create_shutdown_file(self, why='no reason given'):
         """Create the emergency shutdown file"""
         cmd = 'touch ' + self.emergency_file
         os.system(cmd)
+        with open(self.emergency_file, 'w') as f:
+            now = Time.now()
+            now.precision = 0
+            f.write(now.iso + '\n')
+            f.write(why + '\n')
         self._load()
