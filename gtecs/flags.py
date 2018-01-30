@@ -75,18 +75,28 @@ class Conditions:
 
         # store a summary of all flags, excluding dark
         self._summary = 0
+        self._bad_flags = []
         for key, value in conditions_dict.items():
             if key != 'dark':
                 self._summary += value
+                if value:
+                    self._bad_flags += [key]
+        self.bad_flags = ', '.join(self._bad_flags)
 
         # and store a separate summary of critical flags
         self._crit_sum = 0
+        self._crit_flags = []
         for key, value in conditions_dict.items():
             if key in ['diskspace', 'low_battery']:
                 self._crit_sum += value
+                if value:
+                    self._crit_flags += [key]
             status = Status()
             if key == 'hatch' and status.mode == 'robotic':
                 self._crit_sum += value
+                if value:
+                    self._crit_flags += [key]
+        self.critical_flags = ', '.join(self._crit_flags)
 
     def age(self):
         return int(Time.now().unix - self.update_time)

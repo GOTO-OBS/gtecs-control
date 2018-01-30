@@ -164,8 +164,8 @@ class DomeDaemon(HardwareDaemon):
                         self.logfile.info('Quick close button pressed!')
                         status.create_shutdown_file('quick close button pressed')
                     if conditions.critical:
-                        self.logfile.info('Conditions critical!')
-                        status.create_shutdown_file('Conditions critical!')
+                        self.logfile.info('Conditions critical ({})'.format(conditions.critical_flags))
+                        status.create_shutdown_file('Conditions critical ({})'.format(conditions.critical_flags))
 
                     # Act on an emergency
                     if (self.dome_status['north'] != 'closed' or
@@ -185,9 +185,9 @@ class DomeDaemon(HardwareDaemon):
                             # Don't close in manual mode if autoclose is disabled
                             # NB: Always close in robotic mode
                             if status.mode == 'manual' and not status.autoclose:
-                                self.logfile.info('Conditions bad, but in manual mode and autoclose disabled!')
+                                self.logfile.info('Conditions bad ({}), but in manual mode and autoclose disabled!'.format(conditions.bad_flags))
                             else:
-                                self.logfile.info('Conditions bad, auto-closing dome')
+                                self.logfile.info('Conditions bad ({}), auto-closing dome'.format(conditions.bad_flags))
                                 if not self.close_flag:
                                     if self.open_flag: # stop opening!
                                         self.halt_flag = 1
@@ -526,7 +526,7 @@ class DomeDaemon(HardwareDaemon):
                 # and autoclose is disabled
                 bad_idea = True
             else:
-                raise misc.HardwareStatusError('Conditions bad, dome will not open')
+                raise misc.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
         elif power.failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
         elif status.emergency_shutdown:

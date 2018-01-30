@@ -392,8 +392,7 @@ class Pilot:
             if reason == 'manual':
                 msg += "manual override"
             if reason == 'cond':
-                msg += 'weather\n'
-                msg += '{!r}'.format(self.conditions.__dict__)
+                msg += 'conditions bad ({})'.format(self.conditions.bad_flags)
             if reason == 'hw':
                 msg += 'hardware fault'
             self.log.warn(msg)
