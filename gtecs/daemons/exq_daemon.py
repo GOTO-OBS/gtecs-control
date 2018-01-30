@@ -103,6 +103,9 @@ class ExqDaemon(HardwareDaemon):
                         self.logfile.error('set_filter command failed')
                         self.logfile.debug('', exc_info=True)
 
+                # sleep briefly, to make sure the filter wheel has stopped
+                time.sleep(0.5)
+
                 # take the image
                 try:
                     self._take_image(cam)
