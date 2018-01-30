@@ -49,7 +49,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -143,7 +143,7 @@ def print_instructions():
     '  scheduler ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
     '  scheduler ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
     '  scheduler ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  scheduler ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  scheduler ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
     '  scheduler ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  scheduler ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\

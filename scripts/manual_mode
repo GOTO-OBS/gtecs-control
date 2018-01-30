@@ -3,22 +3,18 @@
 A simple script to change into manual mode
 """
 
-import json
-
+from gtecs import flags
 from gtecs import params
 
+status = flags.Status()
 
+# set observer
 username = input('Please enter your name for the record: ')
 if len(username) == 0:
     username = 'Unknown'
-with open(params.CONFIG_PATH + 'observer', 'w') as f:
-    f.write(username)
+status.observer = username
 print('Thank you "{}", everything will now be blamed on you'.format(username))
 
-with open(params.CONFIG_PATH + 'overrides_flags', 'r') as f:
-    data = json.load(f)
-    data['robotic'] = 1 # Set override to True
-with open(params.CONFIG_PATH + 'overrides_flags', 'w') as f:
-    json.dump(data, f)
-
+# set mode to manual
+status.mode = 'manual'
 print('System now in Manual mode, you are in control')

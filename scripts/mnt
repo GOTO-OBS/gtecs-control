@@ -51,7 +51,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -302,7 +302,10 @@ def print_info(info):
     if info['status'] != 'Slewing':
         print('Status: %s' %info['status'])
     else:
-        print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
+        if info['target_dist']:
+            print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
+        else:
+            print('Status: %s' %(info['status']))
     print('~~~~~~~')
     print('Mount Alt:        %.2f' %info['mount_alt'])
     print('Mount Az:         %.2f' %info['mount_az'])
@@ -334,7 +337,10 @@ def print_info_s(info):
     if info['status'] != 'Slewing':
         print('MOUNT ({})           [{}]'.format(params.SITECH_HOST, info['status']))
     else:
-        print('MOUNT ({})           Slewing ({:.2f})'.format(params.SITECH_HOST,info['target_dist']))
+        if info['target_dist']:
+            print('MOUNT ({})           Slewing ({:.2f})'.format(params.SITECH_HOST,info['target_dist']))
+        else:
+            print('MOUNT ({})           Slewing '.format(params.SITECH_HOST))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
@@ -366,7 +372,7 @@ def print_instructions():
     '  mnt ' + style.bold('n') + '/' + style.bold('s') + '/' + style.bold('e') + '/' + style.bold('w') + ' [step]' + '     - offset in direction by one step' + '\n' +\
     '  mnt ' + style.bold('step') + ' size' + '          - set offset step size (arcsec, default=10)' + '\n' +\
     '  mnt ' + style.bold('blinky') + ' on|off' + '      - turn on or off blinky mode' + '\n' +\
-    '  mnt ' + style.bold('info') + ' [v]' + '           - report current status' + '\n' +\
+    '  mnt ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '    - report current status' + '\n' +\
     '  mnt ' + style.bold('log') + ' [stdout]' + '       - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  mnt ' + style.bold('i') + '                  - enter interactive mode' + '\n' +\

@@ -23,7 +23,7 @@ from gtecs.misc import execute_command, send_email
 from gtecs.astronomy import startTime, localMidnight, nightStarting
 from gtecs.astronomy import sun_alt as get_sun_alt
 from gtecs.observing import filters_are_homed, cameras_are_cool, check_schedule
-from gtecs.flags import Conditions, Overrides
+from gtecs.flags import Conditions, Status
 from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                      MountMonitor, DomeMonitor,
                                      ExposureQueueMonitor, FocuserMonitor)
@@ -96,7 +96,7 @@ class Pilot:
         )
 
         # override and conditions flags
-        self.overrides = Overrides()
+        self.status = Status()
         self.conditions = Conditions()
 
         # dictionary of reasons to pause
@@ -322,7 +322,7 @@ class Pilot:
         # monitor until stopped
         sleepTime = 60
         while True:
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 self.log.info('hardware checks suspended in manual mode')
                 await asyncio.sleep(sleepTime)
                 continue
@@ -370,12 +370,12 @@ class Pilot:
         while True:
 
             # overrides
-            self.overrides = Overrides()
+            self.status = Status()
             # conditions flags
             self.conditions = Conditions()
 
             # handle overrides first
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 await self.handlePause('manual', True)
             else:
                 await self.handlePause('manual', False)
@@ -388,8 +388,9 @@ class Pilot:
                 await self.handlePause('cond', False)
 
             # emergency file
-            if os.path.isfile(params.EMERGENCY_FILE):
-                asyncio.ensure_future(self.emergency_shutdown())
+            if self.status.emergency_shutdown:
+                reason = self.status.emergency_shutdown_reason
+                asyncio.ensure_future(self.emergency_shutdown(reason))
 
             await asyncio.sleep(10)
 
@@ -418,8 +419,7 @@ class Pilot:
             if reason == 'manual':
                 msg += "manual override"
             if reason == 'cond':
-                msg += 'conditions bad\n'
-                msg += '{!r}'.format(self.conditions.__dict__)
+                msg += 'conditions bad ({})'.format(self.conditions.bad_flags)
             if reason == 'hw':
                 msg += 'hardware fault'
             self.log.warn(msg)
@@ -477,7 +477,7 @@ class Pilot:
         Be extra cautious and double check that dome is closed if it should be
         """
         while True:
-            if self.overrides.robotic:
+            if self.status.mode == 'manual':
                 self.log.info('dome checks suspended in manual mode')
                 await asyncio.sleep(10)
                 continue
@@ -783,12 +783,12 @@ class Pilot:
 
         self.log.warn('shutdown process complete')
 
-    async def emergency_shutdown(self):
+    async def emergency_shutdown(self, why):
         """
         Send a warning and then shut down
         """
-        self.log.warn('performing emergency shutdown!')
-        send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown')
+        self.log.warn('performing emergency shutdown: {}'.format(why))
+        send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown: {}'.format(why))
 
         self.log.warn('closing dome immediately')
         if self.domeOpen:

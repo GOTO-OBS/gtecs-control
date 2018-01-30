@@ -76,7 +76,9 @@ class FLIDaemon(InterfaceDaemon):
                 missing_hardware.append('Filter Wheel {}: {}'.format(HW, filt_serial))
 
         if len(missing_hardware) > 0:
-            raise ValueError('FLI hardware not found: {!r}'.format(missing_hardware))
+            # can't run if the hardware isn't found (and we won't make fake ones)
+            self.logfile.error('FLI hardware not found: {!r}'.format(missing_hardware))
+            self.shutdown()
 
 
     # Focuser control functions

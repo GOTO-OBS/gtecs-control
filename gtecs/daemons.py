@@ -208,13 +208,20 @@ def kill_daemon(daemon_ID):
 
 def restart_daemon(daemon_ID, wait_time=2):
     """Shut down a daemon and then start it again after `wait_time` seconds"""
-    reply = shutdown_daemon(daemon_ID)
-    print(reply)
+    try:
+        reply = shutdown_daemon(daemon_ID)
+        print(reply)
+    except Exception as err:
+        if 'Daemon not running' in str(err):
+            print(str(err))
+            pass
+        else:
+            raise
 
     time.sleep(wait_time)
 
     reply = start_daemon(daemon_ID)
-    print(reply)
+    return reply
 
 
 def daemon_info(daemon_ID):

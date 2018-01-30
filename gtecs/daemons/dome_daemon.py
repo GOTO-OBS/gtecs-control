@@ -10,6 +10,7 @@ import datetime
 from math import *
 import Pyro4
 import threading
+import json
 
 from gtecs import flags
 from gtecs import logger
@@ -150,7 +151,7 @@ class DomeDaemon(HardwareDaemon):
                 try:
                     # Get external flags
                     conditions = flags.Conditions()
-                    overrides = flags.Overrides()
+                    status = flags.Status()
 
                     # Loop through QC button to see if it's triggered
                     button_pressed = False
@@ -161,28 +162,39 @@ class DomeDaemon(HardwareDaemon):
                     # Create emergency file if needed
                     if button_pressed:
                         self.logfile.info('Quick close button pressed!')
-                        os.system('touch {}'.format(params.EMERGENCY_FILE))
+                        status.create_shutdown_file('quick close button pressed')
                     if conditions.critical:
-                        self.logfile.info('Conditions critical!')
-                        os.system('touch {}'.format(params.EMERGENCY_FILE))
+                        self.logfile.info('Conditions critical ({})'.format(conditions.critical_flags))
+                        status.create_shutdown_file('Conditions critical ({})'.format(conditions.critical_flags))
 
                     # Act on an emergency
                     if (self.dome_status['north'] != 'closed' or
                         self.dome_status['south'] != 'closed'):
-                        if os.path.isfile(params.EMERGENCY_FILE):
-                            self.logfile.info('Closing dome (emergency!)')
+                        if status.emergency_shutdown:
+                            reason = status.emergency_shutdown_reason
+                            self.logfile.info('Closing dome (emergency: {})'.format(reason))
                             if not self.close_flag:
-                                send_slack_msg('dome_daemon is closing dome (emergency shutdown)')
+                                send_slack_msg('dome_daemon is closing dome (emergency shutdown: {})'.format(reason))
+                                if self.open_flag: # stop opening!
+                                    self.halt_flag = 1
+                                    time.sleep(2)
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
-                        elif (conditions.bad and not overrides.autoclose):
-                            self.logfile.info('Conditions bad, auto-closing dome')
-                            if not self.close_flag:
-                                self.close_flag = 1
-                                self.move_side = 'both'
-                                self.move_frac = 1
-
+                        elif conditions.bad:
+                            # Don't close in manual mode if autoclose is disabled
+                            # NB: Always close in robotic mode
+                            if status.mode == 'manual' and not status.autoclose:
+                                self.logfile.info('Conditions bad ({}), but in manual mode and autoclose disabled!'.format(conditions.bad_flags))
+                            else:
+                                self.logfile.info('Conditions bad ({}), auto-closing dome'.format(conditions.bad_flags))
+                                if not self.close_flag:
+                                    if self.open_flag: # stop opening!
+                                        self.halt_flag = 1
+                                        time.sleep(2)
+                                    self.close_flag = 1
+                                    self.move_side = 'both'
+                                    self.move_frac = 1
                     self.warnings_check_time = time.time()
                 except:
                     self.logfile.error('check_warnings command failed')
@@ -278,14 +290,19 @@ class DomeDaemon(HardwareDaemon):
                     else:
                         info['dehumidifier'] = 'ERROR'
 
+                    # add status status (umm...)
+                    status = flags.Status()
+                    info['emergency'] = status.emergency_shutdown
+                    info['emergency_time'] = status.emergency_shutdown_time
+                    info['emergency_reason'] = status.emergency_shutdown_reason
+                    info['mode'] = status.mode
+                    info['autoclose'] = status.autoclose
+
                     info['uptime'] = time.time() - self.start_time
                     info['ping'] = time.time() - self.time_check
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-                    if os.path.isfile(params.EMERGENCY_FILE):
-                        info['emergency'] = 1
-                    else:
-                        info['emergency'] = 0
+
                     self.info = info
                 except:
                     self.logfile.error('get_info command failed')
@@ -381,6 +398,11 @@ class DomeDaemon(HardwareDaemon):
                         self.close_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
+                        # whenever the dome is closed, turn autoclose back on
+                        status = flags.Status()
+                        if not status.autoclose:
+                            status.autoclose = True
+                            self.logfile.info('Re-enabled dome auto-close')
 
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
@@ -491,16 +513,26 @@ class DomeDaemon(HardwareDaemon):
 
     def open_dome(self, side='both', frac=1):
         """Open the dome"""
+        conditions = flags.Conditions()
+        status = flags.Status()
+        power = flags.Power()
+        bad_idea = False
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
-        if flags.Conditions().bad and not flags.Overrides().autoclose:
-            raise misc.HardwareStatusError('Conditions bad, dome will not open')
-        elif flags.Power().failed:
+        if conditions.bad:
+            if status.mode == 'manual' and not status.autoclose:
+                # Allow opening in bad conditions if in manual mode
+                # and autoclose is disabled
+                bad_idea = True
+            else:
+                raise misc.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
+        elif power.failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
-        elif os.path.isfile(params.EMERGENCY_FILE):
+        elif status.emergency_shutdown:
+            reason = status.emergency_shutdown_reason
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            raise misc.HardwareStatusError('In emergency locked state, dome will not open')
+            raise misc.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reason))
 
         # Check input
         if not side in ['north', 'south', 'both']:
@@ -536,6 +568,8 @@ class DomeDaemon(HardwareDaemon):
         self.logfile.info('Starting: Opening dome')
         self.open_flag = 1
 
+        if bad_idea:
+            return 'Opening dome, even though conditions are bad! BE CAREFUL'
         return 'Opening dome'
 
 

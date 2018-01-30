@@ -20,6 +20,7 @@ from . import misc
 from . import astronomy
 from .astronomy import sun_alt as get_sun_alt
 from .daemons import daemon_info
+from .flags import Status
 
 
 def image_location(run_number, tel):
@@ -91,8 +92,9 @@ def update_header(header, tel, cam_info):
 
     header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
-    observer = misc.get_observer()
-    header["OBSERVER"] = (observer, "Who started the exposure")
+    status = Status()
+    header["SYS-MODE"] = (status.mode, "Current telescope system mode")
+    header["OBSERVER"] = (status.observer, "Who started the exposure")
     header["OBJECT  "] = (current_exposure.target, "Observed object name")
 
     header["SET-POS "] = (current_exposure.set_pos, "Position of this exposure in this set")
@@ -312,6 +314,9 @@ def update_header(header, tel, cam_info):
     # Mount info
     try:
         info = daemon_info('mnt')
+
+        mount_tracking = info['status'] == 'Tracking'
+
         targ_ra = info['target_ra']
         if targ_ra:
             targ_ra_str = Angle(targ_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
@@ -348,6 +353,7 @@ def update_header(header, tel, cam_info):
         moon_dist = numpy.around(moon_dist, decimals=2)
 
     except:
+        mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
         targ_dist = 'NA'
@@ -359,6 +365,8 @@ def update_header(header, tel, cam_info):
         airmass = 'NA'
         equinox = 'NA'
         moon_dist = 'NA'
+
+    header["TRACKING"] = (mount_tracking, "Mount is tracking")
 
     header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
     header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
