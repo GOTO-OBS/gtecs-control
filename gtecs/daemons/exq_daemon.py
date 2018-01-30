@@ -197,6 +197,8 @@ class ExqDaemon(HardwareDaemon):
                             target.replace(';', ''),
                             imgtype.replace(';', ''))
         self.exp_queue.append(exposure)
+        self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
+                exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
 
         # Format return string
         s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
@@ -239,6 +241,8 @@ class ExqDaemon(HardwareDaemon):
                                 imgtype.replace(';', ''),
                                 set_pos, set_total, expID)
             self.exp_queue.append(exposure)
+            self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
+                    exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
 
         # Format return string
         s = 'Added {}x {:.0f}s {} exposure(s),'.format(Nexp, exptime,
@@ -256,8 +260,10 @@ class ExqDaemon(HardwareDaemon):
             raise misc.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
+        num_in_queue = len(self.exp_queue)
         self.exp_queue.clear()
 
+        self.logfile.info('Cleared {} items from queue'.format(num_in_queue))
         return 'Queue cleared'
 
 
@@ -294,6 +300,7 @@ class ExqDaemon(HardwareDaemon):
         # Set values
         self.paused = 1
 
+        self.logfile.info('Queue paused')
         return 'Queue paused'
 
 
@@ -306,6 +313,7 @@ class ExqDaemon(HardwareDaemon):
         # Set values
         self.paused = 0
 
+        self.logfile.info('Queue resumed')
         return 'Queue resumed'
 
 
@@ -313,6 +321,7 @@ class ExqDaemon(HardwareDaemon):
     def _set_filter(self, filt):
         new_filt = self.current_exposure.filt
         tel_list = self.current_exposure.tel_list
+        self.logfile.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
         try:
             filt._pyroReconnect()
             filt.set_filter(new_filt, tel_list)
@@ -332,9 +341,16 @@ class ExqDaemon(HardwareDaemon):
             time.sleep(0.005)
             # keep ping alive
             self.time_check = time.time()
+        self.logfile.info('Filter wheel move complete')
 
 
     def _take_image(self, cam):
+        exptime = self.current_exposure.exptime
+        binning = self.current_exposure.binning
+        frametype = self.current_exposure.frametype
+        tel_list = self.current_exposure.tel_list
+        self.logfile.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+                                exptime, binning, binning, frametype, tel_list))
         try:
             cam._pyroReconnect()
             cam.take_exposure(self.current_exposure)
@@ -354,6 +370,7 @@ class ExqDaemon(HardwareDaemon):
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
+        self.logfile.info('Camera exposure complete')
 
 
 if __name__ == "__main__":
