@@ -176,7 +176,8 @@ def print_info(info):
     print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
     print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
-        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE'))
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
+        print(style.rtxt('{}'.format(info['emergency_reason'])))
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -186,7 +187,7 @@ def print_info(info):
 
 def print_info_s(info):
     if info['emergency']:
-        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE'))
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
     if (('open' in info['north']) or ('open' in info['south']) or
         ('ing'  in info['north']) or ('ing' in info['south'])):
         if info['autoclose']:
@@ -199,7 +200,8 @@ def print_info_s(info):
     print('DEHUM:     [%s]' %info['dehumidifier'].capitalize())
     print('AUTOCLOSE: [%s]' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
-        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE'))
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
+        print(style.rtxt('{}'.format(info['emergency_reason'])))
 
 
 def print_instructions():
