@@ -56,7 +56,7 @@ def query(command, args):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -198,7 +198,7 @@ def print_instructions():
     '  power ' + style.bold('off') + ' [names] | [unit] [outlet]' + '    - turn off specified outlet(s)' + '\n' +\
     '  power ' + style.bold('reboot') + ' [names] | [unit] [outlet]' + ' - reboot specified outlet(s)' + '\n' +\
     '  power ' + style.bold('outlets') + '/' + style.bold('list') + '                     - list valid outlets and groups' + '\n' +\
-    '  power ' + style.bold('info') + ' [v]' + '                         - report current status' + '\n' +\
+    '  power ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '                  - report current status' + '\n' +\
     '  power ' + style.bold('log') + ' [stdout]' + '                     - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  power ' + style.bold('i') + '                                - enter interactive mode' + '\n' +\

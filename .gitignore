@@ -7,5 +7,5 @@
 #Ignore status files
 queue
 conditions_flags
-overrides_flags
+status_flags
 run_number

@@ -47,7 +47,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -446,29 +446,29 @@ def print_info_s(info):
 def print_instructions():
     help_str = style.bold('Usage:') + ' exq [command]' + '\n' +\
     ' ' + style.undl('Daemon commands') + ':' + '\n' +\
-    '  exq ' + style.bold('start') + '          - start the daemon' + '\n' +\
-    '  exq ' + style.bold('shutdown') + '       - shutdown the daemon' + '\n' +\
-    '  exq ' + style.bold('restart') + '        - restart the daemon' + '\n' +\
-    '  exq ' + style.bold('kill') + '           - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  exq ' + style.bold('ping') + '           - ping the daemon' + '\n' +\
+    '  exq ' + style.bold('start') + '              - start the daemon' + '\n' +\
+    '  exq ' + style.bold('shutdown') + '           - shutdown the daemon' + '\n' +\
+    '  exq ' + style.bold('restart') + '            - restart the daemon' + '\n' +\
+    '  exq ' + style.bold('kill') + '               - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
+    '  exq ' + style.bold('ping') + '               - ping the daemon' + '\n' +\
     ' ' + style.undl('Exposure queue commands') + ':' + '\n' +\
     '  exq ' + style.bold('image') + ' [tels] exptime filter[s] binning [object] [imgtype]' + '\n' +\
     '  exq ' + style.bold('multimage') + ' Nexp [tels] exptime filter[s] binning [object] [imgtype]' + '\n' +\
     '  exq ' + style.bold('multcolimage') + ' Nexp [tels] exptime filter[s] binning [object] [imgtype]' + '\n' +\
-    '  exq ' + style.bold('dark') + '  [tels] exptime binning' + '\n' +\
+    '  exq ' + style.bold('dark') + ' [tels] exptime binning' + '\n' +\
     '  exq ' + style.bold('multdark') + ' Nexp [tels] exptime binning' + '\n' +\
-    '  exq ' + style.bold('bias') + '  [tels] binning' + '\n' +\
+    '  exq ' + style.bold('bias') + ' [tels] binning' + '\n' +\
     '  exq ' + style.bold('multbias') + ' Nexp [tels] binning' + '\n' +\
-    '  exq ' + style.bold('pause') + '          - pause taking exposures' + '\n' +\
-    '  exq ' + style.bold('unpause') + '/' + style.bold('resume') + ' - resumes taking exposures' + '\n' +\
-    '  exq ' + style.bold('list') + ' [v]' + '       - lists the current queue' + '\n' +\
-    '  exq ' + style.bold('clear') + '          - empty the queue' + '\n' +\
-    '  exq ' + style.bold('info') + ' [v]' + '       - report current status' + '\n' +\
-    '  exq ' + style.bold('log') + ' [stdout]' + '   - print daemon log (tail alias)' + '\n' +\
+    '  exq ' + style.bold('pause') + '              - pause taking exposures' + '\n' +\
+    '  exq ' + style.bold('unpause') + '/' + style.bold('resume') + '     - resumes taking exposures' + '\n' +\
+    '  exq ' + style.bold('list') + ' [v]' + '           - lists the current queue' + '\n' +\
+    '  exq ' + style.bold('clear') + '              - empty the queue' + '\n' +\
+    '  exq ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '    - report current status' + '\n' +\
+    '  exq ' + style.bold('log') + ' [stdout]' + '       - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  exq ' + style.bold('i') + '              - enter interactive mode' + '\n' +\
-    '  exq ' + style.bold('q') + '/' + style.bold('exit') + '         - quit interactive mode' + '\n' +\
-    '  exq ' + style.bold('?') + '/' + style.bold('help') + '         - print these instructions'
+    '  exq ' + style.bold('i') + '                  - enter interactive mode' + '\n' +\
+    '  exq ' + style.bold('q') + '/' + style.bold('exit') + '             - quit interactive mode' + '\n' +\
+    '  exq ' + style.bold('?') + '/' + style.bold('help') + '             - print these instructions'
     print(help_str)
 
 

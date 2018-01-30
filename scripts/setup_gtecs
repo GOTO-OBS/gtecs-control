@@ -37,7 +37,7 @@ try:
             os.mkdir(folderpath)
 
     # now copy data there
-    for data_file in ['conditions_flags', 'overrides_flags',
+    for data_file in ['conditions_flags', 'status_flags',
                       'run_number', 'horizon', 'exposure_queue']:
         shutil.copy(os.path.join(gtecs_data_dir, data_file),
                     os.path.join(params.CONFIG_PATH, data_file))

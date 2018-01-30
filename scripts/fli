@@ -64,11 +64,15 @@ def query(command, args, daemon_IDs):
                 print(reply)
 
     elif command in ['log', 'tail']:
+        if 'stdout' in args:
+            stdout = True
+            args.remove('stdout')
+        else:
+            stdout = False
         for daemon_ID in daemon_IDs:
             # parse arguments
-            if 'stdout' in args:
+            if stdout:
                 log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
-                args.remove('stdout')
             else:
                 log_path = params.LOG_PATH + daemon_ID + '.log'
             tail_command = 'tail {} {}'.format(log_path, ' '.join(args))

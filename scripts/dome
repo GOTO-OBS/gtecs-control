@@ -49,7 +49,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
@@ -142,23 +142,26 @@ def query(command, args, daemon_ID):
 
     # Other functions
     elif command == 'autoclose':
+        status = flags.Status()
         # parse arguments
-        if args[0] == 'on':
-            override = False
-        elif args[0] == 'off':
-            override = True
-        else:
+        if len(args) == 0:
+            if status.autoclose:
+                print('Autoclose is currently on')
+                return
+            else:
+                print('Autoclose is currently DISABLED')
+                print('It will re-enable when the dome is next closed')
+                return
+        elif args[0] not in ['on', 'off']:
             raise misc.InputError('Invalid arguments')
         # command
-        overrides = flags.load_json(params.CONFIG_PATH + 'overrides_flags')
-        if not override:
-            overrides['autoclose'] = 0
-            print('Dome will autoclose in bad weather')
+        if args[0] == 'on':
+            status.autoclose = True
+            print('Dome will autoclose in manual mode if conditions are bad')
         else:
-            overrides['autoclose'] = 1
-            print('Autoclose override set: Dome will NOT close in bad weather')
-        with open(params.CONFIG_PATH + 'overrides_flags', 'w') as f:
-            json.dump(overrides, f)
+            status.autoclose = False
+            print('Autoclose override set: Dome will NOT close in manual mode if conditions are bad')
+            print('                        This will reset the next time the dome is closed')
 
     # Unrecognized function
     else:
@@ -171,6 +174,10 @@ def print_info(info):
     print('South:        %s' %info['south'].capitalize())
     print('Hatch:        %s' %info['hatch'].capitalize())
     print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
+    print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
+    if info['emergency']:
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
+        print(style.rtxt('{}'.format(info['emergency_reason'])))
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -179,13 +186,22 @@ def print_info(info):
 
 
 def print_info_s(info):
+    if info['emergency']:
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
     if (('open' in info['north']) or ('open' in info['south']) or
         ('ing'  in info['north']) or ('ing' in info['south'])):
-        print('DOME:    [Open]')
+        if info['autoclose']:
+            print('DOME:      [Open]')
+        else:
+            print('DOME:      [Open] - ' + style.rtxt('Autoclose Disabled'))
     else:
-        print('DOME:    [%s]' %info['north'].capitalize())
-    print('HATCH:   [%s]' %info['hatch'].capitalize())
-    print('DEHUM:   [%s]' %info['dehumidifier'].capitalize())
+        print('DOME:      [%s]' %info['north'].capitalize())
+    print('HATCH:     [%s]' %info['hatch'].capitalize())
+    print('DEHUM:     [%s]' %info['dehumidifier'].capitalize())
+    print('AUTOCLOSE: [%s]' %('On' if info['autoclose'] else style.rtxt('Off')))
+    if info['emergency']:
+        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
+        print(style.rtxt('{}'.format(info['emergency_reason'])))
 
 
 def print_instructions():
@@ -203,7 +219,7 @@ def print_instructions():
     '  dome ' + style.bold('dehumidifier') + ' [on|off]       - force dehumidifier on/off' + '\n' +\
     '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
     '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
-    '  dome ' + style.bold('log') + ' [stdout]' + '                - print daemon log (tail alias)' + '\n' +\
+    '  dome ' + style.bold('log') + '/' + style.bold('status') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  dome ' + style.bold('i') + '                           - enter interactive mode' + '\n' +\
     '  dome ' + style.bold('q') + '/' + style.bold('exit') + '                      - quit interactive mode' + '\n' +\

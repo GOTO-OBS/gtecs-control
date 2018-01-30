@@ -50,7 +50,7 @@ def query(command, args, daemon_ID):
         reply = daemons.ping_daemon(daemon_ID)
         print(reply)
 
-    elif command == 'info':
+    elif command in ['info', 'status']:
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         if not reply:
@@ -94,8 +94,10 @@ def print_info(info):
         print('WEATHER:')
 
         sunalt = sun_alt(Time.now())
-        if sunalt < params.SUN_ELEVATION_LIMIT:
-            sunalt_str = style.gtxt('{:>5.1f}'.format(sunalt))
+        if sunalt < 0:
+            sunalt_str = style.ytxt('{:>5.1f}'.format(sunalt))
+            if sunalt < params.SUN_ELEVATION_LIMIT:
+                sunalt_str = style.gtxt('{:>5.1f}'.format(sunalt))
         else:
             sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
         print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
@@ -112,14 +114,19 @@ def print_info(info):
                 temperature_str = style.rtxt(' ERR')
             elif (temperature < params.MAX_TEMPERATURE and
                   temperature > params.MIN_TEMPERATURE):
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                if (temperature < params.MAX_TEMPERATURE - 1 and
+                    temperature > params.MIN_TEMPERATURE + 1):
+                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
             if humidity == -999:
                 humidity_str = style.rtxt(' ERR')
             elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                if (humidity < params.MAX_HUMIDITY*0.9):
+                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
@@ -128,7 +135,9 @@ def print_info(info):
             elif windspeed == 'NA':
                 windspeed_str = '  N/A'
             elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = style.gtxt('{:>5.1f}'.format(windspeed))
+                windspeed_str = style.ytxt('{:>5.1f}'.format(windspeed))
+                if (windspeed < params.MAX_WINDSPEED*0.9):
+                    windspeed_str = style.gtxt('{:>5.1f}'.format(windspeed))
             else:
                 windspeed_str = style.rtxt('{:>5.1f}'.format(windspeed))
 
@@ -167,7 +176,9 @@ def print_info(info):
             if int_humidity == -999:
                 int_humidity_str = style.rtxt(' ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
+                int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
+                if (int_humidity < params.MAX_INTERNAL_HUMIDITY*0.9):
+                    int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
                 int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
 
@@ -194,7 +205,7 @@ def print_instructions():
     '  conditions ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
     '  conditions ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
     '  conditions ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  conditions ' + style.bold('info') + ' [v]' + '          - report current status' + '\n' +\
+    '  conditions ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
     '  conditions ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
     ' ' + style.undl('Control commands') + ':' + '\n' +\
     '  conditions ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\

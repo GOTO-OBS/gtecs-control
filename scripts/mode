@@ -4,29 +4,18 @@ A script to change the system control mode
 """
 
 import sys
-import json
 
+from gtecs import flags
 from gtecs import params
 from gtecs import misc
 
-
-CURRENT_OBSERVER = misc.get_observer()
-
-with open(params.CONFIG_PATH + 'overrides_flags', 'r') as f:
-    overrides = json.load(f)
-
-if overrides['robotic'] == 0:
-    # The 'robotic' overide flag is False. Therefore we're in robotic mode.
-    CURRENT_MODE = 'ROBOTIC'
-elif overrides['robotic'] == 1:
-    # The 'robotic' overide flag is True. Therefore we're in manual mode.
-    CURRENT_MODE = 'MANUAL'
+status = flags.Status()
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print('Usage: mode [manual|robotic]')
-        print('  System is currently in {} mode.'.format(CURRENT_MODE))
-        print('  Current observer is "{}".'.format(CURRENT_OBSERVER))
+        print('  System is currently in {} mode.'.format(status.mode.upper()))
+        print('  Current observer is "{}".'.format(status.observer))
     else:
         m_args = ['m', '-m', 'manual', '--manual']
         r_args = ['r', '-r', 'robotic', '--robotic']
