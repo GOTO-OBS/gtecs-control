@@ -147,6 +147,9 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_mpointings_surveys1_idx` (`surveys_surveyID` ASC),
+  INDEX `status_idx` (`status` ASC),
+  INDEX `startUTC_idx` (`startUTC` ASC),
+  INDEX `stopUTC_idx` (`stopUTC` ASC),
   CONSTRAINT `fk_mpointing_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
@@ -189,6 +192,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`observing_blocks` (
   `mpointings_mpointingID` INT NOT NULL,
   PRIMARY KEY (`blockID`),
   INDEX `fk_observing_blocks_mpointing1_idx` (`mpointings_mpointingID` ASC),
+  INDEX `blockNum_idx` (`blockNum` ASC),
+  INDEX `current_idx` (`current` ASC),
   CONSTRAINT `fk_observing_blocks_mpointing1`
     FOREIGN KEY (`mpointings_mpointingID`)
     REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
@@ -233,8 +238,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   INDEX `fk_pointings_observing_blocks1_idx` (`observing_blocks_blockID` ASC),
   INDEX `fk_pointings_mpointings1_idx` (`mpointings_mpointingID` ASC),
   INDEX `status_idx` (`status` ASC),
-  INDEX `start_idx` (`startUTC` ASC),
-  INDEX `stop_idx` (`stopUTC` ASC),
+  INDEX `startUTC_idx` (`startUTC` ASC),
+  INDEX `stopUTC_idx` (`stopUTC` ASC),
   INDEX `fk_pointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_pointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   INDEX `fk_pointings_surveys1_idx` (`surveys_surveyID` ASC),
@@ -336,6 +341,8 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`image_logs` (
   INDEX `fk_image_logs_exposure_sets1_idx` (`exposure_sets_expID` ASC),
   INDEX `fk_image_logs_pointings1_idx` (`pointings_pointingID` ASC),
   INDEX `fk_image_logs_mpointings1_idx` (`mpointings_mpointingID` ASC),
+  INDEX `runNumber_idx` (`runNumber` ASC),
+  INDEX `writeUTC_idx` (`writeUTC` ASC),
   CONSTRAINT `fk_image_logs_exposure_sets1`
     FOREIGN KEY (`exposure_sets_expID`)
     REFERENCES `goto_obs`.`exposure_sets` (`expID`)
