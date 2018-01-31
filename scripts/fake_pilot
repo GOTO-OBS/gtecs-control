@@ -24,11 +24,12 @@ from gototile.skymap import SkyMap
 from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4
 
+import obsdb as db
+
 from gtecs import scheduler
 from gtecs import misc
 from gtecs import params
 from gtecs import astronomy
-from gtecs import database as db
 
 
 with warnings.catch_warnings():
@@ -113,7 +114,7 @@ class DummyScheduler(object):
         time_check = (Time.now() - self.last_called) > wait_time*u.s
         if time_check:
             self.last_called = Time.now()
-            with db.open_session() as s:
+            with db.open_session(host=params.DATABASE_HOST) as s:
                 curr, pointings = db.get_queue(s)
                 new = np.random.choice(pointings)
                 self.currID = new.pointingID
@@ -369,7 +370,7 @@ def run(date, sleep_time, write_html):
 
     # loop until night is over
     print('Starting loop...')
-    session = db.load_session()
+    session = db.load_session(host=params.DATABASE_HOST)
     try:
         now = sunset
         ts = time.time()

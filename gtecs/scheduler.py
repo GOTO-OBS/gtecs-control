@@ -21,11 +21,12 @@ from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
+import obsdb as db
+
 from . import params
 from . import misc
 from . import html
 from . import astronomy
-from . import database as db
 from . import astropy_speedups
 
 
@@ -567,7 +568,7 @@ def import_pointings_from_database(time, observer):
     """
     pointings = []
 
-    with db.open_session() as session:
+    with db.open_session(host=params.DATABASE_HOST) as session:
         current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
                                                                         time=time,
                                                                         location=observer.location,
