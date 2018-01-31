@@ -13,12 +13,13 @@ import pkg_resources
 from astropy.time import Time
 from astropy import units as u
 
+from obsdb import (markJobCompleted, markJobAborted,
+                   markJobInterrupted, markJobRunning)
+
 from gtecs.asyncio_protocols import SimpleProtocol
 from gtecs import logger
 from gtecs import params
 from gtecs.slack import send_slack_msg
-from gtecs.database import (markJobCompleted, markJobAborted,
-                            markJobInterrupted, markJobRunning)
 from gtecs.misc import execute_command, send_email
 from gtecs.astronomy import startTime, localMidnight, nightStarting
 from gtecs.astronomy import sun_alt as get_sun_alt

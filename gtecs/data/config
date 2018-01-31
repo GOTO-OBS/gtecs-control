@@ -84,12 +84,7 @@ NUM_DARKS = 9
 
 ########################################################################
 # Database parameters
-DATABASE_USER = goto
-DATABASE_PASSWORD = gotoobs
 DATABASE_HOST = localhost
-DATABASE_NAME = goto_obs
-# should database sessions print SQL statements?
-DATABASE_ECHO = 0
 
 ###########################################################
 # Daemon parameters

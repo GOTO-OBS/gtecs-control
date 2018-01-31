@@ -10,9 +10,10 @@ from astropy.time import Time
 from astroplan import Observer, FixedTarget, is_observable
 from astroplan.moon import moon_illumination
 
+import obsdb as db
+
 from . import params
 from . import astronomy
-from . import database as db
 
 
 ## setup
@@ -250,7 +251,7 @@ def write_queue_page():
             pointingID   = pointing_info[0]
 
             # find database info
-            session = db.load_session()
+            session = db.load_session(host=params.DATABASE_HOST)
             dbPointing = db.get_pointing_by_id(session, pointingID)
             if dbPointing.exposure_sets is not None:
                 dbExps = dbPointing.exposure_sets

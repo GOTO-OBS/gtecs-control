@@ -6,12 +6,14 @@ Script to control observing a single pointing
 import sys
 import time
 
+from obsdb import (markJobCompleted, markJobAborted, markJobRunning,
+                   open_session, get_pointing_by_id)
+
+from gtecs import params
 from gtecs.misc import (execute_command as cmd, neatCloser,
                         ut_mask_to_string, ut_string_to_list)
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
                              goto, wait_for_telescope)
-from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
-                            open_session, get_pointing_by_id)
 
 
 class Closer(neatCloser):
@@ -27,7 +29,7 @@ class Closer(neatCloser):
 
 
 def get_position(pointingID):
-    with open_session() as session:
+    with open_session(host=params.DATABASE_HOST) as session:
         pointing = get_pointing_by_id(session, pointingID)
         ra = pointing.ra
         decl = pointing.decl
@@ -37,7 +39,7 @@ def get_position(pointingID):
 def get_exq_commands(pointingID):
     command_template = 'exq multimage {numexp} {tels}{expTime:.1f} {filt} {binning} "{objectName}" SCIENCE {expID}'
     commands = []
-    with open_session() as session:
+    with open_session(host=params.DATABASE_HOST) as session:
         pointing = get_pointing_by_id(session, pointingID)
         for exposure_set in pointing.exposure_sets:
             keywords = pointing.__dict__.copy()
