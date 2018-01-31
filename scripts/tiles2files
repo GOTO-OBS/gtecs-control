@@ -93,6 +93,7 @@ def write_id_file(event_name, tile, id_start, event_time):
     minalt = '15'
     mintime = '360'
     maxmoon = 'B'
+    minmoonsep = 30,
     user = 'GOTO'
 
     duration = 2*24*u.hour # 48 hours, need to think about this
@@ -105,7 +106,7 @@ def write_id_file(event_name, tile, id_start, event_time):
 
     header1 = ('# ID     |Object Name        |RA(J2k)  |Dec(J2k) |Priority '
                '|TileProb |ToO      |SunAlt   |MinAlt   |MinTime  |MaxMoon  '
-               '|User     |StartUTC           |StopUTC            |')
+               '|MinMoonSe|User     |StartUTC           |StopUTC            |')
     header2 = ('#-------------------------------------------------------------'
                '--------------------------------------------------------------'
                '------------------------------------')
@@ -121,6 +122,7 @@ def write_id_file(event_name, tile, id_start, event_time):
              str(minalt)     + ' '*(10-len(str(minalt)))     +
              str(mintime)    + ' '*(10-len(str(mintime)))    +
              str(maxmoon)    + ' '*(10-len(str(maxmoon)))    +
+             str(minmoonsep) + ' '*(10-len(str(minmoonsep))) +
              str(user)       + ' '*(10-len(str(user)))       +
              str(start_time) + ' '*(20-len(str(start_time))) +
              str(stop_time)  + ' '*(20-len(str(stop_time)))  )

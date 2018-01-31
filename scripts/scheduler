@@ -97,25 +97,27 @@ def print_info(info):
         new_minalt = info['next_pointing'].minalt
         new_mintime = info['next_pointing'].mintime
         new_maxmoon = info['next_pointing'].maxmoon
+        new_minmoonsep = info['next_pointing'].minmoonsep
         new_start = info['next_pointing'].start
         new_stop = info['next_pointing'].stop
         new_current = info['next_pointing'].current
         new_survey = info['next_pointing'].survey
 
-        print('ID:        {}'.format(new_id))
-        print('RA:        {}'.format(new_ra))
-        print('Dec:       {}'.format(new_dec))
-        print('Priority:  {:.4f}'.format(new_priority))
-        print('TileProb:  {}'.format(new_tileprob))
-        print('ToO        {}'.format(new_too))
-        print('MaxSunAlt: {}'.format(new_maxsunalt))
-        print('MinAlt:    {}'.format(new_minalt))
-        print('MinTime:   {}'.format(new_mintime))
-        print('MaxMoon:   {}'.format(new_maxmoon))
-        print('Start:     {}'.format(new_start))
-        print('Stop:      {}'.format(new_stop))
-        print('Current:   {}'.format(new_current))
-        print('Survey :   {}'.format(new_survey))
+        print('ID:         {}'.format(new_id))
+        print('RA:         {}'.format(new_ra))
+        print('Dec:        {}'.format(new_dec))
+        print('Priority:   {:.4f}'.format(new_priority))
+        print('TileProb:   {}'.format(new_tileprob))
+        print('ToO         {}'.format(new_too))
+        print('MaxSunAlt:  {}'.format(new_maxsunalt))
+        print('MinAlt:     {}'.format(new_minalt))
+        print('MinTime:    {}'.format(new_mintime))
+        print('MaxMoon:    {}'.format(new_maxmoon))
+        print('MinMoonSep: {}'.format(new_minmoonsep))
+        print('Start:      {}'.format(new_start))
+        print('Stop:       {}'.format(new_stop))
+        print('Current:    {}'.format(new_current))
+        print('Survey :    {}'.format(new_survey))
     else:
         print('ID:        None')
 

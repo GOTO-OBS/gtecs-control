@@ -397,15 +397,15 @@ def run(date, sleep_time, write_html):
 
     session.close()
 
-    print('Listing completed pointings and time done')
+    print('Listing completed pointings ({}) and time done'.format(len(pilot.completed_pointings)))
     for pointingID, timedone in zip(pilot.completed_pointings, pilot.completed_times):
         print(pointingID, timedone)
 
-    print('Listing pointings aborted due to bad weather')
+    print('Listing pointings aborted due to bad weather ({})'.format(len(pilot.aborted_pointings)))
     for pointingID in pilot.aborted_pointings:
         print(pointingID)
 
-    print('Listing pointings interrupted by other pointings')
+    print('Listing pointings interrupted by other pointings ({})'.format(len(pilot.interrupted_pointings)))
     for pointingID in pilot.interrupted_pointings:
         print(pointingID)
 

@@ -91,6 +91,7 @@ def save_pointing(session, ra, dec, num, event, event_time, tile):
     sunalt = '-18'
     mintime = '360'
     maxmoon = 'B'
+    minmoonsep = 30
     duration = 7*24*u.hour
     start_time = event_time
     stop_time = start_time + duration
@@ -107,6 +108,7 @@ def save_pointing(session, ra, dec, num, event, event_time, tile):
                         maxSunAlt=sunalt,
                         minTime=mintime,
                         maxMoon=maxmoon,
+                        minMoonSep=minmoonsep,
                         startUTC=start_time,
                         stopUTC=stop_time,
                         ToO=too,
@@ -122,7 +124,7 @@ def save_exposure_set(session, pointing):
     exptype = 'SCIENCE'
     filt = 'L'
     binfac = 1
-    otamask = None
+    utmask = None
     raoff = 0
     decoff = 0
 
@@ -131,7 +133,7 @@ def save_exposure_set(session, pointing):
                         typeFlag=exptype,
                         filt=filt,
                         binning=binfac,
-                        otaMask=otamask,
+                        utMask=utmask,
                         raoff=raoff,
                         decoff=decoff,
                         pointing=pointing)
