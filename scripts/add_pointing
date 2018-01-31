@@ -208,17 +208,17 @@ def fill_mpointing(mpointing):
     elif rank_str.lower() in ['high', 'h']:
         mpointing['start_rank'] = 6
 
-    ### Repeats
-    while mpointing['num_repeats'] is None:
-        mpointing['num_repeats'] = int(input('Number of visits? [0=infinite]: '))
-    if mpointing['num_repeats'] != 1:
-        ## Wait time
-        while mpointing['intervals'] is None:
-            mpointing['intervals'] = int(input('Time between repeats (min): '))
-        mpointing['valid_durations'] = mpointing['intervals']-1
-    else:
-        mpointing['intervals'] = 5
-        mpointing['valid_durations'] = 4
+    ### Number to do
+    while mpointing['num_todo'] is None:
+        mpointing['num_todo'] = int(input('Number of visits? [0=infinite]: '))
+
+    ## Valid time
+    while mpointing['valid_time'] is None:
+        mpointing['valid_time'] = int(input('Time for the pointing to be valid for (min): '))
+
+    ## Wait time
+    while mpointing['wait_time'] is None:
+        mpointing['wait_time'] = int(input('Time between visits (min): '))
 
     ### MinAlt
     while mpointing['minAlt'] is None:
@@ -253,15 +253,16 @@ if __name__ == '__main__':
                          'ra': None,
                          'decl': None,
                          'start_rank': None,
-                         'num_repeats': None,
-                         'intervals': None,
+                         'num_todo': None,
+                         'valid_time': None,
+                         'wait_time': None,
                          'minAlt': None,
                          # auto filled values
                          'minTime': None,
-                         'valid_durations': None,
                          # default values:
                          'maxSunAlt': -15,
                          'maxMoon': 'B',
+                         'minMoonSep': 30,
                          'ToO': 0,
                          }
 
@@ -275,7 +276,7 @@ if __name__ == '__main__':
                             'typeFlag': 'SCIENCE',
                             'raoff': 0,
                             'decoff': 0,
-                            'otaMask': None,
+                            'utMask': None,
                             }
 
     with db.open_session() as session:
@@ -320,10 +321,3 @@ if __name__ == '__main__':
         db.insert_items(session, [mp])
 
         print(mp)
-
-        # create first batch of Pointings
-        # no dont
-        # Let the caretaker do that, this might be why we get duplicates
-        #p = mp.get_next_pointing()
-
-        #db.insert_items(session, [p])

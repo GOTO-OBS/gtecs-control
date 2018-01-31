@@ -99,9 +99,12 @@ def write_flag_file(dbPointing, time, all_constraint_names, pointing_info):
             start.format = 'iso'
             start.precision = 0
             f.write('start_time = ' + str(start) + '<br>\n')
-            stop = Time(dbPointing.stopUTC)
-            stop.format = 'iso'
-            stop.precision = 0
+            if dbPointing.stopUTC:
+                stop = Time(dbPointing.stopUTC)
+                stop.format = 'iso'
+                stop.precision = 0
+            else:
+                stop = 'None'
             f.write('stop_time = ' + str(stop) + '<br>\n')
 
             target = coord.ICRS(dbPointing.ra*u.deg, dbPointing.decl*u.deg)
@@ -150,7 +153,7 @@ def write_exp_file(pointingID, dbExps):
             for dbExp in dbExps:
                 f.write('<tr>' +
                         '<td align=right><b>' + str(i) + '</b></td>' +
-                        '<td> ' + str(dbExp.otaMask) + ' </td>' +
+                        '<td> ' + str(dbExp.utMask) + ' </td>' +
                         '<td> ' + str(dbExp.numexp) + ' </td>' +
                         '<td> ' + str(dbExp.expTime) + ' </td>' +
                         '<td> ' + str(dbExp.filt) + ' </td>' +
@@ -236,6 +239,7 @@ def write_queue_page():
                 '<td><b> MinAlt </b></td>' +
                 '<td><b> MaxSun </b></td>' +
                 '<td><b> MaxMoon </b></td>' +
+                '<td><b> MinMoonSep </b></td>' +
                 '<td><b> User </b></td>' +
                 '<td><b> Start UTC </b></td>' +
                 '<td><b> Stop UTC </b></td>' +
@@ -288,6 +292,7 @@ def write_queue_page():
                     '<td>' + str(dbPointing.minAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxSunAlt) + '</td>' +
                     '<td>' + str(dbPointing.maxMoon) + '</td>' +
+                    '<td>' + str(dbPointing.minMoonSep) + '</td>' +
                     '<td>' + str(username) + '</td>' +
                     '<td>' + str(dbPointing.startUTC) + '</td>' +
                     '<td>' + str(dbPointing.stopUTC) + '</td>' +

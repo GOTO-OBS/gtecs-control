@@ -119,6 +119,7 @@ DROP TABLE IF EXISTS `goto_obs`.`mpointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `mpointingID` INT NOT NULL AUTO_INCREMENT,
+  `status` ENUM('unscheduled', 'scheduled', 'completed', 'aborted', 'expired', 'deleted') NOT NULL DEFAULT 'unscheduled',
   `object` TEXT NOT NULL,
   `ra` FLOAT NOT NULL COMMENT 'decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'decimal degrees',
@@ -128,10 +129,13 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   `maxSunAlt` FLOAT NOT NULL DEFAULT -15,
   `minTime` FLOAT NOT NULL,
   `maxMoon` CHAR(1) NOT NULL,
+  `minMoonSep` FLOAT NOT NULL DEFAULT 30 COMMENT 'degrees',
   `ToO` TINYINT(1) NOT NULL DEFAULT 0,
-  `scheduled` TINYINT(1) NOT NULL DEFAULT 0,
   `infinite` TINYINT(1) NOT NULL DEFAULT 0,
   `startUTC` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'only works on mysql later than 5.6.5',
+  `stopUTC` DATETIME NULL COMMENT 'If Null then the Mpointing will continue until it is complete',
+  `num_todo` INT NOT NULL,
+  `num_completed` INT NOT NULL DEFAULT 0,
   `users_userKey` INT(11) NOT NULL,
   `surveys_surveyID` INT NULL,
   `survey_tiles_tileID` INT NULL,
@@ -141,9 +145,11 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`mpointings` (
   INDEX `fk_mpointing_events1_idx` (`events_eventID` ASC),
   INDEX `fk_mpointing_users1_idx` (`users_userKey` ASC),
   INDEX `fk_mpointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
-  INDEX `scheduled_idx` (`scheduled` ASC),
   INDEX `fk_mpointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_mpointings_surveys1_idx` (`surveys_surveyID` ASC),
+  INDEX `status_idx` (`status` ASC),
+  INDEX `startUTC_idx` (`startUTC` ASC),
+  INDEX `stopUTC_idx` (`stopUTC` ASC),
   CONSTRAINT `fk_mpointing_events1`
     FOREIGN KEY (`events_eventID`)
     REFERENCES `goto_obs`.`events` (`eventID`)
@@ -173,22 +179,22 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `goto_obs`.`repeats`
+-- Table `goto_obs`.`observing_blocks`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `goto_obs`.`repeats` ;
+DROP TABLE IF EXISTS `goto_obs`.`observing_blocks` ;
 
-CREATE TABLE IF NOT EXISTS `goto_obs`.`repeats` (
-  `repeatID` INT NOT NULL AUTO_INCREMENT,
-  `status` ENUM('upcoming', 'aborted', 'completed', 'interrupted', 'pending', 'running', 'deleted', 'expired') NOT NULL DEFAULT 'upcoming',
-  `repeatNum` INT NOT NULL COMMENT 'can be -1 for infinite repeaters',
-  `waitTime` FLOAT NOT NULL COMMENT 'time to wait before scheduling this repeat',
-  `valid_duration` FLOAT NULL COMMENT 'how long after the startUTC the repeat should be valid for in minutes.',
-  `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE IF NOT EXISTS `goto_obs`.`observing_blocks` (
+  `blockID` INT NOT NULL AUTO_INCREMENT,
+  `blockNum` INT NOT NULL,
+  `current` INT NOT NULL DEFAULT 0,
+  `valid_time` FLOAT NOT NULL COMMENT 'how long after the startUTC the pointing should be valid for in minutes',
+  `wait_time` FLOAT NOT NULL COMMENT 'time to wait after this pointing before scheduling the next',
   `mpointings_mpointingID` INT NOT NULL,
-  PRIMARY KEY (`repeatID`),
-  INDEX `fk_repeats_mpointing1_idx` (`mpointings_mpointingID` ASC),
-  INDEX `status_idx` (`status` ASC),
-  CONSTRAINT `fk_repeats_mpointing1`
+  PRIMARY KEY (`blockID`),
+  INDEX `fk_observing_blocks_mpointing1_idx` (`mpointings_mpointingID` ASC),
+  INDEX `blockNum_idx` (`blockNum` ASC),
+  INDEX `current_idx` (`current` ASC),
+  CONSTRAINT `fk_observing_blocks_mpointing1`
     FOREIGN KEY (`mpointings_mpointingID`)
     REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
@@ -203,7 +209,7 @@ DROP TABLE IF EXISTS `goto_obs`.`pointings` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `pointingID` INT(24) NOT NULL AUTO_INCREMENT,
-  `status` ENUM('running', 'aborted', 'completed', 'interrupted', 'pending', 'deleted', 'expired') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending', 'running', 'completed', 'aborted', 'interrupted', 'expired', 'deleted') NOT NULL DEFAULT 'pending',
   `object` TEXT NOT NULL COMMENT 'object name',
   `ra` FLOAT NOT NULL COMMENT 'in decimal degrees',
   `decl` FLOAT NOT NULL COMMENT 'in decimal degrees',
@@ -212,13 +218,16 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   `maxSunAlt` FLOAT NOT NULL DEFAULT -15 COMMENT 'degrees	',
   `minTime` FLOAT NOT NULL,
   `maxMoon` CHAR(1) NOT NULL,
+  `minMoonSep` FLOAT NOT NULL DEFAULT 30 COMMENT 'degrees',
   `ToO` TINYINT(1) UNSIGNED NOT NULL,
   `startUTC` DATETIME NOT NULL,
-  `stopUTC` DATETIME NOT NULL,
-  `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stopUTC` DATETIME NULL COMMENT 'If Null then the pointing will never expire, and will remain until observed',
+  `startedUTC` DATETIME NULL,
+  `stoppedUTC` DATETIME NULL,
+  `ts` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `users_userKey` INT(11) NOT NULL,
   `mpointings_mpointingID` INT NULL,
-  `repeats_repeatID` INT NULL,
+  `observing_blocks_blockID` INT NULL,
   `surveys_surveyID` INT NULL,
   `survey_tiles_tileID` INT NULL,
   `events_eventID` INT NULL,
@@ -226,11 +235,11 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
   PRIMARY KEY (`pointingID`),
   INDEX `fk_pointings_events1_idx` (`events_eventID` ASC),
   INDEX `fk_pointings_users1_idx` (`users_userKey` ASC),
-  INDEX `fk_pointings_repeats1_idx` (`repeats_repeatID` ASC),
+  INDEX `fk_pointings_observing_blocks1_idx` (`observing_blocks_blockID` ASC),
   INDEX `fk_pointings_mpointings1_idx` (`mpointings_mpointingID` ASC),
   INDEX `status_idx` (`status` ASC),
-  INDEX `start_idx` (`startUTC` ASC),
-  INDEX `stop_idx` (`stopUTC` ASC),
+  INDEX `startUTC_idx` (`startUTC` ASC),
+  INDEX `stopUTC_idx` (`stopUTC` ASC),
   INDEX `fk_pointings_event_tiles1_idx` (`event_tiles_tileID` ASC),
   INDEX `fk_pointings_survey_tiles1_idx` (`survey_tiles_tileID` ASC),
   INDEX `fk_pointings_surveys1_idx` (`surveys_surveyID` ASC),
@@ -244,9 +253,9 @@ CREATE TABLE IF NOT EXISTS `goto_obs`.`pointings` (
     REFERENCES `goto_obs`.`users` (`userKey`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pointings_repeats1`
-    FOREIGN KEY (`repeats_repeatID`)
-    REFERENCES `goto_obs`.`repeats` (`repeatID`)
+  CONSTRAINT `fk_pointings_observing_blocks1`
+    FOREIGN KEY (`observing_blocks_blockID`)
+    REFERENCES `goto_obs`.`observing_blocks` (`blockID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_pointings_mpointings1`
@@ -281,7 +290,7 @@ DROP TABLE IF EXISTS `goto_obs`.`exposure_sets` ;
 
 CREATE TABLE IF NOT EXISTS `goto_obs`.`exposure_sets` (
   `expID` INT(24) NOT NULL AUTO_INCREMENT,
-  `otaMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
+  `utMask` INT NULL COMMENT 'bit mask to allocate to individual UTs. NULL means send to all',
   `typeFlag` ENUM('SCIENCE', 'FOCUS', 'DARK', 'BIAS', 'FLAT', 'STD') NOT NULL,
   `filter` CHAR(2) NOT NULL,
   `exptime` FLOAT NOT NULL,
@@ -310,35 +319,43 @@ DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
--- Table `goto_obs`.`obslog`
+-- Table `goto_obs`.`image_logs`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `goto_obs`.`obslog` ;
+DROP TABLE IF EXISTS `goto_obs`.`image_logs` ;
 
-CREATE TABLE IF NOT EXISTS `goto_obs`.`obslog` (
-  `obsID` INT(24) NOT NULL,
-  `frame` VARCHAR(30) NOT NULL COMMENT 'frame or file number',
-  `UTstart` DATETIME NOT NULL,
-  `object` TEXT NOT NULL,
-  `type` TEXT NOT NULL,
-  `ra` FLOAT NOT NULL,
-  `decl` FLOAT NOT NULL,
-  `exptime` FLOAT NOT NULL,
-  `airmass` FLOAT NOT NULL,
-  `filter` CHAR(2) NOT NULL,
-  `binning` INT(11) UNSIGNED NOT NULL,
-  `foc` INT(11) UNSIGNED NOT NULL,
-  `temp` FLOAT NOT NULL,
-  `otaID` INT NOT NULL COMMENT 'identifies OTA',
-  `camID` INT NOT NULL COMMENT 'identifies camera',
-  `pointings_pointingID` INT(12) NOT NULL,
-  PRIMARY KEY (`obsID`),
-  UNIQUE INDEX `frame` (`frame` ASC),
-  INDEX `fk_obslog_pointings1_idx` (`pointings_pointingID` ASC),
-  INDEX `ota_key` (`otaID` ASC),
-  INDEX `cam_key` (`camID` ASC),
-  CONSTRAINT `fk_obslog_pointings1`
+CREATE TABLE IF NOT EXISTS `goto_obs`.`image_logs` (
+  `logID` INT(24) NOT NULL AUTO_INCREMENT,
+  `filename` VARCHAR(30) NOT NULL COMMENT 'full FITS file name, including extension',
+  `runNumber` INT NOT NULL,
+  `ut` INT NOT NULL,
+  `utMask` INT NOT NULL,
+  `startUTC` DATETIME NOT NULL,
+  `writeUTC` DATETIME NOT NULL,
+  `set_position` INT NOT NULL DEFAULT 1,
+  `set_total` INT NOT NULL DEFAULT 1,
+  `exposure_sets_expID` INT NULL DEFAULT NULL,
+  `pointings_pointingID` INT NULL DEFAULT NULL,
+  `mpointings_mpointingID` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`logID`),
+  UNIQUE INDEX `filename` (`filename` ASC),
+  INDEX `fk_image_logs_exposure_sets1_idx` (`exposure_sets_expID` ASC),
+  INDEX `fk_image_logs_pointings1_idx` (`pointings_pointingID` ASC),
+  INDEX `fk_image_logs_mpointings1_idx` (`mpointings_mpointingID` ASC),
+  INDEX `runNumber_idx` (`runNumber` ASC),
+  INDEX `writeUTC_idx` (`writeUTC` ASC),
+  CONSTRAINT `fk_image_logs_exposure_sets1`
+    FOREIGN KEY (`exposure_sets_expID`)
+    REFERENCES `goto_obs`.`exposure_sets` (`expID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_image_logs_pointings1`
     FOREIGN KEY (`pointings_pointingID`)
     REFERENCES `goto_obs`.`pointings` (`pointingID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_image_logs_mpointings1`
+    FOREIGN KEY (`mpointings_mpointingID`)
+    REFERENCES `goto_obs`.`mpointings` (`mpointingID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
@@ -388,57 +405,14 @@ END$$
 
 
 USE `goto_obs`$$
-DROP TRIGGER IF EXISTS `goto_obs`.`repeats_AFTER_UPDATE` $$
+DROP TRIGGER IF EXISTS `goto_obs`.`mpointings_BEFORE_UPDATE` $$
 USE `goto_obs`$$
-/* When repeats table is updated, this trigger performs the following tasks:
-   - updates the scheduled attribute in the corresponding Mpointing
-   - increments the Mpointing rank by 10, if this is not a infinite Mpointing */
-CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`repeats_AFTER_UPDATE` AFTER UPDATE ON `repeats` FOR EACH ROW
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`mpointings_BEFORE_UPDATE` BEFORE UPDATE ON `mpointings` FOR EACH ROW
 BEGIN
-	DECLARE isinfinite INT;
-    SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-	IF (NEW.ts <> OLD.ts AND NEW.status NOT IN ('running', 'pending')) THEN
-		IF isinfinite = 0 THEN
-			UPDATE `mpointings` SET `rank` = `rank` + 10, `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-		ELSE
-			UPDATE `mpointings` SET `scheduled` = 0 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-        END IF;
+	IF (NEW.`num_completed` = NEW.`num_todo` and NEW.`infinite` = 0) THEN
+        /* the Mpointing is finished (infinite Mpointings can never be completed!)*/
+        SET NEW.`status` = 'completed';
 	END IF;
-	IF (NEW.ts <> OLD.ts AND NEW.status = 'pending') THEN
-		UPDATE `mpointings` SET `scheduled` = 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
-    END IF;
-END$$
-
-
-USE `goto_obs`$$
-DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_INSERT` $$
-USE `goto_obs`$$
-/* This trigger is repsonsible for updating the status of repeats to the status of their matching pointing
-when the pointing is inserted into the database. */
-CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_INSERT` AFTER INSERT ON `pointings` FOR EACH ROW
-BEGIN
-    DECLARE isinfinite INT;
-	IF (NEW.repeats_repeatID is not NULL) THEN
-        /* mirror status between pointing and repeat */
-		UPDATE `repeats` SET `status` = NEW.status WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
-
-        /* insert a new repeat into the repeats table if required */
-        SELECT `infinite` INTO isinfinite FROM `mpointings` INNER JOIN `repeats` ON `mpointings`.`mpointingID`=`repeats`.`mpointings_mpointingID`
-        WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
-        IF isinfinite = 1 THEN
-            CREATE TEMPORARY TABLE tmptable SELECT
-				`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_mpointingID`
-            FROM `repeats` WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
-
-            UPDATE tmptable SET status = "upcoming";
-            UPDATE tmptable SET repeatNum = repeatNum + 1;
-
-			INSERT INTO `repeats` (`repeatNum`, `waitTime`, `valid_duration`, `status`, `mpointings_mpointingID`)
-                SELECT * from tmptable;
-
-            DROP TEMPORARY TABLE IF EXISTS tmptable;
-		END IF;
-    END IF;
 END$$
 
 
@@ -455,15 +429,63 @@ END$$
 
 
 USE `goto_obs`$$
-DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_UPDATE` $$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_INSERT` $$
 USE `goto_obs`$$
-/* This trigger updates status entry of a repeat, when the matching pointing is updated. */
-CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_INSERT` AFTER INSERT ON `pointings` FOR EACH ROW
 BEGIN
-	IF (NEW.repeats_repeatID is not NULL) THEN
-		UPDATE `repeats` SET `status` = NEW.status WHERE (NEW.repeats_repeatID = `repeats`.`repeatID`);
+	IF (NEW.`observing_blocks_blockID` is not NULL) AND (NEW.status = 'pending') THEN
+        /* mark all other blocks for this Mpointing as current=False, and the one for this Pointing as current=True */
+		UPDATE `observing_blocks` SET `current` = 0 WHERE (NEW.`mpointings_mpointingID` = `observing_blocks`.`mpointings_mpointingID`);
+		UPDATE `observing_blocks` SET `current` = 1 WHERE (NEW.`observing_blocks_blockID` = `observing_blocks`.`blockID`);
+    END IF;
+	IF (NEW.`mpointings_mpointingID` is not NULL) AND (NEW.status = 'pending') THEN
+		UPDATE `mpointings` SET `status` = 'scheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
     END IF;
 END$$
 
 
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_BEFORE_UPDATE` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_BEFORE_UPDATE` BEFORE UPDATE ON `pointings` FOR EACH ROW
+BEGIN
+	IF (NEW.`ts` <> OLD.`ts`) THEN
+    	IF (OLD.`status` != 'running' AND NEW.`status` = 'running') THEN
+			/* the pointing has started */
+			SET NEW.`startedUTC` = NOW();
+        END IF;
+		IF (OLD.`status` IN ('pending', 'running') AND NEW.`status` NOT IN ('pending', 'running')) THEN
+			/* the pointing has finished somehow (completed, aborted, interrupted, expired...) */
+			SET NEW.`stoppedUTC` = NOW();
+        END IF;
+	END IF;
+END$$
+
+
+USE `goto_obs`$$
+DROP TRIGGER IF EXISTS `goto_obs`.`pointings_AFTER_UPDATE` $$
+USE `goto_obs`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `goto_obs`.`pointings_AFTER_UPDATE` AFTER UPDATE ON `pointings` FOR EACH ROW
+BEGIN
+	DECLARE isinfinite INT;
+	IF (NEW.`ts` <> OLD.`ts`) THEN
+		IF NEW.`status` NOT IN ('pending', 'running') THEN
+			/* the pointing is finished somehow (completed, aborted, interrupted, expired...) */
+			UPDATE `mpointings` SET `status` = 'unscheduled' WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+		END IF;
+		IF NEW.`status` = 'completed' THEN
+			/* increase the Mpointing's completed count */
+			UPDATE `mpointings` SET `num_completed` = `num_completed` + 1 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			/* check if the Mpointing is infinite */
+			SELECT `infinite` INTO isinfinite FROM `mpointings` WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			IF isinfinite = 0 THEN
+				/* only add 10 to the rank when the pointing was completed if it's not an infinite Mpointing */
+				UPDATE `mpointings` SET `rank` = `rank` + 10 WHERE (NEW.`mpointings_mpointingID` = `mpointings`.`mpointingID`);
+			END IF;
+		END IF;
+	END IF;
+END$$
+
+
 DELIMITER ;
+

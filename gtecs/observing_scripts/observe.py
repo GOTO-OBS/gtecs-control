@@ -6,7 +6,8 @@ Script to control observing a single pointing
 import sys
 import time
 
-from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.misc import (execute_command as cmd, neatCloser,
+                        ut_mask_to_string, ut_string_to_list)
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
                              goto, wait_for_telescope)
 from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
@@ -34,13 +35,19 @@ def get_position(pointingID):
 
 
 def get_exq_commands(pointingID):
-    command_template = 'exq multimage {numexp} {expTime:.1f} {filt} {binning} "{objectName}" SCIENCE {expID}'
+    command_template = 'exq multimage {numexp} {tels}{expTime:.1f} {filt} {binning} "{objectName}" SCIENCE {expID}'
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
         for exposure_set in pointing.exposure_sets:
             keywords = pointing.__dict__.copy()
             keywords.update(exposure_set.__dict__)
+            if exposure_set.utMask is not None:
+                utString = ut_mask_to_string(exposure_set.utMask)
+                utList = ut_string_to_list(utString)
+                keywords['tels'] = ','.join([str(i) for i in utList]) + ' '
+            else:
+                keywords['tels'] = ''
             commands.append(command_template.format(**keywords))
     return commands
 
