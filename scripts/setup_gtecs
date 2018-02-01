@@ -44,6 +44,9 @@ try:
     for f in os.listdir(gtecs_html_dir):
         shutil.copy(os.path.join(gtecs_html_dir, f),
                     os.path.join(htmlpath, f))
+
+    print('Setup complete!')
+    print('CONFIG_PATH is at ', params.CONFIG_PATH)
 except:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
           'You should create this directory yourself manually')
