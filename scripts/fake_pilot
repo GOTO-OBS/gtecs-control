@@ -114,7 +114,7 @@ class DummyScheduler(object):
         time_check = (Time.now() - self.last_called) > wait_time*u.s
         if time_check:
             self.last_called = Time.now()
-            with db.open_session(host=params.DATABASE_HOST) as s:
+            with db.open_session() as s:
                 curr, pointings = db.get_queue(s)
                 new = np.random.choice(pointings)
                 self.currID = new.pointingID
@@ -370,7 +370,7 @@ def run(date, sleep_time, write_html):
 
     # loop until night is over
     print('Starting loop...')
-    session = db.load_session(host=params.DATABASE_HOST)
+    session = db.load_session()
     try:
         now = sunset
         ts = time.time()

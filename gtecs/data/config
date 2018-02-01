@@ -82,10 +82,6 @@ MOONELEV_LIMIT = -5
 # Pilot parameters
 NUM_DARKS = 9
 
-########################################################################
-# Database parameters
-DATABASE_HOST = localhost
-
 ###########################################################
 # Daemon parameters
 PROXY_TIMEOUT = 5

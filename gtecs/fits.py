@@ -189,7 +189,7 @@ def update_header(header, tel, cam_info):
 
     if current_exposure.expID != 0:
         from_db = True
-        with db.open_session(host=params.DATABASE_HOST) as session:
+        with db.open_session() as session:
             expsetID = current_exposure.expID
             try:
                 expset = db.get_exposure_set_by_id(session, expsetID)
@@ -539,6 +539,6 @@ def write_image_log(filename, header):
                    set_position=set_position, set_total=set_total,
                    expID=expID, pointingID=pointingID, mpointingID=mpointingID)
 
-    with db.open_session(host=params.DATABASE_HOST) as session:
+    with db.open_session() as session:
         session.add(log)
         session.commit()

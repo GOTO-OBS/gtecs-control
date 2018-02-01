@@ -29,7 +29,7 @@ class Closer(neatCloser):
 
 
 def get_position(pointingID):
-    with open_session(host=params.DATABASE_HOST) as session:
+    with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
         ra = pointing.ra
         decl = pointing.decl
@@ -39,7 +39,7 @@ def get_position(pointingID):
 def get_exq_commands(pointingID):
     command_template = 'exq multimage {numexp} {tels}{expTime:.1f} {filt} {binning} "{objectName}" SCIENCE {expID}'
     commands = []
-    with open_session(host=params.DATABASE_HOST) as session:
+    with open_session() as session:
         pointing = get_pointing_by_id(session, pointingID)
         for exposure_set in pointing.exposure_sets:
             keywords = pointing.__dict__.copy()

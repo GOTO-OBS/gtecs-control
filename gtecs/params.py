@@ -235,10 +235,6 @@ MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 NUM_DARKS = config['NUM_DARKS']
 
 
-# Database parameters
-DATABASE_HOST = config['DATABASE_HOST']
-
-
 # Slack bot parameters
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_NAME = config['SLACK_BOT_NAME']
