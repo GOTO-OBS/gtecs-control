@@ -15,10 +15,11 @@ from astropy.coordinates import Angle
 import astropy.io.fits as pyfits
 import astropy.units as u
 
+import obsdb as db
+
 from . import params
 from . import misc
 from . import astronomy
-from . import database as db
 from .astronomy import sun_alt as get_sun_alt
 from .daemons import daemon_info
 from .flags import Status

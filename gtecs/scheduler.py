@@ -21,11 +21,12 @@ from astroplan import (Constraint, TimeConstraint,
                        AltitudeConstraint, AtNightConstraint,
                        MoonSeparationConstraint, MoonIlluminationConstraint)
 
+import obsdb as db
+
 from . import params
 from . import misc
 from . import html
 from . import astronomy
-from . import database as db
 from . import astropy_speedups
 
 

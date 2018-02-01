@@ -20,19 +20,36 @@ User manual
 For infomation on running the system for GOTO, see the GitHub wiki.
 
 
+Installation
+------------
+
+Once you've downloaded or cloned the repository, in the base directory:
+
+> `$ python setup.py install`
+
+Or alternatively:
+
+> `$ pip install .`
+
+You should then be able to import G-TeCS using `import gtecs` within Python.
+
+Several scripts from the `scripts` folder should also be added to your path.
+
+
 Configuration
 -------------
-Configuration of **G-TeCS** is acheived using a config file, and the Python module configobj (http://configobj.readthedocs.io/en/latest/).
-An example config file is present in the *data* directory of this repository. When running,
-**G-TeCS** will look for a file named *.gtecs.conf* either in the current directory, the users home directory or any path
-specified by the *GTECS_CONF* environment variable.
+Configuration of G-TeCS is done using a config file and the Python module [configobj](http://configobj.readthedocs.io/en/latest/).
+When running, the module will look for a file named *.gtecs.conf* either in the current directory, the user's home directory or any path specified by the *GTECS_CONF* environment variable.
 
-If no such file is available, **G-TeCS** will use the default config, as shown in the *data* directory. Users can over-ride
-as many of these default settings as they wish in the *.gtecs.conf* file. Particular attention should be paid to the
-*CONFIG_PATH* setting. This is where **G-TeCS** will save persistent files, image files and log files. A script ```setup_gtecs```
-is provided to create this directory structure, and populate with the necessary files. It should be run after installation, and
-after an appropriate value for the *CONFIG_PATH* is set in the *.gtecs.conf* file.
+An example *.gtecs.conf* file is included in the base directory of this repository.
+
+If no such file is found, G-TeCS will use the default config, as shown in the *data* directory.
+Users can override any of these default settings using the *.gtecs.conf* file.
+
+Particular attention should be paid to the `CONFIG_PATH` parameter. This is where G-TeCS will save persistent files, images and log files.
+A script `setup_gtecs` is provided to create this directory structure, and populate with the necessary files.
+It should be run after installation, and after an appropriate value for the `CONFIG_PATH` is set in the *.gtecs.conf* file.
 
 
 Martin Dyer
-Last update: 12 Dec 2017
+Last update: 1 Feb 2018

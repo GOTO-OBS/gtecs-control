@@ -6,12 +6,14 @@ Script to control observing a single pointing
 import sys
 import time
 
+from obsdb import (markJobCompleted, markJobAborted, markJobRunning,
+                   open_session, get_pointing_by_id)
+
+from gtecs import params
 from gtecs.misc import (execute_command as cmd, neatCloser,
                         ut_mask_to_string, ut_string_to_list)
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
                              goto, wait_for_telescope)
-from gtecs.database import (markJobCompleted, markJobAborted, markJobRunning,
-                            open_session, get_pointing_by_id)
 
 
 class Closer(neatCloser):
