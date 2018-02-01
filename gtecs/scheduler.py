@@ -568,7 +568,7 @@ def import_pointings_from_database(time, observer):
     """
     pointings = []
 
-    with db.open_session(host=params.DATABASE_HOST) as session:
+    with db.open_session() as session:
         current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
                                                                         time=time,
                                                                         location=observer.location,

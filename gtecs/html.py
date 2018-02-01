@@ -251,7 +251,7 @@ def write_queue_page():
             pointingID   = pointing_info[0]
 
             # find database info
-            session = db.load_session(host=params.DATABASE_HOST)
+            session = db.load_session()
             dbPointing = db.get_pointing_by_id(session, pointingID)
             if dbPointing.exposure_sets is not None:
                 dbExps = dbPointing.exposure_sets
