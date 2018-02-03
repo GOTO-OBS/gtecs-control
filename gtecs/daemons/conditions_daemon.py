@@ -60,6 +60,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'hatch',
                            'diskspace',
                            'low_battery',
+                           'ice',
                            ]
 
         self.good = dict.fromkeys(self.flag_names, False)
@@ -76,6 +77,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'hatch': params.HATCH_GOODDELAY,
                            'diskspace': 0,
                            'low_battery': 0,
+                           'ice': params.ICE_GOODDELAY,
                            }
         self.bad_delay = {'dark': 0,
                           'rain': params.RAIN_BADDELAY,
@@ -87,6 +89,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'hatch': params.HATCH_BADDELAY,
                           'diskspace': 0,
                           'low_battery': 0,
+                          'ice': params.ICE_BADDELAY,
                           }
 
 
@@ -185,7 +188,7 @@ class ConditionsDaemon(HardwareDaemon):
                                             len(valid_int_humidity) >= 1)
 
 
-                # TEMPERATURE
+                # TEMPERATURE & ICE
                 temp_array = np.array([weather[source]['temperature']
                                       for source in weather
                                       if 'temperature' in weather[source]])
@@ -194,6 +197,9 @@ class ConditionsDaemon(HardwareDaemon):
                 self.good['temperature'] = (np.all(valid_temp > params.MIN_TEMPERATURE) and
                                             np.all(valid_temp < params.MAX_TEMPERATURE))
                 self.valid['temperature'] = len(valid_temp) >= 2
+
+                self.good['ice'] = np.all(valid_temp > 0)
+                self.valid['ice'] = len(valid_temp) >= 2
 
 
                 # DARK
@@ -243,6 +249,7 @@ class ConditionsDaemon(HardwareDaemon):
                         self.good['windspeed'] = False
                         self.good['humidity'] = False
                         self.good['temperature'] = False
+                        self.good['ice'] = False
 
 
                 # ~~~~~~~~~~~~~~
