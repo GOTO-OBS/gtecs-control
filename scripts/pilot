@@ -789,7 +789,8 @@ class Pilot:
         Send a warning and then shut down
         """
         self.log.warn('performing emergency shutdown: {}'.format(why))
-        send_slack_msg('GOTO-LAPALMA is performing an emergency shutdown: {}'.format(why))
+        send_slack_msg('{} pilot is performing an emergency shutdown: {}'.format(
+                       params.TELESCOP, why))
 
         self.log.warn('closing dome immediately')
         if self.domeOpen:
