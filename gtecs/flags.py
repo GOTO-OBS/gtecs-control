@@ -10,6 +10,7 @@ import copy
 from astropy.time import Time
 
 from . import params
+from .slack import send_slack_msg
 from .controls.power_control import APCUPS
 
 
@@ -214,6 +215,10 @@ class Status:
 
     def create_shutdown_file(self, why='no reason given'):
         """Create the emergency shutdown file"""
+        self._load()
+        if not self.emergency_shutdown:
+            send_slack_msg('{} has triggered emergency shutdown: {}'.format(
+                           params.TELESCOP, why))
         cmd = 'touch ' + self.emergency_file
         os.system(cmd)
         with open(self.emergency_file, 'w') as f:
