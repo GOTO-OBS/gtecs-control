@@ -22,6 +22,8 @@ def send_slack_msg(msg):
     if params.ENABLE_SLACK:
         bot = SlackBot()
         bot.send_message(msg)
+    else:
+        print('SLACK:', msg)
 
 
 class SlackBot:
