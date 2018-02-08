@@ -151,17 +151,17 @@ class Status:
         self._autoclose = bool(data['autoclose'])
         self.emergency_shutdown = os.path.isfile(self.emergency_file)
         if self.emergency_shutdown:
+            mod_time = os.path.getmtime(self.emergency_file)
+            self.emergency_shutdown_time = Time(mod_time, format='unix', precision=0).iso
             with open(self.emergency_file, 'r') as f:
-                reason = f.readlines()
-                if len(reason):
-                    self.emergency_shutdown_time = reason[0].strip()
-                    self.emergency_shutdown_reason = reason[1].strip()
+                reasons = f.readlines()
+                if len(reasons):
+                    self.emergency_shutdown_reasons = [r.strip() for r in reasons]
                 else:
-                    self.emergency_shutdown_time = 'unknown'
-                    self.emergency_shutdown_reason = 'unknown'
+                    self.emergency_shutdown_reasons = ['unknown']
         else:
             self.emergency_shutdown_time = None
-            self.emergency_shutdown_reason = None
+            self.emergency_shutdown_reasons = [None]
 
     def _update_flags(self, key, value):
         with open(self.flags_file, 'r') as f:
@@ -213,17 +213,15 @@ class Status:
     def autoclose(self, value):
         self._update_flags('autoclose', int(bool(value)))
 
-    def create_shutdown_file(self, why='no reason given'):
+    def create_shutdown_file(self, reasons=['no reason given']):
         """Create the emergency shutdown file"""
         self._load()
-        if not self.emergency_shutdown:
-            send_slack_msg('{} has triggered emergency shutdown: {}'.format(
-                           params.TELESCOP, why))
         cmd = 'touch ' + self.emergency_file
         os.system(cmd)
-        with open(self.emergency_file, 'w') as f:
-            now = Time.now()
-            now.precision = 0
-            f.write(now.iso + '\n')
-            f.write(why + '\n')
-        self._load()
+        for reason in reasons:
+            if reason not in self.emergency_shutdown_reasons:
+                send_slack_msg('{} has triggered emergency shutdown: {}'.format(
+                        params.TELESCOP, reason))
+                with open(self.emergency_file, 'a') as f:
+                    f.write(reason + '\n')
+            self._load()

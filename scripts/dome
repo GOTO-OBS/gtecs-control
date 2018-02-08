@@ -177,7 +177,7 @@ def print_info(info):
     print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
-        print(style.rtxt('{}'.format(info['emergency_reason'])))
+        print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -201,7 +201,7 @@ def print_info_s(info):
     print('AUTOCLOSE: [%s]' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
-        print(style.rtxt('{}'.format(info['emergency_reason'])))
+        print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
 
 
 def print_instructions():
