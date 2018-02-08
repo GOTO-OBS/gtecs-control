@@ -170,7 +170,7 @@ class ConditionsDaemon(HardwareDaemon):
                                            if 'windspeed' in weather[source]])
                 valid_windspeed = windspeed_array[windspeed_array != -999]
 
-                self.good['windspeed'] = np.all(valid_windspeed <  params.MAX_WINDSPEED)
+                self.good['windspeed'] = np.all(valid_windspeed < params.MAX_WINDSPEED)
                 self.valid['windspeed'] = len(valid_windspeed) >= 2
 
 
@@ -272,9 +272,10 @@ class ConditionsDaemon(HardwareDaemon):
                 # set the flags
                 update_time = time.time()
                 for name in self.flag_names:
-                    if not self.valid[name] and self.flags[name] != 2:
-                        self.logfile.info('Setting {} to ERROR (2)'.format(name))
-                        self.flags[name] = 2
+                    if not self.valid[name]
+                        if self.flags[name] != 2:
+                            self.logfile.info('Setting {} to ERROR (2)'.format(name))
+                            self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
                         dt = update_time - self.change_time[name]
                         delay = self.good_delay[name]
