@@ -88,7 +88,7 @@ class Conditions:
         self._crit_sum = 0
         self._crit_flags = []
         for key, value in conditions_dict.items():
-            if key in ['diskspace', 'low_battery', 'ice']:
+            if key in ['diskspace', 'low_battery', 'internal', 'ice']:
                 self._crit_sum += value
                 if value:
                     self._crit_flags += [key]
