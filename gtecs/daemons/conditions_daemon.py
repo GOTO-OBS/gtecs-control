@@ -256,7 +256,7 @@ class ConditionsDaemon(HardwareDaemon):
                 # set the flags
                 update_time = time.time()
                 for name in self.flag_names:
-                    if not self.valid[name]:
+                    if not self.valid[name] and self.flags[name] != 2:
                         self.logfile.info('Setting {} to ERROR (2)'.format(name))
                         self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
