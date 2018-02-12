@@ -171,7 +171,16 @@ def print_info(info):
             int_humidity = weather[source]['int_humidity']
             dt = weather[source]['dt']
 
-            int_temperature_str = '{:>4.1f}'.format(int_temperature)
+            if int_temperature == -999:
+                int_temperature_str = style.rtxt(' ERR')
+            elif (int_temperature < params.MAX_INTERNAL_TEMPERATURE and
+                  int_temperature > params.MIN_INTERNAL_TEMPERATURE):
+                int_temperature_str = style.ytxt('{:>4.1f}'.format(int_temperature))
+                if (int_temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
+                    int_temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
+                    int_temperature_str = style.gtxt('{:>4.1f}'.format(int_temperature))
+            else:
+                int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
 
             if int_humidity == -999:
                 int_humidity_str = style.rtxt(' ERR')

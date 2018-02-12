@@ -162,19 +162,19 @@ class DomeDaemon(HardwareDaemon):
                     # Create emergency file if needed
                     if button_pressed:
                         self.logfile.info('Quick close button pressed!')
-                        status.create_shutdown_file('quick close button pressed')
+                        status.create_shutdown_file(['quick close button pressed'])
                     if conditions.critical:
                         self.logfile.info('Conditions critical ({})'.format(conditions.critical_flags))
-                        status.create_shutdown_file('Conditions critical ({})'.format(conditions.critical_flags))
+                        status.create_shutdown_file(conditions._crit_flags)
 
                     # Act on an emergency
                     if (self.dome_status['north'] != 'closed' or
                         self.dome_status['south'] != 'closed'):
                         if status.emergency_shutdown:
-                            reason = status.emergency_shutdown_reason
-                            self.logfile.info('Closing dome (emergency: {})'.format(reason))
+                            reasons = ', '.join(status.emergency_shutdown_reasons)
+                            self.logfile.info('Closing dome (emergency: {})'.format(reasons))
                             if not self.close_flag:
-                                send_slack_msg('dome_daemon is closing dome (emergency shutdown: {})'.format(reason))
+                                send_slack_msg('dome_daemon is closing dome (emergency shutdown: {})'.format(reasons))
                                 if self.open_flag: # stop opening!
                                     self.halt_flag = 1
                                     time.sleep(2)
@@ -294,7 +294,7 @@ class DomeDaemon(HardwareDaemon):
                     status = flags.Status()
                     info['emergency'] = status.emergency_shutdown
                     info['emergency_time'] = status.emergency_shutdown_time
-                    info['emergency_reason'] = status.emergency_shutdown_reason
+                    info['emergency_reasons'] = status.emergency_shutdown_reasons
                     info['mode'] = status.mode
                     info['autoclose'] = status.autoclose
 
@@ -530,9 +530,9 @@ class DomeDaemon(HardwareDaemon):
         elif power.failed:
             raise misc.HardwareStatusError('No external power, dome will not open')
         elif status.emergency_shutdown:
-            reason = status.emergency_shutdown_reason
+            reasons = ', '.join(status.emergency_shutdown_reasons)
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            raise misc.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reason))
+            raise misc.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reasons))
 
         # Check input
         if not side in ['north', 'south', 'both']:

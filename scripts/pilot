@@ -390,8 +390,8 @@ class Pilot:
 
             # emergency file
             if self.status.emergency_shutdown:
-                reason = self.status.emergency_shutdown_reason
-                asyncio.ensure_future(self.emergency_shutdown(reason))
+                reasons = ', '.join(self.status.emergency_shutdown_reasons)
+                asyncio.ensure_future(self.emergency_shutdown(reasons))
 
             await asyncio.sleep(10)
 

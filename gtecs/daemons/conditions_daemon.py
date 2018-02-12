@@ -60,6 +60,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'hatch',
                            'diskspace',
                            'low_battery',
+                           'internal',
                            'ice',
                            ]
 
@@ -77,6 +78,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'hatch': params.HATCH_GOODDELAY,
                            'diskspace': 0,
                            'low_battery': 0,
+                           'internal': 0,
                            'ice': params.ICE_GOODDELAY,
                            }
         self.bad_delay = {'dark': 0,
@@ -89,6 +91,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'hatch': params.HATCH_BADDELAY,
                           'diskspace': 0,
                           'low_battery': 0,
+                          'internal': 0,
                           'ice': params.ICE_BADDELAY,
                           }
 
@@ -167,7 +170,7 @@ class ConditionsDaemon(HardwareDaemon):
                                            if 'windspeed' in weather[source]])
                 valid_windspeed = windspeed_array[windspeed_array != -999]
 
-                self.good['windspeed'] = np.all(valid_windspeed <  params.MAX_WINDSPEED)
+                self.good['windspeed'] = np.all(valid_windspeed < params.MAX_WINDSPEED)
                 self.valid['windspeed'] = len(valid_windspeed) >= 2
 
 
@@ -185,21 +188,37 @@ class ConditionsDaemon(HardwareDaemon):
                 self.good['humidity'] = (np.all(valid_humidity < params.MAX_HUMIDITY) and
                                          np.all(valid_int_humidity < params.MAX_INTERNAL_HUMIDITY))
                 self.valid['humidity'] = (len(valid_humidity) >= 2 and
-                                            len(valid_int_humidity) >= 1)
+                                          len(valid_int_humidity) >= 1)
 
 
-                # TEMPERATURE & ICE
+                # TEMPERATURE
                 temp_array = np.array([weather[source]['temperature']
                                       for source in weather
                                       if 'temperature' in weather[source]])
                 valid_temp = temp_array[temp_array != -999]
 
-                self.good['temperature'] = (np.all(valid_temp > params.MIN_TEMPERATURE) and
-                                            np.all(valid_temp < params.MAX_TEMPERATURE))
-                self.valid['temperature'] = len(valid_temp) >= 2
+                int_temp_array = np.array([weather[source]['int_temperature']
+                                          for source in weather
+                                          if 'int_temperature' in weather[source]])
+                valid_int_temp = int_temp_array[int_temp_array != -999]
 
+
+                self.good['temperature'] = (np.all(valid_temp > params.MIN_TEMPERATURE) and
+                                            np.all(valid_temp < params.MAX_TEMPERATURE) and
+                                            np.all(valid_int_temp > params.MIN_INTERNAL_TEMPERATURE) and
+                                            np.all(valid_int_temp < params.MAX_INTERNAL_TEMPERATURE))
+                self.valid['temperature'] = (len(valid_temp) >= 2 and
+                                             len(valid_int_temp) >= 1)
+
+
+                # ICE and INTERNAL
                 self.good['ice'] = np.all(valid_temp > 0)
                 self.valid['ice'] = len(valid_temp) >= 2
+
+                self.good['internal'] = (np.all(valid_int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
+                                         np.all(valid_int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
+                self.valid['internal'] = (len(valid_int_humidity) >= 1 and
+                                          len(valid_int_temp) >= 1)
 
 
                 # DARK
@@ -249,6 +268,7 @@ class ConditionsDaemon(HardwareDaemon):
                         self.good['windspeed'] = False
                         self.good['humidity'] = False
                         self.good['temperature'] = False
+                        self.good['internal'] = False
                         self.good['ice'] = False
 
 
@@ -257,8 +277,9 @@ class ConditionsDaemon(HardwareDaemon):
                 update_time = time.time()
                 for name in self.flag_names:
                     if not self.valid[name]:
-                        self.logfile.info('Setting {} to ERROR (2)'.format(name))
-                        self.flags[name] = 2
+                        if self.flags[name] != 2:
+                            self.logfile.info('Setting {} to ERROR (2)'.format(name))
+                            self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
                         dt = update_time - self.change_time[name]
                         delay = self.good_delay[name]
