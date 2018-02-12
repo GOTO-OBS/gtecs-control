@@ -5,13 +5,18 @@ Conditions monitor functions
 import os
 import time
 import subprocess
+import warnings
 import json
 
 from astropy.time import Time
+from astropy._erfa import ErfaWarning
 
 from . import params
 from . import misc
 from .controls.power_control import APCUPS, FakeUPS
+
+
+warnings.simplefilter("error", ErfaWarning)
 
 
 def curl_data_from_url(url, outfile, encoding=None):
