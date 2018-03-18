@@ -152,7 +152,9 @@ class ConditionsDaemon(HardwareDaemon):
                 # ~~~~~~~~~~~~~~
                 # check if current values are good/bad and valid
                 # at least two of the external sources and one of the
-                #    internal sources need to be valid
+                #    internal sources need to be valid, except for
+                #    rain and windspeed because we only have two sources
+                #    (no SuperWASP), so only need at least one
 
                 # RAIN
                 rain_array = np.array([weather[source]['rain']
@@ -171,7 +173,7 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_windspeed = windspeed_array[windspeed_array != -999]
 
                 self.good['windspeed'] = np.all(valid_windspeed < params.MAX_WINDSPEED)
-                self.valid['windspeed'] = len(valid_windspeed) >= 2
+                self.valid['windspeed'] = len(valid_windspeed) >= 1
 
 
                 # HUMIDITY
