@@ -215,14 +215,20 @@ def get_local_weather(source):
         print('Error parsing pressure for {}'.format(source))
 
     try:
-        if (vaisala and data['wind_speed_valid']) or not vaisala:
+        if vaisala and data['wind_speed_valid']:
             weather_dict['windspeed'] = float(data['wind_speed'])
+        elif not vaisala:
+            # SuperWASP wind readings aren't trustworthy
+            del weather_dict['windspeed']
     except:
         print('Error parsing wind speed for {}'.format(source))
 
     try:
-        if (vaisala and data['wind_direction_valid']) or not vaisala:
+        if vaisala and data['wind_direction_valid']:
             weather_dict['winddir'] = float(data['wind_direction'])
+        elif not vaisala:
+            # SuperWASP wind readings aren't trustworthy
+            del weather_dict['wind_direction']
     except:
         print('Error parsing wind direction for {}'.format(source))
 
@@ -241,6 +247,7 @@ def get_local_weather(source):
             else:
                 weather_dict['rain'] = False
         elif not vaisala:
+            # SuperWASP doesn't have a rain sensor
             del weather_dict['rain']
     except:
         print('Error parsing rain for {}'.format(source))
