@@ -189,7 +189,7 @@ class ConditionsDaemon(HardwareDaemon):
 
                 self.good['humidity'] = (np.all(valid_humidity < params.MAX_HUMIDITY) and
                                          np.all(valid_int_humidity < params.MAX_INTERNAL_HUMIDITY))
-                self.valid['humidity'] = (len(valid_humidity) >= 2 and
+                self.valid['humidity'] = (len(valid_humidity) >= 1 and
                                           len(valid_int_humidity) >= 1)
 
 
@@ -209,13 +209,13 @@ class ConditionsDaemon(HardwareDaemon):
                                             np.all(valid_temp < params.MAX_TEMPERATURE) and
                                             np.all(valid_int_temp > params.MIN_INTERNAL_TEMPERATURE) and
                                             np.all(valid_int_temp < params.MAX_INTERNAL_TEMPERATURE))
-                self.valid['temperature'] = (len(valid_temp) >= 2 and
+                self.valid['temperature'] = (len(valid_temp) >= 1 and
                                              len(valid_int_temp) >= 1)
 
 
                 # ICE and INTERNAL
                 self.good['ice'] = np.all(valid_temp > 0)
-                self.valid['ice'] = len(valid_temp) >= 2
+                self.valid['ice'] = len(valid_temp) >= 1
 
                 self.good['internal'] = (np.all(valid_int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
                                          np.all(valid_int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
