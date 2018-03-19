@@ -102,7 +102,11 @@ def print_info(info):
             sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
         print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
 
+        # SuperWASP doesn't have a rain sensor
         weather['superwasp']['rain'] = 'NA'
+        # SuperWASP wind readings aren't trustworthy
+        weather['superwasp']['windspeed'] = 'NA'
+
         for source in ['goto', 'onemetre', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
@@ -122,7 +126,7 @@ def print_info(info):
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
             if humidity == -999:
-                humidity_str = style.rtxt(' ERR')
+                humidity_str = style.rtxt('  ERR')
             elif (humidity < params.MAX_HUMIDITY):
                 humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
                 if (humidity < params.MAX_HUMIDITY*0.9):
