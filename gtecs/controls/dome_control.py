@@ -345,17 +345,16 @@ class AstroHavenDome:
                     # but if it's not currently triggered,
                     # it might have gone past
                     else:
-                        if (self.honeywell_was_triggered[side] and
-                            self.status_H[side] == 'opening'):
-                            # Oh dear, it's flicked past the Honeywells
-                            # and it's still going!!
-                            print('agggg')
-                            self.status_A[side] == 'full_open'
-                            self.output_thread_running = 0 # to be sure
-                        elif (self.honeywell_was_triggered[side] and
-                            self.status_H[side] == 'closing'):
-                            # It's moving back, clear the memory
-                            self.honeywell_was_triggered[side] = 0
+                        if self.honeywell_was_triggered[side]:
+                            if self.status_H[side] == 'opening':
+                                # Oh dear, it's flicked past the Honeywells
+                                # and it's still going!!
+                                print('Honeywell limit error, stopping!')
+                                self.status_A[side] == 'full_open'
+                                self.output_thread_running = 0 # to be sure
+                            else:
+                                # It's moving back, clear the memory
+                                self.honeywell_was_triggered[side] = 0
 
             except:
                 self.arduino_error = 1
