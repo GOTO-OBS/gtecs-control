@@ -857,28 +857,28 @@ class Pilot:
 
     def assignJobs(self):
         # daytime jobs: to do before opening the dome
-        d0 = dict(name='DARKS', sunAlt=7,
-                   cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), str(params.NUM_DARKS)],
-                   protocol=SimpleProtocol)
-        self.daytime_jobs = [d0]
+        darks = dict(name='DARKS', sunAlt=7,
+                     cmd=[os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), str(params.NUM_DARKS)],
+                     protocol=SimpleProtocol)
+        self.daytime_jobs = [darks]
 
         # evening jobs: to do after opening but before starting observing
-        e0 = dict(name='FLATS', sunAlt=-1,
-                   cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
-                   protocol=SimpleProtocol)
-        #e1 = dict(name='STD', sunAlt=-10,
+        flats_e = dict(name='FLATS', sunAlt=-1,
+                      cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'EVE'],
+                      protocol=SimpleProtocol)
+        #std = dict(name='STD', sunAlt=-10,
         #           cmd=[os.path.join(SCRIPT_PATH, 'takeStandards.py')],
         #           protocol=SimpleProtocol)
-        e1 = dict(name='FOC', sunAlt=-11,
+        foc = dict(name='FOC', sunAlt=-11,
                    cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = [e0, e1, e2]
+        self.evening_jobs = [flats, foc]
 
         # morning jobs: to do after finishing observing but before closing
-        m0 = dict(name='FLATS', sunAlt=-10,
-                   cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
-                   protocol=SimpleProtocol)
-        self.morning_jobs = [m0]
+        flats_m = dict(name='FLATS', sunAlt=-10,
+                       cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
+                       protocol=SimpleProtocol)
+        self.morning_jobs = [lm0]
 
 
 if __name__ == "__main__":
