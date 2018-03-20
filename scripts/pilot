@@ -872,13 +872,13 @@ class Pilot:
         foc = dict(name='FOC', sunAlt=-11,
                    cmd=[os.path.join(SCRIPT_PATH, 'autoFocus.py')],
                    protocol=SimpleProtocol)
-        self.evening_jobs = [flats, foc]
+        self.evening_jobs = [flats_e, foc]
 
         # morning jobs: to do after finishing observing but before closing
         flats_m = dict(name='FLATS', sunAlt=-10,
                        cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                        protocol=SimpleProtocol)
-        self.morning_jobs = [lm0]
+        self.morning_jobs = [flats_m]
 
 
 if __name__ == "__main__":
