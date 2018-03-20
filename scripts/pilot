@@ -295,7 +295,7 @@ class Pilot:
         """
         while True:
             if not self.observing:
-                self.log.info('scheduler checks disabled until observing')
+                self.log.info('scheduler checks disabled when not observing')
                 await asyncio.sleep(30)
                 continue
 
