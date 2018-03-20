@@ -422,9 +422,10 @@ def print_info(info):
     try:
         print('   %r, %i, %s, %i, %s, %s, %s' \
             %(info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_binning'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+        print('Other items in queue:     %s' %(info['queue_length']-1))
     except:
         print('   None')
-    print('Other items in queue:     %s' %(info['queue_length']-1))
+        print('Items in queue:     %s' %(info['queue_length']))
     print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.3fs' %info['ping'])
@@ -438,9 +439,10 @@ def print_info_s(info):
     try:
         print('   %r, %i, %s, %i, %s, %s, %s' \
             %(info['current_tel_list'], info['current_exptime'], info['current_filter'], info['current_binning'], info['current_frametype'], info['current_target'], info['current_imgtype']))
+        print('  Other items in queue: %s' %(info['queue_length']-1))
     except:
-        print('None')
-    print('  Other items in queue: %s' %(info['queue_length']-1))
+        print('   None')
+        print('  Items in queue: %s' %(info['queue_length']))
 
 
 def print_instructions():
