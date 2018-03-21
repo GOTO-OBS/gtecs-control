@@ -218,6 +218,9 @@ class MntDaemon(HardwareDaemon):
                 except:
                     self.logfile.error('park command failed')
                     self.logfile.debug('', exc_info=True)
+                # clear the stored coordinates
+                self.target_ra = None
+                self.target_dec = None
                 self.park_flag = 0
 
             # unpark the mount
