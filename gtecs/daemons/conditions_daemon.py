@@ -78,7 +78,7 @@ class ConditionsDaemon(HardwareDaemon):
                            'hatch': params.HATCH_GOODDELAY,
                            'diskspace': 0,
                            'low_battery': 0,
-                           'internal': 0,
+                           'internal': params.INTERNAL_GOODDELAY,
                            'ice': params.ICE_GOODDELAY,
                            }
         self.bad_delay = {'dark': 0,
@@ -91,7 +91,7 @@ class ConditionsDaemon(HardwareDaemon):
                           'hatch': params.HATCH_BADDELAY,
                           'diskspace': 0,
                           'low_battery': 0,
-                          'internal': 0,
+                          'internal': params.INTERNAL_BADDELAY,
                           'ice': params.ICE_BADDELAY,
                           }
 
