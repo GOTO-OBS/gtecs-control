@@ -277,14 +277,14 @@ def run(filt):
         set_focus_carefully(new_focus_values, orig_focus)
         hfd_values = pd.Series(measure_focus_carefully(expT, filt, name, orig_focus, **kwargs))
         print('Focus: {!r}'.format(get_current_focus()))
-        print('Half-flux-diameters: {!r}'.format(hfd_values))
+        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     # close enough. Make the step to the focus position that should give HFV
     print('Starting near focus measurements')
     near_focus_pos = estimate_focus(nfv, hfd_values,
                                     pd.Series(get_current_focus()), m2)
     set_focus_carefully(near_focus_pos, orig_focus)
-    print('Focus: {!r}'.format(near_focus_pos))
+    print('Focus:\n{!r}'.format(near_focus_pos))
     # measure NFV five times and take average
     hfd_measurements = None
     for i in range(5):
@@ -296,14 +296,14 @@ def run(filt):
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.mean()
-    hfd_stddev = hfd_measurements.std()
+    hfd_std = hfd_measurements.std()
 
     # find best focus
     hfd_samples = pd.DataFrame()
     for key in hfd_values.keys():
         hfd_samples[key] = np.random.normal(size=10**4,
                                             loc=hfd_values[key],
-                                            scale=hfd_stddev[key])
+                                            scale=hfd_std[key])
 
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, hfd_samples)
     best_focus_mean = best_focus.mean(axis=0)
@@ -312,8 +312,21 @@ def run(filt):
     print("Best focus at\n{!r}".format(df))
 
     set_focus_carefully(best_focus_mean, orig_focus)
-    best_focus_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
-    print('HFD at best focus =\n{!r}'.format(best_focus_values))
+
+    # Measure the final value 3 times to get a reasonable average
+    best_hfd_measurements = None
+    for i in range(5):
+        best_hfd_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
+        if best_hfd_measurements is not None:
+            best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
+        else:
+            best_hfd_measurements = best_hfd_values
+        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    best_hfd_measurements = best_hfd_measurements.groupby(level=0)
+    best_hfd_mean = best_hfd_measurements.mean()
+    best_hfd_std = best_hfd_measurements.std()
+    best_hfd_df = pd.DataFrame({'mean': best_hfd_mean, 'std_dev': best_hfd_std})
+    print('HFD at best focus =\n{!r}'.format(best_hfd_df))
 
     print("Done")
 
