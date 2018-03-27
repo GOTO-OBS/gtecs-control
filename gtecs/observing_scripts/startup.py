@@ -1,5 +1,5 @@
 """
-normal_startup
+startup
 Script to run start of night tasks
 These are hardware tasks to do BEFORE the dome opens:
     * power on the hardware

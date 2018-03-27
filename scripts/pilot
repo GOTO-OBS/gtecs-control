@@ -746,7 +746,7 @@ class Pilot:
 
         # start startup script
         self.log.info('running startup script')
-        cmd=[os.path.join(SCRIPT_PATH, 'normal_startup.py')]
+        cmd=[os.path.join(SCRIPT_PATH, 'startup.py')]
         retcode, result = await self.startScript('STARTUP', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('STARTUP ended abnormally')
@@ -772,7 +772,7 @@ class Pilot:
 
         # start shutdown script
         self.log.warn('running shutdown script')
-        cmd=[os.path.join(SCRIPT_PATH, 'normal_shutdown.py')]
+        cmd=[os.path.join(SCRIPT_PATH, 'shutdown.py')]
         retcode, result = await self.startScript('SHUTDOWN', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warn('SHUTDOWN ended abnormally')

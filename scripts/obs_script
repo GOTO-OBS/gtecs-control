@@ -30,6 +30,10 @@ if __name__ == "__main__":
     else:
         name = sys.argv[1]
         args = sys.argv[2:]
+        if name in ['normal_startup', 'normal_shutdown']:
+            new_name = name.split('_')[1]
+            print('WARNING: "{}" script moved to "{}"'.format(name, new_name))
+            name = new_name
         if name not in sorted(script_names):
             print('ERROR: "{}" script not found'.format(name))
             print('Valid observation scripts:')

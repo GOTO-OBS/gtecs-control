@@ -1,5 +1,5 @@
 """
-normal_shutdown
+shutdown
 Script to run end of night tasks
 This script should perform the following simple tasks:
     * empty the camera queues
@@ -34,7 +34,7 @@ def run():
     cmd('fli shutdown')
 
     # Power off the FLI hardware
-    # NB in normal_startup we start only for tel in params.TEL_DICT,
+    # NB in startup.py we start only for tel in params.TEL_DICT,
     # here we shut them all down in case one unintentially started
     cmd('power off filts')
     cmd('power off focs')
