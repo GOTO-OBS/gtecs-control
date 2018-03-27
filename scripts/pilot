@@ -272,10 +272,10 @@ class Pilot:
                                              ignore_late=late)
 
         # got here as soon as last evening_job scheduled. wait for darkness
-        self.observing = True
         await self.waitingForTheSun(-15, 'darkness')
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
+        self.observing = True
         if self.testing:
             await self.observe(until_sun_alt=90)
         else:
