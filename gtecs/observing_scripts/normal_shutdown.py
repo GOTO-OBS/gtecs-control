@@ -6,7 +6,7 @@ This script should perform the following simple tasks:
     * abort any current exposures
     * shutdown the interfaces
     * power off the hardware
-    * park the scope
+    * park the mount
     * close the dome
 """
 

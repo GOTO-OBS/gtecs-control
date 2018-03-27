@@ -605,7 +605,7 @@ def what_to_do_next(current_pointing, highest_pointing):
         Could be either:
           current_pointing (remain on current target),
           highest_pointing (slew to new target) or
-          `None`           (nothing to do, park scope).
+          `None`           (nothing to do, park).
     """
 
     # Deal with either being missing (telescope is idle or queue is empty)

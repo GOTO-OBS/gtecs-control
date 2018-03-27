@@ -357,7 +357,7 @@ class DummyPilot(object):
                 self.current_start_time = now
                 set_pointing_status(self.currentID, 'running', session)
             else:
-                print('    -- PARKING SCOPE')
+                print('    -- PARKING')
                 self.currentID = None
 
 def run(date, sleep_time, write_html):

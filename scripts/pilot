@@ -48,7 +48,7 @@ class Pilot:
 
     The most important jobs the pilot has check the observing conditions
     and the emergency shutdown flags. These will close the dome and park
-    the scope if necessary.
+    the mount if necessary.
 
     The idea behind this version of the Pilot is that it is
     pretty dumb, and simply hands off complicated jobs to
@@ -265,7 +265,7 @@ class Pilot:
         # OK - let's open the dome and get ready to observe
         self.ready_to_observe = True
         await self.open_dome()
-        await self.unpark_scope()
+        await self.unpark_mount()
 
         # run through the routine evening tasks
         if not restart:
@@ -436,7 +436,7 @@ class Pilot:
                 if self.domeOpen:
                     self.close_dome()
                 await self.cancelRunningScript('conditions bad')
-                self.park_scope()
+                self.park_mount()
             elif reason == 'hw':
                 if self.runningScriptProtocol is not None:
                     if self.runningScriptProtocol.jobName == 'STARTUP':
@@ -466,7 +466,7 @@ class Pilot:
                     # this way we don't
                     # start until the dome is open
                     await self.open_dome()
-                await self.unpark_scope()
+                await self.unpark_mount()
                 execute_command('exq resume')
 
         # finally, change global pause status by updating flag
@@ -579,8 +579,8 @@ class Pilot:
 
                 # start new job
                 if self.newID is None:
-                    # park scope
-                    self.park_scope()
+                    # park mount
+                    self.park_mount()
                     execute_command('exq clear')
                     execute_command('cam abort')
                     self.currentID = self.newID
@@ -831,18 +831,18 @@ class Pilot:
         self.domeConfirmedClosed = 0
         self.timeOfLastCloseDomeCommand = time.time()
 
-    def park_scope(self):
-        self.log.warn('parking scope')
+    def park_mount(self):
+        self.log.warn('parking mount')
         if params.FREEZE_DEC:
             execute_command('mnt stop')
         else:
             execute_command('mnt park')
         self.hardware['mnt'].setMode('parked')
 
-    async def unpark_scope(self):
+    async def unpark_mount(self):
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] == 'Parked':
-            self.log.warn('unparking scope')
+            self.log.warn('unparking mount')
             execute_command('mnt unpark')
             await asyncio.sleep(5)
             # slew to above horizon, to stop errors
