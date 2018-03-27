@@ -411,33 +411,25 @@ class Pilot:
         pause : bool
             does reason suggest a pause (True) or unpause (False)
         """
-        are_we_paused_right_now = self.paused
-        # we can set this here because we want to pause right away
-        if pause:
-            self.whypause[reason] = pause
-        if not are_we_paused_right_now and pause:
-            # ok, we need to cancel what we were doing!
-            msg = 'Pausing operations due to '
-            if reason == 'manual':
-                msg += "manual override"
-            if reason == 'cond':
-                msg += 'conditions bad ({})'.format(self.conditions.bad_flags)
-            if reason == 'hw':
-                msg += 'hardware fault'
-            self.log.warn(msg)
+        if pause and not self.whypause[reason]:
+            # we can set this here because we want to pause right away
+            self.whypause[reason] = True
 
             if reason == 'cond':
-                # if the reason is weather, handle dome open/close
-                # also park mount and pause queue
-                self.log.warn('closing and parking')
+                msg = 'Pausing operations due to bad conditions ({})'.format(self.conditions.bad_flags)
+                self.log.warn(msg)
 
+                # handle dome open/close, park mount and pause queue
                 execute_command('exq pause')
                 execute_command('cam abort')
-                if self.domeOpen:
-                    self.close_dome()
                 await self.cancelRunningScript('conditions bad')
+                self.close_dome()
                 self.park_mount()
+
             elif reason == 'hw':
+                msg = 'Pausing operations due to hardware fault'
+                self.log.warn(msg)
+
                 if self.runningScriptProtocol is not None:
                     if self.runningScriptProtocol.jobName == 'STARTUP':
                         # don't cancel startup due to hardware issue
@@ -451,7 +443,12 @@ class Pilot:
                         execute_command('exq clear')
                         execute_command('cam abort')
                         await self.cancelRunningScript('hardware fault')
-            else:
+
+            elif reason == 'manual':
+                msg = 'Pausing operations due to manual override'
+                self.log.warn(msg)
+
+                # don't actually kill anything, coroutines will pause themselves
                 self.log.info('pausing for pilot for manual override')
                 self.log.info('current job will continue')
 
