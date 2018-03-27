@@ -178,6 +178,7 @@ class Pilot:
             else:
                 our_watch_has_ended = sun_alt_now > sun_alt
 
+        self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
     async def prepare_for_images_async(self):
@@ -255,7 +256,7 @@ class Pilot:
         await self.prepare_for_images_async()
 
         # wait for the right sunalt to open dome
-        await self.waitingForTheSun(0.5, 'open dome')
+        await self.waitingForTheSun(0.5, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hw fault
         while self.paused or not self.initialHardwareCheckComplete:
@@ -272,7 +273,7 @@ class Pilot:
                                              ignore_late=late)
 
         # got here as soon as last evening_job scheduled. wait for darkness
-        await self.waitingForTheSun(-15, 'darkness')
+        await self.waitingForTheSun(-15, 'OBS')
 
         # evening tasks over. Start observing. Will automatically stop at sunAlt
         self.observing = True
@@ -295,25 +296,25 @@ class Pilot:
         """
         while True:
             if not self.observing:
-                self.log.info('scheduler checks disabled when not observing')
+                self.log.debug('scheduler checks disabled when not observing')
                 await asyncio.sleep(30)
                 continue
 
             if self.paused:
-                self.log.info('scheduler checks disabled while paused')
+                self.log.debug('scheduler checks disabled while paused')
                 await asyncio.sleep(10)
                 continue
 
             # check scheduler daemon
-            self.log.info('checking scheduler')
+            self.log.debug('checking scheduler')
 
             check_results = check_schedule(Time.now(), True)
             self.newID, self.newPriority, self.newMinTime = check_results
 
             if self.newID != self.currentID:
-                self.log.info('current Job: {}, new Job: {} - NEW'.format(self.currentID, self.newID))
+                self.log.info('scheduler check: NEW JOB {}'.format(self.newID))
             else:
-                self.log.info('current Job: {}, new Job: {}'.format(self.currentID, self.newID))
+                self.log.info('scheduler check: continue {}'.format(self.currentID))
             await asyncio.sleep(30)
 
     async def check_hardware(self):
@@ -324,22 +325,22 @@ class Pilot:
         sleepTime = 60
         while True:
             if self.status.mode == 'manual':
-                self.log.info('hardware checks suspended in manual mode')
+                self.log.log('hardware checks suspended in manual mode')
                 await asyncio.sleep(sleepTime)
                 continue
 
             if not self.startup_complete:
-                self.log.info('hardware checks disabled until after startup')
+                self.log.debug('hardware checks disabled until after startup')
                 await asyncio.sleep(sleepTime)
                 continue
 
             errCount = 0
-            self.log.info('running hardware checks')
+            self.log.debug('running hardware checks')
             log_str = 'hardware check results: '
             for device in self.hardware:
                 num_errs, err_list = self.hardware[device].check()
                 if num_errs > 0:
-                    log_str += ' %s,%s,%s' % (str(device), str(num_errs), repr(err_list))
+                    log_str += ' {},{:.0f},{!r}'.format(str(device), num_errs, err_list)
                 errCount += num_errs
                 if num_errs > 0:
                     self.log.warn('attempting recovery: {}'.format(device))
@@ -479,7 +480,7 @@ class Pilot:
         """
         while True:
             if self.status.mode == 'manual':
-                self.log.info('dome checks suspended in manual mode')
+                self.log.debug('dome checks suspended in manual mode')
                 await asyncio.sleep(10)
                 continue
 
@@ -557,7 +558,7 @@ class Pilot:
             # see if a new target has arrived and mark job appropriately
             if self.currentID != self.newID:
                 if self.currentID is not None:
-                    self.log.info("got new job from scheduler %s", self.newID)
+                    self.log.info('got new job from scheduler {}'.format(self.newID))
                     # this will fail if obsStartTime not currently defined
                     try:
                         timeElapsed = time.time() - self.obsStartTime - self.time_paused
@@ -574,7 +575,7 @@ class Pilot:
                         markJobInterrupted(self.currentID)
                         self.log.info('job interrupted: {}'.format(self.currentID))
                 else:
-                    self.log.info("got job from scheduler %s", self.newID)
+                    self.log.info('got job from scheduler {}'.format(self.newID))
 
                 # start new job
                 if self.newID is None:
@@ -607,7 +608,7 @@ class Pilot:
                 if self.currentID is None:
                     self.log.info('nothing to observe!')
                 else:
-                     self.log.info('still observing {}'.format(self.currentID))
+                     self.log.debug('still observing {}'.format(self.currentID))
                 await asyncio.sleep(5)
 
     async def cancelRunningScript(self, why):
