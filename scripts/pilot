@@ -704,7 +704,9 @@ class Pilot:
             self.log.info(status_str)
             if self.paused:
                 self.log.info('paused: {!r}'.format(self.whypause))
-            await asyncio.sleep(sleepTime)
+                await asyncio.sleep(30)
+            else:
+                await asyncio.sleep(sleepTime)
 
         self.log.info('stopTime reached, night is over')
         await self.shutdown()
