@@ -473,7 +473,7 @@ class CamDaemon(HardwareDaemon):
         for tel in tel_list:
             s += '\n  '
             if tel not in self.active_tel:
-                s += misc.ERROR('"HardwareStatusError: Camera %i is not currently exposing"' %tel)
+                s += 'Camera %i is not currently exposing' %tel
             else:
                 s += 'Aborting exposure on camera %i' %tel
         return s

@@ -119,7 +119,7 @@ def start_daemon(daemon_ID):
         else:
             raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
     elif len(process_ID) == 1:
-        raise misc.DaemonConnectionError('Daemon already running on {} (PID {})'.format(host, process_ID[0]))
+        return 'Daemon already running on {} (PID {})'.format(host, process_ID[0])
     else:
         raise misc.MultipleDaemonError('Multiple daemons already running on {} (PID {})'.format(host, process_ID))
 
@@ -180,7 +180,7 @@ def shutdown_daemon(daemon_ID):
         except:
             raise misc.DaemonConnectionError('No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
     elif len(process_ID) == 0:
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
+        return 'Daemon not running on {}'.format(host)
     else:
         raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
 
@@ -203,20 +203,13 @@ def kill_daemon(daemon_ID):
         else:
             raise misc.MultipleDaemonError('Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
     else:
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
+        return 'Daemon not running on {}'.format(host)
 
 
 def restart_daemon(daemon_ID, wait_time=2):
     """Shut down a daemon and then start it again after `wait_time` seconds"""
-    try:
-        reply = shutdown_daemon(daemon_ID)
-        print(reply)
-    except Exception as err:
-        if 'Daemon not running' in str(err):
-            print(str(err))
-            pass
-        else:
-            raise
+    reply = shutdown_daemon(daemon_ID)
+    print(reply)
 
     time.sleep(wait_time)
 
