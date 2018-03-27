@@ -256,7 +256,7 @@ class Pilot:
         await self.prepare_for_images_async()
 
         # wait for the right sunalt to open dome
-        await self.waitingForTheSun(0.5, 'OPEN')
+        await self.waitingForTheSun(0, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hw fault
         while self.paused or not self.initialHardwareCheckComplete:
