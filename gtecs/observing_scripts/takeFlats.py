@@ -60,7 +60,7 @@ def run(eve, alt, late=False):
     if time_to_go > 10*u.min and not late:
         print("Too late for flats")
         sys.exit(1)
-    print('starting in ', -time_to_go.to(u.min))
+    print('starting in {:.1f}'.format(-time_to_go.to(u.min)))
     # wait
     if -time_to_go > 30*u.second:
         time.sleep(-time_to_go.to(u.second).value - 30)
