@@ -321,7 +321,7 @@ def run(filt):
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
         else:
             best_hfd_measurements = best_hfd_values
-        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+        print('Half-flux-diameters:\n{!r}'.format(best_hfd_values))
     best_hfd_measurements = best_hfd_measurements.groupby(level=0)
     best_hfd_mean = best_hfd_measurements.mean()
     best_hfd_std = best_hfd_measurements.std()
