@@ -325,7 +325,7 @@ class Pilot:
         sleepTime = 60
         while True:
             if self.status.mode == 'manual':
-                self.log.log('hardware checks suspended in manual mode')
+                self.log.debug('hardware checks suspended in manual mode')
                 await asyncio.sleep(sleepTime)
                 continue
 
