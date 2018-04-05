@@ -240,6 +240,7 @@ class Pilot:
             If true, we will try to do evening jobs even if it's too late
             (note FLATS will fail anyway)
         """
+        self.log.info('nightMarshall initialised')
         # startup. Do this always, unless we're restarting
         if not restart:
             if not self.startup_complete:
@@ -294,6 +295,7 @@ class Pilot:
         """
         Check scheduler and update current job every 30 seconds.
         """
+        self.log.info('scheduler check routine initialised')
         while True:
             if not self.observing:
                 self.log.debug('scheduler checks disabled when not observing')
@@ -323,6 +325,7 @@ class Pilot:
         """
         # monitor until stopped
         sleepTime = 60
+        self.log.info('hardware check routine initialised')
         while True:
             if self.status.mode == 'manual':
                 self.log.debug('hardware checks suspended in manual mode')
@@ -369,6 +372,7 @@ class Pilot:
         If emergency file exists we do an emergency shutdown
         If weather is bad?
         """
+        self.log.info('flags check routine initialised')
         while True:
 
             # overrides
@@ -475,6 +479,7 @@ class Pilot:
         """
         Be extra cautious and double check that dome is closed if it should be
         """
+        self.log.info('dome check routine initialised')
         while True:
             if self.status.mode == 'manual':
                 self.log.debug('dome checks suspended in manual mode')
@@ -493,6 +498,7 @@ class Pilot:
             await asyncio.sleep(10)
 
     async def check_time_paused(self):
+        self.log.info('pause check routine initialised')
         while True:
             if self.paused:
                 self.time_paused += 60
