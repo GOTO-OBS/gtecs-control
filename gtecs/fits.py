@@ -407,7 +407,8 @@ def update_header(header, tel, cam_info):
         airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
 
-        moon_dist = astronomy.get_moon_distance(mnt_ra, mnt_dec, Time.now())
+        mnt_ra_deg = mnt_ra * 180 / 12.
+        moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
         moon_dist = numpy.around(moon_dist, decimals=2)
 
     except:
