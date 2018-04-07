@@ -60,9 +60,8 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
         The transport argument is used to control
         the process.
         """
-        self.log.debug(
-            '{}: process {} started'.format(self.jobName, transport.get_pid())
-        )
+        logstr = 'process {} started'.format(transport.get_pid())
+        self.log.debug('{}: {}'.format(self.jobName, logstr))
         self.transport = transport
 
     def pipe_data_received(self, fd, data):
@@ -72,10 +71,8 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
         Here we just print this to the screen, but eventually
         it should get logged the same way pilot output does.
         """
-        self.log.debug(
-            'read {} bytes from {}'.format(len(data),
-                                           self.FD_NAMES[fd])
-        )
+        logstr = 'read {} bytes from {}'.format(len(data), self.FD_NAMES[fd])
+        self.log.debug('{}: {}'.format(self.jobName, logstr))
 
         if fd == 1:
             # data written to stdout
@@ -87,9 +84,12 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
             self.buffer.extend(data)
 
     def process_exited(self):
-        self.log.debug('process {} exited'.format(self.transport.get_pid()))
+        logstr ='process {} exited'.format(self.transport.get_pid())
+        self.log.debug('{}: {}'.format(self.jobName, logstr))
+
         return_code = self.transport.get_returncode()
-        self.log.debug('return code {}'.format(return_code))
+        logstr = 'return code {}'.format(return_code)
+        self.log.debug('{}: {}'.format(self.jobName, logstr))
         if not return_code:
             cmd_output = bytes(self.buffer).decode()
             results = self._parse_results(cmd_output)
