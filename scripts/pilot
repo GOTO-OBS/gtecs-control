@@ -814,6 +814,7 @@ class Pilot:
         self.domeConfirmedClosed = 0
         while self.domeStatus() != 'full_open':
             await asyncio.sleep(5)
+        self.log.info('dome is open')
 
     def domeStatus(self):
         try:
