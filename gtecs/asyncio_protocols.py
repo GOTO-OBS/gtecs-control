@@ -64,7 +64,7 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
         self.log.debug('{}: {}'.format(self.jobName, logstr))
         self.transport = transport
 
-    def pipe_data_received(self, fd, data):
+    def pipe_data_received(self, fd, data, log_bytes=False):
         """
         Called when data written to stdout or stderr.
 
@@ -72,7 +72,8 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
         it should get logged the same way pilot output does.
         """
         logstr = 'read {} bytes from {}'.format(len(data), self.FD_NAMES[fd])
-        self.log.debug('{}: {}'.format(self.jobName, logstr))
+        if log_bytes:
+            self.log.debug('{}: {}'.format(self.jobName, logstr))
 
         if fd == 1:
             # data written to stdout
