@@ -144,8 +144,10 @@ class Pilot:
         """
         # if the pilot is in testing mode then return immediately
         if self.testing:
+            self.log.info('in testing mode, start {} immediately'.format(why))
             return True
 
+        self.log.info('waiting for {}'.format(why))
         now = Time.now()
 
         # check if we're on the wrong side of midnight
