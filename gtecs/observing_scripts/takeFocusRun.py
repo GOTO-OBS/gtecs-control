@@ -1,5 +1,5 @@
 """
-takeFocusRun [filter]
+takeFocusRun [width=2000] [step=200] [filter]
 Script to take a series of images running through focus
 
 It assumes you're already on a reasonable patch of sky and that you're
@@ -65,14 +65,10 @@ def plot_results(df):
     plt.show()
 
 
-def run(filt):
+def run(width, step, filt):
     # make sure hardware is ready
     prepare_for_images()
 
-    print("Starting focus run")
-
-    total_diff = 1500
-    step = 150
     expT = 30
 
     xslice = slice(3300, 5100)
@@ -81,15 +77,20 @@ def run(filt):
               'filter_width': 4, 'threshold': 15}
 
     orig_focus = get_current_focus()
+    deltas = np.arange(-width, +width+1, step)
+    print('Steps ({:.0f}): '.format(len(deltas)), deltas)
     pos_master_list = {
-        tel: np.arange(orig_focus[tel]-total_diff, orig_focus[tel]+total_diff, step)
+        tel: np.arange(orig_focus[tel]-width, orig_focus[tel]+width+1, step)
         for tel in params.TEL_DICT
     }
+
     pos_master_list = pd.DataFrame(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
     close_signal_handler = RestoreFocus(orig_focus)
     series_list = []
+
+    print("Starting focus run")
 
     for runno, row in pos_master_list.iterrows():
 
@@ -122,10 +123,12 @@ def run(filt):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('width', nargs='?',  default=2000)
+    parser.add_argument('step', nargs='?',  default=200)
     parser.add_argument('filt', nargs='?',  default='L')
     args = parser.parse_args()
 
     if args.filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    run(args.filt)
+    run(int(args.width), int(args.step), args.filt)
