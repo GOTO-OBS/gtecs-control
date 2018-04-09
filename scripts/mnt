@@ -136,6 +136,7 @@ def query(command, args, daemon_ID):
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
         print(reply)
+        print('Use "mnt slew" to move')
 
     elif command == 'dec':
         # parse arguments
@@ -177,6 +178,7 @@ def query(command, args, daemon_ID):
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
         print(reply)
+        print('Use "mnt slew" to move')
 
     elif command == 'n':
         # parse arguments
@@ -268,12 +270,14 @@ def query(command, args, daemon_ID):
                 coord = get_body(name, Time.now())
             except:
                 raise misc.InputError('Cannot find target "%s"' %name)
-        print('Targeting "{}"'.format(name))
+        print('Found coordinates for "{}":'.format(name), end='  ')
+        print('RA: {:.4f}  Dec: {:.4f}'.format(coord.ra.hour,coord.dec.value))
         # send commands
         reply = daemons.daemon_function(daemon_ID, 'set_target_ra', [coord.ra.hour])
         print(reply)
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
         print(reply)
+        print('Use "mnt slew" to move')
 
     elif command in ['slew_altaz', 'altaz']:
         # parse arguments
