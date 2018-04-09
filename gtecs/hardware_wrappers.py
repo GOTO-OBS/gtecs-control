@@ -141,6 +141,8 @@ class DomeMonitor(HardwareMonitor):
         super(DomeMonitor, self).__init__(log)
         self.daemonID = 'dome'
         self.availableModes.extend(['open'])
+        self.move_start_time = 0
+        self.currently_moving = False
 
     def _check(self, obsMode=None):
 
@@ -149,11 +151,32 @@ class DomeMonitor(HardwareMonitor):
                 self.info['north'], self.info['south']
             ))
             if not dome_fully_open:
-                self.errors.append('Dome not fully open')
+                if 'ing' in self.info['north'] or 'ing' in self.info['south']:
+                    if not self.currently_moving:
+                        self.currently_moving = True
+                        self.move_start_time = time.time()
+                    else:
+                        if time.time() - self.move_start_time > 60:
+                            self.errors.append('Opening taking too long')
+                else:
+                    self.errors.append('Dome not fully open')
+            else:
+                self.currently_moving = False
+
         elif obsMode is None:
             dome_fully_closed = self.info['dome'] == 'closed'
             if not dome_fully_closed:
-                self.errors.append('Dome not closed')
+                if 'ing' in self.info['north'] or 'ing' in self.info['south']:
+                    if not self.currently_moving:
+                        self.currently_moving = True
+                        self.move_start_time = time.time()
+                    else:
+                        if time.time() - self.move_start_time > 60:
+                            self.errors.append('Closing taking too long')
+                else:
+                    self.errors.append('Dome not closed')
+            else:
+                self.currently_moving = False
 
     def setMode(self, mode):
         val = super(DomeMonitor, self).setMode(mode)
