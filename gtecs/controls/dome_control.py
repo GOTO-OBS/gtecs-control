@@ -63,6 +63,10 @@ class FakeDome:
             status['north'] = 'closed'
         elif self._status_arr[0] == 9:
             status['north'] = 'full_open'
+        elif self.output_thread_running and self.command == 'open':
+            status['north'] = 'opening'
+        elif self.output_thread_running and self.command == 'close':
+            status['north'] = 'closing'
         else:
             status['north'] = 'part_open'
 
@@ -71,6 +75,10 @@ class FakeDome:
             status['south'] = 'closed'
         elif self._status_arr[1] == 9:
             status['south'] = 'full_open'
+        elif self.output_thread_running and self.command == 'open':
+            status['south'] = 'opening'
+        elif self.output_thread_running and self.command == 'close':
+            status['south'] = 'closing'
         else:
             status['south'] = 'part_open'
 
