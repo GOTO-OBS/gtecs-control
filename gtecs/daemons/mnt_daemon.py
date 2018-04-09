@@ -372,9 +372,9 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Tracking':
-            raise misc.HardwareStatusError('Already tracking')
+            return 'Already tracking'
         elif self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Currently slewing, will track when reached target')
+            return 'Currently slewing, will track when reached target'
         elif self.mount_status == 'Parked':
             raise misc.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
@@ -398,7 +398,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Stopped':
-            raise misc.HardwareStatusError('Already stopped')
+            return 'Already stopped'
         elif self.mount_status == 'Parked':
             raise misc.HardwareStatusError('Mount is parked')
 
@@ -416,9 +416,9 @@ class MntDaemon(HardwareDaemon):
 
         # Check current status
         if activate and self.sitech.blinky:
-            raise misc.HardwareStatusError('Already in blinky mode')
+            return 'Already in blinky mode'
         elif not activate and not self.sitech.blinky:
-            raise misc.HardwareStatusError('Already not in blinky mode')
+            return 'Already not in blinky mode'
 
         # Set values
         self.set_blinky = activate
@@ -443,7 +443,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Already parked')
+            return 'Already parked'
         elif self.mount_status == 'IN BLINKY MODE':
             raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
@@ -463,7 +463,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status != 'Parked':
-            raise misc.HardwareStatusError('Mount is not parked')
+            return 'Mount is not parked'
 
         # First turn off blinky mode
         self.set_blinky = False

@@ -549,12 +549,12 @@ class DomeDaemon(HardwareDaemon):
         north_status = self.dome_status['north']
         south_status = self.dome_status['south']
         if side == 'north' and north_status == 'full_open':
-            raise misc.HardwareStatusError('The north side is already fully open')
+            return 'The north side is already fully open'
         elif side == 'south' and south_status == 'full_open':
-            raise misc.HardwareStatusError('The south side is already fully open')
+            return 'The south side is already fully open'
         elif side == 'both':
             if north_status == 'full_open' and south_status == 'full_open':
-                raise misc.HardwareStatusError('The dome is already fully open')
+                return 'The dome is already fully open'
             elif north_status == 'full_open' and south_status != 'full_open':
                 side == 'south'
             elif north_status != 'full_open' and south_status == 'full_open':
@@ -594,12 +594,12 @@ class DomeDaemon(HardwareDaemon):
         north_status = self.dome_status['north']
         south_status = self.dome_status['south']
         if side == 'north' and north_status == 'closed':
-            raise misc.HardwareStatusError('The north side is already fully closed')
+            return 'The north side is already fully closed'
         elif side == 'south' and south_status == 'closed':
-            raise misc.HardwareStatusError('The south side is already fully closed')
+            return 'The south side is already fully closed'
         elif side == 'both':
             if north_status == 'closed' and south_status == 'closed':
-                raise misc.HardwareStatusError('The dome is already fully closed')
+                return 'The dome is already fully closed'
             elif north_status == 'closed' and south_status != 'closed':
                 side == 'south'
             elif north_status != 'closed' and south_status == 'closed':
@@ -646,9 +646,9 @@ class DomeDaemon(HardwareDaemon):
         if command == 'on' and currently_open:
             raise misc.HardwareStatusError("Dome is open, dehumidifier won't turn on")
         elif command == 'on' and dehumid_status == 'on':
-            raise misc.HardwareStatusError('Dehumidifier is already on')
+            return 'Dehumidifier is already on'
         elif command == 'off' and dehumid_status == 'off':
-            raise misc.HardwareStatusError('Dehumidifier is already off')
+            return 'Dehumidifier is already off'
 
         # Set values
         self.dehumid_command = command
