@@ -916,7 +916,7 @@ if __name__ == "__main__":
 
     # keep the pilot runing until the end of the night
     if pilot.testing:
-        stop_time = Time.now() + 60*u.minute
+        sunrise = Time.now() + 60*u.minute
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
