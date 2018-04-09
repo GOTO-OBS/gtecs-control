@@ -263,9 +263,14 @@ class Pilot:
 
         # no point opening if we are paused due to bad weather or hw fault
         while self.paused or not self.initialHardwareCheckComplete:
-            await asyncio.sleep(5)
+            if self.paused:
+                self.log.info('opening suspended until pause is cleared')
+            if not self.initialHardwareCheckComplete:
+                self.log.info('opening suspended until successful hardware check')
+            await asyncio.sleep(30)
 
         # OK - let's open the dome and get ready to observe
+        self.log.info('ready to observe')
         self.ready_to_observe = True
         await self.open_dome()
         await self.unpark_mount()
@@ -292,6 +297,7 @@ class Pilot:
 
         # set flag so dome does not reopen
         self.ready_to_observe = False
+        self.log.info('nightMarshall completed')
 
     async def check_scheduler(self):
         """
