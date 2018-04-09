@@ -423,10 +423,13 @@ class Pilot:
                 msg = 'Pausing operations due to bad conditions ({})'.format(self.conditions.bad_flags)
                 self.log.warn(msg)
 
-                # handle dome open/close, park mount and pause queue
-                execute_command('exq pause')
-                execute_command('cam abort')
-                await self.cancelRunningScript('conditions bad')
+                if self.domeOpen:
+                    # don't need to stop if the dome isn't open yet
+                    execute_command('exq pause')
+                    execute_command('cam abort')
+                    await self.cancelRunningScript('conditions bad')
+
+                # always make sure we're closed and parked
                 self.close_dome()
                 self.park_mount()
 
