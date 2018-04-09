@@ -106,17 +106,22 @@ def run(width, step, filt):
         series_list.append(hfd_values)
     print('Exposures finished')
 
+    # restore the origional focus
+    print('############')
+    print('Restoring original focus')
+    set_new_focus(orig_focus)
+
     # write out data
+    print('############')
+    print('Writing out data to file')
     path = os.path.join(params.CONFIG_PATH, 'focus_data')
     df = pd.concat(series_list)
     ofname = 'focusdata_{}.csv'.format(Time.now().isot)
     df.to_csv(os.path.join(path, ofname))
+
+    print('Plotting results')
     plot_results(df)
 
-    # and finish by restoring the origional focus
-    print('############')
-    print('Restoring original focus')
-    set_new_focus(orig_focus)
     print("Done")
 
 
