@@ -699,14 +699,16 @@ class Pilot:
         sleepTime : float or int
             the time to sleep between checks against `stopTime`
         """
-        while Time.now() < stopTime:
-            now = Time.now()
+        now = Time.now()
+        while now < stopTime:
             stopTime.precision = 0
             delta = stopTime - now
             status_str = 'end of night at {} ({:.0f} mins)'.format(stopTime.iso, delta.to('min').value)
             self.log.info(status_str)
             if self.paused:
-                self.log.info('paused: {!r}'.format(self.whypause))
+                reasons = [k for k in self.whypause if self.whypause[k]]
+                reasons = ', '.join(reasons)
+                self.log.info('pilot paused ({})'.format(reasons))
                 await asyncio.sleep(30)
             else:
                 await asyncio.sleep(sleepTime)
