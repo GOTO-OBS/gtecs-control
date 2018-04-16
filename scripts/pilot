@@ -170,7 +170,6 @@ class Pilot:
         # we're on time, so wait until the sun is in the right position
         our_watch_has_ended = False
         while not our_watch_has_ended:
-            await asyncio.sleep(60)
             now = Time.now()
             sun_alt_now = get_sun_alt(now)
             self.log.info('sun alt = {:.1f}, waiting for {:.1f} ({})'.format(sun_alt_now, sun_alt, why))
@@ -179,6 +178,9 @@ class Pilot:
                 our_watch_has_ended = sun_alt_now < sun_alt
             else:
                 our_watch_has_ended = sun_alt_now > sun_alt
+
+            if not our_watch_has_ended:
+                await asyncio.sleep(60)
 
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
