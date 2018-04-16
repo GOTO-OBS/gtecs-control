@@ -710,8 +710,8 @@ class Pilot:
         sleepTime : float or int
             the time to sleep between checks against `stopTime`
         """
-        now = Time.now()
-        while now < stopTime:
+        while Time.now() < stopTime:
+            now = Time.now()
             stopTime.precision = 0
             delta = stopTime - now
             status_str = 'end of night at {} ({:.0f} mins)'.format(stopTime.iso, delta.to('min').value)
@@ -927,7 +927,7 @@ if __name__ == "__main__":
 
     # keep the pilot runing until the end of the night
     if pilot.testing:
-        sunrise = Time.now() + 60*u.minute
+        sunrise = Time.now() + 6*u.minute
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
