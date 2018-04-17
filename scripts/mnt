@@ -136,7 +136,6 @@ def query(command, args, daemon_ID):
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_target_ra', [ra_hrs])
         print(reply)
-        print('Use "mnt slew" to move')
 
     elif command == 'dec':
         # parse arguments
@@ -178,7 +177,6 @@ def query(command, args, daemon_ID):
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [dec_deg])
         print(reply)
-        print('Use "mnt slew" to move')
 
     elif command == 'n':
         # parse arguments
@@ -277,7 +275,6 @@ def query(command, args, daemon_ID):
         print(reply)
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
         print(reply)
-        print('Use "mnt slew" to move')
 
     elif command in ['slew_altaz', 'altaz']:
         # parse arguments
