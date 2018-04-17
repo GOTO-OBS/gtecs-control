@@ -108,7 +108,8 @@ class Pilot:
         self.domeOpen = 0   # should dome be open?
         self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
         self.timeOfLastCloseDomeCommand = 0.
-        self.initialHardwareCheckComplete = False
+        self.initial_hardware_check_complete = False
+        self.initial_scheduler_check_complete = False
 
         # flag for daytime testing
         self.testing = testing
@@ -264,10 +265,10 @@ class Pilot:
         await self.waitingForTheSun(0, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hw fault
-        while self.paused or not self.initialHardwareCheckComplete:
+        while self.paused or not self.initial_hardware_check_complete:
             if self.paused:
                 self.log.info('opening suspended until pause is cleared')
-            if not self.initialHardwareCheckComplete:
+            if not self.initial_hardware_check_complete:
                 self.log.info('opening suspended until successful hardware check')
             await asyncio.sleep(30)
 
@@ -327,6 +328,8 @@ class Pilot:
                 self.log.info('scheduler check: NEW JOB {}'.format(self.newID))
             else:
                 self.log.info('scheduler check: continue {}'.format(self.currentID))
+
+            self.initial_scheduler_check_complete = True
             await asyncio.sleep(30)
 
     async def check_hardware(self):
@@ -371,7 +374,7 @@ class Pilot:
                 await self.handlePause('hw', False)
 
             self.errCount = errCount  # save error count so we dont restart whilst broken
-            self.initialHardwareCheckComplete = True
+            self.initial_hardware_check_complete = True
             await asyncio.sleep(sleepTime)
 
     async def check_flags(self):
@@ -532,6 +535,12 @@ class Pilot:
 
             # do nothing if paused
             if self.paused:
+                await asyncio.sleep(30)
+                continue
+
+            # no point observing if we haven't checked the scheduler yet
+            while not self.initial_scheduler_check_complete:
+                self.log.info('waiting for first scheduler check')
                 await asyncio.sleep(30)
                 continue
 
