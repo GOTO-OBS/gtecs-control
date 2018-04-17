@@ -315,7 +315,7 @@ def run(filt):
 
     # Measure the final value 3 times to get a reasonable average
     best_hfd_measurements = None
-    for i in range(5):
+    for i in range(3):
         best_hfd_values = measure_focus_carefully(expT, filt, name, orig_focus, **kwargs)
         if best_hfd_measurements is not None:
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
