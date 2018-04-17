@@ -59,6 +59,7 @@ class Pilot:
         self.log = logger.getLogger('pilot',
                                     file_logging=params.FILE_LOGGING,
                                     stdout_logging=params.STDOUT_LOGGING)
+        self.log.info('Pilot started')
 
         # current and next job from scheduler
         self.currentID = None
@@ -738,7 +739,7 @@ class Pilot:
         self.log.info('stopTime reached, night is over')
         await self.shutdown()
 
-        self.log.info("done")
+        self.log.info('finished for tonight')
 
     async def reallyReallyCloseDome(self, time_until_panic=10):
         """
@@ -938,7 +939,7 @@ if __name__ == "__main__":
 
     # keep the pilot runing until the end of the night
     if pilot.testing:
-        sunrise = Time.now() + 6*u.minute
+        sunrise = Time.now() + 60*u.minute
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
@@ -950,5 +951,5 @@ if __name__ == "__main__":
     except asyncio.CancelledError:
         print('Tasks cancelled')
     finally:
-        print("Pilot Done")
+        print('Pilot done')
         loop.close()
