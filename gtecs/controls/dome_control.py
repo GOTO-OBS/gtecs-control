@@ -188,13 +188,11 @@ class FakeDome:
 
 class AstroHavenDome:
     """New AstroHaven dome class (based on Warwick 1m control)"""
-    def __init__(self, serial_port='/dev/ttyS0', stop_length=3):
-        self.serial_port = serial_port
-        self.stop_length = stop_length
-        self.port_props = {'baudrate': 9600, 'parity': 'N',
-                           'bytesize': 8, 'stopbits': 1,
-                           'rtscts': 0, 'xonxoff': 0,
-                           'timeout': 1}
+    def __init__(self, dome_port='/dev/ttyS0', ):
+        self.dome_serial_port = dome_port
+        self.dome_serial_baudrate = 9600
+        self.dome_serial_timeout = 1
+
         self.move_code = {'south':{'open':b'a','close':b'A'},
                           'north':{'open':b'b','close':b'B'}}
         self.move_time = {'south':{'open':25.,'close':26.},
@@ -219,15 +217,17 @@ class AstroHavenDome:
         self.status_thread_running = 0
 
         # create one serial connection to the dome
-        self.serial = serial.Serial(self.serial_port, **self.port_props)
+        self.dome_serial = serial.Serial(self.dome_port,
+                                         baudrate=self.dome_serial_baudrate,
+                                         timeout=self.dome_serial_timeout)
 
     def __del__(self):
-        self.serial.close()
+        self.dome_serial.close()
 
     def _read_plc(self):
         try:
-            if self.serial.in_waiting:
-                out = self.serial.read(self.serial.in_waiting)
+            if self.dome_serial.in_waiting:
+                out = self.dome_serial.read(self.dome_serial.in_waiting)
                 x = out.decode('ascii')[-1]
                 self._parse_plc_status(x)
             return 0
@@ -475,7 +475,7 @@ class AstroHavenDome:
                 break
 
             # if we're still going, send the command to the serial port
-            l = self.serial.write(self.move_code[side][command])
+            l = self.dome_serial.write(self.move_code[side][command])
             #print(side, frac, 'o:', self.move_code[side][command])
 
             time.sleep(0.5)
