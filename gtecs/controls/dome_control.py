@@ -189,7 +189,7 @@ class FakeDome:
 
 class AstroHavenDome:
     """New AstroHaven dome class (based on Warwick 1m control)"""
-    def __init__(self, dome_port, heartbeat_port):
+    def __init__(self, dome_port, heartbeat_port=None):
         self.dome_serial_port = dome_port
         self.dome_serial_baudrate = 9600
         self.dome_serial_timeout = 1
@@ -213,6 +213,7 @@ class AstroHavenDome:
         self.plc_error = 0
         self.arduino_error = 0
 
+        self.heartbeat_enabled = params.DOME_HEARTBEAT_ENABLED
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
         self.heartbeat_status = 'ERROR'
         self.heartbeat_error = 0
@@ -232,14 +233,23 @@ class AstroHavenDome:
                                          timeout=self.dome_serial_timeout)
 
         # serial connection to the dome monitor box
-        try:
-            self.heartbeat_serial = serial.Serial(self.heartbeat_port,
-                                                baudrate=self.heartbeat_serial_baudrate,
-                                                timeout=self.heartbeat_serial_timeout)
-        except:
-            print('Error connecting to dome monitor')
-            self.heartbeat_status = 'ERROR'
-            self.heartbeat_error = 1
+        if self.heartbeat_enabled and self.heartbeat_serial_port:
+            try:
+                self.heartbeat_serial = serial.Serial(self.heartbeat_port,
+                                                    baudrate=self.heartbeat_serial_baudrate,
+                                                    timeout=self.heartbeat_serial_timeout)
+                # start thread
+                self.heartbeat_thread_running = 1
+                ht = threading.Thread(target=self._heartbeat_thread)
+                ht.daemon = True
+                ht.start()
+
+            except:
+                print('Error connecting to dome monitor')
+                self.heartbeat_status = 'ERROR'
+                self.heartbeat_error = 1
+        else:
+            self.heartbeat_status = 'disabled'
 
     def __del__(self):
         self.dome_serial.close()
