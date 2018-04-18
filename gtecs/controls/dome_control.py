@@ -188,10 +188,14 @@ class FakeDome:
 
 class AstroHavenDome:
     """New AstroHaven dome class (based on Warwick 1m control)"""
-    def __init__(self, dome_port='/dev/ttyS0', ):
+    def __init__(self, dome_port, heartbeat_port):
         self.dome_serial_port = dome_port
         self.dome_serial_baudrate = 9600
         self.dome_serial_timeout = 1
+
+        self.heartbeat_serial_port = heartbeat_port
+        self.heartbeat_serial_baudrate = 9600
+        self.heartbeat_serial_timeout = 1
 
         self.move_code = {'south':{'open':b'a','close':b'A'},
                           'north':{'open':b'b','close':b'B'}}
@@ -208,6 +212,10 @@ class AstroHavenDome:
         self.plc_error = 0
         self.arduino_error = 0
 
+        self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
+        self.heartbeat_status = 'ERROR'
+        self.heartbeat_error = 0
+
         self.side = ''
         self.frac = 1
         self.command = ''
@@ -215,11 +223,22 @@ class AstroHavenDome:
 
         self.output_thread_running = 0
         self.status_thread_running = 0
+        self.heartbeat_thread_running = 0
 
-        # create one serial connection to the dome
+        # serial connection to the dome
         self.dome_serial = serial.Serial(self.dome_port,
                                          baudrate=self.dome_serial_baudrate,
                                          timeout=self.dome_serial_timeout)
+
+        # serial connection to the dome monitor box
+        try:
+            self.heartbeat_serial = serial.Serial(self.heartbeat_port,
+                                                baudrate=self.heartbeat_serial_baudrate,
+                                                timeout=self.heartbeat_serial_timeout)
+        except:
+            print('Error connecting to dome monitor')
+            self.heartbeat_status = 'ERROR'
+            self.heartbeat_error = 1
 
     def __del__(self):
         self.dome_serial.close()
@@ -439,6 +458,44 @@ class AstroHavenDome:
             self.status = self._read_status()
             time.sleep(0.5)
 
+    def _parse_heartbeat_status(self, status_character):
+        # parse value from heartbeat box
+        if status_character == 254:
+            self.heartbeat_status = 'closing'
+        elif status_character == 255:
+            self.heartbeat_status = 'closed'
+        elif status_character == 0:
+            self.heartbeat_status = 'disabled'
+        else:
+            self.heartbeat_status = 'enabled'
+        return
+
+    def _read_heartbeat(self):
+        try:
+            if self.heartbeat_serial.in_waiting:
+                out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
+                x = out[-1]
+                self._parse_heartbeat_status(x)
+            return 0
+        except:
+            self.heartbeat_error = 1
+            self.heartbeat_status = 'ERROR'
+            return 1
+
+    def _heartbeat_thread(self):
+        heartbeat_timeout = self.heartbeat_timeout
+        start_time = time.time()
+
+        while self.heartbeat_thread_running:
+            # check heartbeat status
+            self._read_heartbeat()
+
+            if self.heartbeat_status == 'enabled':
+                # send the heartbeat time to the serial port
+                t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
+                l = self.heartbeat_serial.write(t)
+
+            time.sleep(0.5)
 
     def _output_thread(self):
         side = self.side

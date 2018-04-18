@@ -85,10 +85,11 @@ class DomeDaemon(HardwareDaemon):
 
         ### connect to dome object
         loc = params.DOME_LOCATION
+        hb_loc = params.DOME_HEARTBEAT_LOCATION
         if params.FAKE_DOME == 1:
             dome = dome_control.FakeDome()
         else:
-            dome = dome_control.AstroHavenDome(loc)
+            dome = dome_control.AstroHavenDome(loc, hb_loc)
 
         ### connect to dehumidifier object
         ip = params.DEHUMIDIFIER_IP
