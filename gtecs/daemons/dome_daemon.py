@@ -133,7 +133,7 @@ class DomeDaemon(HardwareDaemon):
                         dome._check_status()
                         time.sleep(1)
                         self.dome_status = dome.status
-                        self.heartbeat_status = dome.heartbeat_status
+                    self.heartbeat_status = dome.heartbeat_status
 
                     print(self.dome_status, self.move_started, self.move_side,
                           self.open_flag, self.close_flag)
