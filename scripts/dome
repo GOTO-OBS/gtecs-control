@@ -173,6 +173,7 @@ def print_info(info):
     print('North:        %s' %info['north'].capitalize())
     print('South:        %s' %info['south'].capitalize())
     print('Hatch:        %s' %info['hatch'].capitalize())
+    print('Heartbeat:    %s' %info['heartbeat'].capitalize())
     print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
     print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:

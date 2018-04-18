@@ -22,6 +22,7 @@ class FakeDome:
         self.fake = True
         self.output_thread_running = False
         self.side = ''
+        self.heartbeat_status = 'disabled'
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]

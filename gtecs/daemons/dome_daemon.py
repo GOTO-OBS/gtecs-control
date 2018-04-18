@@ -44,6 +44,7 @@ class DomeDaemon(HardwareDaemon):
         ### dome variables
         self.info = None
         self.dome_status = {'dome':'unknown', 'hatch':'unknown', 'estop':'unknown', 'monitorlink':'unknown'}
+        self.heartbeat_status = 'unknown'
 
         self.count = 0
         self.last_hatch_status = None
@@ -132,6 +133,7 @@ class DomeDaemon(HardwareDaemon):
                         dome._check_status()
                         time.sleep(1)
                         self.dome_status = dome.status
+                        self.heartbeat_status = dome.heartbeat_status
 
                     print(self.dome_status, self.move_started, self.move_side,
                           self.open_flag, self.close_flag)
@@ -281,6 +283,9 @@ class DomeDaemon(HardwareDaemon):
                         info['dome'] = 'closed'
                     else:
                         info['dome'] = 'ERROR'
+
+                    # add heartbeat status
+                    info['heartbeat'] = self.heartbeat_status
 
                     # add dehumidifier status
                     dehumidifier_status = dehumidifier.status()
