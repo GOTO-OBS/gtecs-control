@@ -202,12 +202,12 @@ class AstroHavenDome:
 
         self.fake = False
 
-        self.status_H = {'north':'ERROR', 'south':'ERROR'}
+        self.status_P = {'north':'ERROR', 'south':'ERROR'}
         self.status_A = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
         self.honeywell_was_triggered = {'north':0, 'south':0}
         self.status = None
 
-        self.heartbeat_error = 0
+        self.plc_error = 0
         self.arduino_error = 0
 
         self.side = ''
@@ -224,58 +224,58 @@ class AstroHavenDome:
     def __del__(self):
         self.serial.close()
 
-    def _read_heartbeat(self):
+    def _read_plc(self):
         try:
             if self.serial.in_waiting:
                 out = self.serial.read(self.serial.in_waiting)
                 x = out.decode('ascii')[-1]
-                self._parse_heartbeat_status(x)
+                self._parse_plc_status(x)
             return 0
         except:
-            self.heartbeat_error = 1
-            self.status_H['north'] = 'ERROR'
-            self.status_H['south'] = 'ERROR'
+            self.plc_error = 1
+            self.status_P['north'] = 'ERROR'
+            self.status_P['south'] = 'ERROR'
             return 1
 
-    def _parse_heartbeat_status(self, status_character):
+    def _parse_plc_status(self, status_character):
         # save previous status
-        self.old_status_H = self.status_H.copy()
+        self.old_status_P = self.status_P.copy()
         ## Non-moving statuses
         # returned when we're NOT sending command bytes
         if status_character == '0':
-            self.status_H['north'] = 'closed'
-            self.status_H['south'] = 'closed'
+            self.status_P['north'] = 'closed'
+            self.status_P['south'] = 'closed'
         elif status_character == '1':
-            self.status_H['north'] = 'part_open'
-            self.status_H['south'] = 'closed'
+            self.status_P['north'] = 'part_open'
+            self.status_P['south'] = 'closed'
         elif status_character == '2':
-            self.status_H['north'] = 'closed'
-            self.status_H['south'] = 'part_open'
+            self.status_P['north'] = 'closed'
+            self.status_P['south'] = 'part_open'
         elif status_character == '3':
-            self.status_H['north'] = 'part_open'
-            self.status_H['south'] = 'part_open'
+            self.status_P['north'] = 'part_open'
+            self.status_P['south'] = 'part_open'
         ## Moving statuses
         # returned when we ARE sending command bytes
         elif status_character == 'a':
-            self.status_H['south'] = 'opening'
+            self.status_P['south'] = 'opening'
         elif status_character == 'A':
-            self.status_H['south'] = 'closing'
+            self.status_P['south'] = 'closing'
         elif status_character == 'b':
-            self.status_H['north'] = 'opening'
+            self.status_P['north'] = 'opening'
         elif status_character == 'B':
-            self.status_H['north'] = 'closing'
+            self.status_P['north'] = 'closing'
         elif status_character == 'x':
-            self.status_H['south'] = 'full_open'
+            self.status_P['south'] = 'full_open'
         elif status_character == 'X':
-            self.status_H['south'] = 'closed'
+            self.status_P['south'] = 'closed'
         elif status_character == 'y':
-            self.status_H['north'] = 'full_open'
+            self.status_P['north'] = 'full_open'
         elif status_character == 'Y':
-            self.status_H['north'] = 'closed'
+            self.status_P['north'] = 'closed'
         else:
-            self.heartbeat_error = 1
-            self.status_H['north'] = 'ERROR'
-            self.status_H['south'] = 'ERROR'
+            self.plc_error = 1
+            self.status_P['north'] = 'ERROR'
+            self.status_P['south'] = 'ERROR'
         return
 
     def _read_arduino(self):
@@ -354,7 +354,7 @@ class AstroHavenDome:
                     # it might have gone past
                     else:
                         if self.honeywell_was_triggered[side]:
-                            if self.status_H[side] == 'opening':
+                            if self.status_P[side] == 'opening':
                                 # Oh dear, it's flicked past the Honeywells
                                 # and it's still going!!
                                 print('Honeywell limit error, stopping!')
@@ -373,16 +373,16 @@ class AstroHavenDome:
 
     def _read_status(self):
         """Check the dome status
-        reported by both the dome heartbeat and the arduino"""
+        reported by both the dome plc and the arduino"""
 
-        # check heartbeat
-        self._read_heartbeat()
+        # check plc
+        self._read_plc()
 
         #check arduino
         self._read_arduino()
 
-        #print(self.status_H['north'], '\t', self.status_A['north'])
-        #print(self.status_H['south'], '\t', self.status_A['south'])
+        #print(self.status_P['north'], '\t', self.status_A['north'])
+        #print(self.status_P['south'], '\t', self.status_A['south'])
         #print(self.status_A['hatch'])
 
         status = {}
@@ -392,33 +392,33 @@ class AstroHavenDome:
 
         # dome logic
         for side in ['north', 'south']:
-                status_H = self.status_H[side]
+                status_P = self.status_P[side]
                 status_A = self.status_A[side]
 
                 # Chose which dome status to report
-                if status_H == status_A:
+                if status_P == status_A:
                     # arbitrary
-                    status[side] = status_H
-                elif status_H == 'ERROR' and status_A != 'ERROR':
+                    status[side] = status_P
+                elif status_P == 'ERROR' and status_A != 'ERROR':
                     # go with the one that is still working
                     status[side] = status_A
-                elif status_A == 'ERROR' and status_H != 'ERROR':
+                elif status_A == 'ERROR' and status_P != 'ERROR':
                     # go with the one that is still working
-                    status[side] = status_H
-                elif status_H[-3:] == 'ing':
+                    status[side] = status_P
+                elif status_P[-3:] == 'ing':
                     if status_A == 'part_open':
                         # arduino can't tell if it's moving
-                        status[side] = status_H
+                        status[side] = status_P
                     else: # closed or full_open
                         # arduino says it's reached the limit,
                         # but it hasn't stopped!!
                         status[side] = status_A
-                elif status_H == 'part_open':
+                elif status_P == 'part_open':
                     # arduino says closed or full_open
                     status[side] = status_A
                 elif status_A == 'part_open':
-                    # heartbeat says closed or full_open
-                    status[side] = status_H
+                    # plc says closed or full_open
+                    status[side] = status_P
                 else:
                     # if one says closed and the other says full_open
                     # or something totally unexpected
