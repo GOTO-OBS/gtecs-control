@@ -501,7 +501,17 @@ class AstroHavenDome:
             # check heartbeat status
             self._read_heartbeat()
 
-            if self.heartbeat_status == 'enabled':
+            if not self.heartbeat_enabled:
+                # send a 0 to make sure the system is disabled
+                if not self.heartbeat_status == 'closed':
+                    l = self.heartbeat_serial.write(0)
+                else:
+                    # if it's in the closed state it's disabled, leave it
+            else:
+                if self.heartbeat_status == 'closed':
+                    # send a 0 to reset it
+                    l = self.heartbeat_serial.write(0)
+
                 # send the heartbeat time to the serial port
                 t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
                 l = self.heartbeat_serial.write(t)
