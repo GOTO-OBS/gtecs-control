@@ -504,10 +504,9 @@ class AstroHavenDome:
 
             if not self.heartbeat_enabled:
                 # send a 0 to make sure the system is disabled
-                if not self.heartbeat_status == 'closed':
+                # if it's in the closed state it already disabled, leave it
+                if not self.heartbeat_status in ['disabled','closed']:
                     l = self.heartbeat_serial.write(0)
-                else:
-                    # if it's in the closed state it's disabled, leave it
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
