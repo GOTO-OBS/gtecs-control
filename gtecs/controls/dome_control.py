@@ -509,6 +509,11 @@ class AstroHavenDome:
                     l = self.heartbeat_serial.write(0)
             else:
                 if self.heartbeat_status == 'closed':
+                    # reenable autoclose if it's not already
+                    status = flags.Status()
+                    if not status.autoclose:
+                        print('closed due to heartbeat, reenable autoclose')
+                        status.autoclose = True
                     # send a 0 to reset it
                     #print('sending reset value')
                     l = self.heartbeat_serial.write(chr(0).encode('ascii'))
