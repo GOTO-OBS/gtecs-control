@@ -486,7 +486,7 @@ class AstroHavenDome:
             if self.heartbeat_serial.in_waiting:
                 out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
                 x = out[-1]
-                print('heartbeat says:{}'.format(x))
+                #print('heartbeat says:{}'.format(x))
                 self._parse_heartbeat_status(x)
             return 0
         except:
@@ -510,13 +510,13 @@ class AstroHavenDome:
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
-                    print('sending reset value')
+                    #print('sending reset value')
                     l = self.heartbeat_serial.write(chr(0).encode('ascii'))
                 else:
                     # send the heartbeat time to the serial port
                     t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
                     l = self.heartbeat_serial.write(t)
-                    print('send byte to heartbeat')
+                    #print('send byte to heartbeat')
 
             time.sleep(0.5)
 
