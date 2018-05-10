@@ -22,6 +22,7 @@ class FakeDome:
         self.fake = True
         self.output_thread_running = False
         self.side = ''
+        self.heartbeat_status = 'disabled'
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
@@ -188,13 +189,15 @@ class FakeDome:
 
 class AstroHavenDome:
     """New AstroHaven dome class (based on Warwick 1m control)"""
-    def __init__(self, serial_port='/dev/ttyS0', stop_length=3):
-        self.serial_port = serial_port
-        self.stop_length = stop_length
-        self.port_props = {'baudrate': 9600, 'parity': 'N',
-                           'bytesize': 8, 'stopbits': 1,
-                           'rtscts': 0, 'xonxoff': 0,
-                           'timeout': 1}
+    def __init__(self, dome_port, heartbeat_port=None):
+        self.dome_serial_port = dome_port
+        self.dome_serial_baudrate = 9600
+        self.dome_serial_timeout = 1
+
+        self.heartbeat_serial_port = heartbeat_port
+        self.heartbeat_serial_baudrate = 9600
+        self.heartbeat_serial_timeout = 1
+
         self.move_code = {'south':{'open':b'a','close':b'A'},
                           'north':{'open':b'b','close':b'B'}}
         self.move_time = {'south':{'open':25.,'close':26.},
@@ -202,13 +205,18 @@ class AstroHavenDome:
 
         self.fake = False
 
-        self.status_H = {'north':'ERROR', 'south':'ERROR'}
+        self.status_P = {'north':'ERROR', 'south':'ERROR'}
         self.status_A = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
         self.honeywell_was_triggered = {'north':0, 'south':0}
         self.status = None
 
-        self.heartbeat_error = 0
+        self.plc_error = 0
         self.arduino_error = 0
+
+        self.heartbeat_enabled = params.DOME_HEARTBEAT_ENABLED
+        self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
+        self.heartbeat_status = 'ERROR'
+        self.heartbeat_error = 0
 
         self.side = ''
         self.frac = 1
@@ -217,65 +225,87 @@ class AstroHavenDome:
 
         self.output_thread_running = 0
         self.status_thread_running = 0
+        self.heartbeat_thread_running = 0
 
-        # create one serial connection to the dome
-        self.serial = serial.Serial(self.serial_port, **self.port_props)
+        # serial connection to the dome
+        self.dome_serial = serial.Serial(self.dome_serial_port,
+                                         baudrate=self.dome_serial_baudrate,
+                                         timeout=self.dome_serial_timeout)
+
+        # serial connection to the dome monitor box
+        if self.heartbeat_enabled and self.heartbeat_serial_port:
+            try:
+                self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
+                                                    baudrate=self.heartbeat_serial_baudrate,
+                                                    timeout=self.heartbeat_serial_timeout)
+                # start thread
+                self.heartbeat_thread_running = 1
+                ht = threading.Thread(target=self._heartbeat_thread)
+                ht.daemon = True
+                ht.start()
+
+            except:
+                print('Error connecting to dome monitor')
+                self.heartbeat_status = 'ERROR'
+                self.heartbeat_error = 1
+        else:
+            self.heartbeat_status = 'disabled'
 
     def __del__(self):
-        self.serial.close()
+        self.dome_serial.close()
 
-    def _read_heartbeat(self):
+    def _read_plc(self):
         try:
-            if self.serial.in_waiting:
-                out = self.serial.read(self.serial.in_waiting)
+            if self.dome_serial.in_waiting:
+                out = self.dome_serial.read(self.dome_serial.in_waiting)
                 x = out.decode('ascii')[-1]
-                self._parse_heartbeat_status(x)
+                self._parse_plc_status(x)
             return 0
         except:
-            self.heartbeat_error = 1
-            self.status_H['north'] = 'ERROR'
-            self.status_H['south'] = 'ERROR'
+            self.plc_error = 1
+            self.status_P['north'] = 'ERROR'
+            self.status_P['south'] = 'ERROR'
             return 1
 
-    def _parse_heartbeat_status(self, status_character):
+    def _parse_plc_status(self, status_character):
         # save previous status
-        self.old_status_H = self.status_H.copy()
+        self.old_status_P = self.status_P.copy()
         ## Non-moving statuses
         # returned when we're NOT sending command bytes
         if status_character == '0':
-            self.status_H['north'] = 'closed'
-            self.status_H['south'] = 'closed'
+            self.status_P['north'] = 'closed'
+            self.status_P['south'] = 'closed'
         elif status_character == '1':
-            self.status_H['north'] = 'part_open'
-            self.status_H['south'] = 'closed'
+            self.status_P['north'] = 'part_open'
+            self.status_P['south'] = 'closed'
         elif status_character == '2':
-            self.status_H['north'] = 'closed'
-            self.status_H['south'] = 'part_open'
+            self.status_P['north'] = 'closed'
+            self.status_P['south'] = 'part_open'
         elif status_character == '3':
-            self.status_H['north'] = 'part_open'
-            self.status_H['south'] = 'part_open'
+            self.status_P['north'] = 'part_open'
+            self.status_P['south'] = 'part_open'
         ## Moving statuses
         # returned when we ARE sending command bytes
         elif status_character == 'a':
-            self.status_H['south'] = 'opening'
+            self.status_P['south'] = 'opening'
         elif status_character == 'A':
-            self.status_H['south'] = 'closing'
+            self.status_P['south'] = 'closing'
         elif status_character == 'b':
-            self.status_H['north'] = 'opening'
+            self.status_P['north'] = 'opening'
         elif status_character == 'B':
-            self.status_H['north'] = 'closing'
+            self.status_P['north'] = 'closing'
         elif status_character == 'x':
-            self.status_H['south'] = 'full_open'
+            self.status_P['south'] = 'full_open'
         elif status_character == 'X':
-            self.status_H['south'] = 'closed'
+            self.status_P['south'] = 'closed'
         elif status_character == 'y':
-            self.status_H['north'] = 'full_open'
+            self.status_P['north'] = 'full_open'
         elif status_character == 'Y':
-            self.status_H['north'] = 'closed'
+            self.status_P['north'] = 'closed'
         else:
-            self.heartbeat_error = 1
-            self.status_H['north'] = 'ERROR'
-            self.status_H['south'] = 'ERROR'
+            self.plc_error = 1
+            self.status_P['north'] = 'ERROR'
+            self.status_P['south'] = 'ERROR'
         return
 
     def _read_arduino(self):
@@ -354,7 +384,7 @@ class AstroHavenDome:
                     # it might have gone past
                     else:
                         if self.honeywell_was_triggered[side]:
-                            if self.status_H[side] == 'opening':
+                            if self.status_P[side] == 'opening':
                                 # Oh dear, it's flicked past the Honeywells
                                 # and it's still going!!
                                 print('Honeywell limit error, stopping!')
@@ -373,16 +403,16 @@ class AstroHavenDome:
 
     def _read_status(self):
         """Check the dome status
-        reported by both the dome heartbeat and the arduino"""
+        reported by both the dome plc and the arduino"""
 
-        # check heartbeat
-        self._read_heartbeat()
+        # check plc
+        self._read_plc()
 
         #check arduino
         self._read_arduino()
 
-        #print(self.status_H['north'], '\t', self.status_A['north'])
-        #print(self.status_H['south'], '\t', self.status_A['south'])
+        #print(self.status_P['north'], '\t', self.status_A['north'])
+        #print(self.status_P['south'], '\t', self.status_A['south'])
         #print(self.status_A['hatch'])
 
         status = {}
@@ -392,33 +422,33 @@ class AstroHavenDome:
 
         # dome logic
         for side in ['north', 'south']:
-                status_H = self.status_H[side]
+                status_P = self.status_P[side]
                 status_A = self.status_A[side]
 
                 # Chose which dome status to report
-                if status_H == status_A:
+                if status_P == status_A:
                     # arbitrary
-                    status[side] = status_H
-                elif status_H == 'ERROR' and status_A != 'ERROR':
+                    status[side] = status_P
+                elif status_P == 'ERROR' and status_A != 'ERROR':
                     # go with the one that is still working
                     status[side] = status_A
-                elif status_A == 'ERROR' and status_H != 'ERROR':
+                elif status_A == 'ERROR' and status_P != 'ERROR':
                     # go with the one that is still working
-                    status[side] = status_H
-                elif status_H[-3:] == 'ing':
+                    status[side] = status_P
+                elif status_P[-3:] == 'ing':
                     if status_A == 'part_open':
                         # arduino can't tell if it's moving
-                        status[side] = status_H
+                        status[side] = status_P
                     else: # closed or full_open
                         # arduino says it's reached the limit,
                         # but it hasn't stopped!!
                         status[side] = status_A
-                elif status_H == 'part_open':
+                elif status_P == 'part_open':
                     # arduino says closed or full_open
                     status[side] = status_A
                 elif status_A == 'part_open':
-                    # heartbeat says closed or full_open
-                    status[side] = status_H
+                    # plc says closed or full_open
+                    status[side] = status_P
                 else:
                     # if one says closed and the other says full_open
                     # or something totally unexpected
@@ -439,6 +469,61 @@ class AstroHavenDome:
             self.status = self._read_status()
             time.sleep(0.5)
 
+    def _parse_heartbeat_status(self, status_character):
+        # parse value from heartbeat box
+        if status_character == 254:
+            self.heartbeat_status = 'closing'
+        elif status_character == 255:
+            self.heartbeat_status = 'closed'
+        elif status_character == 0:
+            self.heartbeat_status = 'disabled'
+        else:
+            self.heartbeat_status = 'enabled'
+        return
+
+    def _read_heartbeat(self):
+        try:
+            if self.heartbeat_serial.in_waiting:
+                out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
+                x = out[-1]
+                #print('heartbeat says:{}'.format(x))
+                self._parse_heartbeat_status(x)
+            return 0
+        except:
+            self.heartbeat_error = 1
+            self.heartbeat_status = 'ERROR'
+            return 1
+
+    def _heartbeat_thread(self):
+        heartbeat_timeout = self.heartbeat_timeout
+        start_time = time.time()
+
+        while self.heartbeat_thread_running:
+            # check heartbeat status
+            self._read_heartbeat()
+
+            if not self.heartbeat_enabled:
+                # send a 0 to make sure the system is disabled
+                # if it's in the closed state it already disabled, leave it
+                if not self.heartbeat_status in ['disabled','closed']:
+                    l = self.heartbeat_serial.write(0)
+            else:
+                if self.heartbeat_status == 'closed':
+                    # reenable autoclose if it's not already
+                    status = flags.Status()
+                    if not status.autoclose:
+                        print('closed due to heartbeat, reenable autoclose')
+                        status.autoclose = True
+                    # send a 0 to reset it
+                    #print('sending reset value')
+                    l = self.heartbeat_serial.write(chr(0).encode('ascii'))
+                else:
+                    # send the heartbeat time to the serial port
+                    t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
+                    l = self.heartbeat_serial.write(t)
+                    #print('send byte to heartbeat')
+
+            time.sleep(0.5)
 
     def _output_thread(self):
         side = self.side
@@ -475,7 +560,7 @@ class AstroHavenDome:
                 break
 
             # if we're still going, send the command to the serial port
-            l = self.serial.write(self.move_code[side][command])
+            l = self.dome_serial.write(self.move_code[side][command])
             #print(side, frac, 'o:', self.move_code[side][command])
 
             time.sleep(0.5)
