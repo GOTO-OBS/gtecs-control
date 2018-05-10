@@ -83,6 +83,13 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol):
                 self.log.info('{}: {}'.format(self.jobName, line.strip()))
             # store in buffer for processing when we finish
             self.buffer.extend(data)
+        elif fd == 2:
+            # data written to stderr
+            lines_of_output = data.decode().strip().split('\n')
+            for line in lines_of_output:
+                self.log.error('{}: {}'.format(self.jobName, line.strip()))
+            # store in buffer for processing when we finish
+            self.buffer.extend(data)
 
     def process_exited(self):
         logstr ='process {} exited'.format(self.transport.get_pid())

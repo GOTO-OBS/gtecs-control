@@ -688,13 +688,9 @@ class Pilot:
 
         # create the process coroutine which will return
         # a 'transport' and 'protocol' when scheduled
-        proc = loop.subprocess_exec(
-            factory,
-            sys.executable, '-u',  # sys.executable is Python, '-u' to flush stdout
-            *cmd,
-            stdin=None,
-            stderr=None
-        )
+        proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
+                                    stdin=None)
+
         # start the process and get transport and protocol for control of it
         self.log.info("starting {}".format(name))
         self.runningScriptTransport, self.runningScriptProtocol = await proc
