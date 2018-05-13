@@ -90,7 +90,11 @@ def hatch_closed():
         if hatch_closed:
             return True
         else:
-            return False
+            if params.IGNORE_HATCH:
+                print('Hatch is open but IGNORE_HATCH is true')
+                return True
+            else:
+                return False
     except:
         print('Error parsing hatch status')
         return False
