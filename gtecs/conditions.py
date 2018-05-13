@@ -229,7 +229,7 @@ def get_local_weather(source):
             weather_dict['winddir'] = float(data['wind_direction'])
         elif not vaisala:
             # SuperWASP wind readings aren't trustworthy
-            del weather_dict['wind_direction']
+            del weather_dict['winddir']
     except:
         print('Error parsing wind direction for {}'.format(source))
 
