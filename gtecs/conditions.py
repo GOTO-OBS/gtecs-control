@@ -188,6 +188,7 @@ def get_local_weather(source):
         data = json.loads(indata)
     except:
         print('Error reading data for {}'.format(source))
+        print(indata)
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
