@@ -112,18 +112,21 @@ def python_command(filename, command, host='localhost',
         return ''
 
 
-def execute_command(cmd):
+def execute_command(cmd, handle_ctrlc=False):
     print(cmd)
     p = subprocess.Popen(cmd, shell=True, close_fds=True)
     try:
         p.wait()
     except KeyboardInterrupt:
-        print('...ctrl+c detected - closing...')
-        try:
-           p.terminate()
-        except OSError:
-           pass
-        p.wait()
+        if not handle_ctrlc:
+            raise
+        else:
+            print('...ctrl+c detected - closing...')
+            try:
+                p.terminate()
+            except OSError:
+                pass
+            p.wait()
 
 
 def ping_host(hostname,count=1,ttl=1):
