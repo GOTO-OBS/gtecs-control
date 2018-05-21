@@ -9,13 +9,13 @@ import time
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 from gtecs.observing import (prepare_for_images, wait_for_exposure_queue,
                              goto_altaz, wait_for_telescope)
 
 
 def take_image_set(expT, name):
-    cmd('exq image {} L 1 "{}"'.format(expT, name))
+    execute_command('exq image {} L 1 "{}"'.format(expT, name))
     time.sleep(0.1)
     wait_for_exposure_queue()
     time.sleep(0.1)

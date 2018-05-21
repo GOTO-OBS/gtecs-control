@@ -28,7 +28,7 @@ from astropy.convolution import Gaussian2DKernel
 import sep
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.misc import execute_command, neatCloser
 from gtecs.observing import (wait_for_exposure_queue, last_written_image,
                              goto, get_current_focus, set_new_focus,
                              wait_for_focuser, prepare_for_images,
@@ -37,7 +37,7 @@ from gtecs.catalogs import gliese
 
 
 def take_frame(expT, current_filter, name):
-    cmd('exq image {} {} 1 "{}" FOCUS'.format(
+    execute_command('exq image {} {} 1 "{}" FOCUS'.format(
         expT, current_filter, name
     ))
     time.sleep(0.1)

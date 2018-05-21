@@ -10,7 +10,7 @@ from obsdb import (markJobCompleted, markJobAborted, markJobRunning,
                    open_session, get_pointing_by_id)
 
 from gtecs import params
-from gtecs.misc import (execute_command as cmd, neatCloser,
+from gtecs.misc import (execute_command, neatCloser,
                         ut_mask_to_string, ut_string_to_list)
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
                              goto, wait_for_telescope)
@@ -65,8 +65,8 @@ def run(pID, minTime):
         markJobRunning(pID)
 
         # clear & pause queue to make sure
-        cmd('exq clear')
-        cmd('exq pause')
+        execute_command('exq clear')
+        execute_command('exq pause')
 
         # start slew
         print('Moving to target')
@@ -75,7 +75,7 @@ def run(pID, minTime):
         print('Adding commands to exposure queue')
         exq_command_list = get_exq_commands(pID)
         for exq_command in exq_command_list:
-            cmd(exq_command)
+            execute_command(exq_command)
 
         # wait for telescope (timeout 120s)
         time.sleep(10)
@@ -83,7 +83,7 @@ def run(pID, minTime):
 
         print('In position: starting exposures')
         # resume the queue
-        cmd('exq resume')
+        execute_command('exq resume')
 
         # wait for the queue to empty, no timeout
         wait_for_exposure_queue()

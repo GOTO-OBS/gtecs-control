@@ -13,7 +13,7 @@ from astropy.time import Time
 
 from . import params
 from .astronomy import tel_str, check_alt_limit, nightStarting
-from .misc import execute_command as cmd
+from .misc import execute_command
 from .daemons import daemon_function, daemon_info
 
 
@@ -61,22 +61,22 @@ def prepare_for_images():
 
     # Empty the exposure queue
     if not exposure_queue_is_empty():
-        cmd('exq pause')
+        execute_command('exq pause')
         time.sleep(1)
-        cmd('exq clear')
+        execute_command('exq clear')
         while not exposure_queue_is_empty():
             time.sleep(1)
-    cmd('exq resume')
+    execute_command('exq resume')
 
     # Home the filter wheels
     if not filters_are_homed():
-        cmd('filt home')
+        execute_command('filt home')
         while not filters_are_homed():
             time.sleep(1)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
-        cmd('cam temp {}'.format(params.CCD_TEMP))
+        execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(1)
 
@@ -98,7 +98,7 @@ def set_new_focus(values):
         values = {key: values for key in params.TEL_DICT}
 
     for tel in params.TEL_DICT:
-        cmd('foc set {} {}'.format(tel, int(values[tel])))
+        execute_command('foc set {} {}'.format(tel, int(values[tel])))
 
 
 def get_current_focus():
@@ -153,10 +153,10 @@ def goto(ra, dec):
     if check_alt_limit(ra, dec, Time.now()):
         raise ValueError('target too low, cannot set target')
     ra_string, dec_string = tel_str(ra, dec)
-    cmd("mnt ra " + ra_string)
-    cmd("mnt dec " + dec_string)
+    execute_command("mnt ra " + ra_string)
+    execute_command("mnt dec " + dec_string)
     time.sleep(1)
-    cmd("mnt slew")
+    execute_command("mnt slew")
 
 
 def goto_altaz(alt, az):
@@ -172,7 +172,7 @@ def goto_altaz(alt, az):
     """
     if alt < params.MIN_ELEVATION:
         raise ValueError('target too low, cannot set target')
-    cmd('mnt slew_altaz ' + str(alt) + ' ' + str(az))
+    execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
 def wait_for_telescope(timeout=None, targ_dist=0.003):
@@ -217,9 +217,9 @@ def random_offset(offset_size):
     """
     compass = ['n', 's', 'e', 'w']
     dirn = np.random.choice(compass)
-    cmd("mnt step {}".format(offset_size))
+    execute_command("mnt step {}".format(offset_size))
     time.sleep(0.2)
-    cmd("mnt {}".format(dirn))
+    execute_command("mnt {}".format(dirn))
     # wait a short while for it to move
     time.sleep(2)
 
@@ -235,7 +235,7 @@ def offset(direction, size):
     size : float
         offset size in arcseconds
     """
-    cmd("mnt {} {}".format(direction, size))
+    execute_command("mnt {} {}".format(direction, size))
     # wait a short while for it to move
     time.sleep(2)
 

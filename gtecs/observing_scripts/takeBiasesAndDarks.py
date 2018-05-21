@@ -9,7 +9,7 @@ import time
 import numpy as np
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images)
 
 def run(nexp=5):
@@ -26,9 +26,9 @@ def run(nexp=5):
     # make sure hardware is ready
     prepare_for_images()
 
-    cmd('exq multbias {} 1'.format(nexp))
-    cmd('exq multdark {} 120 1'.format(nexp))
-    cmd('exq resume')  # just in case
+    execute_command('exq multbias {} 1'.format(nexp))
+    execute_command('exq multdark {} 120 1'.format(nexp))
+    execute_command('exq resume')  # just in case
 
     readout = 30*nexp
     total_exp = 120*nexp

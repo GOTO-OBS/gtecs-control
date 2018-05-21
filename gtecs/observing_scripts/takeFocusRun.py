@@ -21,7 +21,7 @@ from astropy.time import Time
 from astropy.io import fits
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd, neatCloser
+from gtecs.misc import execute_command, neatCloser
 from gtecs.astronomy import nightStarting
 from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
                              get_current_focus, set_new_focus,

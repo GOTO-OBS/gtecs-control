@@ -112,9 +112,9 @@ def python_command(filename, command, host='localhost',
         return ''
 
 
-def execute_command(cmd, handle_ctrlc=False):
-    print(cmd)
-    p = subprocess.Popen(cmd, shell=True, close_fds=True)
+def execute_command(command_string, handle_ctrlc=False):
+    print(command_string)
+    p = subprocess.Popen(command_string, shell=True, close_fds=True)
     try:
         p.wait()
     except KeyboardInterrupt:

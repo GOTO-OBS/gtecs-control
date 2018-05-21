@@ -7,7 +7,7 @@ import os
 import sys
 import pkg_resources
 
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
@@ -41,4 +41,4 @@ if __name__ == "__main__":
                     print('\t', s)
         else:
             cmd_str =  ' '.join((sys.executable, SCRIPT_PATH+'/'+name+'.py', *args))
-            cmd(cmd_str)
+            execute_command(cmd_str)

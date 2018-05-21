@@ -13,7 +13,7 @@ This script should perform the following simple tasks:
 import time
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 
 
 def run():
@@ -23,31 +23,31 @@ def run():
     print('Running shutdown tasks')
 
     # Pause and clear the exposure queue
-    cmd('exq pause')
+    execute_command('exq pause')
     time.sleep(1)
-    cmd('exq clear')
+    execute_command('exq clear')
 
     # Abort any current exposures
-    cmd('cam abort')
+    execute_command('cam abort')
 
     # Shut down the FLI interface, else it would crash when we power off
-    cmd('fli shutdown')
+    execute_command('fli shutdown')
 
     # Power off the FLI hardware
     # NB in startup.py we start only for tel in params.TEL_DICT,
     # here we shut them all down in case one unintentially started
-    cmd('power off filts')
-    cmd('power off focs')
-    cmd('power off cams')
+    execute_command('power off filts')
+    execute_command('power off focs')
+    execute_command('power off cams')
 
     # Park the mount
-    cmd('mnt park')
+    execute_command('mnt park')
 
     # give time before closing dome
     time.sleep(60)
 
     # close dome and wait (pilot will try again before shutdown)
-    cmd('dome close')
+    execute_command('dome close')
     time.sleep(65)
 
 if __name__ == "__main__":

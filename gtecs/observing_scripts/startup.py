@@ -13,7 +13,7 @@ These are hardware tasks to do BEFORE the dome opens:
 import time
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 from gtecs.observing import (filters_are_homed, cameras_are_cool)
 
 
@@ -24,31 +24,31 @@ def run():
     print('Running startup tasks')
 
     # Make sure the power daemon is running
-    cmd('power start')
+    execute_command('power start')
 
     time.sleep(10)
 
     # Power on the FLI hardware and mount box
     for tel in params.TEL_DICT:
-        cmd('power on filt{}'.format(tel))
-        cmd('power on foc{}'.format(tel))
-        cmd('power on cam{}'.format(tel))
-    cmd('power on sitech')
+        execute_command('power on filt{}'.format(tel))
+        execute_command('power on foc{}'.format(tel))
+        execute_command('power on cam{}'.format(tel))
+    execute_command('power on sitech')
 
     time.sleep(5)
 
     # Restart the FLI interface, as it would have crashed if the power was off
-    cmd('fli shutdown')
+    execute_command('fli shutdown')
     time.sleep(5)
-    cmd('fli start')
+    execute_command('fli start')
 
     # Make sure all the other daemons are running
-    cmd('lilith start')
+    execute_command('lilith start')
 
     time.sleep(10)
 
     # Unpark the mount
-    cmd('mnt unpark')
+    execute_command('mnt unpark')
 
     # Don't set a target, we want to stay parked while opening
     #print('Setting target to Zenith')
@@ -56,28 +56,28 @@ def run():
     #obs = observatory_location()
     #ra = lst.to(u.deg)
     #dec = obs.lat.value
-    #cmd('mnt ra {}'.format(ra))
-    #cmd('mnt dec {}'.format(dec))
-    #cmd('mnt slew')
+    #execute_command('mnt ra {}'.format(ra))
+    #execute_command('mnt dec {}'.format(dec))
+    #execute_command('mnt slew')
     #time.sleep(20)
-    #cmd('mnt info')
+    #execute_command('mnt info')
 
     # Clean up any persistent queue from previous night
-    cmd('exq clear')
+    execute_command('exq clear')
     time.sleep(1)
-    cmd('exq resume')
+    execute_command('exq resume')
 
     # Home the filter wheels
-    cmd('filt home')
+    execute_command('filt home')
     while not filters_are_homed():
         time.sleep(1)
     print('filt info')
 
     # Bring the CCDs down to temperature
-    cmd('cam temp {}'.format(params.CCD_TEMP))
+    execute_command('cam temp {}'.format(params.CCD_TEMP))
     while not cameras_are_cool():
         time.sleep(1)
-    cmd('cam info')
+    execute_command('cam info')
 
     print('Startup tasks done')
 

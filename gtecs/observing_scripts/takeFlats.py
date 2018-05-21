@@ -13,7 +13,7 @@ from astropy.time import Time
 from astropy.io import fits
 
 from gtecs import params
-from gtecs.misc import execute_command as cmd
+from gtecs.misc import execute_command
 from gtecs.astronomy import startTime, nightStarting
 from gtecs.observing import (wait_for_exposure_queue, last_written_image,
                              prepare_for_images, goto, offset,
@@ -31,7 +31,7 @@ def mean_sky_brightness(fnames):
 
 
 def take_sky(expT, current_filter, name):
-    cmd('exq image {:.1f} {} 1 "{}" FLAT'.format(
+    execute_command('exq image {:.1f} {} 1 "{}" FLAT'.format(
         expT, current_filter, name
     ))
     time.sleep(0.1)
