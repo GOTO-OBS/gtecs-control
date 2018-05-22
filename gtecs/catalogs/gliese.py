@@ -62,9 +62,19 @@ def focus_star(time):
     coords = SkyCoord(gliese_table['RAJ2000'], gliese_table['DEJ2000'], unit=(u.hour, u.deg))
     alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     jmag = gliese_table['Jmag']
+
+    # filter on magnitudes
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        mask = np.fabs(jmag-10) < 2
+        mag_mask = np.fabs(jmag-10) < 2
+
+    # filter on moon distance
+    moon = ast.get_moon(time)
+    moon_dist = coords.separation(moon).degree
+    moon_mask = moon_dist > 45
+
+    mask = mag_mask & moon_mask
+
     row = gliese_table[mask][np.argmax(alt[mask])]
     star = GlieseStar(row['Name'], row['RAJ2000'], row['DEJ2000'],
                       row['pmRA'], row['pmDE'], row['Jmag'])
