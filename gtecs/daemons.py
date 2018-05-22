@@ -24,8 +24,8 @@ class BaseDaemon(object):
 
         # set up logfile
         self.logfile = logger.getLogger(self.daemon_ID,
-                                        file_logging=params.FILE_LOGGING,
-                                        stdout_logging=params.STDOUT_LOGGING)
+                                        log_to_file=params.FILE_LOGGING,
+                                        log_to_stdout=params.STDOUT_LOGGING)
         self.logfile.info('Daemon created')
 
     # Common daemon functions

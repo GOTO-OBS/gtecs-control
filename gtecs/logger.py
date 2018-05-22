@@ -48,7 +48,8 @@ def getStreamHandler():
     return console
 
 
-def getLogger(name=None, file_logging=True, stdout_logging=True):
+def getLogger(name=None, log_stdout=False,
+              log_to_file=True, log_to_stdout=True):
     """
     Function to provide standardised logging to all processes.
 
@@ -71,9 +72,11 @@ def getLogger(name=None, file_logging=True, stdout_logging=True):
     ----------
     name : str
         the name of the logger, which is also used for the name of the logfile
-    file_logging : bool
+    log_stdout : bool
+        whether to log all stdout, not just log commands
+    log_to_file : bool
         whether to log to file or not
-    stdout_logging : bool
+    log_to_stdout : bool
         whether to log to stdout or not
 
     Returns
@@ -105,16 +108,38 @@ def getLogger(name=None, file_logging=True, stdout_logging=True):
         return log
 
     # add a stdout handler
-    if stdout_logging:
+    if log_to_stdout:
         log.addHandler(getStreamHandler())
 
     # add a file handler
-    if file_logging:
+    if log_to_file:
         log.addHandler(getFileHandler(name))
+
+    # redirect system stdout
+    if log_stdout:
+        sys.stdout = StreamToLogger(log, logging.INFO)
+        sys.stderr = StreamToLogger(log, logging.ERROR)
+
     return log
 
 
-def setLoggerOutput(logger, file_logging=True, stdout_logging=True):
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+    def __init__(self, logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+           self.logger.log(self.log_level, line.rstrip())
+
+    def flush(self):
+        pass
+
+def setLoggerOutput(logger, log_to_file=True, log_to_stdout=True):
     """
     Adds or removes handlers to a logger to print to file or stdout.
 
@@ -122,9 +147,9 @@ def setLoggerOutput(logger, file_logging=True, stdout_logging=True):
     ----------
     logger : `logging.Logger`
         the logger to add or remove handlers from
-    file_logging : bool
+    log_to_file : bool
         ensure logger logs to file
-    stdout_logging : bool
+    log_to_stdout : bool
         ensure logger logs to stdout
     """
     file_logger_truefalse = [isinstance(hl, logging.handlers.WatchedFileHandler)
@@ -134,7 +159,7 @@ def setLoggerOutput(logger, file_logging=True, stdout_logging=True):
                                for hl in logger.handlers]
     already_has_stdout_logger = any(stdout_logger_truefalse)
 
-    if file_logging:
+    if log_to_file:
         if not already_has_file_logger:
             logger.addHandler(getFileHandler(logger.name))
     else:
@@ -142,7 +167,7 @@ def setLoggerOutput(logger, file_logging=True, stdout_logging=True):
             handler = logger.handlers[file_logger_truefalse.index(True)]
             logger.removeHandler(handler)
 
-    if stdout_logging:
+    if log_to_stdout:
         if not already_has_stdout_logger:
             logger.addHandler(getStreamHandler())
     else:

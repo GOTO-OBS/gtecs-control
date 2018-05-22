@@ -57,8 +57,9 @@ class Pilot:
     def __init__(self, testing=False):
         # get a logger for the pilot
         self.log = logger.getLogger('pilot',
-                                    file_logging=params.FILE_LOGGING,
-                                    stdout_logging=params.STDOUT_LOGGING)
+                                    log_stdout=True,
+                                    log_to_file=params.FILE_LOGGING,
+                                    log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Pilot started')
 
         # current and next job from scheduler
