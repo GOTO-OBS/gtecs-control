@@ -71,7 +71,7 @@ def run():
     execute_command('filt home')
     while not filters_are_homed():
         time.sleep(1)
-    print('filt info')
+    execute_command('filt info')
 
     # Bring the CCDs down to temperature
     execute_command('cam temp {}'.format(params.CCD_TEMP))
