@@ -49,8 +49,8 @@ if __name__ == '__main__':
                 daemons.append('fli')
 
         for d in daemons:
-            cmd_str = '{} {}'.format(d, sys.argv[1])
-            execute_command(cmd_str, handle_ctrlc=True)
+            command = '{} {}'.format(d, sys.argv[1])
+            execute_command(command)
             time.sleep(1)
     else:
         print('Valid commands: start, shutdown, kill, ping')

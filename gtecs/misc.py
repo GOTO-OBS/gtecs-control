@@ -112,21 +112,35 @@ def python_command(filename, command, host='localhost',
         return ''
 
 
-def execute_command(command_string, handle_ctrlc=False):
+def execute_command(command_string, timeout=30):
+    """For commands that should return quickly."""
+    print('{}:'.format(command_string))
+    ret_str = subprocess.check_output(command_string.split(' '),
+                                      #shell=True,
+                                      stderr=subprocess.STDOUT,
+                                      timeout=timeout)
+    print('> '+ret_str.strip().decode().replace('\n','\n> '))
+    return 0
+
+
+def execute_long_command(command_string):
+    """For commands that might not return immediately.
+
+    Examples:
+        The tail command for logs, because you can use tail's -f param
+        obs_scripts
+    """
     print(command_string)
     p = subprocess.Popen(command_string, shell=True, close_fds=True)
     try:
         p.wait()
     except KeyboardInterrupt:
-        if not handle_ctrlc:
-            raise
-        else:
-            print('...ctrl+c detected - closing...')
-            try:
-                p.terminate()
-            except OSError:
-                pass
-            p.wait()
+        print('...ctrl+c detected - closing...')
+        try:
+            p.terminate()
+        except OSError:
+            pass
+        p.wait()
 
 
 def ping_host(hostname,count=1,ttl=1):

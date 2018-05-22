@@ -77,7 +77,7 @@ def query(command, args, daemon_IDs):
                 log_path = params.LOG_PATH + daemon_ID + '.log'
             tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
             # send command
-            misc.execute_command(tail_command, handle_ctrlc=True)
+            misc.execute_long_command(tail_command)
 
     # Unrecognized function
     else:

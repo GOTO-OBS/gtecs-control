@@ -7,7 +7,7 @@ import sys
 
 from gtecs import flags
 from gtecs import params
-from gtecs import misc
+from gtecs.misc import execute_command
 
 status = flags.Status()
 
@@ -25,6 +25,6 @@ if __name__ == "__main__":
             print('Usage: mode [manual|robotic]')
         else:
             if new_mode.lower() in m_args:
-                misc.execute_command('manual_mode')
+                execute_command('manual_mode')
             elif new_mode.lower() in r_args:
-                misc.execute_command('robotic_mode')
+                execute_command('robotic_mode')
