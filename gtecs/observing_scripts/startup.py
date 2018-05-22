@@ -43,7 +43,10 @@ def run():
     execute_command('fli start')
 
     # Make sure all the other daemons are running
-    execute_command('lilith start')
+    for daemon in list(params.DAEMONS):
+        # don't run the individual interfaces
+        if daemon not in params.FLI_INTERFACES:
+            execute_command('{} start'.format(daemon))
 
     time.sleep(10)
 
