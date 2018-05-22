@@ -306,7 +306,7 @@ class Pilot:
 
     async def check_scheduler(self):
         """
-        Check scheduler and update current job every 30 seconds.
+        Check scheduler and update current job every 10 seconds.
         """
         self.log.info('scheduler check routine initialised')
         while True:
@@ -332,7 +332,7 @@ class Pilot:
                 self.log.info('scheduler check: continue {}'.format(self.currentID))
 
             self.initial_scheduler_check_complete = True
-            await asyncio.sleep(30)
+            await asyncio.sleep(10)
 
     async def check_hardware(self):
         """
