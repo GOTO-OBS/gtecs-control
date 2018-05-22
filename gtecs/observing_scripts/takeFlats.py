@@ -31,9 +31,8 @@ def mean_sky_brightness(fnames):
 
 
 def take_sky(expT, current_filter, name):
-    execute_command('exq image {:.1f} {} 1 "{}" FLAT'.format(
-        expT, current_filter, name
-    ))
+    exq_command = 'exq image {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
+    execute_command(exq_command)
     time.sleep(0.1)
     wait_for_exposure_queue(180)
     offset('n', 60)  # make an offset to move stars

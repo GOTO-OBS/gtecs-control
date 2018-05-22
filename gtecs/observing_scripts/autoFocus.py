@@ -37,9 +37,8 @@ from gtecs.catalogs import gliese
 
 
 def take_frame(expT, current_filter, name):
-    execute_command('exq image {} {} 1 "{}" FOCUS'.format(
-        expT, current_filter, name
-    ))
+    exq_command = 'exq image {} {} 1 "{}" FOCUS'.format(expT, current_filter, name)
+    execute_command(exq_command)
     time.sleep(0.1)
     wait_time = 1.5*(expT + 30)
     wait_for_exposure_queue(wait_time)

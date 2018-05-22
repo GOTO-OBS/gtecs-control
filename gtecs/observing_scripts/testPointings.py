@@ -15,7 +15,8 @@ from gtecs.observing import (prepare_for_images, wait_for_exposure_queue,
 
 
 def take_image_set(expT, name):
-    execute_command('exq image {} L 1 "{}"'.format(expT, name))
+    exq_command = 'exq image {} L 1 "{}"'.format(expT, name)
+    execute_command(exq_command)
     time.sleep(0.1)
     wait_for_exposure_queue()
     time.sleep(0.1)

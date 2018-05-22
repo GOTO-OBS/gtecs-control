@@ -18,9 +18,8 @@ from gtecs.catalogs import landolt
 
 def take_image_set(expT, name):
     for filt in params.FILTER_LIST:
-        execute_command('exq image {} {} 1 "{}" STD'.format(
-            expT, filt, name
-        ))
+        exq_command = 'exq image {} {} 1 "{}" STD'.format(expT, filt, name)
+        execute_command(exq_command)
     time.sleep(0.1)
     wait_for_exposure_queue()
     time.sleep(0.1)
