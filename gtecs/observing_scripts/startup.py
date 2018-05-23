@@ -30,9 +30,7 @@ def run():
 
     # Power on the FLI hardware and mount box
     for tel in params.TEL_DICT:
-        execute_command('power on filt{}'.format(tel))
-        execute_command('power on foc{}'.format(tel))
-        execute_command('power on cam{}'.format(tel))
+        execute_command('power on cam{0},foc{0},filt{0}'.format(tel))
     execute_command('power on sitech')
 
     time.sleep(5)

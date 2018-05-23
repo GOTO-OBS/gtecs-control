@@ -36,9 +36,7 @@ def run():
     # Power off the FLI hardware
     # NB in startup.py we start only for tel in params.TEL_DICT,
     # here we shut them all down in case one unintentially started
-    execute_command('power off filts')
-    execute_command('power off focs')
-    execute_command('power off cams')
+    execute_command('power off cams,focs,filts')
 
     # Park the mount
     execute_command('mnt park')
