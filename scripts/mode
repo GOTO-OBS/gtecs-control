@@ -19,12 +19,24 @@ if __name__ == "__main__":
     else:
         m_args = ['m', '-m', 'manual', '--manual']
         r_args = ['r', '-r', 'robotic', '--robotic']
-        new_mode = sys.argv[1]
-        if new_mode.lower() not in r_args+m_args:
+        new_mode = sys.argv[1].lower()
+
+        if new_mode not in r_args+m_args:
             print('ERROR: "{}" is an invalid mode'.format(name))
             print('Usage: mode [manual|robotic]')
-        else:
-            if new_mode.lower() in m_args:
-                execute_command('manual_mode')
-            elif new_mode.lower() in r_args:
-                execute_command('robotic_mode')
+
+        elif new_mode in m_args:
+            username = input('Please enter your name for the record: ')
+            if len(username) == 0:
+                username = 'Unknown'
+            status.observer = username
+            print('Thank you "{}", everything will now be blamed on you'.format(username))
+
+            status.mode = 'manual'
+            print('System now in Manual mode, you are in control')
+
+        elif new_mode in r_args:
+            # this sets the observer to "GOTO-pilot"
+            # and turns on dome autoclose
+            status.mode = 'robotic'
+            print('System now in Robotic mode, the pilot is in control')
