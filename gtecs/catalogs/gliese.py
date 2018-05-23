@@ -70,7 +70,14 @@ def focus_star(time):
 
     # filter on moon distance
     moon = ast.get_moon(time)
-    moon_dist = coords.separation(moon).degree
+
+    # NOTE - the order matters
+    # moon.separation(target) is NOT the same as target.separation(moon)
+    # the former calculates the separation in the frame of the moon coord
+    # which is GCRS, and that is what we want.
+    # https://github.com/astropy/astroplan/blob/master/astroplan/constraints.py
+
+    moon_dist = moon.separation(coords).degree
     moon_mask = moon_dist > 45
 
     mask = mag_mask & moon_mask

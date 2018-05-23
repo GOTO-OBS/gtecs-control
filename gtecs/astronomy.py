@@ -504,5 +504,13 @@ def get_moon_distance(ra, dec, now):
         angular seperations in degrees
 
     """
-    moon_coords = get_moon(now)
-    return ang_sep(ra, dec, moon_coords.ra.degree, moon_coords.dec.degree)
+    target = SkyCoord(ra*u.deg, dec*u.deg)
+    moon = get_moon(now)
+
+    # NOTE - the order matters
+    # moon.separation(target) is NOT the same as target.separation(moon)
+    # the former calculates the separation in the frame of the moon coord
+    # which is GCRS, and that is what we want.
+    # https://github.com/astropy/astroplan/blob/master/astroplan/constraints.py
+
+    return moon.separation(target).degree
