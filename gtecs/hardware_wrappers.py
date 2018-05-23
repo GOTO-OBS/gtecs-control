@@ -162,6 +162,7 @@ class DomeMonitor(HardwareMonitor):
                     self.errors.append('Dome not fully open')
             else:
                 self.currently_moving = False
+                self.move_start_time = 0
 
         elif obsMode is None:
             dome_fully_closed = self.info['dome'] == 'closed'
@@ -177,6 +178,7 @@ class DomeMonitor(HardwareMonitor):
                     self.errors.append('Dome not closed')
             else:
                 self.currently_moving = False
+                self.move_start_time = 0
 
     def setMode(self, mode):
         val = super(DomeMonitor, self).setMode(mode)
@@ -225,7 +227,9 @@ class MountMonitor(HardwareMonitor):
                             self.errors.append('Not on target')
             else:
                 self.currently_slewing = False
+                self.slew_start_time = 0
                 self.currently_off_target = False
+                self.off_target_start_time = 0
 
         elif obsMode == 'parked' and params.FREEZE_DEC:
             if self.info['status'] != 'Stopped':
