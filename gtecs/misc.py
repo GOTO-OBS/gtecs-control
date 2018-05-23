@@ -115,11 +115,8 @@ def python_command(filename, command, host='localhost',
 def execute_command(command_string, timeout=30):
     """For commands that should return quickly."""
     print('{}:'.format(command_string))
-    # want to split, but not on quotes
-    # see https://stackoverflow.com/questions/79968/split-a-string-by-spaces-preserving-quoted-substrings-in-python/80449#80449
-    command_list = re.findall(r'[^"\s]\S*|".+?"', command_string)
-    ret_str = subprocess.check_output(command_list,
-                                      #shell=True,
+    ret_str = subprocess.check_output(command_string,
+                                      shell=True,
                                       stderr=subprocess.STDOUT,
                                       timeout=timeout)
     print('> '+ret_str.strip().decode().replace('\n','\n> '))
