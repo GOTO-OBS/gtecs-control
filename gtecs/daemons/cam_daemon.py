@@ -245,6 +245,7 @@ class CamDaemon(HardwareDaemon):
                     write_fits(image, filename, tel, self.info)
 
                     # finished
+                    self.logfile.info('Exposure saved')
                     self.active_tel.pop(self.active_tel.index(tel))
                     self.exposing_flag[intf][HW] = 0
 
