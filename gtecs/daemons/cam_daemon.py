@@ -17,7 +17,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
 from gtecs.daemons import HardwareDaemon
-from gtecs.fits import image_location, write_fits
+from gtecs.fits import image_location, get_all_info, write_fits
 
 
 DAEMON_ID = 'cam'
@@ -269,6 +269,9 @@ class CamDaemon(HardwareDaemon):
 
                 # stage 3 - save
                 elif self.exposure_status == 3:
+                    # get daemon info (once, for all images)
+                    all_info = get_all_info(self.info)
+
                     # save images
                     for tel in self.active_tel:
                         # get image and filename
@@ -277,7 +280,7 @@ class CamDaemon(HardwareDaemon):
 
                         # write the FITS file
                         self.logfile.info('Saving exposure to %s', filename)
-                        write_fits(image, filename, tel, self.info)
+                        write_fits(image, filename, tel, all_info)
                         self.logfile.info('Exposure saved')
                         self.exposing_flag[tel] = 0
 

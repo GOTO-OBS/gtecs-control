@@ -39,13 +39,13 @@ def image_location(run_number, tel):
     return direc + filename
 
 
-def write_fits(image, filename, tel, cam_info):
+def write_fits(image, filename, tel, all_info):
     """Update an image's FITS header and save to a file"""
     # extract the hdu
     hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
-    update_header(hdu.header, tel, cam_info)
+    update_header(hdu.header, tel, all_info)
 
     # write the image log to the database
     write_image_log(filename, hdu.header)
@@ -57,7 +57,47 @@ def write_fits(image, filename, tel, cam_info):
     hdulist.writeto(filename)
 
 
-def update_header(header, tel, cam_info):
+def get_all_info(cam_info):
+    """Get all info dicts from the running daemons"""
+    all_info = {}
+
+    # Camera daemon
+    all_info['cam'] = cam_info
+
+    # Focuser info
+    try:
+        all_info['foc'] = daemon_info('foc')
+    except:
+        all_info['foc'] = None
+
+    # Filter wheel info
+    try:
+        all_info['filt'] = daemon_info('filt')
+    except:
+        all_info['filt'] = None
+
+    # Dome info
+    try:
+        all_info['dome'] = daemon_info('dome')
+    except:
+        all_info['dome'] = None
+
+    # Mount info
+    try:
+        all_info['mnt'] = daemon_info('mnt')
+    except:
+        all_info['mnt'] = None
+
+    # Conditions info
+    try:
+        all_info['conditions'] = daemon_info('conditions')
+    except:
+        all_info['conditions'] = None
+
+    return all_info
+
+
+def update_header(header, tel, all_info):
     """Add observation, exposure and hardware info to the FITS header"""
 
     # These cards are set automatically by AstroPy, we just give them
@@ -73,6 +113,7 @@ def update_header(header, tel, cam_info):
 
 
     # Observation info
+    cam_info = all_info['cam']
     run_number = cam_info['run_number']
     run_id = 'r{:07d}'.format(run_number)
     header["RUN     "] = (run_number, "GOTO run number")
@@ -302,7 +343,7 @@ def update_header(header, tel, cam_info):
 
     # Focuser info
     try:
-        info = daemon_info('foc')
+        info = all_info['foc']
         foc_serial = info['serial_number'+str(tel)]
         foc_pos = info['current_pos'+str(tel)]
         foc_temp_int = info['int_temp'+str(tel)]
@@ -321,7 +362,7 @@ def update_header(header, tel, cam_info):
 
     # Filter wheel info
     try:
-        info = daemon_info('filt')
+        info = all_info['filt']
         filt_serial = info['serial_number'+str(tel)]
         if info['current_filter_num'+str(tel)] != -1:
             filt_filter_num = info['current_filter_num'+str(tel)]
@@ -345,7 +386,7 @@ def update_header(header, tel, cam_info):
 
     # Dome info
     try:
-        info = daemon_info('dome')
+        info = all_info['dome']
         north_status = info['north']
         south_status = info['south']
         if north_status == 'ERROR' or south_status == 'ERROR':
@@ -371,7 +412,7 @@ def update_header(header, tel, cam_info):
 
     # Mount info
     try:
-        info = daemon_info('mnt')
+        info = all_info['mnt']
 
         mount_tracking = info['status'] == 'Tracking'
 
@@ -461,7 +502,7 @@ def update_header(header, tel, cam_info):
 
     # Conditions info
     try:
-        info = daemon_info('conditions')
+        info = all_info['conditions']
 
         ext_weather = info['weather']['goto']
 
