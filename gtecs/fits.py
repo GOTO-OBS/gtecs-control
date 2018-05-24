@@ -39,7 +39,7 @@ def image_location(run_number, tel):
     return direc + filename
 
 
-def write_fits(image, filename, tel, all_info):
+def write_fits(image, filename, tel, all_info, log = None):
     """Update an image's FITS header and save to a file"""
     # extract the hdu
     hdu = pyfits.PrimaryHDU(image)
@@ -55,6 +55,9 @@ def write_fits(image, filename, tel, all_info):
     if os.path.exists(filename):
         os.remove(filename)
     hdulist.writeto(filename)
+
+    if log:
+        log.info('Exposure saved')
 
 
 def get_all_info(cam_info):
