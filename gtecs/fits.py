@@ -61,7 +61,7 @@ def write_fits(image, filename, tel, all_info, log = None):
 
 
 def get_all_info(cam_info):
-    """Get all info dicts from the running daemons"""
+    """Get all info dicts from the running daemons, and other common info"""
     all_info = {}
 
     # Camera daemon
@@ -96,6 +96,12 @@ def get_all_info(cam_info):
         all_info['conditions'] = daemon_info('conditions')
     except:
         all_info['conditions'] = None
+
+    # Astronomy
+    astro = {}
+    astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(Time.now())
+    astro['sun_alt'] = get_sun_alt(Time.now())
+    all_info['astro'] = astro
 
     return all_info
 
@@ -491,16 +497,23 @@ def update_header(header, tel, all_info):
     header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
 
     # Astronomy info
-    moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
-    moon_alt = numpy.around(moon_alt, decimals=2)
-    moon_ill = numpy.around(moon_ill*100., decimals=1)
+    try:
+        info = all_info['astro']
+
+        moon_alt = numpy.around(info['moon_alt'], decimals=2)
+        moon_ill = numpy.around(info['moon_ill']*100., decimals=1)
+        moon_phase = info['moon_phase']
+
+        sun_alt = numpy.around(info['sun_alt'], decimals=1)
+    except:
+        moon_alt = 'NA'
+        moon_ill = 'NA'
+        moon_phase = 'NA'
+        sun_alt = 'NA'
 
     header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
     header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
     header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
-
-    sun_alt = numpy.around(get_sun_alt(Time.now()), decimals=1)
-
     header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
 
     # Conditions info
