@@ -223,6 +223,7 @@ class CamDaemon(HardwareDaemon):
                         ready = fli.exposure_ready(HW)
                         if ready:
                             self.exposing_flag[intf][HW] = 2
+                            self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
                             self.images[tel] =  fli.fetch_exposure(HW)
                     except:
                         self.logfile.error('No response from fli interface on %s', intf)
@@ -233,7 +234,6 @@ class CamDaemon(HardwareDaemon):
                 intf, HW = params.TEL_DICT[tel]
                 if self.exposing_flag[intf][HW] == 2 and self.images[tel] is not None:
                     # image available
-                    self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
                     image = self.images[tel]
                     self.images[tel] = None
 
