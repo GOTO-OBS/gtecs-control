@@ -267,6 +267,7 @@ class CamDaemon(HardwareDaemon):
                 elif self.exposure_status == 3:
                     # check if exposures are read
                     for tel in self.active_tel:
+                        intf, HW = params.TEL_DICT[tel]
                         if self.future_images[tel].done() and self.exposing_flag[tel] == 3:
                             self.images[tel] = self.future_images[tel].result()
                             self.logfile.info('Read exposure from camera %i (%s-%i)', tel, intf, HW)
@@ -289,8 +290,7 @@ class CamDaemon(HardwareDaemon):
 
                         # write the FITS file
                         self.logfile.info('Saving exposure to %s', filename)
-                        self.pool.submit(write_fits, image, filename, tel,
-                                         all_info, log=self.logfile)
+                        self.pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
                         self.exposing_flag[tel] = 0
 
                     # finished
