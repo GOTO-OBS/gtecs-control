@@ -235,7 +235,7 @@ class MountMonitor(HardwareMonitor):
             if self.info['status'] != 'Stopped':
                 self.errors.append('Not parked')
         elif obsMode == 'parked':
-            if self.info['status'] != 'Parked':
+            if self.info['status'] not in ['Parked', 'Parking']:
                 self.errors.append('Not parked')
         if self.info['status'] == 'Unknown':
             self.errors.append('Mount in error state')
