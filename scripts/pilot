@@ -204,32 +204,44 @@ class Pilot:
         self.log.info('cameras are cool')
 
     async def runThroughJobList(self, jobList, rising=False,
-                                respect_pause=True,
+                                ignore_conditions=False,
                                 ignore_late = False):
         """
         Just pop jobs off a list and run them at correct sun_alt
         """
         while jobList:
-            if self.paused and respect_pause:  # do nothing if paused
-                await asyncio.sleep(15)
-                continue
             job = jobList.pop(0)
+            self.log.info('next job: {}'.format(job['name']))
+
             # wait for the right sun altitude
             OK = await self.waitingForTheSun(job['sunAlt'], job['name'],
                                              rising, ignore_late)
-            # and go!
-            if OK:
-                if self.testing or ignore_late:
-                    # wait for each script to finish
-                    await self.startScript(job['name'], job['protocol'], job['cmd'])
-                else:
-                    # don't wait for script finish, but start each one when the
-                    # sun alt says so, cancelling running script if not done
-                    asyncio.ensure_future(
-                        self.startScript(job['name'], job['protocol'], job['cmd'])
-                    )
-            else:
+
+            if not OK:
+                # too late
                 self.log.warn('too late to start {}'.format(job['name']))
+                continue
+
+            elif ((self.whypause['hw']) or (self.whypause['manual']) or
+                  (self.whypause['cond'] and not ignore_conditions)):
+                # need to check if we're paused
+                # if ignore_conditions (daytime jobs) we can start even if
+                # paused for conditions, but not for other reasons
+                self.log.warn('currently paused, will not start {}'.format(job['name']))
+                await asyncio.sleep(15)
+                continue
+
+            elif self.testing or ignore_late:
+                # wait for each script to finish
+                await self.startScript(job['name'], job['protocol'], job['cmd'])
+
+            else:
+                # don't wait for script finish, but start each one when the
+                # sun alt says so, cancelling running script if not done
+                asyncio.ensure_future(
+                    self.startScript(job['name'], job['protocol'], job['cmd'])
+                )
+
             await asyncio.sleep(1)
 
     async def nightMarshall(self, restart=False, late=False):
@@ -257,7 +269,7 @@ class Pilot:
         # daytime jobs. Do these even in bad weather.
         if not restart:
             await self.runThroughJobList(self.daytime_jobs, rising=False,
-                                             respect_pause=False,
+                                             ignore_conditions=False,
                                              ignore_late=late)
 
         # make sure filters are homed and cams are cool, in case of restart
