@@ -884,17 +884,18 @@ class Pilot:
         if mnt_info['status'] == 'Parked':
             self.log.warn('unparking mount')
             execute_command('mnt unpark')
+            self.hardware['mnt'].setMode('tracking')
             await asyncio.sleep(5)
-            # slew to above horizon, to stop errors
-            execute_command('mnt slew_altaz 50 0')
-            await asyncio.sleep(10)
+
+        # slew to above horizon, to stop errors
+        execute_command('mnt slew_altaz 50 0')
+        await asyncio.sleep(10)
 
         mnt_info = self.hardware['mnt'].getInfo()
         if mnt_info['status'] != 'Tracking':
             execute_command('mnt track')
             await asyncio.sleep(2)
 
-        self.hardware['mnt'].setMode('tracking')
 
     def assignJobs(self):
         # daytime jobs: to do before opening the dome
