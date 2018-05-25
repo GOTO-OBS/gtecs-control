@@ -116,6 +116,9 @@ class Pilot:
         # flag for daytime testing
         self.testing = testing
 
+        # flag to shutdown early (in emergencies)
+        self.shutdown_now = 0
+
     @property
     def paused(self):
         """
@@ -734,8 +737,19 @@ class Pilot:
         sleepTime : float or int
             the time to sleep between checks against `stopTime`
         """
-        while Time.now() < stopTime:
+        while True:
             now = Time.now()
+            # check if we have reached stoptime
+            if now > stopTime:
+                self.log.info('stopTime reached, night is over')
+                await self.shutdown()
+                break
+
+            # check if we need to stop early
+            if self.shutdown_now:
+                self.log.warn('stopping early due to emergency shutdown')
+                break
+
             stopTime.precision = 0
             delta = stopTime - now
             status_str = 'end of night at {} ({:.0f} mins)'.format(stopTime.iso, delta.to('min').value)
@@ -747,9 +761,6 @@ class Pilot:
                 await asyncio.sleep(30)
             else:
                 await asyncio.sleep(sleepTime)
-
-        self.log.info('stopTime reached, night is over')
-        await self.shutdown()
 
         self.log.info('finished for tonight')
 
@@ -841,6 +852,9 @@ class Pilot:
 
         self.log.warn('running shutdown')
         await self.shutdown()
+
+        # end the night countdown early to close the pilot
+        self.shutdown_now = 1
 
     async def open_dome(self):
         self.log.warn('opening dome')
