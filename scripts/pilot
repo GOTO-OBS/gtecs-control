@@ -431,6 +431,11 @@ class Pilot:
                 reasons = ', '.join(self.status.emergency_shutdown_reasons)
                 asyncio.ensure_future(self.emergency_shutdown(reasons))
 
+            # print if we're paused
+            if self.paused:
+                reasons = [k for k in self.whypause if self.whypause[k]]
+                self.log.info('pilot paused ({})'.format(', '.join(reasons)))
+
             await asyncio.sleep(10)
 
     async def handlePause(self, reason, pause):
@@ -719,29 +724,29 @@ class Pilot:
         self.log.info("finished {}".format(name))
         return retcode, result
 
-    async def waitForNightsEnd(self, stopTime, sleepTime=120):
+    async def waitForNightsEnd(self, stop_time, sleep_time=120):
         """
         Function returns when night is done.
 
-        This function simply keeps running until the stopTime is reached.
+        This function simply keeps running until the stop_time is reached.
         The use of such a function is that it can be added to the list
         of tasks supplied to `~asyncio.BaseEventLoop.run_until_complete`
-        and the loop will keep going until the stopTime is reached.
+        and the loop will keep going until the stop_time is reached.
 
         Sleeps periodically to allow other jobs to be done.
 
         Parameters
         -----------
-        stopTime : `~astropy.time.Time`
+        stop_time : `~astropy.time.Time`
             the time to stop the Pilot
-        sleepTime : float or int
-            the time to sleep between checks against `stopTime`
+        sleep_time : float or int
+            the time to sleep between checks against `stop_time`
         """
         while True:
             now = Time.now()
-            # check if we have reached stoptime
-            if now > stopTime:
-                self.log.info('stopTime reached, night is over')
+            # check if we have reached stop time
+            if now > stop_time:
+                self.log.info('stop time reached, night is over')
                 await self.shutdown()
                 break
 
@@ -750,17 +755,12 @@ class Pilot:
                 self.log.warn('stopping early due to emergency shutdown')
                 break
 
-            stopTime.precision = 0
-            delta = stopTime - now
-            status_str = 'end of night at {} ({:.0f} mins)'.format(stopTime.iso, delta.to('min').value)
+            stop_time.precision = 0
+            delta = stop_time - now
+            status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta.to('min').value)
             self.log.info(status_str)
-            if self.paused:
-                reasons = [k for k in self.whypause if self.whypause[k]]
-                reasons = ', '.join(reasons)
-                self.log.info('pilot paused ({})'.format(reasons))
-                await asyncio.sleep(30)
-            else:
-                await asyncio.sleep(sleepTime)
+
+            await asyncio.sleep(sleep_time)
 
         self.log.info('finished for tonight')
 
@@ -969,7 +969,7 @@ if __name__ == "__main__":
     else:
         date = nightStarting()
         sunrise = startTime(date, 0*u.deg, eve=False)
-    stopSignal = pilot.waitForNightsEnd(stopTime=sunrise)
+    stopSignal = pilot.waitForNightsEnd(stop_time=sunrise)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
