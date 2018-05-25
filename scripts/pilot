@@ -847,8 +847,7 @@ class Pilot:
                        params.TELESCOP, why))
 
         self.log.warn('closing dome immediately')
-        if self.domeOpen:
-            self.close_dome()
+        self.close_dome()
 
         self.log.warn('running shutdown')
         await self.shutdown()
