@@ -260,6 +260,12 @@ class Pilot:
             (note FLATS will fail anyway)
         """
         self.log.info('nightMarshall initialised')
+
+        # if paused due to manual mode we should not do anything
+        while self.whypause['manual']:
+            self.log.info('in manual mode, tasks suspended')
+            await asyncio.sleep(30)
+
         # startup. Do this always, unless we're restarting
         if not restart:
             if not self.startup_complete:
