@@ -407,13 +407,8 @@ class Pilot:
         """
         self.log.info('flags check routine initialised')
         while True:
-
-            # overrides
-            self.status = Status()
-            # conditions flags
-            self.conditions = Conditions()
-
             # handle overrides first
+            self.status = Status()
             if self.status.mode == 'manual':
                 await self.handlePause('manual', True)
             else:
@@ -422,12 +417,14 @@ class Pilot:
             # now handle conditions
             self.conditions = Conditions()
             if self.conditions.bad:
+                self.log.warn('Conditions bad: ({})'.format(self.conditions.bad_flags))
                 await self.handlePause('cond', True)
             else:
                 await self.handlePause('cond', False)
 
             # emergency file
             if self.status.emergency_shutdown:
+                self.log.warn('Conditions critical: ({})'.format(self.status.emergency_shutdown_reasons))
                 reasons = ', '.join(self.status.emergency_shutdown_reasons)
                 asyncio.ensure_future(self.emergency_shutdown(reasons))
 
