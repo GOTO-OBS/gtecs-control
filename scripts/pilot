@@ -905,10 +905,10 @@ class Pilot:
 
         # slew to above horizon, to stop errors
         execute_command('mnt slew_altaz 50 0')
-        await asyncio.sleep(10)
+        await asyncio.sleep(15)
 
         mnt_info = self.hardware['mnt'].getInfo()
-        if mnt_info['status'] != 'Tracking':
+        if mnt_info['status'] not in ['Slewing', 'Tracking']:
             execute_command('mnt track')
             await asyncio.sleep(2)
 
