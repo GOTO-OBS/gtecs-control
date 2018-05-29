@@ -179,7 +179,7 @@ def get_local_weather(source):
 
     try:
         indata = curl_data_from_url(url, outfile)
-        if len(indata) < 2:
+        if len(indata) < 2 or '500 Internal Server Error' in indata:
             raise IOError
     except:
         time.sleep(0.2)
