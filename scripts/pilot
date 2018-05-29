@@ -626,6 +626,8 @@ class Pilot:
                         self.log.info('job interrupted: {}'.format(self.currentID))
                 else:
                     self.log.info('got job from scheduler {}'.format(self.newID))
+                    # we were not doing anything, which implies we parked
+                    await self.unpark_mount()
 
                 # start new job
                 if self.newID is None:
