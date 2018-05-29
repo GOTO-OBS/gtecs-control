@@ -22,7 +22,7 @@ if __name__ == "__main__":
         new_mode = sys.argv[1].lower()
 
         if new_mode not in r_args+m_args:
-            print('ERROR: "{}" is an invalid mode'.format(name))
+            print('ERROR: "{}" is an invalid mode'.format(new_mode))
             print('Usage: mode [manual|robotic]')
 
         elif new_mode in m_args:
