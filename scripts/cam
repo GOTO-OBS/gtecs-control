@@ -167,7 +167,7 @@ def query(command, args, daemon_ID):
 
 def print_info(info):
     print('####### CAMERA INFO #######')
-    for tel in params.TEL_DICT:
+    for tel in sorted(params.TEL_DICT):
         print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
         if info['status'+str(tel)] != 'Exposing':
             print('Status: %s' %info['status'+str(tel)])
@@ -189,7 +189,7 @@ def print_info(info):
 
 
 def print_info_s(info):
-    for tel in params.TEL_DICT:
+    for tel in sorted(params.TEL_DICT):
         print('CAMERA ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
         if info['status'+str(tel)] != 'Exposing':
             print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
