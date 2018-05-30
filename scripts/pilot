@@ -605,20 +605,39 @@ class Pilot:
 
                 return
 
-            # see if a new target has arrived and mark job appropriately
-            if self.currentID != self.newID:
+            # See if a new target has arrived and mark job appropriately
+            # There are 6 options (technically 5, bottom left & bottom right
+            # are the same...):
+            #               || newID is  |    newID is    | newID  |
+            #               ||  same as  |  different to  |   is   |
+            #               || currentID |   currentID    |  None  |
+            #  -------------++-----------+----------------+--------+
+            #     currentID || carry on  | stop currentID |  park  |
+            #   is not None || currentID | & start newID  |        |
+            #  -------------++-----------+----------------+--------+
+            #     currentID ||   stay    |     start      |  stay  |
+            #       is None ||  parked   |     newID      | parked |
+
+            if self.newID == self.currentID:
+                if self.currentID is not None:
+                    self.log.debug('still observing {}'.format(self.currentID))
+                else:
+                    self.log.info('nothing to observe!')
+
+            elif self.newID is not None:
                 if self.currentID is not None:
                     self.log.info('got new job from scheduler {}'.format(self.newID))
-                    # this will fail if obsStartTime not currently defined
+                    # find time elapsed
                     try:
-                        timeElapsed = time.time() - self.obsStartTime - self.time_paused
+                        # this will fail if obsStartTime not currently defined
+                        time_elapsed = time.time() - self.obsStartTime - self.time_paused
                     except:
                         # in which case...
-                        timeElapsed = 0
+                        time_elapsed = 0
                     self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                        self.currentMinTime, timeElapsed
-                    ))
-                    if timeElapsed > self.currentMinTime:
+                                self.currentMinTime, time_elapsed))
+                    # mark current job
+                    if time_elapsed > self.currentMinTime:
                         markJobCompleted(self.currentID)
                         self.log.info('job completed: {}'.format(self.currentID))
                     else:
@@ -626,42 +645,35 @@ class Pilot:
                         self.log.info('job interrupted: {}'.format(self.currentID))
                 else:
                     self.log.info('got job from scheduler {}'.format(self.newID))
-                    # we were not doing anything, which implies we parked
+                    # we weren't doing anything, which implies we were parked
                     await self.unpark_mount()
 
-                # start new job
-                if self.newID is None:
-                    # park mount
-                    self.park_mount()
-                    execute_command('exq clear')
-                    execute_command('cam abort')
-                    self.currentID = self.newID
-                    self.currentPriority = None
-                    self.currentMinTime = None
-                    # in fringe case where we've interrupted a job it needs
-                    # to be cancelled.
-                    await self.cancelRunningScript('obs parking')
-                else:
-                    cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
-                           str(self.newID), str(int(self.newMinTime))]
-                    self.log.info('starting Job {}'.format(self.newID))
-                    markJobRunning(self.newID)
-                    self.obsStartTime = time.time()
-                    self.time_paused = 0
-                    # start job, will cancel current one automatically
-                    asyncio.ensure_future(
-                        self.startScript('OBS', SimpleProtocol, cmd)
-                    )
-                    self.currentID = self.newID
-                    self.currentPriority = self.newPriority
-                    self.currentMinTime = self.newMinTime
+                # start the new job
+                self.log.info('starting Job {}'.format(self.newID))
+                # start job, will cancel current one automatically
+                cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
+                       str(self.newID), str(int(self.newMinTime))]
+                asyncio.ensure_future(self.startScript('OBS', SimpleProtocol, cmd))
+                markJobRunning(self.newID)
+                self.obsStartTime = time.time()
+                self.currentID = self.newID
+                self.currentPriority = self.newPriority
+                self.currentMinTime = self.newMinTime
+                self.time_paused = 0
 
-            else:  # we are doing the right job, so do nothing
-                if self.currentID is None:
-                    self.log.info('nothing to observe!')
-                else:
-                     self.log.debug('still observing {}'.format(self.currentID))
-                await asyncio.sleep(5)
+            else:
+                self.log.info('nothing to do, parking mount')
+                self.park_mount()
+                execute_command('exq clear')
+                execute_command('cam abort')
+                self.currentID = None
+                self.currentPriority = None
+                self.currentMinTime = None
+                # in fringe case where we've interrupted a job it needs
+                # to be cancelled.
+                await self.cancelRunningScript('obs parking')
+
+            await asyncio.sleep(5)
 
     async def cancelRunningScript(self, why):
         """
