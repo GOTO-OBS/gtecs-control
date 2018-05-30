@@ -180,7 +180,7 @@ class ExqDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -220,7 +220,7 @@ class ExqDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:

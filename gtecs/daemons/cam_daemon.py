@@ -404,7 +404,7 @@ class CamDaemon(HardwareDaemon):
             raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Check current status
         if self.exposure_status == 1:
@@ -454,7 +454,7 @@ class CamDaemon(HardwareDaemon):
 
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if int(binning) < 1 or (int(binning) - binning) != 0:
@@ -501,7 +501,7 @@ class CamDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Check current status
         if self.exposure_status == 0:
@@ -542,7 +542,7 @@ class CamDaemon(HardwareDaemon):
             raise ValueError('Temperature must be between -55 and 45')
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         for tel in tel_list:
