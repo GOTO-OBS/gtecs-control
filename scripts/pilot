@@ -66,6 +66,7 @@ class Pilot:
         self.currentID = None
         self.currentMinTime = None
         self.currentPriority = None
+        self.currentStartTime = None
         self.newID = None
         self.newMinTime = None
         self.newPriority = None
@@ -578,26 +579,9 @@ class Pilot:
                 # finish observing
                 execute_command('exq clear')
                 execute_command('cam abort')
-                # in fringe case where we've interrupted a job it needs
-                # to be cancelled.
+                # If we've interrupted a job it needs to be cancelled,
+                # this will mark it as aborted
                 await self.cancelRunningScript('obs finished')
-
-                # Mark the pointing
-                # this will fail if obsStartTime not currently defined
-                try:
-                    timeElapsed = time.time() - self.obsStartTime - self.time_paused
-                except:
-                    # in which case...
-                    timeElapsed = 0
-                self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                    self.currentMinTime, timeElapsed
-                ))
-                if timeElapsed > self.currentMinTime:
-                    markJobCompleted(self.currentID)
-                    self.log.info('job completed: {}'.format(self.currentID))
-                else:
-                    markJobInterrupted(self.currentID)
-                    self.log.info('job interrupted: {}'.format(self.currentID))
 
                 self.currentID = None
                 self.currentPriority = None
@@ -627,22 +611,31 @@ class Pilot:
             elif self.newID is not None:
                 if self.currentID is not None:
                     self.log.info('got new job from scheduler {}'.format(self.newID))
-                    # find time elapsed
-                    try:
-                        # this will fail if obsStartTime not currently defined
-                        time_elapsed = time.time() - self.obsStartTime - self.time_paused
-                    except:
-                        # in which case...
-                        time_elapsed = 0
-                    self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                                self.currentMinTime, time_elapsed))
-                    # mark current job
-                    if time_elapsed > self.currentMinTime:
-                        markJobCompleted(self.currentID)
-                        self.log.info('job completed: {}'.format(self.currentID))
-                    else:
-                        markJobInterrupted(self.currentID)
-                        self.log.info('job interrupted: {}'.format(self.currentID))
+
+                    # Check if we're interupting a still ongoing job and need
+                    # to mark it as interupted. The alternative is that the
+                    # OBS script has finished which means it will have already
+                    # been marked as completed.
+                    if (self.runningScriptTransport is not None and
+                        self.runningScriptTransport.get_returncode() is None and
+                        self.runningScriptProtocol.jobName == 'OBS'):
+
+                        # cancel the script first (will mark as aborted)
+                        await self.cancelRunningScript(why='new job')
+
+                        # now correctly mark it as completed or interupted
+                        now = time.time()
+                        elapsed = now - self.currentStartTime - self.time_paused
+
+                        self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
+                                      self.currentMinTime, elapsed))
+                        if elapsed > self.currentMinTime:
+                            markJobCompleted(self.currentID)
+                            self.log.info('job completed: {}'.format(self.currentID))
+                        else:
+                            markJobInterrupted(self.currentID)
+                            self.log.info('job interrupted: {}'.format(self.currentID))
+
                 else:
                     self.log.info('got job from scheduler {}'.format(self.newID))
                     # we weren't doing anything, which implies we were parked
@@ -650,12 +643,11 @@ class Pilot:
 
                 # start the new job
                 self.log.info('starting Job {}'.format(self.newID))
-                # start job, will cancel current one automatically
                 cmd = [os.path.join(SCRIPT_PATH, 'observe.py'),
                        str(self.newID), str(int(self.newMinTime))]
                 asyncio.ensure_future(self.startScript('OBS', SimpleProtocol, cmd))
                 markJobRunning(self.newID)
-                self.obsStartTime = time.time()
+                self.currentStartTime = time.time()
                 self.currentID = self.newID
                 self.currentPriority = self.newPriority
                 self.currentMinTime = self.newMinTime
@@ -669,8 +661,8 @@ class Pilot:
                 self.currentID = None
                 self.currentPriority = None
                 self.currentMinTime = None
-                # in fringe case where we've interrupted a job it needs
-                # to be cancelled.
+                # If we've interrupted a job it needs to be cancelled,
+                # this will mark it as aborted
                 await self.cancelRunningScript('obs parking')
 
             await asyncio.sleep(5)
