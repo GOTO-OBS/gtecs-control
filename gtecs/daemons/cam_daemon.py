@@ -48,6 +48,8 @@ class CamDaemon(HardwareDaemon):
         self.future_images = {}  # use threads to download future images
         self.pool = ThreadPoolExecutor(max_workers=len(params.TEL_DICT))
 
+        self.all_info = None
+
         self.exposing_flag = {}
 
         for tel in params.TEL_DICT:
@@ -221,11 +223,16 @@ class CamDaemon(HardwareDaemon):
 
                     # set flag for stage 1
                     self.exposure_status = 1
-
                     self.get_info_flag = 1
 
                 # stage 1 - wait for exposures to finish
-                elif self.exposure_status == 1:
+                elif self.exposure_status == 1 and self.get_info_flag == 0:
+
+                    # get daemon info (once, for all images)
+                    # do it here so we know the cam info has been updated
+                    if self.all_info is None:
+                        self.all_info = get_all_info(self.info)
+
                     # check if exposures are complete
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
@@ -279,8 +286,12 @@ class CamDaemon(HardwareDaemon):
 
                 # stage 4 - save
                 elif self.exposure_status == 4:
-                    # get daemon info (once, for all images)
-                    all_info = get_all_info(self.info)
+                    # make sure we have all the info we need
+                    if self.all_info is not None:
+                        all_info = self.all_info.copy()
+                        self.all_info = None
+                    else:
+                        all_info = get_all_info(self.info)
 
                     # save images in parallel
                     for tel in self.active_tel:
