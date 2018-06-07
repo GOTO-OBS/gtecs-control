@@ -36,7 +36,7 @@ def getFileHandler(name=None):
 def getStreamHandler():
     # formatter for stdout logging; includes name of log
     formatter = logging.Formatter(
-        '%(asctime)s:%(name)s:%(levelname)s - %(message)s',
+        '%(asctime)s.%(msecs)03d:%(name)s:%(levelname)s - %(message)s',
         datefmt='%Y/%m/%d %H:%M:%S'
     )
     formatter.converter = time.gmtime

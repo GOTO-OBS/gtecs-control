@@ -436,7 +436,7 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
 def ut_list_to_mask(ut_list):
     """Converts a UT list to a mask integer"""
     ut_mask = 0
-    all_tels = sorted(list(params.TEL_DICT))
+    all_tels = sorted(params.TEL_DICT)
     for i in all_tels:
         if i in ut_list:
             ut_mask += 2**(i-1)
@@ -445,7 +445,7 @@ def ut_list_to_mask(ut_list):
 
 def ut_mask_to_string(ut_mask):
     """Converts a UT mask integer to a string of 0s and 1s"""
-    total_tels = max(list(params.TEL_DICT))
+    total_tels = max(sorted(params.TEL_DICT))
     bin_str = format(ut_mask, '0{}b'.format(total_tels))
     ut_str = bin_str[-1*total_tels:]
     return ut_str
@@ -454,7 +454,7 @@ def ut_mask_to_string(ut_mask):
 def ut_string_to_list(ut_string):
     """Converts a UT string of 0s and 1s to a list"""
     ut_list = []
-    all_tels = sorted(list(params.TEL_DICT))
+    all_tels = sorted(params.TEL_DICT)
     for i in all_tels:
         if ut_string[-1*i] == '1':
             ut_list.append(i)

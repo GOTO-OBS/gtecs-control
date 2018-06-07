@@ -95,16 +95,17 @@ class ExqDaemon(HardwareDaemon):
                 self.logfile.info('Taking exposure')
                 self.working = 1
 
-                # set the filter, if the exposure has one defined
-                if self.current_exposure.filt is not None:
+                # set the filter, if needed
+                if self._need_to_change_filter(filt):
                     try:
                         self._set_filter(filt)
                     except:
                         self.logfile.error('set_filter command failed')
                         self.logfile.debug('', exc_info=True)
-
-                # sleep briefly, to make sure the filter wheel has stopped
-                time.sleep(0.5)
+                    # sleep briefly, to make sure the filter wheel has stopped
+                    time.sleep(0.5)
+                else:
+                    self.logfile.info('No need to move filter wheel')
 
                 # take the image
                 try:
@@ -180,7 +181,7 @@ class ExqDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -220,7 +221,7 @@ class ExqDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -318,6 +319,20 @@ class ExqDaemon(HardwareDaemon):
 
 
     # Internal functions
+    def _need_to_change_filter(self, filt):
+        new_filt = self.current_exposure.filt
+        if new_filt is None:
+            # filter doesn't matter, e.g. dark
+            return False
+
+        tel_list = self.current_exposure.tel_list
+        filt._pyroReconnect()
+        filt_info = filt.get_info()
+        if all([params.FILTER_LIST[filt_info['current_filter_num'+str(tel)]] == new_filt for tel in tel_list]):
+            return False
+        else:
+            return True
+
     def _set_filter(self, filt):
         new_filt = self.current_exposure.filt
         tel_list = self.current_exposure.tel_list

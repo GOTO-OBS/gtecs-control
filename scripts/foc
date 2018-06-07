@@ -80,10 +80,10 @@ def query(command, args, daemon_ID):
     elif command == 'set':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = list(params.TEL_DICT)
+            tel_list = sorted(params.TEL_DICT)
             pos = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
             pos = int(args[1])
         else:
             raise misc.InputError('Invalid arguments')
@@ -94,10 +94,10 @@ def query(command, args, daemon_ID):
     elif command == 'move':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = list(params.TEL_DICT)
+            tel_list = sorted(params.TEL_DICT)
             steps = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
             steps = int(args[1])
         else:
             raise misc.InputError('Invalid arguments')
@@ -108,9 +108,9 @@ def query(command, args, daemon_ID):
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
-            tel_list = list(params.TEL_DICT)
+            tel_list = sorted(params.TEL_DICT)
         elif len(args) == 1:
-            tel_list = misc.valid_ints(args[0].split(','),list(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
         else:
             raise misc.InputError('Invalid arguments')
         # send command
@@ -124,7 +124,7 @@ def query(command, args, daemon_ID):
 
 def print_info(info):
     print('###### FOCUSER INFO #######')
-    for tel in params.TEL_DICT:
+    for tel in sorted(params.TEL_DICT):
         print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
         if info['status'+str(tel)] != 'Moving':
             print('Status: %s' %info['status'+str(tel)])
@@ -143,7 +143,7 @@ def print_info(info):
 
 
 def print_info_s(info):
-    for tel in params.TEL_DICT:
+    for tel in sorted(params.TEL_DICT):
         print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
         if info['status'+str(tel)] != 'Moving':
             print('  Current position: %s/%s' %(info['current_pos'+str(tel)],info['limit'+str(tel)]), end=' ')

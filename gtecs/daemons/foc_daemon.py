@@ -235,7 +235,7 @@ class FocDaemon(HardwareDaemon):
             raise ValueError('Position must be a positive integer')
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
@@ -274,7 +274,7 @@ class FocDaemon(HardwareDaemon):
             raise ValueError('Steps must be an integer')
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
@@ -313,7 +313,7 @@ class FocDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
