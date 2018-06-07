@@ -692,8 +692,12 @@ class Pilot:
                 if name == 'OBS' and self.currentID is not None:
                     markJobAborted(self.currentID)
 
-                self.runningScriptTransport.terminate()
-                await self.runningScriptResult
+                # check job is still running again, just in case
+                if (self.runningScriptTransport is not None and
+                    self.runningScriptTransport.get_returncode() is None):
+                    self.runningScriptTransport.terminate()
+                    await self.runningScriptResult
+
                 self.log.info("killed {}".format(name))
 
     async def startScript(self, name, protocol, cmd):
