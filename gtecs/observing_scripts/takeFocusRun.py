@@ -1,5 +1,5 @@
 """
-takeFocusRun [width=2000] [step=200] [filter]
+takeFocusRun [width=2000] [step=200] [filter] [plot (y/n)]
 Script to take a series of images running through focus
 
 It assumes you're already on a reasonable patch of sky and that you're
@@ -65,7 +65,7 @@ def plot_results(df):
     plt.show()
 
 
-def run(width, step, filt):
+def run(width, step, filt, make_plots):
     # make sure hardware is ready
     prepare_for_images()
 
@@ -120,7 +120,8 @@ def run(width, step, filt):
     df.to_csv(os.path.join(path, ofname))
 
     print('Plotting results')
-    plot_results(df)
+    if make_plots == 'y':
+        plot_results(df)
 
     print("Done")
 
@@ -131,9 +132,10 @@ if __name__ == "__main__":
     parser.add_argument('width', nargs='?',  default=2000)
     parser.add_argument('step', nargs='?',  default=200)
     parser.add_argument('filt', nargs='?',  default='L')
+    parser.add_argument('plot', nargs='?',  default='y')
     args = parser.parse_args()
 
     if args.filt not in params.FILTER_LIST:
         raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
 
-    run(int(args.width), int(args.step), args.filt)
+    run(int(args.width), int(args.step), args.filt, args.plot)
