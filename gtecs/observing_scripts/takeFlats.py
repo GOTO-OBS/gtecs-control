@@ -38,7 +38,7 @@ def take_sky(expT, current_filter, name):
     offset('n', 60)  # make an offset to move stars
     time.sleep(0.1)
     offset('w', 60)  # make an offset to move stars
-    time.sleep(0.1)
+    time.sleep(4) # need to wait for images to actually be saved
     fnames = last_written_image()
     skyMean = mean_sky_brightness(fnames)
     return skyMean
