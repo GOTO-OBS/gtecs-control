@@ -99,7 +99,7 @@ def set_new_focus(values):
         # same value for all
         values = {key: values for key in params.TEL_DICT}
 
-    for tel in params.TEL_DICT:
+    for tel in sorted(params.TEL_DICT):
         execute_command('foc set {} {}'.format(tel, int(values[tel])))
 
 

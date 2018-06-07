@@ -224,7 +224,7 @@ class FiltDaemon(HardwareDaemon):
             raise ValueError('Filter not in list %s' %str(params.FILTER_LIST))
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1
@@ -261,7 +261,7 @@ class FiltDaemon(HardwareDaemon):
         # Check input
         for tel in tel_list:
             if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(list(params.TEL_DICT)))
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
         self.get_info_flag = 1

@@ -39,13 +39,13 @@ def image_location(run_number, tel):
     return direc + filename
 
 
-def write_fits(image, filename, tel, cam_info):
+def write_fits(image, filename, tel, all_info, log = None):
     """Update an image's FITS header and save to a file"""
     # extract the hdu
     hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
-    update_header(hdu.header, tel, cam_info)
+    update_header(hdu.header, tel, all_info)
 
     # write the image log to the database
     write_image_log(filename, hdu.header)
@@ -56,8 +56,57 @@ def write_fits(image, filename, tel, cam_info):
         os.remove(filename)
     hdulist.writeto(filename)
 
+    if log:
+        log.info('Exposure saved')
 
-def update_header(header, tel, cam_info):
+
+def get_all_info(cam_info):
+    """Get all info dicts from the running daemons, and other common info"""
+    all_info = {}
+
+    # Camera daemon
+    all_info['cam'] = cam_info
+
+    # Focuser info
+    try:
+        all_info['foc'] = daemon_info('foc')
+    except:
+        all_info['foc'] = None
+
+    # Filter wheel info
+    try:
+        all_info['filt'] = daemon_info('filt')
+    except:
+        all_info['filt'] = None
+
+    # Dome info
+    try:
+        all_info['dome'] = daemon_info('dome')
+    except:
+        all_info['dome'] = None
+
+    # Mount info
+    try:
+        all_info['mnt'] = daemon_info('mnt')
+    except:
+        all_info['mnt'] = None
+
+    # Conditions info
+    try:
+        all_info['conditions'] = daemon_info('conditions')
+    except:
+        all_info['conditions'] = None
+
+    # Astronomy
+    astro = {}
+    astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(Time.now())
+    astro['sun_alt'] = get_sun_alt(Time.now())
+    all_info['astro'] = astro
+
+    return all_info
+
+
+def update_header(header, tel, all_info):
     """Add observation, exposure and hardware info to the FITS header"""
 
     # These cards are set automatically by AstroPy, we just give them
@@ -73,6 +122,7 @@ def update_header(header, tel, cam_info):
 
 
     # Observation info
+    cam_info = all_info['cam']
     run_number = cam_info['run_number']
     run_id = 'r{:07d}'.format(run_number)
     header["RUN     "] = (run_number, "GOTO run number")
@@ -302,7 +352,7 @@ def update_header(header, tel, cam_info):
 
     # Focuser info
     try:
-        info = daemon_info('foc')
+        info = all_info['foc']
         foc_serial = info['serial_number'+str(tel)]
         foc_pos = info['current_pos'+str(tel)]
         foc_temp_int = info['int_temp'+str(tel)]
@@ -321,7 +371,7 @@ def update_header(header, tel, cam_info):
 
     # Filter wheel info
     try:
-        info = daemon_info('filt')
+        info = all_info['filt']
         filt_serial = info['serial_number'+str(tel)]
         if info['current_filter_num'+str(tel)] != -1:
             filt_filter_num = info['current_filter_num'+str(tel)]
@@ -345,7 +395,7 @@ def update_header(header, tel, cam_info):
 
     # Dome info
     try:
-        info = daemon_info('dome')
+        info = all_info['dome']
         north_status = info['north']
         south_status = info['south']
         if north_status == 'ERROR' or south_status == 'ERROR':
@@ -371,7 +421,7 @@ def update_header(header, tel, cam_info):
 
     # Mount info
     try:
-        info = daemon_info('mnt')
+        info = all_info['mnt']
 
         mount_tracking = info['status'] == 'Tracking'
 
@@ -447,21 +497,28 @@ def update_header(header, tel, cam_info):
     header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
 
     # Astronomy info
-    moon_alt, moon_ill, moon_phase = astronomy.get_moon_params(Time.now())
-    moon_alt = numpy.around(moon_alt, decimals=2)
-    moon_ill = numpy.around(moon_ill*100., decimals=1)
+    try:
+        info = all_info['astro']
+
+        moon_alt = numpy.around(info['moon_alt'], decimals=2)
+        moon_ill = numpy.around(info['moon_ill']*100., decimals=1)
+        moon_phase = info['moon_phase']
+
+        sun_alt = numpy.around(info['sun_alt'], decimals=1)
+    except:
+        moon_alt = 'NA'
+        moon_ill = 'NA'
+        moon_phase = 'NA'
+        sun_alt = 'NA'
 
     header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
     header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
     header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
-
-    sun_alt = numpy.around(get_sun_alt(Time.now()), decimals=1)
-
     header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
 
     # Conditions info
     try:
-        info = daemon_info('conditions')
+        info = all_info['conditions']
 
         ext_weather = info['weather']['goto']
 
