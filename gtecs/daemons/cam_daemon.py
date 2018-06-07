@@ -158,7 +158,7 @@ class CamDaemon(HardwareDaemon):
                         info['remaining'+str(tel)] = self.remaining[intf][HW]
                         if self.exposing_flag[tel] == 1:
                             info['status'+str(tel)] = 'Exposing'
-                        elif self.exposing_flag[tel] in [2, 3]:
+                        elif self.exposing_flag[tel] in [2, 3, 4]:
                             info['status'+str(tel)] = 'Reading'
                         else:
                             info['status'+str(tel)] = 'Ready'
