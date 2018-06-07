@@ -57,9 +57,6 @@ INVALID_PRIORITY = 1000
 HARD_ALT_LIM = 10
 HARD_HA_LIM = 8
 
-# catch ctrl-c
-signal.signal(signal.SIGINT, misc.signal_handler)
-
 def apply_constraints(constraints, observer, targets, times):
     """
     Determines if the targets are observable at the given times for a
