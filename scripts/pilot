@@ -613,6 +613,10 @@ class Pilot:
                 if self.currentID is not None:
                     self.log.info('got new job from scheduler {}'.format(self.newID))
 
+                    # Get current job status
+                    currentStatus = get_pointing_status(self.currentID)
+                    self.log.info('current job status = {}'.format(currentStatus))
+
                     # Check if we're interupting a still ongoing job and need
                     # to mark it as interupted. The alternative is that the
                     # OBS script has finished which means it will have already
@@ -620,7 +624,7 @@ class Pilot:
                     if (self.runningScriptTransport is not None and
                         self.runningScriptTransport.get_returncode() is None and
                         self.runningScriptProtocol.jobName == 'OBS' and
-                        get_pointing_status(self.currentID) != 'completed'):
+                        currentStatus != 'completed'):
 
                         # cancel the script first (will mark as aborted)
                         await self.cancelRunningScript(why='new job')
