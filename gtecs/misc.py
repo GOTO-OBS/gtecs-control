@@ -115,12 +115,16 @@ def python_command(filename, command, host='localhost',
 def execute_command(command_string, timeout=30):
     """For commands that should return quickly."""
     print('{}:'.format(command_string))
-    ret_str = subprocess.check_output(command_string,
-                                      shell=True,
-                                      stderr=subprocess.STDOUT,
-                                      timeout=timeout)
-    print('> '+ret_str.strip().decode().replace('\n','\n> '))
-    return 0
+    try:
+        ret_str = subprocess.check_output(command_string,
+                                          shell=True,
+                                          stderr=subprocess.STDOUT,
+                                          timeout=timeout)
+        print('> '+ret_str.strip().decode().replace('\n','\n> '))
+        return 0
+    except subprocess.TimeoutExpired:
+        print('Command {} timed out after {}s'.format(command_string, timeout))
+        return 1
 
 
 def execute_long_command(command_string):
