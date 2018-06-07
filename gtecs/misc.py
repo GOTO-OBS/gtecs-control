@@ -135,7 +135,7 @@ def execute_long_command(command_string):
     try:
         p.wait()
     except KeyboardInterrupt:
-        print('...ctrl+c detected - closing...')
+        print('...ctrl+c detected - closing ({})...'.format(command_string))
         try:
             p.terminate()
         except OSError:
@@ -180,7 +180,7 @@ def loopback_test(serialport='/dev/ttyS3', message=b'bob', chances=3):
 
 def signal_handler(signal, frame):
     """Trap ctrl-c and exit cleanly"""
-    print('...ctrl+c detected - closing...')
+    print('...ctrl+c detected - closing ({} {})...'.format(signal, frame))
     sys.exit(0)
 
 
