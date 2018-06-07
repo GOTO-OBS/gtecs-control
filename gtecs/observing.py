@@ -11,6 +11,8 @@ import numpy as np
 
 from astropy.time import Time
 
+from obsdb import open_session, get_pointing_by_id
+
 from . import params
 from .astronomy import tel_str, check_alt_limit, nightStarting
 from .misc import execute_command
@@ -307,3 +309,18 @@ def wait_for_exposure_queue(timeout=None):
             timed_out = True
     if timed_out:
         raise TimeoutError('Exposure queue timed out')
+
+
+def get_pointing_status(pointingID):
+    """
+    Get the status of a paticular pointing
+
+    Parameters
+    ----------
+    pointingID : int
+        database ID of the pointing (aka job ID in the pilot)
+    """
+    with open_session() as session:
+        pointing = get_pointing_by_id(session, pointingID)
+        status = pointing.status
+    return status

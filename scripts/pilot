@@ -23,8 +23,9 @@ from gtecs.slack import send_slack_msg
 from gtecs.misc import execute_command, send_email
 from gtecs.astronomy import startTime, localMidnight, nightStarting
 from gtecs.astronomy import sun_alt as get_sun_alt
-from gtecs.observing import filters_are_homed, cameras_are_cool, check_schedule
 from gtecs.flags import Conditions, Status
+from gtecs.observing import (filters_are_homed, cameras_are_cool,
+                             check_schedule, get_pointing_status)
 from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
                                      MountMonitor, DomeMonitor,
                                      ExposureQueueMonitor, FocuserMonitor)
@@ -618,7 +619,8 @@ class Pilot:
                     # been marked as completed.
                     if (self.runningScriptTransport is not None and
                         self.runningScriptTransport.get_returncode() is None and
-                        self.runningScriptProtocol.jobName == 'OBS'):
+                        self.runningScriptProtocol.jobName == 'OBS' and
+                        get_pointing_status(self.currentID) != 'completed'):
 
                         # cancel the script first (will mark as aborted)
                         await self.cancelRunningScript(why='new job')
