@@ -325,10 +325,14 @@ class CamDaemon(HardwareDaemon):
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
+
+                    # reset flags
+                    for tel in self.active_tel:
+                        self.exposing_flag[tel] = 0
+                    self.exposure_status = 0
+                    self.images = {}
                     self.active_tel = []
-                    for intf in params.FLI_INTERFACES:
-                        nHW = len(params.FLI_INTERFACES[intf]['TELS'])
-                        self.exposing_flag[intf] = [0]*nHW
+                    self.take_exposure_flag = 0
                 except:
                     self.logfile.error('abort_exposure command failed')
                     self.logfile.debug('', exc_info=True)
@@ -420,7 +424,7 @@ class CamDaemon(HardwareDaemon):
         # Check current status
         if self.exposure_status == 1:
             raise misc.HardwareStatusError('Cameras are already exposing')
-        elif self.exposure_status in [2, 3]:
+        elif self.exposure_status in [2, 3, 4]:
             raise misc.HardwareStatusError('Cameras are reading out')
 
         # Find and update run number
@@ -517,7 +521,7 @@ class CamDaemon(HardwareDaemon):
         # Check current status
         if self.exposure_status == 0:
             return 'Cameras are not currently exposing'
-        elif self.exposure_status in [2, 3]:
+        elif self.exposure_status in [2, 3, 4]:
             return 'Cameras are reading out, no need to abort'
 
         # Set values
