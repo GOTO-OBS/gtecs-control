@@ -36,7 +36,10 @@ def run():
     time.sleep(5)
 
     # Restart the FLI interface, as it would have crashed if the power was off
-    execute_command('fli restart')
+    # Note don't use the restart command, I don't trust it any more
+    execute_command('fli shutdown')
+    time.sleep(4)
+    execute_command('fli start')
 
     # Make sure all the other daemons are running
     for daemon in list(params.DAEMONS):
