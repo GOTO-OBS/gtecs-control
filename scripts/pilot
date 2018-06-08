@@ -955,7 +955,7 @@ class Pilot:
         flats_m = dict(name='FLATS', sunAlt=-10,
                        cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
                        protocol=SimpleProtocol)
-        self.morning_jobs = [flats_m]
+        self.morning_jobs = [foc_run, flats_m]
 
 
 if __name__ == "__main__":
