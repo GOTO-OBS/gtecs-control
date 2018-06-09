@@ -950,7 +950,7 @@ class Pilot:
 
         # morning jobs: to do after finishing observing but before closing
         foc_run = dict(name='FOCRUN', sunAlt=-14.5,
-                       cmd=[os.path.join(SCRIPT_PATH, 'takeFocusRun.py'), 1000, 100, 'L', 'n'],
+                       cmd=[os.path.join(SCRIPT_PATH, 'takeFocusRun.py'), '1000', '100', 'L', 'n'],
                        protocol=SimpleProtocol)
         flats_m = dict(name='FLATS', sunAlt=-10,
                        cmd=[os.path.join(SCRIPT_PATH, 'takeFlats.py'), 'MORN'],
