@@ -913,11 +913,11 @@ class Pilot:
 
     async def unpark_mount(self):
         mnt_info = self.hardware['mnt'].getInfo()
-        if mnt_info['status'] == 'Parked':
-            self.log.warn('unparking mount')
-            execute_command('mnt unpark')
-            self.hardware['mnt'].setMode('tracking')
-            await asyncio.sleep(5)
+
+        self.log.warn('unparking mount')
+        execute_command('mnt unpark')
+        self.hardware['mnt'].setMode('tracking')
+        await asyncio.sleep(5)
 
         # slew to above horizon, to stop errors
         execute_command('mnt slew_altaz 50 0')
