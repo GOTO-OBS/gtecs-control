@@ -693,10 +693,11 @@ class Pilot:
                     markJobAborted(self.currentID)
 
                 # check job is still running again, just in case
-                if (self.runningScriptTransport is not None and
-                    self.runningScriptTransport.get_returncode() is None):
+                try:
                     self.runningScriptTransport.terminate()
                     await self.runningScriptResult
+                except:
+                    self.log.info('{} already exited?'.format(name))
 
                 self.log.info("killed {}".format(name))
 
