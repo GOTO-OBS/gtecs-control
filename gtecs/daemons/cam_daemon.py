@@ -141,6 +141,7 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
+                    info['exposure_status'] = self.exposure_status
                     info['current_exposure'] = self.current_exposure
                     if self.current_exposure != None:
                         info['current_tel_list'] = self.current_exposure.tel_list
@@ -162,6 +163,7 @@ class CamDaemon(HardwareDaemon):
                             info['status'+str(tel)] = 'Reading'
                         else:
                             info['status'+str(tel)] = 'Ready'
+                        info['exposing_flag'+str(tel)] = self.exposing_flag[tel]
                         info['exposure_start_time'+str(tel)] = self.exposure_start_time[intf][HW]
                         info['ccd_temp'+str(tel)] = self.ccd_temp[intf][HW]
                         info['target_temp'+str(tel)] = self.target_temp[intf][HW]
