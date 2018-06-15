@@ -74,6 +74,7 @@ class CamDaemon(HardwareDaemon):
             self.target_temp[intf] = [0]*nHW
 
         self.active_tel = []
+        self.abort_tel = []
 
         self.exposure_status = 0
 
@@ -316,7 +317,7 @@ class CamDaemon(HardwareDaemon):
             # abort exposure
             if self.abort_exposure_flag:
                 try:
-                    for tel in self.active_tel:
+                    for tel in self.abort_tel:
                         intf, HW = params.TEL_DICT[tel]
                         self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
                         fli = fli_proxies[intf]
@@ -329,15 +330,19 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
 
                     # reset flags
-                    for tel in self.active_tel:
+                    for tel in self.abort_tel:
                         self.exposing_flag[tel] = 0
-                    self.exposure_status = 0
-                    self.images = {}
-                    self.active_tel = []
-                    self.take_exposure_flag = 0
+                        self.active_tel.remove(tel)
+                    if len(self.active_tel) == 0:
+                        # we've aborted everything, stop the exposure
+                        self.exposure_status = 0
+                        self.images = {}
+                        self.active_tel = []
+                        self.take_exposure_flag = 0
                 except:
                     self.logfile.error('abort_exposure command failed')
                     self.logfile.debug('', exc_info=True)
+                self.abort_tel = []
                 self.abort_exposure_flag = 0
 
             # set camera temperature
@@ -527,12 +532,9 @@ class CamDaemon(HardwareDaemon):
             return 'Cameras are reading out, no need to abort'
 
         # Set values
-        self.get_info()
-        self.active_tel = []
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            if not self.remaining[intf][HW] == 0:
-                self.active_tel += [tel]
+            if tel in self.active_tel and self.exposing_flag[tel] == 1:
+                self.abort_tel += [tel]
 
         # Set flag
         self.abort_exposure_flag = 1
@@ -541,7 +543,7 @@ class CamDaemon(HardwareDaemon):
         s = 'Aborting:'
         for tel in tel_list:
             s += '\n  '
-            if tel not in self.active_tel:
+            if tel not in self.abort_tel:
                 s += 'Camera %i is not currently exposing' %tel
             else:
                 s += 'Aborting exposure on camera %i' %tel
