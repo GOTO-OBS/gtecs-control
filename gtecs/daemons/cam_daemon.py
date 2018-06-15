@@ -482,7 +482,7 @@ class CamDaemon(HardwareDaemon):
         # Check current status
         if self.exposure_status == 1:
             raise misc.HardwareStatusError('Cameras are already exposing')
-        elif self.exposure_status in [2, 3]:
+        elif self.exposure_status in [2, 3, 4]:
             raise misc.HardwareStatusError('Cameras are reading out')
 
         # Find and update run number
