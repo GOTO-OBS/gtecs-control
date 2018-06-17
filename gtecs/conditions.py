@@ -475,7 +475,8 @@ def get_weather():
             print('Error getting weather from "ing"')
 
     # Get the internal conditions from the RoomAlert
-    internal_sources = ['dome', 'pier']
+    #internal_sources = ['dome', 'pier']  # Disable dome sensor for dome 2
+    internal_sources = ['pier']
     for source in internal_sources:
         weather[source] = get_roomalert(source)
 

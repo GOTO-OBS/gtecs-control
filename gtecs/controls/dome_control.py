@@ -765,16 +765,19 @@ class FakeDehumidifier:
         return self._status
 
     def conditions(self):
-        dome_conditions = get_roomalert('dome')
-        dome_hum = dome_conditions['int_humidity']
-        dome_temp = dome_conditions['int_temperature']
+        # Disable dome sensor for dome 2
+        #dome_conditions = get_roomalert('dome')
+        #dome_hum = dome_conditions['int_humidity']
+        #dome_temp = dome_conditions['int_temperature']
 
         pier_conditions = get_roomalert('pier')
-        pier_hum = dome_conditions['int_humidity']
-        pier_temp = dome_conditions['int_temperature']
+        pier_hum = pier_conditions['int_humidity']
+        pier_temp = pier_conditions['int_temperature']
 
-        conditions = {'humidity'    : max([dome_hum, pier_hum]),
-                      'temperature' : min([dome_temp, pier_temp])}
+        #conditions = {'humidity'    : max([dome_hum, pier_hum]),
+        #              'temperature' : min([dome_temp, pier_temp])}
+        conditions = {'humidity'    : pier_hum,
+                      'temperature' : pier_temp}
         return conditions
 
 
@@ -795,14 +798,17 @@ class Dehumidifier:
         return self.power.status()[0]
 
     def conditions(self):
-        dome_conditions = get_roomalert('dome')
-        dome_hum = dome_conditions['int_humidity']
-        dome_temp = dome_conditions['int_temperature']
+        # Disable dome sensor for dome 2
+        #dome_conditions = get_roomalert('dome')
+        #dome_hum = dome_conditions['int_humidity']
+        #dome_temp = dome_conditions['int_temperature']
 
         pier_conditions = get_roomalert('pier')
-        pier_hum = dome_conditions['int_humidity']
-        pier_temp = dome_conditions['int_temperature']
+        pier_hum = pier_conditions['int_humidity']
+        pier_temp = pier_conditions['int_temperature']
 
-        conditions = {'humidity'    : max([dome_hum, pier_hum]),
-                      'temperature' : min([dome_temp, pier_temp])}
+        #conditions = {'humidity'    : max([dome_hum, pier_hum]),
+        #              'temperature' : min([dome_temp, pier_temp])}
+        conditions = {'humidity'    : pier_hum,
+                      'temperature' : pier_temp}
         return conditions

@@ -170,7 +170,8 @@ def print_info(info):
                                                                 dt_str)
             print(weather_str)
 
-        for source in ['dome', 'pier']:
+        #for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
+        for source in ['pier']:
             int_temperature = weather[source]['int_temperature']
             int_humidity = weather[source]['int_humidity']
             dt = weather[source]['dt']
