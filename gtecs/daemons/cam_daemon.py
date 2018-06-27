@@ -401,65 +401,24 @@ class CamDaemon(HardwareDaemon):
 
     def take_image(self, exptime, binning, imgtype, tel_list):
         """Take a normal frame with the camera"""
+        # Create exposure object
+        exposure = Exposure(tel_list, exptime,
+                            binning=binning, frametype='normal',
+                            target='NA', imgtype=imgtype)
+
         # Use the common function
-        return self._take_frame(exptime, binning, 'normal', imgtype, tel_list)
+        return self.take_exposure(exposure)
 
 
     def take_dark(self, exptime, binning, imgtype, tel_list):
         """Take dark frame with the camera"""
-        # Use the common function
-        return self._take_frame(exptime, binning, 'dark', imgtype, tel_list)
-
-
-    def _take_frame(self, exptime, binning, frametype, imgtype, tel_list):
-        """Take a frame with the camera"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
-        # Check input
-        if int(exptime) < 0:
-            raise ValueError('Exposure time must be > 0')
-        if int(binning) < 1 or (int(binning) - binning) != 0:
-            raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
-
-        # Check current status
-        if self.exposure_status == 1:
-            raise misc.HardwareStatusError('Cameras are already exposing')
-        elif self.exposure_status in [2, 3, 4]:
-            raise misc.HardwareStatusError('Cameras are reading out')
-
-        # Find and update run number
-        with open(self.run_number_file, 'r') as f:
-            lines = f.readlines()
-            self.run_number = int(lines[0]) + 1
-        with open(self.run_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.run_number))
-
-        # Set values
+        # Create exposure object
         exposure = Exposure(tel_list, exptime,
-                            binning=binning, frametype=frametype,
+                            binning=binning, frametype='dark',
                             target='NA', imgtype=imgtype)
-        self.current_exposure = exposure
-        for tel in tel_list:
-            self.active_tel += [tel]
 
-        # Set flag
-        self.get_info_flag = 1
-        self.take_exposure_flag = 1
-
-        # Format return string
-        s = 'Exposing r{:07d}:'.format(self.run_number)
-        for tel in tel_list:
-            s += '\n  '
-            s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
-                                              binning, binning, frametype, tel)
-        return s
+        # Use the common function
+        return self.take_exposure(exposure)
 
 
     def take_exposure(self, exposure):
@@ -503,6 +462,7 @@ class CamDaemon(HardwareDaemon):
             self.active_tel += [tel]
 
         # Set flag
+        self.get_info_flag = 1
         self.take_exposure_flag = 1
 
         # Format return string
