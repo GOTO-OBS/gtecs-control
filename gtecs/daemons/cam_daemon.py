@@ -338,6 +338,7 @@ class CamDaemon(HardwareDaemon):
                         self.exposure_status = 0
                         self.images = {}
                         self.active_tel = []
+                        self.all_info = None
                         self.take_exposure_flag = 0
                 except:
                     self.logfile.error('abort_exposure command failed')
