@@ -374,14 +374,14 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.debug('', exc_info=True)
 
         time.sleep(1)
-        cam_info_dict = cam.get_info()
-        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
-        while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
+        cam_info = cam.get_info()
+        cam_exposing = cam_info['exposing']
+        while cam_exposing:
             try:
-                cam_info_dict = cam.get_info()
+                cam_info = cam.get_info()
             except Pyro4.errors.TimeoutError:
                 pass
-            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
+            cam_exposing = cam_info['exposing']
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
