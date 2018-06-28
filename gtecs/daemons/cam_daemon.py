@@ -188,6 +188,7 @@ class CamDaemon(HardwareDaemon):
             if self.take_exposure_flag:
                 # start exposures
                 if self.exposing == 0:
+                    self.exposing = 1
                     # get exposure info
                     exptime = self.current_exposure.exptime
                     exptime_ms = exptime*1000.
@@ -479,6 +480,13 @@ class CamDaemon(HardwareDaemon):
             s += '\n  '
             s += 'Setting temperature on camera %i' %tel
         return s
+
+
+    def is_exposing(self):
+        """A simple function to check if the cameras are exposing.
+        Used to save time when the exposure queue doesn't need the full info.
+        """
+        return self.exposing
 
 
     # Internal functions
