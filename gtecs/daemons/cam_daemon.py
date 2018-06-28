@@ -432,8 +432,6 @@ class CamDaemon(HardwareDaemon):
         # Check current status
         if self.exposing == 0:
             return 'Cameras are not currently exposing'
-        elif any(self.image_saving[tel] == 1 for tel in self.active_tel):
-            return 'Cameras are reading out, no need to abort'
 
         # Set values
         for tel in tel_list:
