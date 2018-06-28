@@ -406,7 +406,6 @@ class CamDaemon(HardwareDaemon):
             self.active_tel += [tel]
 
         # Set flag
-        self.get_info_flag = 1
         self.take_exposure_flag = 1
 
         # Format return string
