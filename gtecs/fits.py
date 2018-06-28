@@ -45,6 +45,7 @@ def write_fits(image, filename, tel, all_info, log = None):
     hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
+    run_number = all_info['cam']['run_number']
     update_header(hdu.header, tel, all_info)
 
     # write the image log to the database
@@ -57,7 +58,7 @@ def write_fits(image, filename, tel, all_info, log = None):
     hdulist.writeto(filename)
 
     if log:
-        log.info('Exposure saved')
+        log.info('Exposure r{:07} saved'.format(run_number))
 
 
 def get_all_info(cam_info):

@@ -197,8 +197,8 @@ class CamDaemon(HardwareDaemon):
                     # set exposure info and start exposure
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Taking exposure (%is, %ix%i, %s) on camera %i (%s-%i)',
-                                           exptime, binning, binning, frametype, tel, intf, HW)
+                        self.logfile.info('Taking exposure r%07d (%is, %ix%i, %s) on camera %i (%s-%i)',
+                                           self.run_number, exptime, binning, binning, frametype, tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -240,7 +240,7 @@ class CamDaemon(HardwareDaemon):
                             fli._pyroReconnect()
                             ready = fli.exposure_ready(HW)
                             if ready and self.image_ready[tel] == 0:
-                                self.logfile.info('Exposure finished on camera %i (%s-%i)', tel, intf, HW)
+                                self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
                                 self.image_ready[tel] = 1
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
@@ -266,7 +266,7 @@ class CamDaemon(HardwareDaemon):
                 try:
                     for tel in self.abort_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
+                        self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -494,6 +494,8 @@ class CamDaemon(HardwareDaemon):
 
         pool = ThreadPoolExecutor(max_workers=len(active_tel))
 
+        run_number = all_info['cam']['run_number']
+
         # start fetching images from the interfaces in parallel
         future_images = {tel:None for tel in active_tel}
         for tel in active_tel:
@@ -502,7 +504,7 @@ class CamDaemon(HardwareDaemon):
             fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
             fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
             try:
-                self.logfile.info('Fetching exposure from camera %i (%s-%i)', tel, intf, HW)
+                self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
                 future_images[tel] = pool.submit(fli.fetch_exposure, HW)
             except:
                 self.logfile.error('No response from fli interface on %s', intf)
@@ -516,21 +518,20 @@ class CamDaemon(HardwareDaemon):
                 intf, HW = params.TEL_DICT[tel]
                 if future_images[tel].done() and images[tel] is None:
                     images[tel] = future_images[tel].result()
-                    self.logfile.info('Fetched exposure from camera %i (%s-%i)', tel, intf, HW)
+                    self.logfile.info('Fetched exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
 
             # keep looping until all the images are fetched
             if all(images[tel] is not None for tel in active_tel):
                 break
 
         # save images in parallel
-        run_number = all_info['cam']['run_number']
         for tel in active_tel:
             # get image and filename
             image = images[tel]
             filename = image_location(run_number, tel)
 
             # write the FITS file
-            self.logfile.info('Saving exposure to %s', filename)
+            self.logfile.info('Saving exposure r%07d to %s', run_number, filename)
             pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
 
             self.image_saving[tel] = 0
