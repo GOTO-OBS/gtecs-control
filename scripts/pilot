@@ -109,7 +109,8 @@ class Pilot:
         self.time_paused = 0
 
         # paranoia Time
-        self.domeOpen = 0   # should dome be open?
+        self.mountTracking = 0   # should mount be tracking?
+        self.domeOpen = 0        # should dome be open?
         self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
         self.timeOfLastCloseDomeCommand = 0.
         self.initial_hardware_check_complete = False
@@ -507,10 +508,12 @@ class Pilot:
             self.log.warn('resuming operations')
             if self.ready_to_observe:
                 if not self.domeOpen:
-                    # this way we don't
-                    # start until the dome is open
+                    # this way we don't resume until the dome is open
                     await self.open_dome()
-                await self.unpark_mount()
+                if not self.mountTracking:
+                    # this way we don't unpark if we're still observing,
+                    # which could happen if we paused manually
+                    await self.unpark_mount()
                 execute_command('exq resume')
 
         # finally, change global pause status by updating flag
@@ -910,6 +913,7 @@ class Pilot:
             execute_command('mnt stop')
         else:
             execute_command('mnt park')
+        self.mountTracking = 0
         self.hardware['mnt'].setMode('parked')
 
     async def unpark_mount(self):
@@ -917,6 +921,7 @@ class Pilot:
 
         self.log.warn('unparking mount')
         execute_command('mnt unpark')
+        self.mountTracking = 1
         self.hardware['mnt'].setMode('tracking')
         await asyncio.sleep(5)
 
