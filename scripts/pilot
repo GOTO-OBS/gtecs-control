@@ -89,6 +89,8 @@ class Pilot:
         self.startup_complete = False
         self.ready_to_observe = False
         self.observing = False
+        self.mount_is_tracking = False   # should the mount be tracking?
+        self.dome_is_open = False        # should the dome be open?
 
         # hardware to keep track of and fix if necessary
         self.hardware = dict(
@@ -109,8 +111,6 @@ class Pilot:
         self.time_paused = 0
 
         # paranoia Time
-        self.mountTracking = 0   # should mount be tracking?
-        self.domeOpen = 0        # should dome be open?
         self.domeConfirmedClosed = 0  # flag indicating that dome is confirmed closed
         self.timeOfLastCloseDomeCommand = 0.
         self.initial_hardware_check_complete = False
@@ -464,8 +464,9 @@ class Pilot:
                 msg = 'Pausing operations due to bad conditions ({})'.format(self.conditions.bad_flags)
                 self.log.warn(msg)
 
-                if self.domeOpen:
-                    # don't need to stop if the dome isn't open yet
+                if self.dome_is_open:
+                    # only need to stop scripts if the dome is open
+                    # (this way we don't kill darks if the weather goes bad)
                     execute_command('exq pause')
                     execute_command('cam abort')
                     await self.cancelRunningScript('conditions bad')
@@ -507,12 +508,14 @@ class Pilot:
             # OK, we can resume
             self.log.warn('resuming operations')
             if self.ready_to_observe:
-                if not self.domeOpen:
-                    # this way we don't resume until the dome is open
+                if not self.dome_is_open:
+                    # open the dome if it's closed
+                    # this way wait and don't resume until the dome is open
                     await self.open_dome()
-                if not self.mountTracking:
+                if not self.mount_is_tracking:
+                    # unpark the mount if it's parked
                     # this way we don't unpark if we're still observing,
-                    # which could happen if we paused manually
+                    # which can happen if we paused manually
                     await self.unpark_mount()
                 execute_command('exq resume')
 
@@ -532,7 +535,7 @@ class Pilot:
                 await asyncio.sleep(10)
                 continue
 
-            if not self.domeOpen and not self.domeConfirmedClosed:
+            if not self.dome_is_open and not self.domeConfirmedClosed:
                 dome_info = self.hardware['dome'].getInfo()
                 if dome_info['dome'] == 'closed':
                     # phew
@@ -878,7 +881,7 @@ class Pilot:
     async def open_dome(self):
         self.log.warn('opening dome')
         execute_command('dome open')
-        self.domeOpen = 1
+        self.dome_is_open = True
         # make sure the dome starts reporting errors
         self.hardware['dome'].setMode('open')
         self.domeConfirmedClosed = 0
@@ -901,7 +904,7 @@ class Pilot:
     def close_dome(self):
         self.log.warn('closing dome')
         execute_command('dome close')
-        self.domeOpen = 0
+        self.dome_is_open = False
         # make sure the dome starts reporting errors
         self.hardware['dome'].setMode(None)
         self.domeConfirmedClosed = 0
@@ -913,7 +916,7 @@ class Pilot:
             execute_command('mnt stop')
         else:
             execute_command('mnt park')
-        self.mountTracking = 0
+        self.mount_is_tracking = False
         self.hardware['mnt'].setMode('parked')
 
     async def unpark_mount(self):
@@ -921,7 +924,7 @@ class Pilot:
 
         self.log.warn('unparking mount')
         execute_command('mnt unpark')
-        self.mountTracking = 1
+        self.mount_is_tracking = True
         self.hardware['mnt'].setMode('tracking')
         await asyncio.sleep(5)
 
