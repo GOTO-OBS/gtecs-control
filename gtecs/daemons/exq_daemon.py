@@ -373,15 +373,14 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
 
-        time.sleep(1)
-        cam_info_dict = cam.get_info()
-        cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
-        while('Exposing' in cam_status.values() or 'Reading' in cam_status.values()):
+        time.sleep(2)
+
+        cam_exposing = cam.is_exposing()
+        while cam_exposing:
             try:
-                cam_info_dict = cam.get_info()
+                cam_exposing = cam.is_exposing()
             except Pyro4.errors.TimeoutError:
                 pass
-            cam_status = {tel: cam_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()

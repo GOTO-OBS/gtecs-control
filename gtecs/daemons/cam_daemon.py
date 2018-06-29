@@ -44,16 +44,13 @@ class CamDaemon(HardwareDaemon):
 
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
 
-        self.images = {} # mapping between telescope and future images
-        self.future_images = {}  # use threads to download future images
         self.pool = ThreadPoolExecutor(max_workers=len(params.TEL_DICT))
 
         self.all_info = None
 
-        self.exposing_flag = {}
-
-        for tel in params.TEL_DICT:
-            self.exposing_flag[tel] = 0
+        self.exposing = 0
+        self.image_ready = {tel:0 for tel in params.TEL_DICT}
+        self.image_saving = {tel:0 for tel in params.TEL_DICT}
 
         self.remaining = {}
         self.exposure_start_time = {}
@@ -142,7 +139,7 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.debug('', exc_info=True)
                     # save info
                     info = {}
-                    info['exposure_status'] = self.exposure_status
+                    info['exposing'] = self.exposing
                     info['current_exposure'] = self.current_exposure
                     if self.current_exposure != None:
                         info['current_tel_list'] = self.current_exposure.tel_list
@@ -158,13 +155,14 @@ class CamDaemon(HardwareDaemon):
                         intf, HW = params.TEL_DICT[tel]
                         #tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
                         info['remaining'+str(tel)] = self.remaining[intf][HW]
-                        if self.exposing_flag[tel] == 1:
+                        if self.exposing == 1 and tel in self.active_tel:
                             info['status'+str(tel)] = 'Exposing'
-                        elif self.exposing_flag[tel] in [2, 3, 4]:
+                        elif self.image_saving[tel] == 1:
                             info['status'+str(tel)] = 'Reading'
                         else:
                             info['status'+str(tel)] = 'Ready'
-                        info['exposing_flag'+str(tel)] = self.exposing_flag[tel]
+                        info['image_ready'+str(tel)] = self.image_ready[tel]
+                        info['image_saving'+str(tel)] = self.image_saving[tel]
                         info['exposure_start_time'+str(tel)] = self.exposure_start_time[intf][HW]
                         info['ccd_temp'+str(tel)] = self.ccd_temp[intf][HW]
                         info['target_temp'+str(tel)] = self.target_temp[intf][HW]
@@ -188,8 +186,9 @@ class CamDaemon(HardwareDaemon):
 
             # take exposure
             if self.take_exposure_flag:
-                # stage 0 - start exposures
-                if self.exposure_status == 0:
+                # start exposures
+                if self.exposing == 0:
+                    self.exposing = 1
                     # get exposure info
                     exptime = self.current_exposure.exptime
                     exptime_ms = exptime*1000.
@@ -199,8 +198,8 @@ class CamDaemon(HardwareDaemon):
                     # set exposure info and start exposure
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Taking exposure (%is, %ix%i, %s) on camera %i (%s-%i)',
-                                           exptime, binning, binning, frametype, tel, intf, HW)
+                        self.logfile.info('Taking exposure r%07d (%is, %ix%i, %s) on camera %i (%s-%i)',
+                                           self.run_number, exptime, binning, binning, frametype, tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -218,18 +217,16 @@ class CamDaemon(HardwareDaemon):
                             self.exposure_start_time[intf][HW] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
                             c = fli.start_exposure(HW)
                             if c: self.logfile.info(c)
-                            # set this camera's exposing flag
-                            self.exposing_flag[tel] = 1
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
 
-                    # set flag for stage 1
-                    self.exposure_status = 1
+                    # set flags
+                    self.exposing = 1
                     self.get_info_flag = 1
 
-                # stage 1 - wait for exposures to finish
-                elif self.exposure_status == 1 and self.get_info_flag == 0:
+                # wait for exposures to finish
+                elif self.exposing == 1 and self.get_info_flag == 0:
 
                     # get daemon info (once, for all images)
                     # do it here so we know the cam info has been updated
@@ -243,83 +240,34 @@ class CamDaemon(HardwareDaemon):
                         try:
                             fli._pyroReconnect()
                             ready = fli.exposure_ready(HW)
-                            if ready and self.exposing_flag[tel] == 1:
-                                self.logfile.info('Exposure finished on camera %i (%s-%i)', tel, intf, HW)
-                                self.exposing_flag[tel] = 2
+                            if ready and self.image_ready[tel] == 0:
+                                self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                                self.image_ready[tel] = 1
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
 
-                    # set flag for stage 2 when all exposures are complete
-                    if all(self.exposing_flag[tel] == 2 for tel in self.active_tel):
-                        self.exposure_status = 2
+                    # start saving thread when all exposures are complete
+                    if all(self.image_ready[tel] == 1 for tel in self.active_tel):
+                        t = threading.Thread(target=self._exposure_saving_thread,
+                                             args=[self.active_tel.copy(),
+                                                   self.all_info.copy()])
+                        t.daemon = True
+                        t.start()
 
-                # stage 2 - readout images
-                elif self.exposure_status == 2:
-                    # start reading exposures in parallel
-                    for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
-                        fli = fli_proxies[intf]
-                        try:
-                            fli._pyroReconnect()
-                            self.logfile.info('Reading exposure from camera %i (%s-%i)', tel, intf, HW)
-                            self.future_images[tel] = self.pool.submit(fli.fetch_exposure, HW)
-                            self.exposing_flag[tel] = 3
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-
-                    # set flag for stage 3 when all images are being read
-                    if all(self.exposing_flag[tel] == 3 for tel in self.active_tel):
-                        self.exposure_status = 3
-
-                # stage 3 - wait for images to be read out
-                elif self.exposure_status == 3:
-                    # check if exposures are read
-                    for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
-                        if self.future_images[tel].done() and self.exposing_flag[tel] == 3:
-                            self.images[tel] = self.future_images[tel].result()
-                            self.logfile.info('Read exposure from camera %i (%s-%i)', tel, intf, HW)
-                            self.exposing_flag[tel] = 4
-
-                    # set flag for stage 4 when all images have been read
-                    if all(self.exposing_flag[tel] == 4 for tel in self.active_tel):
-                        self.exposure_status = 4
-
-                # stage 4 - save
-                elif self.exposure_status == 4:
-                    # make sure we have all the info we need
-                    if self.all_info is not None:
-                        all_info = self.all_info.copy()
+                        # clear tags, ready for next exposure
+                        self.exposing = 0
+                        self.image_ready = {tel:0 for tel in params.TEL_DICT}
+                        self.active_tel = []
                         self.all_info = None
-                    else:
-                        all_info = get_all_info(self.info)
-
-                    # save images in parallel
-                    for tel in self.active_tel:
-                        # get image and filename
-                        image = self.images[tel]
-                        filename = image_location(self.run_number, tel)
-
-                        # write the FITS file
-                        self.logfile.info('Saving exposure to %s', filename)
-                        self.pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
-                        self.exposing_flag[tel] = 0
-
-                    # finished
-                    self.exposure_status = 0
-                    self.images = {}
-                    self.active_tel = []
-                    self.take_exposure_flag = 0
-
+                        self.take_exposure_flag = 0
 
             # abort exposure
             if self.abort_exposure_flag:
                 try:
                     for tel in self.abort_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Aborting exposure on camera %i (%s-%i)', tel, intf, HW)
+                        self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -331,12 +279,10 @@ class CamDaemon(HardwareDaemon):
 
                     # reset flags
                     for tel in self.abort_tel:
-                        self.exposing_flag[tel] = 0
                         self.active_tel.remove(tel)
                     if len(self.active_tel) == 0:
                         # we've aborted everything, stop the exposure
-                        self.exposure_status = 0
-                        self.images = {}
+                        self.exposing = 0
                         self.active_tel = []
                         self.all_info = None
                         self.take_exposure_flag = 0
@@ -402,65 +348,24 @@ class CamDaemon(HardwareDaemon):
 
     def take_image(self, exptime, binning, imgtype, tel_list):
         """Take a normal frame with the camera"""
+        # Create exposure object
+        exposure = Exposure(tel_list, exptime,
+                            binning=binning, frametype='normal',
+                            target='NA', imgtype=imgtype)
+
         # Use the common function
-        return self._take_frame(exptime, binning, 'normal', imgtype, tel_list)
+        return self.take_exposure(exposure)
 
 
     def take_dark(self, exptime, binning, imgtype, tel_list):
         """Take dark frame with the camera"""
-        # Use the common function
-        return self._take_frame(exptime, binning, 'dark', imgtype, tel_list)
-
-
-    def _take_frame(self, exptime, binning, frametype, imgtype, tel_list):
-        """Take a frame with the camera"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
-        # Check input
-        if int(exptime) < 0:
-            raise ValueError('Exposure time must be > 0')
-        if int(binning) < 1 or (int(binning) - binning) != 0:
-            raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
-
-        # Check current status
-        if self.exposure_status == 1:
-            raise misc.HardwareStatusError('Cameras are already exposing')
-        elif self.exposure_status in [2, 3, 4]:
-            raise misc.HardwareStatusError('Cameras are reading out')
-
-        # Find and update run number
-        with open(self.run_number_file, 'r') as f:
-            lines = f.readlines()
-            self.run_number = int(lines[0]) + 1
-        with open(self.run_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.run_number))
-
-        # Set values
+        # Create exposure object
         exposure = Exposure(tel_list, exptime,
-                            binning=binning, frametype=frametype,
+                            binning=binning, frametype='dark',
                             target='NA', imgtype=imgtype)
-        self.current_exposure = exposure
-        for tel in tel_list:
-            self.active_tel += [tel]
 
-        # Set flag
-        self.get_info_flag = 1
-        self.take_exposure_flag = 1
-
-        # Format return string
-        s = 'Exposing r{:07d}:'.format(self.run_number)
-        for tel in tel_list:
-            s += '\n  '
-            s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
-                                              binning, binning, frametype, tel)
-        return s
+        # Use the common function
+        return self.take_exposure(exposure)
 
 
     def take_exposure(self, exposure):
@@ -486,10 +391,8 @@ class CamDaemon(HardwareDaemon):
             raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Check current status
-        if self.exposure_status == 1:
+        if self.exposing == 1:
             raise misc.HardwareStatusError('Cameras are already exposing')
-        elif self.exposure_status in [2, 3, 4]:
-            raise misc.HardwareStatusError('Cameras are reading out')
 
         # Find and update run number
         with open(self.run_number_file, 'r') as f:
@@ -527,14 +430,12 @@ class CamDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Check current status
-        if self.exposure_status == 0:
+        if self.exposing == 0:
             return 'Cameras are not currently exposing'
-        elif self.exposure_status in [2, 3, 4]:
-            return 'Cameras are reading out, no need to abort'
 
         # Set values
         for tel in tel_list:
-            if tel in self.active_tel and self.exposing_flag[tel] == 1:
+            if tel in self.active_tel:
                 self.abort_tel += [tel]
 
         # Set flag
@@ -581,21 +482,64 @@ class CamDaemon(HardwareDaemon):
         return s
 
 
-    # Internal functions
-    def _image_fetch(self, tel):
-        intf, HW = params.TEL_DICT[tel]
-        fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-        fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
-        try:
-            future_image = fli.fetch_exposure(HW)
-        except:
-            self.logfile.error('No response from fli interface on %s', intf)
-            self.logfile.debug('', exc_info=True)
-            future_image = None
-        # release proxy connection
-        fli._pyroRelease()
-        return future_image
+    def is_exposing(self):
+        """A simple function to check if the cameras are exposing.
+        Used to save time when the exposure queue doesn't need the full info.
+        """
+        return self.exposing
 
+
+    # Internal functions
+    def _exposure_saving_thread(self, active_tel, all_info):
+        """A thread to be started whenever an exposure is completed.
+        By containing fetching images from the interfaces and saving them to
+        FITS files within this thread a new exposure can be started as soon as
+        the previous one is finished.
+        """
+
+        pool = ThreadPoolExecutor(max_workers=len(active_tel))
+
+        run_number = all_info['cam']['run_number']
+
+        # start fetching images from the interfaces in parallel
+        future_images = {tel:None for tel in active_tel}
+        for tel in active_tel:
+            self.image_saving[tel] = 1
+            intf, HW = params.TEL_DICT[tel]
+            fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
+            fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
+            try:
+                self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                future_images[tel] = pool.submit(fli.fetch_exposure, HW)
+            except:
+                self.logfile.error('No response from fli interface on %s', intf)
+                self.logfile.debug('', exc_info=True)
+
+        # wait for images to be fetched
+        images = {tel:None for tel in active_tel}
+        while True:
+            time.sleep(0.001)
+            for tel in active_tel:
+                intf, HW = params.TEL_DICT[tel]
+                if future_images[tel].done() and images[tel] is None:
+                    images[tel] = future_images[tel].result()
+                    self.logfile.info('Fetched exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+
+            # keep looping until all the images are fetched
+            if all(images[tel] is not None for tel in active_tel):
+                break
+
+        # save images in parallel
+        for tel in active_tel:
+            # get image and filename
+            image = images[tel]
+            filename = image_location(run_number, tel)
+
+            # write the FITS file
+            self.logfile.info('Saving exposure r%07d to %s', run_number, filename)
+            pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
+
+            self.image_saving[tel] = 0
 
 if __name__ == "__main__":
     # Check the daemon isn't already running
