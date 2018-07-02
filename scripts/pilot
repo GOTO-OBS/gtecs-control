@@ -536,8 +536,7 @@ class Pilot:
                 continue
 
             if not self.dome_is_open and not self.domeConfirmedClosed:
-                dome_info = self.hardware['dome'].getInfo()
-                if dome_info['dome'] == 'closed':
+                if self.dome_status == 'closed':
                     # phew
                     self.domeConfirmedClosed = 1
                     self.log.info('dome confirmed closed')
@@ -806,8 +805,7 @@ class Pilot:
                 msg = "IMPORTANT: pilot cannot close dome. Take action immediately."
                 send_email(message=msg)
                 send_slack_msg(msg)
-            dome_info = self.hardware['dome'].getInfo()
-            if dome_info['dome'] == 'closed':
+            if self.dome_status == 'closed':
                 domeShut = True
             self.log.info('Waiting for dome to close')
             await asyncio.sleep(10)
