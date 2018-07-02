@@ -72,7 +72,7 @@ def run(width, step, filt, make_plots):
     expT = 30
 
     xslice = slice(3300, 5100)
-    yslice = slice(2800, 4100)
+    yslice = slice(1400, 4100)
     kwargs = {'xslice': xslice, 'yslice': yslice,
               'filter_width': 4, 'threshold': 15}
 

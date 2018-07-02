@@ -205,7 +205,7 @@ def run(filt):
     nfv = 7
 
     xslice = slice(3300, 5100)
-    yslice = slice(2800, 4100)
+    yslice = slice(1400, 4100)
     kwargs = {'xslice': xslice, 'yslice': yslice,
               'filter_width': 20, 'threshold': 5}
 
