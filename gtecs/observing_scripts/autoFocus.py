@@ -175,8 +175,8 @@ def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
         try:
             median, std, fwhm, f_std = measure_hfd(fnames[tel_key],
                                                    filter_width, threshold, **kwargs)
-        except Exception as err:
-            print('HFD measurement for file {} errored: {}'.format(fnames[tel_key], str(err)))
+        except Exception as error:
+            print('HFD measurement for file {} errored: {}'.format(fnames[tel_key], str(error)))
             std = -1.0
             median = -1.0
             f_std = -1

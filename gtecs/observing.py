@@ -29,7 +29,7 @@ def check_schedule(time, write_html):
             return new_pointing.id, new_pointing.priority_now, new_pointing.mintime
         else:
             return None, None, None
-    except Exception as err:
+    except Exception as error:
         print('{} checking scheduler: {}'.format(type(error).__name__, error))
         return None, None, None
 
