@@ -249,14 +249,16 @@ def last_written_image():
 
     Returns
     -------
-    files : list
-        a list of the image files
+    files : dict
+        a dictionary of the image files, with the UT numbers as keys
     """
     path = os.path.join(params.IMAGE_PATH + nightStarting())
     newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
     root = newest.split('_UT')[0]
 
     fnames = {key: root+'_UT{}.fits'.format(key) for key in params.TEL_DICT.keys()}
+
+    print('Loading run {}: {} images'.format(root.split('/')[-1], len(fnames)))
     return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
 
 
