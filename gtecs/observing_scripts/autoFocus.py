@@ -148,12 +148,14 @@ def measure_hfd(fname, filter_width=3, threshold=5, **kwargs):
     hfd = 2*hfr[mask]
     fwhm = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
     fwhm = fwhm[mask]
-    print('Found {} objects with measurable HFDs'.format(hfd.size))
-    if hfd.size > 3:
+
+    if hfd.size <= 3:
+        raise ValueError('Not enough objects ({}) found for HFD measurement'.format(hfd.size))
+    else:
+        print('Found {} objects with measurable HFDs'.format(hfd.size))
         mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
         mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhm, sigma=2.5, iters=10)
         return median_hfd, std_hfd, median_fwhm, std_fwhm
-    return 0.0, 0.0, 0.0, 0.0
 
 
 def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
