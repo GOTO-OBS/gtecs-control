@@ -51,14 +51,15 @@ if result != True:
 
 
 # General parameters
+LOCAL_HOST = config['LOCAL_HOST']
+LOCAL_HOSTNAME = socket.gethostname()
+
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # File locations (need to alter depending on system)
-HOST = socket.gethostname()
-
 CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOG_PATH = CONFIG_PATH + 'logs/'
@@ -97,7 +98,7 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 DAEMONS = config['DAEMONS']
 for daemon_ID in DAEMONS:
     if  DAEMONS[daemon_ID]['HOST'] == 'localhost':
-        DAEMONS[daemon_ID]['HOST'] = HOST
+        DAEMONS[daemon_ID]['HOST'] = LOCAL_HOST
     DAEMONS[daemon_ID]['ADDRESS'] = 'PYRO:' + daemon_ID + '@' + DAEMONS[daemon_ID]['HOST'] + ':' + str(DAEMONS[daemon_ID]['PORT'])
     if 'fli' in DAEMONS[daemon_ID]['DEPENDS']:
         DAEMONS[daemon_ID]['DEPENDS'].remove('fli')
