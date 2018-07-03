@@ -8,7 +8,6 @@ import time
 from math import *
 import Pyro4
 from concurrent import futures
-import socket
 from concurrent.futures import ThreadPoolExecutor
 
 from fliapi import USBCamera, USBFocuser, USBFilterWheel
@@ -20,10 +19,7 @@ from gtecs import params
 from gtecs.daemons import InterfaceDaemon
 
 
-try:
-    DAEMON_ID = misc.find_interface_ID(socket.gethostname())
-except ValueError:
-    DAEMON_ID = misc.find_interface_ID('localhost')
+DAEMON_ID = misc.find_interface_ID(params.LOCAL_HOST)
 DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
 DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
