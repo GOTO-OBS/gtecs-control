@@ -38,7 +38,7 @@ def get_process_ID(process_name, host):
     elif 'LOGNAME' in os.environ:
         username = os.environ['LOGNAME']
 
-    if host == 'localhost' or host == get_hostname():
+    if host in ['127.0.0.1', params.LOCAL_HOST]:
         all_processes = subprocess.getoutput('ps -fwwu %s | grep -i python' % username)
     else:
         all_processes = subprocess.getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
@@ -82,10 +82,9 @@ def cmd_timeout(command, timeout, bufsize=-1):
 
 def kill_processes(process, host):
     """Kill any specified processes"""
-    local_host = get_hostname()
     process_ID_list = get_process_ID(process, host)
 
-    if local_host == host or host == 'localhost':
+    if host in ['127.0.0.1', params.LOCAL_HOST]:
         for process_ID in process_ID_list:
             os.system('kill -9 ' + process_ID)
             print('Killed process', process_ID)
@@ -95,11 +94,11 @@ def kill_processes(process, host):
             print('Killed remote process', process_ID)
 
 
-def python_command(filename, command, host='localhost',
+def python_command(filename, command, host='127.0.0.1',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                    in_background=False):
     """Send a command to a control script as if using the terminal"""
-    if host == 'localhost' or host == get_hostname():
+    if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = ' '.join((sys.executable, filename, command))
     else:
         command_string = ' '.join(('ssh', host, sys.executable, filename, command))
@@ -147,7 +146,7 @@ def execute_long_command(command_string):
         p.wait()
 
 
-def ping_host(hostname,count=1,ttl=1):
+def ping_host(hostname, count=1, ttl=1):
     """Ping a network address and return the number of responses"""
     ping = subprocess.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
     out = ping.split('\n')
