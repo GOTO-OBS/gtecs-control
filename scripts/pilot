@@ -895,7 +895,7 @@ class Pilot:
     @property
     def mount_status(self):
         try:
-            mount_info = self.hardware['mount'].getInfo()
+            mnt_info = self.hardware['mnt'].getInfo()
             if mnt_info['status'] in ['Parked', 'Stopped']:
                 return 'Parked'
             elif mnt_info['status'] in ['Slewing', 'Parking']:
