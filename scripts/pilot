@@ -915,8 +915,9 @@ class Pilot:
         self.domeConfirmedClosed = 0
         self.hardware['dome'].setMode('open')
         while self.dome_status != 'full_open':
+            self.log.info('dome is {}'.format(self.dome_status))
             await asyncio.sleep(5)
-        self.log.info('dome is open')
+        self.log.info('dome confirmed open')
 
 
     def close_dome(self):
@@ -937,8 +938,9 @@ class Pilot:
         await asyncio.sleep(5)
         execute_command('mnt slew_altaz 50 0')
         while self.mount_status != 'Tracking':
+            self.log.info('mount is {}'.format(self.mount_status))
             await asyncio.sleep(2)
-        self.log.info('mount is tracking')
+        self.log.info('mount confirmed tracking')
 
 
     def park_mount(self):
