@@ -444,6 +444,8 @@ class MntDaemon(HardwareDaemon):
         time.sleep(0.1)
         if self.mount_status == 'Parked':
             return 'Already parked'
+        elif self.mount_status == 'Parking':
+            return 'Already parking'
         elif self.mount_status == 'IN BLINKY MODE':
             raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
