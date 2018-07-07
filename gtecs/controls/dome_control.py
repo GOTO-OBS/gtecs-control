@@ -200,7 +200,7 @@ class AstroHavenDome:
 
         self.move_code = {'south':{'open':b'a','close':b'A'},
                           'north':{'open':b'b','close':b'B'}}
-        self.move_time = {'south':{'open':25.,'close':26.},
+        self.move_time = {'south':{'open':36.,'close':26.},
                           'north':{'open':24.,'close':24.}}
 
         self.fake = False
