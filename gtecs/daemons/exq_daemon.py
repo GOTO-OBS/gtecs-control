@@ -298,6 +298,10 @@ class ExqDaemon(HardwareDaemon):
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
 
+        # Check input
+        if self.paused:
+            return 'Queue already paused'
+
         # Set values
         self.paused = 1
 
@@ -310,6 +314,10 @@ class ExqDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not self.paused:
+            return 'Queue already resumed'
 
         # Set values
         self.paused = 0
