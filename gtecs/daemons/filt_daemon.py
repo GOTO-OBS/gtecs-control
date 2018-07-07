@@ -183,7 +183,7 @@ class FiltDaemon(HardwareDaemon):
                 self.active_tel = []
                 self.home_filter_flag = 0
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return

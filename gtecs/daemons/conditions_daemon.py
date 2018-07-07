@@ -320,7 +320,7 @@ class ConditionsDaemon(HardwareDaemon):
                     logline += '{}: {} '.format(key, self.flags[key])
                 self.logfile.info(logline)
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return

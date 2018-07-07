@@ -121,7 +121,7 @@ class ExqDaemon(HardwareDaemon):
                 # either we are paused, or nothing in the queue
                 time.sleep(1.0)
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return

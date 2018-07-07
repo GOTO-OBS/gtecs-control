@@ -487,7 +487,7 @@ class DomeDaemon(HardwareDaemon):
                 self.halt_flag = 0
                 self.check_status_flag = 1
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return
