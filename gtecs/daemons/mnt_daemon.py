@@ -488,6 +488,12 @@ class MntDaemon(HardwareDaemon):
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
 
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+
         # Set values
         self.target_ra = ra
 
@@ -504,6 +510,12 @@ class MntDaemon(HardwareDaemon):
         # Check input
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_dec = dec
@@ -523,6 +535,12 @@ class MntDaemon(HardwareDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_ra = ra
