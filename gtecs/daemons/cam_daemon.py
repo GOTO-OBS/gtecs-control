@@ -98,7 +98,7 @@ class CamDaemon(HardwareDaemon):
         fli_proxies = dict()
         for intf in params.FLI_INTERFACES:
             fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli_proxies[intf]._pyroTimeout = params.PROXY_TIMEOUT
+            fli_proxies[intf]._pyroTimeout = params.PYRO_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
@@ -507,7 +507,7 @@ class CamDaemon(HardwareDaemon):
             self.image_saving[tel] = 1
             intf, HW = params.TEL_DICT[tel]
             fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli._pyroTimeout = 99 #params.PROXY_TIMEOUT
+            fli._pyroTimeout = 99 #params.PYRO_TIMEOUT
             try:
                 self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
                 future_images[tel] = pool.submit(fli.fetch_exposure, HW)
@@ -552,7 +552,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)

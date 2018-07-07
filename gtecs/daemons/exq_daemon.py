@@ -56,11 +56,11 @@ class ExqDaemon(HardwareDaemon):
         # connect to daemons
         CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
         cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
-        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam._pyroTimeout = params.PYRO_TIMEOUT
 
         FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
         filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
-        filt._pyroTimeout = params.PROXY_TIMEOUT
+        filt._pyroTimeout = params.PYRO_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
@@ -398,7 +398,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)

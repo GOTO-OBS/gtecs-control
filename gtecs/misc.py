@@ -251,7 +251,7 @@ def daemon_is_alive(daemon_ID):
         raise ValueError('Invalid daemon ID')
 
     daemon = Pyro4.Proxy(address)
-    daemon._pyroTimeout = params.PROXY_TIMEOUT
+    daemon._pyroTimeout = params.PYRO_TIMEOUT
     try:
         ping = daemon.ping()
         if ping == 'ping':

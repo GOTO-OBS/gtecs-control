@@ -85,7 +85,7 @@ Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for i
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False
 
-PROXY_TIMEOUT = config['PROXY_TIMEOUT']
+PYRO_TIMEOUT = config['PYRO_TIMEOUT']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
 FILE_LOGGING = config['FILE_LOGGING']

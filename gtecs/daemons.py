@@ -133,7 +133,7 @@ def ping_daemon(daemon_ID):
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 1:
         daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PROXY_TIMEOUT
+        daemon._pyroTimeout = params.PYRO_TIMEOUT
         try:
             ping = daemon.ping()
             if ping == 'ping':
@@ -159,12 +159,12 @@ def shutdown_daemon(daemon_ID):
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 1:
         daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PROXY_TIMEOUT
+        daemon._pyroTimeout = params.PYRO_TIMEOUT
         try:
             daemon.shutdown()
             # Have to request status again to close loop
             daemon = Pyro4.Proxy(address)
-            daemon._pyroTimeout = params.PROXY_TIMEOUT
+            daemon._pyroTimeout = params.PYRO_TIMEOUT
             daemon.prod()
             daemon._pyroRelease()
 
@@ -226,7 +226,7 @@ def daemon_info(daemon_ID):
     process_ID = misc.get_process_ID(process, host)
     if len(process_ID) == 1:
         daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PROXY_TIMEOUT
+        daemon._pyroTimeout = params.PYRO_TIMEOUT
         try:
             info = daemon.get_info()
             return info
@@ -250,7 +250,7 @@ def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     else:
         address = params.DAEMONS[daemon_ID]['ADDRESS']
         if not timeout:
-            timeout = params.PROXY_TIMEOUT
+            timeout = params.PYRO_TIMEOUT
         with Pyro4.Proxy(address) as proxy:
             proxy._pyroTimeout = timeout
             try:

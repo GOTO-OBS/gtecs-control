@@ -408,7 +408,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)
