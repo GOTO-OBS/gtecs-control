@@ -563,7 +563,12 @@ class AstroHavenDome:
             l = self.dome_serial.write(self.move_code[side][command])
             #print(side, frac, 'o:', self.move_code[side][command])
 
-            time.sleep(0.5)
+            if (side == 'south' and
+                command == 'open' and
+                running_time < 12.5):
+                time.sleep(1.5)
+            else:
+                time.sleep(0.5)
 
         # finished moving for whatever reason, reset before exiting
         self.side = ''
