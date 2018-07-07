@@ -276,6 +276,11 @@ def query(command, args, daemon_ID):
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
         print(reply)
 
+    elif command == 'clear':
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'clear_target')
+        print(reply)
+
     elif command in ['slew_altaz', 'altaz']:
         # parse arguments
         if len(args) == 2:
@@ -375,6 +380,7 @@ def print_instructions():
     '  mnt ' + style.bold('ra') + ' h m s' + '           - set target ra' + '\n' +\
     '  mnt ' + style.bold('dec') + ' d m s' + '          - set target dec' + '\n' +\
     '  mnt ' + style.bold('target') + ' name' + '        - set target as named object (can include spaces)' + '\n' +\
+    '  mnt ' + style.bold('clear') + '              - clear the stored target' + '\n' +\
     '  mnt ' + style.bold('slew') + '               - slew to target ra/dec' + '\n' +\
     '  mnt ' + style.bold('slew_altaz') + ' alt az' + '  - slew to given alt/az' + '\n' +\
     '  mnt ' + style.bold('track') + '              - start tracking' + '\n' +\

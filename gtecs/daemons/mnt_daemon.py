@@ -533,6 +533,24 @@ class MntDaemon(HardwareDaemon):
         return 'Setting target'
 
 
+    def clear_target(self):
+        """Clear the stored target"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
+        if self.target_ra is None and self.target_dec is None:
+            return 'No current target'
+
+        # Set values
+        self.target_ra = None
+        self.target_dec = None
+
+        self.logfile.info('Cleared target')
+        return 'Cleared target'
+
+
     def offset(self, direction):
         """Offset in a specified (cardinal) direction"""
         # Check restrictions
