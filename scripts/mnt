@@ -308,20 +308,31 @@ def print_info(info):
         else:
             print('Status: %s' %(info['status']))
     print('~~~~~~~')
-    print('Mount Alt:        %.2f' %info['mount_alt'])
-    print('Mount Az:         %.2f' %info['mount_az'])
-    print('Telescope RA:     %.4f' %info['mount_ra'])
-    print('Telescope Dec:    %.4f' %info['mount_dec'])
+    ra, dec = info['mount_ra'], info['mount_dec']
+    ra_str = Angle(ra*u.hour).to_string(sep=':', precision=1)
+    dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra*180/12))
+    print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
+
     if info['target_ra'] != None:
-        print('Target RA:        %.4f' %info['target_ra'])
+        ra = info['target_ra']
+        ra_str = Angle(ra*u.hour).to_string(sep=':', precision=1)
+        print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra*180/12))
     else:
         print('Target RA:        TARGET NOT SET')
     if info['target_dec'] != None:
-        print('Target Dec:       %.4f' %info['target_dec'])
+        dec = info['target_dec']
+        dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+        print('Target Dec:       {:>11} / {:8.4f} deg'.format(dec_str, dec))
     else:
         print('Target Dec:       TARGET NOT SET')
+
     if info['target_dist'] != None:
         print('Target distance:  %.3f' %info['target_dist'])
+
+    print('Mount Alt:        %.2f' %info['mount_alt'])
+    print('Mount Az:         %.2f' %info['mount_az'])
+
     print('Offset step size: %.2f arcsec' %info['step'])
     print('~~~~~~~')
     print('LST:              %.2f' %info['lst'])
