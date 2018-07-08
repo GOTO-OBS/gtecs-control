@@ -200,7 +200,7 @@ def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
 
 def run(filt):
     bigstep = 5000
-    smallstep = 300
+    smallstep = 1000
     expT = 30
     nfv = 7
 
