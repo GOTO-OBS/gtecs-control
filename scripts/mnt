@@ -309,7 +309,7 @@ def print_info(info):
         print('Status: %s' %info['status'])
     else:
         if info['target_dist']:
-            print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
+            print('Status: %s (%.2f deg)' %(info['status'],info['target_dist']))
         else:
             print('Status: %s' %(info['status']))
     print('~~~~~~~')
@@ -352,12 +352,12 @@ def print_info(info):
 
 def print_info_s(info):
     if info['status'] != 'Slewing':
-        print('MOUNT ({})           [{}]'.format(params.SITECH_HOST, info['status']))
+        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, info['status']))
     else:
         if info['target_dist']:
-            print('MOUNT ({})           Slewing ({:.2f})'.format(params.SITECH_HOST,info['target_dist']))
+            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,info['target_dist']))
         else:
-            print('MOUNT ({})           Slewing '.format(params.SITECH_HOST))
+            print('MOUNT ({})        Slewing '.format(params.SITECH_HOST))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']

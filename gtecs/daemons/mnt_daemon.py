@@ -294,7 +294,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_radec_flag = 1
 
-        return 'Slewing to coordinates'
+        return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def slew_to_target(self):
@@ -322,7 +322,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_target_flag = 1
 
-        return 'Slewing to target'
+        return 'Slewing to target ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def slew_to_altaz(self, alt, az):
@@ -359,7 +359,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_altaz_flag = 1
 
-        return 'Slewing to alt/az'
+        return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def start_tracking(self):
