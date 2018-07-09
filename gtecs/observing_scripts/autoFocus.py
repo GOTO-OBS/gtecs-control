@@ -42,7 +42,7 @@ def take_frame(expT, current_filter, name):
     time.sleep(0.1)
     wait_time = 1.5*(expT + 30)
     wait_for_exposure_queue(wait_time)
-    time.sleep(4) # need to wait for images to acutally be saved
+    time.sleep(5) # need to wait for images to acutally be saved
     fnames = last_written_image()
     return fnames
 
