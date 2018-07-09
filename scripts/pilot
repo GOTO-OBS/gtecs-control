@@ -296,6 +296,7 @@ class Pilot:
         if not restart:
             if not self.startup_complete:
                 await self.startup()
+        self.startup_complete = True
 
         # Daytime jobs: do these even in bad weather
         if not restart:
@@ -846,7 +847,6 @@ class Pilot:
         if retcode != 0:
             self.log.warn('STARTUP ended abnormally')
 
-        self.startup_complete = True
         self.log.info('startup process complete')
 
 
