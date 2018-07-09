@@ -234,6 +234,7 @@ def print_instructions():
     '  cam ' + style.bold('ping') + '                         - ping the daemon' + '\n' +\
     ' ' + style.undl('Camera commands') + ':' + '\n' +\
     '  cam ' + style.bold('image') + ' [tels] exptime binning' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + style.bold('glance') + ' [tels] exptime binning' + ' - take a temporary glance' + '\n' +\
     '  cam ' + style.bold('dark') + ' [tels] exptime binning' + '  - take a dark frame' + '\n' +\
     '  cam ' + style.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
     '  cam ' + style.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\
