@@ -118,6 +118,7 @@ def run(width, step, filt, make_plots):
     df = pd.concat(series_list)
     ofname = 'focusdata_{}.csv'.format(Time.now().isot)
     df.to_csv(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
 
     if make_plots == 'y':
         print('Plotting results')
