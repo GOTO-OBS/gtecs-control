@@ -15,9 +15,9 @@ from astropy.io import fits
 from gtecs import params
 from gtecs.misc import execute_command
 from gtecs.astronomy import startTime, nightStarting
-from gtecs.observing import (wait_for_exposure_queue, last_written_image,
-                             prepare_for_images, goto, offset,
-                             wait_for_telescope)
+from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
+                             get_latest_images, get_glances,
+                             goto, offset, wait_for_telescope)
 from gtecs.catalogs import flats
 
 
@@ -30,17 +30,23 @@ def mean_sky_brightness(fnames):
     return np.mean(means)
 
 
-def take_sky(expT, current_filter, name):
+def take_sky(expT, current_filter, name, glance=False):
     offset('n', 60)  # make an offset to move stars
     time.sleep(1)
     offset('w', 60)  # make an offset to move stars
     time.sleep(2)
-    exq_command = 'exq image {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
+    if not glance:
+        exq_command = 'exq image {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
+    else:
+        exq_command = 'exq glance {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
     execute_command(exq_command)
     time.sleep(0.1)
     wait_for_exposure_queue(180)
     time.sleep(5) # need to wait for images to actually be saved
-    fnames = last_written_image()
+    if not glance:
+        fnames = get_latest_images()
+    else:
+        fnames = get_glances()
     sky_mean = mean_sky_brightness(fnames)
     return sky_mean
 
@@ -104,7 +110,7 @@ def run(eve, alt, late=False):
     print('Taking initial exposures')
     current_filter = filt_list.pop(0)
     while sky_mean_check(sky_mean):
-        sky_mean = take_sky(start_expT, current_filter, field_name)
+        sky_mean = take_sky(start_expT, current_filter, field_name, glance=True)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
     print('Reached target sky brightness ({:.1f} counts)'.format(sky_mean_target))
 
@@ -130,7 +136,7 @@ def run(eve, alt, late=False):
 
         # See if it was a good guess
         print('Taking {} test exposure to find new exposure time'.format(current_filter))
-        sky_mean = take_sky(expT, current_filter, field_name)
+        sky_mean = take_sky(expT, current_filter, field_name, glance=True)
         scaling_factor = 25000.0 / sky_mean
         start_expT = expT*scaling_factor
         print('Rescaling exposure time from {:.1f} to {:.1f}'.format(expT, start_expT))

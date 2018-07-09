@@ -23,9 +23,7 @@ from astropy.io import fits
 from gtecs import params
 from gtecs.misc import execute_command, neatCloser
 from gtecs.astronomy import nightStarting
-from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
-                             get_current_focus, set_new_focus,
-                             wait_for_focuser, last_written_image)
+from gtecs.observing import (prepare_for_images, get_current_focus, set_new_focus)
 from gtecs.observing_scripts.autoFocus import (take_frame, RestoreFocus,
                                                set_focus_carefully, get_hfd)
 
