@@ -385,13 +385,14 @@ class CamDaemon(HardwareDaemon):
         # Create exposure object
         exposure = Exposure(tel_list, exptime,
                             binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype)
+                            target='NA', imgtype=imgtype,
+                            glance=True)
 
         # Use the common function
-        return self.take_exposure(exposure, glance=True)
+        return self.take_exposure(exposure)
 
 
-    def take_exposure(self, exposure, glance=False):
+    def take_exposure(self, exposure):
         """Take an exposure with the camera from an Exposure object"""
         # Check restrictions
         if self.dependency_error:
@@ -402,6 +403,7 @@ class CamDaemon(HardwareDaemon):
         exptime = exposure.exptime
         binning = exposure.binning
         frametype = exposure.frametype
+        glance = exposure.glance
 
         for tel in tel_list:
             if tel not in params.TEL_DICT:

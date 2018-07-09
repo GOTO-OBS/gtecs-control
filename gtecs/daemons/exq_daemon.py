@@ -172,7 +172,7 @@ class ExqDaemon(HardwareDaemon):
 
     def add(self, tel_list, exptime,
             filt=None, binning=1, frametype='normal',
-            target='NA', imgtype='SCIENCE'):
+            target='NA', imgtype='SCIENCE', glance=False):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
@@ -196,13 +196,21 @@ class ExqDaemon(HardwareDaemon):
                             filt.upper() if filt else None,
                             binning, frametype,
                             target.replace(';', ''),
-                            imgtype.replace(';', ''))
+                            imgtype.replace(';', ''),
+                            glance)
         self.exp_queue.append(exposure)
-        self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
-                exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+        if not glance:
+            self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
+                    exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+        else:
+            self.logfile.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
+                    exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
 
         # Format return string
-        s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
+        if not glance:
+            s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
+        else:
+            s = 'Added {:.0f}s {} glance,'.format(exptime, filt.upper() if filt else 'X')
         s += ' now {} items in queue'.format(len(self.exp_queue))
         if self.paused:
             s += ' [paused]'
@@ -372,7 +380,12 @@ class ExqDaemon(HardwareDaemon):
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
         tel_list = self.current_exposure.tel_list
-        self.logfile.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+        glance = self.current_exposure.glance
+        if not glance:
+            self.logfile.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+                                exptime, binning, binning, frametype, tel_list))
+        else:
+            self.logfile.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
                                 exptime, binning, binning, frametype, tel_list))
         try:
             cam._pyroReconnect()
