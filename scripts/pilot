@@ -617,7 +617,8 @@ class Pilot:
                 if self.currentID is not None:
                     self.log.debug('still observing {}'.format(self.currentID))
                 else:
-                    self.log.info('nothing to observe!')
+                    self.log.warn('nothing to observe!')
+                    send_slack_msg('pilot has nothing to observe!')
 
             elif self.newID is not None:
                 if self.currentID is not None:
