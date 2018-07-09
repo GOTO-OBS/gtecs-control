@@ -435,7 +435,7 @@ class Pilot:
 
         # evening jobs: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
-                   'sunalt': -1,
+                   'sunalt': -2,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
