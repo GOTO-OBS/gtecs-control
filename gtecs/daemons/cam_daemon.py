@@ -17,7 +17,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
 from gtecs.daemons import HardwareDaemon
-from gtecs.fits import image_location, get_all_info, write_fits
+from gtecs.fits import image_location, glance_location, get_all_info, write_fits
 
 
 DAEMON_ID = 'cam'
@@ -43,6 +43,7 @@ class CamDaemon(HardwareDaemon):
         self.info = None
 
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
+        self.run_number = 0
 
         self.pool = ThreadPoolExecutor(max_workers=len(params.TEL_DICT))
 
@@ -77,7 +78,6 @@ class CamDaemon(HardwareDaemon):
 
         self.finished = 0
         self.saving_flag = 0
-        self.run_number = 0
 
         self.current_exposure = None
 
@@ -173,6 +173,7 @@ class CamDaemon(HardwareDaemon):
                         info['y_pixel_size'+str(tel)] = self.cam_info[intf][HW]['pixel_size'][1]
 
                     info['run_number'] = self.run_number
+                    info['glance'] = self.run_number < 0
                     info['uptime'] = time.time()-self.start_time
                     info['ping'] = time.time()-self.time_check
                     now = datetime.datetime.utcnow()
@@ -198,8 +199,13 @@ class CamDaemon(HardwareDaemon):
                     # set exposure info and start exposure
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Taking exposure r%07d (%is, %ix%i, %s) on camera %i (%s-%i)',
-                                           self.run_number, exptime, binning, binning, frametype, tel, intf, HW)
+                        if self.run_number > 0:
+                            self.logfile.info('Taking exposure r%07d (%is, %ix%i, %s) on camera %i (%s-%i)',
+                                              self.run_number, exptime, binning, binning, frametype, tel, intf, HW)
+                        else:
+                            self.logfile.info('Taking glance (%is, %ix%i, %s) on camera %i (%s-%i)',
+                                              exptime, binning, binning, frametype, tel, intf, HW)
+
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -241,7 +247,10 @@ class CamDaemon(HardwareDaemon):
                             fli._pyroReconnect()
                             ready = fli.exposure_ready(HW)
                             if ready and self.image_ready[tel] == 0:
-                                self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                                if self.run_number > 0:
+                                    self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                                else:
+                                    self.logfile.info('Glance finished on camera %i (%s-%i)', tel, intf, HW)
                                 self.image_ready[tel] = 1
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
@@ -267,7 +276,10 @@ class CamDaemon(HardwareDaemon):
                 try:
                     for tel in self.abort_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                        if self.run_number > 0:
+                            self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                        else:
+                            self.logfile.info('Aborting glance on camera %i (%s-%i)', tel, intf, HW)
                         fli = fli_proxies[intf]
                         try:
                             fli._pyroReconnect()
@@ -368,7 +380,18 @@ class CamDaemon(HardwareDaemon):
         return self.take_exposure(exposure)
 
 
-    def take_exposure(self, exposure):
+    def take_glance(self, exptime, binning, imgtype, tel_list):
+        """Take a glance frame with the camera (no run number)"""
+        # Create exposure object
+        exposure = Exposure(tel_list, exptime,
+                            binning=binning, frametype='normal',
+                            target='NA', imgtype=imgtype)
+
+        # Use the common function
+        return self.take_exposure(exposure, glance=True)
+
+
+    def take_exposure(self, exposure, glance=False):
         """Take an exposure with the camera from an Exposure object"""
         # Check restrictions
         if self.dependency_error:
@@ -395,11 +418,14 @@ class CamDaemon(HardwareDaemon):
             raise misc.HardwareStatusError('Cameras are already exposing')
 
         # Find and update run number
-        with open(self.run_number_file, 'r') as f:
-            lines = f.readlines()
-            self.run_number = int(lines[0]) + 1
-        with open(self.run_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.run_number))
+        if not glance:
+            with open(self.run_number_file, 'r') as f:
+                lines = f.readlines()
+                self.run_number = int(lines[0]) + 1
+            with open(self.run_number_file, 'w') as f:
+                f.write('{:07d}'.format(self.run_number))
+        else:
+            self.run_number = -1
 
         # Set values
         self.current_exposure = exposure
@@ -410,7 +436,10 @@ class CamDaemon(HardwareDaemon):
         self.take_exposure_flag = 1
 
         # Format return string
-        s = 'Exposing r{:07d}:'.format(self.run_number)
+        if not glance:
+            s = 'Exposing r{:07d}:'.format(self.run_number)
+        else:
+            s = 'Exposing glance:'
         for tel in tel_list:
             s += '\n  '
             s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
@@ -509,7 +538,10 @@ class CamDaemon(HardwareDaemon):
             fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
             fli._pyroTimeout = 99 #params.PYRO_TIMEOUT
             try:
-                self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                if run_number > 0:
+                    self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                else:
+                    self.logfile.info('Fetching glance from camera %i (%s-%i)', tel, intf, HW)
                 future_images[tel] = pool.submit(fli.fetch_exposure, HW)
             except:
                 self.logfile.error('No response from fli interface on %s', intf)
@@ -523,7 +555,10 @@ class CamDaemon(HardwareDaemon):
                 intf, HW = params.TEL_DICT[tel]
                 if future_images[tel].done() and images[tel] is None:
                     images[tel] = future_images[tel].result()
-                    self.logfile.info('Fetched exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                    if run_number > 0:
+                        self.logfile.info('Fetched exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                    else:
+                        self.logfile.info('Fetched glance from camera %i (%s-%i)', tel, intf, HW)
 
             # keep looping until all the images are fetched
             if all(images[tel] is not None for tel in active_tel):
@@ -533,10 +568,16 @@ class CamDaemon(HardwareDaemon):
         for tel in active_tel:
             # get image and filename
             image = images[tel]
-            filename = image_location(run_number, tel)
+            if run_number > 0:
+                filename = image_location(run_number, tel)
+            else:
+                filename = glance_location(tel)
 
             # write the FITS file
-            self.logfile.info('Saving exposure r%07d to %s', run_number, filename)
+            if run_number > 0:
+                self.logfile.info('Saving exposure r%07d to %s', run_number, filename)
+            else:
+                self.logfile.info('Saving glance to %s', filename)
             pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
 
             self.image_saving[tel] = 0
