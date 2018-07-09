@@ -617,7 +617,10 @@ class Pilot:
 
             if self.newID == self.currentID:
                 if self.currentID is not None:
-                    self.log.debug('still observing {}'.format(self.currentID))
+                    now = time.time()
+                    elapsed = now - self.currentStartTime
+                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
+                                   self.currentID, elapsed, self.currentMinTime))
                 else:
                     self.log.warn('nothing to observe!')
                     send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
