@@ -119,8 +119,8 @@ def run(width, step, filt, make_plots):
     ofname = 'focusdata_{}.csv'.format(Time.now().isot)
     df.to_csv(os.path.join(path, ofname))
 
-    print('Plotting results')
     if make_plots == 'y':
+        print('Plotting results')
         plot_results(df)
 
     print("Done")
