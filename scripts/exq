@@ -121,7 +121,7 @@ def query(command, args, daemon_ID):
             raise misc.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
             reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
             print(reply)
 
@@ -242,7 +242,7 @@ def query(command, args, daemon_ID):
         # send command
         for i in range(Nexp):
             for filt in filt_list:
-                arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+                arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
                 reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
                 print(reply)
 
@@ -319,7 +319,7 @@ def query(command, args, daemon_ID):
         else:
             raise misc.InputError('Invalid arguments')
         # send command
-        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
         print(reply)
 
@@ -387,7 +387,7 @@ def query(command, args, daemon_ID):
         else:
             raise misc.InputError('Invalid arguments')
         # send command
-        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype]
+        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
         print(reply)
 

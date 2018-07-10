@@ -247,7 +247,7 @@ class ExqDaemon(HardwareDaemon):
                                 filt.upper() if filt else None,
                                 binning, frametype,
                                 target.replace(';', ''),
-                                imgtype.replace(';', ''),
+                                imgtype.replace(';', ''), False,
                                 set_pos, set_total, expID)
             self.exp_queue.append(exposure)
             self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
