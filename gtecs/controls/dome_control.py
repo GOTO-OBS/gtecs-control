@@ -200,7 +200,7 @@ class AstroHavenDome:
 
         self.move_code = {'south':{'open':b'a','close':b'A'},
                           'north':{'open':b'b','close':b'B'}}
-        self.move_time = {'south':{'open':25.,'close':26.},
+        self.move_time = {'south':{'open':36.,'close':26.},
                           'north':{'open':24.,'close':24.}}
 
         self.fake = False
@@ -563,7 +563,12 @@ class AstroHavenDome:
             l = self.dome_serial.write(self.move_code[side][command])
             #print(side, frac, 'o:', self.move_code[side][command])
 
-            time.sleep(0.5)
+            if (side == 'south' and
+                command == 'open' and
+                running_time < 12.5):
+                time.sleep(1.5)
+            else:
+                time.sleep(0.5)
 
         # finished moving for whatever reason, reset before exiting
         self.side = ''
