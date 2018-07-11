@@ -360,7 +360,7 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
-        time.sleep(1)
+        time.sleep(3)
         filt_info_dict = filt.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
