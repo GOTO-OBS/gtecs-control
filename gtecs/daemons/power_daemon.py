@@ -242,7 +242,7 @@ class PowerDaemon(HardwareDaemon):
                 self.reboot_flag = 0
                 self.check_status_flag = 1
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return
@@ -408,7 +408,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)

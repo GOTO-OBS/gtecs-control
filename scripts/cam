@@ -96,6 +96,25 @@ def query(command, args, daemon_ID):
         reply = daemons.daemon_function(daemon_ID, 'take_image', arg_list)
         print(reply)
 
+    elif command == 'glance':
+        # parse arguments
+        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
+            tel_list = sorted(params.TEL_DICT)
+            exptime = float(args[0])
+            binning = float(args[1])
+            imgtype = 'SCIENCE'
+        elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
+            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
+            exptime = float(args[1])
+            binning = float(args[2])
+            imgtype = 'SCIENCE'
+        else:
+            raise misc.InputError('Invalid arguments')
+        # send command
+        arg_list = [exptime, binning, imgtype, tel_list]
+        reply = daemons.daemon_function(daemon_ID, 'take_glance', arg_list)
+        print(reply)
+
     elif command == 'dark':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
@@ -172,15 +191,19 @@ def print_info(info):
         if info['status'+str(tel)] != 'Exposing':
             print('Status: %s' %info['status'+str(tel)])
         else:
-            print('Status: %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            if info['run_number'] > 0:
+                print('Status: %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            else:
+                print('Status: %s glance (%.2fs)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
             if info['current_exposure'] and tel in info['current_exposure'].tel_list:
-                print('Exposure time:    %.2fs' %info['current_exposure'].exptime)
-                print('Binning:          %i' %info['current_exposure'].binning)
-                print('Frame type:       %s' %info['current_exposure'].frametype)
-        print('CCD Temperature:  %.2fC' %info['ccd_temp'+str(tel)])
-        print('Base Temperature: %.2fC' %info['base_temp'+str(tel)])
-        print('Cooler power:     %i%%' %info['cooler_power'+str(tel)])
-        print('Serial number:    %s' %info['serial_number'+str(tel)])
+                print('Exposure time:      %.2fs' %info['current_exposure'].exptime)
+                print('Binning:            %i' %info['current_exposure'].binning)
+                print('Frame type:         %s' %info['current_exposure'].frametype)
+        print('CCD Temperature:    %.2fC' %info['ccd_temp'+str(tel)])
+        print('Target Temperature: %.2fC' %info['target_temp'+str(tel)])
+        print('Base Temperature:   %.2fC' %info['base_temp'+str(tel)])
+        print('Cooler power:       %i%%' %info['cooler_power'+str(tel)])
+        print('Serial number:      %s' %info['serial_number'+str(tel)])
         print('~~~~~~~')
     print('Uptime: %.1fs' %info['uptime'])
     print('Ping: %.5fs' %info['ping'])
@@ -195,7 +218,10 @@ def print_info_s(info):
             print('  Temp: %6.2fC' %info['ccd_temp'+str(tel)], end=' ')
             print('  [%s]' %info['status'+str(tel)])
         else:
-            print('  %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            if info['run_number'] > 0:
+                print('  %s r%07d (%.2fs)' %(info['status'+str(tel)],info['run_number'],info['remaining'+str(tel)]))
+            else:
+                print('  %s glance (%.2fs)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
 
 
 def print_instructions():
@@ -208,6 +234,7 @@ def print_instructions():
     '  cam ' + style.bold('ping') + '                         - ping the daemon' + '\n' +\
     ' ' + style.undl('Camera commands') + ':' + '\n' +\
     '  cam ' + style.bold('image') + ' [tels] exptime binning' + ' - take a normal exposure' + '\n' +\
+    '  cam ' + style.bold('glance') + ' [tels] exptime binning' + ' - take a temporary glance' + '\n' +\
     '  cam ' + style.bold('dark') + ' [tels] exptime binning' + '  - take a dark frame' + '\n' +\
     '  cam ' + style.bold('bias') + ' [tels] binning' + '          - take a bias frame' + '\n' +\
     '  cam ' + style.bold('abort') + ' [tels]' + '                 - abort current exposure' + '\n' +\

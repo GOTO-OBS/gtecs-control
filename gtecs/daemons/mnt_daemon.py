@@ -233,7 +233,7 @@ class MntDaemon(HardwareDaemon):
                     self.logfile.debug('', exc_info=True)
                 self.unpark_flag = 0
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return
@@ -294,7 +294,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_radec_flag = 1
 
-        return 'Slewing to coordinates'
+        return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def slew_to_target(self):
@@ -322,7 +322,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_target_flag = 1
 
-        return 'Slewing to target'
+        return 'Slewing to target ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def slew_to_altaz(self, alt, az):
@@ -359,7 +359,7 @@ class MntDaemon(HardwareDaemon):
         # Set flag
         self.slew_altaz_flag = 1
 
-        return 'Slewing to alt/az'
+        return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
 
 
     def start_tracking(self):
@@ -444,6 +444,8 @@ class MntDaemon(HardwareDaemon):
         time.sleep(0.1)
         if self.mount_status == 'Parked':
             return 'Already parked'
+        elif self.mount_status == 'Parking':
+            return 'Already parking'
         elif self.mount_status == 'IN BLINKY MODE':
             raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
@@ -486,6 +488,12 @@ class MntDaemon(HardwareDaemon):
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
 
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+
         # Set values
         self.target_ra = ra
 
@@ -502,6 +510,12 @@ class MntDaemon(HardwareDaemon):
         # Check input
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_dec = dec
@@ -522,6 +536,12 @@ class MntDaemon(HardwareDaemon):
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
 
+        # Check current status
+        self.get_info_flag = 1
+        time.sleep(0.1)
+        if self.mount_status == 'Parked':
+            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+
         # Set values
         self.target_ra = ra
         self.target_dec = dec
@@ -529,6 +549,24 @@ class MntDaemon(HardwareDaemon):
         self.logfile.info('Set target RA to %.4f', ra)
         self.logfile.info('Set target Dec to %.4f', dec)
         return 'Setting target'
+
+
+    def clear_target(self):
+        """Clear the stored target"""
+        # Check restrictions
+        if self.dependency_error:
+            raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check current status
+        if self.target_ra is None and self.target_dec is None:
+            return 'No current target'
+
+        # Set values
+        self.target_ra = None
+        self.target_dec = None
+
+        self.logfile.info('Cleared target')
+        return 'Cleared target'
 
 
     def offset(self, direction):
@@ -671,7 +709,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)

@@ -49,11 +49,10 @@ if result != True:
     print('Config file validation failed')
     sys.exit(1)
 
-
+############################################################
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
 LOCAL_HOSTNAME = socket.gethostname()
-
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
@@ -64,17 +63,7 @@ CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOG_PATH = CONFIG_PATH + 'logs/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
-
 IMAGE_PATH = config['IMAGE_PATH']
-
-# Daemons should log to file?
-FILE_LOGGING = config['FILE_LOGGING']
-# Daemons should to stdout?
-STDOUT_LOGGING = config['STDOUT_LOGGING']
-# redirect Daemon stdout to file?
-REDIRECT_STDOUT = config['REDIRECT_STDOUT']
-# use colour and fancy formatting in output?
-FANCY_OUTPUT = config['FANCY_OUTPUT']
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = config['SITE_LATITUDE']
@@ -82,19 +71,29 @@ SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 SITE_LOCATION = config['SITE_LOCATION']
 
-# Pyro connection
-PROXY_TIMEOUT = config['PROXY_TIMEOUT']
-Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
-Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
-Pyro4.config.REQUIRE_EXPOSE = False
+# use colour and fancy formatting in output?
+FANCY_OUTPUT = config['FANCY_OUTPUT']
 
 # Email alerts
 EMAIL_LIST = config['EMAIL_LIST']
 EMAIL_ADDRESS = config['EMAIL_ADDRESS'] # An example
 EMAIL_SERVER = config['EMAIL_SERVER']
 
-
+############################################################
 # Daemon parameters
+Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.REQUIRE_EXPOSE = False
+
+PYRO_TIMEOUT = config['PYRO_TIMEOUT']
+DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
+
+FILE_LOGGING = config['FILE_LOGGING']
+STDOUT_LOGGING = config['STDOUT_LOGGING']
+REDIRECT_STDOUT = config['REDIRECT_STDOUT']
+
+USE_FAKE_FLI = config['USE_FAKE_FLI']
+
 DAEMONS = config['DAEMONS']
 for daemon_ID in DAEMONS:
     if  DAEMONS[daemon_ID]['HOST'] == 'localhost':
@@ -104,7 +103,6 @@ for daemon_ID in DAEMONS:
         DAEMONS[daemon_ID]['DEPENDS'].remove('fli')
         DAEMONS[daemon_ID]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
-USE_FAKE_FLI = config['USE_FAKE_FLI']
 FLI_INTERFACES = config['FLI_INTERFACES']
 
 TEL_DICT = {}
@@ -112,7 +110,7 @@ for intf in FLI_INTERFACES:
     for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
         TEL_DICT[tel] = [intf, HW]
 
-
+############################################################
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
 CURL_WAIT_TIME = config['CURL_WAIT_TIME']
@@ -176,7 +174,7 @@ HATCH_GOODDELAY = config['HATCH_GOODDELAY']
 # Diskspace - free space in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
 
-
+############################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
@@ -185,11 +183,11 @@ SITECH_PORT = config['SITECH_PORT']
 FREEZE_DEC = config['FREEZE_DEC']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
-
+############################################################
 # Filter wheel parameters
 FILTER_LIST = config['FILTER_LIST']
 
-
+############################################################
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
@@ -214,18 +212,18 @@ if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
 else:
     FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
 
-
+############################################################
 # Exposure Queue parameters
 QUEUE_PATH = CONFIG_PATH
 
-
+############################################################
 # Power parameters
 POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_UNITS = config['POWER_UNITS']
 POWER_GROUPS = config['POWER_GROUPS']
 
-
+############################################################
 # Dome parameters
 DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
 DOME_LOCATION = config['DOME_LOCATION']
@@ -241,15 +239,15 @@ SILENCE_ALARM_IN_MANUAL_MODE = config['SILENCE_ALARM_IN_MANUAL_MODE']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
-
+############################################################
 # Observing parameters
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 
-
+############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
 
-
+############################################################
 # Slack bot parameters
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_NAME = config['SLACK_BOT_NAME']

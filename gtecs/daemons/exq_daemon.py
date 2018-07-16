@@ -56,11 +56,11 @@ class ExqDaemon(HardwareDaemon):
         # connect to daemons
         CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
         cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
-        cam._pyroTimeout = params.PROXY_TIMEOUT
+        cam._pyroTimeout = params.PYRO_TIMEOUT
 
         FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
         filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
-        filt._pyroTimeout = params.PROXY_TIMEOUT
+        filt._pyroTimeout = params.PYRO_TIMEOUT
 
         while(self.running):
             self.time_check = time.time()
@@ -121,7 +121,7 @@ class ExqDaemon(HardwareDaemon):
                 # either we are paused, or nothing in the queue
                 time.sleep(1.0)
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return
@@ -172,7 +172,7 @@ class ExqDaemon(HardwareDaemon):
 
     def add(self, tel_list, exptime,
             filt=None, binning=1, frametype='normal',
-            target='NA', imgtype='SCIENCE'):
+            target='NA', imgtype='SCIENCE', glance=False):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
@@ -196,13 +196,21 @@ class ExqDaemon(HardwareDaemon):
                             filt.upper() if filt else None,
                             binning, frametype,
                             target.replace(';', ''),
-                            imgtype.replace(';', ''))
+                            imgtype.replace(';', ''),
+                            glance)
         self.exp_queue.append(exposure)
-        self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
-                exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+        if not glance:
+            self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
+                    exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+        else:
+            self.logfile.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
+                    exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
 
         # Format return string
-        s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
+        if not glance:
+            s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
+        else:
+            s = 'Added {:.0f}s {} glance,'.format(exptime, filt.upper() if filt else 'X')
         s += ' now {} items in queue'.format(len(self.exp_queue))
         if self.paused:
             s += ' [paused]'
@@ -239,7 +247,7 @@ class ExqDaemon(HardwareDaemon):
                                 filt.upper() if filt else None,
                                 binning, frametype,
                                 target.replace(';', ''),
-                                imgtype.replace(';', ''),
+                                imgtype.replace(';', ''), False,
                                 set_pos, set_total, expID)
             self.exp_queue.append(exposure)
             self.logfile.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
@@ -298,6 +306,10 @@ class ExqDaemon(HardwareDaemon):
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
 
+        # Check input
+        if self.paused:
+            return 'Queue already paused'
+
         # Set values
         self.paused = 1
 
@@ -310,6 +322,10 @@ class ExqDaemon(HardwareDaemon):
         # Check restrictions
         if self.dependency_error:
             raise misc.DaemonDependencyError('Dependencies are not running')
+
+        # Check input
+        if not self.paused:
+            return 'Queue already resumed'
 
         # Set values
         self.paused = 0
@@ -344,7 +360,7 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
-        time.sleep(1)
+        time.sleep(3)
         filt_info_dict = filt.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
@@ -364,7 +380,12 @@ class ExqDaemon(HardwareDaemon):
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
         tel_list = self.current_exposure.tel_list
-        self.logfile.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+        glance = self.current_exposure.glance
+        if not glance:
+            self.logfile.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+                                exptime, binning, binning, frametype, tel_list))
+        else:
+            self.logfile.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
                                 exptime, binning, binning, frametype, tel_list))
         try:
             cam._pyroReconnect()
@@ -398,7 +419,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)

@@ -23,9 +23,7 @@ from astropy.io import fits
 from gtecs import params
 from gtecs.misc import execute_command, neatCloser
 from gtecs.astronomy import nightStarting
-from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
-                             get_current_focus, set_new_focus,
-                             wait_for_focuser, last_written_image)
+from gtecs.observing import (prepare_for_images, get_current_focus, set_new_focus)
 from gtecs.observing_scripts.autoFocus import (take_frame, RestoreFocus,
                                                set_focus_carefully, get_hfd)
 
@@ -118,9 +116,10 @@ def run(width, step, filt, make_plots):
     df = pd.concat(series_list)
     ofname = 'focusdata_{}.csv'.format(Time.now().isot)
     df.to_csv(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
 
-    print('Plotting results')
     if make_plots == 'y':
+        print('Plotting results')
         plot_results(df)
 
     print("Done")

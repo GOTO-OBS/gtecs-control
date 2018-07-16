@@ -276,6 +276,11 @@ def query(command, args, daemon_ID):
         reply = daemons.daemon_function(daemon_ID, 'set_target_dec', [coord.dec.value])
         print(reply)
 
+    elif command == 'clear':
+        # send command
+        reply = daemons.daemon_function(daemon_ID, 'clear_target')
+        print(reply)
+
     elif command in ['slew_altaz', 'altaz']:
         # parse arguments
         if len(args) == 2:
@@ -304,24 +309,35 @@ def print_info(info):
         print('Status: %s' %info['status'])
     else:
         if info['target_dist']:
-            print('Status: %s (%.2f)' %(info['status'],info['target_dist']))
+            print('Status: %s (%.2f deg)' %(info['status'],info['target_dist']))
         else:
             print('Status: %s' %(info['status']))
     print('~~~~~~~')
-    print('Mount Alt:        %.2f' %info['mount_alt'])
-    print('Mount Az:         %.2f' %info['mount_az'])
-    print('Telescope RA:     %.4f' %info['mount_ra'])
-    print('Telescope Dec:    %.4f' %info['mount_dec'])
+    ra, dec = info['mount_ra'], info['mount_dec']
+    ra_str = Angle(ra*u.hour).to_string(sep=':', precision=1)
+    dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra*180/12))
+    print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
+
     if info['target_ra'] != None:
-        print('Target RA:        %.4f' %info['target_ra'])
+        ra = info['target_ra']
+        ra_str = Angle(ra*u.hour).to_string(sep=':', precision=1)
+        print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra*180/12))
     else:
         print('Target RA:        TARGET NOT SET')
     if info['target_dec'] != None:
-        print('Target Dec:       %.4f' %info['target_dec'])
+        dec = info['target_dec']
+        dec_str = Angle(dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+        print('Target Dec:       {:>11} / {:8.4f} deg'.format(dec_str, dec))
     else:
         print('Target Dec:       TARGET NOT SET')
+
     if info['target_dist'] != None:
         print('Target distance:  %.3f' %info['target_dist'])
+
+    print('Mount Alt:        %.2f' %info['mount_alt'])
+    print('Mount Az:         %.2f' %info['mount_az'])
+
     print('Offset step size: %.2f arcsec' %info['step'])
     print('~~~~~~~')
     print('LST:              %.2f' %info['lst'])
@@ -336,12 +352,12 @@ def print_info(info):
 
 def print_info_s(info):
     if info['status'] != 'Slewing':
-        print('MOUNT ({})           [{}]'.format(params.SITECH_HOST, info['status']))
+        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, info['status']))
     else:
         if info['target_dist']:
-            print('MOUNT ({})           Slewing ({:.2f})'.format(params.SITECH_HOST,info['target_dist']))
+            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,info['target_dist']))
         else:
-            print('MOUNT ({})           Slewing '.format(params.SITECH_HOST))
+            print('MOUNT ({})        Slewing '.format(params.SITECH_HOST))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
@@ -364,6 +380,7 @@ def print_instructions():
     '  mnt ' + style.bold('ra') + ' h m s' + '           - set target ra' + '\n' +\
     '  mnt ' + style.bold('dec') + ' d m s' + '          - set target dec' + '\n' +\
     '  mnt ' + style.bold('target') + ' name' + '        - set target as named object (can include spaces)' + '\n' +\
+    '  mnt ' + style.bold('clear') + '              - clear the stored target' + '\n' +\
     '  mnt ' + style.bold('slew') + '               - slew to target ra/dec' + '\n' +\
     '  mnt ' + style.bold('slew_altaz') + ' alt az' + '  - slew to given alt/az' + '\n' +\
     '  mnt ' + style.bold('track') + '              - start tracking' + '\n' +\

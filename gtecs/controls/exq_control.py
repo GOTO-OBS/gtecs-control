@@ -20,20 +20,21 @@ class Exposure:
     - info()
 
     Exposures contain the folowing infomation:
-    - tel_list    [lst] -- REQUIRED --
-    - exptime     [int] -- REQUIRED --
-    - filt        [str] <default = None>
-    - binning     [int] <default = 1>
-    - frame type  [str] <default = 'normal'>
-    - target      [str] <default = 'NA'>
-    - image type  [str] <default = 'SCIENCE'>
-    - set_pos     [int] <default = 1>
-    - set_total   [int] <default = 1>
-    - expID       [int] <default = None>
+    - tel_list    [lst]  -- REQUIRED --
+    - exptime     [int]  -- REQUIRED --
+    - filt        [str]  <default = None>
+    - binning     [int]  <default = 1>
+    - frame type  [str]  <default = 'normal'>
+    - target      [str]  <default = 'NA'>
+    - image type  [str]  <default = 'SCIENCE'>
+    - glance      [bool] <default = False>
+    - set_pos     [int]  <default = 1>
+    - set_total   [int]  <default = 1>
+    - expID       [int]  <default = None>
     """
     def __init__(self, tel_list, exptime,
                  filt=None, binning=1, frametype='normal',
-                 target='NA', imgtype='SCIENCE',
+                 target='NA', imgtype='SCIENCE', glance=False,
                  set_pos=1, set_total=1, expID=None):
         self.creation_time = time.gmtime()
         self.tel_list = tel_list
@@ -45,6 +46,7 @@ class Exposure:
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype
+        self.glance = glance
         self.set_pos = set_pos
         self.set_total = set_total
         if expID:
@@ -58,7 +60,7 @@ class Exposure:
     @classmethod
     def from_line(cls, line):
         """Create an Exposure object from a formatted string"""
-        # eg '1011;20;R;2;normal;NA;SCIENCE;1;3;126598'
+        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1;3;126598'
         ls = line.split(';')
         tel_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
@@ -67,20 +69,21 @@ class Exposure:
         frametype = ls[4]
         target = ls[5]
         imgtype = ls[6]
-        set_pos = int(ls[7])
-        set_total = int(ls[8])
-        expID = int(ls[9])
+        glance = bool(ls[7])
+        set_pos = int(ls[8])
+        set_total = int(ls[9])
+        expID = int(ls[10])
         exp = cls(tel_list, exptime, filt,
-                  binning, frametype, target, imgtype,
+                  binning, frametype, target, imgtype, glance,
                   set_pos, set_total, expID)
         return exp
 
     def as_line(self):
         """Give the line representation of this Exposure"""
-        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i\n'\
+        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i;%i\n'\
            %(self.tel_string, self.exptime, self.filt,
              self.binning, self.frametype, self.target, self.imgtype,
-             self.set_pos, self.set_total, self.expID)
+             self.glance, self.set_pos, self.set_total, self.expID)
         return line
 
     def info(self):
@@ -94,6 +97,7 @@ class Exposure:
         s += '  Frame type: %s\n' %self.frametype
         s += '  Target: %s\n' %self.target
         s += '  Image type: %s\n' %self.imgtype
+        s += '  Glance: %s\n' %self.glance
         s += '  Position in set: %i\n' %self.set_pos
         s += '  Total in set: %i\n' %self.set_total
         s += '  ExposureSet database ID (if any): %i\n' %self.expID

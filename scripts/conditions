@@ -93,7 +93,7 @@ def print_info(info):
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
         print('WEATHER:')
 
-        sunalt = sun_alt(Time.now())
+        sunalt = info['sunalt']
         if sunalt < 0:
             sunalt_str = style.ytxt('{:>5.1f}'.format(sunalt))
             if sunalt < params.SUN_ELEVATION_LIMIT:
@@ -209,6 +209,27 @@ def print_info(info):
                                                         int_humidity_str,
                                                         dt_str)
             print(weather_str)
+
+        ups_percents = info['ups_percent']
+        ups_strings = []
+        for ups_percent in ups_percents:
+            if params.CRITICAL_UPSBATTERY < ups_percent < params.MIN_UPSBATTERY:
+                ups_strings.append(style.ytxt('{:>5.1f}'.format(ups_percent)))
+            elif ups_percent < params.CRITICAL_UPSBATTERY:
+                ups_strings.append(style.rtxt('{:>5.1f}'.format(ups_percent)))
+            else:
+                ups_strings.append(style.gtxt('{:>5.1f}'.format(ups_percent)))
+        print('  {: <10}   {}%'.format('ups', '%  '.join(ups_strings)))
+
+        free_diskspace = info['free_diskspace']
+        if free_diskspace < (params.MIN_DISKSPACE * 2):
+            diskspace_str = style.ytxt('{:>5.1f}'.format(free_diskspace))
+            if free_diskspace < params.MIN_DISKSPACE:
+                diskspace_str = style.rtxt('{:>5.1f}'.format(free_diskspace))
+        else:
+            diskspace_str = style.gtxt('{:>5.1f}'.format(free_diskspace))
+        print('  {: <10}   {}%'.format('diskspace', diskspace_str))
+
 
 
 def print_instructions():

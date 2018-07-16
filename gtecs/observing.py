@@ -243,7 +243,7 @@ def offset(direction, size):
     time.sleep(2)
 
 
-def last_written_image():
+def get_latest_images():
     """
     Returns the last written image files
 
@@ -259,6 +259,24 @@ def last_written_image():
     fnames = {key: root+'_UT{}.fits'.format(key) for key in params.TEL_DICT.keys()}
 
     print('Loading run {}: {} images'.format(root.split('/')[-1], len(fnames)))
+    return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
+
+
+def get_glances():
+    """
+    Returns the last written glance files
+
+    Returns
+    -------
+    files : dict
+        a dictionary of the image files, with the UT numbers as keys
+    """
+    path = os.path.join(params.IMAGE_PATH)
+    root = 'glance'
+
+    fnames = {key: root+'_UT{}.fits'.format(key) for key in params.TEL_DICT.keys()}
+
+    print('Loading glances: {} images'.format(len(fnames)))
     return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT.keys()}
 
 

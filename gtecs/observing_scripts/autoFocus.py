@@ -29,7 +29,7 @@ import sep
 
 from gtecs import params
 from gtecs.misc import execute_command, neatCloser
-from gtecs.observing import (wait_for_exposure_queue, last_written_image,
+from gtecs.observing import (wait_for_exposure_queue, get_glances,
                              goto, get_current_focus, set_new_focus,
                              wait_for_focuser, prepare_for_images,
                              wait_for_telescope)
@@ -37,13 +37,13 @@ from gtecs.catalogs import gliese
 
 
 def take_frame(expT, current_filter, name):
-    exq_command = 'exq image {} {} 1 "{}" FOCUS'.format(expT, current_filter, name)
+    exq_command = 'exq glance {} {} 1 "{}" FOCUS'.format(expT, current_filter, name)
     execute_command(exq_command)
     time.sleep(0.1)
     wait_time = 1.5*(expT + 30)
     wait_for_exposure_queue(wait_time)
-    time.sleep(4) # need to wait for images to acutally be saved
-    fnames = last_written_image()
+    time.sleep(5) # need to wait for images to acutally be saved
+    fnames = get_glances()
     return fnames
 
 
@@ -200,7 +200,7 @@ def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
 
 def run(filt):
     bigstep = 5000
-    smallstep = 300
+    smallstep = 1000
     expT = 30
     nfv = 7
 

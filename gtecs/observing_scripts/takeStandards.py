@@ -11,7 +11,7 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.misc import execute_command
 from gtecs.astronomy import check_alt_limit
-from gtecs.observing import (wait_for_exposure_queue, last_written_image,
+from gtecs.observing import (wait_for_exposure_queue, get_latest_images,
                              goto, prepare_for_images, wait_for_telescope)
 from gtecs.catalogs import landolt
 

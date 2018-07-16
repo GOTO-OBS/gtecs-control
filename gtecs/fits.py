@@ -29,12 +29,26 @@ def image_location(run_number, tel):
     """Construct the image file location based on the run and tel number"""
     # Find the directory, using the date the observing night began
     night = astronomy.nightStarting()
-    direc = params.IMAGE_PATH + night
+    direc = params.IMAGE_PATH + night + '/'
     if not os.path.exists(direc):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
-    filename = '/r{:07d}_UT{:d}.fits'.format(run_number, tel)
+    filename = 'r{:07d}_UT{:d}.fits'.format(run_number, tel)
+
+    return direc + filename
+
+
+def glance_location(tel):
+    """Construct the glance file location based on the tel number"""
+    # Find the directory, using the date the observing night began
+    night = astronomy.nightStarting()
+    direc = params.IMAGE_PATH
+    if not os.path.exists(direc):
+        os.mkdir(direc)
+
+    # Find the file name, using the run number and UT number
+    filename = 'glance_UT{:d}.fits'.format(tel)
 
     return direc + filename
 
@@ -49,7 +63,8 @@ def write_fits(image, filename, tel, all_info, log = None):
     update_header(hdu.header, tel, all_info)
 
     # write the image log to the database
-    write_image_log(filename, hdu.header)
+    if run_number > 0:
+        write_image_log(filename, hdu.header)
 
     # recreate the hdulist, and write to file
     hdulist = pyfits.HDUList([hdu])
@@ -58,7 +73,10 @@ def write_fits(image, filename, tel, all_info, log = None):
     hdulist.writeto(filename)
 
     if log:
-        log.info('Exposure r{:07} saved'.format(run_number))
+        if run_number > 0:
+            log.info('Exposure r{:07} saved'.format(run_number))
+        else:
+            log.info('Glance saved')
 
 
 def get_all_info(cam_info):

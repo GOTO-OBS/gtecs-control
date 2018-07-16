@@ -99,6 +99,9 @@ class ConditionsDaemon(HardwareDaemon):
         self.flags = dict.fromkeys(self.flag_names, 2)
 
         self.data = None
+        self.sunalt_now = None
+        self.ups_percent = None
+        self.free_diskspace = None
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -132,10 +135,10 @@ class ConditionsDaemon(HardwareDaemon):
                         weather[source] = dict.fromkeys(weather[source], -999)
 
                 # get the current sun alt
-                sunalt_now = sun_alt(Time.now())
+                self.sunalt_now = sun_alt(Time.now())
 
                 # get the current UPS battery percentage remaining
-                ups_percent, ups_status = conditions.get_ups()
+                self.ups_percent, self.ups_status = conditions.get_ups()
 
                 # check the connection with Warwick
                 ping_successful = []
@@ -146,7 +149,7 @@ class ConditionsDaemon(HardwareDaemon):
                 hatch_closed = conditions.hatch_closed()
 
                 # get the current disk usage on the image path
-                free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH)*100.
+                self.free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH)*100.
 
 
                 # ~~~~~~~~~~~~~~
@@ -224,13 +227,13 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # DARK
-                self.good['dark'] = sunalt_now < params.SUN_ELEVATION_LIMIT
+                self.good['dark'] = self.sunalt_now < params.SUN_ELEVATION_LIMIT
                 self.valid['dark'] = True
 
 
                 # UPS and LOW_BATTERY
-                ups_percent_array = np.array(ups_percent)
-                ups_status_array = np.array(ups_status)
+                ups_percent_array = np.array(self.ups_percent)
+                ups_status_array = np.array(self.ups_status)
                 valid_ups_percent = ups_percent_array[ups_percent_array != -999]
                 valid_ups_status = ups_status_array[ups_status_array != -999]
 
@@ -255,7 +258,7 @@ class ConditionsDaemon(HardwareDaemon):
 
 
                 # DISKSPACE
-                self.good['diskspace'] = free_diskspace > params.MIN_DISKSPACE
+                self.good['diskspace'] = self.free_diskspace > params.MIN_DISKSPACE
                 self.valid['diskspace'] = True
 
 
@@ -320,7 +323,7 @@ class ConditionsDaemon(HardwareDaemon):
                     logline += '{}: {} '.format(key, self.flags[key])
                 self.logfile.info(logline)
 
-            time.sleep(0.0001) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
 
         self.logfile.info('Daemon control thread stopped')
         return
@@ -329,8 +332,12 @@ class ConditionsDaemon(HardwareDaemon):
     # Conditions functions
     def get_info(self):
         """Return current conditions flags and weather info"""
-        return {'flags': self.data, 'weather': self.weather}
-
+        return {'flags': self.data,
+                'weather': self.weather,
+                'sunalt': self.sunalt_now,
+                'ups_percent': self.ups_percent,
+                'free_diskspace': self.free_diskspace,
+                }
 
     def get_info_simple(self):
         """Return plain status dict, or None"""
@@ -352,7 +359,7 @@ if __name__ == "__main__":
     # Start the daemon
     with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
         uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = 5.
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
 
         # Start request loop
         daemon.logfile.info('Daemon registered at %s', uri)
