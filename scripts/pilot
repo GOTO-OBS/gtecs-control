@@ -538,7 +538,7 @@ class Pilot:
 
         # check if we're on the wrong side of midnight
         midnight = localMidnight(nightStarting())
-        if not rising and now > midnight:
+        if not rising and now > midnight and not ignore_late:
             # wow, you're really late
             return False
         elif rising and now < midnight:
