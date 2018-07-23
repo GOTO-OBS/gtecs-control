@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 
 from astropy.time import Time
-from astropy.io import fits
 from astropy.stats.sigma_clipping import sigma_clipped_stats
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.convolution import Gaussian2DKernel
@@ -29,22 +28,11 @@ import sep
 
 from gtecs import params
 from gtecs.misc import execute_command, neatCloser
-from gtecs.observing import (wait_for_exposure_queue, get_glances,
+from gtecs.observing import (get_analysis_image,
                              goto, get_current_focus, set_new_focus,
                              wait_for_focuser, prepare_for_images,
                              wait_for_telescope)
 from gtecs.catalogs import gliese
-
-
-def take_frame(expT, current_filter, name):
-    exq_command = 'exq glance {} {} 1 "{}" FOCUS'.format(expT, current_filter, name)
-    execute_command(exq_command)
-    time.sleep(0.1)
-    wait_time = 1.5*(expT + 30)
-    wait_for_exposure_queue(wait_time)
-    time.sleep(5) # need to wait for images to acutally be saved
-    fnames = get_glances()
-    return fnames
 
 
 class RestoreFocus(neatCloser):
@@ -71,8 +59,8 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
 
 def measure_focus_carefully(expT, filt, name, orig_focus, **kwargs):
     try:
-        fnames = take_frame(expT, filt, name)
-        return get_hfd(fnames, **kwargs)['median']
+        data = get_analysis_image(expT, filt, name, 'FOCUS', glance=True)
+        hfd_values = get_hfd(data, **kwargs)['median']
     except:
         set_new_focus(orig_focus)
         raise
@@ -95,14 +83,14 @@ def estimate_focus(targetHFD, currentHFD, currentPos, slope):
     return currentPos + (targetHFD-currentHFD)/slope
 
 
-def measure_hfd(fname, filter_width=3, threshold=5, **kwargs):
+def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
     """
     Crude measure of half-flux-diameter.
 
     Parameters
     ----------
-    fname : string
-        filename to analyse
+    data : `numpy.array`
+        image data to analyse
     filter_width : int
         before detection, the image is filtered. This is the filter width in pixels.
         For optimal source detection, this should roughly match the expected FWHM
@@ -124,7 +112,6 @@ def measure_hfd(fname, filter_width=3, threshold=5, **kwargs):
     xslice = kwargs.pop('xslice', slice(None))
     yslice = kwargs.pop('yslice', slice(None))
 
-    data = fits.getdata(fname).astype('float')
     data = np.ascontiguousarray(data[yslice, xslice])
 
     # measure spatially varying background
@@ -158,7 +145,7 @@ def measure_hfd(fname, filter_width=3, threshold=5, **kwargs):
         return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
-def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
+def get_hfd(data, filter_width=3, threshold=5, **kwargs):
     """
     Measure the HFD diameter from multiple files.
 
@@ -171,12 +158,12 @@ def get_hfd(fnames, filter_width=3, threshold=5, **kwargs):
     std_dict = {}
     fwhm_dict = {}
     stdf_dict = {}
-    for tel_key in fnames:
+    for tel_key in data:
         try:
-            median, std, fwhm, f_std = measure_hfd(fnames[tel_key],
+            median, std, fwhm, f_std = measure_hfd(data[tel_key],
                                                    filter_width, threshold, **kwargs)
         except Exception as error:
-            print('HFD measurement for file {} errored: {}'.format(fnames[tel_key], str(error)))
+            print('HFD measurement for UT{} errored: {}'.format(tel_key, str(error)))
             std = -1.0
             median = -1.0
             f_std = -1
@@ -228,8 +215,8 @@ def run(filt):
     delta = pd.Series(params.FOCUS_INTERCEPT_DIFFERENCE, dtype='float')
 
     # start where we are now.
-    fnames = take_frame(expT, filt, star.name)
-    hfd_values = get_hfd(fnames, **kwargs)['median']
+    data = get_analysis_image(expT, filt, star.name, 'FOCUS', glance=True)
+    hfd_values = get_hfd(data, **kwargs)['median']
     orig_focus = pd.Series(get_current_focus())
     print('Previous focus:\n{!r}'.format(orig_focus))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))

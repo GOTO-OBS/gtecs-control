@@ -10,44 +10,26 @@ import numpy as np
 
 from astropy import units as u
 from astropy.time import Time
-from astropy.io import fits
 
 from gtecs import params
-from gtecs.misc import execute_command
 from gtecs.astronomy import startTime, nightStarting
-from gtecs.observing import (wait_for_exposure_queue, prepare_for_images,
-                             get_latest_images, get_glances,
+from gtecs.observing import (prepare_for_images, get_analysis_image,
                              goto, offset, wait_for_telescope)
 from gtecs.catalogs import flats
 
 
-def mean_sky_brightness(fnames):
-    means = []
-    for tel in params.TEL_DICT:
-        data = fits.getdata(fnames[tel])
-        mean = np.median(data)
-        means.append(mean)
-    return np.mean(means)
-
-
 def take_sky(expT, current_filter, name, glance=False):
-    offset('n', 60)  # make an offset to move stars
+    # make offsets to move stars
+    offset('n', 60)
     time.sleep(1)
-    offset('w', 60)  # make an offset to move stars
+    offset('w', 60)
     time.sleep(2)
-    if not glance:
-        exq_command = 'exq image {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
-    else:
-        exq_command = 'exq glance {:.1f} {} 1 "{}" FLAT'.format(expT, current_filter, name)
-    execute_command(exq_command)
-    time.sleep(0.1)
-    wait_for_exposure_queue(180)
-    time.sleep(5) # need to wait for images to actually be saved
-    if not glance:
-        fnames = get_latest_images()
-    else:
-        fnames = get_glances()
-    sky_mean = mean_sky_brightness(fnames)
+
+    # take the image and load the image data
+    data = get_analysis_image(expT, current_filter, name, 'FLAT', glance)
+
+    # get the mean value for the images
+    sky_mean = np.mean([np.median(data[tel]) for tel in data])
     return sky_mean
 
 

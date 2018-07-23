@@ -18,13 +18,13 @@ from matplotlib import pyplot as plt
 
 from astropy import units as u
 from astropy.time import Time
-from astropy.io import fits
 
 from gtecs import params
 from gtecs.misc import execute_command, neatCloser
 from gtecs.astronomy import nightStarting
-from gtecs.observing import (prepare_for_images, get_current_focus, set_new_focus)
-from gtecs.observing_scripts.autoFocus import (take_frame, RestoreFocus,
+from gtecs.observing import (prepare_for_images, get_analysis_image,
+                             get_current_focus, set_new_focus)
+from gtecs.observing_scripts.autoFocus import (RestoreFocus,
                                                set_focus_carefully, get_hfd)
 
 
@@ -97,8 +97,8 @@ def run(width, step, filt, make_plots):
         set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
-        fnames = take_frame(expT, filt, 'FocusRun')
-        hfd_values = get_hfd(fnames, **kwargs)
+        data = get_analysis_image(expT, filt, 'Focus run', 'FOCUS', glance=True)
+        hfd_values = get_hfd(data, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
         hfd_values['pos'] = pd.Series(get_current_focus())
         series_list.append(hfd_values)

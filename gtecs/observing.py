@@ -10,6 +10,7 @@ import glob
 import numpy as np
 
 from astropy.time import Time
+from astropy.io import fits
 
 from obsdb import open_session, get_pointing_by_id
 
@@ -243,6 +244,52 @@ def offset(direction, size):
     time.sleep(2)
 
 
+def get_analysis_image(expT, filt, name, imgtype='SCIENCE', glance=False):
+    """
+    Take a single exposure set, then open the images and return the image data.
+
+    Parameters
+    ----------
+    expT : int
+        exposure time for the image
+    filt : str
+        filter to take the image in
+    name : str
+        target name
+    imgtype : str, default 'SCIENCE'
+        image type
+    glance : bool, default `False`
+        take a temporary glance image
+
+    Returns
+    -------
+    files : dict
+        a dictionary of the image files, with the UT numbers as keys
+    """
+
+    if not glance:
+        exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(expT, filt, name, imgtype)
+    else:
+        exq_command = 'exq glance {:.1f} {} 1 "{}" {}'.format(expT, filt, name, imgtype)
+    execute_command(exq_command)
+    execute_command('exq resume')  # just in case
+
+    # wait for the exposure queue to empty
+    wait_for_exposure_queue(expT + 30)
+    # then also wait for the camera daemon, to be sure it's finished saving
+    wait_for_cameras(30)
+    time.sleep(1)  # just in case
+
+    if not glance:
+        fnames = get_latest_images()
+    else:
+        fnames = get_glances()
+
+    data = {tel: fits.getdata(fnames[tel]).astype('float') for tel in fnames}
+
+    return data
+
+
 def take_image_set(expT, filt, name, imgtype='SCIENCE'):
     """
     Takes a set of images and waits for the exposure queue to finish.
@@ -366,6 +413,37 @@ def wait_for_exposure_queue(timeout=None):
             timed_out = True
     if timed_out:
         raise TimeoutError('Exposure queue timed out')
+
+
+def wait_for_cameras(timeout=None):
+    """
+    With a set of exposures underway, wait for the cameras to finish saving
+
+    Parameters
+    ----------
+    timeout : float
+        time in seconds after which to timeout. None to wait forever
+    """
+    # we should not return straight away, but wait until queue is empty
+    start_time = time.time()
+    still_working = True
+    timed_out = False
+    while still_working and not timed_out:
+        time.sleep(2)
+        try:
+            cam_info = daemon_info('cam')
+
+            cam_status = [cam_info['status%d' %tel] for tel in params.TEL_DICT]
+            ready = [status == 'Ready' for status in cam_status]
+            if all(ready):
+                still_working = False
+        except:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+    if timed_out:
+        raise TimeoutError('Cameras timed out')
 
 
 def get_pointing_status(pointingID):
