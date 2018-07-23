@@ -18,4 +18,4 @@ if not os.path.exists(repo):
     print('ERROR: Repository "{}" does not exist'.format(repo))
     sys.exit()
 
-os.system('pip3 install {} --user --no-deps --upgrade'.format(repo))
+os.system('pip3.6 install {} --user --no-deps --upgrade'.format(repo))
