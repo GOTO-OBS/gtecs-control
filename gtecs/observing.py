@@ -243,6 +243,42 @@ def offset(direction, size):
     time.sleep(2)
 
 
+def take_image_set(expT, filt, name, imgtype='SCIENCE'):
+    """
+    Takes a set of images and waits for the exposure queue to finish.
+
+    Parameters
+    ----------
+    expT : int or list of int
+        exposure time(s) for the images
+    filt : str or list of str
+        filter(s) to take the images in
+    name : str
+        target name
+    imgtype : str, default 'SCIENCE'
+        image type
+    """
+    if not isinstance(expT, list):
+        expT = [expT]
+    exp_list = expT
+
+    if not isinstance(filt, list):
+        filt = [filt]
+    filt_list = filt
+
+    for filt in filt_list:
+        for expT in exp_list:
+            exq_command = 'exq image {} {} 1 "{}" {}'.format(expT, filt, name, imgtype)
+            execute_command(exq_command)
+    execute_command('exq resume')  # just in case
+
+    # estimate a deliberately pessimistic timeout
+    readout = 30*len(exp_list)*len(filt_list)
+    total_exp = sum(exp_list)*len(filt_list)
+    total_time = 1.5*(readout + total_exp)
+    wait_for_exposure_queue(total_time)
+
+
 def get_latest_images():
     """
     Returns the last written image files

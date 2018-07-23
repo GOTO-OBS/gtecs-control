@@ -30,6 +30,7 @@ def run(nexp=5):
     execute_command('exq multdark {} 120 1'.format(nexp))
     execute_command('exq resume')  # just in case
 
+    # estimate a deliberately pessimistic timeout
     readout = 30*nexp
     total_exp = 120*nexp
     total_time = 1.5*(readout + total_exp)

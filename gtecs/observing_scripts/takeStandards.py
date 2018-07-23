@@ -11,18 +11,9 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.misc import execute_command
 from gtecs.astronomy import check_alt_limit
-from gtecs.observing import (wait_for_exposure_queue, get_latest_images,
-                             goto, prepare_for_images, wait_for_telescope)
+from gtecs.observing import (prepare_for_images, take_image_set,
+                             goto, wait_for_telescope)
 from gtecs.catalogs import landolt
-
-
-def take_image_set(expT, name):
-    for filt in params.FILTER_LIST:
-        exq_command = 'exq image {} {} 1 "{}" STD'.format(expT, filt, name)
-        execute_command(exq_command)
-    time.sleep(0.1)
-    wait_for_exposure_queue()
-    time.sleep(0.1)
 
 
 def run():
@@ -48,7 +39,8 @@ def run():
         time.sleep(10)
         wait_for_telescope(120)  # 120s timeout
 
-        take_image_set(20, name)
+        # take 20 second exposures in all filters
+        take_image_set(20, params.FILTER_LIST, name, imgtype='STD')
 
     print("Done")
 

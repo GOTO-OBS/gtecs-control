@@ -11,16 +11,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.misc import execute_command
 from gtecs.astronomy import get_moon_distance, radec_from_altaz
-from gtecs.observing import (prepare_for_images, wait_for_exposure_queue,
+from gtecs.observing import (prepare_for_images, take_image_set,
                              goto_altaz, wait_for_telescope)
-
-
-def take_image_set(expT, name):
-    exq_command = 'exq image {} L 1 "{}"'.format(expT, name)
-    execute_command(exq_command)
-    time.sleep(0.1)
-    wait_for_exposure_queue()
-    time.sleep(0.1)
 
 
 def run():
@@ -87,8 +79,7 @@ def run():
         wait_for_telescope(120, targ_dist=0.1)  # 120s timeout
                                                 # lower distance for altaz
 
-        for exp_time in exposure_list:
-            take_image_set(exp_time, 'Moon Test Pointing')
+        take_image_set(exposure_list, 'L', 'Moon Test Pointing')
 
     print("Done")
 
