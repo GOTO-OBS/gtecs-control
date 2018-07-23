@@ -180,8 +180,16 @@ class FakeDome:
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self,duration=3,sleep=True):
-        print('THIS IS A FALSE ALARM')
+    def sound_alarm(self, duration=3, sleep=True):
+        status = flags.Status()
+        if (status.mode == 'manual' and not status.autoclose
+            and params.SILENCE_ALARM_IN_MANUAL_MODE):
+            # give the option to silence the alarm,
+            # but only in manual mode and only if autoclose is off
+           pass
+        else:
+            bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
+            subprocess.getoutput(bell)
         if sleep:
             time.sleep(duration)
         return
@@ -609,7 +617,7 @@ class AstroHavenDome:
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self,duration=3,sleep=True):
+    def sound_alarm(self, duration=3, sleep=True):
         """Sound the dome alarm using the Arduino
 
         duration : int [0-9]
