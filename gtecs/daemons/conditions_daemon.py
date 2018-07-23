@@ -267,7 +267,7 @@ class ConditionsDaemon(HardwareDaemon):
                     self.weather_changed_time = time.time()
                     self.weather = weather.copy()
                 else:
-                    time_since_update = time.time() - weather_changed_time
+                    time_since_update = time.time() - self.weather_changed_time
                     if time_since_update > params.WEATHER_STATIC:
                         self.good['rain'] = False
                         self.good['windspeed'] = False
