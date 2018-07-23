@@ -190,8 +190,6 @@ class FakeDome:
         else:
             bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
             subprocess.getoutput(bell)
-        if sleep:
-            time.sleep(duration)
         return
 
 
