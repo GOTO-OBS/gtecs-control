@@ -171,16 +171,16 @@ class FakeDome:
             return
 
     def open_full(self, side, frac=1):
-        self.sound_alarm(3)
+        self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
     def close_full(self, side, frac=1):
-        self.sound_alarm(3)
+        self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self, duration=3, sleep=True):
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         status = flags.Status()
         if (status.mode == 'manual' and not status.autoclose
             and params.SILENCE_ALARM_IN_MANUAL_MODE):
@@ -606,16 +606,16 @@ class AstroHavenDome:
             return
 
     def open_full(self, side, frac=1):
-        self.sound_alarm(3)
+        self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
     def close_full(self, side, frac=1):
-        self.sound_alarm(3)
+        self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self, duration=3, sleep=True):
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         """Sound the dome alarm using the Arduino
 
         duration : int [0-9]
