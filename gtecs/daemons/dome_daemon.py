@@ -404,9 +404,11 @@ class DomeDaemon(HardwareDaemon):
                         self.close_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
-                        # whenever the dome is closed, turn autoclose back on
+                        # whenever the dome is closed, re-enable autoclose
                         status = flags.Status()
-                        if not status.autoclose:
+                        if (not status.autoclose and
+                            self.dome_status['north'] == 'closed' and
+                            self.dome_status['south'] == 'closed'):
                             status.autoclose = True
                             self.logfile.info('Re-enabled dome auto-close')
 

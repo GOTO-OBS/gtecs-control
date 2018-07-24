@@ -150,7 +150,7 @@ def query(command, args, daemon_ID):
                 return
             else:
                 print('Autoclose is currently DISABLED')
-                print('It will re-enable when the dome is next closed')
+                print('It will re-enable when the dome is next fully closed')
                 return
         elif args[0] not in ['on', 'off']:
             raise misc.InputError('Invalid arguments')
@@ -161,7 +161,7 @@ def query(command, args, daemon_ID):
         else:
             status.autoclose = False
             print('Autoclose override set: Dome will NOT close in manual mode if conditions are bad')
-            print('                        This will reset the next time the dome is closed')
+            print('                        This will reset the next time the dome is fully closed')
 
     # Unrecognized function
     else:
