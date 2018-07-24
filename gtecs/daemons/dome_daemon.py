@@ -344,7 +344,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.logfile.info('Opening {} side of dome'.format(side))
-                                c = dome.open_full(side,self.move_frac)
+                                c = dome.open_side(side,self.move_frac)
                                 if c: self.logfile.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
@@ -422,7 +422,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.logfile.info('Closing {} side of dome'.format(side))
-                                c = dome.close_full(side,self.move_frac)
+                                c = dome.close_side(side,self.move_frac)
                                 if c: self.logfile.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()

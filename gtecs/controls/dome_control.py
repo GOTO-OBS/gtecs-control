@@ -170,12 +170,12 @@ class FakeDome:
             ot.start()
             return
 
-    def open_full(self, side, frac=1):
+    def open_side(self, side, frac=1):
         self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_full(self, side, frac=1):
+    def close_side(self, side, frac=1):
         self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
@@ -605,12 +605,12 @@ class AstroHavenDome:
             ot.start()
             return
 
-    def open_full(self, side, frac=1):
+    def open_side(self, side, frac=1):
         self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_full(self, side, frac=1):
+    def close_side(self, side, frac=1):
         self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
@@ -716,7 +716,7 @@ class OldAstroHavenDome:
             pass
         return status
 
-    def open_full(self):
+    def open_side(self):
         #self.sound_alarm()
         # by using the serial port as a context manager it will still close if
         # an exception is raised inside _move_dome
@@ -727,7 +727,7 @@ class OldAstroHavenDome:
         print(openW, openE)
         return openW.strip() + openE.strip()
 
-    def close_full(self):
+    def close_side(self):
         #self.sound_alarm()
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
             closeW = self._move_dome('west_close')
