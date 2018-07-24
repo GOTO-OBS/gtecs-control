@@ -32,7 +32,6 @@ class FakeDome:
 
     def _read_temp(self):
         while self._writing:
-            print('gg')
             time.sleep(0.1)
         if not os.path.exists(self._temp_file):
             self._status_arr = [0, 0, 0]
@@ -40,7 +39,7 @@ class FakeDome:
         else:
             with open(self._temp_file, 'r') as f:
                 string = f.read().strip()
-                print('R: ', string)
+                #print('R: ', string)
                 if not string == '': # I don't know why or how that happens
                     self._status_arr = list(map(int,list(string)))
 
@@ -48,7 +47,7 @@ class FakeDome:
         self._writing = True
         with open(self._temp_file, 'w') as f:
             string = ''.join(str(i) for i in self._status_arr)
-            print('W: ', string)
+            #print('W: ', string)
             f.write(string)
         self._writing = False
 
