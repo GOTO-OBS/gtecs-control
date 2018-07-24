@@ -143,12 +143,20 @@ class Status:
         self._load()
 
     def _load(self):
-        data = load_json(self.flags_file)
-        if data['mode'].lower() not in self.valid_modes:
-            raise ValueError('Invalid mode: "{}"'.format(data['mode']))
-        self._mode = data['mode'].lower()
-        self._observer = str(data['observer'])
-        self._autoclose = bool(data['autoclose'])
+        try:
+            data = load_json(self.flags_file)
+            if data['mode'].lower() not in self.valid_modes:
+                raise ValueError('Invalid mode: "{}"'.format(data['mode']))
+            self._mode = data['mode'].lower()
+            self._observer = str(data['observer'])
+            self._autoclose = bool(data['autoclose'])
+        except:
+            self._mode = 'robotic'
+            self._observer = params.ROBOTIC_OBSERVER
+            self._autoclose = True
+            with open(self.flags_file, 'w') as f:
+                json.dump(self._status_dict, f)
+
         self.emergency_shutdown = os.path.isfile(self.emergency_file)
         if self.emergency_shutdown:
             mod_time = os.path.getmtime(self.emergency_file)
@@ -180,6 +188,13 @@ class Status:
         repr_str += "autoclose={}, ".format(self._autoclose)
         repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
         return "Status({})".format(repr_str)
+
+    @property
+    def _status_dict(self):
+        status_dict = {"mode": self._mode,
+                       "observer": self._observer,
+                       "autoclose": self._autoclose}
+        return status_dict
 
     @property
     def mode(self):
