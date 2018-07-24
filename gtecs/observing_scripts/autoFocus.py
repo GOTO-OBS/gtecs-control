@@ -60,7 +60,7 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
 def measure_focus_carefully(expT, filt, name, orig_focus, **kwargs):
     try:
         data = get_analysis_image(expT, filt, name, 'FOCUS', glance=True)
-        hfd_values = get_hfd(data, **kwargs)['median']
+        return get_hfd(data, **kwargs)['median']
     except:
         set_new_focus(orig_focus)
         raise
