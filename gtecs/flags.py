@@ -143,12 +143,22 @@ class Status:
         self._load()
 
     def _load(self):
-        data = load_json(self.flags_file)
-        if data['mode'].lower() not in self.valid_modes:
-            raise ValueError('Invalid mode: "{}"'.format(data['mode']))
-        self._mode = data['mode'].lower()
-        self._observer = str(data['observer'])
-        self._autoclose = bool(data['autoclose'])
+        try:
+            data = load_json(self.flags_file)
+            if data['mode'].lower() not in self.valid_modes:
+                raise ValueError('Invalid mode: "{}"'.format(data['mode']))
+            self._mode = data['mode'].lower()
+            self._observer = str(data['observer'])
+            self._autoclose = bool(data['autoclose'])
+            self._alarm = bool(data['alarm'])
+        except:
+            self._mode = 'robotic'
+            self._observer = params.ROBOTIC_OBSERVER
+            self._autoclose = True
+            self._alarm = True
+            with open(self.flags_file, 'w') as f:
+                json.dump(self._status_dict, f)
+
         self.emergency_shutdown = os.path.isfile(self.emergency_file)
         if self.emergency_shutdown:
             mod_time = os.path.getmtime(self.emergency_file)
@@ -178,8 +188,17 @@ class Status:
         repr_str = "mode='{}', ".format(self._mode)
         repr_str += "observer='{}', ".format(self._observer)
         repr_str += "autoclose={}, ".format(self._autoclose)
+        repr_str += "alarm={}, ".format(self._alarm)
         repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
         return "Status({})".format(repr_str)
+
+    @property
+    def _status_dict(self):
+        status_dict = {"mode": self._mode,
+                       "observer": self._observer,
+                       "autoclose": self._autoclose,
+                       "alarm": self._alarm}
+        return status_dict
 
     @property
     def mode(self):
@@ -193,6 +212,7 @@ class Status:
         self._update_flags('mode', value)
         if value.lower() == 'robotic':
             self._update_flags('autoclose', 1)
+            self._update_flags('alarm', 1)
             self._update_flags('observer', params.ROBOTIC_OBSERVER)
 
     @property
@@ -212,6 +232,17 @@ class Status:
     @autoclose.setter
     def autoclose(self, value):
         self._update_flags('autoclose', int(bool(value)))
+
+    @property
+    def alarm(self):
+        self._load()
+        return self._alarm
+
+    @alarm.setter
+    def alarm(self, value):
+        if self._mode == 'robotic' and int(bool(value)) == 0:
+            raise ValueError('Cannot disable dome alarm in robotic mode')
+        self._update_flags('alarm', int(bool(value)))
 
     def create_shutdown_file(self, reasons=['no reason given']):
         """Create the emergency shutdown file"""

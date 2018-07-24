@@ -181,6 +181,7 @@ class DomeDaemon(HardwareDaemon):
                                 if self.open_flag: # stop opening!
                                     self.halt_flag = 1
                                     time.sleep(2)
+                                status.alarm = True  # make sure the alarm sounds
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
@@ -195,6 +196,7 @@ class DomeDaemon(HardwareDaemon):
                                     if self.open_flag: # stop opening!
                                         self.halt_flag = 1
                                         time.sleep(2)
+                                    status.alarm = True  # make sure the alarm sounds
                                     self.close_flag = 1
                                     self.move_side = 'both'
                                     self.move_frac = 1
@@ -303,6 +305,7 @@ class DomeDaemon(HardwareDaemon):
                     info['emergency_reasons'] = status.emergency_shutdown_reasons
                     info['mode'] = status.mode
                     info['autoclose'] = status.autoclose
+                    info['alarm'] = status.alarm
 
                     info['uptime'] = time.time() - self.start_time
                     info['ping'] = time.time() - self.time_check
@@ -344,7 +347,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.logfile.info('Opening {} side of dome'.format(side))
-                                c = dome.open_full(side,self.move_frac)
+                                c = dome.open_side(side,self.move_frac)
                                 if c: self.logfile.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
@@ -404,9 +407,11 @@ class DomeDaemon(HardwareDaemon):
                         self.close_flag = 0
                         self.check_status_flag = 1
                         self.check_warnings_flag = 1
-                        # whenever the dome is closed, turn autoclose back on
+                        # whenever the dome is closed, re-enable autoclose
                         status = flags.Status()
-                        if not status.autoclose:
+                        if (not status.autoclose and
+                            self.dome_status['north'] == 'closed' and
+                            self.dome_status['south'] == 'closed'):
                             status.autoclose = True
                             self.logfile.info('Re-enabled dome auto-close')
 
@@ -422,7 +427,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.logfile.info('Closing {} side of dome'.format(side))
-                                c = dome.close_full(side,self.move_frac)
+                                c = dome.close_side(side,self.move_frac)
                                 if c: self.logfile.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()

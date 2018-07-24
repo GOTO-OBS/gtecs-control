@@ -32,7 +32,6 @@ class FakeDome:
 
     def _read_temp(self):
         while self._writing:
-            print('gg')
             time.sleep(0.1)
         if not os.path.exists(self._temp_file):
             self._status_arr = [0, 0, 0]
@@ -40,7 +39,7 @@ class FakeDome:
         else:
             with open(self._temp_file, 'r') as f:
                 string = f.read().strip()
-                print('R: ', string)
+                #print('R: ', string)
                 if not string == '': # I don't know why or how that happens
                     self._status_arr = list(map(int,list(string)))
 
@@ -48,7 +47,7 @@ class FakeDome:
         self._writing = True
         with open(self._temp_file, 'w') as f:
             string = ''.join(str(i) for i in self._status_arr)
-            print('W: ', string)
+            #print('W: ', string)
             f.write(string)
         self._writing = False
 
@@ -64,9 +63,9 @@ class FakeDome:
             status['north'] = 'closed'
         elif self._status_arr[0] == 9:
             status['north'] = 'full_open'
-        elif self.output_thread_running and self.command == 'open':
+        elif self.output_thread_running and self.command == 'open' and self.side == 'north':
             status['north'] = 'opening'
-        elif self.output_thread_running and self.command == 'close':
+        elif self.output_thread_running and self.command == 'close' and self.side == 'north':
             status['north'] = 'closing'
         else:
             status['north'] = 'part_open'
@@ -76,9 +75,9 @@ class FakeDome:
             status['south'] = 'closed'
         elif self._status_arr[1] == 9:
             status['south'] = 'full_open'
-        elif self.output_thread_running and self.command == 'open':
+        elif self.output_thread_running and self.command == 'open' and self.side == 'south':
             status['south'] = 'opening'
-        elif self.output_thread_running and self.command == 'close':
+        elif self.output_thread_running and self.command == 'close' and self.side == 'south':
             status['south'] = 'closing'
         else:
             status['south'] = 'part_open'
@@ -170,20 +169,21 @@ class FakeDome:
             ot.start()
             return
 
-    def open_full(self, side, frac=1):
-        self.sound_alarm(3)
+    def open_side(self, side, frac=1):
+        self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_full(self, side, frac=1):
-        self.sound_alarm(3)
+    def close_side(self, side, frac=1):
+        self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self,duration=3,sleep=True):
-        print('THIS IS A FALSE ALARM')
-        if sleep:
-            time.sleep(duration)
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
+        status = flags.Status()
+        if status.alarm:
+            bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
+            subprocess.getoutput(bell)
         return
 
 
@@ -599,17 +599,17 @@ class AstroHavenDome:
             ot.start()
             return
 
-    def open_full(self, side, frac=1):
-        self.sound_alarm(3)
+    def open_side(self, side, frac=1):
+        self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_full(self, side, frac=1):
-        self.sound_alarm(3)
+    def close_side(self, side, frac=1):
+        self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self,duration=3,sleep=True):
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         """Sound the dome alarm using the Arduino
 
         duration : int [0-9]
@@ -623,15 +623,10 @@ class AstroHavenDome:
         """
         loc = params.ARDUINO_LOCATION
         status = flags.Status()
-        if (status.mode == 'manual' and not status.autoclose
-            and params.SILENCE_ALARM_IN_MANUAL_MODE):
-            # give the option to silence the alarm,
-            # but only in manual mode and only if autoclose is off
-           pass
-        else:
+        if status.alarm:
             curl = subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
-        if sleep:
-            time.sleep(duration)
+            if sleep:
+                time.sleep(duration)
         return
 
 
@@ -710,7 +705,7 @@ class OldAstroHavenDome:
             pass
         return status
 
-    def open_full(self):
+    def open_side(self):
         #self.sound_alarm()
         # by using the serial port as a context manager it will still close if
         # an exception is raised inside _move_dome
@@ -721,7 +716,7 @@ class OldAstroHavenDome:
         print(openW, openE)
         return openW.strip() + openE.strip()
 
-    def close_full(self):
+    def close_side(self):
         #self.sound_alarm()
         with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
             closeW = self._move_dome('west_close')
