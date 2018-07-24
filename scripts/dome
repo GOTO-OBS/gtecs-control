@@ -141,12 +141,36 @@ def query(command, args, daemon_ID):
         print(reply)
 
     # Other functions
+    elif command == 'alarm':
+        status = flags.Status()
+        # parse arguments
+        if len(args) == 0:
+            if status.alarm:
+                print('Alarm is currently enabled')
+                return
+            else:
+                print('Alarm is currently DISABLED for manual movements')
+                return
+        elif args[0] not in ['on', 'off']:
+            raise misc.InputError('Invalid arguments')
+        # command
+        if args[0] == 'on':
+            status.alarm = True
+            print('Dome alarm emabled')
+        else:
+            if status.mode == 'robotic':
+                raise misc.HardwareStatusError('Cannot disable alarm in robotic mode')
+            else:
+                status.alarm = False
+                print('Alarm disabled: The alarm will not sound when using the dome commands')
+                print('                This will reset if the dome autocloses')
+
     elif command == 'autoclose':
         status = flags.Status()
         # parse arguments
         if len(args) == 0:
             if status.autoclose:
-                print('Autoclose is currently on')
+                print('Autoclose is currently enabled')
                 return
             else:
                 print('Autoclose is currently DISABLED')
@@ -175,6 +199,7 @@ def print_info(info):
     print('Hatch:        %s' %info['hatch'].capitalize())
     print('Heartbeat:    %s' %info['heartbeat'].capitalize())
     print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
+    print('Alarm:        %s' %('On' if info['alarm'] else style.rtxt('Off')))
     print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
@@ -199,6 +224,7 @@ def print_info_s(info):
         print('DOME:      [%s]' %info['north'].capitalize())
     print('HATCH:     [%s]' %info['hatch'].capitalize())
     print('DEHUM:     [%s]' %info['dehumidifier'].capitalize())
+    print('ALARM:     [%s]' %('On' if info['alarm'] else style.rtxt('Off')))
     print('AUTOCLOSE: [%s]' %('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
@@ -218,6 +244,7 @@ def print_instructions():
     '  dome ' + style.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
     '  dome ' + style.bold('halt') + '/' + style.bold('stop')+ '                   - stop the dome moving' + '\n' +\
     '  dome ' + style.bold('dehumidifier') + ' [on|off]       - force dehumidifier on/off' + '\n' +\
+    '  dome ' + style.bold('alarm') + ' [on|off]              - sound the alarm when moving?' + '\n' +\
     '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
     '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
     '  dome ' + style.bold('log') + '/' + style.bold('status') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\

@@ -181,12 +181,7 @@ class FakeDome:
 
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         status = flags.Status()
-        if (status.mode == 'manual' and not status.autoclose
-            and params.SILENCE_ALARM_IN_MANUAL_MODE):
-            # give the option to silence the alarm,
-            # but only in manual mode and only if autoclose is off
-           pass
-        else:
+        if status.alarm:
             bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
             subprocess.getoutput(bell)
         return
@@ -628,15 +623,10 @@ class AstroHavenDome:
         """
         loc = params.ARDUINO_LOCATION
         status = flags.Status()
-        if (status.mode == 'manual' and not status.autoclose
-            and params.SILENCE_ALARM_IN_MANUAL_MODE):
-            # give the option to silence the alarm,
-            # but only in manual mode and only if autoclose is off
-           pass
-        else:
+        if status.alarm:
             curl = subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
-        if sleep:
-            time.sleep(duration)
+            if sleep:
+                time.sleep(duration)
         return
 
 

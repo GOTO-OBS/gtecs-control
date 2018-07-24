@@ -181,6 +181,7 @@ class DomeDaemon(HardwareDaemon):
                                 if self.open_flag: # stop opening!
                                     self.halt_flag = 1
                                     time.sleep(2)
+                                status.alarm = True  # make sure the alarm sounds
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
@@ -195,6 +196,7 @@ class DomeDaemon(HardwareDaemon):
                                     if self.open_flag: # stop opening!
                                         self.halt_flag = 1
                                         time.sleep(2)
+                                    status.alarm = True  # make sure the alarm sounds
                                     self.close_flag = 1
                                     self.move_side = 'both'
                                     self.move_frac = 1
@@ -303,6 +305,7 @@ class DomeDaemon(HardwareDaemon):
                     info['emergency_reasons'] = status.emergency_shutdown_reasons
                     info['mode'] = status.mode
                     info['autoclose'] = status.autoclose
+                    info['alarm'] = status.alarm
 
                     info['uptime'] = time.time() - self.start_time
                     info['ping'] = time.time() - self.time_check
