@@ -97,7 +97,7 @@ def run(width, step, filt, make_plots):
         set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
-        data = get_analysis_image(expT, filt, 'Focus run', 'FOCUS', glance=True)
+        data = get_analysis_image(expT, filt, 'Focus run', 'FOCUS', glance=False)
         hfd_values = get_hfd(data, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
         hfd_values['pos'] = pd.Series(get_current_focus())
