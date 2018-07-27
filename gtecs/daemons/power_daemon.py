@@ -397,7 +397,7 @@ class PowerDaemon(HardwareDaemon):
         return valid_list
 
 
-if __name__ == "__main__":
+def run():
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(DAEMON_ID):
         sys.exit()
@@ -417,3 +417,7 @@ if __name__ == "__main__":
     # Loop has closed
     daemon.logfile.info('Daemon successfully shut down')
     time.sleep(1.)
+
+
+if __name__ == "__main__":
+    run()
