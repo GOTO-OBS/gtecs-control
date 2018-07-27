@@ -5,6 +5,7 @@ Miscellaneous common functions
 import os
 import sys
 import time
+import pid
 import abc
 import signal
 import Pyro4
@@ -26,28 +27,6 @@ def get_hostname():
     else:
         tmp = subprocess.getoutput('hostname')
         return tmp.strip()
-
-
-def get_process_ID(process_name, host):
-    """Retrieve ID numbers of python processes with specified name"""
-    process_ID = []
-    if 'USER' in os.environ:
-        username = os.environ['USER']
-    elif 'USERNAME' in os.environ:
-        username = os.environ['USERNAME']
-    elif 'LOGNAME' in os.environ:
-        username = os.environ['LOGNAME']
-
-    if host in ['127.0.0.1', params.LOCAL_HOST]:
-        all_processes = subprocess.getoutput('ps -fwwu %s | grep -i python' % username)
-    else:
-        all_processes = subprocess.getoutput('ssh ' + host + ' ps -fwwu %s | grep -i python' % username)
-
-    for line in all_processes.split('\n'):
-        if line.endswith(process_name):
-            process_ID.append(line.split()[1])
-
-    return process_ID
 
 
 def cmd_timeout(command, timeout, bufsize=-1):
@@ -80,18 +59,18 @@ def cmd_timeout(command, timeout, bufsize=-1):
     return out #(returncode, err, out)
 
 
-def kill_processes(process, host):
+def kill_process(pidname, host):
     """Kill any specified processes"""
-    process_ID_list = get_process_ID(process, host)
+    pid = check_pid(pidname, host)
 
     if host in ['127.0.0.1', params.LOCAL_HOST]:
-        for process_ID in process_ID_list:
-            os.system('kill -9 ' + process_ID)
-            print('Killed process', process_ID)
+        os.system('kill -9 {}'.format(pid))
     else:
-        for process_ID in process_ID_list:
-            os.system('ssh ' + host + ' kill -9 ' + process_ID)
-            print('Killed remote process', process_ID)
+        os.system('ssh {} kill -9 {}'.format(host, pid))
+
+    clear_pid(pidname, host)
+
+    print('Killed process {} on {}'.format(pid, host))
 
 
 def python_command(filename, command, host='127.0.0.1',
@@ -225,87 +204,40 @@ class neatCloser:
         return
 
 
-def daemon_is_running(daemon_ID):
-    """Check if a daemon process is running."""
-    if daemon_ID in params.DAEMONS:
-        process = params.DAEMONS[daemon_ID]['PROCESS']
-        host    = params.DAEMONS[daemon_ID]['HOST']
-    else:
-        raise ValueError('Invalid daemon ID')
+def check_pid(pidname, host='127.0.0.1'):
+    """Check if a pid file exists with the given name.
 
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) == 1:
-        return True
-    elif len(process_ID) == 0:
-        return False
-    else:
-        error_str = 'Multiple instances of {} detected on {}, PID {}'.format(process, host, process_ID)
-        raise MultipleDaemonError(error_str)
-
-
-def daemon_is_alive(daemon_ID):
-    """Check if a daemon is alive and responding to pings."""
-    if daemon_ID in params.DAEMONS:
-        address = params.DAEMONS[daemon_ID]['ADDRESS']
-    else:
-        raise ValueError('Invalid daemon ID')
-
-    daemon = Pyro4.Proxy(address)
-    daemon._pyroTimeout = params.PYRO_TIMEOUT
-    try:
-        ping = daemon.ping()
-        if ping == 'ping':
-            return True
-        else:
-            return False
-    except:
-        return False
-
-
-def dependencies_are_alive(daemon_ID):
-    """Check if a given daemon's dependencies are alive and responding to pings."""
-    depends = params.DAEMONS[daemon_ID]['DEPENDS']
-
-    if depends[0] != 'None':
-        fail = 0
-        for dependency in depends:
-            if not daemon_is_alive(dependency):
-                fail += 1
-        if fail > 0:
-            return False
-        else:
-            return True
-    else:
-        return True
-
-
-def there_can_only_be_one(daemon_ID):
-    """Ensure the current daemon script isn't already running.
-
-    Returns `True` if it's OK to start.
+    Returns the pid if it is found, or None if not.
     """
-
-    if daemon_ID in params.DAEMONS:
-        host = params.DAEMONS[daemon_ID]['HOST']
-        port = params.DAEMONS[daemon_ID]['PORT']
-        process = params.DAEMONS[daemon_ID]['PROCESS']
+    # pid.PidFile(pidname, piddir=params.CONFIG_PATH).check() is nicer,
+    # but won't work with remote machines
+    pidpath = os.path.join(params.CONFIG_PATH, pidname+'.pid')
+    if host in ['127.0.0.1', params.LOCAL_HOST]:
+        command_string = 'cat {}'.format(pidpath)
     else:
-        raise ValueError('Invalid daemon ID')
-
-    # Check if daemon process is already running
-    process_ID = get_process_ID(process, host)
-    if len(process_ID) > 1:
-        raise MultipleDaemonError('Daemon already running')
-
-    # Also check the Pyro address is available
-    try:
-        pyro_daemon = Pyro4.Daemon(host=host, port=port)
-    except:
-        raise
+        # NOTE this assumes the config path is the same on the remote machine
+        command_string = 'ssh {} cat {}'.format(host, pidpath)
+    output = subprocess.getoutput(command_string)
+    if 'No such file or directory' in output:
+        return None
     else:
-        pyro_daemon.close()
+        return int(output)
 
-    return True
+
+def clear_pid(pidname, host='127.0.0.1'):
+    """Clear a pid in case we've killed the process."""
+    pidpath = os.path.join(params.CONFIG_PATH, pidname+'.pid')
+    if host in ['127.0.0.1', params.LOCAL_HOST]:
+        command_string = 'rm {}'.format(pidpath)
+    else:
+        # NOTE this assumes the config path is the same on the remote machine
+        command_string = 'ssh {} rm {}'.format(host, pidpath)
+    output = subprocess.getoutput(command_string)
+    if not output or 'No such file or directory' in output:
+        return 0
+    else:
+        print(output)
+        return 1
 
 
 def find_interface_ID(hostname):
@@ -324,7 +256,7 @@ def find_interface_ID(hostname):
     else:
         # return the first one that's not running
         for intf in sorted(intfs):
-            if not daemon_is_alive(intf):
+            if not check_pid(intf):
                 return intf
         raise ValueError('All defined interfaces on {} are running'.format(hostname))
 

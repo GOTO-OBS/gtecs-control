@@ -14,7 +14,7 @@ import threading
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive, run
 
 
 class FiltDaemon(HardwareDaemon):
@@ -67,7 +67,7 @@ class FiltDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_ID):
+                if not dependencies_are_alive(self.daemon_ID):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
