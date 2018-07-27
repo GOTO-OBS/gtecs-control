@@ -246,25 +246,7 @@ def restart_daemon(daemon_ID, wait_time=2):
 
 def daemon_info(daemon_ID):
     """Get a daemon's info dict"""
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PYRO_TIMEOUT
-        try:
-            info = daemon.get_info()
-            return info
-        except misc.DaemonConnectionError:
-            raise
-        except:
-            raise misc.DaemonConnectionError('No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
-    else:
-        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
+    return daemon_function(daemon_ID, 'get_info')
 
 
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
