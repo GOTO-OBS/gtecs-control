@@ -81,6 +81,27 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
+def run(daemon, daemon_ID):
+    # Check the daemon isn't already running
+    if not misc.there_can_only_be_one(daemon_ID):
+        sys.exit()
+
+    # Start the daemon
+    host = params.DAEMONS[daemon_ID]['HOST']
+    port = params.DAEMONS[daemon_ID]['PORT']
+    with Pyro4.Daemon(host, port) as pyro_daemon:
+        uri = pyro_daemon.register(daemon, objectId=daemon_ID)
+        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
+
+        # Start request loop
+        daemon.logfile.info('Daemon registered at %s', uri)
+        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
+
+    # Loop has closed
+    daemon.logfile.info('Daemon successfully shut down')
+    time.sleep(1.)
+
+
 def start_daemon(daemon_ID):
     """Start a daemon (unless it is already running)"""
     process = params.DAEMONS[daemon_ID]['PROCESS']

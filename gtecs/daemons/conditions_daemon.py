@@ -23,12 +23,10 @@ from gtecs import params
 from gtecs import conditions
 from gtecs.astronomy import sun_alt
 from gtecs.observing import check_dome_closed
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import HardwareDaemon, run
 
 
 DAEMON_ID = 'conditions'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class ConditionsDaemon(HardwareDaemon):
@@ -348,27 +346,6 @@ class ConditionsDaemon(HardwareDaemon):
         return info
 
 
-def run():
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = ConditionsDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
-
-
 if __name__ == "__main__":
-    run()
+    daemon = ConditionsDaemon()
+    run(daemon, DAEMON_ID)

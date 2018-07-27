@@ -13,12 +13,10 @@ import threading
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import HardwareDaemon, run
 
 
 DAEMON_ID = 'filt'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class FiltDaemon(HardwareDaemon):
@@ -286,27 +284,6 @@ class FiltDaemon(HardwareDaemon):
         return s
 
 
-def run():
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = FiltDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
-
-
 if __name__ == "__main__":
-    run()
+    daemon = FiltDaemon()
+    run(daemon, DAEMON_ID)

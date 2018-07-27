@@ -16,12 +16,10 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import InterfaceDaemon
+from gtecs.daemons import InterfaceDaemon, run
 
 
 DAEMON_ID = misc.find_interface_ID(params.LOCAL_HOST)
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class FLIDaemon(InterfaceDaemon):
@@ -249,27 +247,6 @@ class FLIDaemon(InterfaceDaemon):
         return self.cams[int(HW)].serial_number
 
 
-def run():
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = FLIDaemon(intf=DAEMON_ID)
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
-
-
 if __name__ == "__main__":
-    run()
+    daemon = FLIDaemon(intf=DAEMON_ID)
+    run(daemon, DAEMON_ID)

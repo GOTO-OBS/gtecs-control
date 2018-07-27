@@ -18,12 +18,10 @@ from gtecs import misc
 from gtecs import params
 from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import HardwareDaemon, run
 
 
 DAEMON_ID = 'dome'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class DomeDaemon(HardwareDaemon):
@@ -678,27 +676,6 @@ class DomeDaemon(HardwareDaemon):
             return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
-def run():
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = DomeDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
-
-
 if __name__ == "__main__":
-    run()
+    daemon = DomeDaemon()
+    run(daemon, DAEMON_ID)
