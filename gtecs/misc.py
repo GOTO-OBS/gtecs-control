@@ -312,15 +312,22 @@ def find_interface_ID(hostname):
     """Find what interface should be running on a given host.
 
     Used by the FLI interfaces to find which interface it should identify as.
-
-    NOTE it will only return the first match, as there should only be one
-        interface per host.
-        For testing the fli_interfaceB file will be used.
     """
+    intfs = []
     for intf in params.FLI_INTERFACES:
         if params.DAEMONS[intf]['HOST'] == hostname:
-            return intf
-    raise ValueError('Host {} does not have an associated interface'.format(hostname))
+            intfs.append(intf)
+    if len(intfs) == 0:
+        raise ValueError('Host {} does not have an associated interface'.format(hostname))
+    elif len(intfs) == 1:
+        return intfs[0]
+    else:
+        # return the first one that's not running
+        for intf in intfs:
+            if not daemon_is_alive(intf):
+                intfs.remove(intf)
+                return intf
+        raise ValueError('All defined interfaces on {} are running'.format(hostname))
 
 
 class DaemonConnectionError(Exception):

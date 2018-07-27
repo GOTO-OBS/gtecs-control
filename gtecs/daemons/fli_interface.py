@@ -22,10 +22,13 @@ from gtecs.daemons import InterfaceDaemon, run
 class FLIDaemon(InterfaceDaemon):
     """FLI interface daemon class"""
 
-    def __init__(self, intf):
-        self.intf = intf
+    def __init__(self):
+        ### find the ID of this interface
+        self.intf = misc.find_interface_ID(params.LOCAL_HOST)
+        print(self.intf)
+
         ### initiate daemon
-        InterfaceDaemon.__init__(self, self.intf)
+        InterfaceDaemon.__init__(self, daemon_ID=self.intf)
 
         ### fli objects
         self.cams = []
@@ -245,5 +248,5 @@ class FLIDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    daemon = FLIDaemon(intf=misc.find_interface_ID(params.LOCAL_HOST))
+    daemon = FLIDaemon()
     run(daemon)
