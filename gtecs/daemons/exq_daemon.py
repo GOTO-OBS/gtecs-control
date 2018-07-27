@@ -17,7 +17,7 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
-from gtecs.daemons import HardwareDaemon, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, run
 
 
 class ExqDaemon(HardwareDaemon):
@@ -50,13 +50,8 @@ class ExqDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread started')
 
         # connect to daemons
-        CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-        cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
-        cam._pyroTimeout = params.PYRO_TIMEOUT
-
-        FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-        filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
-        filt._pyroTimeout = params.PYRO_TIMEOUT
+        cam = daemon_proxy('cam')
+        filt = daemon_proxy('filt')
 
         while(self.running):
             self.time_check = time.time()
@@ -338,32 +333,31 @@ class ExqDaemon(HardwareDaemon):
             return False
 
         tel_list = self.current_exposure.tel_list
-        filt._pyroReconnect()
-        filt_info = filt.get_info()
+        with daemon_proxy('filt') as filt:
+            filt_info = filt.get_info()
         if all([params.FILTER_LIST[filt_info['current_filter_num'+str(tel)]] == new_filt for tel in tel_list]):
             return False
         else:
             return True
 
-    def _set_filter(self, filt):
+    def _set_filter(self):
         new_filt = self.current_exposure.filt
         tel_list = self.current_exposure.tel_list
         self.logfile.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
         try:
-            filt._pyroReconnect()
-            filt.set_filter(new_filt, tel_list)
+            with daemon_proxy('filt') as filt:
+                filt.set_filter(new_filt, tel_list)
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(3)
-        filt_info_dict = filt.get_info()
+        with daemon_proxy('filt') as filt:
+            filt_info_dict = filt.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
-            try:
+            with daemon_proxy('filt') as filt:
                 filt_info_dict = filt.get_info()
-            except Pyro4.errors.TimeoutError:
-                pass
             filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.005)
             # keep ping alive
@@ -371,7 +365,7 @@ class ExqDaemon(HardwareDaemon):
         self.logfile.info('Filter wheel move complete')
 
 
-    def _take_image(self, cam):
+    def _take_image(self):
         exptime = self.current_exposure.exptime
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
@@ -384,20 +378,20 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
                                 exptime, binning, binning, frametype, tel_list))
         try:
-            cam._pyroReconnect()
-            cam.take_exposure(self.current_exposure)
+            with daemon_proxy('cam') as cam:
+                cam.take_exposure(self.current_exposure)
         except:
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(2)
 
-        cam_exposing = cam.is_exposing()
+        with daemon_proxy('cam') as cam:
+            cam_exposing = cam.is_exposing()
         while cam_exposing:
-            try:
+            with daemon_proxy('cam') as cam:
                 cam_exposing = cam.is_exposing()
-            except Pyro4.errors.TimeoutError:
-                pass
+
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()

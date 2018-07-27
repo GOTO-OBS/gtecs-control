@@ -18,7 +18,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
 from gtecs.fits import image_location, glance_location, get_all_info, write_fits
-from gtecs.daemons import HardwareDaemon, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, run
 
 
 class CamDaemon(HardwareDaemon):
@@ -89,12 +89,6 @@ class CamDaemon(HardwareDaemon):
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
-        # make proxies once, outside the loop
-        fli_proxies = dict()
-        for intf in params.FLI_INTERFACES:
-            fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli_proxies[intf]._pyroTimeout = params.PYRO_TIMEOUT
-
         while(self.running):
             self.time_check = time.time()
 
@@ -121,14 +115,13 @@ class CamDaemon(HardwareDaemon):
                     # update variables
                     for tel in params.TEL_DICT:
                         intf, HW = params.TEL_DICT[tel]
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            self.cam_info[intf][HW] = fli.get_camera_info(HW)
-                            self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
-                            self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
-                            self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
-                            self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
+                            with daemon_proxy(intf) as fli:
+                                self.cam_info[intf][HW] = fli.get_camera_info(HW)
+                                self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
+                                self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
+                                self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
+                                self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -201,23 +194,22 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.info('Taking glance (%is, %ix%i, %s) on camera %i (%s-%i)',
                                               exptime, binning, binning, frametype, tel, intf, HW)
 
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            fli.clear_exposure_queue(HW)
-                            # set exposure time and frame type
-                            c = fli.set_exposure(exptime_ms, frametype, HW)
-                            if c: self.logfile.info(c)
-                            # set binning factor
-                            c = fli.set_camera_binning(binning, binning, HW)
-                            if c: self.logfile.info(c)
-                            # set area (always full-frame)
-                            c = fli.set_camera_area(0, 0, 8304, 6220, HW)
-                            if c: self.logfile.info(c)
-                            # start the exposure
-                            self.exposure_start_time[intf][HW] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                            c = fli.start_exposure(HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                fli.clear_exposure_queue(HW)
+                                # set exposure time and frame type
+                                c = fli.set_exposure(exptime_ms, frametype, HW)
+                                if c: self.logfile.info(c)
+                                # set binning factor
+                                c = fli.set_camera_binning(binning, binning, HW)
+                                if c: self.logfile.info(c)
+                                # set area (always full-frame)
+                                c = fli.set_camera_area(0, 0, 8304, 6220, HW)
+                                if c: self.logfile.info(c)
+                                # start the exposure
+                                self.exposure_start_time[intf][HW] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                                c = fli.start_exposure(HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -237,16 +229,15 @@ class CamDaemon(HardwareDaemon):
                     # check if exposures are complete
                     for tel in self.active_tel:
                         intf, HW = params.TEL_DICT[tel]
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            ready = fli.exposure_ready(HW)
-                            if ready and self.image_ready[tel] == 0:
-                                if self.run_number > 0:
-                                    self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
-                                else:
-                                    self.logfile.info('Glance finished on camera %i (%s-%i)', tel, intf, HW)
-                                self.image_ready[tel] = 1
+                            with daemon_proxy(intf) as fli:
+                                ready = fli.exposure_ready(HW)
+                                if ready and self.image_ready[tel] == 0:
+                                    if self.run_number > 0:
+                                        self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                                    else:
+                                        self.logfile.info('Glance finished on camera %i (%s-%i)', tel, intf, HW)
+                                    self.image_ready[tel] = 1
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -275,11 +266,10 @@ class CamDaemon(HardwareDaemon):
                             self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
                         else:
                             self.logfile.info('Aborting glance on camera %i (%s-%i)', tel, intf, HW)
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.abort_exposure(HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.abort_exposure(HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -306,11 +296,10 @@ class CamDaemon(HardwareDaemon):
                         intf, HW = params.TEL_DICT[tel]
                         target_temp = self.target_temp[intf][HW]
                         self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.set_camera_temp(target_temp,HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.set_camera_temp(target_temp,HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -532,8 +521,7 @@ class CamDaemon(HardwareDaemon):
         for tel in active_tel:
             self.image_saving[tel] = 1
             intf, HW = params.TEL_DICT[tel]
-            fli = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli._pyroTimeout = 99 #params.PYRO_TIMEOUT
+            fli = daemon_proxy(intf, timeout=99)
             try:
                 if run_number > 0:
                     self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)

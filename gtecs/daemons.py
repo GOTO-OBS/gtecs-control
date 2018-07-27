@@ -244,6 +244,14 @@ def restart_daemon(daemon_ID, wait_time=2):
     return reply
 
 
+def daemon_proxy(daemon_ID, timeout=params.PYRO_TIMEOUT):
+    """Get a proxy connection to the given daemon."""
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    proxy = Pyro4.Proxy(address)
+    proxy._pyroTimeout = timeout
+    return proxy
+
+
 def daemon_info(daemon_ID):
     """Get a daemon's info dict"""
     return daemon_function(daemon_ID, 'get_info')
@@ -256,14 +264,10 @@ def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
         raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
     elif not misc.dependencies_are_alive(daemon_ID):
         raise misc.DaemonDependencyError('Required dependencies are not responding')
-    else:
-        address = params.DAEMONS[daemon_ID]['ADDRESS']
-        if not timeout:
-            timeout = params.PYRO_TIMEOUT
-        with Pyro4.Proxy(address) as proxy:
-            proxy._pyroTimeout = timeout
-            try:
-                function = getattr(proxy, function_name)
-            except AttributeError:
-                raise NotImplementedError('Invalid function')
-            return function(*args)
+
+    with daemon_proxy(daemon_ID, timeout) as daemon:
+        try:
+            function = getattr(daemon, function_name)
+        except AttributeError:
+            raise NotImplementedError('Invalid function')
+        return function(*args)
