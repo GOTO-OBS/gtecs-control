@@ -407,6 +407,6 @@ class ExqDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('exq', piddir=params.CONFIG_PATH):
-            run(ExqDaemon)
+            run(ExqDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

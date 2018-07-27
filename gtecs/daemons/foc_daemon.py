@@ -337,6 +337,6 @@ class FocDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('foc', piddir=params.CONFIG_PATH):
-            run(FocDaemon)
+            run(FocDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

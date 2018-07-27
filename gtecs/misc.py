@@ -323,9 +323,8 @@ def find_interface_ID(hostname):
         return intfs[0]
     else:
         # return the first one that's not running
-        for intf in intfs:
+        for intf in sorted(intfs):
             if not daemon_is_alive(intf):
-                intfs.remove(intf)
                 return intf
         raise ValueError('All defined interfaces on {} are running'.format(hostname))
 

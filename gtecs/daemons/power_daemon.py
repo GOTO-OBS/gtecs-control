@@ -395,6 +395,6 @@ class PowerDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('power', piddir=params.CONFIG_PATH):
-            run(PowerDaemon)
+            run(PowerDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

@@ -346,6 +346,6 @@ class ConditionsDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('conditions', piddir=params.CONFIG_PATH):
-            run(ConditionsDaemon)
+            run(ConditionsDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

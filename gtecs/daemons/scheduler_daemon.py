@@ -59,6 +59,6 @@ class SchedulerDaemon(InterfaceDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('scheduler', piddir=params.CONFIG_PATH):
-            run(SchedulerDaemon)
+            run(SchedulerDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

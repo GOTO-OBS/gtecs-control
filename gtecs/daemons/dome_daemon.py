@@ -676,6 +676,6 @@ class DomeDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('dome', piddir=params.CONFIG_PATH):
-            run(DomeDaemon)
+            run(DomeDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

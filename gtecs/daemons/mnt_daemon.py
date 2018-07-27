@@ -696,6 +696,6 @@ class MntDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('mnt', piddir=params.CONFIG_PATH):
-            run(MntDaemon)
+            run(MntDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

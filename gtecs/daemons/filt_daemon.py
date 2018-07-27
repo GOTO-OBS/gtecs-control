@@ -284,6 +284,6 @@ class FiltDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('filt', piddir=params.CONFIG_PATH):
-            run(FiltDaemon)
+            run(FiltDaemon())
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')
