@@ -580,5 +580,4 @@ class CamDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = CamDaemon()
-    run(daemon)
+    run(CamDaemon)

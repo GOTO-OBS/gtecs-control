@@ -56,5 +56,4 @@ class SchedulerDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    daemon = SchedulerDaemon()
-    run(daemon)
+    run(SchedulerDaemon)

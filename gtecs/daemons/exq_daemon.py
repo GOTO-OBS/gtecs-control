@@ -404,5 +404,4 @@ class ExqDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = ExqDaemon()
-    run(daemon)
+    run(ExqDaemon)

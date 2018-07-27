@@ -281,5 +281,4 @@ class FiltDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = FiltDaemon()
-    run(daemon)
+    run(FiltDaemon)

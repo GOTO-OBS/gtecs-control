@@ -673,5 +673,4 @@ class DomeDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = DomeDaemon()
-    run(daemon)
+    run(DomeDaemon)

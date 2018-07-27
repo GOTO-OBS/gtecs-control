@@ -392,5 +392,4 @@ class PowerDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = PowerDaemon()
-    run(daemon)
+    run(PowerDaemon)

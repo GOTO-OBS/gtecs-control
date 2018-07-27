@@ -693,5 +693,4 @@ class MntDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = MntDaemon()
-    run(daemon)
+    run(MntDaemon)

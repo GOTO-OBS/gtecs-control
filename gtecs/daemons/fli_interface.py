@@ -248,5 +248,4 @@ class FLIDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    daemon = FLIDaemon()
-    run(daemon)
+    run(FLIDaemon)

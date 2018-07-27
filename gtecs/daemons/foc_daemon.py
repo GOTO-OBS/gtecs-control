@@ -334,5 +334,4 @@ class FocDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = FocDaemon()
-    run(daemon)
+    run(FocDaemon)

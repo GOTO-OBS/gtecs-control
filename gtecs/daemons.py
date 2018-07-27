@@ -81,7 +81,8 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
-def run(daemon):
+def run(Daemon):
+    daemon = Daemon()
     daemon_ID = daemon.daemon_ID
 
     # Check the daemon isn't already running

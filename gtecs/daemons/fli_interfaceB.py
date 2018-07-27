@@ -16,5 +16,4 @@ from fli_interface import FLIDaemon
 
 
 if __name__ == "__main__":
-    daemon = FLIDaemon(intf='fli2')
-    run(daemon)
+    run(FLIDaemon)

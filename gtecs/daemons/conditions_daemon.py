@@ -343,5 +343,4 @@ class ConditionsDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon = ConditionsDaemon()
-    run(daemon)
+    run(ConditionsDaemon)
