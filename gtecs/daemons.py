@@ -209,7 +209,7 @@ def shutdown_daemon(daemon_ID):
         raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
 
     try:
-        with daemon_proxy(daemon_ID):
+        with daemon_proxy(daemon_ID) as daemon:
             daemon.shutdown()
         # Have to request status again to close loop
         with daemon_proxy(daemon_ID):
