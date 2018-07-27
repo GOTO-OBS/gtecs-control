@@ -18,16 +18,12 @@ from gtecs.controls import power_control
 from gtecs.daemons import HardwareDaemon, run
 
 
-DAEMON_ID = 'power'
-
-
 class PowerDaemon(HardwareDaemon):
     """Power hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='power')
 
         ### command flags
         self.get_info_flag = 1
@@ -89,7 +85,7 @@ class PowerDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
+                if not misc.dependencies_are_alive(self.daemon_ID):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -397,4 +393,4 @@ class PowerDaemon(HardwareDaemon):
 
 if __name__ == "__main__":
     daemon = PowerDaemon()
-    run(daemon, DAEMON_ID)
+    run(daemon)

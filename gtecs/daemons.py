@@ -81,7 +81,9 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
-def run(daemon, daemon_ID):
+def run(daemon):
+    daemon_ID = daemon.daemon_ID
+
     # Check the daemon isn't already running
     if not misc.there_can_only_be_one(daemon_ID):
         sys.exit()

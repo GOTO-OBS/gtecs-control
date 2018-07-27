@@ -21,16 +21,12 @@ from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
 from gtecs.daemons import HardwareDaemon, run
 
 
-DAEMON_ID = 'mnt'
-
-
 class MntDaemon(HardwareDaemon):
     """Mount hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='mnt')
 
         ### command flags
         self.get_info_flag = 1
@@ -91,7 +87,7 @@ class MntDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
+                if not misc.dependencies_are_alive(self.daemon_ID):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -698,4 +694,4 @@ class MntDaemon(HardwareDaemon):
 
 if __name__ == "__main__":
     daemon = MntDaemon()
-    run(daemon, DAEMON_ID)
+    run(daemon)

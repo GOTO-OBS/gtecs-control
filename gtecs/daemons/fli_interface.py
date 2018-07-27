@@ -19,9 +19,6 @@ from gtecs import params
 from gtecs.daemons import InterfaceDaemon, run
 
 
-DAEMON_ID = misc.find_interface_ID(params.LOCAL_HOST)
-
-
 class FLIDaemon(InterfaceDaemon):
     """FLI interface daemon class"""
 
@@ -248,5 +245,5 @@ class FLIDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    daemon = FLIDaemon(intf=DAEMON_ID)
-    run(daemon, DAEMON_ID)
+    daemon = FLIDaemon(intf=misc.find_interface_ID(params.LOCAL_HOST))
+    run(daemon)

@@ -19,16 +19,12 @@ from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.daemons import HardwareDaemon, run
 
 
-DAEMON_ID = 'exq'
-
-
 class ExqDaemon(HardwareDaemon):
     """Exposure queue hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='exq')
 
         ### exposure queue variables
         self.info = None
@@ -66,7 +62,7 @@ class ExqDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
+                if not misc.dependencies_are_alive(self.daemon_ID):
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -409,4 +405,4 @@ class ExqDaemon(HardwareDaemon):
 
 if __name__ == "__main__":
     daemon = ExqDaemon()
-    run(daemon, DAEMON_ID)
+    run(daemon)

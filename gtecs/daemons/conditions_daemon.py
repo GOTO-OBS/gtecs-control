@@ -26,16 +26,12 @@ from gtecs.observing import check_dome_closed
 from gtecs.daemons import HardwareDaemon, run
 
 
-DAEMON_ID = 'conditions'
-
-
 class ConditionsDaemon(HardwareDaemon):
     """Conditions monitor daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='conditions')
 
         ### command flags
         self.get_info_flag = 0
@@ -348,4 +344,4 @@ class ConditionsDaemon(HardwareDaemon):
 
 if __name__ == "__main__":
     daemon = ConditionsDaemon()
-    run(daemon, DAEMON_ID)
+    run(daemon)

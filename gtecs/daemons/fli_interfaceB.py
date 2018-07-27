@@ -15,9 +15,6 @@ from gtecs.daemons import run
 from fli_interface import FLIDaemon
 
 
-DAEMON_ID = 'fli2'
-
-
 if __name__ == "__main__":
-    daemon = FLIDaemon(intf=DAEMON_ID)
-    run(daemon, DAEMON_ID)
+    daemon = FLIDaemon(intf='fli2')
+    run(daemon)

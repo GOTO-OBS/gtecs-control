@@ -14,15 +14,12 @@ from gtecs import scheduler
 from gtecs.daemons import InterfaceDaemon, run
 
 
-DAEMON_ID = 'scheduler'
-
-
 class SchedulerDaemon(InterfaceDaemon):
     """Scheduler interface daemon class"""
 
     def __init__(self):
-        self.daemon_id = DAEMON_ID
-        InterfaceDaemon.__init__(self, self.daemon_id)
+        ### initiate daemon
+        InterfaceDaemon.__init__(self, daemon_ID='scheduler')
 
 
     def check_queue(self, *args):
@@ -60,4 +57,4 @@ class SchedulerDaemon(InterfaceDaemon):
 
 if __name__ == "__main__":
     daemon = SchedulerDaemon()
-    run(daemon, DAEMON_ID)
+    run(daemon)
