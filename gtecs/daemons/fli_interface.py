@@ -4,6 +4,7 @@ Interface to access FLI hardware
 """
 
 import sys
+import pid
 import time
 from math import *
 import Pyro4
@@ -248,4 +249,8 @@ class FLIDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    run(FLIDaemon)
+    try:
+        with pid.PidFile(misc.find_interface_ID(params.LOCAL_HOST), piddir=params.CONFIG_PATH):
+            run(FLIDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

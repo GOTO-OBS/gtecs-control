@@ -5,6 +5,7 @@ Daemon to control an AstroHaven dome
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -673,4 +674,8 @@ class DomeDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(DomeDaemon)
+    try:
+        with pid.PidFile('dome', piddir=params.CONFIG_PATH):
+            run(DomeDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

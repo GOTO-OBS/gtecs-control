@@ -4,6 +4,7 @@ Clone FLI interface to allow testing on a single host
 """
 
 import sys
+import pid
 import time
 import Pyro4
 
@@ -16,4 +17,8 @@ from fli_interface import FLIDaemon
 
 
 if __name__ == "__main__":
-    run(FLIDaemon)
+    try:
+        with pid.PidFile(misc.find_interface_ID(params.LOCAL_HOST), piddir=params.CONFIG_PATH):
+            run(FLIDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

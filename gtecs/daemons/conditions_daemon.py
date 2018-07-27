@@ -5,6 +5,7 @@ Daemon to monitor environmental conditions
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -343,4 +344,8 @@ class ConditionsDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(ConditionsDaemon)
+    try:
+        with pid.PidFile('conditions', piddir=params.CONFIG_PATH):
+            run(ConditionsDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

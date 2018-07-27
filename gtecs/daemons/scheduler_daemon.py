@@ -4,6 +4,7 @@ Daemon to allow remote computation of next observation
 """
 
 import sys
+import pid
 import time
 import Pyro4
 import datetime
@@ -56,4 +57,8 @@ class SchedulerDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    run(SchedulerDaemon)
+    try:
+        with pid.PidFile('scheduler', piddir=params.CONFIG_PATH):
+            run(SchedulerDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

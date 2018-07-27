@@ -4,6 +4,7 @@ Daemon to control FLI focusers via fli_interface
 """
 
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -334,4 +335,8 @@ class FocDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(FocDaemon)
+    try:
+        with pid.PidFile('foc', piddir=params.CONFIG_PATH):
+            run(FocDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

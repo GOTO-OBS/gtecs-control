@@ -4,6 +4,7 @@ Daemon to access SiTech mount control
 """
 
 import sys
+import pid
 import time
 from math import sin, cos, acos, pi, radians, degrees
 import Pyro4
@@ -693,4 +694,8 @@ class MntDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(MntDaemon)
+    try:
+        with pid.PidFile('mnt', piddir=params.CONFIG_PATH):
+            run(MntDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

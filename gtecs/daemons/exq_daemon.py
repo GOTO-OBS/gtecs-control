@@ -5,6 +5,7 @@ Daemon to control the exposure queue
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -404,4 +405,8 @@ class ExqDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(ExqDaemon)
+    try:
+        with pid.PidFile('exq', piddir=params.CONFIG_PATH):
+            run(ExqDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

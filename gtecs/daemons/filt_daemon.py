@@ -4,6 +4,7 @@ Daemon to control FLI filter wheels via fli_interface
 """
 
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -281,4 +282,8 @@ class FiltDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(FiltDaemon)
+    try:
+        with pid.PidFile('filt', piddir=params.CONFIG_PATH):
+            run(FiltDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

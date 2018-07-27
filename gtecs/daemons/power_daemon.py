@@ -5,6 +5,7 @@ Daemon to control APC PDUs and UPSs
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -392,4 +393,8 @@ class PowerDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(PowerDaemon)
+    try:
+        with pid.PidFile('power', piddir=params.CONFIG_PATH):
+            run(PowerDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')

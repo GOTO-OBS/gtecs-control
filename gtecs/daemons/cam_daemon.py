@@ -5,6 +5,7 @@ Daemon to control FLI cameras via fli_interface
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -580,4 +581,8 @@ class CamDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    run(CamDaemon)
+    try:
+        with pid.PidFile('cam', piddir=params.CONFIG_PATH):
+            run(CamDaemon)
+    except pid.PidFileError:
+        raise misc.MultipleDaemonError('Daemon already running')
