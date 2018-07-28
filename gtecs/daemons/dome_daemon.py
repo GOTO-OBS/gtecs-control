@@ -131,14 +131,8 @@ class DomeDaemon(HardwareDaemon):
                     conditions = flags.Conditions()
                     status = flags.Status()
 
-                    # Loop through QC button to see if it's triggered
-                    button_pressed = False
-                    if params.QUICK_CLOSE_BUTTON:
-                        port = params.QUICK_CLOSE_BUTTON_PORT
-                        button_pressed = misc.loopback_test(port)
-
                     # Create emergency file if needed
-                    if button_pressed:
+                    if self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT):
                         self.logfile.info('Quick close button pressed!')
                         status.create_shutdown_file(['quick close button pressed'])
                     if conditions.critical:
@@ -651,6 +645,24 @@ class DomeDaemon(HardwareDaemon):
             return 'Turning on dehumidifier (the daemon may turn it off again)'
         elif command == 'off':
             return 'Turning off dehumidifier (the daemon may turn it on again)'
+
+
+    # Internal functions
+    def _button_pressed(self, port='/dev/ttyS3'):
+        """Send a message to the serial port and try to read it back"""
+        if not params.QUICK_CLOSE_BUTTON:
+            return False
+        button_port = serial.Serial(port, timeout=1, xonxoff=True)
+        chances = 3
+        for i in range(chances):
+            xonxoff.write(b'bob\n')
+            reply = button_port.readlines()
+            for x in reply:
+                if x.find(message) >= 0:
+                    button_port.close()
+                    return False
+        button_port.close()
+        return True
 
 
 if __name__ == "__main__":
