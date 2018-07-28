@@ -21,45 +21,6 @@ from . import flags
 from .style import ERROR
 
 
-def get_hostname():
-    """Get the hostname of this machine"""
-    if 'HOSTNAME' in os.environ:
-        return os.environ['HOSTNAME']
-    else:
-        tmp = subprocess.getoutput('hostname')
-        return tmp.strip()
-
-
-def cmd_timeout(command, timeout, bufsize=-1):
-    """
-    Execute command and limit execution time to 'timeout' seconds.
-    Found online and slightly modified
-    """
-
-    p = subprocess.Popen(command, bufsize=bufsize, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    start_time = time.time()
-    seconds_passed = 0
-
-    while p.poll() is None and seconds_passed < timeout:
-        time.sleep(0.1)
-        seconds_passed = time.time() - start_time
-
-    if seconds_passed >= timeout:
-        try:
-            p.stdout.close()
-            p.stderr.close()
-            p.terminate()
-            p.kill()
-        except:
-            pass
-        out = None
-    else:
-        out = p.stdout.read().strip().decode()
-        err = p.stderr.read().decode()
-    returncode = p.returncode
-    return out #(returncode, err, out)
-
-
 def kill_process(pidname, host):
     """Kill any specified processes"""
     pid = get_pid(pidname, host)
@@ -124,27 +85,6 @@ def execute_long_command(command_string):
         except OSError:
             pass
         p.wait()
-
-
-def ping_host(hostname, count=1, ttl=1):
-    """Ping a network address and return the number of responses"""
-    ping = subprocess.getoutput('ping -q -t ' + str(int(ttl)) + ' -c ' + str(count) + ' ' + hostname)
-    out = ping.split('\n')
-    packets_received = 0
-    for line in range(len(out)):
-        if 'ping statistics' in out[line]:
-            stats_line = out[line + 1].split()
-            packets_received = int(stats_line[3])
-            break
-    return packets_received
-
-
-def check_hosts(hostlist):
-    """Ping list of hosts until one responds or the list is exhausted"""
-    for hostname in hostlist:
-        if ping_host(hostname) > 0:
-            return 0 # success
-    return 1 # failure
 
 
 def signal_handler(signal, frame):
@@ -248,13 +188,6 @@ def make_pid_file(pidname):
     except pid.PidFileError:
         # there can only be one
         raise errors.MultipleDaemonError('Daemon already running')
-
-
-def adz(num):
-    num = repr(num)
-    if len(num) == 1:
-        num = '0' + num
-    return num
 
 
 def valid_ints(array, allowed):
