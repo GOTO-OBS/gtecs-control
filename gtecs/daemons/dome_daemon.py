@@ -19,7 +19,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive
+from gtecs.daemons import HardwareDaemon
 
 
 class DomeDaemon(HardwareDaemon):
@@ -66,9 +66,6 @@ class DomeDaemon(HardwareDaemon):
         self.conditions_check_time = 0
         self.conditions_check_period = 60
 
-        self.dependency_error = 0
-        self.dependency_check_time = 0
-
         ### start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -97,22 +94,6 @@ class DomeDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not dependencies_are_alive(self.daemon_ID):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             # autocheck dome status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time

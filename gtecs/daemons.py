@@ -78,6 +78,9 @@ class HardwareDaemon(BaseDaemon):
         # initiate daemon
         BaseDaemon.__init__(self, daemon_ID)
 
+        self.dependency_error = 0
+        self.dependency_check_time = 0
+
         self.time_check = time.time()
 
     # Common daemon functions
@@ -88,6 +91,10 @@ class HardwareDaemon(BaseDaemon):
             raise misc.DaemonConnectionError(error_str)
         else:
             return 'ping'
+
+    @property
+    def dependencies_are_alive(self):
+        return dependencies_are_alive(self.daemon_ID)
 
 
 class InterfaceDaemon(BaseDaemon):

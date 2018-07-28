@@ -14,7 +14,7 @@ import threading
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive
+from gtecs.daemons import HardwareDaemon, daemon_proxy
 
 
 class FocDaemon(HardwareDaemon):
@@ -53,9 +53,6 @@ class FocDaemon(HardwareDaemon):
 
         self.active_tel = []
 
-        self.dependency_error = 0
-        self.dependency_check_time = 0
-
         ### start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -71,7 +68,7 @@ class FocDaemon(HardwareDaemon):
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not dependencies_are_alive(self.daemon_ID):
+                if not self.dependencies_are_alive:
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1

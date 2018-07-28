@@ -19,7 +19,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls import mnt_control
 from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive
+from gtecs.daemons import HardwareDaemon
 
 
 class MntDaemon(HardwareDaemon):
@@ -58,9 +58,6 @@ class MntDaemon(HardwareDaemon):
         self.utc_str = self.utc.iso
         self.set_blinky = False
 
-        self.dependency_error = 0
-        self.dependency_check_time = 0
-
         ### connect to SiTechExe
         # Once, and we'll see if both threads can use it
         IP_address = params.SITECH_HOST
@@ -85,22 +82,6 @@ class MntDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not dependencies_are_alive(self.daemon_ID):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             ### control functions
             # request info

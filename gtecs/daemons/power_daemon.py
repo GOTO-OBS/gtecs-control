@@ -16,7 +16,7 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls import power_control
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive
+from gtecs.daemons import HardwareDaemon
 
 
 class PowerDaemon(HardwareDaemon):
@@ -43,9 +43,6 @@ class PowerDaemon(HardwareDaemon):
         self.check_status_flag = 1
         self.status_check_time = 0
         self.check_period = params.POWER_CHECK_PERIOD
-
-        self.dependency_error = 0
-        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -83,22 +80,6 @@ class PowerDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not dependencies_are_alive(self.daemon_ID):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             # autocheck status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
