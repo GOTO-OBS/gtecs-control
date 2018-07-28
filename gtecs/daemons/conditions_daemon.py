@@ -24,7 +24,7 @@ from gtecs import params
 from gtecs import conditions
 from gtecs.astronomy import sun_alt
 from gtecs.observing import check_dome_closed
-from gtecs.daemons import HardwareDaemon, run
+from gtecs.daemons import HardwareDaemon
 
 
 class ConditionsDaemon(HardwareDaemon):
@@ -346,6 +346,6 @@ class ConditionsDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('conditions', piddir=params.CONFIG_PATH):
-            run(ConditionsDaemon())
+            ConditionsDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

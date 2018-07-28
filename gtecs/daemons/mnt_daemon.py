@@ -19,7 +19,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls import mnt_control
 from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, dependencies_are_alive
 
 
 class MntDaemon(HardwareDaemon):
@@ -696,6 +696,6 @@ class MntDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('mnt', piddir=params.CONFIG_PATH):
-            run(MntDaemon())
+            MntDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

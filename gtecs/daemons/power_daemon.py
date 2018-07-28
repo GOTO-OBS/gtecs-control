@@ -16,7 +16,7 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls import power_control
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, dependencies_are_alive
 
 
 class PowerDaemon(HardwareDaemon):
@@ -395,6 +395,6 @@ class PowerDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('power', piddir=params.CONFIG_PATH):
-            run(PowerDaemon())
+            PowerDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

@@ -42,6 +42,31 @@ class BaseDaemon(object):
         self.logfile.info('Daemon shutting down')
         self.running = False
 
+    def _run(self):
+        host = params.DAEMONS[self.daemon_ID]['HOST']
+        port = params.DAEMONS[self.daemon_ID]['PORT']
+
+        # Check the Pyro address is available
+        try:
+            pyro_daemon = Pyro4.Daemon(host=host, port=port)
+        except:
+            raise
+        else:
+            pyro_daemon.close()
+
+        # Start the daemon
+        with Pyro4.Daemon(host, port) as pyro_daemon:
+            uri = pyro_daemon.register(self, objectId=self.daemon_ID)
+            Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
+
+            # Start request loop
+            self.logfile.info('Daemon registered at {}'.format(uri))
+            pyro_daemon.requestLoop(loopCondition=self.status_function)
+
+        # Loop has closed
+        self.logfile.info('Daemon successfully shut down')
+        time.sleep(1.)
+
 
 class HardwareDaemon(BaseDaemon):
     """Generic hardware daemon class.
@@ -79,33 +104,6 @@ class InterfaceDaemon(BaseDaemon):
     # Common daemon functions
     def ping(self):
         return 'ping'
-
-
-def run(daemon):
-    daemon_ID = daemon.daemon_ID
-    host = params.DAEMONS[daemon_ID]['HOST']
-    port = params.DAEMONS[daemon_ID]['PORT']
-
-   # Check the Pyro address is available
-    try:
-        pyro_daemon = Pyro4.Daemon(host=host, port=port)
-    except:
-        raise
-    else:
-        pyro_daemon.close()
-
-    # Start the daemon
-    with Pyro4.Daemon(host, port) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=daemon_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at {}'.format(uri))
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
 
 
 def daemon_is_running(daemon_ID):

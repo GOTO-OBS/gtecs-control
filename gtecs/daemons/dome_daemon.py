@@ -19,7 +19,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
-from gtecs.daemons import HardwareDaemon, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, dependencies_are_alive
 
 
 class DomeDaemon(HardwareDaemon):
@@ -676,6 +676,6 @@ class DomeDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('dome', piddir=params.CONFIG_PATH):
-            run(DomeDaemon())
+            DomeDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

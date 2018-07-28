@@ -12,7 +12,7 @@ import datetime
 from gtecs import misc
 from gtecs import params
 from gtecs import scheduler
-from gtecs.daemons import InterfaceDaemon, run
+from gtecs.daemons import InterfaceDaemon
 
 
 class SchedulerDaemon(InterfaceDaemon):
@@ -59,6 +59,6 @@ class SchedulerDaemon(InterfaceDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('scheduler', piddir=params.CONFIG_PATH):
-            run(SchedulerDaemon())
+            SchedulerDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

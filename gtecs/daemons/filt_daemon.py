@@ -14,7 +14,7 @@ import threading
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive
 
 
 class FiltDaemon(HardwareDaemon):
@@ -275,6 +275,6 @@ class FiltDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('filt', piddir=params.CONFIG_PATH):
-            run(FiltDaemon())
+            FiltDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

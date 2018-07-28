@@ -17,7 +17,7 @@ from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
-from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive
 
 
 class ExqDaemon(HardwareDaemon):
@@ -401,6 +401,6 @@ class ExqDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('exq', piddir=params.CONFIG_PATH):
-            run(ExqDaemon())
+            ExqDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

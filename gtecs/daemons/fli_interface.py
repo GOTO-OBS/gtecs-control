@@ -17,7 +17,7 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import InterfaceDaemon, run
+from gtecs.daemons import InterfaceDaemon
 
 
 class FLIDaemon(InterfaceDaemon):
@@ -249,6 +249,6 @@ if __name__ == "__main__":
     try:
         intf = misc.find_interface_ID(params.LOCAL_HOST)
         with pid.PidFile(intf, piddir=params.CONFIG_PATH):
-            run(FLIDaemon(intf))
+            FLIDaemon(intf)._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')

@@ -18,7 +18,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
 from gtecs.fits import image_location, glance_location, get_all_info, write_fits
-from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive, run
+from gtecs.daemons import HardwareDaemon, daemon_proxy, dependencies_are_alive
 
 
 class CamDaemon(HardwareDaemon):
@@ -571,6 +571,6 @@ class CamDaemon(HardwareDaemon):
 if __name__ == "__main__":
     try:
         with pid.PidFile('cam', piddir=params.CONFIG_PATH):
-            run(CamDaemon())
+            CamDaemon()._run()
     except pid.PidFileError:
         raise misc.MultipleDaemonError('Daemon already running')
