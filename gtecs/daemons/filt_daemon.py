@@ -30,8 +30,6 @@ class FiltDaemon(HardwareDaemon):
         self.home_filter_flag = 0
 
         ### filter wheel variables
-        self.info = None
-
         self.current_pos = {}
         self.current_filter_num = {}
         self.remaining = {}

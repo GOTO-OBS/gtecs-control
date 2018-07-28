@@ -33,8 +33,6 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 0
 
         ### power variables
-        self.info = None
-
         self.power_status = {}
 
         self.current_units = []

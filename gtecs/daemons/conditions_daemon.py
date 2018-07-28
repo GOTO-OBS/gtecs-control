@@ -90,7 +90,6 @@ class ConditionsDaemon(HardwareDaemon):
                           'ice': params.ICE_BADDELAY,
                           }
 
-
         self.flags = dict.fromkeys(self.flag_names, 2)
 
         self.data = None

@@ -37,7 +37,6 @@ class DomeDaemon(HardwareDaemon):
         self.override_dehumid_flag = 0
 
         ### dome variables
-        self.info = None
         self.dome_status = {'dome':'unknown', 'hatch':'unknown', 'estop':'unknown', 'monitorlink':'unknown'}
         self.heartbeat_status = 'unknown'
 

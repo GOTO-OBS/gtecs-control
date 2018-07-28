@@ -44,7 +44,6 @@ class MntDaemon(HardwareDaemon):
         self.set_target_flag = 0
 
         ### mount variables
-        self.info = None
         self.step = params.DEFAULT_OFFSET_STEP
         self.mount_status = 'Unknown'
         self.target_ra = None

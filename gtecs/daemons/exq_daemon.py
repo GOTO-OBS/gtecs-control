@@ -28,8 +28,6 @@ class ExqDaemon(HardwareDaemon):
         HardwareDaemon.__init__(self, daemon_ID='exq')
 
         ### exposure queue variables
-        self.info = None
-
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
 

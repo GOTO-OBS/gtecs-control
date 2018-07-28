@@ -31,8 +31,6 @@ class FocDaemon(HardwareDaemon):
         self.home_focuser_flag = 0
 
         ### focuser variables
-        self.info = None
-
         self.limit = {}
         self.current_pos = {}
         self.remaining = {}

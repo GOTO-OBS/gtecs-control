@@ -22,6 +22,8 @@ class BaseDaemon(object):
         self.running = True
         self.start_time = time.time()
 
+        self.info = None
+
         # set up logfile
         self.logfile = logger.getLogger(self.daemon_ID,
                                         log_to_file=params.FILE_LOGGING,

@@ -35,8 +35,6 @@ class CamDaemon(HardwareDaemon):
         self.set_temp_flag = 0
 
         ### camera variables
-        self.info = None
-
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.run_number = 0
 
