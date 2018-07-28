@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
 from gtecs.fits import image_location, glance_location, get_all_info, write_fits
@@ -315,7 +316,7 @@ class CamDaemon(HardwareDaemon):
         """Return camera status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -375,7 +376,7 @@ class CamDaemon(HardwareDaemon):
         """Take an exposure with the camera from an Exposure object"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         tel_list = exposure.tel_list
@@ -396,7 +397,7 @@ class CamDaemon(HardwareDaemon):
 
         # Check current status
         if self.exposing == 1:
-            raise misc.HardwareStatusError('Cameras are already exposing')
+            raise errors.HardwareStatusError('Cameras are already exposing')
 
         # Find and update run number
         if not glance:
@@ -432,7 +433,7 @@ class CamDaemon(HardwareDaemon):
         """Abort current exposure"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -466,7 +467,7 @@ class CamDaemon(HardwareDaemon):
         """Set the camera's temperature"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if not (-55 <= target_temp <= 45):

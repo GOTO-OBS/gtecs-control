@@ -13,6 +13,7 @@ import threading
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.daemons import HardwareDaemon, daemon_proxy
 
@@ -175,7 +176,7 @@ class FiltDaemon(HardwareDaemon):
         """Return filter wheel status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -198,7 +199,7 @@ class FiltDaemon(HardwareDaemon):
         """Move filter wheel to given filter"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if new_filter.upper() not in params.FILTER_LIST:
@@ -237,7 +238,7 @@ class FiltDaemon(HardwareDaemon):
         """Move filter wheel to home position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:

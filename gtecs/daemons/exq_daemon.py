@@ -15,6 +15,7 @@ from collections import MutableSequence
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.daemons import HardwareDaemon, daemon_proxy
@@ -118,7 +119,7 @@ class ExqDaemon(HardwareDaemon):
         """Return exposure queue status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Exq info is outside the loop
         info = {}
@@ -162,7 +163,7 @@ class ExqDaemon(HardwareDaemon):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -210,7 +211,7 @@ class ExqDaemon(HardwareDaemon):
         """Add multiple exposures to the queue as a set"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -252,7 +253,7 @@ class ExqDaemon(HardwareDaemon):
         """Empty the exposure queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         num_in_queue = len(self.exp_queue)
@@ -266,7 +267,7 @@ class ExqDaemon(HardwareDaemon):
         """Return info on exposures in the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         queue_info = self.exp_queue.get()
@@ -278,7 +279,7 @@ class ExqDaemon(HardwareDaemon):
         """Return simple info on exposures in the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         queue_info_simple = self.exp_queue.get_simple()
@@ -290,7 +291,7 @@ class ExqDaemon(HardwareDaemon):
         """Pause the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if self.paused:
@@ -307,7 +308,7 @@ class ExqDaemon(HardwareDaemon):
         """Unpause the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if not self.paused:

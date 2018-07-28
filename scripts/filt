@@ -10,6 +10,7 @@ import readline
 import Pyro4
 
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs import style
 from gtecs import daemons
@@ -24,7 +25,7 @@ def query(command, args, daemon_ID):
         print_instructions()
 
     elif command == 'i':
-        raise misc.InputError('Already in interactive mode')
+        raise errors.InputError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -54,7 +55,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info_type = 'verbose'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         # print response
@@ -86,7 +87,7 @@ def query(command, args, daemon_ID):
             tel_list  = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
             new_filt = args[1].upper()
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_filter', [new_filt, tel_list])
         print(reply)
@@ -98,7 +99,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1:
             tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'home_filter', [tel_list])
         print(reply)
@@ -109,7 +110,7 @@ def query(command, args, daemon_ID):
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(info):

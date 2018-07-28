@@ -9,6 +9,7 @@ import Pyro4
 from . import logger
 from . import params
 from . import misc
+from . import errors
 
 
 class BaseDaemon(object):
@@ -90,7 +91,7 @@ class HardwareDaemon(BaseDaemon):
         dt_control = abs(time.time() - self.time_check)
         if dt_control > params.DAEMONS[self.daemon_ID]['PINGLIFE']:
             error_str = 'Last control thread time check was {:.1f}s ago'.format(dt_control)
-            raise misc.DaemonConnectionError(error_str)
+            raise errors.DaemonConnectionError(error_str)
         else:
             return 'ping'
 
@@ -165,7 +166,7 @@ def start_daemon(daemon_ID):
                 failed += [dependency]
         if len(failed) > 0:
             error_str = 'Dependencies are not running ({}), abort start'.format(failed)
-            raise misc.DaemonDependencyError(error_str)
+            raise errors.DaemonDependencyError(error_str)
 
     process_path = os.path.join(params.DAEMON_PATH, process)
 
@@ -187,7 +188,7 @@ def start_daemon(daemon_ID):
         if pid:
             return 'Daemon started on {} (PID {})'.format(host, pid)
         if time.time() - start_time > 4:
-            raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
+            raise errors.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
         time.sleep(0.5)
 
 
@@ -197,9 +198,9 @@ def ping_daemon(daemon_ID):
     host    = params.DAEMONS[daemon_ID]['HOST']
 
     if not daemon_is_running(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
+        raise errors.DaemonConnectionError('Daemon not running on {}'.format(host))
     if not daemon_is_alive(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
 
     pid = misc.check_pid(daemon_ID, host)
     ping = daemon_function(daemon_ID, 'ping')
@@ -216,7 +217,7 @@ def shutdown_daemon(daemon_ID):
     if not daemon_is_running(daemon_ID):
         return 'Daemon not running on {}'.format(host)
     if not daemon_is_alive(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
 
     try:
         with daemon_proxy(daemon_ID) as daemon:
@@ -233,7 +234,7 @@ def shutdown_daemon(daemon_ID):
         if not pid:
             return 'Daemon shut down on {}'.format(host)
         if time.time() - start_time > 4:
-            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+            raise errors.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
         time.sleep(0.5)
 
 
@@ -252,7 +253,7 @@ def kill_daemon(daemon_ID):
         if not pid:
             return 'Daemon killed on {}'.format(host)
         if time.time() - start_time > 4:
-            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+            raise errors.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
         time.sleep(0.5)
 
 
@@ -282,11 +283,11 @@ def daemon_info(daemon_ID):
 
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
     if not daemon_is_running(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon not running')
+        raise errors.DaemonConnectionError('Daemon not running')
     if not daemon_is_alive(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
     if not dependencies_are_alive(daemon_ID):
-        raise misc.DaemonDependencyError('Required dependencies are not responding')
+        raise errors.DaemonDependencyError('Required dependencies are not responding')
 
     with daemon_proxy(daemon_ID, timeout) as daemon:
         try:

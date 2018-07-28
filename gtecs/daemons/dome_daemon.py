@@ -16,6 +16,7 @@ import json
 from gtecs import flags
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
@@ -500,13 +501,13 @@ class DomeDaemon(HardwareDaemon):
                 # and autoclose is disabled
                 bad_idea = True
             else:
-                raise misc.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
+                raise errors.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
         elif power.failed:
-            raise misc.HardwareStatusError('No external power, dome will not open')
+            raise errors.HardwareStatusError('No external power, dome will not open')
         elif status.emergency_shutdown:
             reasons = ', '.join(status.emergency_shutdown_reasons)
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            raise misc.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reasons))
+            raise errors.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reasons))
 
         # Check input
         if not side in ['north', 'south', 'both']:
@@ -606,7 +607,7 @@ class DomeDaemon(HardwareDaemon):
         dehumid_status = self.info['dehumidifier']
         currently_open = self.info['dome'] != 'closed'
         if command == 'on' and currently_open:
-            raise misc.HardwareStatusError("Dome is open, dehumidifier won't turn on")
+            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
         elif command == 'on' and dehumid_status == 'on':
             return 'Dehumidifier is already on'
         elif command == 'off' and dehumid_status == 'off':

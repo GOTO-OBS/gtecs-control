@@ -16,6 +16,7 @@ from astropy.coordinates import SkyCoord
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.controls import mnt_control
 from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
@@ -242,17 +243,17 @@ class MntDaemon(HardwareDaemon):
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
         if check_alt_limit(ra*360./24., dec, Time.now()):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
         self.temp_ra = ra
@@ -268,19 +269,19 @@ class MntDaemon(HardwareDaemon):
         """Slew to current set target"""
         # Check input
         if self.target_ra == None or self.target_dec == None:
-            raise misc.HardwareStatusError('Target not set')
+            raise errors.HardwareStatusError('Target not set')
         if check_alt_limit(self.target_ra*360./24., self.target_dec, Time.now()):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set flag
         self.slew_target_flag = 1
@@ -296,17 +297,17 @@ class MntDaemon(HardwareDaemon):
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
         if alt < params.MIN_ELEVATION:
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
         self.temp_alt = alt
@@ -331,11 +332,11 @@ class MntDaemon(HardwareDaemon):
         elif self.mount_status == 'Slewing':
             return 'Currently slewing, will track when reached target'
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         if check_alt_limit(self.info['mount_ra']*360./24., self.info['mount_dec'], Time.now()):
-            raise misc.HardwareStatusError('Mount is currently below horizon, cannot track')
+            raise errors.HardwareStatusError('Mount is currently below horizon, cannot track')
 
         # Set flag
         self.start_tracking_flag = 1
@@ -351,7 +352,7 @@ class MntDaemon(HardwareDaemon):
         if self.mount_status == 'Stopped':
             return 'Already stopped'
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
 
         # Set flag
         self.full_stop_flag = 1
@@ -390,7 +391,7 @@ class MntDaemon(HardwareDaemon):
         elif self.mount_status == 'Parking':
             return 'Already parking'
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Set flag
         self.park_flag = 1
@@ -427,7 +428,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_ra = ra
@@ -446,7 +447,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_dec = dec
@@ -467,7 +468,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_ra = ra
@@ -502,11 +503,11 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Calculate offset position
         step_deg = self.step/3600.
@@ -527,7 +528,7 @@ class MntDaemon(HardwareDaemon):
             dec = self.sitech.dec
 
         if check_alt_limit(ra*360./24.,dec,self.utc):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Set values
         self.target_ra = ra

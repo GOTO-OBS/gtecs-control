@@ -13,6 +13,7 @@ import threading
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.daemons import HardwareDaemon, daemon_proxy
 
@@ -187,7 +188,7 @@ class FocDaemon(HardwareDaemon):
         """Return focuser status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -210,7 +211,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to given position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
@@ -249,7 +250,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser by given number of steps"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if (int(new_pos) - new_pos) != 0:
@@ -290,7 +291,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to the home position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:

@@ -10,6 +10,7 @@ import readline
 import Pyro4
 
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs import style
 from gtecs import daemons
@@ -24,7 +25,7 @@ def query(command, args, daemon_ID):
         print_instructions()
 
     elif command == 'i':
-        raise misc.InputError('Already in interactive mode')
+        raise errors.InputError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -54,7 +55,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info_type = 'verbose'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         # print response
@@ -80,7 +81,7 @@ def query(command, args, daemon_ID):
     elif command == 'image':
         # parse arguments
         if len(args) < 3:
-            raise misc.InputError('Need at least: exptime filter binning')
+            raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
             tel_list = sorted(params.TEL_DICT)
@@ -98,7 +99,7 @@ def query(command, args, daemon_ID):
                 target = args[3]
                 imgtype = args[4]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter binning [object] [imgtype]
             tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
@@ -116,9 +117,9 @@ def query(command, args, daemon_ID):
                 target = args[4]
                 imgtype = args[5]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
@@ -128,7 +129,7 @@ def query(command, args, daemon_ID):
     elif command in ['multimage', 'multiimage', 'mimage']:
         # parse arguments
         if len(args) < 4:
-            raise misc.InputError('Need at least: Nexp exptime filter binning')
+            raise errors.InputError('Need at least: Nexp exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # Nexp exptime filter binning [object] [imgtype] [expID]
             Nexp = int(args[0])
@@ -154,7 +155,7 @@ def query(command, args, daemon_ID):
                 imgtype = args[5]
                 expID = int(args[6])
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filter binning [object] [imgtype] [expID]
             Nexp      = int(args[0])
@@ -180,9 +181,9 @@ def query(command, args, daemon_ID):
                 imgtype = args[6]
                 expID = int(args[7])
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
             arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, expID]
@@ -192,7 +193,7 @@ def query(command, args, daemon_ID):
     elif command in ['multcolimage', 'multicolimage', 'mcolimage', 'mcimage']:
         # parse arguments
         if len(args) < 4:
-            raise misc.InputError('Need at least: Nexp exptime filters binning')
+            raise errors.InputError('Need at least: Nexp exptime filters binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # Nexp exptime filters binning [object] [imgtype]
             Nexp = int(args[0])
@@ -214,7 +215,7 @@ def query(command, args, daemon_ID):
                 target  = args[4]
                 imgtype = args[5]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # Nexp tels exptime filters binning [object] [imgtype]
             Nexp      = int(args[0])
@@ -236,9 +237,9 @@ def query(command, args, daemon_ID):
                 target  = args[5]
                 imgtype = args[6]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         for i in range(Nexp):
             for filt in filt_list:
@@ -249,7 +250,7 @@ def query(command, args, daemon_ID):
     elif command == 'glance':
         # parse arguments
         if len(args) < 3:
-            raise misc.InputError('Need at least: exptime filter binning')
+            raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
             tel_list = sorted(params.TEL_DICT)
@@ -267,7 +268,7 @@ def query(command, args, daemon_ID):
                 target = args[3]
                 imgtype = args[4]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # tels exptime filter binning [object] [imgtype]
             tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
@@ -285,9 +286,9 @@ def query(command, args, daemon_ID):
                 target = args[4]
                 imgtype = args[5]
             else:
-                raise misc.InputError('Invalid arguments')
+                raise errors.InputError('Invalid arguments')
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
             arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, True]
@@ -297,7 +298,7 @@ def query(command, args, daemon_ID):
     elif command == 'dark':
         # parse arguments
         if len(args) < 2:
-            raise misc.InputError('Need at least: exptime binning')
+            raise errors.InputError('Need at least: exptime binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime binning
             tel_list  = sorted(params.TEL_DICT)
@@ -317,7 +318,7 @@ def query(command, args, daemon_ID):
             target    = 'NA'
             imgtype   = 'DARK'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
@@ -326,7 +327,7 @@ def query(command, args, daemon_ID):
     elif command in ['multdark', 'multidark', 'mdark']:
         # parse arguments
         if len(args) < 3:
-            raise misc.InputError('Need at least: exptime binning')
+            raise errors.InputError('Need at least: exptime binning')
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) in [3,4]:
             # Nexp exptime binning [expID]
             Nexp      = int(args[0])
@@ -356,7 +357,7 @@ def query(command, args, daemon_ID):
             else:
                 expID = int(args[4])
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, expID]
         reply = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
@@ -365,7 +366,7 @@ def query(command, args, daemon_ID):
     elif command == 'bias':
         # parse arguments
         if len(args) < 1:
-            raise misc.InputError('Need at least: binning')
+            raise errors.InputError('Need at least: binning')
         elif misc.is_num(args[0]) and len(args) == 1:
             # binning
             tel_list  = sorted(params.TEL_DICT)
@@ -385,7 +386,7 @@ def query(command, args, daemon_ID):
             target    = 'NA'
             imgtype   = 'BIAS'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_ID, 'add', arg_list)
@@ -394,7 +395,7 @@ def query(command, args, daemon_ID):
     elif command in ['multbias', 'multibias', 'mbias']:
         # parse arguments
         if len(args) < 2:
-            raise misc.InputError('Need at least: binning')
+            raise errors.InputError('Need at least: binning')
         elif misc.is_num(args[1]) and len(args) in [2,3]:
             # Nexp binning [expID]
             Nexp      = int(args[0])
@@ -424,7 +425,7 @@ def query(command, args, daemon_ID):
             else:
                 expID = int(args[3])
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [Nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, expID]
         reply = daemons.daemon_function(daemon_ID, 'add_multi', arg_list)
@@ -445,7 +446,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             list_type = 'verbose'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         if list_type == 'simple':
             reply = daemons.daemon_function(daemon_ID, 'get_simple')
@@ -459,7 +460,7 @@ def query(command, args, daemon_ID):
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(info):
