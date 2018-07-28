@@ -245,7 +245,27 @@ class FLIDaemon(InterfaceDaemon):
         return self.cams[int(HW)].serial_number
 
 
+def find_interface_ID(hostname):
+    """Find what interface should be running on a given host.
+    Used by the FLI interfaces to find which interface it should identify as.
+    """
+    intfs = []
+    for intf in params.FLI_INTERFACES:
+        if params.DAEMONS[intf]['HOST'] == hostname:
+            intfs.append(intf)
+    if len(intfs) == 0:
+        raise ValueError('Host {} does not have an associated interface'.format(hostname))
+    elif len(intfs) == 1:
+        return intfs[0]
+    else:
+        # return the first one that's not running
+        for intf in sorted(intfs):
+            if not misc.check_pid(intf):
+                return intf
+        raise ValueError('All defined interfaces on {} are running'.format(hostname))
+
+
 if __name__ == "__main__":
-    daemon_ID = misc.find_interface_ID(params.LOCAL_HOST)
+    daemon_ID = find_interface_ID(params.LOCAL_HOST)
     with misc.make_pid_file(daemon_ID):
         FLIDaemon(daemon_ID)._run()
