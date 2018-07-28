@@ -17,7 +17,7 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import InterfaceDaemon
+from gtecs.daemons import InterfaceDaemon, daemon_is_running
 
 
 class FLIDaemon(InterfaceDaemon):
@@ -260,7 +260,7 @@ def find_interface_ID(hostname):
     else:
         # return the first one that's not running
         for intf in sorted(intfs):
-            if not misc.check_pid(intf):
+            if not daemon_is_running(intf):
                 return intf
         raise ValueError('All defined interfaces on {} are running'.format(hostname))
 

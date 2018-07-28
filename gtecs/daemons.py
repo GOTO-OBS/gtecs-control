@@ -119,10 +119,7 @@ class InterfaceDaemon(BaseDaemon):
 def daemon_is_running(daemon_ID):
     """Check if a daemon is running."""
     host = params.DAEMONS[daemon_ID]['HOST']
-    if misc.check_pid(daemon_ID, host):
-        return True
-    else:
-        return False
+    return misc.get_pid(daemon_ID, host) != None
 
 
 def daemon_is_alive(daemon_ID):
@@ -176,7 +173,7 @@ def start_daemon(daemon_ID):
         fpipe = open(params.LOG_PATH + daemon_ID + '-stdout.log', 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
-    pid = misc.check_pid(daemon_ID, host)
+    pid = misc.get_pid(daemon_ID, host)
     if pid:
         return 'Daemon already running on {} (PID {})'.format(host, pid)
 
@@ -184,7 +181,7 @@ def start_daemon(daemon_ID):
 
     start_time = time.time()
     while True:
-        pid = misc.check_pid(daemon_ID, host)
+        pid = misc.get_pid(daemon_ID, host)
         if pid:
             return 'Daemon started on {} (PID {})'.format(host, pid)
         if time.time() - start_time > 4:
@@ -202,7 +199,7 @@ def ping_daemon(daemon_ID):
     if not daemon_is_alive(daemon_ID):
         raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
 
-    pid = misc.check_pid(daemon_ID, host)
+    pid = misc.get_pid(daemon_ID, host)
     ping = daemon_function(daemon_ID, 'ping')
     if ping == 'ping':
         return 'Ping received OK, daemon running on {} (PID {})'.format(host, pid)
@@ -230,7 +227,7 @@ def shutdown_daemon(daemon_ID):
 
     start_time = time.time()
     while True:
-        pid = misc.check_pid(daemon_ID, host)
+        pid = misc.get_pid(daemon_ID, host)
         if not pid:
             return 'Daemon shut down on {}'.format(host)
         if time.time() - start_time > 4:
@@ -249,7 +246,7 @@ def kill_daemon(daemon_ID):
 
     start_time = time.time()
     while True:
-        pid = misc.check_pid(daemon_ID, host)
+        pid = misc.get_pid(daemon_ID, host)
         if not pid:
             return 'Daemon killed on {}'.format(host)
         if time.time() - start_time > 4:

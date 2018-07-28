@@ -16,6 +16,7 @@ import smtplib
 from contextlib import contextmanager
 
 from . import params
+from . import errors
 from . import flags
 from .style import ERROR
 
@@ -61,7 +62,7 @@ def cmd_timeout(command, timeout, bufsize=-1):
 
 def kill_process(pidname, host):
     """Kill any specified processes"""
-    pid = check_pid(pidname, host)
+    pid = get_pid(pidname, host)
 
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         os.system('kill -9 {}'.format(pid))
@@ -190,7 +191,7 @@ class neatCloser:
         return
 
 
-def check_pid(pidname, host='127.0.0.1'):
+def get_pid(pidname, host='127.0.0.1'):
     """Check if a pid file exists with the given name.
 
     Returns the pid if it is found, or None if not.
@@ -245,7 +246,8 @@ def make_pid_file(pidname):
         with pid.PidFile(pidname, piddir=params.PID_PATH):
             yield
     except pid.PidFileError:
-        raise MultipleDaemonError('Daemon already running')
+        # there can only be one
+        raise errors.MultipleDaemonError('Daemon already running')
 
 
 def adz(num):
