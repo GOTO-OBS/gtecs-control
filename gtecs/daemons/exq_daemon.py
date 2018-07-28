@@ -83,9 +83,9 @@ class ExqDaemon(HardwareDaemon):
                 self.working = 1
 
                 # set the filter, if needed
-                if self._need_to_change_filter(filt):
+                if self._need_to_change_filter():
                     try:
-                        self._set_filter(filt)
+                        self._set_filter()
                     except:
                         self.logfile.error('set_filter command failed')
                         self.logfile.debug('', exc_info=True)
@@ -96,7 +96,7 @@ class ExqDaemon(HardwareDaemon):
 
                 # take the image
                 try:
-                    self._take_image(cam)
+                    self._take_image()
                 except:
                     self.logfile.error('take_image command failed')
                     self.logfile.debug('', exc_info=True)
@@ -322,15 +322,15 @@ class ExqDaemon(HardwareDaemon):
 
 
     # Internal functions
-    def _need_to_change_filter(self, filt):
+    def _need_to_change_filter(self):
         new_filt = self.current_exposure.filt
         if new_filt is None:
             # filter doesn't matter, e.g. dark
             return False
 
         tel_list = self.current_exposure.tel_list
-        with daemon_proxy('filt') as filt:
-            filt_info = filt.get_info()
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
         if all([params.FILTER_LIST[filt_info['current_filter_num'+str(tel)]] == new_filt for tel in tel_list]):
             return False
         else:
@@ -341,19 +341,19 @@ class ExqDaemon(HardwareDaemon):
         tel_list = self.current_exposure.tel_list
         self.logfile.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
         try:
-            with daemon_proxy('filt') as filt:
-                filt.set_filter(new_filt, tel_list)
+            with daemon_proxy('filt') as filt_daemon:
+                filt_daemon.set_filter(new_filt, tel_list)
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(3)
-        with daemon_proxy('filt') as filt:
-            filt_info_dict = filt.get_info()
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info_dict = filt_daemon.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
-            with daemon_proxy('filt') as filt:
-                filt_info_dict = filt.get_info()
+            with daemon_proxy('filt') as filt_daemon:
+                filt_info_dict = filt_daemon.get_info()
             filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.005)
             # keep ping alive
@@ -374,19 +374,19 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
                                 exptime, binning, binning, frametype, tel_list))
         try:
-            with daemon_proxy('cam') as cam:
-                cam.take_exposure(self.current_exposure)
+            with daemon_proxy('cam') as cam_daemon:
+                cam_daemon.take_exposure(self.current_exposure)
         except:
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(2)
 
-        with daemon_proxy('cam') as cam:
-            cam_exposing = cam.is_exposing()
+        with daemon_proxy('cam') as cam_daemon:
+            cam_exposing = cam_daemon.is_exposing()
         while cam_exposing:
-            with daemon_proxy('cam') as cam:
-                cam_exposing = cam.is_exposing()
+            with daemon_proxy('cam') as cam_daemon:
+                cam_exposing = cam_daemon.is_exposing()
 
             time.sleep(0.05)
             # keep ping alive
