@@ -217,10 +217,6 @@ class MntDaemon(HardwareDaemon):
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.get_info_flag = 1
 
@@ -240,10 +236,6 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
@@ -274,10 +266,6 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_target(self):
         """Slew to current set target"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if self.target_ra == None or self.target_dec == None:
             raise misc.HardwareStatusError('Target not set')
@@ -302,10 +290,6 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_altaz(self, alt, az):
         """Slew to specified alt/az"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= alt < 90):
             raise ValueError('Alt in degrees must be between 0 and 90')
@@ -339,10 +323,6 @@ class MntDaemon(HardwareDaemon):
 
     def start_tracking(self):
         """Starts mount tracking"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -365,10 +345,6 @@ class MntDaemon(HardwareDaemon):
 
     def full_stop(self):
         """Stops mount moving (slewing or tracking)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -385,10 +361,6 @@ class MntDaemon(HardwareDaemon):
 
     def blinky(self, activate):
         """Turn on or off blinky mode"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         if activate and self.sitech.blinky:
             return 'Already in blinky mode'
@@ -410,10 +382,6 @@ class MntDaemon(HardwareDaemon):
 
     def park(self):
         """Moves the mount to the park position"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -432,10 +400,6 @@ class MntDaemon(HardwareDaemon):
 
     def unpark(self):
         """Unpark the mount"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -455,10 +419,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_ra(self, ra):
         """Set the target RA"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
@@ -478,10 +438,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_dec(self, dec):
         """Set the target Dec"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
@@ -501,10 +457,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target(self, ra, dec):
         """Set the target location"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
@@ -528,10 +480,6 @@ class MntDaemon(HardwareDaemon):
 
     def clear_target(self):
         """Clear the stored target"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         if self.target_ra is None and self.target_dec is None:
             return 'No current target'
@@ -546,10 +494,6 @@ class MntDaemon(HardwareDaemon):
 
     def offset(self, direction):
         """Offset in a specified (cardinal) direction"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if direction.lower() not in ['north', 'south', 'east', 'west']:
             raise ValueError('Invalid direction')
@@ -596,10 +540,6 @@ class MntDaemon(HardwareDaemon):
 
 
     def set_step(self, offset):
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if int(offset) < 0:
             raise ValueError('Offset value must be > 0')

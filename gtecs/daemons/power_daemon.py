@@ -225,10 +225,6 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.check_status_flag = 1
         self.get_info_flag = 1
@@ -249,10 +245,6 @@ class PowerDaemon(HardwareDaemon):
 
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -270,10 +262,6 @@ class PowerDaemon(HardwareDaemon):
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -291,10 +279,6 @@ class PowerDaemon(HardwareDaemon):
 
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:

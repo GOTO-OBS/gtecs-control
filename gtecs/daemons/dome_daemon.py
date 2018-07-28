@@ -470,10 +470,6 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.get_info_flag = 1
 
@@ -498,8 +494,6 @@ class DomeDaemon(HardwareDaemon):
         power = flags.Power()
         bad_idea = False
         # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
         if conditions.bad:
             if status.mode == 'manual' and not status.autoclose:
                 # Allow opening in bad conditions if in manual mode
@@ -555,10 +549,6 @@ class DomeDaemon(HardwareDaemon):
 
     def close_dome(self, side='both', frac=1):
         """Close the dome"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not side in ['north', 'south', 'both']:
             raise ValueError('Side must be one of "north", "south" or "both"')
@@ -598,10 +588,6 @@ class DomeDaemon(HardwareDaemon):
 
     def halt_dome(self):
         """Stop the dome moving"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.halt_flag = 1
 
@@ -610,10 +596,6 @@ class DomeDaemon(HardwareDaemon):
 
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off before the automatic command"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not command in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
