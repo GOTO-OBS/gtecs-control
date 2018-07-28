@@ -22,19 +22,25 @@ try:
     if not os.path.exists(params.IMAGE_PATH):
         os.mkdir(params.IMAGE_PATH)
 
-    logpath = os.path.join(params.CONFIG_PATH, 'logs')
-    if not os.path.exists(logpath):
+    if not os.path.exists(params.LOG_PATH):
         os.mkdir(logpath)
-    htmlpath = os.path.join(params.CONFIG_PATH, 'html')
-    if not os.path.exists(htmlpath):
-        os.mkdir(htmlpath)
-    queuepath = os.path.join(params.CONFIG_PATH, 'queue')
-    if not os.path.exists(queuepath):
-        os.mkdir(queuepath)
+
+    if not os.path.exists(params.LOG_PATH):
+        os.mkdir(logpath)
+
+    if not os.path.exists(params.QUEUE_PATH):
+        os.mkdir(logpath)
     for folder in ['todo', 'aborted', 'completed', 'interrupted']:
         folderpath = os.path.join(queuepath, folder)
         if not os.path.exists(folderpath):
             os.mkdir(folderpath)
+
+    if not os.path.exists(params.PID_PATH):
+        os.mkdir(logpath)
+
+    htmlpath = os.path.join(params.CONFIG_PATH, 'html')
+    if not os.path.exists(htmlpath):
+        os.mkdir(htmlpath)
 
     # now copy data there
     for data_file in ['conditions_flags', 'status_flags',

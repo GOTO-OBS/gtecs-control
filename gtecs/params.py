@@ -63,6 +63,7 @@ CONFIG_PATH = config['CONFIG_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOG_PATH = CONFIG_PATH + 'logs/'
 QUEUE_PATH = CONFIG_PATH + 'queue/'
+PID_PATH = CONFIG_PATH + '.pid/'
 IMAGE_PATH = config['IMAGE_PATH']
 
 # Site location (predicted location of GOTO dome on La Palma)

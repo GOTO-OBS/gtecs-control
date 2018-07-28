@@ -209,9 +209,9 @@ def check_pid(pidname, host='127.0.0.1'):
 
     Returns the pid if it is found, or None if not.
     """
-    # pid.PidFile(pidname, piddir=params.CONFIG_PATH).check() is nicer,
+    # pid.PidFile(pidname, piddir=params.PID_PATH).check() is nicer,
     # but won't work with remote machines
-    pidpath = os.path.join(params.CONFIG_PATH, pidname+'.pid')
+    pidpath = os.path.join(params.PID_PATH, pidname+'.pid')
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'cat {}'.format(pidpath)
     else:
@@ -226,7 +226,7 @@ def check_pid(pidname, host='127.0.0.1'):
 
 def clear_pid(pidname, host='127.0.0.1'):
     """Clear a pid in case we've killed the process."""
-    pidpath = os.path.join(params.CONFIG_PATH, pidname+'.pid')
+    pidpath = os.path.join(params.PID_PATH, pidname+'.pid')
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'rm {}'.format(pidpath)
     else:
@@ -311,7 +311,7 @@ def print_errors():
 def make_pid_file(pidname):
     """A context manager create a pidfile for the daemons."""
     try:
-        with pid.PidFile(pidname, piddir=params.CONFIG_PATH):
+        with pid.PidFile(pidname, piddir=params.PID_PATH):
             yield
     except pid.PidFileError:
         raise MultipleDaemonError('Daemon already running')
