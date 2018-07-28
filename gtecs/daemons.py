@@ -172,11 +172,14 @@ def start_daemon(daemon_ID):
 
     misc.python_command(process_path, '', **process_options)
 
-    time.sleep(2)
-    pid = misc.check_pid(daemon_ID, host)
-    if not pid:
-        raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
-    return 'Daemon started on {} (PID {})'.format(host, pid)
+    start_time = time.time()
+    while True:
+        pid = misc.check_pid(daemon_ID, host)
+        if pid:
+            return 'Daemon started on {} (PID {})'.format(host, pid)
+        if time.time() - start_time > 4:
+            raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
+        time.sleep(0.5)
 
 
 def ping_daemon(daemon_ID):
@@ -215,11 +218,14 @@ def shutdown_daemon(daemon_ID):
     except:
         pass
 
-    time.sleep(2)
-    pid = misc.check_pid(daemon_ID, host)
-    if pid:
-        raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
-    return 'Daemon shut down on {}'.format(host)
+    start_time = time.time()
+    while True:
+        pid = misc.check_pid(daemon_ID, host)
+        if not pid:
+            return 'Daemon shut down on {}'.format(host)
+        if time.time() - start_time > 4:
+            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+        time.sleep(0.5)
 
 
 def kill_daemon(daemon_ID):
@@ -231,11 +237,14 @@ def kill_daemon(daemon_ID):
 
     misc.kill_process(daemon_ID, host)
 
-    time.sleep(2)
-    pid = misc.check_pid(daemon_ID, host)
-    if pid:
-        raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
-    return 'Daemon killed on {}'.format(host)
+    start_time = time.time()
+    while True:
+        pid = misc.check_pid(daemon_ID, host)
+        if not pid:
+            return 'Daemon killed on {}'.format(host)
+        if time.time() - start_time > 4:
+            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+        time.sleep(0.5)
 
 
 def restart_daemon(daemon_ID, wait_time=2):
