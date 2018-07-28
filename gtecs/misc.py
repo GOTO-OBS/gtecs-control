@@ -307,6 +307,16 @@ def print_errors():
         pass
 
 
+@contextmanager
+def make_pid_file(pidname):
+    """A context manager create a pidfile for the daemons."""
+    try:
+        with pid.PidFile(pidname, piddir=params.CONFIG_PATH):
+            yield
+    except pid.PidFileError:
+        raise MultipleDaemonError('Daemon already running')
+
+
 def adz(num):
     num = repr(num)
     if len(num) == 1:

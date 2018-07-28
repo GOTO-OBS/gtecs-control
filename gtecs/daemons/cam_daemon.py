@@ -569,8 +569,6 @@ class CamDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    try:
-        with pid.PidFile('cam', piddir=params.CONFIG_PATH):
-            CamDaemon()._run()
-    except pid.PidFileError:
-        raise misc.MultipleDaemonError('Daemon already running')
+    daemon_ID = 'cam'
+    with misc.make_pid_file(daemon_ID):
+        CamDaemon()._run()

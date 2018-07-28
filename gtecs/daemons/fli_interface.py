@@ -246,9 +246,6 @@ class FLIDaemon(InterfaceDaemon):
 
 
 if __name__ == "__main__":
-    try:
-        intf = misc.find_interface_ID(params.LOCAL_HOST)
-        with pid.PidFile(intf, piddir=params.CONFIG_PATH):
-            FLIDaemon(intf)._run()
-    except pid.PidFileError:
-        raise misc.MultipleDaemonError('Daemon already running')
+    daemon_ID = misc.find_interface_ID(params.LOCAL_HOST)
+    with misc.make_pid_file(daemon_ID):
+        FLIDaemon(daemon_ID)._run()
