@@ -1,12 +1,10 @@
-#!/usr/bin/env python
 """
-The G-TeCS script to control operations of the observatory
+Master control program for the observatory
 """
 
 import os
 import sys
 import time
-import argparse
 import asyncio
 import functools
 import pkg_resources
@@ -1065,14 +1063,3 @@ def run(test=False, restart=False, late=False):
         print('Pilot done')
         send_slack_msg('{} pilot done'.format(params.TELESCOP))
         loop.close()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-t', '--test', action="store_true", default=False)
-    parser.add_argument('-r', '--restart', action="store_true", default=False)
-    parser.add_argument('-l', '--late', action="store_true", default=False)
-    args = parser.parse_args()
-
-    run(test=args.test, restart=args.restart, late=args.late)
