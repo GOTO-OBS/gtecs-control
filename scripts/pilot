@@ -7,7 +7,8 @@ import sys
 import argparse
 
 from gtecs import misc
-from gtecs import pilot
+from gtecs import errors
+from gtecs.pilot import run
 
 
 def query(command, args):
@@ -24,11 +25,11 @@ def query(command, args):
         args = parser.parse_args(args).__dict__
 
         with misc.make_pid_file('pilot'):
-            pilot.run(**args)
+            run(**args)
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_instructions():
