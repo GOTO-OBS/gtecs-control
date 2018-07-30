@@ -32,6 +32,13 @@ def query(command, args):
         with misc.make_pid_file('pilot'):
             run(**args)
 
+    elif command == 'ping':
+        pid = misc.get_pid('pilot')
+        if pid:
+            print('Pilot is running (PID {})'.format(pid))
+        else:
+            print('Pilot is not running')
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -43,9 +50,10 @@ def print_instructions():
           "",
           "Commands:",
           "   start [options]        start the pilot",
-          "         -r, --restart    skip the evening tasks and go straight to observing",
           "         -l, --late       run the evening tasks even if it's too late",
+          "         -r, --restart    skip the evening tasks and go straight to observing",
           "         -t, --test       start the pilot in testing mode",
+          "   ping                   check if the pilot is running",
           "   help                   print these instructions",
           sep='\n')
 
