@@ -7,6 +7,7 @@ import sys
 import argparse
 
 from gtecs import misc
+from gtecs import params
 from gtecs import errors
 from gtecs.pilot import run
 
@@ -46,6 +47,12 @@ def query(command, args):
 
         misc.kill_process('pilot')
 
+    elif command in ['log', 'tail']:
+        log_path = params.LOG_PATH + 'pilot.log'
+        tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+
+        misc.execute_long_command(tail_command)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -62,6 +69,7 @@ def print_instructions():
           "         -t, --test       start the pilot in testing mode",
           "   ping                   check if the pilot is running",
           "   kill                   kill the pilot",
+          "   log [tail args]        print pilot log (alias for tail)",
           "   help                   print these instructions",
           sep='\n')
 
