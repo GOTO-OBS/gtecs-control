@@ -6,6 +6,7 @@ The G-TeCS script to control operations of the observatory
 import os
 import sys
 import time
+import argparse
 import asyncio
 import functools
 import pkg_resources
@@ -1020,18 +1021,21 @@ class Pilot:
         self.log.info('cameras are cool')
 
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-t', '--test', action="store_true", default=False)
-    parser.add_argument('-r', '--restart', action="store_true", default=False)
-    parser.add_argument('-l', '--late', action="store_true", default=False)
-    args = parser.parse_args()
+def run(test=False, restart=False, late=False):
+    """Start the pilot and run until the ned of the night
+    Parameters
+    ----------
+    test : bool
+        run the pilot in test mode
+    restart : bool
+        skip the evening tasks and go straight to observing
+    late : bool
+        run the evening tasks even if it's too late
+    """
 
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
-    pilot = Pilot(testing=args.test)
+    pilot = Pilot(testing=test)
     pilot.assign_jobs()
 
     # start the recurrent tasks
@@ -1041,7 +1045,7 @@ if __name__ == "__main__":
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
         asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
-        asyncio.ensure_future(pilot.nightmarshal(args.restart, args.late)),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled jobs
     ])
 
     # keep the pilot runing until the end of the night
@@ -1061,3 +1065,14 @@ if __name__ == "__main__":
         print('Pilot done')
         send_slack_msg('{} pilot done'.format(params.TELESCOP))
         loop.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-t', '--test', action="store_true", default=False)
+    parser.add_argument('-r', '--restart', action="store_true", default=False)
+    parser.add_argument('-l', '--late', action="store_true", default=False)
+    args = parser.parse_args()
+
+    run(test=args.test, restart=args.restart, late=args.late)
