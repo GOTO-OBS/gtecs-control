@@ -39,6 +39,13 @@ def query(command, args):
         else:
             print('Pilot is not running')
 
+    elif command == 'kill':
+        if not misc.get_pid('pilot'):
+            print('Pilot is not running')
+            return
+
+        misc.kill_process('pilot')
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -54,6 +61,7 @@ def print_instructions():
           "         -r, --restart    skip the evening tasks and go straight to observing",
           "         -t, --test       start the pilot in testing mode",
           "   ping                   check if the pilot is running",
+          "   kill                   kill the pilot",
           "   help                   print these instructions",
           sep='\n')
 

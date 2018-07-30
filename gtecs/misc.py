@@ -21,7 +21,7 @@ from . import flags
 from .style import ERROR
 
 
-def kill_process(pidname, host):
+def kill_process(pidname, host='127.0.0.1'):
     """Kill any specified processes"""
     pid = get_pid(pidname, host)
 
