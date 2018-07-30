@@ -181,13 +181,13 @@ def print_errors():
 
 @contextmanager
 def make_pid_file(pidname):
-    """A context manager create a pidfile for the daemons."""
+    """A context manager create a pidfile."""
     try:
         with pid.PidFile(pidname, piddir=params.PID_PATH):
             yield
     except pid.PidFileError:
         # there can only be one
-        raise errors.MultipleDaemonError('Daemon already running')
+        raise errors.MultipleProcessError('Process "{}" already running'.format(pidname))
 
 
 def valid_ints(array, allowed):

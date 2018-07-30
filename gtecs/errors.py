@@ -14,8 +14,8 @@ class DaemonDependencyError(Exception):
     pass
 
 
-class MultipleDaemonError(Exception):
-    """To be used if multiple instances of a daemon are detected."""
+class MultipleProcessError(Exception):
+    """To be used if multiple instances of a daemon or script are detected."""
     pass
 
 

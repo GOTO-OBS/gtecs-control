@@ -23,7 +23,8 @@ def query(command, args):
         parser.add_argument('-l', '--late', action="store_true", default=False)
         args = parser.parse_args(args).__dict__
 
-        pilot.run(**args)
+        with misc.make_pid_file('pilot'):
+            pilot.run(**args)
 
     # Unrecognized function
     else:
