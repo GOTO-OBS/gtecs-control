@@ -2,16 +2,51 @@
 """
 A script to provide control over the pilot
 """
+
+import sys
 import argparse
 
+from gtecs import misc
 from gtecs import pilot
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-t', '--test', action="store_true", default=False)
-    parser.add_argument('-r', '--restart', action="store_true", default=False)
-    parser.add_argument('-l', '--late', action="store_true", default=False)
-    args = parser.parse_args()
 
-    pilot.run(test=args.test, restart=args.restart, late=args.late)
+def query(command, args):
+    # Command functions
+    if command in ['help', '?']:
+        print_instructions()
+
+    # Primary control
+    elif command == 'start':
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-t', '--test', action="store_true", default=False)
+        parser.add_argument('-r', '--restart', action="store_true", default=False)
+        parser.add_argument('-l', '--late', action="store_true", default=False)
+        args = parser.parse_args(args).__dict__
+
+        pilot.run(**args)
+
+    # Unrecognized function
+    else:
+        raise misc.InputError('Unrecognized command "{}"'.format(command))
+
+
+def print_instructions():
+    print("Usage: pilot command [options]",
+          "The pilot is the master control program for the observatory.",
+          "",
+          "Commands:",
+          "   start [options]        start the pilot",
+          "         -r, --restart    skip the evening tasks and go straight to observing",
+          "         -l, --late       run the evening tasks even if it's too late",
+          "         -t, --test       start the pilot in testing mode",
+          "   help                   print these instructions",
+          sep='\n')
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print_instructions()
+    else:
+        command, *args = sys.argv[1:]
+        with misc.print_errors():
+            query(command, args)
