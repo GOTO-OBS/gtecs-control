@@ -23,8 +23,15 @@ def query(script, args):
         for s in sorted(SCRIPT_NAMES):
                 print('\t', s)
     else:
-        with misc.make_pid_file('obs_script'):
-            command =  ' '.join((sys.executable, SCRIPT_PATH+'/'+script+'.py', *args))
+        for name in sorted(SCRIPT_NAMES):
+            pid = misc.get_pid(name)
+            if pid:
+                print('An observing script ({}) is already running (PID {})'.format(name, pid))
+                return
+
+        with misc.make_pid_file(script):
+            script_file = '{}/{}.py'.format(SCRIPT_PATH, script)
+            command =  ' '.join((sys.executable, script_file, *args))
             misc.execute_long_command(command)
 
 
@@ -36,7 +43,7 @@ def print_instructions():
             script_docs[s] = (lines[1].strip(), lines[2].strip())
 
     print('Usage: obs_script <script name> [args]')
-    print('Valid observation scripts:')
+    print('Valid observing scripts:')
     for s in sorted(SCRIPT_NAMES):
         print('  - {: <26} '.format(script_docs[s][0]), script_docs[s][1])
 
