@@ -11,6 +11,7 @@ import Pyro4
 import json
 
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs import style
 from gtecs import flags
@@ -26,7 +27,7 @@ def query(command, args, daemon_ID):
         print_instructions()
 
     elif command == 'i':
-        raise misc.InputError('Already in interactive mode')
+        raise errors.InputError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -56,7 +57,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info_type = 'verbose'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         # print response
@@ -94,7 +95,7 @@ def query(command, args, daemon_ID):
             side = args[0]
             fraction = float(args[1])
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
         print(reply)
@@ -114,10 +115,10 @@ def query(command, args, daemon_ID):
             side = args[0]
             fraction = float(args[1])
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # check arguments
         if not 0 < fraction <= 1:
-            raise misc.InputError('Fraction must be between 0 and 1')
+            raise errors.InputError('Fraction must be between 0 and 1')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
         print(reply)
@@ -132,10 +133,10 @@ def query(command, args, daemon_ID):
         if len(args) == 1:
             command = args[0]
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # check arguments
         if not command.lower() in ['on', 'off']:
-            raise misc.InputError("Command must be 'on' or 'off'")
+            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         reply = daemons.daemon_function(daemon_ID, 'override_dehumidifier', [command])
         print(reply)
@@ -152,14 +153,14 @@ def query(command, args, daemon_ID):
                 print('Alarm is currently DISABLED for manual movements')
                 return
         elif args[0] not in ['on', 'off']:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # command
         if args[0] == 'on':
             status.alarm = True
             print('Dome alarm emabled')
         else:
             if status.mode == 'robotic':
-                raise misc.HardwareStatusError('Cannot disable alarm in robotic mode')
+                raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
             else:
                 status.alarm = False
                 print('Alarm disabled: The alarm will not sound when using the dome commands')
@@ -177,7 +178,7 @@ def query(command, args, daemon_ID):
                 print('It will re-enable when the dome is next fully closed')
                 return
         elif args[0] not in ['on', 'off']:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # command
         if args[0] == 'on':
             status.autoclose = True
@@ -189,7 +190,7 @@ def query(command, args, daemon_ID):
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(info):

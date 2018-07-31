@@ -1,0 +1,1065 @@
+"""
+Master control program for the observatory
+"""
+
+import os
+import sys
+import time
+import asyncio
+import functools
+import pkg_resources
+
+from astropy.time import Time
+from astropy import units as u
+
+from obsdb import (markJobCompleted, markJobAborted,
+                   markJobInterrupted, markJobRunning)
+
+from gtecs.asyncio_protocols import SimpleProtocol
+from gtecs import logger
+from gtecs import params
+from gtecs.slack import send_slack_msg
+from gtecs.misc import execute_command, send_email
+from gtecs.astronomy import startTime, localMidnight, nightStarting
+from gtecs.astronomy import sun_alt as get_sun_alt
+from gtecs.flags import Conditions, Status
+from gtecs.observing import (filters_are_homed, cameras_are_cool,
+                             check_schedule, get_pointing_status)
+from gtecs.hardware_wrappers import (CameraMonitor, FilterWheelMonitor,
+                                     MountMonitor, DomeMonitor,
+                                     ExposureQueueMonitor, FocuserMonitor)
+
+
+SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
+
+
+class Pilot:
+    """Run the scheduler and telescope.
+
+    The Pilot uses asyncio to run several tasks concurrently,
+    including checking the Scheduler for the best job to
+    execute at the moment and then starting an observing job.
+
+    Other tasks include, but are not limited to, logging the status,
+    checking for midday (when the pilot shuts down), and checking
+    to see if robotic mode is disabled, in which case the Pilot
+    should do nothing.
+
+    The most important jobs the pilot has check the observing conditions
+    and the emergency shutdown flags. These will close the dome and park
+    the mount if necessary.
+
+    The idea behind this version of the Pilot is that it is
+    pretty dumb, and simply hands off complicated jobs to
+    external scripts, which is runs as a subprocess.
+    """
+    def __init__(self, testing=False):
+        # get a logger for the pilot
+        self.log = logger.getLogger('pilot',
+                                    log_stdout=True,
+                                    log_to_file=params.FILE_LOGGING,
+                                    log_to_stdout=params.STDOUT_LOGGING)
+        self.log.info('Pilot started')
+        send_slack_msg('{} pilot started'.format(params.TELESCOP))
+
+        # current and next job from scheduler
+        self.currentID = None
+        self.currentMinTime = None
+        self.currentPriority = None
+        self.currentStartTime = None
+        self.newID = None
+        self.newMinTime = None
+        self.newPriority = None
+
+        # for communicating with external processes
+        self.running_script_transport = None
+        self.running_script_protocol = None
+        # future to store result of running script when it's done
+        self.running_script_result = None
+
+        # a list of all running tasks to cancel at end of night
+        # also used to pause and resume operations?
+        self.running_tasks = []
+
+        # lists of routine jobs. Each job a dict of name, protocol, cmd and sun_alt
+        self.daytime_jobs = []  # before dome opens
+        self.evening_jobs = []  # after dome opens
+        self.morning_jobs = []  # after observing
+        self.startup_complete = False
+        self.ready_to_observe = False
+        self.observing = False
+        self.mount_is_tracking = False   # should the mount be tracking?
+        self.dome_is_open = False        # should the dome be open?
+
+        # hardware to keep track of and fix if necessary
+        self.hardware = {'dome':  DomeMonitor(self.log),
+                         'mnt':   MountMonitor(self.log),
+                         'cams':  CameraMonitor(self.log),
+                         'filts': FilterWheelMonitor(self.log),
+                         'focs':  FocuserMonitor(self.log),
+                         'exq':   ExposureQueueMonitor(self.log),
+                         }
+
+        # override and conditions flags
+        self.status = Status()
+        self.conditions = Conditions()
+
+        # dictionary of reasons to pause
+        self.whypause = {'hw': False, 'cond': False, 'manual': False}
+        self.time_paused = 0
+
+        # dome check flags
+        self.dome_confirmed_closed = False
+        self.close_command_time = 0.
+
+        self.initial_hardware_check_complete = False
+        self.initial_scheduler_check_complete = False
+
+        # flag for daytime testing
+        self.testing = testing
+
+        # flag to shutdown early (in emergencies)
+        self.shutdown_now = 0
+
+
+    # Check routines
+    async def check_scheduler(self):
+        """Check scheduler and update current job every 10 seconds."""
+        self.log.info('scheduler check routine initialised')
+
+        sleep_time = 10
+        while True:
+            if not self.observing:
+                self.log.debug('scheduler checks suspended when not observing')
+                await asyncio.sleep(30)
+                continue
+
+            if self.paused:
+                self.log.debug('scheduler checks suspended while paused')
+                await asyncio.sleep(10)
+                continue
+
+            # check scheduler daemon
+            self.log.debug('checking scheduler')
+
+            check_results = check_schedule(Time.now(), True)
+            self.newID, self.newPriority, self.newMinTime = check_results
+
+            if self.newID != self.currentID:
+                self.log.info('scheduler check: NEW JOB {}'.format(self.newID))
+            else:
+                self.log.info('scheduler check: continue {}'.format(self.currentID))
+
+            self.initial_scheduler_check_complete = True
+            await asyncio.sleep(sleep_time)
+
+
+    async def check_hardware(self):
+        """Continuously monitor hardware and try to fix any issues."""
+        self.log.info('hardware check routine initialised')
+
+        sleep_time = 60
+        while True:
+            if self.status.mode == 'manual':
+                self.log.debug('hardware checks suspended in manual mode')
+                await asyncio.sleep(sleep_time)
+                continue
+
+            if not self.startup_complete:
+                self.log.debug('hardware checks suspended until after startup')
+                await asyncio.sleep(sleep_time)
+                continue
+
+            error_count = 0
+            self.log.debug('running hardware checks')
+            log_str = 'hardware check results: '
+            for device in self.hardware:
+                num_errs, err_list = self.hardware[device].check()
+                if num_errs > 0:
+                    log_str += ' {},{:.0f},{!r}'.format(str(device), num_errs, err_list)
+                error_count += num_errs
+                if num_errs > 0:
+                    self.log.warn('attempting recovery: {}'.format(device))
+                    self.hardware[device].recover()
+
+            if error_count > 0:
+                sleep_time = 10  # check more frequently till fixed
+                self.log.warn(log_str)
+                await self.handle_pause('hw', True)
+            else:
+                sleep_time = 60
+                self.log.info(log_str + 'AOK')
+                await self.handle_pause('hw', False)
+
+                # only allow the night marshal to open after a
+                # successful hardware check
+                self.initial_hardware_check_complete = True
+
+            # save error count so we dont restart whilst broken
+            self.error_count = error_count
+
+            await asyncio.sleep(sleep_time)
+
+
+    async def check_flags(self):
+        """Check the conditions and override flags."""
+        self.log.info('flags check routine initialised')
+
+        sleep_time = 10
+        while True:
+            # handle overrides first
+            self.status = Status()
+            if self.status.mode == 'manual':
+                await self.handle_pause('manual', True)
+            else:
+                await self.handle_pause('manual', False)
+
+            # now handle conditions
+            self.conditions = Conditions()
+            if self.conditions.bad:
+                self.log.warn('Conditions bad: ({})'.format(self.conditions.bad_flags))
+                await self.handle_pause('cond', True)
+            else:
+                await self.handle_pause('cond', False)
+
+            # emergency file
+            if self.status.emergency_shutdown:
+                self.log.warn('Conditions critical: ({})'.format(self.status.emergency_shutdown_reasons))
+                reasons = ', '.join(self.status.emergency_shutdown_reasons)
+                asyncio.ensure_future(self.emergency_shutdown(reasons))
+
+            # print if we're paused
+            if self.paused:
+                reasons = [k for k in self.whypause if self.whypause[k]]
+                self.log.info('pilot paused ({})'.format(', '.join(reasons)))
+
+            await asyncio.sleep(sleep_time)
+
+
+    async def check_dome(self):
+        """Double check that dome is closed if it should be."""
+        self.log.info('dome check routine initialised')
+
+        sleep_time = 10
+        while True:
+            if self.status.mode == 'manual':
+                self.log.debug('dome checks suspended in manual mode')
+                await asyncio.sleep(10)
+                continue
+
+            if not self.dome_is_open and not self.dome_confirmed_closed:
+                if self.dome_status == 'closed':
+                    # phew
+                    self.dome_confirmed_closed = True
+                    self.log.info('dome confirmed closed')
+                elif time.time() - self.close_command_time > 65.:
+                    self.log.warn('dome not closed. Trying again...')
+                    self.close_dome()
+            await asyncio.sleep(sleep_time)
+
+
+    async def check_time_paused(self):
+        self.log.info('pause check routine initialised')
+
+        sleep_time = 60
+        while True:
+            if self.paused:
+                self.time_paused += sleep_time
+            await asyncio.sleep(sleep_time)
+
+
+    # Night marshal
+    async def nightmarshal(self, restart=False, late=False):
+        """
+        The Night Marshal starts tasks at the right time.
+
+        It does this by polling the sun's altitude.
+
+        Parameters
+        ----------
+        restart : bool
+            If true, we will skip startup jobs and get straight to observing
+
+        late : bool
+            If true, we will try to do evening jobs even if it's too late
+            (note FLATS will fail anyway)
+        """
+        self.log.info('night marshal initialised')
+
+        # if paused due to manual mode we should not do anything
+        while self.whypause['manual']:
+            self.log.info('in manual mode, tasks suspended')
+            await asyncio.sleep(30)
+
+        # Startup: do this always, unless we're restarting
+        if not restart:
+            if not self.startup_complete:
+                await self.startup()
+        self.startup_complete = True
+
+        # Daytime jobs: do these even in bad weather
+        if not restart:
+            await self.run_through_jobs(self.daytime_jobs, rising=False,
+                                        ignore_conditions=False,
+                                        ignore_late=late)
+
+        # make sure filters are homed and cams are cool, in case of restart
+        await self.prepare_for_images_async()
+
+        # wait for the right sunalt to open dome
+        await self.wait_for_sunalt(0, 'OPEN')
+
+        # no point opening if we are paused due to bad weather or hw fault
+        while self.paused or not self.initial_hardware_check_complete:
+            if self.paused:
+                self.log.info('opening suspended until pause is cleared')
+            if not self.initial_hardware_check_complete:
+                self.log.info('opening suspended until successful hardware check')
+            await asyncio.sleep(30)
+
+        # OK - open the dome and get ready to observe
+        self.log.info('ready to observe')
+        self.ready_to_observe = True
+        await self.open_dome()
+        await self.unpark_mount()
+
+        # Evening jobs
+        if not restart:
+            await self.run_through_jobs(self.evening_jobs, rising=False,
+                                        ignore_late=late)
+
+        # Wait for darkness
+        await self.wait_for_sunalt(-15, 'OBS')
+
+        # Start observing: will automatically stop at the target sun alt
+        self.observing = True
+        if self.testing:
+            await self.observe(until_sun_alt=90)
+        else:
+            await self.observe(until_sun_alt=-15)
+        self.observing = False
+
+        # Morning jobs
+        await self.run_through_jobs(self.morning_jobs, rising=True,
+                                    ignore_late=False)
+
+        # Finished. Set flag so dome does not reopen
+        self.ready_to_observe = False
+
+        self.log.info('night marshal completed')
+
+
+    # External scripts
+    async def start_script(self, name, protocol, cmd):
+        """Launch an external Python script.
+
+        Parameters
+        ----------
+        name : str
+            A name for this process. Prepended to output from process.
+        protocol : `pilot_protocols.PilotJobProtocol`
+            Protocol used to process output from Process
+        cmd : list
+            A list of the command to be executed with Python.
+            The first element of the list is the Python script to execute,
+            any additional elements are the arguments to the script.
+        """
+        # first cancel any currently running script
+        await self.cancel_running_script(why='new script starting')
+
+        # create a future to store result in
+        self.running_script_result = asyncio.Future()
+
+        # fill the name, future and logName arguments of protocol(...)
+        # using functools.partial
+        factory = functools.partial(protocol, name, self.running_script_result,
+                                    'pilot')
+        loop = asyncio.get_event_loop()
+
+        # create the process coroutine which will return
+        # a 'transport' and 'protocol' when scheduled
+        proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
+                                    stdin=None)
+
+        # start the process and get transport and protocol for control of it
+        self.log.info("starting {}".format(name))
+        self.running_script_transport, self.running_script_protocol = await proc
+
+        # process started, await completion
+        retcode, result = await self.running_script_result
+
+        # done
+        self.log.info("finished {}".format(name))
+        return retcode, result
+
+
+    async def cancel_running_script(self, why):
+        """Cancel the currently running Python script.
+
+        This does nothing if the script is already done.
+        """
+        if self.running_script_transport is not None:
+            # check job is still running
+            if self.running_script_transport.get_returncode() is None:
+                name = self.running_script_protocol.jobName
+                self.log.info('killing {}, reason: "{}"'.format(name, why))
+
+                execute_command('exq clear')
+                execute_command('cam abort')
+
+                # if we were observing, mark as aborted
+                if name == 'OBS' and self.currentID is not None:
+                    markJobAborted(self.currentID)
+
+                # check job is still running again, just in case
+                try:
+                    self.running_script_transport.terminate()
+                    await self.running_script_result
+                except:
+                    self.log.info('{} already exited?'.format(name))
+
+                self.log.info("killed {}".format(name))
+
+
+    # Daily jobs
+    def assign_jobs(self):
+        # daytime jobs: done before opening the dome
+        darks = {'name': 'DARKS',
+                 'sunalt': 8,
+                 'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
+                 'args': [str(params.NUM_DARKS)],
+                 'protocol': SimpleProtocol}
+
+        self.daytime_jobs = [darks]
+
+        # evening jobs: done after opening the dome, before observing starts
+        flats_e = {'name': 'FLATS',
+                   'sunalt': -2,
+                   'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
+                   'args': ['EVE'],
+                   'protocol': SimpleProtocol}
+        autofoc = {'name': 'FOC',
+                   'sunalt': -11,
+                   'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
+                   'args': [],
+                   'protocol': SimpleProtocol}
+
+        self.evening_jobs = [flats_e, autofoc]
+
+        # morning jobs: done after observing, before closing the dome
+        foc_run = {'name': 'FOCRUN',
+                   'sunalt': -14.5,
+                   'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
+                   'args': ['1000', '100', 'L', 'n'],
+                   'protocol': SimpleProtocol}
+        flats_m = {'name': 'FLATS',
+                   'sunalt': -10,
+                   'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
+                   'args': ['MORN'],
+                   'protocol': SimpleProtocol}
+
+        self.morning_jobs = [foc_run, flats_m]
+
+
+    async def run_through_jobs(self, job_list, rising=False,
+                               ignore_conditions=False,
+                               ignore_late = False):
+        """
+        Just pop jobs off a list and run them at correct sun_alt
+        """
+        while job_list:
+            job = job_list.pop(0)
+            name = job['name']
+            sunalt = job['sunalt']
+            cmd = [job['script'], *job['args']]
+            protocol = job['protocol']
+
+            self.log.info('next job: {}'.format(name))
+
+            # wait for the right sun altitude
+            OK = await self.wait_for_sunalt(sunalt, name, rising, ignore_late)
+
+            if not OK:
+                # too late
+                self.log.warn('too late to start {}'.format(name))
+                continue
+
+            elif ((self.whypause['hw']) or
+                  (self.whypause['manual']) or
+                  (self.whypause['cond'] and not ignore_conditions)):
+                # need to check if we're paused
+                # if ignore_conditions (daytime jobs) we can start even if
+                # paused for conditions, but not for other reasons
+                self.log.warn('currently paused, will not start {}'.format('name'))
+                await asyncio.sleep(15)
+                continue
+
+            elif self.testing or ignore_late:
+                # wait for each script to finish
+                await self.start_script(name, protocol, cmd)
+
+            else:
+                # don't wait for script finish, but start each one when the
+                # sun alt says so, cancelling running script if not done
+                asyncio.ensure_future(self.start_script(name, protocol, cmd))
+
+            await asyncio.sleep(1)
+
+
+    async def wait_for_sunalt(self, sun_alt, why,
+                              rising=False, ignore_late=False):
+        """This coroutine will return when the sun reaches the given altitude.
+
+        Parameters
+        ----------
+        sun_alt : float
+            sun altitude in degrees to wait for
+        why : str
+            a brief reason why we're waiting, helpful for the log
+        rising : bool
+            whether the sun is rising or setting
+        ignore_late : bool, optional
+            if true, will ignore checks for if you're too late
+            (will still wait if you're too early)
+
+        Returns
+        --------
+        OK : bool
+            True if you are safe to go, False if we think you are too late
+        """
+        # if the pilot is in testing mode then return immediately
+        if self.testing:
+            self.log.info('in testing mode, start {} immediately'.format(why))
+            return True
+
+        self.log.info('waiting for {}'.format(why))
+        now = Time.now()
+
+        # check if we're on the wrong side of midnight
+        midnight = localMidnight(nightStarting())
+        if not rising and now > midnight and not ignore_late:
+            # wow, you're really late
+            return False
+        elif rising and now < midnight:
+            return False
+
+        # check if we've missed the sun (with a 5 degree margin)
+        if not ignore_late:
+            sun_alt_now = get_sun_alt(now)
+            if not rising and sun_alt_now < (sun_alt - 5):
+                # missed your chance
+                return False
+            elif rising and sun_alt_now > (sun_alt + 5):
+                return False
+
+        # we're on time, so wait until the sun is in the right position
+        sleep_time = 60
+        while True:
+            now = Time.now()
+            sun_alt_now = get_sun_alt(now)
+            self.log.info('sun alt = {:.1f}, waiting for {:.1f} ({})'.format(sun_alt_now, sun_alt, why))
+
+            # has our watch ended?
+            if rising and sun_alt_now > sun_alt:
+                break
+            elif not rising and sun_alt_now < sun_alt:
+                break
+
+            await asyncio.sleep(sleep_time)
+
+        self.log.info('reached sun alt target, ready for {}'.format(why))
+        return True
+
+
+    async def observe(self, until_sun_alt=-15):
+        """Observe until further notice.
+
+        Parameters
+        ----------
+        until_sun_alt : float
+            sun altitude at which to stop observing
+        """
+        self.log.info('observing')
+
+        sleep_time = 5
+        while True:
+            # do nothing if paused
+            if self.paused:
+                await asyncio.sleep(30)
+                continue
+
+            # no point observing if we haven't checked the scheduler yet
+            while not self.initial_scheduler_check_complete:
+                self.log.info('waiting for first scheduler check')
+                await asyncio.sleep(30)
+                continue
+
+            # should we stop for the sun?
+            now = Time.now()
+            midnight = localMidnight(nightStarting())
+            sun_alt_now = get_sun_alt(now)
+            if now > midnight and sun_alt_now > until_sun_alt:
+                break
+
+            # See if a new target has arrived and mark job appropriately
+            # There are 6 options (technically 5, bottom left & bottom right
+            # are the same...):
+            #               || newID is  |    newID is    | newID  |
+            #               ||  same as  |  different to  |   is   |
+            #               || currentID |   currentID    |  None  |
+            #  -------------++-----------+----------------+--------+
+            #     currentID || carry on  | stop currentID |  park  |
+            #   is not None || currentID | & start newID  |        |
+            #  -------------++-----------+----------------+--------+
+            #     currentID ||   stay    |     start      |  stay  |
+            #       is None ||  parked   |     newID      | parked |
+
+            if self.newID == self.currentID:
+                if self.currentID is not None:
+                    now = time.time()
+                    elapsed = now - self.currentStartTime
+                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
+                                   self.currentID, elapsed, self.currentMinTime))
+                else:
+                    self.log.warn('nothing to observe!')
+                    send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
+
+            elif self.newID is not None:
+                if self.currentID is not None:
+                    self.log.info('got new job from scheduler {}'.format(self.newID))
+
+                    # Get current job status
+                    currentStatus = get_pointing_status(self.currentID)
+                    self.log.info('current job status = {}'.format(currentStatus))
+
+                    # Check if we're interupting a still ongoing job and need
+                    # to mark it as interupted. The alternative is that the
+                    # OBS script has finished which means it will have already
+                    # been marked as completed.
+                    if (self.running_script_transport is not None and
+                        self.running_script_transport.get_returncode() is None and
+                        self.running_script_protocol.jobName == 'OBS' and
+                        currentStatus != 'completed'):
+
+                        # cancel the script first (will mark as aborted)
+                        await self.cancel_running_script(why='new job')
+
+                        # now correctly mark it as completed or interupted
+                        now = time.time()
+                        elapsed = now - self.currentStartTime - self.time_paused
+
+                        self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
+                                      self.currentMinTime, elapsed))
+                        if elapsed > self.currentMinTime:
+                            markJobCompleted(self.currentID)
+                            self.log.info('job completed: {}'.format(self.currentID))
+                        else:
+                            markJobInterrupted(self.currentID)
+                            self.log.info('job interrupted: {}'.format(self.currentID))
+
+                else:
+                    self.log.info('got job from scheduler {}'.format(self.newID))
+                    # we weren't doing anything, which implies we were parked
+                    await self.unpark_mount()
+
+                # start the new job
+                self.log.info('starting Job {}'.format(self.newID))
+
+                script = os.path.join(SCRIPT_PATH, 'observe.py')
+                args = [str(self.newID), str(int(self.newMinTime))]
+                cmd = [script, *args]
+                asyncio.ensure_future(self.start_script('OBS', SimpleProtocol, cmd))
+
+                markJobRunning(self.newID)
+
+                self.currentStartTime = time.time()
+                self.currentID = self.newID
+                self.currentPriority = self.newPriority
+                self.currentMinTime = self.newMinTime
+                self.time_paused = 0
+
+            else:
+                self.log.info('nothing to do, parking mount')
+                self.park_mount()
+                execute_command('exq clear')
+                execute_command('cam abort')
+                self.currentID = None
+                self.currentPriority = None
+                self.currentMinTime = None
+                # If we've interrupted a job it needs to be cancelled,
+                # this will mark it as aborted
+                await self.cancel_running_script('obs parking')
+
+            await asyncio.sleep(sleep_time)
+
+        self.log.info('observing completed!')
+
+        # finish observing
+        execute_command('exq clear')
+        execute_command('cam abort')
+
+        # If we've interrupted a job it needs to be cancelled,
+        # this will mark it as aborted
+        await self.cancel_running_script('obs finished')
+        self.currentID = None
+        self.currentPriority = None
+        self.currentMinTime = None
+
+
+    # Pausing
+    @property
+    def paused(self):
+        return True in self.whypause.values()
+
+
+    async def handle_pause(self, reason, pause):
+        """Called when there may be a change in pause status.
+
+        This checks all the other flags and the current pause status.
+        If appropriate it pauses or unpauses operations
+
+        Parameters
+        ----------
+        reason : string
+            the reason why we might pause or unpause
+            one of 'manual', 'cond' or 'hw'
+        pause : bool
+            does reason suggest a pause (True) or unpause (False)
+        """
+        if pause and not self.whypause[reason]:
+            # we can set this here because we want to pause right away
+            self.whypause[reason] = True
+
+            if reason == 'cond':
+                msg = 'Pausing operations due to bad conditions ({})'.format(self.conditions.bad_flags)
+                self.log.warn(msg)
+
+                if self.ready_to_observe:
+                    # only need to stop scripts if the dome is open
+                    # (this way we don't kill darks if the weather goes bad)
+                    execute_command('exq pause')
+                    execute_command('cam abort')
+                    await self.cancel_running_script('conditions bad')
+
+                # always make sure we're closed and parked
+                self.close_dome()
+                self.park_mount()
+
+            elif reason == 'hw':
+                msg = 'Pausing operations due to hardware fault'
+                self.log.warn(msg)
+
+                if self.running_script_protocol is not None:
+                    if self.running_script_protocol.jobName == 'STARTUP':
+                        # don't cancel startup due to hardware issue
+                        pass
+                    elif self.running_script_protocol.jobName == 'OBS':
+                        # just pause the queue until fixed
+                        execute_command('exq pause')
+                        execute_command('cam abort')
+                    else:
+                        # other scripts cannot handle losing frames
+                        execute_command('exq clear')
+                        execute_command('cam abort')
+                        await self.cancel_running_script('hardware fault')
+
+            elif reason == 'manual':
+                msg = 'Pausing operations due to manual override'
+                self.log.warn(msg)
+
+                # don't actually kill anything, coroutines will pause themselves
+                self.log.info('pausing for pilot for manual override')
+                self.log.info('current job will continue')
+
+        # does this change suggest a global unpause?
+        unpause = not any([self.whypause[key] for key in self.whypause.keys()
+                           if key != reason]) and not pause
+        if unpause and self.paused:
+            # OK, we can resume
+            self.log.warn('resuming operations')
+            if self.ready_to_observe:
+                if not self.dome_is_open:
+                    # open the dome if it's closed
+                    # this way wait and don't resume until the dome is open
+                    await self.open_dome()
+                if not self.mount_is_tracking:
+                    # unpark the mount if it's parked
+                    # this way we don't unpark if we're still observing,
+                    # which can happen if we paused manually
+                    await self.unpark_mount()
+                execute_command('exq resume')
+
+        # finally, change global pause status by updating flag
+        # by putting this last, we dont unpause until the dome
+        # is actually open or HW is fixed etc.
+        self.whypause[reason] = pause
+
+
+    # Night countdown
+    async def night_countdown(self, stop_time):
+        """Function returns when night is done.
+
+        This function simply keeps running until the stop_time is reached.
+        The use of such a function is that it can be added to the list
+        of tasks supplied to `~asyncio.BaseEventLoop.run_until_complete`
+        and the loop will keep going until the stop_time is reached.
+
+        Parameters
+        -----------
+        stop_time : `~astropy.time.Time`
+            the time to stop the Pilot
+        """
+        self.log.info('night countdown initialised')
+
+        sleep_time = 60
+        while True:
+            now = Time.now()
+            # check if we have reached stop time
+            if now > stop_time:
+                self.log.info('stop time reached, night is over')
+                await self.shutdown()
+                break
+
+            # check if we need to stop early
+            if self.shutdown_now:
+                self.log.warn('stopping early due to emergency shutdown')
+                break
+
+            stop_time.precision = 0
+            delta = stop_time - now
+            status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta.to('min').value)
+            self.log.info(status_str)
+
+            await asyncio.sleep(sleep_time)
+
+        self.log.info('finished for tonight')
+
+
+    # Startup and shutdown commands
+    async def startup(self):
+        """Start up the system.
+
+        Runs the startup script, and sets the startup_complete flag
+        """
+
+        # start startup script
+        self.log.info('running startup script')
+        cmd=[os.path.join(SCRIPT_PATH, 'startup.py')]
+        retcode, result = await self.start_script('STARTUP', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('STARTUP ended abnormally')
+
+        self.log.info('startup process complete')
+
+
+    async def shutdown(self):
+        """Shut down the system.
+
+        Close any running scripts and jobs, run the shutdown script, ensure the
+        dome is closed and finish.
+        """
+
+        # first, cancel any currently running script
+        await self.cancel_running_script(why='shutdown started')
+
+        # close any running tasks, so check_flags
+        # doesn't initiate two shutdowns
+        self.log.warn('cancelling running tasks')
+        for task in self.running_tasks:
+            task.cancel()
+
+        # start shutdown script
+        self.log.warn('running shutdown script')
+        cmd=[os.path.join(SCRIPT_PATH, 'shutdown.py')]
+        retcode, result = await self.start_script('SHUTDOWN', SimpleProtocol, cmd)
+        if retcode != 0:
+            self.log.warn('SHUTDOWN ended abnormally')
+
+        # next and most important.
+        # NEVER STOP WITHOUT CLOSING THE DOME!
+        # EMAIL IF DOME WON'T CLOSE
+        self.log.warn('making sure dome is closed')
+        await self.close_dome_confirm()
+
+        self.log.warn('shutdown process complete')
+
+
+    async def emergency_shutdown(self, why):
+        """Send a warning and then shut down."""
+        self.log.warn('performing emergency shutdown: {}'.format(why))
+        send_slack_msg('{} pilot is performing an emergency shutdown: {}'.format(
+                       params.TELESCOP, why))
+
+        self.log.warn('closing dome immediately')
+        self.close_dome()
+
+        self.log.warn('running shutdown')
+        await self.shutdown()
+
+        # end the night countdown early to close the pilot
+        self.shutdown_now = 1
+
+
+    # Hardware commands
+    @property
+    def dome_status(self):
+        try:
+            dome_info = self.hardware['dome'].getInfo()
+            if dome_info['dome'] == 'closed':
+                return 'closed'
+            elif (dome_info['north'] == 'full_open' and dome_info['south'] == 'full_open'):
+                return 'full_open'
+            else:
+                return 'part_open'
+        except:
+            return 'err'
+
+
+    @property
+    def mount_status(self):
+        try:
+            mnt_info = self.hardware['mnt'].getInfo()
+            if mnt_info['status'] in ['Parked', 'Stopped']:
+                return 'Parked'
+            elif mnt_info['status'] in ['Slewing', 'Parking']:
+                return 'Moving'
+            elif mnt_info['status'] in ['Tracking']:
+                return 'Tracking'
+            else:
+                return 'err'
+        except:
+            return 'err'
+
+
+    async def open_dome(self):
+        self.log.warn('opening dome')
+        execute_command('dome open')
+        self.dome_is_open = True
+        self.dome_confirmed_closed = False
+        self.hardware['dome'].setMode('open')
+        while self.dome_status != 'full_open':
+            self.log.info('dome is {}'.format(self.dome_status))
+            await asyncio.sleep(5)
+        self.log.info('dome confirmed open')
+
+
+    def close_dome(self):
+        self.log.warn('closing dome')
+        execute_command('dome close')
+        self.dome_is_open = False
+        self.hardware['dome'].setMode(None)
+        self.dome_confirmed_closed = False
+        self.close_command_time = time.time()
+
+
+    async def close_dome_confirm(self, mins_until_panic=10):
+        """Close the dome, make sure it's closed and alert if it won't.
+
+        Parameters
+        ----------
+        mins_until_panic : float
+            time in minutes to wait before emailing
+        """
+        start_time = time.time()
+        self.close_dome()
+
+        while self.dome_status != 'closed':
+            self.log.info('dome is {}'.format(self.dome_status))
+
+            # panic time
+            elapsed_time = time.time() - start_time
+            if elapsed_time / 60. > mins_until_panic:
+                msg = "IMPORTANT: {} pilot cannot close dome. Take action immediately.".format(params.TELESCOP)
+                send_email(message=msg)
+                send_slack_msg(msg)
+
+            await asyncio.sleep(5)
+
+        self.dome_confirmed_closed = True
+        self.log.info('dome confirmed closed')
+
+
+    async def unpark_mount(self):
+        self.log.warn('unparking mount')
+        execute_command('mnt unpark')
+        self.mount_is_tracking = True
+        self.hardware['mnt'].setMode('tracking')
+        # slew to above horizon, to stop errors
+        await asyncio.sleep(5)
+        execute_command('mnt slew_altaz 50 0')
+        while self.mount_status != 'Tracking':
+            self.log.info('mount is {}'.format(self.mount_status))
+            await asyncio.sleep(2)
+        self.log.info('mount confirmed tracking')
+
+
+    def park_mount(self):
+        self.log.warn('parking mount')
+        if params.FREEZE_DEC:
+            execute_command('mnt stop')
+        else:
+            execute_command('mnt park')
+        self.mount_is_tracking = False
+        self.hardware['mnt'].setMode('parked')
+
+
+    async def prepare_for_images_async(self):
+        # Home the filter wheels
+        if not filters_are_homed():
+            execute_command('filt home')
+            while not filters_are_homed():
+                asyncio.sleep(1)
+        self.log.info('filters are homed')
+
+        # Bring the CCDs down to temperature
+        if not cameras_are_cool():
+            execute_command('cam temp {}'.format(params.CCD_TEMP))
+            while not cameras_are_cool():
+                asyncio.sleep(1)
+        self.log.info('cameras are cool')
+
+
+def run(test=False, restart=False, late=False):
+    """Start the pilot and run until the ned of the night
+    Parameters
+    ----------
+    test : bool
+        run the pilot in test mode
+    restart : bool
+        skip the evening tasks and go straight to observing
+    late : bool
+        run the evening tasks even if it's too late
+    """
+
+    loop = asyncio.get_event_loop()
+    loop.set_debug(False)
+    pilot = Pilot(testing=test)
+    pilot.assign_jobs()
+
+    # start the recurrent tasks
+    pilot.running_tasks.extend([
+        asyncio.ensure_future(pilot.check_hardware()),  # periodically check hardware
+        asyncio.ensure_future(pilot.check_time_paused()),  # keep track of time paused
+        asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
+        asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
+        asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
+        asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled jobs
+    ])
+
+    # keep the pilot runing until the end of the night
+    if pilot.testing:
+        sunrise = Time.now() + 15*u.minute
+    else:
+        date = nightStarting()
+        sunrise = startTime(date, 0*u.deg, eve=False)
+    stop_signal = pilot.night_countdown(stop_time=sunrise)
+
+    try:
+        # actually start the event loop - nothing happens until this line is reached!
+        loop.run_until_complete(stop_signal)
+    except asyncio.CancelledError:
+        print('Tasks cancelled')
+    finally:
+        print('Pilot done')
+        send_slack_msg('{} pilot done'.format(params.TELESCOP))
+        loop.close()

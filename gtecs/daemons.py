@@ -9,6 +9,7 @@ import Pyro4
 from . import logger
 from . import params
 from . import misc
+from . import errors
 
 
 class BaseDaemon(object):
@@ -21,6 +22,8 @@ class BaseDaemon(object):
         self.daemon_ID = daemon_ID
         self.running = True
         self.start_time = time.time()
+
+        self.info = None
 
         # set up logfile
         self.logfile = logger.getLogger(self.daemon_ID,
@@ -42,6 +45,31 @@ class BaseDaemon(object):
         self.logfile.info('Daemon shutting down')
         self.running = False
 
+    def _run(self):
+        host = params.DAEMONS[self.daemon_ID]['HOST']
+        port = params.DAEMONS[self.daemon_ID]['PORT']
+
+        # Check the Pyro address is available
+        try:
+            pyro_daemon = Pyro4.Daemon(host=host, port=port)
+        except:
+            raise
+        else:
+            pyro_daemon.close()
+
+        # Start the daemon
+        with Pyro4.Daemon(host, port) as pyro_daemon:
+            uri = pyro_daemon.register(self, objectId=self.daemon_ID)
+            Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
+
+            # Start request loop
+            self.logfile.info('Daemon registered at {}'.format(uri))
+            pyro_daemon.requestLoop(loopCondition=self.status_function)
+
+        # Loop has closed
+        self.logfile.info('Daemon successfully shut down')
+        time.sleep(1.)
+
 
 class HardwareDaemon(BaseDaemon):
     """Generic hardware daemon class.
@@ -53,6 +81,9 @@ class HardwareDaemon(BaseDaemon):
         # initiate daemon
         BaseDaemon.__init__(self, daemon_ID)
 
+        self.dependency_error = 0
+        self.dependency_check_time = 0
+
         self.time_check = time.time()
 
     # Common daemon functions
@@ -60,9 +91,13 @@ class HardwareDaemon(BaseDaemon):
         dt_control = abs(time.time() - self.time_check)
         if dt_control > params.DAEMONS[self.daemon_ID]['PINGLIFE']:
             error_str = 'Last control thread time check was {:.1f}s ago'.format(dt_control)
-            raise misc.DaemonConnectionError(error_str)
+            raise errors.DaemonConnectionError(error_str)
         else:
             return 'ping'
+
+    @property
+    def dependencies_are_alive(self):
+        return dependencies_are_alive(self.daemon_ID)
 
 
 class InterfaceDaemon(BaseDaemon):
@@ -81,20 +116,54 @@ class InterfaceDaemon(BaseDaemon):
         return 'ping'
 
 
+def daemon_is_running(daemon_ID):
+    """Check if a daemon is running."""
+    host = params.DAEMONS[daemon_ID]['HOST']
+    return misc.get_pid(daemon_ID, host) != None
+
+
+def daemon_is_alive(daemon_ID):
+    """Check if a daemon is alive and responding to pings."""
+    # NOTE we can't use daemon_function here - recursion
+
+    with daemon_proxy(daemon_ID) as daemon:
+        try:
+            ping = daemon.ping()
+            if ping == 'ping':
+                return True
+            else:
+                return False
+        except:
+            return False
+
+
+def dependencies_are_alive(daemon_ID):
+    """Check if a given daemon's dependencies are alive and responding to pings."""
+    depends = params.DAEMONS[daemon_ID]['DEPENDS']
+
+    if depends[0] == 'None':
+        return True
+
+    for dependency_ID in depends:
+        if not daemon_is_alive(dependency_ID):
+            return False
+    return True
+
+
 def start_daemon(daemon_ID):
     """Start a daemon (unless it is already running)"""
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
     depends = params.DAEMONS[daemon_ID]['DEPENDS']
 
-    if depends[0] != 'None':
+    if not dependencies_are_alive(daemon_ID):
         failed = []
         for dependency in depends:
-            if not misc.daemon_is_alive(dependency):
+            if not daemon_is_running(dependency):
                 failed += [dependency]
         if len(failed) > 0:
             error_str = 'Dependencies are not running ({}), abort start'.format(failed)
-            raise misc.DaemonDependencyError(error_str)
+            raise errors.DaemonDependencyError(error_str)
 
     process_path = os.path.join(params.DAEMON_PATH, process)
 
@@ -104,106 +173,85 @@ def start_daemon(daemon_ID):
         fpipe = open(params.LOG_PATH + daemon_ID + '-stdout.log', 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) == 0:
-        # Run script
-        misc.python_command(process_path, '', **process_options)
+    pid = misc.get_pid(daemon_ID, host)
+    if pid:
+        return 'Daemon already running on {} (PID {})'.format(host, pid)
 
-        # See if it started
-        time.sleep(1)
-        process_ID_n = misc.get_process_ID(process, host)
-        if len(process_ID_n) == 1:
-            return 'Daemon started on {} (PID {})'.format(host, process_ID_n[0])
-        elif len(process_ID_n) > 1:
-            raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID_n))
-        else:
-            raise misc.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
-    elif len(process_ID) == 1:
-        return 'Daemon already running on {} (PID {})'.format(host, process_ID[0])
-    else:
-        raise misc.MultipleDaemonError('Multiple daemons already running on {} (PID {})'.format(host, process_ID))
+    misc.python_command(process_path, '', **process_options)
+
+    start_time = time.time()
+    while True:
+        pid = misc.get_pid(daemon_ID, host)
+        if pid:
+            return 'Daemon started on {} (PID {})'.format(host, pid)
+        if time.time() - start_time > 4:
+            raise errors.DaemonConnectionError('Daemon did not start on {}, check logs'.format(host))
+        time.sleep(0.5)
 
 
 def ping_daemon(daemon_ID):
     """Ping a daemon"""
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
     process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
 
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PYRO_TIMEOUT
-        try:
-            ping = daemon.ping()
-            if ping == 'ping':
-                return 'Ping received OK, daemon running on {} (PID {})'.format(host, process_ID[0])
-            else:
-                return ping + ', daemon running on {} (PID {})'.format(host, process_ID[0])
-        except misc.DaemonConnectionError:
-            raise
-        except:
-            raise misc.DaemonConnectionError('No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
+    if not daemon_is_running(daemon_ID):
+        raise errors.DaemonConnectionError('Daemon not running on {}'.format(host))
+    if not daemon_is_alive(daemon_ID):
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
+
+    pid = misc.get_pid(daemon_ID, host)
+    ping = daemon_function(daemon_ID, 'ping')
+    if ping == 'ping':
+        return 'Ping received OK, daemon running on {} (PID {})'.format(host, pid)
     else:
-        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
+        return ping + ', daemon running on {} (PID {})'.format(host, pid)
 
 
 def shutdown_daemon(daemon_ID):
     """Shut a daemon down nicely"""
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
+    host = params.DAEMONS[daemon_ID]['HOST']
 
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PYRO_TIMEOUT
-        try:
-            daemon.shutdown()
-            # Have to request status again to close loop
-            daemon = Pyro4.Proxy(address)
-            daemon._pyroTimeout = params.PYRO_TIMEOUT
-            daemon.prod()
-            daemon._pyroRelease()
-
-            # See if it shut down
-            time.sleep(2)
-            process_ID_n = misc.get_process_ID(process, host)
-            if len(process_ID_n) == 0:
-                return 'Daemon shut down on {}'.format(host)
-            elif len(process_ID_n) == 1:
-                raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
-            else:
-                raise misc.MultipleDaemonError('Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
-        except:
-            raise misc.DaemonConnectionError('No response, daemon still running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
+    if not daemon_is_running(daemon_ID):
         return 'Daemon not running on {}'.format(host)
-    else:
-        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
+    if not daemon_is_alive(daemon_ID):
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
+
+    try:
+        with daemon_proxy(daemon_ID) as daemon:
+            daemon.shutdown()
+        # Have to request status again to close loop
+        with daemon_proxy(daemon_ID):
+            daemon.prod()
+    except:
+        pass
+
+    start_time = time.time()
+    while True:
+        pid = misc.get_pid(daemon_ID, host)
+        if not pid:
+            return 'Daemon shut down on {}'.format(host)
+        if time.time() - start_time > 4:
+            raise errors.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+        time.sleep(0.5)
 
 
 def kill_daemon(daemon_ID):
     """Kill a daemon (should be used as a last resort)"""
-    process = params.DAEMONS[daemon_ID]['PROCESS']
     host    = params.DAEMONS[daemon_ID]['HOST']
 
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) >= 1:
-        misc.kill_processes(process, host)
-
-        # See if it is actually dead
-        process_ID_n = misc.get_process_ID(process, host)
-        if len(process_ID_n) == 0:
-            return 'Daemon killed on {}'.format(host)
-        elif len(process_ID_n) == 1:
-            raise misc.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, process_ID_n[0]))
-        else:
-            raise misc.MultipleDaemonError('Multiple daemons still running on {} (PID {})'.format(host, process_ID_n))
-    else:
+    if not daemon_is_running(daemon_ID):
         return 'Daemon not running on {}'.format(host)
+
+    misc.kill_process(daemon_ID, host)
+
+    start_time = time.time()
+    while True:
+        pid = misc.get_pid(daemon_ID, host)
+        if not pid:
+            return 'Daemon killed on {}'.format(host)
+        if time.time() - start_time > 4:
+            raise errors.DaemonConnectionError('Daemon still running on {} (PID {})'.format(host, pid))
+        time.sleep(0.5)
 
 
 def restart_daemon(daemon_ID, wait_time=2):
@@ -217,44 +265,30 @@ def restart_daemon(daemon_ID, wait_time=2):
     return reply
 
 
+def daemon_proxy(daemon_ID, timeout=params.PYRO_TIMEOUT):
+    """Get a proxy connection to the given daemon."""
+    address = params.DAEMONS[daemon_ID]['ADDRESS']
+    proxy = Pyro4.Proxy(address)
+    proxy._pyroTimeout = timeout
+    return proxy
+
+
 def daemon_info(daemon_ID):
     """Get a daemon's info dict"""
-    address = params.DAEMONS[daemon_ID]['ADDRESS']
-    process = params.DAEMONS[daemon_ID]['PROCESS']
-    host    = params.DAEMONS[daemon_ID]['HOST']
-
-    process_ID = misc.get_process_ID(process, host)
-    if len(process_ID) == 1:
-        daemon = Pyro4.Proxy(address)
-        daemon._pyroTimeout = params.PYRO_TIMEOUT
-        try:
-            info = daemon.get_info()
-            return info
-        except misc.DaemonConnectionError:
-            raise
-        except:
-            raise misc.DaemonConnectionError('No response, daemon running on {} (PID {})'.format(host, process_ID[0]))
-    elif len(process_ID) == 0:
-        raise misc.DaemonConnectionError('Daemon not running on {}'.format(host))
-    else:
-        raise misc.MultipleDaemonError('Multiple daemons running on {} (PID {})'.format(host, process_ID))
+    return daemon_function(daemon_ID, 'get_info')
 
 
 def daemon_function(daemon_ID, function_name, args=[], timeout=0.):
-    if not misc.daemon_is_running(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon not running')
-    elif not misc.daemon_is_alive(daemon_ID):
-        raise misc.DaemonConnectionError('Daemon running but not responding, check logs')
-    elif not misc.dependencies_are_alive(daemon_ID):
-        raise misc.DaemonDependencyError('Required dependencies are not responding')
-    else:
-        address = params.DAEMONS[daemon_ID]['ADDRESS']
-        if not timeout:
-            timeout = params.PYRO_TIMEOUT
-        with Pyro4.Proxy(address) as proxy:
-            proxy._pyroTimeout = timeout
-            try:
-                function = getattr(proxy, function_name)
-            except AttributeError:
-                raise NotImplementedError('Invalid function')
-            return function(*args)
+    if not daemon_is_running(daemon_ID):
+        raise errors.DaemonConnectionError('Daemon not running')
+    if not daemon_is_alive(daemon_ID):
+        raise errors.DaemonConnectionError('Daemon running but not responding, check logs')
+    if not dependencies_are_alive(daemon_ID):
+        raise errors.DaemonDependencyError('Required dependencies are not responding')
+
+    with daemon_proxy(daemon_ID, timeout) as daemon:
+        try:
+            function = getattr(daemon, function_name)
+        except AttributeError:
+            raise NotImplementedError('Invalid function')
+        return function(*args)

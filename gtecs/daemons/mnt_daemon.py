@@ -4,6 +4,7 @@ Daemon to access SiTech mount control
 """
 
 import sys
+import pid
 import time
 from math import sin, cos, acos, pi, radians, degrees
 import Pyro4
@@ -15,15 +16,11 @@ from astropy.coordinates import SkyCoord
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.controls import mnt_control
 from gtecs.astronomy import find_ha, check_alt_limit, radec_from_altaz
 from gtecs.daemons import HardwareDaemon
-
-
-DAEMON_ID = 'mnt'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class MntDaemon(HardwareDaemon):
@@ -31,8 +28,7 @@ class MntDaemon(HardwareDaemon):
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='mnt')
 
         ### command flags
         self.get_info_flag = 1
@@ -49,7 +45,6 @@ class MntDaemon(HardwareDaemon):
         self.set_target_flag = 0
 
         ### mount variables
-        self.info = None
         self.step = params.DEFAULT_OFFSET_STEP
         self.mount_status = 'Unknown'
         self.target_ra = None
@@ -62,9 +57,6 @@ class MntDaemon(HardwareDaemon):
         self.utc.precision = 0  # only integer seconds
         self.utc_str = self.utc.iso
         self.set_blinky = False
-
-        self.dependency_error = 0
-        self.dependency_check_time = 0
 
         ### connect to SiTechExe
         # Once, and we'll see if both threads can use it
@@ -90,22 +82,6 @@ class MntDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             ### control functions
             # request info
@@ -242,10 +218,6 @@ class MntDaemon(HardwareDaemon):
     # Mount control functions
     def get_info(self):
         """Return mount status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.get_info_flag = 1
 
@@ -265,27 +237,23 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
         if check_alt_limit(ra*360./24., dec, Time.now()):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
         self.temp_ra = ra
@@ -299,25 +267,21 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_target(self):
         """Slew to current set target"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if self.target_ra == None or self.target_dec == None:
-            raise misc.HardwareStatusError('Target not set')
+            raise errors.HardwareStatusError('Target not set')
         if check_alt_limit(self.target_ra*360./24., self.target_dec, Time.now()):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set flag
         self.slew_target_flag = 1
@@ -327,27 +291,23 @@ class MntDaemon(HardwareDaemon):
 
     def slew_to_altaz(self, alt, az):
         """Slew to specified alt/az"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= alt < 90):
             raise ValueError('Alt in degrees must be between 0 and 90')
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
         if alt < params.MIN_ELEVATION:
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before slewing')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
         self.temp_alt = alt
@@ -364,10 +324,6 @@ class MntDaemon(HardwareDaemon):
 
     def start_tracking(self):
         """Starts mount tracking"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -376,11 +332,11 @@ class MntDaemon(HardwareDaemon):
         elif self.mount_status == 'Slewing':
             return 'Currently slewing, will track when reached target'
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in blinky mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         if check_alt_limit(self.info['mount_ra']*360./24., self.info['mount_dec'], Time.now()):
-            raise misc.HardwareStatusError('Mount is currently below horizon, cannot track')
+            raise errors.HardwareStatusError('Mount is currently below horizon, cannot track')
 
         # Set flag
         self.start_tracking_flag = 1
@@ -390,17 +346,13 @@ class MntDaemon(HardwareDaemon):
 
     def full_stop(self):
         """Stops mount moving (slewing or tracking)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Stopped':
             return 'Already stopped'
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
 
         # Set flag
         self.full_stop_flag = 1
@@ -410,10 +362,6 @@ class MntDaemon(HardwareDaemon):
 
     def blinky(self, activate):
         """Turn on or off blinky mode"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         if activate and self.sitech.blinky:
             return 'Already in blinky mode'
@@ -435,10 +383,6 @@ class MntDaemon(HardwareDaemon):
 
     def park(self):
         """Moves the mount to the park position"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -447,7 +391,7 @@ class MntDaemon(HardwareDaemon):
         elif self.mount_status == 'Parking':
             return 'Already parking'
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Set flag
         self.park_flag = 1
@@ -457,10 +401,6 @@ class MntDaemon(HardwareDaemon):
 
     def unpark(self):
         """Unpark the mount"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         self.get_info_flag = 1
         time.sleep(0.1)
@@ -480,10 +420,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_ra(self, ra):
         """Set the target RA"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
@@ -492,7 +428,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_ra = ra
@@ -503,10 +439,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target_dec(self, dec):
         """Set the target Dec"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
@@ -515,7 +447,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_dec = dec
@@ -526,10 +458,6 @@ class MntDaemon(HardwareDaemon):
 
     def set_target(self, ra, dec):
         """Set the target location"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
@@ -540,7 +468,7 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked, need to unpark before setting target')
+            raise errors.HardwareStatusError('Mount is parked, need to unpark before setting target')
 
         # Set values
         self.target_ra = ra
@@ -553,10 +481,6 @@ class MntDaemon(HardwareDaemon):
 
     def clear_target(self):
         """Clear the stored target"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check current status
         if self.target_ra is None and self.target_dec is None:
             return 'No current target'
@@ -571,10 +495,6 @@ class MntDaemon(HardwareDaemon):
 
     def offset(self, direction):
         """Offset in a specified (cardinal) direction"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if direction.lower() not in ['north', 'south', 'east', 'west']:
             raise ValueError('Invalid direction')
@@ -583,11 +503,11 @@ class MntDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         if self.mount_status == 'Slewing':
-            raise misc.HardwareStatusError('Already slewing')
+            raise errors.HardwareStatusError('Already slewing')
         elif self.mount_status == 'Parked':
-            raise misc.HardwareStatusError('Mount is parked')
+            raise errors.HardwareStatusError('Mount is parked')
         elif self.mount_status == 'IN BLINKY MODE':
-            raise misc.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+            raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Calculate offset position
         step_deg = self.step/3600.
@@ -608,7 +528,7 @@ class MntDaemon(HardwareDaemon):
             dec = self.sitech.dec
 
         if check_alt_limit(ra*360./24.,dec,self.utc):
-            raise misc.HorizonError('Target too low, cannot slew')
+            raise errors.HorizonError('Target too low, cannot slew')
 
         # Set values
         self.target_ra = ra
@@ -621,10 +541,6 @@ class MntDaemon(HardwareDaemon):
 
 
     def set_step(self, offset):
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if int(offset) < 0:
             raise ValueError('Offset value must be > 0')
@@ -699,22 +615,6 @@ class MntDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = MntDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'mnt'
+    with misc.make_pid_file(daemon_ID):
+        MntDaemon()._run()

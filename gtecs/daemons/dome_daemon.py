@@ -5,25 +5,23 @@ Daemon to control an AstroHaven dome
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
 import Pyro4
 import threading
 import json
+import serial
 
 from gtecs import flags
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.slack import send_slack_msg
 from gtecs.controls import dome_control
 from gtecs.daemons import HardwareDaemon
-
-
-DAEMON_ID = 'dome'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
 
 
 class DomeDaemon(HardwareDaemon):
@@ -31,8 +29,7 @@ class DomeDaemon(HardwareDaemon):
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='dome')
 
         ### command flags
         self.get_info_flag = 0
@@ -42,7 +39,6 @@ class DomeDaemon(HardwareDaemon):
         self.override_dehumid_flag = 0
 
         ### dome variables
-        self.info = None
         self.dome_status = {'dome':'unknown', 'hatch':'unknown', 'estop':'unknown', 'monitorlink':'unknown'}
         self.heartbeat_status = 'unknown'
 
@@ -70,9 +66,6 @@ class DomeDaemon(HardwareDaemon):
         self.check_conditions_flag = 1
         self.conditions_check_time = 0
         self.conditions_check_period = 60
-
-        self.dependency_error = 0
-        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -102,22 +95,6 @@ class DomeDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             # autocheck dome status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
@@ -156,14 +133,8 @@ class DomeDaemon(HardwareDaemon):
                     conditions = flags.Conditions()
                     status = flags.Status()
 
-                    # Loop through QC button to see if it's triggered
-                    button_pressed = False
-                    if params.QUICK_CLOSE_BUTTON:
-                        port = params.QUICK_CLOSE_BUTTON_PORT
-                        button_pressed = misc.loopback_test(port)
-
                     # Create emergency file if needed
-                    if button_pressed:
+                    if self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT):
                         self.logfile.info('Quick close button pressed!')
                         status.create_shutdown_file(['quick close button pressed'])
                     if conditions.critical:
@@ -501,10 +472,6 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.get_info_flag = 1
 
@@ -529,21 +496,19 @@ class DomeDaemon(HardwareDaemon):
         power = flags.Power()
         bad_idea = False
         # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
         if conditions.bad:
             if status.mode == 'manual' and not status.autoclose:
                 # Allow opening in bad conditions if in manual mode
                 # and autoclose is disabled
                 bad_idea = True
             else:
-                raise misc.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
+                raise errors.HardwareStatusError('Conditions bad ({}), dome will not open'.format(conditions.bad_flags))
         elif power.failed:
-            raise misc.HardwareStatusError('No external power, dome will not open')
+            raise errors.HardwareStatusError('No external power, dome will not open')
         elif status.emergency_shutdown:
             reasons = ', '.join(status.emergency_shutdown_reasons)
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
-            raise misc.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reasons))
+            raise errors.HardwareStatusError('In emergency locked state ({}), dome will not open'.format(reasons))
 
         # Check input
         if not side in ['north', 'south', 'both']:
@@ -586,10 +551,6 @@ class DomeDaemon(HardwareDaemon):
 
     def close_dome(self, side='both', frac=1):
         """Close the dome"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not side in ['north', 'south', 'both']:
             raise ValueError('Side must be one of "north", "south" or "both"')
@@ -629,10 +590,6 @@ class DomeDaemon(HardwareDaemon):
 
     def halt_dome(self):
         """Stop the dome moving"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.halt_flag = 1
 
@@ -641,10 +598,6 @@ class DomeDaemon(HardwareDaemon):
 
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off before the automatic command"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         if not command in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
@@ -655,7 +608,7 @@ class DomeDaemon(HardwareDaemon):
         dehumid_status = self.info['dehumidifier']
         currently_open = self.info['dome'] != 'closed'
         if command == 'on' and currently_open:
-            raise misc.HardwareStatusError("Dome is open, dehumidifier won't turn on")
+            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
         elif command == 'on' and dehumid_status == 'on':
             return 'Dehumidifier is already on'
         elif command == 'off' and dehumid_status == 'off':
@@ -678,23 +631,25 @@ class DomeDaemon(HardwareDaemon):
             return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
+    # Internal functions
+    def _button_pressed(self, port='/dev/ttyS3'):
+        """Send a message to the serial port and try to read it back"""
+        if not params.QUICK_CLOSE_BUTTON:
+            return False
+        button_port = serial.Serial(port, timeout=1, xonxoff=True)
+        chances = 3
+        for i in range(chances):
+            button_port.write(b'bob\n')
+            reply = button_port.readlines()
+            for x in reply:
+                if x.find(b'bob') >= 0:
+                    button_port.close()
+                    return False
+        button_port.close()
+        return True
+
+
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = DomeDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'dome'
+    with misc.make_pid_file(daemon_ID):
+        DomeDaemon()._run()

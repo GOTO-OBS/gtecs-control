@@ -5,6 +5,7 @@ Daemon to control the exposure queue
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -14,13 +15,10 @@ from collections import MutableSequence
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs.controls.exq_control import Exposure, ExposureQueue
-from gtecs.daemons import HardwareDaemon
-
-DAEMON_ID = 'exq'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+from gtecs.daemons import HardwareDaemon, daemon_proxy
 
 
 class ExqDaemon(HardwareDaemon):
@@ -28,20 +26,14 @@ class ExqDaemon(HardwareDaemon):
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='exq')
 
         ### exposure queue variables
-        self.info = None
-
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
 
         self.working = 0
         self.paused = 1 # start paused
-
-        self.dependency_error = 0
-        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -54,20 +46,15 @@ class ExqDaemon(HardwareDaemon):
         self.logfile.info('Daemon control thread started')
 
         # connect to daemons
-        CAM_DAEMON_ADDRESS = params.DAEMONS['cam']['ADDRESS']
-        cam = Pyro4.Proxy(CAM_DAEMON_ADDRESS)
-        cam._pyroTimeout = params.PYRO_TIMEOUT
-
-        FILT_DAEMON_ADDRESS = params.DAEMONS['filt']['ADDRESS']
-        filt = Pyro4.Proxy(FILT_DAEMON_ADDRESS)
-        filt._pyroTimeout = params.PYRO_TIMEOUT
+        cam = daemon_proxy('cam')
+        filt = daemon_proxy('filt')
 
         while(self.running):
             self.time_check = time.time()
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
+                if not self.dependencies_are_alive:
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -96,9 +83,9 @@ class ExqDaemon(HardwareDaemon):
                 self.working = 1
 
                 # set the filter, if needed
-                if self._need_to_change_filter(filt):
+                if self._need_to_change_filter():
                     try:
-                        self._set_filter(filt)
+                        self._set_filter()
                     except:
                         self.logfile.error('set_filter command failed')
                         self.logfile.debug('', exc_info=True)
@@ -109,7 +96,7 @@ class ExqDaemon(HardwareDaemon):
 
                 # take the image
                 try:
-                    self._take_image(cam)
+                    self._take_image()
                 except:
                     self.logfile.error('take_image command failed')
                     self.logfile.debug('', exc_info=True)
@@ -132,7 +119,7 @@ class ExqDaemon(HardwareDaemon):
         """Return exposure queue status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Exq info is outside the loop
         info = {}
@@ -176,7 +163,7 @@ class ExqDaemon(HardwareDaemon):
         """Add an exposure to the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -224,7 +211,7 @@ class ExqDaemon(HardwareDaemon):
         """Add multiple exposures to the queue as a set"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -266,7 +253,7 @@ class ExqDaemon(HardwareDaemon):
         """Empty the exposure queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         num_in_queue = len(self.exp_queue)
@@ -280,7 +267,7 @@ class ExqDaemon(HardwareDaemon):
         """Return info on exposures in the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         queue_info = self.exp_queue.get()
@@ -292,7 +279,7 @@ class ExqDaemon(HardwareDaemon):
         """Return simple info on exposures in the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Call the command
         queue_info_simple = self.exp_queue.get_simple()
@@ -304,7 +291,7 @@ class ExqDaemon(HardwareDaemon):
         """Pause the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if self.paused:
@@ -321,7 +308,7 @@ class ExqDaemon(HardwareDaemon):
         """Unpause the queue"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if not self.paused:
@@ -335,39 +322,38 @@ class ExqDaemon(HardwareDaemon):
 
 
     # Internal functions
-    def _need_to_change_filter(self, filt):
+    def _need_to_change_filter(self):
         new_filt = self.current_exposure.filt
         if new_filt is None:
             # filter doesn't matter, e.g. dark
             return False
 
         tel_list = self.current_exposure.tel_list
-        filt._pyroReconnect()
-        filt_info = filt.get_info()
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
         if all([params.FILTER_LIST[filt_info['current_filter_num'+str(tel)]] == new_filt for tel in tel_list]):
             return False
         else:
             return True
 
-    def _set_filter(self, filt):
+    def _set_filter(self):
         new_filt = self.current_exposure.filt
         tel_list = self.current_exposure.tel_list
         self.logfile.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
         try:
-            filt._pyroReconnect()
-            filt.set_filter(new_filt, tel_list)
+            with daemon_proxy('filt') as filt_daemon:
+                filt_daemon.set_filter(new_filt, tel_list)
         except:
             self.logfile.error('No response from filter wheel daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(3)
-        filt_info_dict = filt.get_info()
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info_dict = filt_daemon.get_info()
         filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
         while('Moving' in filt_status.values()):
-            try:
-                filt_info_dict = filt.get_info()
-            except Pyro4.errors.TimeoutError:
-                pass
+            with daemon_proxy('filt') as filt_daemon:
+                filt_info_dict = filt_daemon.get_info()
             filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
             time.sleep(0.005)
             # keep ping alive
@@ -375,7 +361,7 @@ class ExqDaemon(HardwareDaemon):
         self.logfile.info('Filter wheel move complete')
 
 
-    def _take_image(self, cam):
+    def _take_image(self):
         exptime = self.current_exposure.exptime
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
@@ -388,20 +374,20 @@ class ExqDaemon(HardwareDaemon):
             self.logfile.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
                                 exptime, binning, binning, frametype, tel_list))
         try:
-            cam._pyroReconnect()
-            cam.take_exposure(self.current_exposure)
+            with daemon_proxy('cam') as cam_daemon:
+                cam_daemon.take_exposure(self.current_exposure)
         except:
             self.logfile.error('No response from camera daemon')
             self.logfile.debug('', exc_info=True)
 
         time.sleep(2)
 
-        cam_exposing = cam.is_exposing()
+        with daemon_proxy('cam') as cam_daemon:
+            cam_exposing = cam_daemon.is_exposing()
         while cam_exposing:
-            try:
-                cam_exposing = cam.is_exposing()
-            except Pyro4.errors.TimeoutError:
-                pass
+            with daemon_proxy('cam') as cam_daemon:
+                cam_exposing = cam_daemon.is_exposing()
+
             time.sleep(0.05)
             # keep ping alive
             self.time_check = time.time()
@@ -409,22 +395,6 @@ class ExqDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = ExqDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'exq'
+    with misc.make_pid_file(daemon_ID):
+        ExqDaemon()._run()

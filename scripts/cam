@@ -10,6 +10,7 @@ import readline
 import Pyro4
 
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs import style
 from gtecs import daemons
@@ -24,7 +25,7 @@ def query(command, args, daemon_ID):
         print_instructions()
 
     elif command == 'i':
-        raise misc.InputError('Already in interactive mode')
+        raise errors.InputError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -54,7 +55,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
             info_type = 'verbose'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'get_info')
         # print response
@@ -90,7 +91,7 @@ def query(command, args, daemon_ID):
             binning = float(args[2])
             imgtype = 'SCIENCE'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [exptime, binning, imgtype, tel_list]
         reply = daemons.daemon_function(daemon_ID, 'take_image', arg_list)
@@ -109,7 +110,7 @@ def query(command, args, daemon_ID):
             binning = float(args[2])
             imgtype = 'SCIENCE'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [exptime, binning, imgtype, tel_list]
         reply = daemons.daemon_function(daemon_ID, 'take_glance', arg_list)
@@ -128,7 +129,7 @@ def query(command, args, daemon_ID):
             binning = float(args[2])
             imgtype = 'DARK'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [exptime, binning, imgtype, tel_list]
         reply = daemons.daemon_function(daemon_ID, 'take_dark', arg_list)
@@ -147,7 +148,7 @@ def query(command, args, daemon_ID):
             binning = float(args[1])
             imgtype = 'BIAS'
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         arg_list = [exptime, binning, imgtype, tel_list]
         reply = daemons.daemon_function(daemon_ID, 'take_dark', arg_list)
@@ -160,7 +161,7 @@ def query(command, args, daemon_ID):
         elif len(args) == 1:
             tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'abort_exposure', [tel_list])
         print(reply)
@@ -174,14 +175,14 @@ def query(command, args, daemon_ID):
             tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
             target_temp = float(args[1])
         else:
-            raise misc.InputError('Invalid arguments')
+            raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_ID, 'set_temperature', [target_temp, tel_list])
         print(reply)
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(info):

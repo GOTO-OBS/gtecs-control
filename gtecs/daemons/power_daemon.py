@@ -5,6 +5,7 @@ Daemon to control APC PDUs and UPSs
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -18,18 +19,12 @@ from gtecs.controls import power_control
 from gtecs.daemons import HardwareDaemon
 
 
-DAEMON_ID = 'power'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
-
-
 class PowerDaemon(HardwareDaemon):
     """Power hardware daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='power')
 
         ### command flags
         self.get_info_flag = 1
@@ -38,8 +33,6 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 0
 
         ### power variables
-        self.info = None
-
         self.power_status = {}
 
         self.current_units = []
@@ -48,9 +41,6 @@ class PowerDaemon(HardwareDaemon):
         self.check_status_flag = 1
         self.status_check_time = 0
         self.check_period = params.POWER_CHECK_PERIOD
-
-        self.dependency_error = 0
-        self.dependency_check_time = 0
 
         ### start control thread
         t = threading.Thread(target=self._control_thread)
@@ -88,22 +78,6 @@ class PowerDaemon(HardwareDaemon):
 
         while(self.running):
             self.time_check = time.time()
-
-            ### check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
-                    if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
-
-            if self.dependency_error:
-                time.sleep(5)
-                continue
 
             # autocheck status every X seconds (if not already forced)
             delta = self.time_check - self.status_check_time
@@ -251,10 +225,6 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Set flag
         self.check_status_flag = 1
         self.get_info_flag = 1
@@ -275,10 +245,6 @@ class PowerDaemon(HardwareDaemon):
 
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -296,10 +262,6 @@ class PowerDaemon(HardwareDaemon):
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -317,10 +279,6 @@ class PowerDaemon(HardwareDaemon):
 
     def reboot(self, outlet_list, unit=''):
         """Reboot a given outlet(s)"""
-        # Check restrictions
-        if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
-
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -398,22 +356,6 @@ class PowerDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = PowerDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'power'
+    with misc.make_pid_file(daemon_ID):
+        PowerDaemon()._run()

@@ -12,6 +12,7 @@ import Pyro4
 from astropy.time import Time
 
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
 from gtecs import style
 from gtecs import daemons
@@ -27,7 +28,7 @@ def query(command, args, daemon_ID):
         print_instructions()
 
     elif command == 'i':
-        raise misc.InputError('Already in interactive mode')
+        raise errors.InputError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -71,7 +72,7 @@ def query(command, args, daemon_ID):
 
     # Unrecognized function
     else:
-        raise misc.InputError('Unrecognized command "{}"'.format(command))
+        raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(info):

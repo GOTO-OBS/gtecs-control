@@ -4,6 +4,7 @@ Daemon to control FLI filter wheels via fli_interface
 """
 
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -12,13 +13,9 @@ import threading
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
-from gtecs.daemons import HardwareDaemon
-
-
-DAEMON_ID = 'filt'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+from gtecs.daemons import HardwareDaemon, daemon_proxy
 
 
 class FiltDaemon(HardwareDaemon):
@@ -26,8 +23,7 @@ class FiltDaemon(HardwareDaemon):
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='filt')
 
         ### command flags
         self.get_info_flag = 1
@@ -35,8 +31,6 @@ class FiltDaemon(HardwareDaemon):
         self.home_filter_flag = 0
 
         ### filter wheel variables
-        self.info = None
-
         self.current_pos = {}
         self.current_filter_num = {}
         self.remaining = {}
@@ -54,9 +48,6 @@ class FiltDaemon(HardwareDaemon):
         self.active_tel = []
         self.new_filter = ''
 
-        self.dependency_error = 0
-        self.dependency_check_time = 0
-
         ### start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -67,18 +58,12 @@ class FiltDaemon(HardwareDaemon):
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
-        # make proxies once, outside the loop
-        fli_proxies = dict()
-        for intf in params.FLI_INTERFACES:
-            fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli_proxies[intf]._pyroTimeout = params.PYRO_TIMEOUT
-
         while(self.running):
             self.time_check = time.time()
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive(self.daemon_id):
+                if not self.dependencies_are_alive:
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -99,14 +84,13 @@ class FiltDaemon(HardwareDaemon):
                     # update variables
                     for tel in params.TEL_DICT:
                         intf, HW = params.TEL_DICT[tel]
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            self.current_pos[intf][HW] = fli.get_filter_position(HW)
-                            self.remaining[intf][HW] = fli.get_filter_steps_remaining(HW)
-                            self.current_filter_num[intf][HW] = fli.get_filter_number(HW)
-                            self.serial_number[intf][HW] = fli.get_filter_serial_number(HW)
-                            self.homed[intf][HW] = fli.get_filter_homed(HW)
+                            with daemon_proxy(intf) as fli:
+                                self.current_pos[intf][HW] = fli.get_filter_position(HW)
+                                self.remaining[intf][HW] = fli.get_filter_steps_remaining(HW)
+                                self.current_filter_num[intf][HW] = fli.get_filter_number(HW)
+                                self.serial_number[intf][HW] = fli.get_filter_serial_number(HW)
+                                self.homed[intf][HW] = fli.get_filter_homed(HW)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -146,11 +130,10 @@ class FiltDaemon(HardwareDaemon):
                         self.logfile.info('Moving filter wheel %i (%s-%i) to %s (%i)',
                                           tel, intf, HW, self.new_filter, new_filter_num)
 
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.set_filter_pos(new_filter_num,HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.set_filter_pos(new_filter_num,HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -169,11 +152,10 @@ class FiltDaemon(HardwareDaemon):
                         self.logfile.info('Homing filter wheel %i (%s-%i)',
                                           tel, intf, HW)
 
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.home_filter(HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.home_filter(HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -194,7 +176,7 @@ class FiltDaemon(HardwareDaemon):
         """Return filter wheel status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -217,7 +199,7 @@ class FiltDaemon(HardwareDaemon):
         """Move filter wheel to given filter"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if new_filter.upper() not in params.FILTER_LIST:
@@ -256,7 +238,7 @@ class FiltDaemon(HardwareDaemon):
         """Move filter wheel to home position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -287,22 +269,6 @@ class FiltDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = FiltDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'filt'
+    with misc.make_pid_file(daemon_ID):
+        FiltDaemon()._run()

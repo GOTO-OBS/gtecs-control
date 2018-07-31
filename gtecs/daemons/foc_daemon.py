@@ -4,6 +4,7 @@ Daemon to control FLI focusers via fli_interface
 """
 
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -12,13 +13,9 @@ import threading
 
 from gtecs import logger
 from gtecs import misc
+from gtecs import errors
 from gtecs import params
-from gtecs.daemons import HardwareDaemon
-
-
-DAEMON_ID = 'foc'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+from gtecs.daemons import HardwareDaemon, daemon_proxy
 
 
 class FocDaemon(HardwareDaemon):
@@ -26,7 +23,7 @@ class FocDaemon(HardwareDaemon):
 
     def __init__(self):
         ### initiate daemon
-        HardwareDaemon.__init__(self, 'foc')
+        HardwareDaemon.__init__(self, daemon_ID='foc')
 
         ### command flags
         self.get_info_flag = 1
@@ -35,8 +32,6 @@ class FocDaemon(HardwareDaemon):
         self.home_focuser_flag = 0
 
         ### focuser variables
-        self.info = None
-
         self.limit = {}
         self.current_pos = {}
         self.remaining = {}
@@ -57,9 +52,6 @@ class FocDaemon(HardwareDaemon):
 
         self.active_tel = []
 
-        self.dependency_error = 0
-        self.dependency_check_time = 0
-
         ### start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -70,18 +62,12 @@ class FocDaemon(HardwareDaemon):
     def _control_thread(self):
         self.logfile.info('Daemon control thread started')
 
-        # make proxies once, outside the loop
-        fli_proxies = dict()
-        for intf in params.FLI_INTERFACES:
-            fli_proxies[intf] = Pyro4.Proxy(params.DAEMONS[intf]['ADDRESS'])
-            fli_proxies[intf]._pyroTimeout = params.PYRO_TIMEOUT
-
         while(self.running):
             self.time_check = time.time()
 
             ### check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not misc.dependencies_are_alive('foc'):
+                if not self.dependencies_are_alive:
                     if not self.dependency_error:
                         self.logfile.error('Dependencies are not responding')
                         self.dependency_error = 1
@@ -102,15 +88,14 @@ class FocDaemon(HardwareDaemon):
                     # update variables
                     for tel in params.TEL_DICT:
                         intf, HW = params.TEL_DICT[tel]
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            self.limit[intf][HW] = fli.get_focuser_limit(HW)
-                            self.remaining[intf][HW] = fli.get_focuser_steps_remaining(HW)
-                            self.current_pos[intf][HW] = fli.get_focuser_position(HW)
-                            self.int_temp[intf][HW] = fli.get_focuser_temp('internal',HW)
-                            self.ext_temp[intf][HW] = fli.get_focuser_temp('external',HW)
-                            self.serial_number[intf][HW] = fli.get_focuser_serial_number(HW)
+                            with daemon_proxy(intf) as fli:
+                                self.limit[intf][HW] = fli.get_focuser_limit(HW)
+                                self.remaining[intf][HW] = fli.get_focuser_steps_remaining(HW)
+                                self.current_pos[intf][HW] = fli.get_focuser_position(HW)
+                                self.int_temp[intf][HW] = fli.get_focuser_temp('internal',HW)
+                                self.ext_temp[intf][HW] = fli.get_focuser_temp('external',HW)
+                                self.serial_number[intf][HW] = fli.get_focuser_serial_number(HW)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -155,11 +140,10 @@ class FocDaemon(HardwareDaemon):
                         self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
                                           tel, intf, HW, move_steps, new_pos)
 
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.step_focuser_motor(move_steps,HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.step_focuser_motor(move_steps,HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -178,11 +162,10 @@ class FocDaemon(HardwareDaemon):
                         self.logfile.info('Homing focuser %i (%s-%i)',
                                           tel, intf, HW)
 
-                        fli = fli_proxies[intf]
                         try:
-                            fli._pyroReconnect()
-                            c = fli.home_focuser(HW)
-                            if c: self.logfile.info(c)
+                            with daemon_proxy(intf) as fli:
+                                c = fli.home_focuser(HW)
+                                if c: self.logfile.info(c)
                         except:
                             self.logfile.error('No response from fli interface on %s', intf)
                             self.logfile.debug('', exc_info=True)
@@ -205,7 +188,7 @@ class FocDaemon(HardwareDaemon):
         """Return focuser status info"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -228,7 +211,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to given position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
@@ -267,7 +250,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser by given number of steps"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         if (int(new_pos) - new_pos) != 0:
@@ -308,7 +291,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to the home position"""
         # Check restrictions
         if self.dependency_error:
-            raise misc.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -339,22 +322,6 @@ class FocDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = FocDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'foc'
+    with misc.make_pid_file(daemon_ID):
+        FocDaemon()._run()

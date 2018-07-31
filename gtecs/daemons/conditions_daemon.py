@@ -5,6 +5,7 @@ Daemon to monitor environmental conditions
 
 import os
 import sys
+import pid
 import time
 import datetime
 from math import *
@@ -26,18 +27,12 @@ from gtecs.observing import check_dome_closed
 from gtecs.daemons import HardwareDaemon
 
 
-DAEMON_ID = 'conditions'
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
-
-
 class ConditionsDaemon(HardwareDaemon):
     """Conditions monitor daemon class"""
 
     def __init__(self):
         ### initiate daemon
-        self.daemon_id = DAEMON_ID
-        HardwareDaemon.__init__(self, self.daemon_id)
+        HardwareDaemon.__init__(self, daemon_ID='conditions')
 
         ### command flags
         self.get_info_flag = 0
@@ -94,7 +89,6 @@ class ConditionsDaemon(HardwareDaemon):
                           'internal': params.INTERNAL_BADDELAY,
                           'ice': params.ICE_BADDELAY,
                           }
-
 
         self.flags = dict.fromkeys(self.flag_names, 2)
 
@@ -349,22 +343,6 @@ class ConditionsDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = ConditionsDaemon()
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = 'conditions'
+    with misc.make_pid_file(daemon_ID):
+        ConditionsDaemon()._run()

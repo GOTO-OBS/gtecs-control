@@ -7,38 +7,51 @@ import os
 import sys
 import pkg_resources
 
-from gtecs.misc import execute_long_command
+from gtecs import misc
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
-script_names = [os.path.splitext(f)[0]
+SCRIPT_NAMES = [os.path.splitext(f)[0]
                 for f in os.listdir(SCRIPT_PATH)
                 if not f.startswith('__')]
 
-script_docs = {}
-for s in script_names:
-    with open(os.path.join(SCRIPT_PATH,s+'.py')) as f:
-        lines = f.readlines()
-        script_docs[s] = (lines[1].strip(), lines[2].strip())
+
+def query(script, args):
+    if script not in sorted(SCRIPT_NAMES):
+        print('ERROR: "{}" script not found'.format(script))
+        print('Valid observation scripts:')
+        for s in sorted(SCRIPT_NAMES):
+                print('\t', s)
+    else:
+        for name in sorted(SCRIPT_NAMES):
+            pid = misc.get_pid(name)
+            if pid:
+                print('An observing script ({}) is already running (PID {})'.format(name, pid))
+                return
+
+        with misc.make_pid_file(script):
+            script_file = '{}/{}.py'.format(SCRIPT_PATH, script)
+            command =  ' '.join((sys.executable, script_file, *args))
+            misc.execute_long_command(command)
+
+
+def print_instructions():
+    script_docs = {}
+    for s in SCRIPT_NAMES:
+        with open(os.path.join(SCRIPT_PATH,s+'.py')) as f:
+            lines = f.readlines()
+            script_docs[s] = (lines[1].strip(), lines[2].strip())
+
+    print('Usage: obs_script <script name> [args]')
+    print('Valid observing scripts:')
+    for s in sorted(SCRIPT_NAMES):
+        print('  - {: <26} '.format(script_docs[s][0]), script_docs[s][1])
+
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print('Usage: obs_script <script name> [args]')
-        print('Valid observation scripts:')
-        for s in sorted(script_names):
-            print('  - {: <26} '.format(script_docs[s][0]), script_docs[s][1])
+    if len(sys.argv) == 1:
+        print_instructions()
     else:
-        name = sys.argv[1]
-        args = sys.argv[2:]
-        if name in ['normal_startup', 'normal_shutdown']:
-            new_name = name.split('_')[1]
-            print('WARNING: "{}" script moved to "{}"'.format(name, new_name))
-            name = new_name
-        if name not in sorted(script_names):
-            print('ERROR: "{}" script not found'.format(name))
-            print('Valid observation scripts:')
-            for s in sorted(script_names):
-                    print('\t', s)
-        else:
-            command =  ' '.join((sys.executable, SCRIPT_PATH+'/'+name+'.py', *args))
-            execute_long_command(command)
+        script, *args = sys.argv[1:]
+        with misc.print_errors():
+            query(script, args)

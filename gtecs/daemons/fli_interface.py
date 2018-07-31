@@ -4,6 +4,7 @@ Interface to access FLI hardware
 """
 
 import sys
+import pid
 import time
 from math import *
 import Pyro4
@@ -16,21 +17,16 @@ from fliapi import FakeCamera, FakeFocuser, FakeFilterWheel
 from gtecs import logger
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import InterfaceDaemon
-
-
-DAEMON_ID = misc.find_interface_ID(params.LOCAL_HOST)
-DAEMON_HOST = params.DAEMONS[DAEMON_ID]['HOST']
-DAEMON_PORT = params.DAEMONS[DAEMON_ID]['PORT']
+from gtecs.daemons import InterfaceDaemon, daemon_is_running
 
 
 class FLIDaemon(InterfaceDaemon):
     """FLI interface daemon class"""
 
     def __init__(self, intf):
-        self.intf = intf
         ### initiate daemon
-        InterfaceDaemon.__init__(self, self.intf)
+        InterfaceDaemon.__init__(self, daemon_ID=intf)
+        self.intf = intf
 
         ### fli objects
         self.cams = []
@@ -249,23 +245,27 @@ class FLIDaemon(InterfaceDaemon):
         return self.cams[int(HW)].serial_number
 
 
+def find_interface_ID(hostname):
+    """Find what interface should be running on a given host.
+    Used by the FLI interfaces to find which interface it should identify as.
+    """
+    intfs = []
+    for intf in params.FLI_INTERFACES:
+        if params.DAEMONS[intf]['HOST'] == hostname:
+            intfs.append(intf)
+    if len(intfs) == 0:
+        raise ValueError('Host {} does not have an associated interface'.format(hostname))
+    elif len(intfs) == 1:
+        return intfs[0]
+    else:
+        # return the first one that's not running
+        for intf in sorted(intfs):
+            if not daemon_is_running(intf):
+                return intf
+        raise ValueError('All defined interfaces on {} are running'.format(hostname))
+
+
 if __name__ == "__main__":
-    # Check the daemon isn't already running
-    if not misc.there_can_only_be_one(DAEMON_ID):
-        sys.exit()
-
-    # Create the daemon object
-    daemon = FLIDaemon(intf=DAEMON_ID)
-
-    # Start the daemon
-    with Pyro4.Daemon(host=DAEMON_HOST, port=DAEMON_PORT) as pyro_daemon:
-        uri = pyro_daemon.register(daemon, objectId=DAEMON_ID)
-        Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
-
-        # Start request loop
-        daemon.logfile.info('Daemon registered at %s', uri)
-        pyro_daemon.requestLoop(loopCondition=daemon.status_function)
-
-    # Loop has closed
-    daemon.logfile.info('Daemon successfully shut down')
-    time.sleep(1.)
+    daemon_ID = find_interface_ID(params.LOCAL_HOST)
+    with misc.make_pid_file(daemon_ID):
+        FLIDaemon(daemon_ID)._run()
