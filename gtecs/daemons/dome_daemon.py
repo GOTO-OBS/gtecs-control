@@ -12,6 +12,7 @@ from math import *
 import Pyro4
 import threading
 import json
+import serial
 
 from gtecs import flags
 from gtecs import logger
@@ -638,10 +639,10 @@ class DomeDaemon(HardwareDaemon):
         button_port = serial.Serial(port, timeout=1, xonxoff=True)
         chances = 3
         for i in range(chances):
-            xonxoff.write(b'bob\n')
+            button_port.write(b'bob\n')
             reply = button_port.readlines()
             for x in reply:
-                if x.find(message) >= 0:
+                if x.find(b'bob') >= 0:
                     button_port.close()
                     return False
         button_port.close()
