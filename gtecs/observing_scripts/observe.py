@@ -10,8 +10,7 @@ import time
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
 from gtecs.observing import goto, prepare_for_images, wait_for_exposure_queue, wait_for_telescope
 
-from obsdb import (get_pointing_by_id, markJobAborted, markJobCompleted, markJobRunning,
-                   open_session)
+from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running, open_session
 
 
 class Closer(NeatCloser):
@@ -64,7 +63,7 @@ def run(pointing_id):
         prepare_for_images()
 
         print('Observing pointing ID: ', pointing_id)
-        markJobRunning(pointing_id)
+        mark_running(pointing_id)
 
         # clear & pause queue to make sure
         execute_command('exq clear')
@@ -92,11 +91,11 @@ def run(pointing_id):
 
     except Exception:
         # something went wrong
-        markJobAborted(pointing_id)
+        mark_aborted(pointing_id)
         raise
 
     # hey, if we got here no-one else will mark as completed
-    markJobCompleted(pointing_id)
+    mark_completed(pointing_id)
     print('Pointing {} completed'.format(pointing_id))
 
 
