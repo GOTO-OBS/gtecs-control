@@ -1,7 +1,5 @@
-"""
-Gliese 1991 catalog of nearby stars
-"""
-import pkg_resources
+"""Gliese 1991 catalog of nearby stars."""
+
 import os
 import warnings
 
@@ -12,20 +10,24 @@ from astropy.time import Time
 
 import numpy as np
 
+import pkg_resources
+
 from .. import astronomy as ast
-from .. import params
+
 
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
 gliese_table_path = os.path.join(gtecs_data_dir, 'Gliese91.fit')
 gliese_table = Table.read(gliese_table_path)
 
 
-class GlieseStar:
+class GlieseStar(object):
+    """A Gliese catalog target."""
+
     def __init__(self, name, ra, dec, pmra, pmdec, Jmag):
         self.name = str(name).strip()
         self.coord = SkyCoord(ra, dec, unit=(u.deg, u.deg))
-        self.pmra = pmra*u.arcsec/u.yr
-        self.pmdec = pmdec*u.arcsec/u.yr
+        self.pmra = pmra * u.arcsec / u.yr
+        self.pmdec = pmdec * u.arcsec / u.yr
         self.Jmag = Jmag
 
     def __repr__(self):
@@ -38,16 +40,17 @@ class GlieseStar:
         )
 
     def coord_now(self):
+        """Get coordinates at the current time."""
         dt = Time.now() - Time("J2000")
-        ra = self.coord.ra + self.pmra*dt
-        dec = self.coord.dec + self.pmra*dt
+        ra = self.coord.ra + self.pmra * dt
+        dec = self.coord.dec + self.pmra * dt
         return SkyCoord(ra, dec)
 
-def focus_star(time):
-    """
-    Find the best Gliese star to observe at a given time
 
-    The best flat field is defined as the one nearest zenith with a JMag near 10.
+def focus_star(time):
+    """Find the best Gliese star to observe at a given time.
+
+    The best flat field is defined as the one nearest zenith with a J-band magnitude near 10.
 
     Parameters
     ----------
@@ -58,6 +61,7 @@ def focus_star(time):
     -------
     best : `GlieseStar`
         the best Gliese Star for focusing
+
     """
     coords = SkyCoord(gliese_table['RAJ2000'], gliese_table['DEJ2000'], unit=(u.hour, u.deg))
     alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
@@ -66,7 +70,7 @@ def focus_star(time):
     # filter on magnitudes
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        mag_mask = np.fabs(jmag-10) < 2
+        mag_mask = np.fabs(jmag - 10) < 2
 
     # filter on moon distance
     moon = ast.get_moon(time)

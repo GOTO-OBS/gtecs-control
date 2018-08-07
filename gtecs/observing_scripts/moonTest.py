@@ -1,6 +1,7 @@
-"""
+#!/usr/bin/env python
+"""Script to take images over the sky, avoiding the Moon.
+
 moonTest
-Script to take images over the sky, avoiding the Moon
 """
 
 import sys
@@ -8,30 +9,28 @@ import time
 
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.misc import execute_command
 from gtecs.astronomy import get_moon_distance, radec_from_altaz
-from gtecs.observing import (prepare_for_images, take_image_set,
-                             goto_altaz, wait_for_telescope)
+from gtecs.observing import (goto_altaz, prepare_for_images, take_image_set, wait_for_telescope)
 
 
 def run():
+    """Run the moon test routine."""
     # make sure hardware is ready
     prepare_for_images()
 
     # generate alt list
-    #if nAlt > 4:
-    #    nAlt = 4
+    # if n_alt > 4:
+    #     n_alt = 4
     alt_list = [40, 50, 60, 75]
 
     # generate az list
-#    if nAz > 4:
-#        nAz = 4
-    nAz = 8
-    az_list = [i for i in range(0,360,int(360/nAz))]
+    # if n_az > 4:
+    #     n_az = 4
+    n_az = 8
+    az_list = [i for i in range(0, 360, int(360 / n_az))]
 
     # generate pointings
-    altaz_list = [(90, 0)] # don't repeat zenith at different azimuths
+    altaz_list = [(90, 0)]  # don't repeat zenith at different azimuths
     for az in az_list:
         for alt in alt_list:
             altaz_list.append((alt, az))
@@ -39,12 +38,12 @@ def run():
     print('Generated {} AltAz pointings:'.format(len(altaz_list)))
     print(altaz_list)
 
-    exposure_list = [60]#[15, 30, 60, 120, 240, 480]
+    exposure_list = [60]  # [15, 30, 60, 120, 240, 480]
 
     print('Exposure times:')
     print(exposure_list)
 
-    total_exptime = (sum(exposure_list) * len(altaz_list))/60.
+    total_exptime = (sum(exposure_list) * len(altaz_list)) / 60.
     print('Total exposure time: {} mins'.format(total_exptime))
 
     total_readout = 0.5 * len(exposure_list) * len(altaz_list)
@@ -52,7 +51,7 @@ def run():
     print('Estimated total time: {} mins'.format(total_exptime + total_readout + total_slew))
 
     cont = 'na'
-    while cont not in ['y','n']:
+    while cont not in ['y', 'n']:
         cont = input('Continue? [y/n]: ')
     if cont == 'n':
         sys.exit()
@@ -75,9 +74,8 @@ def run():
             continue
 
         goto_altaz(alt, az)
-        time.sleep(1)#10)
-        wait_for_telescope(120, targ_dist=0.1)  # 120s timeout
-                                                # lower distance for altaz
+        time.sleep(1)  # was 10
+        wait_for_telescope(120, targ_dist=0.1)  # 120s timeout, lower distance for altaz
 
         take_image_set(exposure_list, 'L', 'Moon Test Pointing')
 
@@ -85,14 +83,14 @@ def run():
 
 
 if __name__ == "__main__":
-#    if len(sys.argv) == 1:
-#        nAlt = 4
-#        nAz = 4
-#    elif len(sys.argv) == 2:
-#        nAlt = int(sys.argv[1])
-#        nAz = 2
-#    else:
-#        nAlt = int(sys.argv[1])
-#        nAz = int(sys.argv[2])
+    # if len(sys.argv) == 1:
+    #     n_alt = 4
+    #     n_az = 4
+    # elif len(sys.argv) == 2:
+    #     n_alt = int(sys.argv[1])
+    #     n_az = 2
+    # else:
+    #     n_alt = int(sys.argv[1])
+    #     n_az = int(sys.argv[2])
 
     run()

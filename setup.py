@@ -1,6 +1,9 @@
-from setuptools import setup
+"""Setup script for the gtecs package."""
 import glob
+
 from gtecs import __version__
+
+from setuptools import setup
 
 setup(name='gtecs',
       version=__version__,
@@ -10,7 +13,7 @@ setup(name='gtecs',
       author_email='martin.dyer@sheffield.ac.uk',
       packages=['gtecs', 'gtecs.daemons', 'gtecs.controls', 'gtecs.catalogs',
                 'gtecs.observing_scripts'],
-      package_data={'': ['data/*','data/html/*']},
+      package_data={'': ['data/*', 'data/html/*']},
       install_requires=['Pyro4', 'astropy', 'astroplan', 'configobj', 'sep',
                         'pid'],
       scripts=glob.glob('scripts/*'),

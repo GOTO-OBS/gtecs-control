@@ -1,31 +1,26 @@
 #!/usr/bin/env python
-"""
-A script to provide control over fli interface daemons
-"""
+"""A script to provide control over fli interface daemons."""
 
 import os
 import sys
-import time
-import readline
-import Pyro4
 
-from gtecs import misc
-from gtecs import errors
-from gtecs import params
-from gtecs import style
 from gtecs import daemons
+from gtecs import errors
+from gtecs import misc
+from gtecs import params
 
 
 DAEMON_ID = os.path.basename(__file__)
 
 DAEMON_IDS = []
-for daemon_ID in params.DAEMONS:
-    if daemon_ID in params.FLI_INTERFACES:
-        DAEMON_IDS.append(daemon_ID)
+for daemon_id in params.DAEMONS:
+    if daemon_id in params.FLI_INTERFACES:
+        DAEMON_IDS.append(daemon_id)
 DAEMON_IDS.sort()
 
 
-def query(command, args, daemon_IDs):
+def query(command, args, daemon_ids):
+    """Process a query."""
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -35,33 +30,33 @@ def query(command, args, daemon_IDs):
 
     # Primary daemon control
     elif command == 'start':
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.start_daemon(daemon_ID)
+                reply = daemons.start_daemon(daemon_id)
                 print(reply)
 
     elif command == 'shutdown':
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.shutdown_daemon(daemon_ID)
+                reply = daemons.shutdown_daemon(daemon_id)
                 print(reply)
 
     elif command == 'restart':
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.restart_daemon(daemon_ID)
+                reply = daemons.restart_daemon(daemon_id)
                 print(reply)
 
     elif command == 'kill':
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.kill_daemon(daemon_ID)
+                reply = daemons.kill_daemon(daemon_id)
                 print(reply)
 
     elif command == 'ping':
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.ping_daemon(daemon_ID)
+                reply = daemons.ping_daemon(daemon_id)
                 print(reply)
 
     elif command in ['log', 'tail']:
@@ -70,12 +65,12 @@ def query(command, args, daemon_IDs):
             args.remove('stdout')
         else:
             stdout = False
-        for daemon_ID in daemon_IDs:
+        for daemon_id in daemon_ids:
             # parse arguments
             if stdout:
-                log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+                log_path = params.LOG_PATH + daemon_id + '-stdout.log'
             else:
-                log_path = params.LOG_PATH + daemon_ID + '.log'
+                log_path = params.LOG_PATH + daemon_id + '.log'
             tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
             # send command
             misc.execute_long_command(tail_command)
@@ -86,19 +81,21 @@ def query(command, args, daemon_IDs):
 
 
 def print_instructions():
-    help_str = style.bold('Usage:') + ' fli [command]' + '\n' +\
-    ' ' + style.undl('Interface commands') + ':' + '\n' +\
-    '  fli ' + style.bold('start') + '             - start the interfaces' + '\n' +\
-    '  fli ' + style.bold('shutdown') + '          - shutdown the interfaces' + '\n' +\
-    '  fli ' + style.bold('restart') + '           - restart the interfaces' + '\n' +\
-    '  fli ' + style.bold('kill') + '              - kill the interfaces (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  fli ' + style.bold('ping') + '              - ping the interfaces' + '\n' +\
-    '  fli ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  fli ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  fli ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  fli ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
-    print(help_str)
+    """Print instructions for using the daemon."""
+    print('Usage: fli command [options]',
+          'Daemon commands:',
+          '  start                          start the interfaces',
+          '  shutdown                       shutdown the interfaces',
+          '  restart                        restart the interfaces',
+          '  kill                           kill the interfaces',
+          '  ping                           ping the interfaces',
+          'Fli commands:'
+          '  log [stdout]                   print daemon log (tail alias)',
+          'Control commands:',
+          '  i                              enter interactive mode',
+          '  q/exit                         quit interactive mode',
+          '  ?/help                         print these instructions',
+          sep='\n')
 
 
 if __name__ == "__main__":

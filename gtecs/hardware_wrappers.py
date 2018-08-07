@@ -1,74 +1,67 @@
-"""
-Hardware wrappers for the pilot
-"""
+"""Hardware wrappers for the pilot."""
 
-import Pyro4
-import time
 import abc
+import time
 
 from . import params
+from .daemons import daemon_function, daemon_info
 from .misc import execute_command
-from .daemons import daemon_info, daemon_function
 
 
-class HardwareMonitor:
+class HardwareMonitor(object, metaclass=abc.ABCMeta):
+    """Generic hardware monitor class.
 
-    __metaclass__ = abc.ABCMeta
+    Inherited by specific classes for all actual hardware types. This is an abstract
+    class and must be subtyped, implementing the `_check` method.
+
+    Parameters
+    ----------
+    log: `logging.Logger`
+        log object to direct output to
+
+    """
 
     def __init__(self, log):
-        """
-
-        Generic hardware monitor class.
-
-        Inherited by specific classes for all actual hardware types. This is an abstract
-        class and must be subtyped, implementing the `_check` method.
-
-        Parameters
-        ----------
-        log: `logging.Logger`
-            log object to direct output to
-
-        """
         self.log = log
         self.info = None
-        self.lastSuccessfulCheck = 0.
-        self.recoveryLevel = 0
+        self.last_successful_check = 0.
+        self.recovery_level = 0
         self.mode = None
-        self.availableModes = [None]
-        self.recoveryProcedure = {}
-        self.daemonID = None
+        self.available_modes = [None]
+        self.recovery_procedure = {}
+        self.daemon_id = None
 
-    def getInfo(self):
-        inf = None
-        if self.daemonID is not None:
+    def get_info(self):
+        """Get the daemon info dict."""
+        info = None
+        if self.daemon_id is not None:
             try:
-                inf = daemon_info(self.daemonID)
-                assert isinstance(inf, dict)
-            except:
-                inf = None
-        if inf is not None:
-            self.info = inf
-        return inf
+                info = daemon_info(self.daemon_id)
+                assert isinstance(info, dict)
+            except Exception:
+                info = None
+        if info is not None:
+            self.info = info
+        return info
 
-    def pingDaemon(self):
-        """Ping a daemon - return 0 for alive and 1 for (maybe) dead"""
-        if self.daemonID is not None:
+    def ping_daemon(self):
+        """Ping a daemon - return 0 for alive and 1 for (maybe) dead."""
+        if self.daemon_id is not None:
             try:
-                ping = daemon_function(self.daemonID, 'ping')
+                ping = daemon_function(self.daemon_id, 'ping')
                 assert ping == 'ping'
                 return 0
-            except:
+            except Exception:
                 return 1
         else:
             return 0
 
-    def check(self, obsMode=None):
-        """
-        Check if hardware is OK
+    def check(self, mode=None):
+        """Check if hardware is OK.
 
         Parameters
         ----------
-        obsMode : string
+        mode : string
             allows different hardware states to be OK depending on observing mode
 
         Returns
@@ -77,57 +70,58 @@ class HardwareMonitor:
             0 for OK, >0 for errors
         errors : list of string
             details of errors found
+
         """
         self.errors = []
-        if self.pingDaemon() > 0:
+        if self.ping_daemon() > 0:
             self.errors.append('Ping failed')
 
-        inf = self.getInfo()
+        inf = self.get_info()
         if inf is None:
             return 1, ['Get info failed']
 
-        if obsMode is None:
-            obsMode = self.mode
-        self._check(obsMode=obsMode)
+        if mode is None:
+            mode = self.mode
+        self._check(mode)
         if len(self.errors) < 1:
-            self.lastSuccessfulCheck = time.time()
-            self.recoveryLevel = 0
+            self.last_successful_check = time.time()
+            self.recovery_level = 0
         return len(self.errors), self.errors
 
     @abc.abstractmethod
-    def _check(self, obsMode=None):
-        """
-        Custom hardware checks.
+    def _check(self, mode=None):
+        """Check the hardware by running through the recovery steps.
 
         This abstract method must be implemented by all hardware to add
         hardware specific checks.
 
         Parameters
         ----------
-        obsMode : string, optional
+        mode : string, optional
             allows different hardware states to be OK depending on observing mode
+
         """
         return
 
     def recover(self):
-        """
-        Recovery procedure.
+        """Run recovery commands.
 
         Checks whether enough time has elapsed to progress to next stage of recovery.
         """
-        downtime = time.time() - self.lastSuccessfulCheck
-        nextLevel = self.recoveryLevel + 1
-        if nextLevel in self.recoveryProcedure:
-            if downtime > self.recoveryProcedure[nextLevel][0]:
-                for cmd in self.recoveryProcedure[nextLevel][1:]:
-                    self.log.info('Attempting recovery level %d: %s' % (nextLevel, cmd))
+        downtime = time.time() - self.last_successful_check
+        next_level = self.recovery_level + 1
+        if next_level in self.recovery_procedure:
+            if downtime > self.recovery_procedure[next_level][0]:
+                for cmd in self.recovery_procedure[next_level][1:]:
+                    self.log.info('Attempting recovery level %d: %s' % (next_level, cmd))
                     execute_command(cmd)
-                self.recoveryLevel += 1
+                self.recovery_level += 1
         else:
             return
 
-    def setMode(self, mode):
-        if mode in self.availableModes:
+    def set_mode(self, mode):
+        """Set the hardware mode."""
+        if mode in self.available_modes:
             self.mode = mode
             return 0
         else:
@@ -135,18 +129,19 @@ class HardwareMonitor:
 
 
 class DomeMonitor(HardwareMonitor):
+    """Hardware monitor for the dome daemon."""
 
     def __init__(self, log):
         # call parent init function
         super(DomeMonitor, self).__init__(log)
-        self.daemonID = 'dome'
-        self.availableModes.extend(['open'])
+        self.daemon_id = 'dome'
+        self.available_modes.extend(['open'])
         self.move_start_time = 0
         self.currently_moving = False
 
-    def _check(self, obsMode=None):
+    def _check(self, mode=None):
 
-        if obsMode == 'open':
+        if mode == 'open':
             dome_fully_open = all(item == 'full_open' for item in (
                 self.info['north'], self.info['south']
             ))
@@ -164,7 +159,7 @@ class DomeMonitor(HardwareMonitor):
                 self.currently_moving = False
                 self.move_start_time = 0
 
-        elif obsMode is None:
+        elif mode is None:
             dome_fully_closed = self.info['dome'] == 'closed'
             if not dome_fully_closed:
                 if 'ing' in self.info['north'] or 'ing' in self.info['south']:
@@ -180,36 +175,39 @@ class DomeMonitor(HardwareMonitor):
                 self.currently_moving = False
                 self.move_start_time = 0
 
-    def setMode(self, mode):
-        val = super(DomeMonitor, self).setMode(mode)
+    def set_mode(self, mode):
+        """Set the hardware mode."""
+        val = super(DomeMonitor, self).set_mode(mode)
         if mode == 'open':
             # dome open commands may need repeating if cond change hasnt propogated
-            self.recoveryProcedure[1] = [30., 'dome open']
-            self.recoveryProcedure[2] = [120., 'dome close both 0.1']
-            self.recoveryProcedure[3] = [120., 'dome open']
-            self.recoveryProcedure[4] = [180., 'dome open']
-            self.recoveryProcedure[4] = [240., 'dome close']
-            self.recoveryProcedure[4] = [360., 'dome open']
+            self.recovery_procedure[1] = [30., 'dome open']
+            self.recovery_procedure[2] = [120., 'dome close both 0.1']
+            self.recovery_procedure[3] = [120., 'dome open']
+            self.recovery_procedure[4] = [180., 'dome open']
+            self.recovery_procedure[4] = [240., 'dome close']
+            self.recovery_procedure[4] = [360., 'dome open']
         else:
-            self.recoveryProcedure = {}
+            self.recovery_procedure = {}
         return val
 
 
 class MountMonitor(HardwareMonitor):
+    """Hardware monitor for the mount daemon."""
 
     def __init__(self, log):
         super(MountMonitor, self).__init__(log)
-        self.daemonID = 'mnt'
-        self.availableModes.extend(['parked', 'tracking'])
+        self.daemon_id = 'mnt'
+        self.available_modes.extend(['parked', 'tracking'])
         self.slew_start_time = 0
         self.currently_slewing = False
         self.off_target_start_time = 0
         self.currently_off_target = False
 
-    def _check(self, obsMode=None):
-        if obsMode == 'tracking':
+    def _check(self, mode=None):
+        if mode == 'tracking':
             not_on_target = (self.info['target_dist'] is not None and
-                             (float(self.info['target_dist']) > 0.003 or self.info['status'] != 'Tracking'))
+                             (float(self.info['target_dist']) > 0.003 or
+                              self.info['status'] != 'Tracking'))
             if not_on_target:
                 if self.info['status'] == 'Slewing':
                     if not self.currently_slewing:
@@ -231,98 +229,104 @@ class MountMonitor(HardwareMonitor):
                 self.currently_off_target = False
                 self.off_target_start_time = 0
 
-        elif obsMode == 'parked' and params.FREEZE_DEC:
+        elif mode == 'parked' and params.FREEZE_DEC:
             if self.info['status'] != 'Stopped':
                 self.errors.append('Not parked')
-        elif obsMode == 'parked':
+
+        elif mode == 'parked':
             if self.info['status'] not in ['Parked', 'Parking']:
                 self.errors.append('Not parked')
         if self.info['status'] == 'Unknown':
             self.errors.append('Mount in error state')
 
-    def setMode(self, mode):
-        val = super(MountMonitor, self).setMode(mode)
+    def set_mode(self, mode):
+        """Set the hardware mode."""
+        val = super(MountMonitor, self).set_mode(mode)
         if mode == 'tracking':
-            self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [60., 'mnt track']
-            self.recoveryProcedure[2] = [120., 'mnt slew']
-            self.recoveryProcedure[3] = [240., 'mnt track']
-            self.recoveryProcedure[4] = [270., 'mnt unpark']
-            self.recoveryProcedure[5] = [290., 'mnt track']
-            self.recoveryProcedure[6] = [320., 'mnt slew']
-            self.recoveryProcedure[7] = [320., 'mnt slew']
-            self.recoveryProcedure[8] = [360., 'mnt track']
+            self.recovery_procedure = {}
+            self.recovery_procedure[1] = [60., 'mnt track']
+            self.recovery_procedure[2] = [120., 'mnt slew']
+            self.recovery_procedure[3] = [240., 'mnt track']
+            self.recovery_procedure[4] = [270., 'mnt unpark']
+            self.recovery_procedure[5] = [290., 'mnt track']
+            self.recovery_procedure[6] = [320., 'mnt slew']
+            self.recovery_procedure[7] = [320., 'mnt slew']
+            self.recovery_procedure[8] = [360., 'mnt track']
         elif mode == 'parked':
-            self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [60., 'mnt stop']
-            self.recoveryProcedure[2] = [120., 'mnt park']
-            self.recoveryProcedure[3] = [180., 'mnt unpark']
-            self.recoveryProcedure[4] = [240., 'mnt stop']
-            self.recoveryProcedure[4] = [360., 'mnt park']
+            self.recovery_procedure = {}
+            self.recovery_procedure[1] = [60., 'mnt stop']
+            self.recovery_procedure[2] = [120., 'mnt park']
+            self.recovery_procedure[3] = [180., 'mnt unpark']
+            self.recovery_procedure[4] = [240., 'mnt stop']
+            self.recovery_procedure[4] = [360., 'mnt park']
         else:
-            self.recoveryProcedure = {}
-            self.recoveryProcedure[1] = [60., 'mnt stop']
-            self.recoveryProcedure[2] = [120., 'mnt stop']
-            self.recoveryProcedure[3] = [180., 'mnt stop']
-            self.recoveryProcedure[4] = [360., 'mnt stop']
+            self.recovery_procedure = {}
+            self.recovery_procedure[1] = [60., 'mnt stop']
+            self.recovery_procedure[2] = [120., 'mnt stop']
+            self.recovery_procedure[3] = [180., 'mnt stop']
+            self.recovery_procedure[4] = [360., 'mnt stop']
         return val
 
 
 class CameraMonitor(HardwareMonitor):
+    """Hardware monitor for the camera daemon."""
 
     def __init__(self, log):
         super(CameraMonitor, self).__init__(log)
-        self.daemonID = 'cam'
-        self.availableModes.extend(['science'])
-        self.recoveryProcedure[1] = [60., 'cam start']
-        self.recoveryProcedure[2] = [120., 'cam kill']
-        self.recoveryProcedure[3] = [130., 'cam start']
+        self.daemon_id = 'cam'
+        self.available_modes.extend(['science'])
+        self.recovery_procedure[1] = [60., 'cam start']
+        self.recovery_procedure[2] = [120., 'cam kill']
+        self.recovery_procedure[3] = [130., 'cam start']
 
-    def _check(self, obsMode=None):
+    def _check(self, mode=None):
         # no custom checks as yet
         return
 
 
 class FilterWheelMonitor(HardwareMonitor):
+    """Hardware monitor for the filter wheel daemon."""
 
     def __init__(self, log):
         super(FilterWheelMonitor, self).__init__(log)
-        self.daemonID = 'filt'
-        self.availableModes.extend(['science'])
-        self.recoveryProcedure[1] = [60., 'filt start']
-        self.recoveryProcedure[2] = [120., 'filt kill']
-        self.recoveryProcedure[3] = [130., 'filt start']
+        self.daemon_id = 'filt'
+        self.available_modes.extend(['science'])
+        self.recovery_procedure[1] = [60., 'filt start']
+        self.recovery_procedure[2] = [120., 'filt kill']
+        self.recovery_procedure[3] = [130., 'filt start']
 
-    def _check(self, obsMode=None):
+    def _check(self, mode=None):
         # no custom checks as yet
         return
 
 
 class ExposureQueueMonitor(HardwareMonitor):
+    """Hardware monitor for the exposure queue daemon."""
 
     def __init__(self, log):
         super(ExposureQueueMonitor, self).__init__(log)
-        self.daemonID = 'exq'
-        self.availableModes.extend(['science'])
-        self.recoveryProcedure[1] = [60., 'exq start']
-        self.recoveryProcedure[2] = [120., 'exq kill']
-        self.recoveryProcedure[3] = [130., 'exq start']
+        self.daemon_id = 'exq'
+        self.available_modes.extend(['science'])
+        self.recovery_procedure[1] = [60., 'exq start']
+        self.recovery_procedure[2] = [120., 'exq kill']
+        self.recovery_procedure[3] = [130., 'exq start']
 
-    def _check(self, obsMode=None):
+    def _check(self, mode=None):
         # no custom checks as yet
         return
 
 
 class FocuserMonitor(HardwareMonitor):
+    """Hardware monitor for the focuser daemon."""
 
     def __init__(self, log):
         super(FocuserMonitor, self).__init__(log)
-        self.daemonID = 'foc'
-        self.availableModes.extend(['science'])
-        self.recoveryProcedure[1] = [60., 'foc start']
-        self.recoveryProcedure[2] = [120., 'foc kill']
-        self.recoveryProcedure[3] = [130., 'foc start']
+        self.daemon_id = 'foc'
+        self.available_modes.extend(['science'])
+        self.recovery_procedure[1] = [60., 'foc start']
+        self.recovery_procedure[2] = [120., 'foc kill']
+        self.recovery_procedure[3] = [130., 'foc start']
 
-    def _check(self, obsMode=None):
+    def _check(self, mode=None):
         # no custom checks as yet
         return

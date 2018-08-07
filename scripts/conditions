@@ -1,28 +1,21 @@
 #!/usr/bin/env python
-"""
-A script to provide control over the conditions daemon
-"""
+"""A script to provide control over the conditions daemon."""
 
 import os
 import sys
-import time
-import readline
-import Pyro4
 
-from astropy.time import Time
-
-from gtecs import misc
+from gtecs import daemons
 from gtecs import errors
+from gtecs import misc
 from gtecs import params
 from gtecs import style
-from gtecs import daemons
-from gtecs.astronomy import sun_alt
 
 
 DAEMON_ID = os.path.basename(__file__)
 
 
-def query(command, args, daemon_ID):
+def query(command, args, daemon_id):
+    """Process a query."""
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -32,28 +25,28 @@ def query(command, args, daemon_ID):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_ID)
+        reply = daemons.start_daemon(daemon_id)
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_ID)
+        reply = daemons.shutdown_daemon(daemon_id)
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_ID)
+        reply = daemons.restart_daemon(daemon_id)
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_ID)
+        reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
     elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_ID)
+        reply = daemons.ping_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        reply = daemons.daemon_function(daemon_id, 'get_info')
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:
@@ -62,10 +55,10 @@ def query(command, args, daemon_ID):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            log_path = params.LOG_PATH + daemon_id + '-stdout.log'
             args.remove('stdout')
         else:
-            log_path = params.LOG_PATH + daemon_ID + '.log'
+            log_path = params.LOG_PATH + daemon_id + '.log'
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
         misc.execute_long_command(tail_command)
@@ -76,6 +69,7 @@ def query(command, args, daemon_ID):
 
 
 def print_info(info):
+    """Print the full info dict."""
     if info['flags'] is None or info['weather'] is None:
         print('CONDITIONS:')
         print('  None yet, try again')
@@ -84,7 +78,7 @@ def print_info(info):
         weather = info['weather']
         print('FLAGS ({}):'.format(flags['update_time'][:-4]))
         del flags['update_time']
-        for flag in sorted(flags.keys()):
+        for flag in sorted(flags):
             if flags[flag] == 0:
                 status = style.gtxt('Good')
             elif flags[flag] == 1:
@@ -101,7 +95,7 @@ def print_info(info):
                 sunalt_str = style.gtxt('{:>5.1f}'.format(sunalt))
         else:
             sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
-        print('  {: <10}   {} degrees'.format('sun_alt', sunalt_str))
+        print('  {: <10}   {} degrees'.format('sunalt', sunalt_str))
 
         # SuperWASP doesn't have a rain sensor
         weather['superwasp']['rain'] = 'NA'
@@ -121,7 +115,7 @@ def print_info(info):
                   temperature > params.MIN_TEMPERATURE):
                 temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
                 if (temperature < params.MAX_TEMPERATURE - 1 and
-                    temperature > params.MIN_TEMPERATURE + 1):
+                        temperature > params.MIN_TEMPERATURE + 1):
                     temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
@@ -130,7 +124,7 @@ def print_info(info):
                 humidity_str = style.rtxt('  ERR')
             elif (humidity < params.MAX_HUMIDITY):
                 humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY*0.9):
+                if (humidity < params.MAX_HUMIDITY * 0.9):
                     humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
@@ -141,7 +135,7 @@ def print_info(info):
                 windspeed_str = '  N/A'
             elif (windspeed < params.MAX_WINDSPEED):
                 windspeed_str = style.ytxt('{:>5.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED*0.9):
+                if (windspeed < params.MAX_WINDSPEED * 0.9):
                     windspeed_str = style.gtxt('{:>5.1f}'.format(windspeed))
             else:
                 windspeed_str = style.rtxt('{:>5.1f}'.format(windspeed))
@@ -162,7 +156,6 @@ def print_info(info):
             else:
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
-
             print('  {: <10}'.format(source), end='\t')
             weather_str = '{}C  {}%  {} km/h  {}  dt={}'.format(temperature_str,
                                                                 humidity_str,
@@ -171,7 +164,7 @@ def print_info(info):
                                                                 dt_str)
             print(weather_str)
 
-        #for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
+        # for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
         for source in ['pier']:
             int_temperature = weather[source]['int_temperature']
             int_humidity = weather[source]['int_humidity']
@@ -183,7 +176,7 @@ def print_info(info):
                   int_temperature > params.MIN_INTERNAL_TEMPERATURE):
                 int_temperature_str = style.ytxt('{:>4.1f}'.format(int_temperature))
                 if (int_temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
-                    int_temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
+                        int_temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
                     int_temperature_str = style.gtxt('{:>4.1f}'.format(int_temperature))
             else:
                 int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
@@ -192,7 +185,7 @@ def print_info(info):
                 int_humidity_str = style.rtxt(' ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
                 int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.MAX_INTERNAL_HUMIDITY*0.9):
+                if (int_humidity < params.MAX_INTERNAL_HUMIDITY * 0.9):
                     int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
                 int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
@@ -204,11 +197,10 @@ def print_info(info):
             else:
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
-            print('  {: <10}'.format(source+'_int'), end='\t')
-            weather_str = '{}C  {}%                     dt={}'.format(
-                                                        int_temperature_str,
-                                                        int_humidity_str,
-                                                        dt_str)
+            print('  {: <10}'.format(source + '_int'), end='\t')
+            weather_str = '{}C  {}%                    dt={}'.format(int_temperature_str,
+                                                                     int_humidity_str,
+                                                                     dt_str)
             print(weather_str)
 
         ups_percents = info['ups_percent']
@@ -232,22 +224,23 @@ def print_info(info):
         print('  {: <10}   {}%'.format('diskspace', diskspace_str))
 
 
-
 def print_instructions():
-    help_str = style.bold('Usage:') + ' conditions [command]' + '\n' +\
-    ' ' + style.undl('Interface commands') + ':' + '\n' +\
-    '  conditions ' + style.bold('start') + '             - start the daemon' + '\n' +\
-    '  conditions ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  conditions ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  conditions ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  conditions ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  conditions ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
-    '  conditions ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  conditions ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  conditions ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  conditions ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
-    print(help_str)
+    """Print instructions for using the daemon."""
+    print('Usage: conditions command [options]',
+          'Daemon commands:',
+          '  start                          start the daemon',
+          '  shutdown                       shutdown the daemon',
+          '  restart                        restart the daemon',
+          '  kill                           kill the daemon',
+          '  ping                           ping the daemon',
+          'Conditions commands:',
+          '  info/status [v]                report current status',
+          '  log [stdout]                   print daemon log (tail alias)',
+          'Control commands:',
+          '  i                              enter interactive mode',
+          '  q/exit                         quit interactive mode',
+          '  ?/help                         print these instructions',
+          sep='\n')
 
 
 if __name__ == "__main__":

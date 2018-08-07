@@ -1,32 +1,34 @@
-"""
-Classes to control telescope domes and dehumidifiers
-"""
+"""Classes to control telescope domes and dehumidifiers."""
 
-import os
-import sys
-import time
-import serial
 import json
-import threading
+import os
 import subprocess
+import threading
+import time
 
-from gtecs import flags
-from gtecs import params
-from gtecs.conditions import get_roomalert
-from gtecs.controls.power_control import ETH002
+import serial
+
+from .power_control import ETH002
+from .. import flags
+from .. import params
+from ..conditions import get_roomalert
 
 
-class FakeDome:
-    """Fake AstroHaven dome class"""
+class FakeDome(object):
+    """Fake AstroHaven dome class."""
+
     def __init__(self):
         self.fake = True
         self.output_thread_running = False
         self.side = ''
+        self.frac = 1
+        self.command = ''
+        self.timeout = 0
         self.heartbeat_status = 'disabled'
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
-        self._writing = False # had problems with reading and writing overlapping
+        self._writing = False  # had problems with reading and writing overlapping
 
         self._read_temp()
 
@@ -39,24 +41,25 @@ class FakeDome:
         else:
             with open(self._temp_file, 'r') as f:
                 string = f.read().strip()
-                #print('R: ', string)
-                if not string == '': # I don't know why or how that happens
-                    self._status_arr = list(map(int,list(string)))
+                # print('R: ', string)
+                if not string == '':  # I don't know why or how that happens
+                    self._status_arr = list(map(int, list(string)))
 
     def _write_temp(self):
         self._writing = True
         with open(self._temp_file, 'w') as f:
             string = ''.join(str(i) for i in self._status_arr)
-            #print('W: ', string)
+            # print('W: ', string)
             f.write(string)
         self._writing = False
 
     @property
     def status(self):
+        """Return the current status of the dome."""
         return self._check_status()
 
     def _check_status(self):
-        status = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
+        status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
         self._read_temp()
         # north
         if self._status_arr[0] == 0:
@@ -91,6 +94,7 @@ class FakeDome:
         return status
 
     def halt(self):
+        """Stop the dome moving."""
         self.output_thread_running = False
 
     def _output_thread(self):
@@ -120,7 +124,7 @@ class FakeDome:
                 self.output_thread_running = 0
                 break
             elif (frac != 1 and
-                abs(start_position - self._status_arr[side]) > frac*9):
+                  abs(start_position - self._status_arr[side]) > frac * 9):
                 print('Dome moved requested fraction')
                 self.output_thread_running = 0
                 break
@@ -157,10 +161,10 @@ class FakeDome:
         self.timeout = timeout
 
         # Don't interupt!
-        if self.status[side] in ['opening','closing']:
+        if self.status[side] in ['opening', 'closing']:
             return
 
-        ### start output thread
+        # start output thread
         if not self.output_thread_running:
             print('starting to move:', side, command, frac)
             self.output_thread_running = 1
@@ -170,16 +174,19 @@ class FakeDome:
             return
 
     def open_side(self, side, frac=1):
+        """Open one side of the dome."""
         self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
     def close_side(self, side, frac=1):
+        """Close one side of the dome."""
         self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
+        """Sound the dome alarm."""
         status = flags.Status()
         if status.alarm:
             bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
@@ -187,8 +194,9 @@ class FakeDome:
         return
 
 
-class AstroHavenDome:
-    """New AstroHaven dome class (based on Warwick 1m control)"""
+class AstroHavenDome(object):
+    """New AstroHaven dome class (based on Warwick 1m control)."""
+
     def __init__(self, dome_port, heartbeat_port=None):
         self.dome_serial_port = dome_port
         self.dome_serial_baudrate = 9600
@@ -198,16 +206,16 @@ class AstroHavenDome:
         self.heartbeat_serial_baudrate = 9600
         self.heartbeat_serial_timeout = 1
 
-        self.move_code = {'south':{'open':b'a','close':b'A'},
-                          'north':{'open':b'b','close':b'B'}}
-        self.move_time = {'south':{'open':36.,'close':26.},
-                          'north':{'open':24.,'close':24.}}
+        self.move_code = {'south': {'open': b'a', 'close': b'A'},
+                          'north': {'open': b'b', 'close': b'B'}}
+        self.move_time = {'south': {'open': 36., 'close': 26.},
+                          'north': {'open': 24., 'close': 24.}}
 
         self.fake = False
 
-        self.status_P = {'north':'ERROR', 'south':'ERROR'}
-        self.status_A = {'north':'ERROR', 'south':'ERROR', 'hatch':'ERROR'}
-        self.honeywell_was_triggered = {'north':0, 'south':0}
+        self.plc_status = {'north': 'ERROR', 'south': 'ERROR'}
+        self.arduino_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
+        self.honeywell_was_triggered = {'north': 0, 'south': 0}
         self.status = None
 
         self.plc_error = 0
@@ -236,15 +244,15 @@ class AstroHavenDome:
         if self.heartbeat_enabled and self.heartbeat_serial_port:
             try:
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
-                                                    baudrate=self.heartbeat_serial_baudrate,
-                                                    timeout=self.heartbeat_serial_timeout)
+                                                      baudrate=self.heartbeat_serial_baudrate,
+                                                      timeout=self.heartbeat_serial_timeout)
                 # start thread
                 self.heartbeat_thread_running = 1
                 ht = threading.Thread(target=self._heartbeat_thread)
                 ht.daemon = True
                 ht.start()
 
-            except:
+            except Exception:
                 print('Error connecting to dome monitor')
                 self.heartbeat_status = 'ERROR'
                 self.heartbeat_error = 1
@@ -261,210 +269,206 @@ class AstroHavenDome:
                 x = out.decode('ascii')[-1]
                 self._parse_plc_status(x)
             return 0
-        except:
+        except Exception:
             self.plc_error = 1
-            self.status_P['north'] = 'ERROR'
-            self.status_P['south'] = 'ERROR'
+            self.plc_status['north'] = 'ERROR'
+            self.plc_status['south'] = 'ERROR'
             return 1
 
     def _parse_plc_status(self, status_character):
         # save previous status
-        self.old_status_P = self.status_P.copy()
-        ## Non-moving statuses
+        self.old_plc_status = self.plc_status.copy()
+        # Non-moving statuses
         # returned when we're NOT sending command bytes
         if status_character == '0':
-            self.status_P['north'] = 'closed'
-            self.status_P['south'] = 'closed'
+            self.plc_status['north'] = 'closed'
+            self.plc_status['south'] = 'closed'
         elif status_character == '1':
-            self.status_P['north'] = 'part_open'
-            self.status_P['south'] = 'closed'
+            self.plc_status['north'] = 'part_open'
+            self.plc_status['south'] = 'closed'
         elif status_character == '2':
-            self.status_P['north'] = 'closed'
-            self.status_P['south'] = 'part_open'
+            self.plc_status['north'] = 'closed'
+            self.plc_status['south'] = 'part_open'
         elif status_character == '3':
-            self.status_P['north'] = 'part_open'
-            self.status_P['south'] = 'part_open'
-        ## Moving statuses
+            self.plc_status['north'] = 'part_open'
+            self.plc_status['south'] = 'part_open'
+        # Moving statuses
         # returned when we ARE sending command bytes
         elif status_character == 'a':
-            self.status_P['south'] = 'opening'
+            self.plc_status['south'] = 'opening'
         elif status_character == 'A':
-            self.status_P['south'] = 'closing'
+            self.plc_status['south'] = 'closing'
         elif status_character == 'b':
-            self.status_P['north'] = 'opening'
+            self.plc_status['north'] = 'opening'
         elif status_character == 'B':
-            self.status_P['north'] = 'closing'
+            self.plc_status['north'] = 'closing'
         elif status_character == 'x':
-            self.status_P['south'] = 'full_open'
+            self.plc_status['south'] = 'full_open'
         elif status_character == 'X':
-            self.status_P['south'] = 'closed'
+            self.plc_status['south'] = 'closed'
         elif status_character == 'y':
-            self.status_P['north'] = 'full_open'
+            self.plc_status['north'] = 'full_open'
         elif status_character == 'Y':
-            self.status_P['north'] = 'closed'
+            self.plc_status['north'] = 'closed'
         else:
             self.plc_error = 1
-            self.status_P['north'] = 'ERROR'
-            self.status_P['south'] = 'ERROR'
+            self.plc_status['north'] = 'ERROR'
+            self.plc_status['south'] = 'ERROR'
         return
 
     def _read_arduino(self):
         loc = params.ARDUINO_LOCATION
         try:
-            arduino = subprocess.getoutput('curl -s %s' %loc)
+            arduino = subprocess.getoutput('curl -s {}'.format(loc))
             data = json.loads(arduino)
             self._parse_arduino_status(data)
             return 0
-        except:
+        except Exception:
             self.arduino_error = 1
-            self.status_A['north'] = 'ERROR'
-            self.status_A['south'] = 'ERROR'
-            self.status_A['hatch'] = 'ERROR'
+            self.arduino_status['north'] = 'ERROR'
+            self.arduino_status['south'] = 'ERROR'
+            self.arduino_status['hatch'] = 'ERROR'
             return 1
 
     def _parse_arduino_status(self, status_dict):
-            # save previous status
-            self.old_status_A = self.status_A.copy()
-            try:
-                assert status_dict['switch_a'] in [0,1]
-                assert status_dict['switch_b'] in [0,1]
-                assert status_dict['switch_c'] in [0,1]
-                assert status_dict['switch_d'] in [0,1]
+        # save previous status
+        self.old_arduino_status = self.arduino_status.copy()
+        try:
+            assert status_dict['switch_a'] in [0, 1]
+            assert status_dict['switch_b'] in [0, 1]
+            assert status_dict['switch_c'] in [0, 1]
+            assert status_dict['switch_d'] in [0, 1]
 
-                all_closed   = status_dict['switch_a']
-                north_open   = status_dict['switch_b']
-                south_open   = status_dict['switch_c']
-                hatch_closed = status_dict['switch_d']
+            all_closed = status_dict['switch_a']
+            north_open = status_dict['switch_b']
+            south_open = status_dict['switch_c']
+            hatch_closed = status_dict['switch_d']
 
-                if all_closed:
-                    if not north_open:
-                        self.status_A['north'] = 'closed'
-                    else:
-                        self.status_A['north'] = 'ERROR'
-                    if not south_open:
-                        self.status_A['south'] = 'closed'
-                    else:
-                        self.status_A['south'] = 'ERROR'
+            if all_closed:
+                if not north_open:
+                    self.arduino_status['north'] = 'closed'
                 else:
-                    if north_open:
-                        self.status_A['north'] = 'full_open'
-                    else:
-                        self.status_A['north'] = 'part_open'
-                    if south_open:
-                        self.status_A['south'] = 'full_open'
-                    else:
-                        self.status_A['south'] = 'part_open'
-
-                if hatch_closed:
-                    self.status_A['hatch'] = 'closed'
+                    self.arduino_status['north'] = 'ERROR'
+                if not south_open:
+                    self.arduino_status['south'] = 'closed'
                 else:
-                    self.status_A['hatch'] = 'open'
+                    self.arduino_status['south'] = 'ERROR'
+            else:
+                if north_open:
+                    self.arduino_status['north'] = 'full_open'
+                else:
+                    self.arduino_status['north'] = 'part_open'
+                if south_open:
+                    self.arduino_status['south'] = 'full_open'
+                else:
+                    self.arduino_status['south'] = 'part_open'
 
-                # the Honeywells need memory, in case the built-in
-                # sensors fail again
+            if hatch_closed:
+                self.arduino_status['hatch'] = 'closed'
+            else:
+                self.arduino_status['hatch'] = 'open'
 
-                ## NOTE
-                ## THIS LOGIC HASN'T BEEN TESTED
-                ## YOU'D HAVE TO DISENGAGE THE DOME LIMIT SWITCHES
-                ## OR WAIT FOR IT TO HAPPEN
-                ## FINGERS CROSSED
+            # the Honeywells need memory, in case the built-in
+            # sensors fail again
 
-                for side in ['north','south']:
-                    # find the current status
-                    if side == 'north':
-                        honeywell_triggered = north_open
-                    else:
-                        honeywell_triggered = south_open
+            # NOTE
+            # THIS LOGIC HASN'T BEEN TESTED
+            # YOU'D HAVE TO DISENGAGE THE DOME LIMIT SWITCHES
+            # OR WAIT FOR IT TO HAPPEN
+            # FINGERS CROSSED
 
-                    # if the honeywell is triggered now, store it
-                    if honeywell_triggered:
-                        self.honeywell_was_triggered[side] = 1
+            for side in ['north', 'south']:
+                # find the current status
+                if side == 'north':
+                    honeywell_triggered = north_open
+                else:
+                    honeywell_triggered = south_open
 
-                    # but if it's not currently triggered,
-                    # it might have gone past
-                    else:
-                        if self.honeywell_was_triggered[side]:
-                            if self.status_P[side] == 'opening':
-                                # Oh dear, it's flicked past the Honeywells
-                                # and it's still going!!
-                                print('Honeywell limit error, stopping!')
-                                self.status_A[side] == 'full_open'
-                                self.output_thread_running = 0 # to be sure
-                            else:
-                                # It's moving back, clear the memory
-                                self.honeywell_was_triggered[side] = 0
+                # if the honeywell is triggered now, store it
+                if honeywell_triggered:
+                    self.honeywell_was_triggered[side] = 1
 
-            except:
-                self.arduino_error = 1
-                self.status_A['north'] = 'ERROR'
-                self.status_A['south'] = 'ERROR'
-                self.status_A['hatch'] = 'ERROR'
-            return
+                # but if it's not currently triggered,
+                # it might have gone past
+                else:
+                    if self.honeywell_was_triggered[side]:
+                        if self.plc_status[side] == 'opening':
+                            # Oh dear, it's flicked past the Honeywells
+                            # and it's still going!!
+                            print('Honeywell limit error, stopping!')
+                            self.arduino_status[side] == 'full_open'
+                            self.output_thread_running = 0  # to be sure
+                        else:
+                            # It's moving back, clear the memory
+                            self.honeywell_was_triggered[side] = 0
+
+        except Exception:
+            self.arduino_error = 1
+            self.arduino_status['north'] = 'ERROR'
+            self.arduino_status['south'] = 'ERROR'
+            self.arduino_status['hatch'] = 'ERROR'
+        return
 
     def _read_status(self):
-        """Check the dome status
-        reported by both the dome plc and the arduino"""
-
+        """Check the dome status reported by both the dome plc and the arduino."""
         # check plc
         self._read_plc()
 
-        #check arduino
+        # check arduino
         self._read_arduino()
 
-        #print(self.status_P['north'], '\t', self.status_A['north'])
-        #print(self.status_P['south'], '\t', self.status_A['south'])
-        #print(self.status_A['hatch'])
+        # print(self.plc_status['north'], '\t', self.arduino_status['north'])
+        # print(self.plc_status['south'], '\t', self.arduino_status['south'])
+        # print(self.arduino_status['hatch'])
 
         status = {}
 
         # Only the arduino reports the hatch
-        status['hatch'] = self.status_A['hatch']
+        status['hatch'] = self.arduino_status['hatch']
 
         # dome logic
         for side in ['north', 'south']:
-                status_P = self.status_P[side]
-                status_A = self.status_A[side]
+            plc_status = self.plc_status[side]
+            arduino_status = self.arduino_status[side]
 
-                # Chose which dome status to report
-                if status_P == status_A:
-                    # arbitrary
-                    status[side] = status_P
-                elif status_P == 'ERROR' and status_A != 'ERROR':
-                    # go with the one that is still working
-                    status[side] = status_A
-                elif status_A == 'ERROR' and status_P != 'ERROR':
-                    # go with the one that is still working
-                    status[side] = status_P
-                elif status_P[-3:] == 'ing':
-                    if status_A == 'part_open':
-                        # arduino can't tell if it's moving
-                        status[side] = status_P
-                    else: # closed or full_open
-                        # arduino says it's reached the limit,
-                        # but it hasn't stopped!!
-                        status[side] = status_A
-                elif status_P == 'part_open':
-                    # arduino says closed or full_open
-                    status[side] = status_A
-                elif status_A == 'part_open':
-                    # plc says closed or full_open
-                    status[side] = status_P
-                else:
-                    # if one says closed and the other says full_open
-                    # or something totally unexpected
-                    status[side] = 'ERROR'
+            # Chose which dome status to report
+            if plc_status == arduino_status:
+                # arbitrary
+                status[side] = plc_status
+            elif plc_status == 'ERROR' and arduino_status != 'ERROR':
+                # go with the one that is still working
+                status[side] = arduino_status
+            elif arduino_status == 'ERROR' and plc_status != 'ERROR':
+                # go with the one that is still working
+                status[side] = plc_status
+            elif plc_status[-3:] == 'ing':
+                if arduino_status == 'part_open':
+                    # arduino can't tell if it's moving
+                    status[side] = plc_status
+                else:  # closed or full_open
+                    # arduino says it's reached the limit,
+                    # but it hasn't stopped!!
+                    status[side] = arduino_status
+            elif plc_status == 'part_open':
+                # arduino says closed or full_open
+                status[side] = arduino_status
+            elif arduino_status == 'part_open':
+                # plc says closed or full_open
+                status[side] = plc_status
+            else:
+                # if one says closed and the other says full_open
+                # or something totally unexpected
+                status[side] = 'ERROR'
         return status
 
     def _check_status(self):
-        ### start status check thread
+        # start status check thread
         self.status_thread_running = 1
         st = threading.Thread(target=self._status_thread)
         st.daemon = True
         st.start()
 
     def _status_thread(self):
-        start_time = time.time()
-
         while self.status_thread_running:
             self.status = self._read_status()
             time.sleep(0.5)
@@ -486,17 +490,16 @@ class AstroHavenDome:
             if self.heartbeat_serial.in_waiting:
                 out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
                 x = out[-1]
-                #print('heartbeat says:{}'.format(x))
+                # print('heartbeat says:{}'.format(x))
                 self._parse_heartbeat_status(x)
             return 0
-        except:
+        except Exception:
             self.heartbeat_error = 1
             self.heartbeat_status = 'ERROR'
             return 1
 
     def _heartbeat_thread(self):
         heartbeat_timeout = self.heartbeat_timeout
-        start_time = time.time()
 
         while self.heartbeat_thread_running:
             # check heartbeat status
@@ -505,8 +508,8 @@ class AstroHavenDome:
             if not self.heartbeat_enabled:
                 # send a 0 to make sure the system is disabled
                 # if it's in the closed state it already disabled, leave it
-                if not self.heartbeat_status in ['disabled','closed']:
-                    l = self.heartbeat_serial.write(0)
+                if self.heartbeat_status not in ['disabled', 'closed']:
+                    self.heartbeat_serial.write(0)
             else:
                 if self.heartbeat_status == 'closed':
                     # reenable autoclose if it's not already
@@ -515,13 +518,13 @@ class AstroHavenDome:
                         print('closed due to heartbeat, reenable autoclose')
                         status.autoclose = True
                     # send a 0 to reset it
-                    #print('sending reset value')
-                    l = self.heartbeat_serial.write(chr(0).encode('ascii'))
+                    # print('sending reset value')
+                    self.heartbeat_serial.write(chr(0).encode('ascii'))
                 else:
                     # send the heartbeat time to the serial port
                     t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
-                    l = self.heartbeat_serial.write(t)
-                    #print('send byte to heartbeat')
+                    self.heartbeat_serial.write(t)
+                    # print('sent byte to heartbeat')
 
             time.sleep(0.5)
 
@@ -545,8 +548,7 @@ class AstroHavenDome:
                 print('Dome at limit')
                 self.output_thread_running = 0
                 break
-            elif (frac != 1 and
-                running_time > self.move_time[side][command]*frac):
+            elif (frac != 1 and running_time > self.move_time[side][command] * frac):
                 print('Dome moved requested fraction')
                 self.output_thread_running = 0
                 break
@@ -560,12 +562,10 @@ class AstroHavenDome:
                 break
 
             # if we're still going, send the command to the serial port
-            l = self.dome_serial.write(self.move_code[side][command])
-            #print(side, frac, 'o:', self.move_code[side][command])
+            self.dome_serial.write(self.move_code[side][command])
+            # print(side, frac, 'o:', self.move_code[side][command])
 
-            if (side == 'south' and
-                command == 'open' and
-                running_time < 12.5):
+            if (side == 'south' and command == 'open' and running_time < 12.5):
                 time.sleep(1.5)
             else:
                 time.sleep(0.5)
@@ -576,21 +576,21 @@ class AstroHavenDome:
         self.timeout = 40.
 
     def halt(self):
-        """To stop the output thread"""
+        """To stop the output thread."""
         self.output_thread_running = 0
 
     def _move_dome(self, side, command, frac, timeout=40.):
-        #"""Internal (blocking) function to keep moving dome until it reaches its limit"""
+        """Move the dome until it reaches its limit."""
         self.side = side
         self.frac = frac
         self.command = command
         self.timeout = timeout
 
         # Don't interupt!
-        if self.status[side] in ['opening','closing']:
+        if self.status[side] in ['opening', 'closing']:
             return
 
-        ### start output thread
+        # start output thread
         if not self.output_thread_running:
             print('starting to move:', side, command, frac)
             self.output_thread_running = 1
@@ -600,17 +600,19 @@ class AstroHavenDome:
             return
 
     def open_side(self, side, frac=1):
+        """Open one side of the dome."""
         self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
     def close_side(self, side, frac=1):
+        """Close one side of the dome."""
         self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
-        """Sound the dome alarm using the Arduino
+        """Sound the dome alarm using the Arduino.
 
         duration : int [0-9]
             The time to sound the alarm for (seconds)
@@ -624,191 +626,65 @@ class AstroHavenDome:
         loc = params.ARDUINO_LOCATION
         status = flags.Status()
         if status.alarm:
-            curl = subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
+            subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
             if sleep:
                 time.sleep(duration)
         return
 
 
-class OldAstroHavenDome:
-    """AstroHaven dome class (based on KNU SLODAR dome control)"""
-    def __init__(self,serial_port='/dev/ttyS1',stop_length=3):
-        self.serial_port = serial_port
-        self.stop_length = stop_length
-        self.port_props = {'baudrate': 9600, 'parity': 'N',
-                           'bytesize': 8, 'stopbits': 1,
-                           'rtscts': 0, 'xonxoff': 0,
-                           'timeout': 1}
-        self.move_code = {'west_open':'a', 'west_close':'A', 'east_open':'b', 'east_close':'B'}
-        self.limit_code = {'west_open':'x', 'west_close':'X', 'east_open':'y', 'east_close':'Y'}
-        self.fake = False
+class FakeDehumidifier(object):
+    """Fake dehumidifier class."""
 
-    def _move_dome(self,command,timeout=40.):
-        """Internal (blocking) function to keep moving dome until it reaches its limit"""
-        received = ''
-        stop_signal = self.stop_length * self.limit_code[command]
-        print('Expecting stop on',stop_signal)
-        start_time = time.time()
-        while True:
-            self.dome_port.write(self.move_code[command])
-            x = self.dome_port.read(1)
-            print(x, end=' ')
-            received += x
-            if received[-self.stop_length:] == stop_signal:
-                print(received)
-                return received
-            elif time.time() - start_time > timeout:
-                print('Dome moving timed out')
-                print(received)
-                return received
-            time.sleep(0.1)
-
-    def _move_dome_steps(self,command,steps):
-        """Internal (blocking) function to move dome a fixed number of (stop-start) steps"""
-        received = ''
-        for i in range(steps):
-            self.dome_port.write(move_code[command])
-            time.sleep(3)
-            x = self.dome_port.read(1)
-            print(x, end=' ')
-            received += x
-        print(received)
-        return received
-
-    def status(self):
-        """Check the status as reported by the arduino"""
-        status = {'dome':'ERROR','hatch':'ERROR'}
-        pin_dict = {'pin2':-1,'pin3':-1,'pin5':-1,'pin6':-1,'pin7':-1}
-        try:
-            curl = subprocess.getoutput('curl -s dome')
-            ard = remove_html_tags(curl).split()
-            for i in range(len(ard)):
-                if ard[i] == 'pin':
-                    n = int(ard[i+1])
-                    if ard[i+2] == 'HIGH':
-                        pin_dict['pin%i' %n] = 1
-                    if ard[i+2] == 'LOW':
-                        pin_dict['pin%i' %n] = 0
-
-            pins = []
-            for n in [2,3,6,7]:
-                pins.append(pin_dict['pin%n' %n])
-
-            if pins.count(1) == len(pins):
-                statdict['dome'] = 'open'
-            elif pins.count(0) == len(pins):
-                statdict['dome'] = 'close'
-            else:
-                statdict['dome'] = 'unknown'
-            statdict['hatch'] = 'unknown'
-        except:
-            pass
-        return status
-
-    def open_side(self):
-        #self.sound_alarm()
-        # by using the serial port as a context manager it will still close if
-        # an exception is raised inside _move_dome
-        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
-            openW = self._move_dome('west_open')
-            time.sleep(2)
-            openE = self._move_dome('east_open')
-        print(openW, openE)
-        return openW.strip() + openE.strip()
-
-    def close_side(self):
-        #self.sound_alarm()
-        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
-            closeW = self._move_dome('west_close')
-            time.sleep(2)
-            closeE = self._move_dome('east_close')
-        print(closeW, closeE)
-        return closeW.strip() + closeE.strip()
-
-    def open_side(self,side,steps):
-        #self.sound_alarm()
-        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
-            if side == 'west':
-                openS = self._move_dome_steps('west_open',steps)
-            elif side == 'east':
-                openS = self._move_dome_steps('east_open',steps)
-        return openS.strip()
-
-    def close_side(self,side,steps):
-        #self.sound_alarm()
-        with serial.Serial(self.serial_port, **self.port_props) as self.dome_port:
-            if side == 'west':
-                closeS = self._move_dome_steps('west_close',steps)
-            elif side == 'east':
-                closeS = self._move_dome_steps('east_close',steps)
-        return closeS.strip()
-
-    def sound_alarm(self,sleep=True):
-        """Sound the dome alarm using the arduino"""
-        curl = subprocess.getoutput('curl -s dome?s')
-        if sleep:
-            time.sleep(5)
-
-
-class FakeDehumidifier:
-    """Fake dehumidifier class"""
     def __init__(self):
         self._status = '0'
 
     def on(self):
+        """Turn on the dehumidifier."""
         self._status = '1'
 
     def off(self):
+        """Turn off the dehumidifier."""
         self._status = '0'
 
     def status(self):
+        """Get the dehumidifier status."""
         return self._status
 
     def conditions(self):
-        # Disable dome sensor for dome 2
-        #dome_conditions = get_roomalert('dome')
-        #dome_hum = dome_conditions['int_humidity']
-        #dome_temp = dome_conditions['int_temperature']
-
+        """Get the current dome conditions."""
         pier_conditions = get_roomalert('pier')
         pier_hum = pier_conditions['int_humidity']
         pier_temp = pier_conditions['int_temperature']
 
-        #conditions = {'humidity'    : max([dome_hum, pier_hum]),
-        #              'temperature' : min([dome_temp, pier_temp])}
-        conditions = {'humidity'    : pier_hum,
-                      'temperature' : pier_temp}
+        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
         return conditions
 
 
-class Dehumidifier:
-    """Dehumidifier class (using a ETH002 relay)"""
-    def __init__(self, IP_address, port):
-        self.IP_address = IP_address
+class Dehumidifier(object):
+    """Dehumidifier class (using a ETH002 relay)."""
+
+    def __init__(self, address, port):
+        self.address = address
         self.port = port
-        self.power = ETH002(self.IP_address, self.port)
+        self.power = ETH002(self.address, self.port)
 
     def on(self):
+        """Turn on the dehumidifier."""
         self.power.on(1)
 
     def off(self):
+        """Turn off the dehumidifier."""
         self.power.off(1)
 
     def status(self):
+        """Get the dehumidifier status."""
         return self.power.status()[0]
 
     def conditions(self):
-        # Disable dome sensor for dome 2
-        #dome_conditions = get_roomalert('dome')
-        #dome_hum = dome_conditions['int_humidity']
-        #dome_temp = dome_conditions['int_temperature']
-
+        """Get the current dome conditions."""
         pier_conditions = get_roomalert('pier')
         pier_hum = pier_conditions['int_humidity']
         pier_temp = pier_conditions['int_temperature']
 
-        #conditions = {'humidity'    : max([dome_hum, pier_hum]),
-        #              'temperature' : min([dome_temp, pier_temp])}
-        conditions = {'humidity'    : pier_hum,
-                      'temperature' : pier_temp}
+        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
         return conditions

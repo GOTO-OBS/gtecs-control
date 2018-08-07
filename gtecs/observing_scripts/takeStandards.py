@@ -1,6 +1,8 @@
-"""
+#!/usr/bin/env python
+"""Script to take Landolt standard star observations.
+
 takeStandards
-Script to take Landolt standard star observations
+
 with a range of colours and airmasses.
 """
 
@@ -9,21 +11,20 @@ import time
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.misc import execute_command
 from gtecs.astronomy import check_alt_limit
-from gtecs.observing import (prepare_for_images, take_image_set,
-                             goto, wait_for_telescope)
-from gtecs.catalogs import landolt
+from gtecs.catalogs import standard_star
+from gtecs.observing import goto, prepare_for_images, take_image_set, wait_for_telescope
 
 
 def run():
+    """Run the standards routine."""
     # make sure hardware is ready
     prepare_for_images()
 
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
     # use set so we don't duplicate observations
-    stars = set([landolt.standard_star(Time.now(), airmass, colour)
+    stars = set([standard_star(Time.now(), airmass, colour)
                  for airmass, colour in zip(airmasses, colours)])
     print('Starting standard star routine')
     for star in stars:

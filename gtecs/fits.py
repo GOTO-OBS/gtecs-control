@@ -1,34 +1,29 @@
-"""
-Functions to write FITS image files
-"""
+"""Functions to write FITS image files."""
 
-import os
-import sys
-import math
 import datetime
-import Pyro4
+import math
+import os
+
+import astropy.io.fits as pyfits
+import astropy.units as u
+from astropy.coordinates import Angle
+from astropy.time import Time
 
 import numpy
 
-from astropy.time import Time
-from astropy.coordinates import Angle
-import astropy.io.fits as pyfits
-import astropy.units as u
-
 import obsdb as db
 
-from . import params
-from . import misc
 from . import astronomy
-from .astronomy import sun_alt as get_sun_alt
+from . import misc
+from . import params
 from .daemons import daemon_info
 from .flags import Status
 
 
 def image_location(run_number, tel):
-    """Construct the image file location based on the run and tel number"""
+    """Construct the image file location based on the run and tel number."""
     # Find the directory, using the date the observing night began
-    night = astronomy.nightStarting()
+    night = astronomy.night_startdate()
     direc = params.IMAGE_PATH + night + '/'
     if not os.path.exists(direc):
         os.mkdir(direc)
@@ -40,9 +35,8 @@ def image_location(run_number, tel):
 
 
 def glance_location(tel):
-    """Construct the glance file location based on the tel number"""
-    # Find the directory, using the date the observing night began
-    night = astronomy.nightStarting()
+    """Construct the glance file location based on the tel number."""
+    # Find the directory
     direc = params.IMAGE_PATH
     if not os.path.exists(direc):
         os.mkdir(direc)
@@ -53,8 +47,8 @@ def glance_location(tel):
     return direc + filename
 
 
-def write_fits(image, filename, tel, all_info, log = None):
-    """Update an image's FITS header and save to a file"""
+def write_fits(image, filename, tel, all_info, log=None):
+    """Update an image's FITS header and save to a file."""
     # extract the hdu
     hdu = pyfits.PrimaryHDU(image)
 
@@ -80,7 +74,7 @@ def write_fits(image, filename, tel, all_info, log = None):
 
 
 def get_all_info(cam_info):
-    """Get all info dicts from the running daemons, and other common info"""
+    """Get all info dicts from the running daemons, and other common info."""
     all_info = {}
 
     # Camera daemon
@@ -89,45 +83,45 @@ def get_all_info(cam_info):
     # Focuser info
     try:
         all_info['foc'] = daemon_info('foc')
-    except:
+    except Exception:
         all_info['foc'] = None
 
     # Filter wheel info
     try:
         all_info['filt'] = daemon_info('filt')
-    except:
+    except Exception:
         all_info['filt'] = None
 
     # Dome info
     try:
         all_info['dome'] = daemon_info('dome')
-    except:
+    except Exception:
         all_info['dome'] = None
 
     # Mount info
     try:
         all_info['mnt'] = daemon_info('mnt')
-    except:
+    except Exception:
         all_info['mnt'] = None
 
     # Conditions info
     try:
         all_info['conditions'] = daemon_info('conditions')
-    except:
+    except Exception:
         all_info['conditions'] = None
 
     # Astronomy
+    now = Time.now()
     astro = {}
-    astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(Time.now())
-    astro['sun_alt'] = get_sun_alt(Time.now())
+    astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
+    astro['sun_alt'] = astronomy.get_sunalt(Time.now())
     all_info['astro'] = astro
 
     return all_info
 
 
 def update_header(header, tel, all_info):
-    """Add observation, exposure and hardware info to the FITS header"""
-
+    """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them
     # better comments
     header.comments["SIMPLE  "] = "Standard FITS"
@@ -138,7 +132,6 @@ def update_header(header, tel, all_info):
     header.comments["EXTEND  "] = "Can contain extensions"
     header.comments["BSCALE  "] = "Pixel scale factor"
     header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
-
 
     # Observation info
     cam_info = all_info['cam']
@@ -154,15 +147,15 @@ def update_header(header, tel, all_info):
     header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
     header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
 
-    intf, HW = params.TEL_DICT[tel]
+    intf, hw = params.TEL_DICT[tel]
     current_exposure = cam_info['current_exposure']
     ut_mask = misc.ut_list_to_mask(current_exposure.tel_list)
     ut_string = misc.ut_mask_to_string(ut_mask)
-    header["INSTRUME"] = ('UT'+str(tel), "Origin unit telescope")
+    header["INSTRUME"] = ('UT' + str(tel), "Origin unit telescope")
     header["UT      "] = (tel, "Integer UT number")
     header["UTMASK  "] = (ut_mask, "Run UT mask integer")
     header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
-    header["INTERFAC"] = (intf + '-' + str(HW), "System interface code")
+    header["INTERFAC"] = (intf + '-' + str(hw), "System interface code")
 
     header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
 
@@ -179,13 +172,12 @@ def update_header(header, tel, all_info):
     header["SITE-ALT"] = (params.SITE_ALTITUDE, "Site elevation, m above sea level")
     header["SITE-LOC"] = (params.SITE_LOCATION, "Site location")
 
-
     # Exposure data
     header["EXPTIME "] = (current_exposure.exptime, "Exposure time, seconds")
 
-    start_time = Time(cam_info['exposure_start_time'+str(tel)])
+    start_time = Time(cam_info['exposure_start_time' + str(tel)])
     start_time.precision = 0
-    mid_time = start_time + (current_exposure.exptime*u.second)/2.
+    mid_time = start_time + (current_exposure.exptime * u.second) / 2.
     header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
     header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
 
@@ -193,12 +185,12 @@ def update_header(header, tel, all_info):
     header["JD      "] = (mid_jd, "Exposure midpoint, Julian Date")
 
     lst = astronomy.find_lst(mid_time)
-    lst_m, lst_s = divmod(abs(lst)*3600,60)
-    lst_h, lst_m = divmod(lst_m,60)
-    if lst < 0: lst_h = -lst_h
+    lst_m, lst_s = divmod(abs(lst) * 3600, 60)
+    lst_h, lst_m = divmod(lst_m, 60)
+    if lst < 0:
+        lst_h = -lst_h
     mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
     header["LST     "] = (mid_lst, "Exposure midpoint, Local Sidereal Time")
-
 
     # Frame info
     header["FRMTYPE "] = (current_exposure.frametype, "Frame type (shutter open/closed)")
@@ -216,14 +208,13 @@ def update_header(header, tel, all_info):
     header["DARKSEC1"] = ('[26:41,500:5721]', "Recommended dark section for left channel")
     header["DARKSEC2"] = ('[8264:8279,500:5721]', "Recommended dark section for right channel")
 
-
     # Database info
     from_db = False
-    expsetID = 'NA'
+    expset_id = 'NA'
 
-    pointingID = 'NA'
+    pointing_id = 'NA'
     pointing_rank = 'NA'
-    pointing_ToO = 'NA'
+    pointing_too = 'NA'
     pointing_minalt = 'NA'
     pointing_maxsunalt = 'NA'
     pointing_mintime = 'NA'
@@ -231,44 +222,44 @@ def update_header(header, tel, all_info):
     pointing_minmoonsep = 'NA'
     pointing_starttime = 'NA'
     pointing_stoptime = 'NA'
-    userID = 'NA'
+    user_id = 'NA'
     user_name = 'NA'
     user_fullname = 'NA'
 
-    mpointingID = 'NA'
+    mpointing_id = 'NA'
     mpointing_baserank = 'NA'
     mpointing_obsnum = 'NA'
     mpointing_target = 'NA'
     mpointing_infinite = 'NA'
-    obs_blockID = 'NA'
+    obs_block_id = 'NA'
     obs_block_num = 'NA'
 
-    eventID = 'NA'
+    event_id = 'NA'
     event_name = 'NA'
-    event_IVO = 'NA'
+    event_ivo = 'NA'
     event_source = 'NA'
-    event_tileID = 'NA'
+    event_tile_id = 'NA'
     event_tile_obsprob = 'NA'
     event_tile_baseprob = 'NA'
 
-    surveyID = 'NA'
+    survey_id = 'NA'
     survey_name = 'NA'
-    survey_tileID = 'NA'
+    survey_tile_id = 'NA'
     survey_tile_name = 'NA'
 
-    if current_exposure.expID != 0:
+    if current_exposure.db_id != 0:
         from_db = True
         with db.open_session() as session:
-            expsetID = current_exposure.expID
+            expset_id = current_exposure.db_id
             try:
-                expset = db.get_exposure_set_by_id(session, expsetID)
-            except:
+                expset = db.get_exposure_set_by_id(session, expset_id)
+            except Exception:
                 expset = None
             if expset and expset.pointingID:
                 pointing = expset.pointing
-                pointingID = pointing.pointingID
+                pointing_id = pointing.pointingID
                 pointing_rank = pointing.rank
-                pointing_ToO = bool(pointing.ToO)
+                pointing_too = bool(pointing.ToO)
                 pointing_minalt = pointing.minAlt
                 pointing_maxsunalt = pointing.maxSunAlt
                 pointing_mintime = pointing.minTime
@@ -279,47 +270,46 @@ def update_header(header, tel, all_info):
                     pointing_stoptime = pointing.stopUTC.strftime("%Y-%m-%dT%H:%M:%S")
                 else:
                     pointing_stoptime = 'None'
-                user = pointing.user
-                userID = pointing.userKey
+                user_id = pointing.userKey
                 user_name = pointing.user.userName
                 user_fullname = pointing.user.fullName
 
                 if pointing.mpointingID:
-                    mpointingID = pointing.mpointingID
+                    mpointing_id = pointing.mpointingID
                     mpointing_baserank = pointing.mpointing.start_rank
                     mpointing_obsnum = pointing.mpointing.num_completed
                     mpointing_target = pointing.mpointing.num_todo
                     mpointing_infinite = bool(pointing.mpointing.infinite)
 
                 if pointing.blockID:
-                    obs_blockID = pointing.blockID
+                    obs_block_id = pointing.blockID
                     obs_block_num = pointing.observing_block.blockNum
 
                 if pointing.eventID:
-                    eventID = pointing.eventID
+                    event_id = pointing.eventID
                     event_name = pointing.event.name
-                    event_IVO = pointing.event.ivo
+                    event_ivo = pointing.event.ivo
                     event_source = pointing.event.source
 
                 if pointing.eventTileID:
-                    event_tileID = pointing.eventTileID
+                    event_tile_id = pointing.eventTileID
                     event_tile_obsprob = pointing.eventTile.probability
                     event_tile_baseprob = pointing.eventTile.unobserved_probability
 
                 if pointing.surveyID:
-                    surveyID = pointing.surveyID
+                    survey_id = pointing.surveyID
                     survey_name = pointing.survey.name
 
                 if pointing.surveyTileID:
-                    survey_tileID = pointing.surveyTileID
+                    survey_tile_id = pointing.surveyTileID
                     survey_tile_name = pointing.surveyTile.name
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
-    header["DB-EXPS "] = (expsetID, "Database ExposureSet ID")
+    header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
 
-    header["DB-PNT  "] = (pointingID, "Database Pointing ID")
+    header["DB-PNT  "] = (pointing_id, "Database Pointing ID")
     header["RANK    "] = (pointing_rank, "Rank of this pointing when observed")
-    header["TOO     "] = (pointing_ToO, "ToO flag for this pointing")
+    header["TOO     "] = (pointing_too, "ToO flag for this pointing")
     header["LIM-ALT "] = (pointing_minalt, "Minimum altitude limit for this pointing")
     header["LIM-SALT"] = (pointing_maxsunalt, "Maximum Sun altitude limit for this pointing")
     header["LIM-MPHS"] = (pointing_maxmoon, "Maximum Moon phase limit for this pointing")
@@ -327,56 +317,55 @@ def update_header(header, tel, all_info):
     header["LIM-TIME"] = (pointing_mintime, "Minimum valid time limit for this pointing")
     header["LIM-STRT"] = (pointing_starttime, "Valid start time limit for this pointing")
     header["LIM-STOP"] = (pointing_stoptime, "Valid stop time limit for this pointing")
-    header["DB-USER "] = (userID, "Database User ID who submitted this pointing")
+    header["DB-USER "] = (user_id, "Database User ID who submitted this pointing")
     header["USERNAME"] = (user_name, "Username that submitted this pointing")
     header["USERFULL"] = (user_fullname, "User who submitted this pointing")
 
-    header["DB-MPNT "] = (mpointingID, "Database Mpointing ID")
+    header["DB-MPNT "] = (mpointing_id, "Database Mpointing ID")
     header["BASERANK"] = (mpointing_baserank, "Initial rank of this Mpointing")
     header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
     header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
     header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
-    header["DB-OBSBK"] = (obs_blockID, "Database ObservingBlock ID")
+    header["DB-OBSBK"] = (obs_block_id, "Database ObservingBlock ID")
     header["OBSBKNUM"] = (obs_block_num, "Number of this observing block")
 
-    header["DB-EVENT"] = (eventID, "Database Event ID")
+    header["DB-EVENT"] = (event_id, "Database Event ID")
     header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["IVO     "] = (event_IVO, "IVOA identifier for this event")
+    header["IVO     "] = (event_ivo, "IVOA identifier for this event")
     header["SOURCE  "] = (event_source, "Source of this event")
-    header["DB-ETILE"] = (event_tileID, "Database EventTile ID")
+    header["DB-ETILE"] = (event_tile_id, "Database EventTile ID")
     header["TILEPROB"] = (event_tile_obsprob, "Event tile observed probability")
     header["BASEPROB"] = (event_tile_baseprob, "Event tile contained probability")
 
-    header["DB-SURVY"] = (surveyID, "Database Survey ID")
+    header["DB-SURVY"] = (survey_id, "Database Survey ID")
     header["SURVEY  "] = (survey_name, "Name of this survey")
-    header["DB-STILE"] = (survey_tileID, "Database SurveyTile ID")
+    header["DB-STILE"] = (survey_tile_id, "Database SurveyTile ID")
     header["TILENAME"] = (survey_tile_name, "Name of this survey tile")
 
     # Camera info
-    cam_serial = cam_info['serial_number'+str(tel)]
+    cam_serial = cam_info['serial_number' + str(tel)]
     header["CAMERA  "] = (cam_serial, "Camera serial number")
 
     header["XBINNING"] = (current_exposure.binning, "CCD x binning factor")
     header["YBINNING"] = (current_exposure.binning, "CCD y binning factor")
 
-    x_pixel_size = cam_info['x_pixel_size'+str(tel)]*current_exposure.binning
-    y_pixel_size = cam_info['y_pixel_size'+str(tel)]*current_exposure.binning
+    x_pixel_size = cam_info['x_pixel_size' + str(tel)] * current_exposure.binning
+    y_pixel_size = cam_info['y_pixel_size' + str(tel)] * current_exposure.binning
     header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
     header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
-    header["CCDTEMP "] = (cam_info['ccd_temp'+str(tel)], "CCD temperature, C")
-    header["CCDTEMPS"] = (cam_info['target_temp'+str(tel)], "Requested CCD temperature, C")
-    header["BASETEMP"] = (cam_info['base_temp'+str(tel)], "Peltier base temperature, C")
-
+    header["CCDTEMP "] = (cam_info['ccd_temp' + str(tel)], "CCD temperature, C")
+    header["CCDTEMPS"] = (cam_info['target_temp' + str(tel)], "Requested CCD temperature, C")
+    header["BASETEMP"] = (cam_info['base_temp' + str(tel)], "Peltier base temperature, C")
 
     # Focuser info
     try:
         info = all_info['foc']
-        foc_serial = info['serial_number'+str(tel)]
-        foc_pos = info['current_pos'+str(tel)]
-        foc_temp_int = info['int_temp'+str(tel)]
-        foc_temp_ext = info['ext_temp'+str(tel)]
-    except:
+        foc_serial = info['serial_number' + str(tel)]
+        foc_pos = info['current_pos' + str(tel)]
+        foc_temp_int = info['int_temp' + str(tel)]
+        foc_temp_ext = info['ext_temp' + str(tel)]
+    except Exception:
         foc_serial = 'NA'
         foc_pos = 'NA'
         foc_temp_int = 'NA'
@@ -387,19 +376,18 @@ def update_header(header, tel, all_info):
     header["FOCTEMPI"] = (foc_temp_int, "Focuser internal temperature, C")
     header["FOCTEMPX"] = (foc_temp_ext, "Focuser external temperature, C")
 
-
     # Filter wheel info
     try:
         info = all_info['filt']
-        filt_serial = info['serial_number'+str(tel)]
-        if info['current_filter_num'+str(tel)] != -1:
-            filt_filter_num = info['current_filter_num'+str(tel)]
+        filt_serial = info['serial_number' + str(tel)]
+        if info['current_filter_num' + str(tel)] != -1:
+            filt_filter_num = info['current_filter_num' + str(tel)]
             filt_filter = params.FILTER_LIST[filt_filter_num]
         else:
             filt_filter = 'UNHOMED'
-        filt_num = info['current_filter_num'+str(tel)]
-        filt_pos = info['current_pos'+str(tel)]
-    except:
+        filt_num = info['current_filter_num' + str(tel)]
+        filt_pos = info['current_pos' + str(tel)]
+    except Exception:
         filt_serial = 'NA'
         filt_filter = 'NA'
         filt_num = 'NA'
@@ -410,7 +398,6 @@ def update_header(header, tel, all_info):
     header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(filter_list_str))
     header["FILTNUM "] = (filt_num, "Filter wheel position number")
     header["FILTPOS "] = (filt_pos, "Filter wheel motor position")
-
 
     # Dome info
     try:
@@ -430,13 +417,12 @@ def update_header(header, tel, all_info):
 
         dome_open = info['dome'] == 'open'
 
-    except:
+    except Exception:
         dome_status = 'NA'
         dome_open = 'NA'
 
     header["DOMESTAT"] = (dome_status, "Dome status")
     header["DOMEOPEN"] = (dome_open, "Dome is open")
-
 
     # Mount info
     try:
@@ -446,13 +432,13 @@ def update_header(header, tel, all_info):
 
         targ_ra = info['target_ra']
         if targ_ra:
-            targ_ra_str = Angle(targ_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
+            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_ra_str = 'NA'
 
         targ_dec = info['target_dec']
         if targ_dec:
-            targ_dec_str = Angle(targ_dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
@@ -463,16 +449,16 @@ def update_header(header, tel, all_info):
             targ_dist = 'NA'
 
         mnt_ra = info['mount_ra']
-        mnt_ra_str = Angle(mnt_ra*u.hour).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
 
         mnt_dec = info['mount_dec']
-        mnt_dec_str = Angle(mnt_dec*u.deg).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
         mnt_alt = numpy.around(info['mount_alt'], decimals=2)
         mnt_az = numpy.around(info['mount_az'], decimals=2)
 
-        zen_dist = numpy.around(90-mnt_alt, decimals=1)
-        airmass = 1/(math.cos(math.pi/2-(mnt_alt*math.pi/180)))
+        zen_dist = numpy.around(90 - mnt_alt, decimals=1)
+        airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
         airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
 
@@ -480,7 +466,7 @@ def update_header(header, tel, all_info):
         moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
         moon_dist = numpy.around(moon_dist, decimals=2)
 
-    except:
+    except Exception:
         mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
@@ -520,11 +506,11 @@ def update_header(header, tel, all_info):
         info = all_info['astro']
 
         moon_alt = numpy.around(info['moon_alt'], decimals=2)
-        moon_ill = numpy.around(info['moon_ill']*100., decimals=1)
+        moon_ill = numpy.around(info['moon_ill'] * 100., decimals=1)
         moon_phase = info['moon_phase']
 
         sun_alt = numpy.around(info['sun_alt'], decimals=1)
-    except:
+    except Exception:
         moon_alt = 'NA'
         moon_ill = 'NA'
         moon_phase = 'NA'
@@ -573,13 +559,12 @@ def update_header(header, tel, all_info):
         else:
             int_hum = numpy.around(int_hum, decimals=1)
 
-    except:
+    except Exception:
         ext_temp = 'NA'
         ext_hum = 'NA'
         ext_wind = 'NA'
         int_temp = 'NA'
         int_hum = 'NA'
-
 
     header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
     header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
@@ -590,31 +575,31 @@ def update_header(header, tel, all_info):
 
 
 def write_image_log(filename, header):
-    """Add an image log to the database for this frame"""
+    """Add an image log to the database for this frame."""
     filename = filename.split('/')[-1]
-    runNumber = int(header["RUN     "])
+    run_number = int(header["RUN     "])
     ut = int(header["UT      "])
-    utMask = int(header["UTMASK  "])
-    startUTC = Time(header["DATE-OBS"])
-    writeUTC = Time(header["DATE    "])
+    ut_mask = int(header["UTMASK  "])
+    start_time = Time(header["DATE-OBS"])
+    write_time = Time(header["DATE    "])
     set_position = int(header["SET-POS "])
     set_total = int(header["SET-TOT "])
 
-    expID = None
-    pointingID = None
-    mpointingID = None
+    expset_id = None
+    pointing_id = None
+    mpointing_id = None
 
-    if header["DB-EXPS "] is not 'NA':
-        expID = header["DB-EXPS "]
-    if header["DB-PNT  "] is not 'NA':
-        pointingID = header["DB-PNT  "]
-    if header["DB-MPNT "] is not 'NA':
-        mpointingID = header["DB-MPNT "]
+    if header["DB-EXPS "] != 'NA':
+        expset_id = header["DB-EXPS "]
+    if header["DB-PNT  "] != 'NA':
+        pointing_id = header["DB-PNT  "]
+    if header["DB-MPNT "] != 'NA':
+        mpointing_id = header["DB-MPNT "]
 
-    log = db.ImageLog(filename=filename, runNumber=runNumber, ut=ut,
-                   utMask=utMask, startUTC=startUTC, writeUTC=writeUTC,
-                   set_position=set_position, set_total=set_total,
-                   expID=expID, pointingID=pointingID, mpointingID=mpointingID)
+    log = db.ImageLog(filename=filename, runNumber=run_number, ut=ut,
+                      utMask=ut_mask, startUTC=start_time, writeUTC=write_time,
+                      set_position=set_position, set_total=set_total,
+                      expID=expset_id, pointingID=pointing_id, mpointingID=mpointing_id)
 
     with db.open_session() as session:
         session.add(log)

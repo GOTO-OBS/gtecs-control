@@ -1,42 +1,40 @@
-"""
-Classes to read external flag files
-"""
+"""Classes to read external flag files."""
 
+import copy
+import json
 import os
 import time
-import json
-import copy
 
 from astropy.time import Time
 
 from . import params
-from .slack import send_slack_msg
 from .controls.power_control import APCUPS
+from .slack import send_slack_msg
 
 
 def load_json(fname):
-    attemps_remaining = 3
-    while attemps_remaining:
+    """Attempt to load a JSON file, with multiple tries."""
+    attempts_remaining = 3
+    while attempts_remaining:
         try:
             with open(fname, 'r') as fh:
                 data_dict = json.load(fh)
-            assert(len(data_dict) != 0)
+            assert len(data_dict) != 0
             break
-        except:
+        except Exception:
             time.sleep(0.001)
-            attemps_remaining -= 1
+            attempts_remaining -= 1
             pass
-    if attemps_remaining:
+    if attempts_remaining:
         return data_dict
     else:
         raise IOError('cannot read {}'.format(fname))
 
 
-class Power:
+class Power(object):
+    """A class to monitor the UPS status."""
+
     def __init__(self):
-        """
-        Class to monitor the UPS status
-        """
         self.ups_units = {}
         for unit_name in params.POWER_UNITS:
             unit_class = params.POWER_UNITS[unit_name]['CLASS']
@@ -46,20 +44,20 @@ class Power:
 
     @property
     def failed(self):
-        """
-        return True if any power supplies have failed and UPS has kicked in
-        """
+        """Return True if any power supplies have failed and UPS has kicked in."""
         acceptable_status_vals = ['Normal', 'onBatteryTest']
         return any([self.ups_units[ukey].status() not in acceptable_status_vals
                     for ukey in self.ups_units])
 
     def __repr__(self):
         class_name = type(self).__name__
-        repr_str = ', '.join(['='.join((ukey, self.ups_units[ukey].status())) for ukey in self.ups_units])
+        repr_str = ', '.join(['='.join((x, self.ups_units[x].status())) for x in self.ups_units])
         return '{}({})'.format(class_name, repr_str)
 
 
-class Conditions:
+class Conditions(object):
+    """A class to give easy access to the conditions flags."""
+
     def __init__(self):
         conditions_dict = load_json(params.CONFIG_PATH + 'conditions_flags')
 
@@ -100,6 +98,7 @@ class Conditions:
         self.critical_flags = ', '.join(self._crit_flags)
 
     def age(self):
+        """Get the age of the conditions."""
         return int(Time.now().unix - self.update_time)
 
     def __repr__(self):
@@ -109,21 +108,19 @@ class Conditions:
 
     @property
     def bad(self):
-        """
-        A convenient property to quickly check if these conditions are bad.
+        """Check if these conditions are bad.
 
         Uses summary of conditions and age check
         """
         if self.age() > params.MAX_CONDITIONS_AGE:
-            tooOld = 1
+            tooold = 1
         else:
-            tooOld = 0
-        return self._summary + tooOld
+            tooold = 0
+        return self._summary + tooold
 
     @property
     def critical(self):
-        """
-        A property to check if any of the critical flags are bad.
+        """Check if any of the critical flags are bad.
 
         Critical flags are ones that won't just change themselves (like weather)
             and will need human intervention to fix.
@@ -135,7 +132,9 @@ class Conditions:
         return self._crit_sum
 
 
-class Status:
+class Status(object):
+    """A class to give easy access to the status flags."""
+
     def __init__(self):
         self.flags_file = params.CONFIG_PATH + 'status_flags'
         self.emergency_file = params.EMERGENCY_FILE
@@ -151,7 +150,7 @@ class Status:
             self._observer = str(data['observer'])
             self._autoclose = bool(data['autoclose'])
             self._alarm = bool(data['alarm'])
-        except:
+        except Exception:
             self._mode = 'robotic'
             self._observer = params.ROBOTIC_OBSERVER
             self._autoclose = True
@@ -202,6 +201,7 @@ class Status:
 
     @property
     def mode(self):
+        """Get the current system mode."""
         self._load()
         return self._mode
 
@@ -217,6 +217,7 @@ class Status:
 
     @property
     def observer(self):
+        """Get the current observer."""
         self._load()
         return self._observer
 
@@ -226,6 +227,7 @@ class Status:
 
     @property
     def autoclose(self):
+        """Get if dome autoclose is currently enabled or not."""
         self._load()
         return self._autoclose
 
@@ -235,6 +237,7 @@ class Status:
 
     @property
     def alarm(self):
+        """Get if the dome alarm is currently enabled or not."""
         self._load()
         return self._alarm
 
@@ -244,15 +247,18 @@ class Status:
             raise ValueError('Cannot disable dome alarm in robotic mode')
         self._update_flags('alarm', int(bool(value)))
 
-    def create_shutdown_file(self, reasons=['no reason given']):
-        """Create the emergency shutdown file"""
+    def create_shutdown_file(self, reasons=None):
+        """Create the emergency shutdown file."""
         self._load()
         cmd = 'touch ' + self.emergency_file
         os.system(cmd)
+
+        if reasons is None:
+            reasons = ['no reason given']
         for reason in reasons:
             if reason not in self.emergency_shutdown_reasons:
                 send_slack_msg('{} has triggered emergency shutdown: {}'.format(
-                        params.TELESCOP, reason))
+                               params.TELESCOP, reason))
                 with open(self.emergency_file, 'a') as f:
                     f.write(reason + '\n')
             self._load()

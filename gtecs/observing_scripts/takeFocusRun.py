@@ -1,34 +1,30 @@
-"""
+#!/usr/bin/env python
+"""Script to take a series of images running through focus.
+
 takeFocusRun [width=2000] [step=200] [filter] [plot (y/n)]
-Script to take a series of images running through focus
 
 It assumes you're already on a reasonable patch of sky and that you're
 already focused (see autoFocus script)
 """
 
-import os
-import sys
-import time
 import argparse
+import os
 
-import numpy as np
-import pandas as pd
-
-from matplotlib import pyplot as plt
-
-from astropy import units as u
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.misc import execute_command, neatCloser
-from gtecs.astronomy import nightStarting
-from gtecs.observing import (prepare_for_images, get_analysis_image,
-                             get_current_focus, set_new_focus)
-from gtecs.observing_scripts.autoFocus import (RestoreFocus,
-                                               set_focus_carefully, get_hfd)
+from gtecs.observing import get_analysis_image, get_current_focus, prepare_for_images, set_new_focus
+from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfd, set_focus_carefully
+
+from matplotlib import pyplot as plt
+
+import numpy as np
+
+import pandas as pd
 
 
 def plot_results(df):
+    """Plot the results of the focus run."""
     tels = params.TEL_DICT.keys()
     fig, axes = plt.subplots(nrows=len(tels), ncols=2)
     kwargs = dict(
@@ -45,10 +41,10 @@ def plot_results(df):
         yfw = df_tel['fwhm']
         yhfd = df_tel['median']
 
-        sn_mask = yfw/df_tel['fwhm_std'] > 2
+        sn_mask = yfw / df_tel['fwhm_std'] > 2
         e = df_tel['fwhm_std'][sn_mask]
-        pars = np.polyfit(x[sn_mask], yfw[sn_mask], w=1/e, deg=2)
-        best_focus = -pars[1]/2/pars[0]
+        pars = np.polyfit(x[sn_mask], yfw[sn_mask], w=1 / e, deg=2)
+        best_focus = -pars[1] / 2 / pars[0]
         print('UT{} best focus @ {}'.format(tel, int(best_focus)))
         poly = np.poly1d(pars)
 
@@ -64,10 +60,11 @@ def plot_results(df):
 
 
 def run(width, step, filt, make_plots):
+    """Run the focus run routine."""
     # make sure hardware is ready
     prepare_for_images()
 
-    expT = 30
+    exptime = 30
 
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)
@@ -75,17 +72,15 @@ def run(width, step, filt, make_plots):
               'filter_width': 4, 'threshold': 15}
 
     orig_focus = get_current_focus()
-    deltas = np.arange(-width, +width+1, step)
+    deltas = np.arange(-width, +width + 1, step)
     print('Steps ({:.0f}): '.format(len(deltas)), deltas)
-    pos_master_list = {
-        tel: np.arange(orig_focus[tel]-width, orig_focus[tel]+width+1, step)
-        for tel in params.TEL_DICT
-    }
+    pos_master_list = {tel: np.arange(orig_focus[tel] - width, orig_focus[tel] + width + 1, step)
+                       for tel in params.TEL_DICT}
 
     pos_master_list = pd.DataFrame(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
-    close_signal_handler = RestoreFocus(orig_focus)
+    RestoreFocus(orig_focus)
     series_list = []
 
     print("Starting focus run")
@@ -93,11 +88,11 @@ def run(width, step, filt, make_plots):
     for runno, row in pos_master_list.iterrows():
 
         print('############')
-        print('## RUN {} of {}'.format(runno+1, len(pos_master_list)))
+        print('## RUN {} of {}'.format(runno + 1, len(pos_master_list)))
         set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
-        data = get_analysis_image(expT, filt, 'Focus run', 'FOCUS', glance=False)
+        data = get_analysis_image(exptime, filt, 'Focus run', 'FOCUS', glance=False)
         hfd_values = get_hfd(data, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
         hfd_values['pos'] = pd.Series(get_current_focus())
@@ -127,11 +122,11 @@ def run(width, step, filt, make_plots):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__,
-                formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('width', nargs='?',  default=2000)
-    parser.add_argument('step', nargs='?',  default=200)
-    parser.add_argument('filt', nargs='?',  default='L')
-    parser.add_argument('plot', nargs='?',  default='y')
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('width', nargs='?', default=2000)
+    parser.add_argument('step', nargs='?', default=200)
+    parser.add_argument('filt', nargs='?', default='L')
+    parser.add_argument('plot', nargs='?', default='y')
     args = parser.parse_args()
 
     if args.filt not in params.FILTER_LIST:

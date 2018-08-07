@@ -1,37 +1,29 @@
 #!/usr/bin/env python
-"""
-Daemon to control FLI focusers via fli_interface
-"""
+"""Daemon to control FLI focusers via fli_interface."""
 
-import sys
-import pid
-import time
 import datetime
-from math import *
-import Pyro4
 import threading
+import time
 
-from gtecs import logger
-from gtecs import misc
 from gtecs import errors
+from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon, daemon_proxy
 
 
 class FocDaemon(HardwareDaemon):
-    """Focuser hardware daemon class"""
+    """Focuser hardware daemon class."""
 
     def __init__(self):
-        ### initiate daemon
-        HardwareDaemon.__init__(self, daemon_ID='foc')
+        HardwareDaemon.__init__(self, daemon_id='foc')
 
-        ### command flags
+        # command flags
         self.get_info_flag = 1
         self.set_focuser_flag = 0
         self.move_focuser_flag = 0
         self.home_focuser_flag = 0
 
-        ### focuser variables
+        # focuser variables
         self.limit = {}
         self.current_pos = {}
         self.remaining = {}
@@ -41,39 +33,38 @@ class FocDaemon(HardwareDaemon):
         self.serial_number = {}
 
         for intf in params.FLI_INTERFACES:
-            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.limit[intf] = [0]*nHW
-            self.current_pos[intf] = [0]*nHW
-            self.remaining[intf] = [0]*nHW
-            self.int_temp[intf] = [0]*nHW
-            self.ext_temp[intf] = [0]*nHW
-            self.move_steps[intf] = [0]*nHW
-            self.serial_number[intf] = [0]*nHW
+            nhw = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.limit[intf] = [0] * nhw
+            self.current_pos[intf] = [0] * nhw
+            self.remaining[intf] = [0] * nhw
+            self.int_temp[intf] = [0] * nhw
+            self.ext_temp[intf] = [0] * nhw
+            self.move_steps[intf] = [0] * nhw
+            self.serial_number[intf] = [0] * nhw
 
         self.active_tel = []
 
-        ### start control thread
+        # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-
     # Primary control thread
     def _control_thread(self):
-        self.logfile.info('Daemon control thread started')
+        self.log.info('Daemon control thread started')
 
         while(self.running):
             self.time_check = time.time()
 
-            ### check dependencies
+            # check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
                 if not self.dependencies_are_alive:
                     if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
+                        self.log.error('Dependencies are not responding')
                         self.dependency_error = 1
                 else:
                     if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
+                        self.log.info('Dependencies responding again')
                         self.dependency_error = 0
                 self.dependency_check_time = time.time()
 
@@ -81,75 +72,77 @@ class FocDaemon(HardwareDaemon):
                 time.sleep(5)
                 continue
 
-            ### control functions
+            # control functions
             # request info
             if self.get_info_flag:
                 try:
                     # update variables
                     for tel in params.TEL_DICT:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
                         try:
                             with daemon_proxy(intf) as fli:
-                                self.limit[intf][HW] = fli.get_focuser_limit(HW)
-                                self.remaining[intf][HW] = fli.get_focuser_steps_remaining(HW)
-                                self.current_pos[intf][HW] = fli.get_focuser_position(HW)
-                                self.int_temp[intf][HW] = fli.get_focuser_temp('internal',HW)
-                                self.ext_temp[intf][HW] = fli.get_focuser_temp('external',HW)
-                                self.serial_number[intf][HW] = fli.get_focuser_serial_number(HW)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                                self.limit[intf][hw] = fli.get_focuser_limit(hw)
+                                self.remaining[intf][hw] = fli.get_focuser_steps_remaining(hw)
+                                self.current_pos[intf][hw] = fli.get_focuser_position(hw)
+                                self.int_temp[intf][hw] = fli.get_focuser_temp('internal', hw)
+                                self.ext_temp[intf][hw] = fli.get_focuser_temp('external', hw)
+                                self.serial_number[intf][hw] = fli.get_focuser_serial_number(hw)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
                     # save info
                     info = {}
                     for tel in params.TEL_DICT:
-                        intf, HW = params.TEL_DICT[tel]
-                        tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-                        if self.remaining[intf][HW] > 0:
-                            info['status'+tel] = 'Moving'
-                            if self.move_steps[intf][HW] == 0: # Homing, needed due to bug in remaining
-                                info['remaining'+tel] = self.current_pos[intf][HW]
+                        intf, hw = params.TEL_DICT[tel]
+                        tel = str(params.FLI_INTERFACES[intf]['TELS'][hw])
+                        if self.remaining[intf][hw] > 0:
+                            info['status' + tel] = 'Moving'
+                            if self.move_steps[intf][hw] == 0:
+                                # Homing, needed due to bug in remaining
+                                info['remaining' + tel] = self.current_pos[intf][hw]
                             else:
-                                info['remaining'+tel] = self.remaining[intf][HW]
+                                info['remaining' + tel] = self.remaining[intf][hw]
                         else:
-                            info['status'+tel] = 'Ready'
-                        info['current_pos'+tel] = self.current_pos[intf][HW]
-                        info['limit'+tel] = self.limit[intf][HW]
-                        info['int_temp'+tel] = self.int_temp[intf][HW]
-                        info['ext_temp'+tel] = self.ext_temp[intf][HW]
-                        info['serial_number'+tel] = self.serial_number[intf][HW]
+                            info['status' + tel] = 'Ready'
+                        info['current_pos' + tel] = self.current_pos[intf][hw]
+                        info['limit' + tel] = self.limit[intf][hw]
+                        info['int_temp' + tel] = self.int_temp[intf][hw]
+                        info['ext_temp' + tel] = self.ext_temp[intf][hw]
+                        info['serial_number' + tel] = self.serial_number[intf][hw]
 
-                    info['uptime'] = time.time()-self.start_time
-                    info['ping'] = time.time()-self.time_check
+                    info['uptime'] = time.time() - self.start_time
+                    info['ping'] = time.time() - self.time_check
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
                     self.info = info
-                except:
-                    self.logfile.error('get_info command failed')
-                    self.logfile.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('get_info command failed')
+                    self.log.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # move the focuser
             if self.move_focuser_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
-                        move_steps = self.move_steps[intf][HW]
-                        new_pos = self.current_pos[intf][HW] + move_steps
+                        intf, hw = params.TEL_DICT[tel]
+                        move_steps = self.move_steps[intf][hw]
+                        new_pos = self.current_pos[intf][hw] + move_steps
 
-                        self.logfile.info('Moving focuser %i (%s-%i) by %i to %i',
-                                          tel, intf, HW, move_steps, new_pos)
+                        self.log.info('Moving focuser %i (%s-%i) by %i to %i',
+                                      tel, intf, hw, move_steps, new_pos)
 
                         try:
                             with daemon_proxy(intf) as fli:
-                                c = fli.step_focuser_motor(move_steps,HW)
-                                if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                except:
-                    self.logfile.error('move_focuser command failed')
-                    self.logfile.debug('', exc_info=True)
+                                c = fli.step_focuser_motor(move_steps, hw)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('move_focuser command failed')
+                    self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.move_focuser_flag = 0
 
@@ -157,35 +150,35 @@ class FocDaemon(HardwareDaemon):
             if self.home_focuser_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
 
-                        self.logfile.info('Homing focuser %i (%s-%i)',
-                                          tel, intf, HW)
+                        self.log.info('Homing focuser %i (%s-%i)',
+                                      tel, intf, hw)
 
                         try:
                             with daemon_proxy(intf) as fli:
-                                c = fli.home_focuser(HW)
-                                if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                                c = fli.home_focuser(hw)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
                         fli._pyroRelease()
-                        self.move_steps[intf][HW] = 0 # to mark that it's homing
-                except:
-                    self.logfile.error('home_focuser command failed')
-                    self.logfile.debug('', exc_info=True)
+                        self.move_steps[intf][hw] = 0  # to mark that it's homing
+                except Exception:
+                    self.log.error('home_focuser command failed')
+                    self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.home_focuser_flag = 0
 
-            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
-        self.logfile.info('Daemon control thread stopped')
+        self.log.info('Daemon control thread stopped')
         return
-
 
     # Focuser control functions
     def get_info(self):
-        """Return focuser status info"""
+        """Return focuser status info."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -197,18 +190,16 @@ class FocDaemon(HardwareDaemon):
         time.sleep(0.1)
         return self.info
 
-
     def get_info_simple(self):
-        """Return plain status dict, or None"""
+        """Return plain status dict, or None."""
         try:
             info = self.get_info()
-        except:
+        except Exception:
             return None
         return info
 
-
     def set_focuser(self, new_pos, tel_list):
-        """Move focuser to given position"""
+        """Move focuser to given position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -224,10 +215,10 @@ class FocDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
+            intf, hw = params.TEL_DICT[tel]
+            if self.remaining[intf][hw] == 0 and new_pos <= self.limit[intf][hw]:
                 self.active_tel += [tel]
-                self.move_steps[intf][HW] = new_pos - self.current_pos[intf][HW]
+                self.move_steps[intf][hw] = new_pos - self.current_pos[intf][hw]
 
         # Set flag
         self.move_focuser_flag = 1
@@ -235,25 +226,24 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
+            intf, hw = params.TEL_DICT[tel]
             s += '\n  '
-            if self.remaining[intf][HW] > 0:
-                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
-            elif new_pos > self.limit[intf][HW]:
-                s += misc.ERROR('"ValueError: Focuser %i position past limit"' %tel)
+            if self.remaining[intf][hw] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
+            elif new_pos > self.limit[intf][hw]:
+                s += misc.errortxt('"ValueError: Focuser %i position past limit"' % tel)
             else:
-                s += 'Moving focuser %i' %tel
+                s += 'Moving focuser %i' % tel
         return s
 
-
     def move_focuser(self, move_steps, tel_list):
-        """Move focuser by given number of steps"""
+        """Move focuser by given number of steps."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
 
         # Check input
-        if (int(new_pos) - new_pos) != 0:
+        if (int(move_steps) - move_steps) != 0:
             raise ValueError('Steps must be an integer')
         for tel in tel_list:
             if tel not in params.TEL_DICT:
@@ -263,11 +253,11 @@ class FocDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            new_pos = self.current_pos[intf][HW] + move_steps
-            if self.remaining[intf][HW] == 0 and new_pos <= self.limit[intf][HW]:
+            intf, hw = params.TEL_DICT[tel]
+            new_pos = self.current_pos[intf][hw] + move_steps
+            if self.remaining[intf][hw] == 0 and new_pos <= self.limit[intf][hw]:
                 self.active_tel += [tel]
-                self.move_steps[intf][HW] = move_steps
+                self.move_steps[intf][hw] = move_steps
 
         # Set flag
         self.move_focuser_flag = 1
@@ -275,20 +265,19 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            new_pos = self.current_pos[intf][HW] + move_steps
+            intf, hw = params.TEL_DICT[tel]
+            new_pos = self.current_pos[intf][hw] + move_steps
             s += '\n  '
-            if self.remaining[intf][HW] > 0:
-                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
-            elif new_pos > self.limit[intf][HW]:
-                s += misc.ERROR('"ValueError: Position past limit"')
+            if self.remaining[intf][hw] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
+            elif new_pos > self.limit[intf][hw]:
+                s += misc.errortxt('"ValueError: Position past limit"')
             else:
-                s += 'Moving focuser %i' %tel
+                s += 'Moving focuser %i' % tel
         return s
 
-
     def home_focuser(self, tel_list):
-        """Move focuser to the home position"""
+        """Move focuser to the home position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -302,8 +291,8 @@ class FocDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            if self.remaining[intf][HW] == 0:
+            intf, hw = params.TEL_DICT[tel]
+            if self.remaining[intf][hw] == 0:
                 self.active_tel += [tel]
 
         # Set flag
@@ -312,16 +301,16 @@ class FocDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
+            intf, hw = params.TEL_DICT[tel]
             s += '\n  '
-            if self.remaining[intf][HW] > 0:
-                s += misc.ERROR('"HardwareStatusError: Focuser %i motor is still moving"' %tel)
+            if self.remaining[intf][hw] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
             else:
-                s += 'Homing focuser %i' %tel
+                s += 'Homing focuser %i' % tel
         return s
 
 
 if __name__ == "__main__":
-    daemon_ID = 'foc'
-    with misc.make_pid_file(daemon_ID):
+    daemon_id = 'foc'
+    with misc.make_pid_file(daemon_id):
         FocDaemon()._run()

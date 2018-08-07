@@ -1,28 +1,24 @@
-"""
-Miscellaneous common functions
-"""
+"""Miscellaneous common functions."""
 
+import abc
 import os
+import re
+import signal
+import smtplib
+import subprocess
 import sys
 import time
-import pid
-import abc
-import signal
-import Pyro4
-import subprocess
-import serial
-import re
-import smtplib
 from contextlib import contextmanager
 
-from . import params
+import pid
+
 from . import errors
-from . import flags
-from .style import ERROR
+from . import params
+from .style import errortxt
 
 
 def kill_process(pidname, host='127.0.0.1'):
-    """Kill any specified processes"""
+    """Kill any specified processes."""
     pid = get_pid(pidname, host)
 
     if host in ['127.0.0.1', params.LOCAL_HOST]:
@@ -38,7 +34,7 @@ def kill_process(pidname, host='127.0.0.1'):
 def python_command(filename, command, host='127.0.0.1',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                    in_background=False):
-    """Send a command to a control script as if using the terminal"""
+    """Send a command to a control script as if using the terminal."""
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = ' '.join((sys.executable, filename, command))
     else:
@@ -60,7 +56,7 @@ def execute_command(command_string, timeout=30):
                                           shell=True,
                                           stderr=subprocess.STDOUT,
                                           timeout=timeout)
-        print('> '+ret_str.strip().decode().replace('\n','\n> '))
+        print('> ' + ret_str.strip().decode().replace('\n', '\n> '))
         return 0
     except subprocess.TimeoutExpired:
         print('Command {} timed out after {}s'.format(command_string, timeout))
@@ -73,6 +69,7 @@ def execute_long_command(command_string):
     Examples:
         The tail command for logs, because you can use tail's -f param
         obs_scripts
+
     """
     print(command_string)
     p = subprocess.Popen(command_string, shell=True, close_fds=True)
@@ -88,46 +85,42 @@ def execute_long_command(command_string):
 
 
 def signal_handler(signal, frame):
-    """Trap ctrl-c and exit cleanly"""
+    """Trap ctrl-c and exit cleanly."""
     print('...ctrl+c detected - closing ({} {})...'.format(signal, frame))
     sys.exit(0)
 
 
-class neatCloser:
-    """
-    Neatly handles closing down of processes.
+class NeatCloser(object, metaclass=abc.ABCMeta):
+    """Neatly handles closing down of processes.
 
     This is an abstract class.
 
-    Implement the tidyUp method to set the jobs which
+    Implement the tidy_up method to set the jobs which
     get run before the task shuts down after receiving
     an instruction to stop.
 
     Once you have a concrete class based on this abstract class,
-    simply create an instance of it and the tidyUp function will
+    simply create an instance of it and the tidy_up function will
     be caused on SIGINT and SIGTERM signals before closing.
     """
-    __metaclass__ = abc.ABCMeta
 
-    def __init__(self, taskName):
-        self.taskName = taskName
+    def __init__(self, taskname):
+        self.taskname = taskname
         # redirect SIGTERM, SIGINT to us
         signal.signal(signal.SIGTERM, self.interrupt)
         signal.signal(signal.SIGINT, self.interrupt)
 
     def interrupt(self, sig, handler):
-        print('{} received kill signal'.format(self.taskName))
+        """Catch interupts."""
+        print('{} received kill signal'.format(self.taskname))
         # do things here on interrupt, for example, stop exposing
         # update queue DB.
-        self.tidyUp()
+        self.tidy_up()
         sys.exit(1)
 
     @abc.abstractmethod
-    def tidyUp(self):
-        """
-        Must be implemented to define tasks to run when closed
-        before process is over.
-        """
+    def tidy_up(self):
+        """Must be implemented to define tasks to run when closed before process is over."""
         return
 
 
@@ -138,7 +131,7 @@ def get_pid(pidname, host='127.0.0.1'):
     """
     # pid.PidFile(pidname, piddir=params.PID_PATH).check() is nicer,
     # but won't work with remote machines
-    pidpath = os.path.join(params.PID_PATH, pidname+'.pid')
+    pidpath = os.path.join(params.PID_PATH, pidname + '.pid')
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'cat {}'.format(pidpath)
     else:
@@ -153,7 +146,7 @@ def get_pid(pidname, host='127.0.0.1'):
 
 def clear_pid(pidname, host='127.0.0.1'):
     """Clear a pid in case we've killed the process."""
-    pidpath = os.path.join(params.PID_PATH, pidname+'.pid')
+    pidpath = os.path.join(params.PID_PATH, pidname + '.pid')
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'rm {}'.format(pidpath)
     else:
@@ -169,19 +162,20 @@ def clear_pid(pidname, host='127.0.0.1'):
 
 @contextmanager
 def print_errors():
-    """A context manager to catch exceptions and print them nicely.
+    """Catch exceptions and print them nicely.
+
     Used within the control scripts to handle errors from daemons.
     """
     try:
         yield
     except Exception as error:
-        print(ERROR('"{}: {}"'.format(type(error).__name__, error)))
+        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
         pass
 
 
 @contextmanager
 def make_pid_file(pidname):
-    """A context manager create a pidfile."""
+    """Create a pidfile."""
     try:
         with pid.PidFile(pidname, piddir=params.PID_PATH):
             yield
@@ -191,14 +185,15 @@ def make_pid_file(pidname):
 
 
 def valid_ints(array, allowed):
+    """Return valid ints from a list."""
     valid = []
     for i in array:
         if i == '':
             pass
         elif not i.isdigit():
-            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
+            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
         elif i not in [str(x) for x in allowed]:
-            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
+            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()
@@ -206,18 +201,20 @@ def valid_ints(array, allowed):
 
 
 def valid_strings(array, allowed):
+    """Return valid strings from a list."""
     valid = []
     for i in array:
         if i == '':
             pass
         elif i.upper() not in [str(x) for x in allowed]:
-            print(ERROR('"{}" is invalid, must be in {}'.format(i,allowed)))
+            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
         elif i.upper() not in valid:
             valid += [i.upper()]
     return valid
 
 
 def is_num(value):
+    """Return if a value is a valid number."""
     try:
         float(value)
         return True
@@ -226,50 +223,54 @@ def is_num(value):
 
 
 def remove_html_tags(data):
-    """Remove html tags from a given line"""
+    """Remove html tags from a given line."""
     p = re.compile(r'<.*?>')
     return p.sub('', data).strip()
 
 
 def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
+    """Send an email.
+
+    TODO: I'm pretty sure this is broken.
+    """
     to_address = ', '.join(recipients)
     from_address = params.EMAIL_ADDRESS
-    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address,from_address,subject)
-    timestamp = time.strftime('%Y-%m-%dT%H:%M:%S',time.gmtime())
-    text = '%s\n\nMessage sent at %s' % (message,timestamp)
+    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address, from_address, subject)
+    timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime())
+    text = '%s\n\nMessage sent at %s' % (message, timestamp)
 
-    server = smtplib.SMTP(EMAIL_SERVER)
+    server = smtplib.SMTP(params.EMAIL_SERVER)
     server.starttls()
     server.login('goto-observatory@gmail.com', 'password')
-    server.sendmail(fromaddr, recipients, header + '\n' + text + '\n\n')
+    server.sendmail(from_address, recipients, header + '\n' + text + '\n\n')
     server.quit()
-    print('Sent mail to',recipients)
+    print('Sent mail to', recipients)
 
 
 def ut_list_to_mask(ut_list):
-    """Converts a UT list to a mask integer"""
+    """Convert a UT list to a mask integer."""
     ut_mask = 0
     all_tels = sorted(params.TEL_DICT)
     for i in all_tels:
         if i in ut_list:
-            ut_mask += 2**(i-1)
+            ut_mask += 2**(i - 1)
     return ut_mask
 
 
 def ut_mask_to_string(ut_mask):
-    """Converts a UT mask integer to a string of 0s and 1s"""
+    """Convert a UT mask integer to a string of 0s and 1s."""
     total_tels = max(sorted(params.TEL_DICT))
     bin_str = format(ut_mask, '0{}b'.format(total_tels))
-    ut_str = bin_str[-1*total_tels:]
+    ut_str = bin_str[-1 * total_tels:]
     return ut_str
 
 
 def ut_string_to_list(ut_string):
-    """Converts a UT string of 0s and 1s to a list"""
+    """Convert a UT string of 0s and 1s to a list."""
     ut_list = []
     all_tels = sorted(params.TEL_DICT)
     for i in all_tels:
-        if ut_string[-1*i] == '1':
+        if ut_string[-1 * i] == '1':
             ut_list.append(i)
     ut_list.sort()
     return ut_list

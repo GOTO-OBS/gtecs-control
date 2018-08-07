@@ -1,18 +1,16 @@
-"""
-Standard format for creating log files
-"""
+"""Standard format for creating log files."""
 
+import logging
 import os
 import sys
 import time
-
-import logging
 from logging import handlers
 
 from . import params
 
 
-def getFileHandler(name=None):
+def get_file_handler(name=None):
+    """Get the file handler."""
     log_dir = params.LOG_PATH
     if name is not None:
         fname = os.path.join(log_dir, name + '.log')
@@ -33,7 +31,8 @@ def getFileHandler(name=None):
     return file_handler
 
 
-def getStreamHandler():
+def get_stream_handler():
+    """Get the stream handler."""
     # formatter for stdout logging; includes name of log
     formatter = logging.Formatter(
         '%(asctime)s.%(msecs)03d:%(name)s:%(levelname)s - %(message)s',
@@ -48,10 +47,8 @@ def getStreamHandler():
     return console
 
 
-def getLogger(name=None, log_stdout=False,
-              log_to_file=True, log_to_stdout=True):
-    """
-    Function to provide standardised logging to all processes.
+def get_logger(name=None, log_stdout=False, log_to_file=True, log_to_stdout=True):
+    """Provide standardised logging to all processes.
 
     Each logger can write to stdout and a file name 'name.log'
     in the appropriate log directory. If no name is provided,
@@ -88,7 +85,7 @@ def getLogger(name=None, log_stdout=False,
     --------
     The function can be used as follows::
 
-        log = getLogger('pilot')
+        log = get_logger('pilot')
         if pilot.running:
             log.info('Pilot started successfully')
         else:
@@ -96,8 +93,9 @@ def getLogger(name=None, log_stdout=False,
         # log exceptions to file and stdout
         try:
             print "Hi There"  # breaks in python 3
-        except:
+        except Exception:
             log.exception('')
+
     """
     log = logging.getLogger(name)
     log.setLevel(logging.DEBUG)
@@ -109,11 +107,11 @@ def getLogger(name=None, log_stdout=False,
 
     # add a stdout handler
     if log_to_stdout:
-        log.addHandler(getStreamHandler())
+        log.addHandler(get_stream_handler())
 
     # add a file handler
     if log_to_file:
-        log.addHandler(getFileHandler(name))
+        log.addHandler(get_file_handler(name))
 
     # redirect system stdout
     if log_stdout:
@@ -124,24 +122,25 @@ def getLogger(name=None, log_stdout=False,
 
 
 class StreamToLogger(object):
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
+    """Fake file-like stream object that redirects writes to a logger instance."""
+
     def __init__(self, logger, log_level=logging.INFO):
         self.logger = logger
         self.log_level = log_level
         self.linebuf = ''
 
     def write(self, buf):
+        """Write to the stream."""
         for line in buf.rstrip().splitlines():
-           self.logger.log(self.log_level, line.rstrip())
+            self.logger.log(self.log_level, line.rstrip())
 
     def flush(self):
+        """Flush the stream."""
         pass
 
-def setLoggerOutput(logger, log_to_file=True, log_to_stdout=True):
-    """
-    Adds or removes handlers to a logger to print to file or stdout.
+
+def set_logger_output(logger, log_to_file=True, log_to_stdout=True):
+    """Add or remove handlers to a logger to print to file or stdout.
 
     Parameters
     ----------
@@ -151,6 +150,7 @@ def setLoggerOutput(logger, log_to_file=True, log_to_stdout=True):
         ensure logger logs to file
     log_to_stdout : bool
         ensure logger logs to stdout
+
     """
     file_logger_truefalse = [isinstance(hl, logging.handlers.WatchedFileHandler)
                              for hl in logger.handlers]
@@ -161,7 +161,7 @@ def setLoggerOutput(logger, log_to_file=True, log_to_stdout=True):
 
     if log_to_file:
         if not already_has_file_logger:
-            logger.addHandler(getFileHandler(logger.name))
+            logger.addHandler(get_file_handler(logger.name))
     else:
         if already_has_file_logger:
             handler = logger.handlers[file_logger_truefalse.index(True)]
@@ -169,7 +169,7 @@ def setLoggerOutput(logger, log_to_file=True, log_to_stdout=True):
 
     if log_to_stdout:
         if not already_has_stdout_logger:
-            logger.addHandler(getStreamHandler())
+            logger.addHandler(get_stream_handler())
     else:
         if already_has_stdout_logger:
             handler = logger.handlers[stdout_logger_truefalse.index(True)]
