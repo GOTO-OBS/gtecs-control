@@ -88,9 +88,20 @@ def run(eve, alt, late=False):
     print('~~~~~~')
     print('Taking initial exposures')
     current_filter = filt_list.pop(0)
-    if (eve and sky_mean > sky_mean_target) or (not eve and sky_mean < sky_mean_target):
+    while True:
+        time.sleep(1)
         sky_mean = take_sky(start_exptime, current_filter, field_name, glance=True)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
+        if eve:
+            if sky_mean > sky_mean_target:
+                print('Waiting until below {:.1f} counts'.format(sky_mean_target))
+            else:
+                break
+        else:
+            if sky_mean < sky_mean_target:
+                print('Waiting until above {:.1f} counts'.format(sky_mean_target))
+            else:
+                break
     print('Reached target sky brightness ({:.1f} counts)'.format(sky_mean_target))
 
     # Start in the first filter

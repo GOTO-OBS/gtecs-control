@@ -37,7 +37,7 @@ def get_position(pointing_id):
 def get_exq_commands(pointing_id):
     """Get the exposure queue command for a given pointing."""
     command_template = 'exq multimage {numexp} {tels}{expTime:.1f} '\
-                       '{filt} {binning} "{objectName}" SCIENCE {db_id}'
+                       '{filt} {binning} "{objectName}" SCIENCE {expID}'
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointing_id)

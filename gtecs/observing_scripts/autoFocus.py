@@ -291,7 +291,7 @@ def run(filt):
 
     # find best focus
     hfd_samples = pd.DataFrame()
-    for key in hfd_values:
+    for key in hfd_values.keys():
         hfd_samples[key] = np.random.normal(size=10**4,
                                             loc=hfd_values[key],
                                             scale=hfd_std[key])
