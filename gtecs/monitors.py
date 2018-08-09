@@ -1,14 +1,14 @@
 """Daemon monitor classes for the pilot."""
 
-import abc
 import time
+from abc import ABC, abstractmethod
 
 from . import params
 from .daemons import daemon_info, daemon_is_alive
 from .misc import execute_command
 
 
-class Monitor(object, metaclass=abc.ABCMeta):
+class BaseMonitor(ABC):
     """Generic monitor class, inherited by specific classes for each daemon.
 
     This is an abstract class and must be subtyped, implementing the _check_hardware` and
@@ -65,7 +65,7 @@ class Monitor(object, metaclass=abc.ABCMeta):
             raise ValueError('Invalid mode: {} not in {!r}'.format(mode,
                                                                    self.available_modes))
 
-    @abc.abstractmethod
+    @abstractmethod
     def _check_hardware(self):
         """Check the hardware by running through the recovery steps.
 
@@ -101,7 +101,7 @@ class Monitor(object, metaclass=abc.ABCMeta):
 
         return len(self.errors), self.errors
 
-    @abc.abstractmethod
+    @abstractmethod
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode.
 
@@ -132,7 +132,7 @@ class Monitor(object, metaclass=abc.ABCMeta):
             return
 
 
-class DomeMonitor(Monitor):
+class DomeMonitor(BaseMonitor):
     """Hardware monitor for the dome daemon."""
 
     def __init__(self, log=None):
@@ -200,7 +200,7 @@ class DomeMonitor(Monitor):
         return recovery_procedure
 
 
-class MountMonitor(Monitor):
+class MountMonitor(BaseMonitor):
     """Hardware monitor for the mount daemon."""
 
     def __init__(self, log=None):
@@ -279,7 +279,7 @@ class MountMonitor(Monitor):
         return recovery_procedure
 
 
-class PowerMonitor(Monitor):
+class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
 
     def __init__(self, log=None):
@@ -306,7 +306,7 @@ class PowerMonitor(Monitor):
         return recovery_procedure
 
 
-class CameraMonitor(Monitor):
+class CameraMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
     def __init__(self, log=None):
@@ -333,7 +333,7 @@ class CameraMonitor(Monitor):
         return recovery_procedure
 
 
-class FilterWheelMonitor(Monitor):
+class FilterWheelMonitor(BaseMonitor):
     """Hardware monitor for the filter wheel daemon."""
 
     def __init__(self, log=None):
@@ -360,7 +360,7 @@ class FilterWheelMonitor(Monitor):
         return recovery_procedure
 
 
-class FocuserMonitor(Monitor):
+class FocuserMonitor(BaseMonitor):
     """Hardware monitor for the focuser daemon."""
 
     def __init__(self, log=None):
@@ -387,7 +387,7 @@ class FocuserMonitor(Monitor):
         return recovery_procedure
 
 
-class ExposureQueueMonitor(Monitor):
+class ExposureQueueMonitor(BaseMonitor):
     """Hardware monitor for the exposure queue daemon."""
 
     def __init__(self, log=None):
