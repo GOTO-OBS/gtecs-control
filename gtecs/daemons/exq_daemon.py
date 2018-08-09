@@ -326,16 +326,19 @@ class ExqDaemon(HardwareDaemon):
 
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
-            filt_info_dict = filt_daemon.get_info()
-        filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
-        while('Moving' in filt_status.values()):
+            filt_info = filt_daemon.get_info()
+        check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
+                 for tel in tel_list]
+        while not all(check):
             with daemon_proxy('filt') as filt_daemon:
-                filt_info_dict = filt_daemon.get_info()
-            filt_status = {tel: filt_info_dict['status%d' % tel] for tel in params.TEL_DICT}
-            time.sleep(0.005)
+                filt_info = filt_daemon.get_info()
+            check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
+                     for tel in tel_list]
+            time.sleep(0.5)
+
             # keep ping alive
             self.time_check = time.time()
-        self.log.info('Filter wheel move complete')
+        self.log.info('Filter wheel move complete, now at {}'.format(new_filt))
 
     def _take_image(self):
         exptime = self.current_exposure.exptime
