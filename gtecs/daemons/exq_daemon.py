@@ -105,7 +105,7 @@ class ExqDaemon(HardwareDaemon):
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
 
-        # Exq info is outside the loop
+        # exq info is outside the loop
         info = {}
         if self.paused:
             info['status'] = 'Paused'

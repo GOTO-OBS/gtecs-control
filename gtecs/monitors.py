@@ -200,7 +200,7 @@ class DomeMonitor(BaseMonitor):
         return recovery_procedure
 
 
-class MountMonitor(BaseMonitor):
+class MntMonitor(BaseMonitor):
     """Hardware monitor for the mount daemon."""
 
     def __init__(self, log=None):
@@ -306,7 +306,7 @@ class PowerMonitor(BaseMonitor):
         return recovery_procedure
 
 
-class CameraMonitor(BaseMonitor):
+class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
     def __init__(self, log=None):
@@ -333,7 +333,7 @@ class CameraMonitor(BaseMonitor):
         return recovery_procedure
 
 
-class FilterWheelMonitor(BaseMonitor):
+class FiltMonitor(BaseMonitor):
     """Hardware monitor for the filter wheel daemon."""
 
     def __init__(self, log=None):
@@ -360,7 +360,7 @@ class FilterWheelMonitor(BaseMonitor):
         return recovery_procedure
 
 
-class FocuserMonitor(BaseMonitor):
+class FocMonitor(BaseMonitor):
     """Hardware monitor for the focuser daemon."""
 
     def __init__(self, log=None):
@@ -387,7 +387,7 @@ class FocuserMonitor(BaseMonitor):
         return recovery_procedure
 
 
-class ExposureQueueMonitor(BaseMonitor):
+class ExqMonitor(BaseMonitor):
     """Hardware monitor for the exposure queue daemon."""
 
     def __init__(self, log=None):

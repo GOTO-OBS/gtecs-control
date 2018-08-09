@@ -90,12 +90,12 @@ class Pilot(object):
 
         # hardware to keep track of and fix if necessary
         self.hardware = {'dome': monitors.DomeMonitor(self.log),
-                         'mnt': monitors.MountMonitor(self.log),
+                         'mnt': monitors.MntMonitor(self.log),
                          'power': monitors.PowerMonitor(self.log),
-                         'cams': monitors.CameraMonitor(self.log),
-                         'filts': monitors.FilterWheelMonitor(self.log),
-                         'focs': monitors.FocuserMonitor(self.log),
-                         'exq': monitors.ExposureQueueMonitor(self.log),
+                         'cam': monitors.CamMonitor(self.log),
+                         'filt': monitors.FiltMonitor(self.log),
+                         'foc': monitors.FocMonitor(self.log),
+                         'exq': monitors.ExqMonitor(self.log),
                          }
 
         # override and conditions flags
