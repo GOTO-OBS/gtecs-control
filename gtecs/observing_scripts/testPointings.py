@@ -1,35 +1,32 @@
-"""
-testPointings [nAlt] [nAz]
-Script to take images at a range of pointings
+#!/usr/bin/env python
+"""Script to take images at a range of pointings.
+
+testPointings [n_alt] [n_az]
 """
 
 import sys
 import time
 
-from astropy.time import Time
-
-from gtecs import params
-from gtecs.misc import execute_command
-from gtecs.observing import (prepare_for_images, take_image_set,
-                             goto_altaz, wait_for_telescope)
+from gtecs.observing import goto_altaz, prepare_for_images, take_image_set, wait_for_telescope
 
 
-def run(nAlt, nAz):
+def run(n_alt, n_az):
+    """Run test pointings routine."""
     # make sure hardware is ready
     prepare_for_images()
 
     # generate alt list
-    if nAlt > 4:
-        nAlt = 4
-    alt_list = [45, 60, 75][:nAlt-1][::-1]
+    if n_alt > 4:
+        n_alt = 4
+    alt_list = [45, 60, 75][:n_alt - 1][::-1]
 
     # generate az list
-    if nAz > 4:
-        nAz = 4
-    az_list = [i for i in range(0,360,int(360/nAz))]
+    if n_az > 4:
+        n_az = 4
+    az_list = [i for i in range(0, 360, int(360 / n_az))]
 
     # generate pointings
-    altaz_list = [(90, 0)] # don't repeat zenith at different azimuths
+    altaz_list = [(90, 0)]  # don't repeat zenith at different azimuths
     for az in az_list:
         for alt in alt_list:
             altaz_list.append((alt, az))
@@ -42,7 +39,7 @@ def run(nAlt, nAz):
     print('Exposure times:')
     print(exposure_list)
 
-    total_exptime = (sum(exposure_list) * len(altaz_list))/60.
+    total_exptime = (sum(exposure_list) * len(altaz_list)) / 60.
     print('Total exposure time: {} mins'.format(total_exptime))
 
     total_readout = 0.5 * len(exposure_list) * len(altaz_list)
@@ -50,7 +47,7 @@ def run(nAlt, nAz):
     print('Estimated total time: {} mins'.format(total_exptime + total_readout + total_slew))
 
     cont = 'na'
-    while cont not in ['y','n']:
+    while cont not in ['y', 'n']:
         cont = input('Continue? [y/n]: ')
     if cont == 'n':
         sys.exit()
@@ -62,8 +59,7 @@ def run(nAlt, nAz):
         print('Slewing to Alt {}, Az {}'.format(alt, az))
         goto_altaz(alt, az)
         time.sleep(10)
-        wait_for_telescope(120, targ_dist=0.1)  # 120s timeout
-                                                # lower distance for altaz
+        wait_for_telescope(120, targ_dist=0.1)  # 120s timeout, lower distance for altaz
 
         take_image_set(exposure_list, 'L', 'Test Pointing')
 
@@ -72,13 +68,13 @@ def run(nAlt, nAz):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        nAlt = 2
-        nAz = 2
+        n_alt = 2
+        n_az = 2
     elif len(sys.argv) == 2:
-        nAlt = int(sys.argv[1])
-        nAz = 2
+        n_alt = int(sys.argv[1])
+        n_az = 2
     else:
-        nAlt = int(sys.argv[1])
-        nAz = int(sys.argv[2])
+        n_alt = int(sys.argv[1])
+        n_az = int(sys.argv[2])
 
-    run(nAlt, nAz)
+    run(n_alt, n_az)

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-"""
-A script to re-install G-TeCS
-"""
+"""A script to re-install G-TeCS."""
 
 import os
 import sys

@@ -1,44 +1,36 @@
 #!/usr/bin/env python
-"""
-Daemon to allow remote computation of next observation
-"""
+"""Daemon to allow remote computation of next observation."""
 
-import sys
-import pid
-import time
-import Pyro4
 import datetime
 
 from gtecs import misc
-from gtecs import params
-from gtecs import scheduler
 from gtecs.daemons import InterfaceDaemon
+from gtecs.scheduler import check_queue
 
 
 class SchedulerDaemon(InterfaceDaemon):
-    """Scheduler interface daemon class"""
+    """Scheduler interface daemon class."""
 
     def __init__(self):
-        ### initiate daemon
-        InterfaceDaemon.__init__(self, daemon_ID='scheduler')
-
+        InterfaceDaemon.__init__(self, daemon_id='scheduler')
 
     def check_queue(self, *args):
-        next_pointing = scheduler.check_queue(*args)
+        """Check the current queue for the best pointing to do."""
+        next_pointing = check_queue(*args)
         if next_pointing is not None:
-            self.logfile.info('Scheduler returns: pointing ID {}'.format(next_pointing.id))
+            self.log.info('Scheduler returns: pointing ID {}'.format(next_pointing.pointing_id))
         else:
-            self.logfile.info('Scheduler returns: None')
+            self.log.info('Scheduler returns: None')
         return next_pointing
 
-
     def get_info(self, *args):
+        """Return power status info."""
         info = {}
-        next_pointing = scheduler.check_queue(*args)
+        next_pointing = check_queue(*args)
         if next_pointing is not None:
-            self.logfile.info('Scheduler returns: pointing ID {}'.format(next_pointing.id))
+            self.log.info('Scheduler returns: pointing ID {}'.format(next_pointing.pointing_id))
         else:
-            self.logfile.info('Scheduler returns: None')
+            self.log.info('Scheduler returns: None')
         info['next_pointing'] = next_pointing
 
         now = datetime.datetime.utcnow()
@@ -46,17 +38,16 @@ class SchedulerDaemon(InterfaceDaemon):
 
         return info
 
-
     def get_info_simple(self):
-        """Return plain status dict, or None"""
+        """Return plain status dict, or None."""
         try:
             info = self.get_info()
-        except:
+        except Exception:
             return None
         return info
 
 
 if __name__ == "__main__":
-    daemon_ID = 'scheduler'
-    with misc.make_pid_file(daemon_ID):
+    daemon_id = 'scheduler'
+    with misc.make_pid_file(daemon_id):
         SchedulerDaemon()._run()

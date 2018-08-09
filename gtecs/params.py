@@ -1,16 +1,17 @@
-"""
-G-TeCS core control system parameters
-"""
+#!/usr/bin/env python
+"""G-TeCS core control system parameters."""
 
 import os
-import sys
 import socket
-import Pyro4
-import pkg_resources
-import configobj
-import validate
+import sys
 
-import numpy
+import Pyro4
+
+import configobj
+
+import pkg_resources
+
+import validate
 
 from . import __version__
 
@@ -44,7 +45,7 @@ for loc in paths:
 # validate ConfigObj, filling defaults from configspec if missing from config file
 validator = validate.Validator()
 result = config.validate(validator)
-if result != True:
+if result is not True:
     print(result)
     print('Config file validation failed')
     sys.exit(1)
@@ -55,7 +56,7 @@ LOCAL_HOST = config['LOCAL_HOST']
 LOCAL_HOSTNAME = socket.gethostname()
 # Common file strings
 ORIGIN = config['ORIGIN']
-TELESCOP = config['TELESCOP'] # "the telescope used", will be appended with details (e.g. [GOTO_N]-ut2"
+TELESCOP = config['TELESCOP']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # File locations (need to alter depending on system)
@@ -77,12 +78,12 @@ FANCY_OUTPUT = config['FANCY_OUTPUT']
 
 # Email alerts
 EMAIL_LIST = config['EMAIL_LIST']
-EMAIL_ADDRESS = config['EMAIL_ADDRESS'] # An example
+EMAIL_ADDRESS = config['EMAIL_ADDRESS']
 EMAIL_SERVER = config['EMAIL_SERVER']
 
 ############################################################
 # Daemon parameters
-Pyro4.config.SERIALIZER = 'pickle' # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False
 
@@ -96,20 +97,22 @@ REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 USE_FAKE_FLI = config['USE_FAKE_FLI']
 
 DAEMONS = config['DAEMONS']
-for daemon_ID in DAEMONS:
-    if  DAEMONS[daemon_ID]['HOST'] == 'localhost':
-        DAEMONS[daemon_ID]['HOST'] = LOCAL_HOST
-    DAEMONS[daemon_ID]['ADDRESS'] = 'PYRO:' + daemon_ID + '@' + DAEMONS[daemon_ID]['HOST'] + ':' + str(DAEMONS[daemon_ID]['PORT'])
-    if 'fli' in DAEMONS[daemon_ID]['DEPENDS']:
-        DAEMONS[daemon_ID]['DEPENDS'].remove('fli')
-        DAEMONS[daemon_ID]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
+for daemon_id in DAEMONS:
+    if DAEMONS[daemon_id]['HOST'] == 'localhost':
+        DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
+    DAEMONS[daemon_id]['ADDRESS'] = 'PYRO:{}@{}:{}'.format(daemon_id,
+                                                           DAEMONS[daemon_id]['HOST'],
+                                                           DAEMONS[daemon_id]['PORT'])
+    if 'fli' in DAEMONS[daemon_id]['DEPENDS']:
+        DAEMONS[daemon_id]['DEPENDS'].remove('fli')
+        DAEMONS[daemon_id]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 
 TEL_DICT = {}
 for intf in FLI_INTERFACES:
-    for HW, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
-        TEL_DICT[tel] = [intf, HW]
+    for hw, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
+        TEL_DICT[tel] = [intf, hw]
 
 ############################################################
 # Conditions parameters
@@ -177,8 +180,8 @@ MIN_DISKSPACE = config['MIN_DISKSPACE']
 
 ############################################################
 # Mount parameters
-MIN_ELEVATION = config['MIN_ELEVATION'] #degrees
-DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP'] #arcsec
+MIN_ELEVATION = config['MIN_ELEVATION']
+DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP']
 SITECH_HOST = config['SITECH_HOST']
 SITECH_PORT = config['SITECH_PORT']
 FREEZE_DEC = config['FREEZE_DEC']

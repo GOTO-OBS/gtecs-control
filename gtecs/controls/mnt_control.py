@@ -1,46 +1,41 @@
-"""
-Classes to control SiTechExe
-"""
+"""Classes to control SiTechExe."""
 
-import os
-import sys
-import time
-import subprocess
-import threading
-import serial
-import socket
 import datetime
+import socket
+import threading
+import time
 
-from gtecs import params
+from .. import params
 
 
-class SiTech:
-    """SiTech servo controller class using TCP/IP commands"""
-    def __init__(self, IP_address, port):
-        self.IP_address = IP_address
+class SiTech(object):
+    """SiTech servo controller class using TCP/IP commands."""
+
+    def __init__(self, address, port):
+        self.address = address
         self.port = port
         self.buffer_size = 1024
-        self.commands = {'GET_STATUS' : 'ReadScopeStatus\n',
-                         'SLEW_RADEC' : 'GoTo {:.5f} {:.5f} J2K\n',
-                         'SLEW_ALTAZ' : 'GoToAltAz {:.5f} {:.5f}\n',
-                         'SYNC_RADEC' : 'Sync {:.5f} {:.5f} J2K\n',
-                         'SYNC_ALTAZ' : 'SyncToAltAz {:.5f} {:.5f}\n',
-                         'PARK' : 'Park\n',
-                         'UNPARK' : 'UnPark\n',
-                         'HALT' : 'Abort\n',
-                         'SET_TRACKMODE' : 'SetTrackMode {:d} {:d} {:.5f} {:.5f}\n',
-                         'PULSEGUIDE' : 'PulseGuide {:d} {:d}\n',
-                         'BLINKY_ON' : 'MotorsToBlinky\n',
-                         'BLINKY_OFF' : 'MotorsToAuto\n',
-                         'J2K_TO_JNOW' : 'CookCoordinates {:.5f} {:.5f}\n',
-                         'JNOW_TO_J2K' : 'UnCookCoordinates {:.5f} {:.5f}\n',
+        self.commands = {'GET_STATUS': 'ReadScopeStatus\n',
+                         'SLEW_RADEC': 'GoTo {:.5f} {:.5f} J2K\n',
+                         'SLEW_ALTAZ': 'GoToAltAz {:.5f} {:.5f}\n',
+                         'SYNC_RADEC': 'Sync {:.5f} {:.5f} J2K\n',
+                         'SYNC_ALTAZ': 'SyncToAltAz {:.5f} {:.5f}\n',
+                         'PARK': 'Park\n',
+                         'UNPARK': 'UnPark\n',
+                         'HALT': 'Abort\n',
+                         'SET_TRACKMODE': 'SetTrackMode {:d} {:d} {:.5f} {:.5f}\n',
+                         'PULSEGUIDE': 'PulseGuide {:d} {:d}\n',
+                         'BLINKY_ON': 'MotorsToBlinky\n',
+                         'BLINKY_OFF': 'MotorsToAuto\n',
+                         'J2K_TO_JNOW': 'CookCoordinates {:.5f} {:.5f}\n',
+                         'JNOW_TO_J2K': 'UnCookCoordinates {:.5f} {:.5f}\n',
                          }
         self._status_update_time = 0
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)
-        self.socket.connect((self.IP_address, self.port))
+        self.socket.connect((self.address, self.port))
         self.thread_lock = threading.Lock()
         # Update status when starting
         self._update_status()
@@ -50,9 +45,7 @@ class SiTech:
         self.socket.close()
 
     def _tcp_command(self, command_str):
-        """Send a command string to the device, then fetch the reply
-        and return it as a string.
-        """
+        """Send a command string to the device, then fetch the reply and return it as a string."""
         try:
             print(datetime.datetime.now().time(), 'SEND:', command_str[:-1])
             with self.thread_lock:
@@ -72,7 +65,6 @@ class SiTech:
         Returns None if there is no message,
         e.g. from just reading the status rather than sending a command.
         """
-
         # store update time
         self._status_update_time = time.time()
 
@@ -96,18 +88,18 @@ class SiTech:
         self._direction = 'east' if (bools & 32) > 0 else 'west'
         self._blinky = (bools & 64) > 0
         self._connection_error = (bools & 128) > 0
-        self._limit_switches = {'primary_plus' : (bools & 256) > 0,
-                               'primary_minus' : (bools & 512) > 0,
-                               'secondary_plus' : (bools & 1024) > 0,
-                               'secondary_minus' : (bools & 2048) > 0,
-                               }
-        self._homing_switches = {'primary' : (bools & 4096) > 0,
-                                'secondary' : (bools & 8192) > 0,
+        self._limit_switches = {'primary_plus': (bools & 256) > 0,
+                                'primary_minus': (bools & 512) > 0,
+                                'secondary_plus': (bools & 1024) > 0,
+                                'secondary_minus': (bools & 2048) > 0,
                                 }
+        self._homing_switches = {'primary': (bools & 4096) > 0,
+                                 'secondary': (bools & 8192) > 0,
+                                 }
 
         # parse values
         ra_temp = float(reply[1])
-        if ra_temp >= 24: # fix for RA
+        if ra_temp >= 24:  # fix for RA
             ra_temp -= 24
         self._ra_jnow = ra_temp
         self._dec_jnow = float(reply[2])
@@ -120,22 +112,22 @@ class SiTech:
         self._hours = float(reply[9])
 
         # find the message and return it
-        message = reply[10][1:-1] # strip leading '_' and trailing '\n'
+        message = reply[10][1:-1]  # strip leading '_' and trailing '\n'
         if len(message) == 0:
             return None
         else:
             return message
 
     def _update_status(self):
-        """Read and store status values"""
+        """Read and store status values."""
         # Only update if we need to, to save sending multiple commands
         if (time.time() - self._status_update_time) > 0.5:
             command = self.commands['GET_STATUS']
             reply_string = self._tcp_command(command)
-            self._parse_reply_string(reply_string) # no message
+            self._parse_reply_string(reply_string)  # no message
 
     def _get_j2000(self):
-        """Find the current RA and Dec values and convert them to J2000"""
+        """Find the current RA and Dec values and convert them to J2000."""
         self._update_status()
         command = self.commands['JNOW_TO_J2K'].format(self._ra_jnow, self._dec_jnow)
         reply_string = self._tcp_command(command)
@@ -145,11 +137,12 @@ class SiTech:
             ra_j2000 = float(message.split(' ')[0])
             dec_j2000 = float(message.split(' ')[1])
             return (ra_j2000, dec_j2000)
-        except:
+        except Exception:
             raise ValueError('Bad return from coordinates: {}'.format(message))
 
     @property
     def status(self):
+        """Return the current mount status."""
         self._update_status()
         if self._connection_error and not params.FAKE_MOUNT:
             status = 'CONNECTION ERROR'
@@ -169,103 +162,114 @@ class SiTech:
 
     @property
     def tracking(self):
+        """Return if the mount is currently tracking."""
         self._update_status()
         return self._tracking
 
     @property
     def slewing(self):
+        """Return if the mount is currently slewing."""
         self._update_status()
         return self._slewing
 
     @property
     def parking(self):
+        """Return if the mount is currently parking."""
         self._update_status()
         return self._parking
 
     @property
     def parked(self):
+        """Return if the mount is currently parked."""
         self._update_status()
         return self._parked
 
     @property
     def direction(self):
-        self._update_status()
-        return self._direction
-
-    @property
-    def direction(self):
+        """Return the direction the mount is pointing."""
         self._update_status()
         return self._direction
 
     @property
     def blinky(self):
+        """Return if the mount is currently in blinky mode."""
         self._update_status()
         return self._blinky
 
     @property
     def connection_error(self):
+        """Return if there is an error connecting to the mount."""
         self._update_status()
         return self._connection_error
 
     @property
     def limit_switches(self):
+        """Return if the mount limit switches have been triggered."""
         self._update_status()
         return self._limit_switches
 
     @property
     def homing_switches(self):
+        """Return if the mount homing switches have been triggered."""
         self._update_status()
         return self._homing_switches
 
     @property
     def ra(self):
-        """Gives current RA (J2000)"""
+        """Return the current RA (J2000)."""
         ra_j2000, _ = self._get_j2000()
         return ra_j2000
 
     @property
     def dec(self):
-        """Gives current Dec (J2000)"""
+        """Return the current Dec (J2000)."""
         _, dec_j2000 = self._get_j2000()
         return dec_j2000
 
     @property
     def alt(self):
+        """Return the current altitude."""
         self._update_status()
         return self._alt
 
     @property
     def az(self):
+        """Return the current azimuth."""
         self._update_status()
         return self._az
 
     @property
     def secondary_angle(self):
+        """Return the current secondary axis angle."""
         self._update_status()
         return self._secondary_angle
 
     @property
     def primary_angle(self):
+        """Return the current primary axis angle."""
         self._update_status()
         return self._primary_angle
 
     @property
     def sidereal_time(self):
+        """Return the current sidereal time."""
         self._update_status()
         return self._sidereal_time
 
     @property
     def jd(self):
+        """Return the current Julian date."""
         self._update_status()
         return self._jd
 
     @property
     def hours(self):
+        """Return the current hours number."""
         self._update_status()
         return self._hours
 
     def slew_to_radec(self, ra, dec):
-        """Slew to given RA and Dec coordinates (in J2000)"""
+        """Slew to given RA and Dec coordinates (in J2000)."""
         self.target_radec = (ra, dec)
 
         command = self.commands['SLEW_RADEC'].format(float(ra), float(dec))
@@ -274,7 +278,7 @@ class SiTech:
         return message
 
     def slew_to_altaz(self, alt, az):
-        """Slew mount to given Alt/Az"""
+        """Slew mount to given Alt/Az."""
         self.target_altaz = (alt, az)
 
         # NB SiTech takes Az first, then Alt
@@ -284,14 +288,14 @@ class SiTech:
         return message
 
     def sync_radec(self, ra, dec):
-        """Set current pointing to given RA and Dec coordinates (in J2000)"""
+        """Set current pointing to given RA and Dec coordinates (in J2000)."""
         command = self.commands['SYNC_RADEC'].format(float(ra), float(dec))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def sync_altaz(self, alt, az):
-        """Set current pointing to given Alt/Az"""
+        """Set current pointing to given Alt/Az."""
         # NB SiTech takes Az first, then Alt
         command = self.commands['SYNC_ALTAZ'].format(float(az), float(alt))
         reply_string = self._tcp_command(command)
@@ -299,28 +303,28 @@ class SiTech:
         return message
 
     def track(self):
-        """Start tracking at the siderial rate"""
+        """Start tracking at the siderial rate."""
         command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def park(self):
-        """Move mount to park position"""
+        """Move mount to park position."""
         command = self.commands['PARK']
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def unpark(self):
-        """Unpark the mount so it can accept slew commands"""
+        """Unpark the mount so it can accept slew commands."""
         command = self.commands['UNPARK']
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def halt(self):
-        """Abort slew (if slewing) and stop tracking (if tracking)"""
+        """Abort slew (if slewing) and stop tracking (if tracking)."""
         command = self.commands['HALT']
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
@@ -328,21 +332,19 @@ class SiTech:
 
     def set_trackrate(self, ra_rate, dec_rate):
         """Set tracking rate in RA and Dec in arcseconds per second.
-        If both RA and Dec are 0.0 then tracking will be (re)set
-        to the siderial rate.
+
+        If both RA and Dec are 0.0 then tracking will be (re)set to the siderial rate.
         """
         if ra_rate == 0 and dec_rate == 0:
             command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
         else:
-            command = self.commands['SET_TRACKMODE'].format(1, 1, float(ra), float(dec))
+            command = self.commands['SET_TRACKMODE'].format(1, 1, float(ra_rate), float(dec_rate))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
 
     def set_blinky_mode(self, activate):
-        """Activate or deactivate "blinky" (manual) mode,
-        cutting power to the motors
-        """
+        """Activate or deactivate "blinky" (manual) mode,cutting power to the motors."""
         if activate:
             command = self.commands['BLINKY_ON']
         else:

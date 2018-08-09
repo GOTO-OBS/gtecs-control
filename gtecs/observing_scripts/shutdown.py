@@ -1,6 +1,8 @@
-"""
+#!/usr/bin/env python
+"""Script to run end of night tasks.
+
 shutdown
-Script to run end of night tasks
+
 This script should perform the following simple tasks:
     * empty the camera queues
     * abort any current exposures
@@ -12,14 +14,11 @@ This script should perform the following simple tasks:
 
 import time
 
-from gtecs import params
 from gtecs.misc import execute_command
 
 
 def run():
-    """
-    Run shutdown tasks.
-    """
+    """Run shutdown tasks."""
     print('Running shutdown tasks')
 
     # Pause and clear the exposure queue
@@ -47,6 +46,7 @@ def run():
     # close dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
     time.sleep(65)
+
 
 if __name__ == "__main__":
     run()

@@ -1,41 +1,33 @@
 #!/usr/bin/env python
-"""
-Daemon to control FLI cameras via fli_interface
-"""
+"""Daemon to control FLI cameras via fli_interface."""
 
-import os
-import sys
-import pid
-import time
 import datetime
-from math import *
-import Pyro4
+import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-from gtecs import logger
-from gtecs import misc
 from gtecs import errors
+from gtecs import misc
 from gtecs import params
 from gtecs.controls.exq_control import Exposure
-from gtecs.fits import image_location, glance_location, get_all_info, write_fits
 from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.fits import get_all_info, glance_location, image_location, write_fits
 
 
 class CamDaemon(HardwareDaemon):
-    """Camera hardware daemon class"""
+    """Camera hardware daemon class."""
 
     def __init__(self):
-        ### initiate daemon
-        HardwareDaemon.__init__(self, daemon_ID='cam')
+        HardwareDaemon.__init__(self, daemon_id='cam')
 
-        ### command flags
+        # command flags
         self.get_info_flag = 1
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
 
-        ### camera variables
+        # camera variables
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.run_number = 0
 
@@ -44,8 +36,8 @@ class CamDaemon(HardwareDaemon):
         self.all_info = None
 
         self.exposing = 0
-        self.image_ready = {tel:0 for tel in params.TEL_DICT}
-        self.image_saving = {tel:0 for tel in params.TEL_DICT}
+        self.image_ready = {tel: 0 for tel in params.TEL_DICT}
+        self.image_saving = {tel: 0 for tel in params.TEL_DICT}
 
         self.remaining = {}
         self.exposure_start_time = {}
@@ -56,14 +48,14 @@ class CamDaemon(HardwareDaemon):
         self.target_temp = {}
 
         for intf in params.FLI_INTERFACES:
-            nHW = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.remaining[intf] = [0]*nHW
-            self.exposure_start_time[intf] = [0]*nHW
-            self.ccd_temp[intf] = [0]*nHW
-            self.base_temp[intf] = [0]*nHW
-            self.cooler_power[intf] = [0]*nHW
-            self.cam_info[intf] = [0]*nHW
-            self.target_temp[intf] = [0]*nHW
+            nhw = len(params.FLI_INTERFACES[intf]['TELS'])
+            self.remaining[intf] = [0] * nhw
+            self.exposure_start_time[intf] = [0] * nhw
+            self.ccd_temp[intf] = [0] * nhw
+            self.base_temp[intf] = [0] * nhw
+            self.cooler_power[intf] = [0] * nhw
+            self.cam_info[intf] = [0] * nhw
+            self.target_temp[intf] = [0] * nhw
 
         self.active_tel = []
         self.abort_tel = []
@@ -75,28 +67,27 @@ class CamDaemon(HardwareDaemon):
 
         self.current_exposure = None
 
-        ### start control thread
+        # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-
     # Primary control thread
     def _control_thread(self):
-        self.logfile.info('Daemon control thread started')
+        self.log.info('Daemon control thread started')
 
         while(self.running):
             self.time_check = time.time()
 
-            ### check dependencies
+            # check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
                 if not self.dependencies_are_alive:
                     if not self.dependency_error:
-                        self.logfile.error('Dependencies are not responding')
+                        self.log.error('Dependencies are not responding')
                         self.dependency_error = 1
                 else:
                     if self.dependency_error:
-                        self.logfile.info('Dependencies responding again')
+                        self.log.info('Dependencies responding again')
                         self.dependency_error = 0
                 self.dependency_check_time = time.time()
 
@@ -104,28 +95,28 @@ class CamDaemon(HardwareDaemon):
                 time.sleep(5)
                 continue
 
-            ### control functions
+            # control functions
             # request info
             if self.get_info_flag:
                 try:
                     # update variables
                     for tel in params.TEL_DICT:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
                         try:
                             with daemon_proxy(intf) as fli:
-                                self.cam_info[intf][HW] = fli.get_camera_info(HW)
-                                self.remaining[intf][HW] = fli.get_camera_time_remaining(HW)
-                                self.ccd_temp[intf][HW] = fli.get_camera_temp('CCD',HW)
-                                self.base_temp[intf][HW] = fli.get_camera_temp('BASE',HW)
-                                self.cooler_power[intf][HW] = fli.get_camera_cooler_power(HW)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                                self.cam_info[intf][hw] = fli.get_camera_info(hw)
+                                self.remaining[intf][hw] = fli.get_camera_time_remaining(hw)
+                                self.ccd_temp[intf][hw] = fli.get_camera_temp('CCD', hw)
+                                self.base_temp[intf][hw] = fli.get_camera_temp('BASE', hw)
+                                self.cooler_power[intf][hw] = fli.get_camera_cooler_power(hw)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
                     # save info
                     info = {}
                     info['exposing'] = self.exposing
                     info['current_exposure'] = self.current_exposure
-                    if self.current_exposure != None:
+                    if self.current_exposure is not None:
                         info['current_tel_list'] = self.current_exposure.tel_list
                         info['current_exptime'] = self.current_exposure.exptime
                         info['current_binning'] = self.current_exposure.binning
@@ -134,39 +125,39 @@ class CamDaemon(HardwareDaemon):
                         info['current_imgtype'] = self.current_exposure.imgtype
                         info['current_set_pos'] = self.current_exposure.set_pos
                         info['current_set_total'] = self.current_exposure.set_total
-                        info['current_expID'] = self.current_exposure.expID
+                        info['current_db_id'] = self.current_exposure.db_id
                     for tel in params.TEL_DICT:
-                        intf, HW = params.TEL_DICT[tel]
-                        #tel = str(params.FLI_INTERFACES[intf]['TELS'][HW])
-                        info['remaining'+str(tel)] = self.remaining[intf][HW]
+                        intf, hw = params.TEL_DICT[tel]
+                        # tel = str(params.FLI_INTERFACES[intf]['TELS'][hw])
+                        info['remaining' + str(tel)] = self.remaining[intf][hw]
                         if self.exposing == 1 and tel in self.active_tel:
-                            info['status'+str(tel)] = 'Exposing'
+                            info['status' + str(tel)] = 'Exposing'
                         elif self.image_saving[tel] == 1:
-                            info['status'+str(tel)] = 'Reading'
+                            info['status' + str(tel)] = 'Reading'
                         else:
-                            info['status'+str(tel)] = 'Ready'
-                        info['image_ready'+str(tel)] = self.image_ready[tel]
-                        info['image_saving'+str(tel)] = self.image_saving[tel]
-                        info['exposure_start_time'+str(tel)] = self.exposure_start_time[intf][HW]
-                        info['ccd_temp'+str(tel)] = self.ccd_temp[intf][HW]
-                        info['target_temp'+str(tel)] = self.target_temp[intf][HW]
-                        info['base_temp'+str(tel)] = self.base_temp[intf][HW]
-                        info['cooler_power'+str(tel)] = self.cooler_power[intf][HW]
-                        info['serial_number'+str(tel)] = self.cam_info[intf][HW]['serial_number']
-                        info['x_pixel_size'+str(tel)] = self.cam_info[intf][HW]['pixel_size'][0]
-                        info['y_pixel_size'+str(tel)] = self.cam_info[intf][HW]['pixel_size'][1]
+                            info['status' + str(tel)] = 'Ready'
+                        info['image_ready' + str(tel)] = self.image_ready[tel]
+                        info['image_saving' + str(tel)] = self.image_saving[tel]
+                        info['exposure_start_time' + str(tel)] = self.exposure_start_time[intf][hw]
+                        info['ccd_temp' + str(tel)] = self.ccd_temp[intf][hw]
+                        info['target_temp' + str(tel)] = self.target_temp[intf][hw]
+                        info['base_temp' + str(tel)] = self.base_temp[intf][hw]
+                        info['cooler_power' + str(tel)] = self.cooler_power[intf][hw]
+                        info['serial_number' + str(tel)] = self.cam_info[intf][hw]['serial_number']
+                        info['x_pixel_size' + str(tel)] = self.cam_info[intf][hw]['pixel_size'][0]
+                        info['y_pixel_size' + str(tel)] = self.cam_info[intf][hw]['pixel_size'][1]
 
                     info['run_number'] = self.run_number
                     info['glance'] = self.run_number < 0
-                    info['uptime'] = time.time()-self.start_time
-                    info['ping'] = time.time()-self.time_check
+                    info['uptime'] = time.time() - self.start_time
+                    info['ping'] = time.time() - self.time_check
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
                     self.info = info
-                except:
-                    self.logfile.error('get_info command failed')
-                    self.logfile.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('get_info command failed')
+                    self.log.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # take exposure
@@ -176,39 +167,45 @@ class CamDaemon(HardwareDaemon):
                     self.exposing = 1
                     # get exposure info
                     exptime = self.current_exposure.exptime
-                    exptime_ms = exptime*1000.
+                    exptime_ms = exptime * 1000.
                     binning = self.current_exposure.binning
                     frametype = self.current_exposure.frametype
 
                     # set exposure info and start exposure
                     for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
                         if self.run_number > 0:
-                            self.logfile.info('Taking exposure r%07d (%is, %ix%i, %s) on camera %i (%s-%i)',
-                                              self.run_number, exptime, binning, binning, frametype, tel, intf, HW)
+                            expstr = 'exposure r%07d' % self.run_number
                         else:
-                            self.logfile.info('Taking glance (%is, %ix%i, %s) on camera %i (%s-%i)',
-                                              exptime, binning, binning, frametype, tel, intf, HW)
+                            expstr = 'glance'
+                        argstr = '%is, %ix%i, %s' % (exptime, binning, binning, frametype)
+                        camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                        self.log.info('Taking %s (%s) on %s' % (expstr, argstr, camstr))
 
                         try:
                             with daemon_proxy(intf) as fli:
-                                fli.clear_exposure_queue(HW)
+                                fli.clear_exposure_queue(hw)
                                 # set exposure time and frame type
-                                c = fli.set_exposure(exptime_ms, frametype, HW)
-                                if c: self.logfile.info(c)
+                                c = fli.set_exposure(exptime_ms, frametype, hw)
+                                if c:
+                                    self.log.info(c)
                                 # set binning factor
-                                c = fli.set_camera_binning(binning, binning, HW)
-                                if c: self.logfile.info(c)
+                                c = fli.set_camera_binning(binning, binning, hw)
+                                if c:
+                                    self.log.info(c)
                                 # set area (always full-frame)
-                                c = fli.set_camera_area(0, 0, 8304, 6220, HW)
-                                if c: self.logfile.info(c)
+                                c = fli.set_camera_area(0, 0, 8304, 6220, hw)
+                                if c:
+                                    self.log.info(c)
                                 # start the exposure
-                                self.exposure_start_time[intf][HW] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                                c = fli.start_exposure(HW)
-                                if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                                now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                                self.exposure_start_time[intf][hw] = now
+                                c = fli.start_exposure(hw)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
 
                     # set flags
                     self.exposing = 1
@@ -224,19 +221,21 @@ class CamDaemon(HardwareDaemon):
 
                     # check if exposures are complete
                     for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
                         try:
                             with daemon_proxy(intf) as fli:
-                                ready = fli.exposure_ready(HW)
+                                ready = fli.exposure_ready(hw)
                                 if ready and self.image_ready[tel] == 0:
                                     if self.run_number > 0:
-                                        self.logfile.info('Exposure r%07d finished on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                                        expstr = 'Exposure r%07d' % self.run_number
                                     else:
-                                        self.logfile.info('Glance finished on camera %i (%s-%i)', tel, intf, HW)
+                                        expstr = 'Glance'
+                                    camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                                    self.log.info('%s finished on %s', expstr, camstr)
                                     self.image_ready[tel] = 1
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
 
                     # start saving thread when all exposures are complete
                     if all(self.image_ready[tel] == 1 for tel in self.active_tel):
@@ -248,7 +247,7 @@ class CamDaemon(HardwareDaemon):
 
                         # clear tags, ready for next exposure
                         self.exposing = 0
-                        self.image_ready = {tel:0 for tel in params.TEL_DICT}
+                        self.image_ready = {tel: 0 for tel in params.TEL_DICT}
                         self.active_tel = []
                         self.all_info = None
                         self.take_exposure_flag = 0
@@ -257,18 +256,21 @@ class CamDaemon(HardwareDaemon):
             if self.abort_exposure_flag:
                 try:
                     for tel in self.abort_tel:
-                        intf, HW = params.TEL_DICT[tel]
+                        intf, hw = params.TEL_DICT[tel]
                         if self.run_number > 0:
-                            self.logfile.info('Aborting exposure r%07d on camera %i (%s-%i)', self.run_number, tel, intf, HW)
+                            expstr = 'exposure r%07d' % self.run_number
                         else:
-                            self.logfile.info('Aborting glance on camera %i (%s-%i)', tel, intf, HW)
+                            expstr = 'glance'
+                        camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                        self.log.info('Aborting %s on %s', expstr, camstr)
                         try:
                             with daemon_proxy(intf) as fli:
-                                c = fli.abort_exposure(HW)
-                                if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
+                                c = fli.abort_exposure(hw)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
 
                     # reset flags
                     for tel in self.abort_tel:
@@ -279,9 +281,9 @@ class CamDaemon(HardwareDaemon):
                         self.active_tel = []
                         self.all_info = None
                         self.take_exposure_flag = 0
-                except:
-                    self.logfile.error('abort_exposure command failed')
-                    self.logfile.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('abort_exposure command failed')
+                    self.log.debug('', exc_info=True)
                 self.abort_tel = []
                 self.abort_exposure_flag = 0
 
@@ -289,31 +291,32 @@ class CamDaemon(HardwareDaemon):
             if self.set_temp_flag:
                 try:
                     for tel in self.active_tel:
-                        intf, HW = params.TEL_DICT[tel]
-                        target_temp = self.target_temp[intf][HW]
-                        self.logfile.info('Setting temperature on camera %i (%s-%i) to %i', tel, intf, HW, target_temp)
+                        intf, hw = params.TEL_DICT[tel]
+                        target_temp = self.target_temp[intf][hw]
+                        camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                        self.log.info('Setting temperature on %s to %i', camstr, target_temp)
                         try:
                             with daemon_proxy(intf) as fli:
-                                c = fli.set_camera_temp(target_temp,HW)
-                                if c: self.logfile.info(c)
-                        except:
-                            self.logfile.error('No response from fli interface on %s', intf)
-                            self.logfile.debug('', exc_info=True)
-                except:
-                    self.logfile.error('set_temp command failed')
-                    self.logfile.debug('', exc_info=True)
+                                c = fli.set_camera_temp(target_temp, hw)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('set_temp command failed')
+                    self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_temp_flag = 0
 
-            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
-        self.logfile.info('Daemon control thread stopped')
+        self.log.info('Daemon control thread stopped')
         return
-
 
     # Camera control functions
     def get_info(self):
-        """Return camera status info"""
+        """Return camera status info."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -325,21 +328,19 @@ class CamDaemon(HardwareDaemon):
         time.sleep(0.1)
         return self.info
 
-
     def get_info_simple(self):
-        """Return plain status dict, or None"""
+        """Return plain status dict, or None."""
         try:
             info = self.get_info()
-        except:
+        except errors.DaemonDependencyError:
             return None
         # remove custom class
         if info:
             del info['current_exposure']
         return info
 
-
     def take_image(self, exptime, binning, imgtype, tel_list):
-        """Take a normal frame with the camera"""
+        """Take a normal frame with the camera."""
         # Create exposure object
         exposure = Exposure(tel_list, exptime,
                             binning=binning, frametype='normal',
@@ -348,9 +349,8 @@ class CamDaemon(HardwareDaemon):
         # Use the common function
         return self.take_exposure(exposure)
 
-
     def take_dark(self, exptime, binning, imgtype, tel_list):
-        """Take dark frame with the camera"""
+        """Take dark frame with the camera."""
         # Create exposure object
         exposure = Exposure(tel_list, exptime,
                             binning=binning, frametype='dark',
@@ -359,9 +359,8 @@ class CamDaemon(HardwareDaemon):
         # Use the common function
         return self.take_exposure(exposure)
 
-
     def take_glance(self, exptime, binning, imgtype, tel_list):
-        """Take a glance frame with the camera (no run number)"""
+        """Take a glance frame with the camera (no run number)."""
         # Create exposure object
         exposure = Exposure(tel_list, exptime,
                             binning=binning, frametype='normal',
@@ -371,9 +370,8 @@ class CamDaemon(HardwareDaemon):
         # Use the common function
         return self.take_exposure(exposure)
 
-
     def take_exposure(self, exposure):
-        """Take an exposure with the camera from an Exposure object"""
+        """Take an exposure with the camera from an Exposure object."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -423,14 +421,13 @@ class CamDaemon(HardwareDaemon):
         else:
             s = 'Exposing glance:'
         for tel in tel_list:
+            argstr = '(%is, %ix%i, %s)' % (exptime, binning, binning, frametype)
             s += '\n  '
-            s += 'Taking exposure (%is, %ix%i, %s) on camera %i' %(exptime,
-                                              binning, binning, frametype, tel)
+            s += 'Taking exposure %s on camera %i' % (argstr, tel)
         return s
 
-
     def abort_exposure(self, tel_list):
-        """Abort current exposure"""
+        """Abort current exposure."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -457,14 +454,13 @@ class CamDaemon(HardwareDaemon):
         for tel in tel_list:
             s += '\n  '
             if tel not in self.abort_tel:
-                s += 'Camera %i is not currently exposing' %tel
+                s += 'Camera %i is not currently exposing' % tel
             else:
-                s += 'Aborting exposure on camera %i' %tel
+                s += 'Aborting exposure on camera %i' % tel
         return s
 
-
     def set_temperature(self, target_temp, tel_list):
-        """Set the camera's temperature"""
+        """Set the camera's temperature."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonDependencyError('Dependencies are not running')
@@ -478,8 +474,8 @@ class CamDaemon(HardwareDaemon):
 
         # Set values
         for tel in tel_list:
-            intf, HW = params.TEL_DICT[tel]
-            self.target_temp[intf][HW] = target_temp
+            intf, hw = params.TEL_DICT[tel]
+            self.target_temp[intf][hw] = target_temp
             self.active_tel += [tel]
 
         # Set flag
@@ -489,57 +485,60 @@ class CamDaemon(HardwareDaemon):
         s = 'Setting:'
         for tel in tel_list:
             s += '\n  '
-            s += 'Setting temperature on camera %i' %tel
+            s += 'Setting temperature on camera %i' % tel
         return s
 
-
     def is_exposing(self):
-        """A simple function to check if the cameras are exposing.
+        """Return if the cameras are exposing.
+
         Used to save time when the exposure queue doesn't need the full info.
         """
         return self.exposing
 
-
     # Internal functions
     def _exposure_saving_thread(self, active_tel, all_info):
-        """A thread to be started whenever an exposure is completed.
+        """Thread to be started whenever an exposure is completed.
+
         By containing fetching images from the interfaces and saving them to
         FITS files within this thread a new exposure can be started as soon as
         the previous one is finished.
         """
-
         pool = ThreadPoolExecutor(max_workers=len(active_tel))
 
         run_number = all_info['cam']['run_number']
 
         # start fetching images from the interfaces in parallel
-        future_images = {tel:None for tel in active_tel}
+        future_images = {tel: None for tel in active_tel}
         for tel in active_tel:
             self.image_saving[tel] = 1
-            intf, HW = params.TEL_DICT[tel]
+            intf, hw = params.TEL_DICT[tel]
             fli = daemon_proxy(intf, timeout=99)
             try:
                 if run_number > 0:
-                    self.logfile.info('Fetching exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                    expstr = 'exposure r%07d' % run_number
                 else:
-                    self.logfile.info('Fetching glance from camera %i (%s-%i)', tel, intf, HW)
-                future_images[tel] = pool.submit(fli.fetch_exposure, HW)
-            except:
-                self.logfile.error('No response from fli interface on %s', intf)
-                self.logfile.debug('', exc_info=True)
+                    expstr = 'glance'
+                camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                self.log.info('Fetching %s from %s', expstr, camstr)
+                future_images[tel] = pool.submit(fli.fetch_exposure, hw)
+            except Exception:
+                self.log.error('No response from fli interface on %s', intf)
+                self.log.debug('', exc_info=True)
 
         # wait for images to be fetched
-        images = {tel:None for tel in active_tel}
+        images = {tel: None for tel in active_tel}
         while True:
             time.sleep(0.001)
             for tel in active_tel:
-                intf, HW = params.TEL_DICT[tel]
+                intf, hw = params.TEL_DICT[tel]
                 if future_images[tel].done() and images[tel] is None:
                     images[tel] = future_images[tel].result()
                     if run_number > 0:
-                        self.logfile.info('Fetched exposure r%07d from camera %i (%s-%i)', run_number, tel, intf, HW)
+                        expstr = 'exposure r%07d' % run_number
                     else:
-                        self.logfile.info('Fetched glance from camera %i (%s-%i)', tel, intf, HW)
+                        expstr = 'glance'
+                    camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                    self.log.info('Fetched %s from %s', expstr, camstr)
 
             # keep looping until all the images are fetched
             if all(images[tel] is not None for tel in active_tel):
@@ -556,15 +555,16 @@ class CamDaemon(HardwareDaemon):
 
             # write the FITS file
             if run_number > 0:
-                self.logfile.info('Saving exposure r%07d to %s', run_number, filename)
+                expstr = 'exposure r%07d' % run_number
             else:
-                self.logfile.info('Saving glance to %s', filename)
-            pool.submit(write_fits, image, filename, tel, all_info, log=self.logfile)
+                expstr = 'glance'
+            self.log.info('Saving %s to %s', expstr, filename)
+            pool.submit(write_fits, image, filename, tel, all_info, log=self.log)
 
             self.image_saving[tel] = 0
 
 
 if __name__ == "__main__":
-    daemon_ID = 'cam'
-    with misc.make_pid_file(daemon_ID):
+    daemon_id = 'cam'
+    with misc.make_pid_file(daemon_id):
         CamDaemon()._run()

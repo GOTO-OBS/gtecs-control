@@ -1,35 +1,35 @@
 #!/usr/bin/env python
-"""
-A fake pilot to test the scheduler
-"""
+"""A fake pilot to test the scheduler."""
 
-import os
-import time
-import signal
-import warnings
-import traceback
 import math
-import george
-
-import numpy as np
-from scipy import stats
-
-from astropy.time import Time, TimeDelta
-from astropy.coordinates import SkyCoord
-from astropy import units as u
+import os
+import signal
+import time
+import traceback
+import warnings
 
 import astroplan
+
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.time import Time, TimeDelta
+
+import george
 
 from gototile.skymap import SkyMap
 from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4
 
-import obsdb as db
-
-from gtecs import scheduler
+from gtecs import astronomy
 from gtecs import misc
 from gtecs import params
-from gtecs import astronomy
+from gtecs import scheduler
+
+import numpy as np
+
+import obsdb as db
+
+from scipy import stats
 
 
 with warnings.catch_warnings():
@@ -38,22 +38,33 @@ with warnings.catch_warnings():
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
 
-slewrate = 5 * u.degree/u.s
-readouttime = 10*u.s
+slewrate = 5 * u.degree / u.s
+readouttime = 10 * u.s
 
 weather_on = False
 
-fake_dt = TimeDelta(60*u.s)*7  # 15*u.s)
+fake_dt = TimeDelta(60 * u.s) * 7  # 15 * u.s)
 
 
 class Weather(object):
-    """class to simulate bad weather using Gaussian processes
+    """Simulate bad weather using Gaussian processes.
 
     Args:
-        start_time (astropy.time.Time): start of night (sunset)
-        stop_time  (astropy.time.Time): end of night (sunset)
-        timescale  (float): typical timescale of weather event (hours)
-        frac_bad   (float): average fraction of night lost to bad weather"""
+    -----
+    start_time : astropy.time.Time
+        start of night (sunset)
+
+    stop_time : astropy.time.Time
+        end of night (sunset)
+
+    timescale : float
+        typical timescale of weather event (hours)
+
+    frac_bad : float
+        average fraction of night lost to bad weather
+
+    """
+
     def __init__(self, start_time, stop_time, timescale, frac_bad):
         self.start_time = start_time
         self.stop_time = stop_time
@@ -61,9 +72,9 @@ class Weather(object):
         self.gp = george.GP(self.kernel)
 
         # evaluate guassian process on grid of hours between stop and start
-        range = stop_time - start_time
-        x = np.linspace(0, range.to(u.hour), 100)
-        e = 0.0001*np.ones_like(x)
+        time_range = stop_time - start_time
+        x = np.linspace(0, time_range.to(u.hour), 100)
+        e = 0.0001 * np.ones_like(x)
         # evaluate kernel of GP
         self.gp.compute(x, e)
 
@@ -78,6 +89,7 @@ class Weather(object):
         self.threshold = stats.norm.ppf(frac_bad)
 
     def is_bad(self, curr_time):
+        """Return if the weather is bad at the given time."""
         if weather_on:
             x = (curr_time - self.start_time).to(u.hour)
             val, uncer = self.gp.predict(self.weather_graph, x)
@@ -90,45 +102,45 @@ class Weather(object):
 
 
 class DummyScheduler(object):
-    """
-    A fake scheduler for testing.
+    """A fake scheduler for testing.
 
     Initialised with a list of job IDs and their durations,
     the Scheduler class can be called to get the next job.
 
-    If the current job has elapsed, a new jobID is returned.
+    If the current job has elapsed, a new job ID is returned.
 
     With each call, there is a finite chance a ToO occurs,
-    and a new jobID is returned, even if the current job has
+    and a new job ID is returned, even if the current job has
     not elapsed.
     """
+
     def __init__(self):
         self.last_called = Time.now()
-        self.currID = None
-        self.currMinTime = None
-        self.currPriority = None
+        self.current_id = None
+        self.current_mintime = None
+        self.current_priority = None
 
     def __call__(self):
-
+        """Return a random pointing from the queue."""
         wait_time = np.random.uniform(20, 120)
-        time_check = (Time.now() - self.last_called) > wait_time*u.s
+        time_check = (Time.now() - self.last_called) > wait_time * u.s
         if time_check:
             self.last_called = Time.now()
             with db.open_session() as s:
                 curr, pointings = db.get_queue(s)
                 new = np.random.choice(pointings)
-                self.currID = new.pointingID
-                self.currMinTime = new.minTime
-                self.currPriority = new.rank
-        return self.currID, self.currMinTime, self.currPriority
+                self.current_id = new.pointing_id
+                self.current_mintime = new.minTime
+                self.current_priority = new.rank
+        return self.current_id, self.current_mintime, self.current_priority
 
 
 def update_skymap_probabilities(session, event):
-    """When a GW tile is observed, update all the Event tile probabilities
+    """When a GW tile is observed, update all the Event tile probabilities.
 
-    THIS SHOUD BE MOVED SOMEWHERE BETTER
+    THIS SHOUD BE MOVED SOMEWHERE BETTER!
     """
-    print('    Updating skymap probabilities: ', end = '\t')
+    print('    Updating skymap probabilities: ', end='\t')
     try:
         completed_pointings = session.query(db.Pointing).filter(
             db.Pointing.eventID == event.eventID).filter(
@@ -140,7 +152,7 @@ def update_skymap_probabilities(session, event):
         skymap = SkyMap(filepath)
 
         pointings = tile_skymap(skymap, [GOTON4()],
-                                observed = [completed_tilenames])
+                                observed=[completed_tilenames])
 
         i = 0
         for tile in event.eventTiles:
@@ -157,25 +169,25 @@ def update_skymap_probabilities(session, event):
 
         session.commit()
         return 0
-    except:
+    except Exception:
         print('ERROR')
         session.rollback()
         return 1
 
 
-def set_pointing_status(pointingID, status, session):
-    """Mark a pointing as completed, aborted etc"""
+def set_pointing_status(pointing_id, status, session):
+    """Mark a pointing as completed, aborted etc."""
     if status not in ['aborted', 'completed', 'interrupted', 'running']:
         print('Illegal status:', status)
         return 1
     else:
-        print('    Marking pointing', pointingID, 'as', status)
+        print('    Marking pointing', pointing_id, 'as', status)
         try:
-            pointing = db.get_pointing_by_id(session, pointingID)
+            pointing = db.get_pointing_by_id(session, pointing_id)
             pointing.status = status
             session.commit()
             return 0
-        except:
+        except Exception:
             session.rollback()
             print('Session error!!')
             return 1
@@ -183,28 +195,30 @@ def set_pointing_status(pointingID, status, session):
 
 def get_night_times(date):
     """Calculate the start and stop times of a given date.
+
     Defined as sunrise and sunset times for La Palma.
     """
     lapalma = astroplan.Observer.at_site('lapalma')
     # Time(date) gives start of date, add one day to get midnight that night
-    midnight = Time(date) + TimeDelta(1*u.day)
-    sunset = lapalma.sun_set_time(midnight, which="previous", horizon = -8*u.deg)
-    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon = -8*u.deg)
+    midnight = Time(date) + TimeDelta(1 * u.day)
+    sunset = lapalma.sun_set_time(midnight, which="previous", horizon=-8 * u.deg)
+    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon=-8 * u.deg)
     return sunset, sunrise
 
 
-def estimate_completion_time(newID, currentID, session):
+def estimate_completion_time(new_id, current_id, session):
     """Extimate the exposure time for a new pointing.
+
     Based on the combined exposure times in all exposures,
     and the time to move into position.
     """
-    total_exptime = 0*u.s
-    new_pointing = db.get_pointing_by_id(session, newID)
+    total_exptime = 0 * u.s
+    new_pointing = db.get_pointing_by_id(session, new_id)
     for exp in new_pointing.exposure_sets:
-        total_exptime += ((exp.expTime*u.s + readouttime) * exp.numexp)
+        total_exptime += ((exp.expTime * u.s + readouttime) * exp.numexp)
 
-    if currentID is not None:
-        current_pointing = db.get_pointing_by_id(session, currentID)
+    if current_id is not None:
+        current_pointing = db.get_pointing_by_id(session, current_id)
         current_position = SkyCoord(current_pointing.ra,
                                     current_pointing.decl,
                                     unit=u.deg, frame='icrs')
@@ -212,25 +226,26 @@ def estimate_completion_time(newID, currentID, session):
                                 new_pointing.decl,
                                 unit=u.deg, frame='icrs')
         slew_distance = current_position.separation(new_position)
-        slew_time = slew_distance/slewrate
+        slew_time = slew_distance / slewrate
     else:
-        slew_time = 0*u.s
+        slew_time = 0 * u.s
     return slew_time + total_exptime
 
 
 class DummyPilot(object):
-    """
+    """A fake, simplified pilot.
+
     The dummy pilot simply checks to see if a more important pointing
     is available from the scheduler, or if it has finished the pointing
-    it is supposed to be currently doing
+    it is supposed to be currently doing.
     """
 
     def __init__(self):
         self.start_time = Time.now()
 
-        self.currentID = None
-        self.currentPriority = None
-        self.currentMinTime = None
+        self.current_id = None
+        self.current_priority = None
+        self.current_mintime = None
         self.current_start_time = None
         self.current_duration = None
 
@@ -243,21 +258,24 @@ class DummyPilot(object):
         self.pilot_status = None
 
     def pause_observing(self, session):
+        """Pause the system."""
         self.dome_status = 0
         self.pilot_status = 'Dome Closed'
-        if self.currentID is not None:
-            print('Aborting ID= %i due to bad weather' % self.currentID)
-            self.aborted_pointings.append(self.currentID)
-            set_pointing_status(self.currentID, 'aborted', session)
-            self.currentID = None
+        if self.current_id is not None:
+            print('Aborting ID= %i due to bad weather' % self.current_id)
+            self.aborted_pointings.append(self.current_id)
+            set_pointing_status(self.current_id, 'aborted', session)
+            self.current_id = None
             self.current_duration = None
             self.current_position = None
 
     def resume_observing(self):
+        """Unpause the system."""
         self.dome_status = 1
         self.pilot_status = 'Dome Open'
 
     def check_weather(self, weather, now, session):
+        """Check if the weather is bad and pause if so."""
         bad_weather = weather.is_bad(now)
         if bad_weather and self.dome_status:
             self.pause_observing(session)
@@ -265,32 +283,32 @@ class DummyPilot(object):
             self.resume_observing()
 
     def log_state(self, now, session):
-        """Write the current state of the pilot to a log file"""
+        """Write the current state of the pilot to a log file."""
         state = 'unknown'
         if self.pilot_status == 'Suspended':
             state = 'manual'
         elif self.dome_status == 0:
             state = 'closed'
-        elif self.currentID is not None:
-            current_pointing = db.get_pointing_by_id(session, self.currentID)
-            self.currentName = current_pointing.objectName
-            self.currentRa   = current_pointing.ra
-            self.currentDec  = current_pointing.decl
-            current_tileID   = current_pointing.eventTileID
-            current_tile = session.query(db.EventTile).filter(db.EventTile.tileID == current_tileID).one_or_none()
+        elif self.current_id is not None:
+            current_pointing = db.get_pointing_by_id(session, self.current_id)
+            self.current_name = current_pointing.objectName
+            self.current_ra = current_pointing.ra
+            self.current_dec = current_pointing.decl
+            current_tile_id = current_pointing.eventTileID
+            tiles = session.query(db.EventTile)
+            current_tile = tiles.filter(db.EventTile.tileID == current_tile_id).one_or_none()
             if current_tile:
-                self.currentProbability = current_tile.unobserved_probability
+                self.current_probability = current_tile.unobserved_probability
             else:
-                self.currentProbability = 0
+                self.current_probability = 0
 
             state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%; {:.9f})'.format(
-                self.currentID,
-                self.currentName,
-                self.currentRa,
-                self.currentDec,
-                self.currentProbability*100,
-                self.currentPriority,
-                )
+                self.current_id,
+                self.current_name,
+                self.current_ra,
+                self.current_dec,
+                self.current_probability * 100,
+                self.current_priority,)
         else:
             state = 'idle'
         fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
@@ -298,70 +316,70 @@ class DummyPilot(object):
             f.write('%s %s\n' % (now. iso, state))
 
     def review_target_situation(self, now, write_html, session):
-        """Check queue for a new target and, if necessary, go to it"""
-
+        """Check queue for a new target and, if necessary, go to it."""
         # check if current pointing is finished
-        if self.currentID is not None:
+        if self.current_id is not None:
             time_elapsed = (now - self.current_start_time).to(u.s)
             if time_elapsed > self.current_duration:
-                self.currentPriority += 100
-                set_pointing_status(self.currentID, 'completed', session)
+                self.current_priority += 100
+                set_pointing_status(self.current_id, 'completed', session)
 
-                current_pointing = db.get_pointing_by_id(session, self.currentID)
+                current_pointing = db.get_pointing_by_id(session, self.current_id)
                 event = current_pointing.event
                 if event is not None and event.skymap is not None:
                     update_skymap_probabilities(session, event)
-                self.completed_pointings.append(self.currentID)
+                self.completed_pointings.append(self.current_id)
                 self.completed_times.append(now)
-            print('  current : ID', self.currentID)#, self.currentPriority)
+            print('  current : ID', self.current_id)  # , self.current_priority)
         else:
             print('  current :', None)
 
         # find new highest priority from the scheduler
-        newPointing = scheduler.check_queue(now, write_html)
-        if newPointing is not None:
-            newID = newPointing.id
-            newPriority = newPointing.priority_now
-            newMinTime = newPointing.mintime
-            print('  queue   : ID', newID)#, newPriority)
+        new_pointing = scheduler.check_queue(now, write_html)
+        if new_pointing is not None:
+            new_id = new_pointing.pointing_id
+            new_priority = new_pointing.priority_now
+            new_mintime = new_pointing.mintime
+            print('  queue   : ID', new_id)  # , new_priority)
         else:
-            newID = None
-            newPriority = None
-            newMinTime = None
+            new_id = None
+            new_priority = None
+            new_mintime = None
             print('  queue   :', None)
 
         # what next
-        if newID != self.currentID and newID not in self.completed_pointings:
-            if self.currentID is not None:
+        if new_id != self.current_id and new_id not in self.completed_pointings:
+            if self.current_id is not None:
                 # we're already doing something,
                 # mark as finished or interrupted
                 try:
                     time_elapsed = (now - self.current_start_time).to(u.s)
-                except:
+                except Exception:
                     time_elapsed = 0.
-                if self.currentID not in self.completed_pointings:
-                    if time_elapsed > self.currentMinTime:
-                        set_pointing_status(self.currentID, 'completed', session)
-                        self.completed_pointings.append(self.currentID)
+                if self.current_id not in self.completed_pointings:
+                    if time_elapsed > self.current_mintime:
+                        set_pointing_status(self.current_id, 'completed', session)
+                        self.completed_pointings.append(self.current_id)
                         self.completed_times.append(now)
                     else:
-                        set_pointing_status(self.currentID, 'interrupted', session)
-                        self.interrupted_pointings.append(self.currentID)
+                        set_pointing_status(self.current_id, 'interrupted', session)
+                        self.interrupted_pointings.append(self.current_id)
 
-            if newID is not None:
+            if new_id is not None:
                 print('    -- STARTING NEW POINTING')
-                self.currentID = newID
-                self.currentPriority = newPriority
-                self.currentMinTime = newMinTime
-                self.current_duration = estimate_completion_time(newID, self.currentID, session)
+                self.current_id = new_id
+                self.current_priority = new_priority
+                self.current_mintime = new_mintime
+                self.current_duration = estimate_completion_time(new_id, self.current_id, session)
                 self.current_start_time = now
-                set_pointing_status(self.currentID, 'running', session)
+                set_pointing_status(self.current_id, 'running', session)
             else:
                 print('    -- PARKING')
-                self.currentID = None
+                self.current_id = None
+
 
 def run(date, sleep_time, write_html):
-
+    """Run the dummy pilot."""
     pilot = DummyPilot()
 
     # weather has typical timescale = 1h and we lose 10% of time to bad weather
@@ -379,9 +397,9 @@ def run(date, sleep_time, write_html):
             ts = time.time()
             now.format = 'iso'
             now.precision = 0
-            sunalt = astronomy.sun_alt(now)
+            sunalt = astronomy.get_sunalt(now)
             print('Loop: {} ({:>5.2f}) ---  dt:{:.3f}s'.format(
-                now, sunalt, (ts-tprev)))
+                now, sunalt, (ts - tprev)))
             pilot.check_weather(weather, now, session)
             if pilot.dome_status:  # open
                 pilot.review_target_situation(now, bool(write_html), session)
@@ -398,17 +416,21 @@ def run(date, sleep_time, write_html):
 
     session.close()
 
-    print('Listing completed pointings ({}) and time done'.format(len(pilot.completed_pointings)))
-    for pointingID, timedone in zip(pilot.completed_pointings, pilot.completed_times):
-        print(pointingID, timedone)
+    n_completed = len(pilot.completed_pointings)
+    print('Listing completed pointings ({}) and time done'.format(n_completed))
+    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+        print(pointing_id, timedone)
 
-    print('Listing pointings aborted due to bad weather ({})'.format(len(pilot.aborted_pointings)))
-    for pointingID in pilot.aborted_pointings:
-        print(pointingID)
+    n_aborted = len(pilot.aborted_pointings)
+    print('Listing pointings aborted due to bad weather ({})'.format(n_aborted))
+    for pointing_id in pilot.aborted_pointings:
+        print(pointing_id)
 
-    print('Listing pointings interrupted by other pointings ({})'.format(len(pilot.interrupted_pointings)))
-    for pointingID in pilot.interrupted_pointings:
-        print(pointingID)
+    n_interrupted = len(pilot.interrupted_pointings)
+    print('Listing pointings interrupted by other pointings ({})'.format(n_interrupted))
+    for pointing_id in pilot.interrupted_pointings:
+        print(pointing_id)
+
 
 if __name__ == "__main__":
     import argparse

@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-"""
-A script to change the system control mode
-"""
+"""A script to change the system control mode."""
 
 import sys
 
 from gtecs import flags
-from gtecs import params
-from gtecs.misc import execute_command
 
 status = flags.Status()
 
@@ -21,7 +17,7 @@ if __name__ == "__main__":
         r_args = ['r', '-r', 'robotic', '--robotic']
         new_mode = sys.argv[1].lower()
 
-        if new_mode not in r_args+m_args:
+        if new_mode not in r_args + m_args:
             print('ERROR: "{}" is an invalid mode'.format(new_mode))
             print('Usage: mode [manual|robotic]')
 

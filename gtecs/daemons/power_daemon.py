@@ -1,18 +1,10 @@
 #!/usr/bin/env python
-"""
-Daemon to control APC PDUs and UPSs
-"""
+"""Daemon to control APC PDUs and UPSs."""
 
-import os
-import sys
-import pid
-import time
 import datetime
-from math import *
-import Pyro4
 import threading
+import time
 
-from gtecs import logger
 from gtecs import misc
 from gtecs import params
 from gtecs.controls import power_control
@@ -20,19 +12,18 @@ from gtecs.daemons import HardwareDaemon
 
 
 class PowerDaemon(HardwareDaemon):
-    """Power hardware daemon class"""
+    """Power hardware daemon class."""
 
     def __init__(self):
-        ### initiate daemon
-        HardwareDaemon.__init__(self, daemon_ID='power')
+        HardwareDaemon.__init__(self, daemon_id='power')
 
-        ### command flags
+        # command flags
         self.get_info_flag = 1
         self.on_flag = 0
         self.off_flag = 0
         self.reboot_flag = 0
 
-        ### power variables
+        # power variables
         self.power_status = {}
 
         self.current_units = []
@@ -42,15 +33,14 @@ class PowerDaemon(HardwareDaemon):
         self.status_check_time = 0
         self.check_period = params.POWER_CHECK_PERIOD
 
-        ### start control thread
+        # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-
     # Primary control thread
     def _control_thread(self):
-        self.logfile.info('Daemon control thread started')
+        self.log.info('Daemon control thread started')
 
         # make power objects once, outside the loop
         power_units = {}
@@ -72,7 +62,7 @@ class PowerDaemon(HardwareDaemon):
                 unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
                 try:
                     nc = params.POWER_UNITS[unit_name]['NC']
-                except:
+                except Exception:
                     nc = 0
                 power_units[unit_name] = power_control.ETH8020(unit_ip, unit_port, nc)
 
@@ -93,11 +83,11 @@ class PowerDaemon(HardwareDaemon):
                             try:
                                 status = power.status()
                                 self.power_status[unit] = status
-                            except:
-                                self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
-                                self.logfile.debug('', exc_info=True)
+                            except Exception:
+                                self.log.error('ERROR GETTING POWER STATUS, UNIT %s' % unit)
+                                self.log.debug('', exc_info=True)
                                 names = params.POWER_UNITS[unit]['NAMES']
-                                self.power_status[unit] = 'X'*len(names)
+                                self.power_status[unit] = 'X' * len(names)
                         elif power.unit_type == 'UPS':
                             try:
                                 status = power.status()
@@ -105,20 +95,22 @@ class PowerDaemon(HardwareDaemon):
                                 time_remaining = power.time_remaining()
                                 load = power.load()
                                 outlet_status = power.outlet_status()
-                                self.power_status[unit] = (status, percent_remaining, time_remaining, load, outlet_status)
-                            except:
-                                self.logfile.error('ERROR GETTING POWER STATUS, UNIT %s' %unit)
-                                self.logfile.debug('', exc_info=True)
+                                self.power_status[unit] = (status, percent_remaining,
+                                                           time_remaining, load, outlet_status)
+                            except Exception:
+                                self.log.error('ERROR GETTING POWER STATUS, UNIT %s' % unit)
+                                self.log.debug('', exc_info=True)
                                 names = params.POWER_UNITS[unit]['NAMES']
-                                outlet_status = 'X'*len(names)
-                                self.power_status[unit] = ('ERROR','ERROR','ERROR','ERROR',outlet_status)
+                                outlet_status = 'X' * len(names)
+                                self.power_status[unit] = ('ERROR', 'ERROR',
+                                                           'ERROR', 'ERROR', outlet_status)
                     self.status_check_time = time.time()
-                except:
-                    self.logfile.error('check_status command failed')
-                    self.logfile.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('check_status command failed')
+                    self.log.debug('', exc_info=True)
                 self.check_status_flag = 0
 
-            ### control functions
+            # control functions
             # request info
             if self.get_info_flag:
                 try:
@@ -130,32 +122,33 @@ class PowerDaemon(HardwareDaemon):
                             status = self.power_status[unit]
                             names = params.POWER_UNITS[unit]['NAMES']
 
-                            info['status_'+unit] = {}
+                            info['status_' + unit] = {}
                             for i in range(len(names)):
                                 if status[i] == str(power.on_value):
-                                    info['status_'+unit][names[i]] = 'On'
+                                    info['status_' + unit][names[i]] = 'On'
                                 elif status[i] == str(power.off_value):
-                                    info['status_'+unit][names[i]] = 'Off'
+                                    info['status_' + unit][names[i]] = 'Off'
                                 else:
-                                    info['status_'+unit][names[i]] = 'ERROR'
+                                    info['status_' + unit][names[i]] = 'ERROR'
                         elif power.unit_type == 'UPS':
-                            status, percent_remaining, time_remaining, load, outlet_status = self.power_status[unit]
+                            (status, percent_remaining, time_remaining,
+                                load, outlet_status) = self.power_status[unit]
 
-                            info['status_'+unit] = {}
-                            info['status_'+unit]['status'] = status
-                            info['status_'+unit]['percent'] = percent_remaining
-                            info['status_'+unit]['time'] = time_remaining
-                            info['status_'+unit]['load'] = load
+                            info['status_' + unit] = {}
+                            info['status_' + unit]['status'] = status
+                            info['status_' + unit]['percent'] = percent_remaining
+                            info['status_' + unit]['time'] = time_remaining
+                            info['status_' + unit]['load'] = load
 
                             names = params.POWER_UNITS[unit]['NAMES']
 
                             for i in range(len(names)):
                                 if outlet_status[i] == str(power.on_value):
-                                    info['status_'+unit][names[i]] = 'On'
+                                    info['status_' + unit][names[i]] = 'On'
                                 elif outlet_status[i] == str(power.off_value):
-                                    info['status_'+unit][names[i]] = 'Off'
+                                    info['status_' + unit][names[i]] = 'Off'
                                 else:
-                                    info['status_'+unit][names[i]] = 'ERROR'
+                                    info['status_' + unit][names[i]] = 'ERROR'
 
                     info['uptime'] = time.time() - self.start_time
                     info['ping'] = time.time() - self.time_check
@@ -163,9 +156,9 @@ class PowerDaemon(HardwareDaemon):
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
                     self.info = info
-                except:
-                    self.logfile.error('get_info command failed')
-                    self.logfile.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('get_info command failed')
+                    self.log.debug('', exc_info=True)
                 self.get_info_flag = 0
 
             # power on a specified outlet
@@ -173,12 +166,13 @@ class PowerDaemon(HardwareDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         power = power_units[unit]
-                        self.logfile.info('Power on unit {} outlet {}'.format(unit,outlet))
+                        self.log.info('Power on unit {} outlet {}'.format(unit, outlet))
                         c = power.on(outlet)
-                        if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('on command failed')
-                    self.logfile.debug('', exc_info=True)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('on command failed')
+                    self.log.debug('', exc_info=True)
                 self.current_units = []
                 self.current_outlets = []
                 self.on_flag = 0
@@ -189,12 +183,13 @@ class PowerDaemon(HardwareDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         power = power_units[unit]
-                        self.logfile.info('Power off unit {} outlet {}'.format(unit,outlet))
+                        self.log.info('Power off unit {} outlet {}'.format(unit, outlet))
                         c = power.off(outlet)
-                        if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('off command failed')
-                    self.logfile.debug('', exc_info=True)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('off command failed')
+                    self.log.debug('', exc_info=True)
                 self.current_units = []
                 self.current_outlets = []
                 self.off_flag = 0
@@ -205,26 +200,26 @@ class PowerDaemon(HardwareDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         power = power_units[unit]
-                        self.logfile.info('Reboot unit {} outlet {}'.format(unit,outlet))
+                        self.log.info('Reboot unit {} outlet {}'.format(unit, outlet))
                         c = power.reboot(outlet)
-                        if c: self.logfile.info(c)
-                except:
-                    self.logfile.error('reboot command failed')
-                    self.logfile.debug('', exc_info=True)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('reboot command failed')
+                    self.log.debug('', exc_info=True)
                 self.current_units = []
                 self.current_outlets = []
                 self.reboot_flag = 0
                 self.check_status_flag = 1
 
-            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
-        self.logfile.info('Daemon control thread stopped')
+        self.log.info('Daemon control thread stopped')
         return
-
 
     # Power control functions
     def get_info(self):
-        """Return power status info"""
+        """Return power status info."""
         # Set flag
         self.check_status_flag = 1
         self.get_info_flag = 1
@@ -233,18 +228,16 @@ class PowerDaemon(HardwareDaemon):
         time.sleep(0.5)
         return self.info
 
-
     def get_info_simple(self):
-        """Return plain status dict, or None"""
+        """Return plain status dict, or None."""
         try:
             info = self.get_info()
-        except:
+        except Exception:
             return None
         return info
 
-
     def on(self, outlet_list, unit=''):
-        """Power on given outlet(s)"""
+        """Power on given outlet(s)."""
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -259,9 +252,8 @@ class PowerDaemon(HardwareDaemon):
 
         return 'Turning on power'
 
-
     def off(self, outlet_list, unit=''):
-        """Power off given outlet(s)"""
+        """Power off given outlet(s)."""
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -276,9 +268,8 @@ class PowerDaemon(HardwareDaemon):
 
         return 'Turning off power'
 
-
     def reboot(self, outlet_list, unit=''):
-        """Reboot a given outlet(s)"""
+        """Reboot given outlet(s)."""
         # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
@@ -292,13 +283,12 @@ class PowerDaemon(HardwareDaemon):
         self.reboot_flag = 1
         return 'Rebooting power'
 
-
     # Internal functions
     def _parse_input(self, outlet_list, unit=''):
         if unit in params.POWER_UNITS:
             # specific unit given, all outlets should be from that unit
             outlets = self._get_valid_outlets(unit, outlet_list)
-            units = [unit]*len(outlets)
+            units = [unit] * len(outlets)
         else:
             # first check for group names
             for outlet in outlet_list.copy():
@@ -316,9 +306,8 @@ class PowerDaemon(HardwareDaemon):
             for unit in unit_list:
                 valid_outlets = self._get_valid_outlets(unit, outlet_list)
                 outlets += valid_outlets
-                units += [unit]*len(valid_outlets)
+                units += [unit] * len(valid_outlets)
         return outlets, units
-
 
     def _units_from_names(self, name_list):
         unit_list = []
@@ -326,20 +315,19 @@ class PowerDaemon(HardwareDaemon):
             found_units = []
             for unit in params.POWER_UNITS:
                 try:
-                    if name in params.POWER_UNITS[unit]['NAMES'] or str(name) in ['0','all']:
+                    if name in params.POWER_UNITS[unit]['NAMES'] or str(name) in ['0', 'all']:
                         found_units.append(unit)
-                except:
-                    pass # for UPSs, that don't have NAMES
-            if len(found_units) > 1 and str(name) not in ['0','all']:
+                except Exception:
+                    pass  # for UPSs, that don't have NAMES
+            if len(found_units) > 1 and str(name) not in ['0', 'all']:
                 raise ValueError('Duplicate names defined in params')
             for unit in found_units:
                 if unit not in unit_list:
                     unit_list.append(unit)
         return unit_list
 
-
     def _get_valid_outlets(self, unit, outlet_list):
-        """Check outlets are valid and convert any names to numbers"""
+        """Check outlets are valid and convert any names to numbers."""
         names = params.POWER_UNITS[unit]['NAMES']
         n_outlets = len(names)
         valid_list = []
@@ -356,6 +344,6 @@ class PowerDaemon(HardwareDaemon):
 
 
 if __name__ == "__main__":
-    daemon_ID = 'power'
-    with misc.make_pid_file(daemon_ID):
+    daemon_id = 'power'
+    with misc.make_pid_file(daemon_id):
         PowerDaemon()._run()

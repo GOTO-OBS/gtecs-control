@@ -1,13 +1,8 @@
-"""
-Slack messaging tools
-"""
+"""Slack messaging tools."""
 
-import os
+from astropy.utils.decorators import lazyproperty
 
 from slackclient import SlackClient
-
-from astropy.time import Time
-from astropy.utils.decorators import lazyproperty
 
 from . import params
 
@@ -19,6 +14,7 @@ CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
 def send_slack_msg(msg):
+    """Send a Slack message to the GOTO channel."""
     if params.ENABLE_SLACK:
         bot = SlackBot()
         bot.send_message(msg)
@@ -26,13 +22,16 @@ def send_slack_msg(msg):
         print('SLACK:', msg)
 
 
-class SlackBot:
+class SlackBot(object):
+    """A Slack Bot to send messages."""
+
     def __init__(self):
         self.name = BOT_NAME
         self.token = BOT_TOKEN
         self.client = SlackClient(BOT_TOKEN)
 
     def get_users(self):
+        """Get the Slack users."""
         api_call = self.client.api_call("users.list")
         if api_call.get('ok'):
             users = api_call.get('members')
@@ -41,17 +40,20 @@ class SlackBot:
             raise Exception('cannot obtain user list')
 
     @lazyproperty
-    def id(self):
+    def slack_id(self):
+        """Get the ID of a user."""
         for u, i in self.get_users():
             if u == BOT_NAME:
                 return i
 
     @lazyproperty
     def atbot(self):
-        return "<@" + self.id + ">"
+        """Get a @ reference to this bot."""
+        return "<@" + self.slack_id + ">"
 
     @lazyproperty
     def channel(self):
+        """Get the channel to send messages to."""
         api_call = self.client.api_call("channels.list")
         if api_call.get('ok'):
             channel = [channel for channel in api_call.get('channels')
@@ -61,9 +63,7 @@ class SlackBot:
             raise Exception("cannot get channel")
 
     def send_message(self, msg):
-        """
-        Send a message to the channel for this bot
-        """
+        """Send a message to the channel for this bot."""
         api_call = self.client.api_call(
             "chat.postMessage",
             channel=self.channel,

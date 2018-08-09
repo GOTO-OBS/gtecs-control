@@ -1,27 +1,22 @@
 #!/usr/bin/env python
-"""
-A script to provide control over the dome daemon
-"""
+"""A script to provide control over the dome daemon."""
 
 import os
 import sys
-import time
-import readline
-import Pyro4
-import json
 
-from gtecs import misc
+from gtecs import daemons
 from gtecs import errors
+from gtecs import flags
+from gtecs import misc
 from gtecs import params
 from gtecs import style
-from gtecs import flags
-from gtecs import daemons
 
 
 DAEMON_ID = os.path.basename(__file__)
 
 
-def query(command, args, daemon_ID):
+def query(command, args, daemon_id):
+    """Process a query."""
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -31,35 +26,35 @@ def query(command, args, daemon_ID):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_ID)
+        reply = daemons.start_daemon(daemon_id)
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_ID)
+        reply = daemons.shutdown_daemon(daemon_id)
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_ID)
+        reply = daemons.restart_daemon(daemon_id)
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_ID)
+        reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
     elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_ID)
+        reply = daemons.ping_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
-        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V']:
             info_type = 'verbose'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        reply = daemons.daemon_function(daemon_id, 'get_info')
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -71,10 +66,10 @@ def query(command, args, daemon_ID):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            log_path = params.LOG_PATH + daemon_id + '-stdout.log'
             args.remove('stdout')
         else:
-            log_path = params.LOG_PATH + daemon_ID + '.log'
+            log_path = params.LOG_PATH + daemon_id + '.log'
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
         misc.execute_long_command(tail_command)
@@ -97,13 +92,13 @@ def query(command, args, daemon_ID):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'open_dome', [side, fraction])
+        reply = daemons.daemon_function(daemon_id, 'open_dome', [side, fraction])
         print(reply)
 
     elif command == 'close':
         # parse arguments
         if len(args) == 0:
-            side  = 'both'
+            side = 'both'
             fraction = 1
         elif len(args) == 1 and not misc.is_num(args[0]):
             side = args[0]
@@ -120,12 +115,12 @@ def query(command, args, daemon_ID):
         if not 0 < fraction <= 1:
             raise errors.InputError('Fraction must be between 0 and 1')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'close_dome', [side, fraction])
+        reply = daemons.daemon_function(daemon_id, 'close_dome', [side, fraction])
         print(reply)
 
     elif command in ['halt', 'stop', 'abort']:
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'halt_dome')
+        reply = daemons.daemon_function(daemon_id, 'halt_dome')
         print(reply)
 
     elif command in ['dehumidifier', 'dehumid', 'dehum']:
@@ -138,7 +133,7 @@ def query(command, args, daemon_ID):
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'override_dehumidifier', [command])
+        reply = daemons.daemon_function(daemon_id, 'override_dehumidifier', [command])
         print(reply)
 
     # Other functions
@@ -185,8 +180,8 @@ def query(command, args, daemon_ID):
             print('Dome will autoclose in manual mode if conditions are bad')
         else:
             status.autoclose = False
-            print('Autoclose override set: Dome will NOT close in manual mode if conditions are bad')
-            print('                        This will reset the next time the dome is fully closed')
+            print('Override set: Dome will NOT close in manual mode if conditions are bad')
+            print('              This will reset the next time the dome is fully closed')
 
     # Unrecognized function
     else:
@@ -194,66 +189,69 @@ def query(command, args, daemon_ID):
 
 
 def print_info(info):
+    """Print the full info dict."""
     print('######## DOME INFO ########')
-    print('North:        %s' %info['north'].capitalize())
-    print('South:        %s' %info['south'].capitalize())
-    print('Hatch:        %s' %info['hatch'].capitalize())
-    print('Heartbeat:    %s' %info['heartbeat'].capitalize())
-    print('Dehumidifier: %s' %info['dehumidifier'].capitalize())
-    print('Alarm:        %s' %('On' if info['alarm'] else style.rtxt('Off')))
-    print('Auto-close:   %s' %('On' if info['autoclose'] else style.rtxt('Off')))
+    print('North:        %s' % info['north'].capitalize())
+    print('South:        %s' % info['south'].capitalize())
+    print('Hatch:        %s' % info['hatch'].capitalize())
+    print('Heartbeat:    %s' % info['heartbeat'].capitalize())
+    print('Dehumidifier: %s' % info['dehumidifier'].capitalize())
+    print('Alarm:        %s' % ('On' if info['alarm'] else style.rtxt('Off')))
+    print('Auto-close:   %s' % ('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
     print('~~~~~~~')
-    print('Uptime: %.1fs' %info['uptime'])
-    print('Ping: %.5fs' %info['ping'])
-    print('Timestamp: %s' %info['timestamp'])
+    print('Uptime: %.1fs' % info['uptime'])
+    print('Ping: %.5fs' % info['ping'])
+    print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
 
 def print_info_s(info):
+    """Print the info dict in a compact way."""
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
     if (('open' in info['north']) or ('open' in info['south']) or
-        ('ing'  in info['north']) or ('ing' in info['south'])):
+            ('ing' in info['north']) or ('ing' in info['south'])):
         if info['autoclose']:
             print('DOME:      [Open]')
         else:
             print('DOME:      [Open] - ' + style.rtxt('Autoclose Disabled'))
     else:
-        print('DOME:      [%s]' %info['north'].capitalize())
-    print('HATCH:     [%s]' %info['hatch'].capitalize())
-    print('DEHUM:     [%s]' %info['dehumidifier'].capitalize())
-    print('ALARM:     [%s]' %('On' if info['alarm'] else style.rtxt('Off')))
-    print('AUTOCLOSE: [%s]' %('On' if info['autoclose'] else style.rtxt('Off')))
+        print('DOME:      [%s]' % info['north'].capitalize())
+    print('HATCH:     [%s]' % info['hatch'].capitalize())
+    print('DEHUM:     [%s]' % info['dehumidifier'].capitalize())
+    print('ALARM:     [%s]' % ('On' if info['alarm'] else style.rtxt('Off')))
+    print('AUTOCLOSE: [%s]' % ('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
 
 
 def print_instructions():
-    help_str = style.bold('Usage:') + ' dome [command]' + '\n' +\
-    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
-    '  dome ' + style.bold('start') + '                       - start the daemon' + '\n' +\
-    '  dome ' + style.bold('shutdown') + '                    - shutdown the daemon' + '\n' +\
-    '  dome ' + style.bold('restart') + '                     - restart the daemon' + '\n' +\
-    '  dome ' + style.bold('kill') + '                        - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  dome ' + style.bold('ping') + '                        - ping the daemon' + '\n' +\
-    ' ' + style.undl('Dome commands') + ':' + '\n' +\
-    '  dome ' + style.bold('open') + ' [north|south]        ' + '  - open the dome' + '\n' +\
-    '  dome ' + style.bold('close') + ' [north|south]        ' + ' - close the dome' + '\n' +\
-    '  dome ' + style.bold('halt') + '/' + style.bold('stop')+ '                   - stop the dome moving' + '\n' +\
-    '  dome ' + style.bold('dehumidifier') + ' [on|off]       - force dehumidifier on/off' + '\n' +\
-    '  dome ' + style.bold('alarm') + ' [on|off]              - sound the alarm when moving?' + '\n' +\
-    '  dome ' + style.bold('autoclose') + ' [on|off]          - auto close in bad weather?' + '\n' +\
-    '  dome ' + style.bold('info') + ' [v]' + '                    - report current status' + '\n' +\
-    '  dome ' + style.bold('log') + '/' + style.bold('status') + ' [stdout]' + '         - print daemon log (tail alias)' + '\n' +\
-    ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  dome ' + style.bold('i') + '                           - enter interactive mode' + '\n' +\
-    '  dome ' + style.bold('q') + '/' + style.bold('exit') + '                      - quit interactive mode' + '\n' +\
-    '  dome ' + style.bold('?') + '/' + style.bold('help') + '                      - print these instructions'
-    print(help_str)
+    """Print instructions for using the daemon."""
+    print('Usage: dome command [options]',
+          'Daemon commands:',
+          '  start                          start the daemon',
+          '  shutdown                       shutdown the daemon',
+          '  restart                        restart the daemon',
+          '  kill                           kill the daemon',
+          '  ping                           ping the daemon',
+          'Dome commands:',
+          '  open [north|south]             open the dome',
+          '  close [north|south]            close the dome',
+          '  halt/stop                      stop the dome moving',
+          '  dehumidifier [on|off]          force dehumidifier on/off',
+          '  alarm [on|off]                 sound the alarm when moving?',
+          '  autoclose [on|off]             auto close in bad weather?',
+          '  info [v]                       report current status',
+          '  log/status [stdout]            print daemon log (tail alias)',
+          'Control commands:',
+          '  i                              enter interactive mode',
+          '  q/exit                         quit interactive mode',
+          '  ?/help                         print these instructions',
+          sep='\n')
 
 
 if __name__ == "__main__":

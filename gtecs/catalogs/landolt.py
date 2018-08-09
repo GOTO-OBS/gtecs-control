@@ -1,7 +1,5 @@
-"""
-Landolt 2009 catalog of standard stars
-"""
-import pkg_resources
+"""Landolt 2009 catalog of standard stars."""
+
 import os
 import warnings
 
@@ -11,6 +9,9 @@ from astropy.table import Table
 from astropy.time import Time
 
 import numpy as np
+
+import pkg_resources
+
 import scipy.spatial as sp
 
 from .. import astronomy as ast
@@ -22,12 +23,14 @@ with warnings.catch_warnings():
     landolt_table = Table.read(landolt_table_path)
 
 
-class LandoltStar:
+class LandoltStar(object):
+    """A Landolt catalog target."""
+
     def __init__(self, name, ra, dec, pmra, pmdec, Vmag, BV):
         self.name = str(name).strip()
         self.coord = SkyCoord(ra, dec, unit=(u.hour, u.deg))
-        self.pmra = pmra*u.mas/u.yr
-        self.pmdec = pmdec*u.mas/u.yr
+        self.pmra = pmra * u.mas / u.yr
+        self.pmdec = pmdec * u.mas / u.yr
         self.Vmag = Vmag
         self.BV = BV
 
@@ -41,24 +44,30 @@ class LandoltStar:
         )
 
     def coord_now(self):
+        """Get coordinates at the current time."""
         dt = Time.now() - Time("J2000")
-        ra = self.coord.ra + self.pmra*dt
-        dec = self.coord.dec + self.pmra*dt
+        ra = self.coord.ra + self.pmra * dt
+        dec = self.coord.dec + self.pmra * dt
         return SkyCoord(ra, dec)
 
 
 def nearest(x, arr):
-    # returns index and distance of nearest neighbour to given point
-    # inputs:
-    #    x:        point you want to find NN to
-    #  arr:       (n,k) array of k-dimensional data
+    """Return index and distance of nearest neighbour to given point.
+
+    Parameters
+    ----------
+    x :
+        point you want to find NN to
+    arr :
+        (n,k) array of k-dimensional data
+
+    """
     tree = sp.cKDTree(arr)
     return tree.query(x, 1)
 
 
 def standard_star(time, airmass, colour):
-    """
-    Find the standard star nearest in airmass and B-V color to request
+    """Find the standard star nearest in airmass and B-V color to request.
 
     Parameters
     ----------
@@ -73,6 +82,7 @@ def standard_star(time, airmass, colour):
     -------
     std : `LandoltStar`
         the standard star to observe
+
     """
     coords = SkyCoord(landolt_table['RAJ2000'], landolt_table['DEJ2000'], unit=(u.hour, u.deg))
     observer = ast.observatory_location()

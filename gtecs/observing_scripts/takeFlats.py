@@ -1,24 +1,24 @@
-"""
+#!/usr/bin/env python
+"""Script to take flat frames in the morning or evening.
+
 takeFlats [EVE|MORN] [-l]
-Script to take flat frames in the morning or evening
 """
 
 import sys
 import time
 
-import numpy as np
-
 from astropy import units as u
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.astronomy import startTime, nightStarting
-from gtecs.observing import (prepare_for_images, get_analysis_image,
-                             goto, offset, wait_for_telescope)
-from gtecs.catalogs import flats
+from gtecs.astronomy import night_startdate, sunalt_time
+from gtecs.catalogs import antisun_flat, exposure_sequence, extrapolate_from_filters
+from gtecs.observing import get_analysis_image, goto, offset, prepare_for_images, wait_for_telescope
+
+import numpy as np
 
 
-def take_sky(expT, current_filter, name, glance=False):
+def take_sky(exptime, current_filter, name, glance=False):
+    """Offset the telescope then take an image and return the mean sky brightness."""
     # make offsets to move stars
     offset('n', 60)
     time.sleep(1)
@@ -26,7 +26,7 @@ def take_sky(expT, current_filter, name, glance=False):
     time.sleep(2)
 
     # take the image and load the image data
-    data = get_analysis_image(expT, current_filter, name, 'FLAT', glance)
+    data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
 
     # get the mean value for the images
     sky_mean = np.mean([np.median(data[tel]) for tel in data])
@@ -34,18 +34,18 @@ def take_sky(expT, current_filter, name, glance=False):
 
 
 def run(eve, alt, late=False):
-    """run just after sunset or just after start of twilight"""
+    """Take flats just after sunset or just after start of twilight."""
     # make sure hardware is ready
     prepare_for_images()
 
     print('Starting flats')
 
     # Wait until we reach correct sunAlt
-    today = nightStarting()
-    start_time = startTime(today, alt, eve)
+    today = night_startdate()
+    start_time = sunalt_time(today, alt, eve)
 
     time_to_go = start_time - Time.now()
-    if time_to_go < -10*u.min and not late:
+    if time_to_go < -10 * u.min and not late:
         print('Too late for flats!')
         sys.exit(1)
 
@@ -60,8 +60,7 @@ def run(eve, alt, late=False):
 
     # Ready to go
     # Find flat field target
-    #skyflat = flats.best_flat(Time.now())
-    skyflat = flats.antisun_flat(Time.now())
+    skyflat = antisun_flat(Time.now())
     print('Found target', skyflat)
 
     # Slew to target
@@ -75,36 +74,44 @@ def run(eve, alt, late=False):
     # Set exposure order and check for sky brightness
     sky_mean_target = 25000.0
     if eve:
-        start_expT = 3.0
+        start_exptime = 3.0
         nflats = 3
         filt_list = ['B', 'G', 'R', 'L']
         sky_mean = 40000.0
-        sky_mean_check = lambda x: x > sky_mean_target
     else:
-        start_expT = 40.0
+        start_exptime = 40.0
         nflats = 3
         filt_list = ['L', 'R', 'G', 'B']
         sky_mean = 2.0
-        sky_mean_check = lambda x: x < sky_mean_target
 
     # start taking exposures (glances) and wait for sky
     print('~~~~~~')
     print('Taking initial exposures')
     current_filter = filt_list.pop(0)
-    while sky_mean_check(sky_mean):
-        sky_mean = take_sky(start_expT, current_filter, field_name, glance=True)
+    while True:
+        time.sleep(1)
+        sky_mean = take_sky(start_exptime, current_filter, field_name, glance=True)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
+        if eve:
+            if sky_mean > sky_mean_target:
+                print('Waiting until below {:.1f} counts'.format(sky_mean_target))
+            else:
+                break
+        else:
+            if sky_mean < sky_mean_target:
+                print('Waiting until above {:.1f} counts'.format(sky_mean_target))
+            else:
+                break
     print('Reached target sky brightness ({:.1f} counts)'.format(sky_mean_target))
 
     # Start in the first filter
     print('~~~~~~')
     print('Taking flats in {} filter'.format(current_filter))
-    exp_list = flats.exposure_sequence(today, 1, start_expT,
-                                       nflats=nflats, eve=eve)
+    exp_list = exposure_sequence(today, 1, start_exptime, nflats=nflats, eve=eve)
 
-    for i, expT in enumerate(exp_list):
-        print('Taking {} filter flat {}/{}'.format(current_filter, i+1, len(exp_list)))
-        sky_mean = take_sky(expT, current_filter, field_name)
+    for i, exptime in enumerate(exp_list):
+        print('Taking {} filter flat {}/{}'.format(current_filter, i + 1, len(exp_list)))
+        sky_mean = take_sky(exptime, current_filter, field_name)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
     # Run through the rest of the filter list
@@ -113,30 +120,28 @@ def run(eve, alt, late=False):
         current_filter = filt_list.pop(0)
         print('~~~~~~')
         # Guess starting exposure time for new filter
-        expT = flats.extrapolate_from_filters(previous_filter, expT,
-                                              current_filter, Time.now())
+        exptime = extrapolate_from_filters(previous_filter, exptime, current_filter, Time.now())
 
         # See if it was a good guess
         print('Taking {} test exposure to find new exposure time'.format(current_filter))
-        sky_mean = take_sky(expT, current_filter, field_name, glance=True)
+        sky_mean = take_sky(exptime, current_filter, field_name, glance=True)
         scaling_factor = 25000.0 / sky_mean
-        start_expT = expT*scaling_factor
-        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(expT, start_expT))
+        start_exptime = exptime * scaling_factor
+        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, start_exptime))
 
         print('Taking flats in {} filter'.format(current_filter))
-        exp_list = flats.exposure_sequence(today, 1, start_expT,
-                                           nflats=nflats, eve=eve)
+        exp_list = exposure_sequence(today, 1, start_exptime, nflats=nflats, eve=eve)
 
-        for i, expT in enumerate(exp_list):
-            print('Taking {} filter flat {}/{}'.format(current_filter, i+1, len(exp_list)))
-            sky_mean = take_sky(expT, current_filter, field_name)
+        for i, exptime in enumerate(exp_list):
+            print('Taking {} filter flat {}/{}'.format(current_filter, i + 1, len(exp_list)))
+            sky_mean = take_sky(exptime, current_filter, field_name)
             print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
     print('Done')
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1].upper() not in ['EVE','MORN']:
+    if len(sys.argv) < 2 or sys.argv[1].upper() not in ['EVE', 'MORN']:
         print("usage: takeFlats EVE|MORN")
         sys.exit(1)
     else:
@@ -148,9 +153,9 @@ if __name__ == "__main__":
 
     if period == 'EVE':
         eve = True
-        alt = -3*u.deg
+        alt = -3 * u.deg
     else:
         eve = False
-        alt = -10*u.deg
+        alt = -10 * u.deg
 
     run(eve, alt, late)

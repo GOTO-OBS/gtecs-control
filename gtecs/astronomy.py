@@ -1,52 +1,48 @@
-"""
-Astronomy utilities
-"""
+"""Astronomy utilities."""
 
+import datetime
 import math
 import warnings
-import datetime
-
-import numpy as np
-from numpy.polynomial.polynomial import polyval
-
-from astropy import units as u
-from astropy.time import Time
-from astropy.coordinates import (SkyCoord, EarthLocation, AltAz,
-                                 get_sun, get_moon,
-                                 GCRS, Longitude)
 
 from astroplan import Observer
 from astroplan.moon import moon_illumination
 
+from astropy import units as u
+from astropy.coordinates import (AltAz, EarthLocation, GCRS, Longitude, SkyCoord,
+                                 get_moon, get_sun)
+from astropy.time import Time
+
+import numpy as np
+from numpy.polynomial.polynomial import polyval
+
+from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import params
-from . import astropy_speedups
 
 
 MAGIC_TIME = Time(-999, format='jd')
 
 
-def _equation_of_time(t):
-    """
-    Find the difference between apparent and mean solar time
+def _equation_of_time(time):
+    """Find the difference between apparent and mean solar time.
 
     Parameters
     ----------
-    t : `~astropy.time.Time`
+    time : `~astropy.time.Time`
         times (array)
 
     Returns
     ----------
     ret1 : `~astropy.units.Quantity`
         the equation of time
-    """
 
+    """
     # Julian centuries since J2000.0
-    T = (t - Time("J2000")).to(u.year).value / 100
+    T = (time - Time("J2000")).to(u.year).value / 100
 
     # obliquity of ecliptic (Meeus 1998, eq 22.2)
     poly_pars = (84381.448, 46.8150, 0.00059, 0.001813)
     eps = u.Quantity(polyval(T, poly_pars), u.arcsec)
-    y = np.tan(eps/2)**2
+    y = np.tan(eps / 2)**2
 
     # Sun's mean longitude (Meeus 1998, eq 25.2)
     poly_pars = (280.46646, 36000.76983, 0.0003032)
@@ -61,14 +57,13 @@ def _equation_of_time(t):
     e = polyval(T, poly_pars)
 
     # equation of time, radians (Meeus 1998, eq 28.3)
-    eot = (y * np.sin(2*L0) - 2*e*np.sin(M) + 4*e*y*np.sin(M)*np.cos(2*L0) -
-           0.5*y**2 * np.sin(4*L0) - 5*e**2 * np.sin(2*M)/4) * u.rad
+    eot = (y * np.sin(2 * L0) - 2 * e * np.sin(M) + 4 * e * y * np.sin(M) * np.cos(2 * L0) -
+           0.5 * y**2 * np.sin(4 * L0) - 5 * e**2 * np.sin(2 * M) / 4) * u.rad
     return eot.to(u.hourangle)
 
 
-def _astropy_time_from_LST(t, LST, location, prev_next):
-    """
-    Convert a Local Sidereal Time to an astropy Time object.
+def _astropy_time_from_lst(time, lst, location, prev_next):
+    """Convert a Local Sidereal Time to an astropy Time object.
 
     The local time is related to the LST through the RA of the Sun.
     This routine uses this relationship to convert a LST to an astropy
@@ -78,19 +73,18 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
     -------
     ret1 : `~astropy.time.Time`
         time corresponding to LST
+
     """
     # now we need to figure out time to return from LST
-    raSun = get_sun(t).ra
+    sun_ra = get_sun(time).ra
 
     # calculate Greenwich Apparent Solar Time, which we will use as ~UTC for now
-    good_mask = ~np.isnan(LST)
-    solarTime = LST[good_mask] - raSun + 12*u.hourangle - location.lon
+    good_mask = ~np.isnan(lst)
+    solar_time = lst[good_mask] - sun_ra + 12 * u.hourangle - location.lon
 
     # assume this is on the same day as supplied time, and fix later
-    first_guess = Time(
-        u.d*int(t.mjd) + u.hour*solarTime.wrap_at('360d').hour,
-        format='mjd'
-    )
+    first_guess = Time(u.d * int(time.mjd) + u.hour * solar_time.wrap_at('360d').hour,
+                       format='mjd')
 
     # Equation of time is difference between GAST and UTC
     eot = _equation_of_time(first_guess)
@@ -98,21 +92,20 @@ def _astropy_time_from_LST(t, LST, location, prev_next):
 
     if prev_next == 'next':
         # if 'next', we want time to be greater than given time
-        mask = first_guess < t
+        mask = first_guess < time
         rise_set_time = first_guess + mask * u.sday
     else:
         # if 'previous', we want time to be less than given time
-        mask = first_guess > t
+        mask = first_guess > time
         rise_set_time = first_guess - mask * u.sday
 
-    retvals = -999*np.ones_like(LST.value)
+    retvals = -999 * np.ones_like(lst.value)
     retvals[good_mask] = rise_set_time.jd
     return Time(retvals, format='jd')
 
 
-def _rise_set_trig(t, target, location, prev_next, rise_set):
-    """
-    Crude time at next rise/set of ``target`` using spherical trig.
+def _rise_set_trig(time, target, location, prev_next, rise_set):
+    """Crude time at next rise/set of ``target`` using spherical trig.
 
     This method is ~15 times faster than `_calcriseset`,
     and inherently does *not* take the atmosphere into account.
@@ -122,7 +115,7 @@ def _rise_set_trig(t, target, location, prev_next, rise_set):
 
     Parameters
     ----------
-    t : `~astropy.time.Time` or other (see below)
+    time : `~astropy.time.Time` or other (see below)
         Time of observation. This will be passed in as the first argument to
         the `~astropy.time.Time` initializer, so it can be anything that
         `~astropy.time.Time` will accept (including a `~astropy.time.Time`
@@ -145,37 +138,37 @@ def _rise_set_trig(t, target, location, prev_next, rise_set):
     -------
     ret1 : `~astropy.time.Time`
         Time of rise/set
+
     """
     dec = target.transform_to(GCRS).dec
-    cosHA = -np.tan(dec)*np.tan(location.lat.radian)
-    # find the absolute value of the hour Angle
+    cos_ha = -np.tan(dec) * np.tan(location.lat.radian)
+    # find the absolute value of the hour angle
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        HA = Longitude(np.fabs(np.arccos(cosHA)))
-    # if rise, HA is -ve and vice versa
+        ha = Longitude(np.fabs(np.arccos(cos_ha)))
+    # if rise, hour angle is -ve and vice versa
     if rise_set == 'rising':
-        HA = -HA
+        ha = -1 * ha
     # LST = HA + RA
-    LST = HA + target.ra
+    lst = ha + target.ra
 
-    return _astropy_time_from_LST(t, LST, location, prev_next)
+    return _astropy_time_from_lst(time, lst, location, prev_next)
 
 
 def observatory_location():
-    """
-    Get the observatory location.
+    """Get the observatory location.
 
     Returns:
     --------
     obs_loc : `~astropy.coordinates.EarthLocation`
+
     """
     return EarthLocation(lon=params.SITE_LONGITUDE, lat=params.SITE_LATITUDE,
                          height=params.SITE_ALTITUDE)
 
 
 def altaz_from_radec(ra_deg, dec_deg, now):
-    """
-    Calculate Altitude and Azimuth of coordinates.
+    """Calculate Altitude and Azimuth of coordinates.
 
     Refraction from atmosphere is ignored.
 
@@ -194,17 +187,17 @@ def altaz_from_radec(ra_deg, dec_deg, now):
         altitude in degrees
     az_deg : float
         azimuth in degrees
+
     """
     loc = observatory_location()
-    radec_coo = SkyCoord(ra_deg*u.deg, dec_deg*u.deg)  # ICRS J2000
+    radec_coo = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)  # ICRS J2000
     altaz_frame = AltAz(obstime=now, location=loc)
     altaz_coo = radec_coo.transform_to(altaz_frame)
     return (altaz_coo.alt.degree, altaz_coo.az.degree)
 
 
 def radec_from_altaz(alt_deg, az_deg, now):
-    """
-    Calculate RA and Dec coordinates at a given Altitude and Azimuth.
+    """Calculate RA and Dec coordinates at a given Altitude and Azimuth.
 
     Refraction from atmosphere is ignored.
 
@@ -223,18 +216,18 @@ def radec_from_altaz(alt_deg, az_deg, now):
         ight ascension in degrees
     dec_deg : float
         declination in degrees
+
     """
     loc = observatory_location()
-    altaz = AltAz(az=az_deg*u.deg, alt=alt_deg*u.deg, obstime=now, location=loc)
+    altaz = AltAz(az=az_deg * u.deg, alt=alt_deg * u.deg, obstime=now, location=loc)
     altaz_coo = SkyCoord(altaz)
     radec_frame = 'icrs'  # ICRS J2000
     radec_coo = altaz_coo.transform_to(radec_frame)
     return (radec_coo.ra.degree, radec_coo.dec.degree)
 
 
-def sun_alt(now):
-    """
-    Calculate sun altitude from observatory
+def get_sunalt(now):
+    """Calculate sun altitude from observatory.
 
     Parameters
     ----------
@@ -244,6 +237,7 @@ def sun_alt(now):
     Returns
     --------
     alt : float or np.ndarray
+
     """
     sun = get_sun(now)
     loc = observatory_location()
@@ -252,9 +246,8 @@ def sun_alt(now):
     return altaz_coo.alt.degree
 
 
-def twilightLength(date):
-    """
-    Twilight length for night starting on given date
+def twilight_length(date):
+    """Twilight length for night starting on given date.
 
     Parameters
     ----------
@@ -265,17 +258,17 @@ def twilightLength(date):
     -------
     twilength : `astropy.units.Quantity`
         length of astronomical twilight
+
     """
     noon = Time(date + " 12:00:00")
     observer = Observer(location=observatory_location())
     sun_set_time = observer.sun_set_time(noon, which='next')
-    twilight_end = observer.sun_set_time(noon, which='next', horizon=-18*u.deg)
+    twilight_end = observer.sun_set_time(noon, which='next', horizon=-18 * u.deg)
     return (twilight_end - sun_set_time).to(u.min)
 
 
-def localMidnight(date):
-    """
-    Find the UT time of local midnight.
+def local_midnight(date):
+    """Find the UT time of local midnight.
 
     Parameters
     ----------
@@ -286,31 +279,30 @@ def localMidnight(date):
     -------
     midnight : `astropy.time.Time`
         time of local midnight in UT
+
     """
     noon = Time(date + " 12:00:00")
     observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
 
 
-def nightStarting():
-    """
-    Return the date at the start of the current astronomical night in format Y-M-D.
-    """
+def night_startdate():
+    """Return the date at the start of the current astronomical night in format Y-M-D."""
     now = datetime.datetime.utcnow()
-    if now.hour < 12: now = now - datetime.timedelta(days=1)
+    if now.hour < 12:
+        now = now - datetime.timedelta(days=1)
     return now.strftime("%Y-%m-%d")
 
 
-@u.quantity_input(sunAlt=u.deg)
-def startTime(date, sunAlt, eve=True):
-    """
-    Find the time when the sun is at sunAlt
+@u.quantity_input(sunalt=u.deg)
+def sunalt_time(date, sunalt, eve=True):
+    """Find the time when the sun is at sunalt.
 
     Parameters
     ----------
     date : string
         night starting date (YYYY-MM-DD)
-    sunAlt : `astropy.units.Quantity`
+    sunalt : `astropy.units.Quantity`
         altitude of sun to use
     eve : bool
         True for an evening calculation, false for morning
@@ -319,24 +311,36 @@ def startTime(date, sunAlt, eve=True):
     -------
     goTime : `astropy.time.Time`
         time when sun is at that altitude
+
     """
     observer = Observer(location=observatory_location())
     if eve:
         start = Time(date + " 12:00:00")
-        return observer.sun_set_time(start, which='next', horizon=sunAlt)
+        return observer.sun_set_time(start, which='next', horizon=sunalt)
     else:
         start = Time(date + " 12:00:00") + u.day
-        return observer.sun_rise_time(start, which='previous',
-                                      horizon=sunAlt)
+        return observer.sun_rise_time(start, which='previous', horizon=sunalt)
 
 
 def airmass(alt):
-    return 1/math.cos((math.pi)/2)-alt
+    """Calculate airmass at a given altitude.
+
+    Parameters
+    ----------
+    alt : float
+        altitude
+
+    Returns
+    -------
+    airmass : float
+        airmass at that altitude
+
+    """
+    return 1 / math.cos((math.pi) / 2) - alt
 
 
 def find_ha(ra_hrs, lst):
-    """
-    Find Hour Angle of given RA.
+    """Find Hour Angle of given RA.
 
     Parameters
     -----------
@@ -349,14 +353,14 @@ def find_ha(ra_hrs, lst):
     -------
     ha_hrs : float
         hour angle, hours
+
     """
     ha_hrs = lst - ra_hrs
     return ha_hrs
 
 
 def find_lst(now):
-    """
-    Return Local Apparent Sidereal Time at observatory.
+    """Return Local Apparent Sidereal Time at observatory.
 
     Parameters
     ----------
@@ -367,14 +371,14 @@ def find_lst(now):
     --------
     sidereal_time : float
         LAST
+
     """
     now.location = observatory_location()
     return now.sidereal_time(kind='apparent').hour
 
 
 def check_alt_limit(targ_ra, targ_dec, now):
-    """
-    Check if target is above site altitude limit at given time.
+    """Check if target is above site altitude limit at given time.
 
     Parameters
     ----------
@@ -389,6 +393,7 @@ def check_alt_limit(targ_ra, targ_dec, now):
     -------
     flag : int
         1 if below altitude limit, 0 if above
+
     """
     targ_alt, targ_az = altaz_from_radec(targ_ra, targ_dec, now)
     if targ_alt < params.MIN_ELEVATION:
@@ -398,8 +403,7 @@ def check_alt_limit(targ_ra, targ_dec, now):
 
 
 def ang_sep(ra_1, dec_1, ra_2, dec_2):
-    """
-    Find angular separation between two sky positions.
+    """Find angular separation between two sky positions.
 
     Parameters
     ----------
@@ -416,15 +420,15 @@ def ang_sep(ra_1, dec_1, ra_2, dec_2):
     --------
     sep : float or np.ndarray
         angular seperations in degrees
+
     """
-    coo1 = SkyCoord(ra_1*u.deg, dec_1*u.deg)
-    coo2 = SkyCoord(ra_2*u.deg, dec_2*u.deg)
+    coo1 = SkyCoord(ra_1 * u.deg, dec_1 * u.deg)
+    coo2 = SkyCoord(ra_2 * u.deg, dec_2 * u.deg)
     return coo1.separation(coo2).degree
 
 
 def tel_str(ra, dec):
-    """
-    Get RA and Dec strings to send to mount
+    """Get RA and Dec strings to send to mount.
 
     Parameters
     ----------
@@ -432,8 +436,9 @@ def tel_str(ra, dec):
         ra in decimal degrees
     dec : float
         declination in decimal degrees
+
     """
-    coo = SkyCoord(ra*u.deg, dec*u.deg)
+    coo = SkyCoord(ra * u.deg, dec * u.deg)
     ra_string = coo.ra.to_string(sep=' ', precision=2, unit=u.hour)
     dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
     dec_string = dec_string[0] + ' ' + dec_string[1:]
@@ -441,8 +446,7 @@ def tel_str(ra, dec):
 
 
 def get_moon_params(now):
-    """
-    Get the current Moon parameters
+    """Get the current Moon parameters.
 
     Parameters
     ----------
@@ -485,9 +489,7 @@ def get_moon_params(now):
 
 
 def get_moon_distance(ra, dec, now):
-    """
-    Get the angular seperation of the given coordinates from the Moon
-        at the given time
+    """Get the angular seperation of the given coordinates from the Moon at the given time.
 
     Parameters
     ----------
@@ -504,7 +506,7 @@ def get_moon_distance(ra, dec, now):
         angular seperations in degrees
 
     """
-    target = SkyCoord(ra*u.deg, dec*u.deg)
+    target = SkyCoord(ra * u.deg, dec * u.deg)
     moon = get_moon(now)
 
     # NOTE - the order matters

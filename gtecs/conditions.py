@@ -1,18 +1,17 @@
-"""
-Conditions monitor functions
-"""
+#!/usr/bin/env python
+"""Conditions monitor functions."""
 
-import os
-import time
-import subprocess
-import warnings
 import json
+import os
+import subprocess
+import time
+import warnings
 
-from astropy.time import Time
 from astropy._erfa import ErfaWarning
+from astropy.time import Time
 
-from . import params
 from . import misc
+from . import params
 from .controls.power_control import APCUPS, FakeUPS
 
 
@@ -20,14 +19,13 @@ warnings.simplefilter("error", ErfaWarning)
 
 
 def curl_data_from_url(url, outfile, encoding=None):
-    """Fetch data from a URL, store it in a file and return the contents"""
-
+    """Fetch data from a URL, store it in a file and return the contents."""
     wait_time = int(params.CURL_WAIT_TIME)
     curl_command = 'curl -s -m {:.0f} -o {} {}'.format(wait_time, outfile, url)
     try:
         p = subprocess.Popen(curl_command, shell=True, close_fds=True)
         p.wait()
-    except:
+    except Exception:
         print('Error fetching URL "{}"'.format(url))
 
     if encoding:
@@ -41,7 +39,7 @@ def curl_data_from_url(url, outfile, encoding=None):
 
 
 def get_ups():
-    """Get battery percent remaining and current status from GOTO UPSs"""
+    """Get battery percent remaining and current status from GOTO UPSs."""
     percents = []
     statuses = []
     for unit_name in params.POWER_UNITS:
@@ -66,28 +64,27 @@ def get_ups():
                 else:
                     normal = True
                 statuses.append(normal)
-            except:
-                percents.append[-999]
-                statuses.append[-999]
+            except Exception:
+                percents.append(-999)
+                statuses.append(-999)
     return percents, statuses
 
 
 def hatch_closed():
-    """Get hatch status from GOTO Dome Arduino"""
-
+    """Get hatch status from GOTO Dome Arduino."""
     url = params.ARDUINO_LOCATION
     outfile = params.CONFIG_PATH + 'arduino.json'
 
     try:
         indata = curl_data_from_url(url, outfile)
         data = json.loads(indata)
-    except:
+    except Exception:
         print('Error fetching hatch data')
         return False
 
     try:
-        hatch_closed = data['switch_d']
-        if hatch_closed:
+        closed = data['switch_d']
+        if closed:
             return True
         else:
             if params.IGNORE_HATCH:
@@ -95,14 +92,13 @@ def hatch_closed():
                 return True
             else:
                 return False
-    except:
+    except Exception:
         print('Error parsing hatch status')
         return False
 
 
 def get_roomalert(source):
-    """Get internal dome temperature and humidity from GOTO RoomAlert system"""
-
+    """Get internal dome temperature and humidity from GOTO RoomAlert system."""
     sources = ['dome', 'pier']
     if source not in sources:
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
@@ -122,7 +118,7 @@ def get_roomalert(source):
             time.sleep(0.2)
             indata = curl_data_from_url(url, outfile)
         data = json.loads(indata)
-    except:
+    except Exception:
         print('Error fetching RoomAlert data')
         return weather_dict
 
@@ -148,15 +144,14 @@ def get_roomalert(source):
         weather_dict['int_temperature'] = int_temperature
         weather_dict['int_humidity'] = int_humidity
 
-    except:
+    except Exception:
         print('Error parsing RoomAlert page')
 
     return weather_dict
 
 
 def get_local_weather(source):
-    """Get the current weather from the Warwick stations"""
-
+    """Get the current weather from the Warwick stations."""
     source = source.lower()
     sources = ['goto', 'onemetre', 'superwasp']
     if source not in sources:
@@ -181,16 +176,16 @@ def get_local_weather(source):
         indata = curl_data_from_url(url, outfile)
         if len(indata) < 2 or '500 Internal Server Error' in indata:
             raise IOError
-    except:
+    except Exception:
         time.sleep(0.2)
         try:
             indata = curl_data_from_url(url, outfile)
-        except:
+        except Exception:
             print('Error fetching JSON for {}'.format(source))
 
     try:
         data = json.loads(indata)
-    except:
+    except Exception:
         print('Error reading data for {}'.format(source))
         print(indata)
 
@@ -210,13 +205,13 @@ def get_local_weather(source):
             weather_dict['temperature'] = float(data['temperature'])
         elif not vaisala:
             weather_dict['temperature'] = float(data['ext_temperature'])
-    except:
+    except Exception:
         print('Error parsing temperature for {}'.format(source))
 
     try:
         if (vaisala and data['pressure_valid']) or not vaisala:
             weather_dict['pressure'] = float(data['pressure'])
-    except:
+    except Exception:
         print('Error parsing pressure for {}'.format(source))
 
     try:
@@ -225,7 +220,7 @@ def get_local_weather(source):
         elif not vaisala:
             # SuperWASP wind readings aren't trustworthy
             del weather_dict['windspeed']
-    except:
+    except Exception:
         print('Error parsing wind speed for {}'.format(source))
 
     try:
@@ -234,7 +229,7 @@ def get_local_weather(source):
         elif not vaisala:
             # SuperWASP wind readings aren't trustworthy
             del weather_dict['winddir']
-    except:
+    except Exception:
         print('Error parsing wind direction for {}'.format(source))
 
     try:
@@ -242,7 +237,7 @@ def get_local_weather(source):
             weather_dict['humidity'] = float(data['relative_humidity'])
         elif not vaisala:
             weather_dict['humidity'] = float(data['ext_humidity'])
-    except:
+    except Exception:
         print('Error parsing humidity for {}'.format(source))
 
     try:
@@ -254,7 +249,7 @@ def get_local_weather(source):
         elif not vaisala:
             # SuperWASP doesn't have a rain sensor
             del weather_dict['rain']
-    except:
+    except Exception:
         print('Error parsing rain for {}'.format(source))
 
     try:
@@ -262,22 +257,21 @@ def get_local_weather(source):
             del weather_dict['skytemp']
         else:
             weather_dict['skytemp'] = float(data['sky_temp'])
-    except:
+    except Exception:
         print('Error parsing sky temp for {}'.format(source))
 
     try:
         weather_dict['update_time'] = Time(data['date'], precision=0).iso
         dt = Time.now() - Time(data['date'])
         weather_dict['dt'] = int(dt.to('second').value)
-    except:
+    except Exception:
         print('Error parsing update time for {}'.format(source))
 
     return weather_dict
 
 
 def get_ing_weather():
-    """Get the current weather from the ING weather page (JKT mast)"""
-
+    """Get the current weather from the ING weather page (JKT mast)."""
     url = 'http://catserver.ing.iac.es/weather/'
     outfile = params.CONFIG_PATH + 'weather.html'
     indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
@@ -294,45 +288,45 @@ def get_ing_weather():
                     }
 
     try:
-       for line in indata.split('\n'):
-            columns = misc.remove_html_tags(line).replace(':',' ').split()
+        for line in indata.split('\n'):
+            columns = misc.remove_html_tags(line).replace(':', ' ').split()
             if not columns:
                 continue
 
             if columns[0] == 'Temperature':
                 try:
                     weather_dict['temperature'] = float(columns[1])
-                except:
+                except Exception:
                     print('Error parsing temperature for ing:', columns[1])
 
             elif columns[0] == 'Pressure':
                 try:
                     weather_dict['pressure'] = float(columns[1])
-                except:
+                except Exception:
                     print('Error parsing pressure for ing:', columns[1])
 
             elif columns[0] == 'Wind' and columns[1] == 'Speed':
                 try:
                     weather_dict['windspeed'] = float(columns[2])
-                except:
+                except Exception:
                     print('Error parsing wind speed for ing:', columns[2])
 
             elif columns[0] == 'Wind' and columns[1] == 'Direction':
                 try:
                     weather_dict['winddir'] = str(columns[2])
-                except:
+                except Exception:
                     print('Error parsing wind direction for ing:', columns[2])
 
             elif columns[0] == 'Wind' and columns[1] == 'Gust':
                 try:
                     weather_dict['windgust'] = float(columns[2])
-                except:
+                except Exception:
                     print('Error parsing wind gust for ing:', columns[2])
 
             elif columns[0] == 'Humidity':
                 try:
                     weather_dict['humidity'] = float(columns[1])
-                except:
+                except Exception:
                     print('Error parsing humidity for ing:', columns[1])
 
             elif columns[0] == 'Rain':
@@ -341,29 +335,28 @@ def get_ing_weather():
                         weather_dict['rain'] = False
                     elif columns[1] == 'WET':
                         weather_dict['rain'] = True
-                except:
+                except Exception:
                     print('Error parsing rain for ing:', columns[1])
 
             elif len(columns) == 4 and columns[3] == 'UT':
                 try:
                     update_date = columns[0].replace('/', '-')
-                    update_time = '{}:{}'.format(columns[1],columns[2])
+                    update_time = '{}:{}'.format(columns[1], columns[2])
                     update = '{} {}'.format(update_date, update_time)
                     weather_dict['update_time'] = Time(update, precision=0).iso
                     dt = Time.now() - Time(update)
                     weather_dict['dt'] = int(dt.to('second').value)
-                except:
+                except Exception:
                     print('Error parsing update time for ing:', *columns)
 
-    except:
+    except Exception:
         print('Error parsing ing weather page')
 
     return weather_dict
 
 
 def get_ing_internal_weather(weather_source):
-    """Get the current weather from the internal ING xml weather file"""
-
+    """Get the current weather from the internal ING xml weather file."""
     if weather_source == 'wht':
         url = "http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
     elif weather_source == 'int':
@@ -391,7 +384,7 @@ def get_ing_internal_weather(weather_source):
             try:
                 label = columns[1].split("\"")[1].split(".")[2]
                 value = columns[2].split("\"")[1]
-            except:
+            except Exception:
                 continue
 
             if label == 'date':
@@ -400,43 +393,43 @@ def get_ing_internal_weather(weather_source):
                     weather_dict['update_time'] = Time(update, precision=0).iso
                     dt = Time.now() - Time(update)
                     weather_dict['dt'] = int(dt.to('second').value)
-                except:
+                except Exception:
                     print('Error parsing update time:', value)
 
             elif label == 'LocalMastAirTemp' or label == 'MainMastAirTemp':
                 try:
                     weather_dict['temperature'] = float(value)
-                except:
+                except Exception:
                     print('Error parsing temperature:', value)
 
             elif label == 'LocalMastPressure' or label == 'MainMastPressure':
                 try:
                     weather_dict['pressure'] = float(value)
-                except:
+                except Exception:
                     print('Error parsing pressure:', value)
 
             elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
                 try:
                     weather_dict['windspeed'] = float(value)
-                except:
+                except Exception:
                     print('Error parsing wind speed:', value)
 
             elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
                 try:
                     weather_dict['winddir'] = str(value)
-                except:
+                except Exception:
                     print('Error parsing wind direction:', value)
 
             elif label == 'LocalMastGust' or label == 'MainMastGust':
                 try:
                     weather_dict['windgust'] = float(value)
-                except:
+                except Exception:
                     print('Error parsing wind gust:', value)
 
             elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
                 try:
                     weather_dict['humidity'] = float(value)
-                except:
+                except Exception:
                     print('Error parsing humidity:', value)
 
             elif label == 'LocalMastWetness' or label == 'MainMastWetness':
@@ -445,18 +438,17 @@ def get_ing_internal_weather(weather_source):
                         weather_dict['rain'] = False
                     elif float(value) >= 1:
                         weather_dict['rain'] = True
-                except:
+                except Exception:
                     print('Error parsing rain:', value)
 
-    except:
+    except Exception:
         print('Error parsing weather page')
 
     return weather_dict
 
 
 def get_weather():
-    """Get the current weather conditions"""
-
+    """Get the current weather conditions."""
     weather = {}
 
     # Get the weather from the local stations
@@ -464,18 +456,17 @@ def get_weather():
     for source in local_sources:
         try:
             weather[source] = get_local_weather(source)
-        except:
+        except Exception:
             print('Error getting weather from "{}"'.format(source))
 
     # Get the weather fron the ING webpage as a backup
     if params.USE_ING_WEATHER:
         try:
             weather['ing'] = get_ing_weather()
-        except:
+        except Exception:
             print('Error getting weather from "ing"')
 
     # Get the internal conditions from the RoomAlert
-    #internal_sources = ['dome', 'pier']  # Disable dome sensor for dome 2
     internal_sources = ['pier']
     for source in internal_sources:
         weather[source] = get_roomalert(source)
@@ -484,7 +475,7 @@ def get_weather():
 
 
 def check_ping(url, count=3, timeout=10):
-    """Ping a url, and check it responds"""
+    """Ping a url, and check it responds."""
     try:
         ping_command = 'ping -c {} {}'.format(count, url)
         out = subprocess.check_output(ping_command.split(),
@@ -494,16 +485,15 @@ def check_ping(url, count=3, timeout=10):
             return True
         else:
             return False
-    except:
+    except Exception:
         return False
 
 
 def get_diskspace_remaining(path):
-    """Get the percentage diskspace remaining from a given path"""
-
+    """Get the percentage diskspace remaining from a given path."""
     statvfs = os.statvfs(path)
 
     available = statvfs.f_bsize * statvfs.f_bavail / 1024
     total = statvfs.f_bsize * statvfs.f_blocks / 1024
 
-    return available/total
+    return available / total

@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-"""
-A script to make it easier for users to run observation scripts
-"""
+"""A script to make it easier for users to run observation scripts."""
 
 import os
 import sys
-import pkg_resources
 
 from gtecs import misc
+
+import pkg_resources
+
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
@@ -17,11 +17,12 @@ SCRIPT_NAMES = [os.path.splitext(f)[0]
 
 
 def query(script, args):
+    """Process a query."""
     if script not in sorted(SCRIPT_NAMES):
         print('ERROR: "{}" script not found'.format(script))
         print('Valid observation scripts:')
         for s in sorted(SCRIPT_NAMES):
-                print('\t', s)
+            print('\t', s)
     else:
         for name in sorted(SCRIPT_NAMES):
             pid = misc.get_pid(name)
@@ -31,21 +32,23 @@ def query(script, args):
 
         with misc.make_pid_file(script):
             script_file = '{}/{}.py'.format(SCRIPT_PATH, script)
-            command =  ' '.join((sys.executable, script_file, *args))
+            command = ' '.join((sys.executable, script_file, *args))
             misc.execute_long_command(command)
 
 
 def print_instructions():
+    """Print instructions for using the script."""
     script_docs = {}
     for s in SCRIPT_NAMES:
-        with open(os.path.join(SCRIPT_PATH,s+'.py')) as f:
+        with open(os.path.join(SCRIPT_PATH, s + '.py')) as f:
             lines = f.readlines()
-            script_docs[s] = (lines[1].strip(), lines[2].strip())
+            script_docs[s] = (lines[3].strip(), lines[1][3:].strip())
 
     print('Usage: obs_script <script name> [args]')
     print('Valid observing scripts:')
     for s in sorted(SCRIPT_NAMES):
-        print('  - {: <26} '.format(script_docs[s][0]), script_docs[s][1])
+        print('  {}'.format(script_docs[s][0]))
+        print('      - {}'.format(script_docs[s][1]))
 
 
 if __name__ == "__main__":

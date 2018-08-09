@@ -1,16 +1,11 @@
 #!/usr/bin/env python
-"""
-A script to provide overall control of the daemons
-"""
+"""A script to provide overall control of the daemons."""
 
-import os
 import sys
 import time
-import readline
-import Pyro4
 
-from gtecs.misc import execute_command
 from gtecs import params
+from gtecs.misc import execute_command
 
 
 if __name__ == '__main__':

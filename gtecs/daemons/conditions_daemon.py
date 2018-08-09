@@ -1,43 +1,31 @@
 #!/usr/bin/env python
-"""
-Daemon to monitor environmental conditions
-"""
+"""Daemon to monitor environmental conditions."""
 
-import os
-import sys
-import pid
-import time
-import datetime
-from math import *
-import Pyro4
-import threading
-import subprocess
 import json
-
-import numpy as np
+import threading
+import time
 
 from astropy.time import Time
 
-from gtecs import logger
+from gtecs import conditions
 from gtecs import misc
 from gtecs import params
-from gtecs import conditions
-from gtecs.astronomy import sun_alt
-from gtecs.observing import check_dome_closed
+from gtecs.astronomy import get_sunalt
 from gtecs.daemons import HardwareDaemon
+
+import numpy as np
 
 
 class ConditionsDaemon(HardwareDaemon):
-    """Conditions monitor daemon class"""
+    """Conditions monitor daemon class."""
 
     def __init__(self):
-        ### initiate daemon
-        HardwareDaemon.__init__(self, daemon_ID='conditions')
+        HardwareDaemon.__init__(self, daemon_id='conditions')
 
-        ### command flags
+        # command flags
         self.get_info_flag = 0
 
-        ### conditions variables
+        # conditions variables
         self.save_logs = True
 
         self.conditions_check_time = 0
@@ -97,20 +85,19 @@ class ConditionsDaemon(HardwareDaemon):
         self.ups_percent = None
         self.free_diskspace = None
 
-        ### start control thread
+        # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-
     # Primary control thread
     def _control_thread(self):
-        self.logfile.info('Daemon control thread started')
+        self.log.info('Daemon control thread started')
 
         while(self.running):
             self.time_check = time.time()
 
-            ### check the conditions
+            # check the conditions
             if (self.time_check - self.conditions_check_time) > params.WEATHER_INTERVAL:
 
                 self.conditions_check_time = time.time()
@@ -129,7 +116,7 @@ class ConditionsDaemon(HardwareDaemon):
                         weather[source] = dict.fromkeys(weather[source], -999)
 
                 # get the current sun alt
-                self.sunalt_now = sun_alt(Time.now())
+                self.sunalt_now = get_sunalt(Time.now())
 
                 # get the current UPS battery percentage remaining
                 self.ups_percent, self.ups_status = conditions.get_ups()
@@ -143,8 +130,7 @@ class ConditionsDaemon(HardwareDaemon):
                 hatch_closed = conditions.hatch_closed()
 
                 # get the current disk usage on the image path
-                self.free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH)*100.
-
+                self.free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH) * 100.
 
                 # ~~~~~~~~~~~~~~
                 # check if current values are good/bad and valid
@@ -159,9 +145,8 @@ class ConditionsDaemon(HardwareDaemon):
                                       if 'rain' in weather[source]])
                 valid_rain = rain_array[rain_array != -999]
 
-                self.good['rain'] = np.all(valid_rain == False)
+                self.good['rain'] = np.all(valid_rain == 0)
                 self.valid['rain'] = len(valid_rain) >= 1
-
 
                 # WINDSPEED
                 windspeed_array = np.array([weather[source]['windspeed']
@@ -171,7 +156,6 @@ class ConditionsDaemon(HardwareDaemon):
 
                 self.good['windspeed'] = np.all(valid_windspeed < params.MAX_WINDSPEED)
                 self.valid['windspeed'] = len(valid_windspeed) >= 1
-
 
                 # HUMIDITY
                 humidity_array = np.array([weather[source]['humidity']
@@ -189,7 +173,6 @@ class ConditionsDaemon(HardwareDaemon):
                 self.valid['humidity'] = (len(valid_humidity) >= 1 and
                                           len(valid_int_humidity) >= 1)
 
-
                 # TEMPERATURE
                 temp_array = np.array([weather[source]['temperature']
                                       for source in weather
@@ -201,29 +184,27 @@ class ConditionsDaemon(HardwareDaemon):
                                           if 'int_temperature' in weather[source]])
                 valid_int_temp = int_temp_array[int_temp_array != -999]
 
-
-                self.good['temperature'] = (np.all(valid_temp > params.MIN_TEMPERATURE) and
-                                            np.all(valid_temp < params.MAX_TEMPERATURE) and
-                                            np.all(valid_int_temp > params.MIN_INTERNAL_TEMPERATURE) and
-                                            np.all(valid_int_temp < params.MAX_INTERNAL_TEMPERATURE))
+                good = (np.all(valid_temp > params.MIN_TEMPERATURE) and
+                        np.all(valid_temp < params.MAX_TEMPERATURE) and
+                        np.all(valid_int_temp > params.MIN_INTERNAL_TEMPERATURE) and
+                        np.all(valid_int_temp < params.MAX_INTERNAL_TEMPERATURE))
+                self.good['temperature'] = good
                 self.valid['temperature'] = (len(valid_temp) >= 1 and
                                              len(valid_int_temp) >= 1)
-
 
                 # ICE and INTERNAL
                 self.good['ice'] = np.all(valid_temp > 0)
                 self.valid['ice'] = len(valid_temp) >= 1
 
-                self.good['internal'] = (np.all(valid_int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
-                                         np.all(valid_int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
+                good = (np.all(valid_int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
+                        np.all(valid_int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
+                self.good['internal'] = good
                 self.valid['internal'] = (len(valid_int_humidity) >= 1 and
                                           len(valid_int_temp) >= 1)
-
 
                 # DARK
                 self.good['dark'] = self.sunalt_now < params.SUN_ELEVATION_LIMIT
                 self.valid['dark'] = True
-
 
                 # UPS and LOW_BATTERY
                 ups_percent_array = np.array(self.ups_percent)
@@ -232,29 +213,25 @@ class ConditionsDaemon(HardwareDaemon):
                 valid_ups_status = ups_status_array[ups_status_array != -999]
 
                 self.good['ups'] = (np.all(valid_ups_percent > params.MIN_UPSBATTERY) and
-                                    np.all(valid_ups_status == True))
+                                    np.all(valid_ups_status == 1))
                 self.valid['ups'] = (len(valid_ups_percent) >= 1 and
                                      len(valid_ups_status) >= 1)
 
                 self.good['low_battery'] = np.all(valid_ups_percent > params.CRITICAL_UPSBATTERY)
                 self.valid['low_battery'] = len(valid_ups_percent) >= 1
 
-
                 # LINK
                 link_array = np.array(ping_successful)
-                self.good['link'] = np.all(link_array == True)
+                self.good['link'] = np.all(link_array == 1)
                 self.valid['link'] = len(link_array) >= 1
-
 
                 # HATCH
                 self.good['hatch'] = hatch_closed
                 self.valid['hatch'] = True
 
-
                 # DISKSPACE
                 self.good['diskspace'] = self.free_diskspace > params.MIN_DISKSPACE
                 self.valid['diskspace'] = True
-
 
                 # CHECK - if the weather hasn't changed for a certain time
                 if weather != self.weather:
@@ -270,36 +247,36 @@ class ConditionsDaemon(HardwareDaemon):
                         self.good['internal'] = False
                         self.good['ice'] = False
 
-
                 # ~~~~~~~~~~~~~~
                 # set the flags
                 update_time = time.time()
                 for name in self.flag_names:
                     if not self.valid[name]:
                         if self.flags[name] != 2:
-                            self.logfile.info('Setting {} to ERROR (2)'.format(name))
+                            self.log.info('Setting {} to ERROR (2)'.format(name))
                             self.flags[name] = 2
                     elif self.good[name] and self.flags[name] != 0:
                         dt = update_time - self.change_time[name]
                         delay = self.good_delay[name]
                         if dt > delay:
                             self.change_time[name] = update_time
-                            self.logfile.info('Setting {} to good (0)'.format(name))
+                            self.log.info('Setting {} to good (0)'.format(name))
                             self.flags[name] = 0
                         else:
-                            self.logfile.info('{} is good but delay is {:.0f}/{:.0f}'.format(name, dt, delay))
+                            frac = '{:.0f}/{:.0f}'.format(dt, delay)
+                            self.log.info('{} is good but delay is {}'.format(name, frac))
                     elif not self.good[name] and self.flags[name] != 1:
                         dt = update_time - self.change_time[name]
                         delay = self.bad_delay[name]
                         if dt > delay:
                             self.change_time[name] = update_time
-                            self.logfile.info('Setting {} to bad (1)'.format(name))
+                            self.log.info('Setting {} to bad (1)'.format(name))
                             self.flags[name] = 1
                         else:
-                            self.logfile.info('{} is bad but delay is {:.0f}/{:.0f}'.format(name, dt, delay))
+                            frac = '{:.0f}/{:.0f}'.format(dt, delay)
+                            self.log.info('{} is bad but delay is {}'.format(name, frac))
                     else:
                         self.change_time[name] = update_time
-
 
                 # ~~~~~~~~~~~~~~
                 # add update time to output data
@@ -313,19 +290,18 @@ class ConditionsDaemon(HardwareDaemon):
 
                 # log current flags
                 logline = ''
-                for key in sorted(self.flags.keys()):
+                for key in sorted(self.flags):
                     logline += '{}: {} '.format(key, self.flags[key])
-                self.logfile.info(logline)
+                self.log.info(logline)
 
-            time.sleep(params.DAEMON_SLEEP_TIME) # To save 100% CPU usage
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
-        self.logfile.info('Daemon control thread stopped')
+        self.log.info('Daemon control thread stopped')
         return
-
 
     # Conditions functions
     def get_info(self):
-        """Return current conditions flags and weather info"""
+        """Return current conditions flags and weather info."""
         return {'flags': self.data,
                 'weather': self.weather,
                 'sunalt': self.sunalt_now,
@@ -334,15 +310,15 @@ class ConditionsDaemon(HardwareDaemon):
                 }
 
     def get_info_simple(self):
-        """Return plain status dict, or None"""
+        """Return plain status dict, or None."""
         try:
             info = self.get_info()
-        except:
+        except Exception:
             return None
         return info
 
 
 if __name__ == "__main__":
-    daemon_ID = 'conditions'
-    with misc.make_pid_file(daemon_ID):
+    daemon_id = 'conditions'
+    with misc.make_pid_file(daemon_id):
         ConditionsDaemon()._run()

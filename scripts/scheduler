@@ -1,27 +1,22 @@
 #!/usr/bin/env python
-"""
-A script to provide control over the scheduler daemon
-"""
+"""A script to provide control over the scheduler daemon."""
 
 import os
 import sys
-import time
-import readline
-import Pyro4
 
 from astropy.time import Time
 
-from gtecs import misc
-from gtecs import errors
-from gtecs import params
-from gtecs import style
 from gtecs import daemons
+from gtecs import errors
+from gtecs import misc
+from gtecs import params
 
 
 DAEMON_ID = os.path.basename(__file__)
 
 
-def query(command, args, daemon_ID):
+def query(command, args, daemon_id):
+    """Process a query."""
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -31,35 +26,35 @@ def query(command, args, daemon_ID):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_ID)
+        reply = daemons.start_daemon(daemon_id)
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_ID)
+        reply = daemons.shutdown_daemon(daemon_id)
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_ID)
+        reply = daemons.restart_daemon(daemon_id)
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_ID)
+        reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
     elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_ID)
+        reply = daemons.ping_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
-        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V']:
             info_type = 'verbose'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_info', [Time.now()])
+        reply = daemons.daemon_function(daemon_id, 'get_info', [Time.now()])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -71,10 +66,10 @@ def query(command, args, daemon_ID):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            log_path = params.LOG_PATH + daemon_id + '-stdout.log'
             args.remove('stdout')
         else:
-            log_path = params.LOG_PATH + daemon_ID + '.log'
+            log_path = params.LOG_PATH + daemon_id + '.log'
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
         misc.execute_long_command(tail_command)
@@ -85,10 +80,11 @@ def query(command, args, daemon_ID):
 
 
 def print_info(info):
+    """Print the full info dict."""
     print('####### SCHEDULER INFO ########')
     print('NEXT POINTING:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].id
+        new_id = info['next_pointing'].pointing_id
         new_ra = info['next_pointing'].ra
         new_dec = info['next_pointing'].dec
         new_priority = info['next_pointing'].priority
@@ -123,36 +119,39 @@ def print_info(info):
         print('ID:        None')
 
     print('~~~~~~~')
-    print('Timestamp: %s' %info['timestamp'])
+    print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
 
 def print_info_s(info):
+    """Print the info dict in a compact way."""
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].id
+        new_id = info['next_pointing'].pointing_id
         new_priority = info['next_pointing'].priority_now
         new_mintime = info['next_pointing'].mintime
-        print('  ID: %i (Priority %.3f, MinTime %.1fs)' %(new_id,new_priority,new_mintime))
+        print('  ID: %i (Priority %.3f, MinTime %.1fs)' % (new_id, new_priority, new_mintime))
     else:
         print('  ID: None (Priority: None, MinTime: None)')
 
 
 def print_instructions():
-    help_str = style.bold('Usage:') + ' scheduler [command]' + '\n' +\
-    ' ' + style.undl('Interface commands') + ':' + '\n' +\
-    '  scheduler ' + style.bold('start') + '             - start the daemon' + '\n' +\
-    '  scheduler ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  scheduler ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  scheduler ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  scheduler ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    '  scheduler ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
-    '  scheduler ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  scheduler ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  scheduler ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  scheduler ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
-    print(help_str)
+    """Print instructions for using the daemon."""
+    print('Usage: scheduler command [options]',
+          'Daemon commands:',
+          '  start                          start the daemon',
+          '  shutdown                       shutdown the daemon',
+          '  restart                        restart the daemon',
+          '  kill                           kill the daemon',
+          '  ping                           ping the daemon',
+          'Scheduler commands:',
+          '  info/status [v]                report current status',
+          '  log [stdout]                   print daemon log (tail alias)',
+          'Control commands:',
+          '  i                              enter interactive mode',
+          '  q/exit                         quit interactive mode',
+          '  ?/help                         print these instructions',
+          sep='\n')
 
 
 if __name__ == "__main__":

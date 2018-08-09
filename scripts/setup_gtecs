@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-"""
-A script to setup directory structure for G-TeCS config files
-"""
+"""A script to setup directory structure for G-TeCS config files."""
 
 import os
 import shutil
-import pkg_resources
 
 from gtecs import params
+
+import pkg_resources
 
 
 # find package resources
@@ -23,20 +22,17 @@ try:
         os.mkdir(params.IMAGE_PATH)
 
     if not os.path.exists(params.LOG_PATH):
-        os.mkdir(logpath)
-
-    if not os.path.exists(params.LOG_PATH):
-        os.mkdir(logpath)
+        os.mkdir(params.LOG_PATH)
 
     if not os.path.exists(params.QUEUE_PATH):
-        os.mkdir(logpath)
+        os.mkdir(params.QUEUE_PATH)
     for folder in ['todo', 'aborted', 'completed', 'interrupted']:
-        folderpath = os.path.join(queuepath, folder)
+        folderpath = os.path.join(params.QUEUE_PATH, folder)
         if not os.path.exists(folderpath):
             os.mkdir(folderpath)
 
     if not os.path.exists(params.PID_PATH):
-        os.mkdir(logpath)
+        os.mkdir(params.PID_PATH)
 
     htmlpath = os.path.join(params.CONFIG_PATH, 'html')
     if not os.path.exists(htmlpath):
@@ -53,6 +49,6 @@ try:
 
     print('Setup complete!')
     print('CONFIG_PATH is at ', params.CONFIG_PATH)
-except:
+except Exception:
     print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
           'You should create this directory yourself manually')

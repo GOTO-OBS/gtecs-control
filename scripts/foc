@@ -1,25 +1,20 @@
 #!/usr/bin/env python
-"""
-A script to provide control over the foc daemon
-"""
+"""A script to provide control over the foc daemon."""
 
 import os
 import sys
-import time
-import readline
-import Pyro4
 
-from gtecs import misc
-from gtecs import errors
-from gtecs import params
-from gtecs import style
 from gtecs import daemons
+from gtecs import errors
+from gtecs import misc
+from gtecs import params
 
 
 DAEMON_ID = os.path.basename(__file__)
 
 
-def query(command, args, daemon_ID):
+def query(command, args, daemon_id):
+    """Process a query."""
     # Command functions
     if command in ['help', '?']:
         print_instructions()
@@ -29,35 +24,35 @@ def query(command, args, daemon_ID):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_ID)
+        reply = daemons.start_daemon(daemon_id)
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_ID)
+        reply = daemons.shutdown_daemon(daemon_id)
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_ID)
+        reply = daemons.restart_daemon(daemon_id)
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_ID)
+        reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
     elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_ID)
+        reply = daemons.ping_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
-        elif len(args) == 1 and args[0] in ['v','V','-v','-V']:
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V']:
             info_type = 'verbose'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'get_info')
+        reply = daemons.daemon_function(daemon_id, 'get_info')
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -69,10 +64,10 @@ def query(command, args, daemon_ID):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_path = params.LOG_PATH + daemon_ID + '-stdout.log'
+            log_path = params.LOG_PATH + daemon_id + '-stdout.log'
             args.remove('stdout')
         else:
-            log_path = params.LOG_PATH + daemon_ID + '.log'
+            log_path = params.LOG_PATH + daemon_id + '.log'
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
         misc.execute_long_command(tail_command)
@@ -84,12 +79,12 @@ def query(command, args, daemon_ID):
             tel_list = sorted(params.TEL_DICT)
             pos = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
             pos = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'set_focuser', [pos, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'set_focuser', [pos, tel_list])
         print(reply)
 
     elif command == 'move':
@@ -98,12 +93,12 @@ def query(command, args, daemon_ID):
             tel_list = sorted(params.TEL_DICT)
             steps = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
             steps = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'move_focuser', [steps, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'move_focuser', [steps, tel_list])
         print(reply)
 
     elif command == 'home':
@@ -111,11 +106,11 @@ def query(command, args, daemon_ID):
         if len(args) == 0:
             tel_list = sorted(params.TEL_DICT)
         elif len(args) == 1:
-            tel_list = misc.valid_ints(args[0].split(','),sorted(params.TEL_DICT))
+            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_ID, 'home_focuser', [tel_list])
+        reply = daemons.daemon_function(daemon_id, 'home_focuser', [tel_list])
         print(reply)
 
     # Unrecognized function
@@ -124,54 +119,58 @@ def query(command, args, daemon_ID):
 
 
 def print_info(info):
+    """Print the full info dict."""
     print('###### FOCUSER INFO #######')
     for tel in sorted(params.TEL_DICT):
-        print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]))
-        if info['status'+str(tel)] != 'Moving':
-            print('Status: %s' %info['status'+str(tel)])
+        print('FOCUSER ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
+        if info['status' + str(tel)] != 'Moving':
+            print('Status: %s' % info['status' + str(tel)])
         else:
-            print('Status: %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
-        print('Current motor pos:    %s' %info['current_pos'+str(tel)])
-        print('Maximum motor limit:  %s' %info['limit'+str(tel)])
-        print('Internal temperature: %s' %info['int_temp'+str(tel)])
-        print('External temperature: %s' %info['ext_temp'+str(tel)])
-        print('Serial number:        %s' %info['serial_number'+str(tel)])
+            print('Status: %s (%i)' % (info['status' + str(tel)], info['remaining' + str(tel)]))
+        print('Current motor pos:    %s' % info['current_pos' + str(tel)])
+        print('Maximum motor limit:  %s' % info['limit' + str(tel)])
+        print('Internal temperature: %s' % info['int_temp' + str(tel)])
+        print('External temperature: %s' % info['ext_temp' + str(tel)])
+        print('Serial number:        %s' % info['serial_number' + str(tel)])
         print('~~~~~~~')
-    print('Uptime: %.1fs' %info['uptime'])
-    print('Ping: %.5fs' %info['ping'])
-    print('Timestamp: %s' %info['timestamp'])
+    print('Uptime: %.1fs' % info['uptime'])
+    print('Ping: %.5fs' % info['ping'])
+    print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
 
 def print_info_s(info):
+    """Print the info dict in a compact way."""
     for tel in sorted(params.TEL_DICT):
-        print('FOCUSER ' + str(tel) + ' (%s-%i)'%tuple(params.TEL_DICT[tel]), end=' ')
-        if info['status'+str(tel)] != 'Moving':
-            print('  Current position: %s/%s' %(info['current_pos'+str(tel)],info['limit'+str(tel)]), end=' ')
-            print('  [%s]' %info['status'+str(tel)])
+        print('FOCUSER ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
+        if info['status' + str(tel)] != 'Moving':
+            print('  Current position: %s/%s' % (info['current_pos' + str(tel)],
+                                                 info['limit' + str(tel)]), end=' ')
+            print('  [%s]' % info['status' + str(tel)])
         else:
-            print('  %s (%i)' %(info['status'+str(tel)],info['remaining'+str(tel)]))
+            print('  %s (%i)' % (info['status' + str(tel)], info['remaining' + str(tel)]))
 
 
 def print_instructions():
-    help_str = style.bold('Usage:') + ' foc [command]' + '\n' +\
-    ' ' + style.undl('Daemon commands') + ':' + '\n' +\
-    '  foc ' + style.bold('start') + '             - start the daemon' + '\n' +\
-    '  foc ' + style.bold('shutdown') + '          - shutdown the daemon' + '\n' +\
-    '  foc ' + style.bold('restart') + '           - restart the daemon' + '\n' +\
-    '  foc ' + style.bold('kill') + '              - kill the daemon (' + style.rtxt('emergency use') + ')' + '\n' +\
-    '  foc ' + style.bold('ping') + '              - ping the daemon' + '\n' +\
-    ' ' + style.undl('Focuser commands') + ':' + '\n' +\
-    '  foc ' + style.bold('move') + ' [tels] steps' + ' - move by the given steps' + '\n' +\
-    '  foc ' + style.bold('set') + ' [tels] pos' + '    - move to the given position' + '\n' +\
-    '  foc ' + style.bold('home') + ' [tels]' + '       - move to the home position' + '\n' +\
-    '  foc ' + style.bold('info') + '/' + style.bold('status') + ' [v]' + '   - report current status' + '\n' +\
-    '  foc ' + style.bold('log') + ' [stdout]' + '      - print daemon log (tail alias)' + '\n' +\
-    ' ' + style.undl('Control commands') + ':' + '\n' +\
-    '  foc ' + style.bold('i') + '                 - enter interactive mode' + '\n' +\
-    '  foc ' + style.bold('q') + '/' + style.bold('exit') + '            - quit interactive mode' + '\n' +\
-    '  foc ' + style.bold('?') + '/' + style.bold('help') + '            - print these instructions'
-    print(help_str)
+    """Print instructions for using the daemon."""
+    print('Usage: foc command [options]',
+          'Daemon commands:',
+          '  start                          start the daemon',
+          '  shutdown                       shutdown the daemon',
+          '  restart                        restart the daemon',
+          '  kill                           kill the daemon',
+          '  ping                           ping the daemon',
+          'Focuser commands:',
+          '  move [tels] steps              move by the given steps',
+          '  set [tels] pos                 move to the given position',
+          '  home [tels]                    move to the home position',
+          '  info/status [v]                report current status',
+          '  log [stdout]                   print daemon log (tail alias)',
+          'Control commands:',
+          '  i                              enter interactive mode',
+          '  q/exit                         quit interactive mode',
+          '  ?/help                         print these instructions',
+          sep='\n')
 
 
 if __name__ == "__main__":
