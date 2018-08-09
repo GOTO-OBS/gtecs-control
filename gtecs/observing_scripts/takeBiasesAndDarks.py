@@ -25,6 +25,7 @@ def run(nexp=5):
     prepare_for_images()
 
     execute_command('exq multbias {} 1'.format(nexp))
+    execute_command('exq multdark {} 60 1'.format(nexp))
     execute_command('exq multdark {} 120 1'.format(nexp))
     execute_command('exq resume')  # just in case
 
