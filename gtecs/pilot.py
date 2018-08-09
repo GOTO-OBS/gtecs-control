@@ -15,12 +15,11 @@ from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 import pkg_resources
 
 from . import logger
+from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .asyncio_protocols import SimpleProtocol
 from .flags import Conditions, Status
-from .hardware_wrappers import (CameraMonitor, DomeMonitor, ExposureQueueMonitor,
-                                FilterWheelMonitor, FocuserMonitor, MountMonitor)
 from .misc import execute_command, send_email
 from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
                         get_pointing_status)
@@ -90,12 +89,13 @@ class Pilot(object):
         self.dome_is_open = False        # should the dome be open?
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': DomeMonitor(self.log),
-                         'mnt': MountMonitor(self.log),
-                         'cams': CameraMonitor(self.log),
-                         'filts': FilterWheelMonitor(self.log),
-                         'focs': FocuserMonitor(self.log),
-                         'exq': ExposureQueueMonitor(self.log),
+        self.hardware = {'dome': monitors.DomeMonitor(self.log),
+                         'mnt': monitors.MountMonitor(self.log),
+                         'power': monitors.PowerMonitor(self.log),
+                         'cams': monitors.CameraMonitor(self.log),
+                         'filts': monitors.FilterWheelMonitor(self.log),
+                         'focs': monitors.FocuserMonitor(self.log),
+                         'exq': monitors.ExposureQueueMonitor(self.log),
                          }
 
         # override and conditions flags

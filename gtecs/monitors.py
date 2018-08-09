@@ -279,6 +279,33 @@ class MountMonitor(Monitor):
         return recovery_procedure
 
 
+class PowerMonitor(Monitor):
+    """Hardware monitor for the power daemon."""
+
+    def __init__(self, log=None):
+        super().__init__('power', log)
+
+        # Define modes and starting mode
+        self.available_modes = ['running']
+        self.set_mode('running')
+
+    def _check_hardware(self):
+        """Check the hardware by running through the recovery steps."""
+        # no custom checks as yet
+        return
+
+    def _recovery_procedure(self):
+        """Get the recovery commands based on the current observing mode."""
+        recovery_procedure = {}
+
+        if self.mode == 'running':
+            recovery_procedure[1] = [60., 'power start']
+            recovery_procedure[2] = [120., 'power kill']
+            recovery_procedure[3] = [130., 'power start']
+
+        return recovery_procedure
+
+
 class CameraMonitor(Monitor):
     """Hardware monitor for the camera daemon."""
 
