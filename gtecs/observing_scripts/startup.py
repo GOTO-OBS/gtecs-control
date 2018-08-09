@@ -31,6 +31,7 @@ def run():
     # Power on the FLI hardware and mount box
     for tel in sorted(params.TEL_DICT):
         execute_command('power on cam{0},foc{0},filt{0}'.format(tel))
+        time.sleep(0.5)
     execute_command('power on sitech')
 
     time.sleep(5)
