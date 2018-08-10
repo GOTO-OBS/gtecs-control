@@ -563,7 +563,7 @@ class MntMonitor(BaseMonitor):
 
         if ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
-            recovery_procedure['delay'] = 60
+            recovery_procedure = {'delay': 60}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
             recovery_procedure[1] = ['mnt slew', 60]
             # SOLUTION 2: Maybe we're parked?
@@ -576,7 +576,7 @@ class MntMonitor(BaseMonitor):
 
         if ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
-            recovery_procedure['delay'] = 60
+            recovery_procedure = {'delay': 60}
             # SOLUTION 1: Try parking.
             recovery_procedure[1] = ['mnt park', 120]
             # SOLUTION 2: Try again.
