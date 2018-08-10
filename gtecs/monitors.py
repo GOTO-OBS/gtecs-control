@@ -106,18 +106,29 @@ class BaseMonitor(ABC):
         """
         self.errors = []
 
+        # Functional checks
+        # Note these overwrite self.errors not append, because they're critical
+        if not self.dependencies_are_alive():
+            self.errors = ['Dependency ping failed']
+            return len(self.errors), self.errors
+
         if not self.is_alive:
-            return 1, ['Ping failed']
+            self.errors = ['Ping failed']
+            return len(self.errors), self.errors
 
         info = self.get_info()
         if info is None:
-            return 1, ['Get info failed']
+            self.errors = ['Get info failed']
+            return len(self.errors), self.errors
 
         status = self.get_status()
         if status is 'unknown':
-            return 1, ['Hardware in unknown state']
+            self.errors = ['Hardware in unknown state']
+            return len(self.errors), self.errors
 
-        self._check_hardware()  # Will fill self.errors if it finds any
+        # Hardware checks
+        # Will fill self.errors if it finds any
+        self._check_hardware()
 
         if len(self.errors) < 1:
             self.last_successful_check = time.time()
@@ -174,11 +185,6 @@ class DomeMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -269,11 +275,6 @@ class MntMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -367,11 +368,6 @@ class PowerMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -413,14 +409,6 @@ class CamMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        if not self.dependencies_are_alive():
-            self.status = 'dependency_error'
-            return 'dependency_error'
-
-        if not self.is_alive():
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -462,14 +450,6 @@ class FiltMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        if not self.dependencies_are_alive():
-            self.status = 'dependency_error'
-            return 'dependency_error'
-
-        if not self.is_alive():
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -511,14 +491,6 @@ class FocMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        if not self.dependencies_are_alive():
-            self.status = 'dependency_error'
-            return 'dependency_error'
-
-        if not self.is_alive():
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -560,14 +532,6 @@ class ExqMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        if not self.dependencies_are_alive():
-            self.status = 'dependency_error'
-            return 'dependency_error'
-
-        if not self.is_alive():
-            self.status = 'daemon_error'
-            return 'daemon_error'
-
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
