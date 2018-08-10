@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 
 from .daemons import daemon_info, daemon_is_alive, dependencies_are_alive
 from .misc import execute_command
+from .slack import send_slack_msg
 
 
 # Daemon statuses
@@ -185,22 +186,40 @@ class BaseMonitor(ABC):
 
         Checks whether enough time has elapsed to progress to next stage of recovery.
         """
+        if not self.errors:
+            # nothing to recover from!
+            return
+
         downtime = time.time() - self.last_successful_check
 
+        # Get the recovery commands from the daemon's custom method.
         recovery_procedure = self._recovery_procedure()
+
         next_level = self.recovery_level + 1
-        if next_level in recovery_procedure:
-            if downtime > recovery_procedure[next_level][0]:
-                for cmd in recovery_procedure[next_level][1:]:
-                    msg = 'Attempting recovery level {:.0f}: {}'.format(next_level, cmd)
-                    if self.log:
-                        self.log.info(msg)
-                    else:
-                        print(msg)
-                    execute_command(cmd)
-                self.recovery_level += 1
-        else:
+        if next_level not in recovery_procedure:
+            msg = '{} has run out of recovery steps '.format(self.__class__.__name__)
+            msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
+            msg += '(mode={}, status={})'.format(self.mode, self.status)
+            if self.log:
+                self.log.info(msg)
+            else:
+                print(msg)
+            send_slack_msg(msg)
             return
+
+        delay = recovery_procedure[next_level][0]
+        commands = recovery_procedure[next_level][1:]
+        print(downtime, delay)
+        if downtime > delay:
+            for i, cmd in enumerate(commands):
+                msg = '{} attempting recovery '.format(self.__class__.__name__)
+                msg += 'level {:.0f}.{:.0f}: {}'.format(next_level, i, cmd)
+                if self.log:
+                    self.log.info(msg)
+                else:
+                    print(msg)
+                execute_command(cmd)
+            self.recovery_level += 1
 
 
 class DomeMonitor(BaseMonitor):
