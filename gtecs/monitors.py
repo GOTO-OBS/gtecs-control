@@ -238,7 +238,15 @@ class BaseMonitor(ABC):
             self.log.info(msg)
         else:
             print(msg)
-        execute_command(command)
+        try:
+            execute_command(command)
+        except Exception:
+            if self.log:
+                self.log.error('Error executing recovery command {}'.format(command))
+                self.log.debug('', exc_info=True)
+            else:
+                print('Error executing recovery command {}'.format(command))
+
         self.last_recovery_command = time.time()
         self.recovery_level += 1
 
