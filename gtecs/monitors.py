@@ -166,6 +166,11 @@ class DomeMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -256,6 +261,11 @@ class MntMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -349,6 +359,11 @@ class PowerMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -390,6 +405,11 @@ class CamMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -431,6 +451,11 @@ class FiltMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -472,6 +497,11 @@ class FocMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
@@ -513,6 +543,11 @@ class ExqMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
+        alive = self.is_alive()
+        if not alive:
+            self.status = 'daemon_error'
+            return 'daemon_error'
+
         info = self.get_info()
         if info is None:
             self.status = 'unknown'
