@@ -523,8 +523,8 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[7] = ['power on sitech', 60]
             recovery_procedure[8] = ['power on mount_nuc', 180]
             # SOLUTION 5: Try restarting the daemon again.
-            recovery_procedure[9] = ['mount kill', 10]
-            recovery_procedure[10] = ['mount start', 60]
+            recovery_procedure[9] = ['mnt kill', 10]
+            recovery_procedure[10] = ['mnt start', 60]
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
@@ -546,7 +546,7 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[4] = ['power on sitech', 60]
             recovery_procedure[5] = ['power on mount_nuc', 180]
             # SOLUTION 3: Restart the daemon.
-            recovery_procedure[6] = ['mount restart', 10]
+            recovery_procedure[6] = ['mnt restart', 10]
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
 
