@@ -179,9 +179,12 @@ def query(command, args, daemon_id):
             status.autoclose = True
             print('Dome will autoclose in manual mode if conditions are bad')
         else:
-            status.autoclose = False
-            print('Override set: Dome will NOT close in manual mode if conditions are bad')
-            print('              This will reset the next time the dome is fully closed')
+            if status.mode == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
+            else:
+                status.autoclose = False
+                print('Override set: Dome will NOT close in manual mode if conditions are bad')
+                print('              This will reset the next time the dome is fully closed')
 
     # Unrecognized function
     else:
@@ -198,6 +201,7 @@ def print_info(info):
     print('Dehumidifier: %s' % info['dehumidifier'].capitalize())
     print('Alarm:        %s' % ('On' if info['alarm'] else style.rtxt('Off')))
     print('Auto-close:   %s' % ('On' if info['autoclose'] else style.rtxt('Off')))
+    print('Lockdown:     %s' % (style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
@@ -210,20 +214,13 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    if info['emergency']:
-        print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
-    if (('open' in info['north']) or ('open' in info['south']) or
-            ('ing' in info['north']) or ('ing' in info['south'])):
-        if info['autoclose']:
-            print('DOME:      [Open]')
-        else:
-            print('DOME:      [Open] - ' + style.rtxt('Autoclose Disabled'))
-    else:
-        print('DOME:      [%s]' % info['north'].capitalize())
-    print('HATCH:     [%s]' % info['hatch'].capitalize())
-    print('DEHUM:     [%s]' % info['dehumidifier'].capitalize())
-    print('ALARM:     [%s]' % ('On' if info['alarm'] else style.rtxt('Off')))
-    print('AUTOCLOSE: [%s]' % ('On' if info['autoclose'] else style.rtxt('Off')))
+    print('DOME:               [%s|%s]' % (info['north'].capitalize(), info['south'].capitalize()))
+    if info['lockdown']:
+        print(style.rtxt('                    LOCKDOWN ACTIVE'))
+    print('   Hatch:           [%s]' % info['hatch'].capitalize())
+    print('   Dehumidifier:    [%s]' % info['dehumidifier'].capitalize())
+    print('   Alarm:           [%s]' % ('On' if info['alarm'] else style.rtxt('Off')))
+    print('   Autoclose:       [%s]' % ('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))

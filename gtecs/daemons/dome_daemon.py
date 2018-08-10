@@ -41,6 +41,7 @@ class DomeDaemon(HardwareDaemon):
         self.last_estop_status = None
         self.power_status = None
         self.dome_timeout = 40.
+        self.lockdown = False
 
         self.move_side = 'none'
         self.move_frac = 1
@@ -136,11 +137,12 @@ class DomeDaemon(HardwareDaemon):
                         status.create_shutdown_file(conditions._crit_flags)
 
                     # Act on an emergency
-                    if (self.dome_status['north'] != 'closed' or
-                            self.dome_status['south'] != 'closed'):
-                        if status.emergency_shutdown:
+                    if status.emergency_shutdown:
+                        self.lockdown = True
+                        if (self.dome_status['north'] != 'closed' or
+                                self.dome_status['south'] != 'closed'):
                             reasons = ', '.join(status.emergency_shutdown_reasons)
-                            self.log.info('Closing dome (emergency: {})'.format(reasons))
+                            self.log.warning('Closing dome (emergency: {})'.format(reasons))
                             if not self.close_flag:
                                 reason = '(emergency shutdown: {})'.format(reasons)
                                 send_slack_msg('dome_daemon is closing dome {}'.format(reason))
@@ -151,15 +153,19 @@ class DomeDaemon(HardwareDaemon):
                                 self.close_flag = 1
                                 self.move_side = 'both'
                                 self.move_frac = 1
-                        elif conditions.bad:
-                            # Don't close in manual mode if autoclose is disabled
-                            # NB: Always close in robotic mode
+                    elif conditions.bad:
+                        # Don't close in manual mode if autoclose is disabled
+                        # NB: Always close in robotic mode
+                        if status.mode == 'manual' and not status.autoclose:
                             reason = 'Conditions bad ({})'.format(conditions.bad_flags)
-                            if status.mode == 'manual' and not status.autoclose:
-                                but = 'but in manual mode and autoclose disabled!'
-                                self.log.info('{}, {}'.format(reason, but))
-                            else:
-                                self.log.info('{}, auto-closing dome'.format(reason))
+                            but = 'but in manual mode and autoclose disabled!'
+                            self.log.warning('{}, {}'.format(reason, but))
+                        else:
+                            self.lockdown = True
+                            if (self.dome_status['north'] != 'closed' or
+                                    self.dome_status['south'] != 'closed'):
+                                reason = 'Conditions bad ({})'.format(conditions.bad_flags)
+                                self.log.warning('{}, auto-closing dome'.format(reason))
                                 if not self.close_flag:
                                     if self.open_flag:  # stop opening!
                                         self.halt_flag = 1
@@ -168,6 +174,15 @@ class DomeDaemon(HardwareDaemon):
                                     self.close_flag = 1
                                     self.move_side = 'both'
                                     self.move_frac = 1
+
+                    # Check if we're okay to reopen
+                    if self.lockdown:
+                        if not conditions.bad and not status.emergency_shutdown:
+                            self.log.info('Conditions are clear, lockdown lifted')
+                            self.lockdown = False
+                        else:
+                            self.log.warning('Dome is in lockdown state')
+
                     self.warnings_check_time = time.time()
                 except Exception:
                     self.log.error('check_warnings command failed')
@@ -266,7 +281,11 @@ class DomeDaemon(HardwareDaemon):
                     else:
                         info['dehumidifier'] = 'ERROR'
 
-                    # add status status (umm...)
+                    # add conditions and status status (umm...)
+                    info['lockdown'] = self.lockdown
+                    conditions = Conditions()
+                    info['conditions_bad'] = bool(conditions.bad)
+                    info['conditions_reasons'] = conditions.bad_flags
                     status = Status()
                     info['emergency'] = status.emergency_shutdown
                     info['emergency_time'] = status.emergency_shutdown_time
@@ -500,14 +519,17 @@ class DomeDaemon(HardwareDaemon):
                 bad_idea = True
             else:
                 reason = 'Conditions bad ({})'.format(conditions.bad_flags)
-                raise errors.HardwareStatusError('{}, dome will not open'.format(reason))
+                raise errors.HardwareStatusError('{}, dome is in lockdown'.format(reason))
         elif power.failed:
-            raise errors.HardwareStatusError('No external power, dome will not open')
+            raise errors.HardwareStatusError('No external power, dome is in lockdown')
         elif status.emergency_shutdown:
             reasons = ', '.join(status.emergency_shutdown_reasons)
             send_slack_msg('dome_daemon says: someone tried to open dome in emergency state')
             reason = 'In emergency locked state ({})'.format(reasons)
-            raise errors.HardwareStatusError('{}, dome will not open'.format(reason))
+            raise errors.HardwareStatusError('{}, dome is in lockdown'.format(reason))
+        elif self.lockdown:
+            # This should be covered by the above, but just in case...
+            raise errors.HardwareStatusError('Dome is in lockdown'.format(reason))
 
         # Check input
         if side not in ['north', 'south', 'both']:
@@ -538,6 +560,9 @@ class DomeDaemon(HardwareDaemon):
         # Set values
         self.move_side = side
         self.move_frac = frac
+        if bad_idea:
+            self.log.warning('Breaking through lockdown')
+            self.lockdown = False
 
         # Set flag
         self.log.info('Starting: Opening dome')
