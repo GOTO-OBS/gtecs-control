@@ -3,7 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 
-from .daemons import daemon_info, daemon_is_alive
+from .daemons import daemon_info, daemon_is_alive, dependencies_are_alive
 from .misc import execute_command
 
 
@@ -38,12 +38,20 @@ class BaseMonitor(ABC):
         self.recovery_level = 0
 
     def is_alive(self):
-        """Ping a daemon - return True if it is alive and False for dead or not responding."""
+        """Ping the daemon and return True if it is running and responding."""
         if self.daemon_id is None:
             return True
         try:
-            alive = daemon_is_alive(self.daemon_id)
-            return alive
+            return daemon_is_alive(self.daemon_id)
+        except Exception:
+            return False
+
+    def dependencies_are_alive(self):
+        """Ping a daemon's dependencies and return True if they are all running and responding."""
+        if self.daemon_id is None:
+            return True
+        try:
+            return dependencies_are_alive(self.daemon_id)
         except Exception:
             return False
 
@@ -405,8 +413,11 @@ class CamMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
+        if not self.dependencies_are_alive():
+            self.status = 'dependency_error'
+            return 'dependency_error'
+
+        if not self.is_alive():
             self.status = 'daemon_error'
             return 'daemon_error'
 
@@ -451,8 +462,11 @@ class FiltMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
+        if not self.dependencies_are_alive():
+            self.status = 'dependency_error'
+            return 'dependency_error'
+
+        if not self.is_alive():
             self.status = 'daemon_error'
             return 'daemon_error'
 
@@ -497,8 +511,11 @@ class FocMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
+        if not self.dependencies_are_alive():
+            self.status = 'dependency_error'
+            return 'dependency_error'
+
+        if not self.is_alive():
             self.status = 'daemon_error'
             return 'daemon_error'
 
@@ -543,8 +560,11 @@ class ExqMonitor(BaseMonitor):
 
     def get_status(self):
         """Get the current status of the hardware."""
-        alive = self.is_alive()
-        if not alive:
+        if not self.dependencies_are_alive():
+            self.status = 'dependency_error'
+            return 'dependency_error'
+
+        if not self.is_alive():
             self.status = 'daemon_error'
             return 'daemon_error'
 
