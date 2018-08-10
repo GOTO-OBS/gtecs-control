@@ -11,6 +11,7 @@ from .slack import send_slack_msg
 # Daemon statuses
 STATUS_UNKNOWN = 'unknown'
 STATUS_ACTIVE = 'active'
+STATUS_DOME_LOCKDOWN = 'in_lockdown'
 STATUS_DOME_CLOSED = 'closed'
 STATUS_DOME_FULLOPEN = 'full_open'
 STATUS_DOME_PARTOPEN = 'part_open'
@@ -261,7 +262,10 @@ class DomeMonitor(BaseMonitor):
 
         north = info['north']
         south = info['south']
+        lockdown = info['lockdown']
 
+        if lockdown:
+            status = STATUS_DOME_LOCKDOWN
         if north == 'closed' and south == 'closed':
             status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
