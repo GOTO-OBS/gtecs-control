@@ -148,7 +148,7 @@ class BaseMonitor(ABC):
             details of errors found
 
         """
-        self.errors = []
+        self.errors = set()
 
         # Functional checks
         # Note these overwrite self.errors instead of adding to it, because they're critical
