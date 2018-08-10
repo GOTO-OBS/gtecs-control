@@ -67,12 +67,11 @@ class BaseMonitor(ABC):
         self.info = None
         self.status = STATUS_UNKNOWN
 
-        self.mode = None
-        self.available_modes = []
-
         self.errors = []
         self.last_successful_check = 0.
         self.recovery_level = 0
+
+        self.get_status()
 
     def is_alive(self):
         """Ping the daemon and return True if it is running and responding."""
@@ -114,10 +113,15 @@ class BaseMonitor(ABC):
         self.status = STATUS_UNKNOWN
         return STATUS_UNKNOWN
 
-    def set_mode(self, mode):
-        """Set the observing mode."""
+    @property
+    def mode(self):
+        """Get the observing mode of the hardware."""
+        return self.__mode
+
+    @mode.setter
+    def mode(self, mode):
         if mode in self.available_modes:
-            self.mode = mode
+            self.__mode = mode
         else:
             raise ValueError('Invalid mode: {} not in {!r}'.format(mode,
                                                                    self.available_modes))
@@ -209,7 +213,6 @@ class BaseMonitor(ABC):
 
         delay = recovery_procedure[next_level][0]
         commands = recovery_procedure[next_level][1:]
-        print(downtime, delay)
         if downtime > delay:
             for i, cmd in enumerate(commands):
                 msg = '{} attempting recovery '.format(self.__class__.__name__)
@@ -230,7 +233,7 @@ class DomeMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
-        self.set_mode(MODE_DOME_CLOSED)
+        self.mode = MODE_DOME_CLOSED
 
         # Dome attributes
         self._move_start_time = 0
@@ -320,7 +323,7 @@ class MntMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
-        self.set_mode(MODE_MNT_PARKED)
+        self.mode = MODE_MNT_PARKED
 
         # Mount attributes
         self._move_start_time = 0
@@ -420,7 +423,7 @@ class PowerMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.set_mode(MODE_ACTIVE)
+        self.mode = MODE_ACTIVE
 
     def get_status(self):
         """Get the current status of the hardware."""
@@ -461,7 +464,7 @@ class CamMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.set_mode(MODE_ACTIVE)
+        self.mode = MODE_ACTIVE
 
     def get_status(self):
         """Get the current status of the hardware."""
@@ -502,7 +505,7 @@ class FiltMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.set_mode(MODE_ACTIVE)
+        self.mode = MODE_ACTIVE
 
     def get_status(self):
         """Get the current status of the hardware."""
@@ -543,7 +546,7 @@ class FocMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.set_mode(MODE_ACTIVE)
+        self.mode = MODE_ACTIVE
 
     def get_status(self):
         """Get the current status of the hardware."""
@@ -584,7 +587,7 @@ class ExqMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.set_mode(MODE_ACTIVE)
+        self.mode = MODE_ACTIVE
 
     def get_status(self):
         """Get the current status of the hardware."""

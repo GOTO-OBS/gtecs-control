@@ -922,7 +922,7 @@ class Pilot(object):
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
-        self.hardware['dome'].set_mode('open')
+        self.hardware['dome'].mode = 'open'
         while self.dome_status != 'full_open':
             self.log.info('dome is {}'.format(self.dome_status))
             await asyncio.sleep(5)
@@ -933,7 +933,7 @@ class Pilot(object):
         self.log.warning('closing dome')
         execute_command('dome close')
         self.dome_is_open = False
-        self.hardware['dome'].set_mode(None)
+        self.hardware['dome'].mode = 'closed'
         self.dome_confirmed_closed = False
         self.close_command_time = time.time()
 
@@ -969,7 +969,7 @@ class Pilot(object):
         self.log.warning('unparking mount')
         execute_command('mnt unpark')
         self.mount_is_tracking = True
-        self.hardware['mnt'].set_mode('tracking')
+        self.hardware['mnt'].mode = 'tracking'
         # slew to above horizon, to stop errors
         await asyncio.sleep(5)
         execute_command('mnt slew_altaz 50 0')
@@ -986,7 +986,7 @@ class Pilot(object):
         else:
             execute_command('mnt park')
         self.mount_is_tracking = False
-        self.hardware['mnt'].set_mode('parked')
+        self.hardware['mnt'].mode = 'parked'
 
     async def prepare_for_images_async(self):
         """Prepare for taking images."""
