@@ -68,7 +68,7 @@ class BaseMonitor(ABC):
         self.info = None
         self.status = STATUS_UNKNOWN
 
-        self.errors = []
+        self.errors = set([])
         self.recovery_level = 0
         self.last_successful_check = 0.
         self.last_recovery_command = 0.
@@ -152,21 +152,21 @@ class BaseMonitor(ABC):
         # Functional checks
         # Note these overwrite self.errors not append, because they're critical
         if not self.dependencies_are_alive():
-            self.errors = [ERROR_DEPENDENCY]
+            self.errors = set([ERROR_DEPENDENCY])
             return len(self.errors), self.errors
 
         if not self.is_alive:
-            self.errors = [ERROR_PING]
+            self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
         info = self.get_info()
         if info is None:
-            self.errors = [ERROR_INFO]
+            self.errors = set([ERROR_INFO])
             return len(self.errors), self.errors
 
         status = self.get_status()
         if status is STATUS_UNKNOWN:
-            self.errors = [ERROR_UNKNOWN]
+            self.errors = set([ERROR_UNKNOWN])
             return len(self.errors), self.errors
 
         # Hardware checks
@@ -289,7 +289,7 @@ class DomeMonitor(BaseMonitor):
                 self._move_start_time = time.time()
             else:
                 if time.time() - self._move_start_time > 60:
-                    self.errors.append(ERROR_DOME_MOVETIMEOUT)
+                    self.errors.add(ERROR_DOME_MOVETIMEOUT)
         else:
             self._currently_moving = False
             self._move_start_time = 0
@@ -301,16 +301,17 @@ class DomeMonitor(BaseMonitor):
                 self._part_open_start_time = time.time()
             else:
                 if time.time() - self._part_open_start_time > 10:
-                    self.errors.append(ERROR_DOME_PARTOPENTIMEOUT)
+                    self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
         else:
             self._currently_part_open = False
             self._part_open_start_time = 0
 
         if self.mode == MODE_DOME_OPEN and self.status != STATUS_DOME_FULLOPEN:
-            self.errors.append(ERROR_DOME_NOTFULLOPEN)
+            self.errors.add(ERROR_DOME_NOTFULLOPEN)
 
-        if self.mode == MODE_DOME_CLOSED and self.status != MODE_DOME_CLOSED:
-            self.errors.append(ERROR_DOME_NOTCLOSED)
+        if self.mode == MODE_DOME_CLOSED and self.status not in [STATUS_DOME_CLOSED,
+                                                                 STATUS_DOME_LOCKDOWN]:
+            self.errors.add(ERROR_DOME_NOTCLOSED)
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
@@ -386,7 +387,7 @@ class MntMonitor(BaseMonitor):
                 self._move_start_time = time.time()
             else:
                 if time.time() - self._move_start_time > 120:
-                    self.errors.append(ERROR_MNT_MOVETIMEOUT)
+                    self.errors.add(ERROR_MNT_MOVETIMEOUT)
         else:
             self._currently_moving = False
             self._move_start_time = 0
@@ -397,14 +398,20 @@ class MntMonitor(BaseMonitor):
                 self._off_target_start_time = time.time()
             else:
                 if time.time() - self._off_target_start_time > 30:
-                    self.errors.append(ERROR_MNT_NOTONTARGET)
+                    self.errors.add(ERROR_MNT_NOTONTARGET)
+
+        if self.status == STATUS_MNT_BLINKY:
+            self.errors.add(ERROR_MNT_INBLINKY)
+
+        if self.mode == MODE_MNT_TRACKING and self.status == STATUS_MNT_STOPPED:
+            self.errors.add(ERROR_MNT_NOTONTARGET)
+
+        if self.mode == MODE_MNT_TRACKING and self.status == STATUS_MNT_PARKED:
+            self.errors.add(ERROR_MNT_NOTONTARGET)
 
         if (self.mode == MODE_MNT_PARKED and
                 self.status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
-            self.errors.append(ERROR_MNT_NOTPARKED)
-
-        if self.status == STATUS_MNT_BLINKY:
-            self.errors.append(ERROR_MNT_INBLINKY)
+            self.errors.add(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
@@ -457,7 +464,7 @@ class PowerMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         if self.status == STATUS_UNKNOWN:
-            self.errors.append(ERROR_UNKNOWN)
+            self.errors.add(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
@@ -499,7 +506,7 @@ class CamMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         if self.status == STATUS_UNKNOWN:
-            self.errors.append(ERROR_UNKNOWN)
+            self.errors.add(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
@@ -541,7 +548,7 @@ class FiltMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         if self.status == STATUS_UNKNOWN:
-            self.errors.append(ERROR_UNKNOWN)
+            self.errors.add(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
@@ -583,7 +590,7 @@ class FocMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         if self.status == STATUS_UNKNOWN:
-            self.errors.append(ERROR_UNKNOWN)
+            self.errors.add(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
@@ -625,7 +632,7 @@ class ExqMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         if self.status == STATUS_UNKNOWN:
-            self.errors.append(ERROR_UNKNOWN)
+            self.errors.add(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
