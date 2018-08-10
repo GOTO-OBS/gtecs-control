@@ -68,8 +68,9 @@ class BaseMonitor(ABC):
         self.status = STATUS_UNKNOWN
 
         self.errors = []
-        self.last_successful_check = 0.
         self.recovery_level = 0
+        self.last_successful_check = 0.
+        self.last_recovery_command = 0.
 
         self.get_status()
 
@@ -186,7 +187,7 @@ class BaseMonitor(ABC):
         return {}
 
     def recover(self):
-        """Run recovery commands.
+        """Run recovery commands for the current situation.
 
         Checks whether enough time has elapsed to progress to next stage of recovery.
         """
@@ -194,10 +195,22 @@ class BaseMonitor(ABC):
             # nothing to recover from!
             return
 
-        downtime = time.time() - self.last_successful_check
-
         # Get the recovery commands from the daemon's custom method.
         recovery_procedure = self._recovery_procedure()
+
+        if self.recovery_level == 0 and 'delay' in recovery_procedure:
+            # Sometimes you don't want to start recovery immediately, give it time to fix itself.
+            downtime = time.time() - self.last_successful_check
+            delay = recovery_procedure['delay']
+            if downtime < delay:
+                return
+
+        elif self.recovery_level != 0:
+            # Each command has a time to wait until progressing to the next level
+            waittime = time.time() - self.last_recovery_command
+            wait = recovery_procedure[self.recovery_level][1]
+            if waittime < wait:
+                return
 
         next_level = self.recovery_level + 1
         if next_level not in recovery_procedure:
@@ -211,18 +224,16 @@ class BaseMonitor(ABC):
             send_slack_msg(msg)
             return
 
-        delay = recovery_procedure[next_level][0]
-        commands = recovery_procedure[next_level][1:]
-        if downtime > delay:
-            for i, cmd in enumerate(commands):
-                msg = '{} attempting recovery '.format(self.__class__.__name__)
-                msg += 'level {:.0f}.{:.0f}: {}'.format(next_level, i, cmd)
-                if self.log:
-                    self.log.info(msg)
-                else:
-                    print(msg)
-                execute_command(cmd)
-            self.recovery_level += 1
+        command = recovery_procedure[next_level][0]
+        msg = '{} attempting recovery '.format(self.__class__.__name__)
+        msg += 'level {:.0f}: {}'.format(next_level, command)
+        if self.log:
+            self.log.info(msg)
+        else:
+            print(msg)
+        execute_command(command)
+        self.last_recovery_command = time.time()
+        self.recovery_level += 1
 
 
 class DomeMonitor(BaseMonitor):
@@ -303,12 +314,13 @@ class DomeMonitor(BaseMonitor):
 
         if self.mode == MODE_DOME_OPEN:
             # dome open commands may need repeating if cond change has not propogated
-            recovery_procedure[1] = [30., 'dome open']
-            recovery_procedure[2] = [120., 'dome close both 0.1']
-            recovery_procedure[3] = [120., 'dome open']
-            recovery_procedure[4] = [180., 'dome open']
-            recovery_procedure[5] = [240., 'dome close']
-            recovery_procedure[6] = [360., 'dome open']
+            recovery_procedure['delay'] = 30
+            recovery_procedure[1] = ['dome open', 90]
+            recovery_procedure[2] = ['dome close both 0.1', 0]
+            recovery_procedure[3] = ['dome open', 60]
+            recovery_procedure[4] = ['dome open', 60]
+            recovery_procedure[5] = ['dome close', 120]
+            recovery_procedure[6] = ['dome open', 120]
         elif self.mode == MODE_DOME_CLOSED:
             recovery_procedure = {}
 
@@ -395,22 +407,22 @@ class MntMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_MNT_TRACKING:
-            recovery_procedure = {}
-            recovery_procedure[1] = [60., 'mnt track']
-            recovery_procedure[2] = [120., 'mnt slew']
-            recovery_procedure[3] = [240., 'mnt track']
-            recovery_procedure[4] = [270., 'mnt unpark']
-            recovery_procedure[5] = [290., 'mnt track']
-            recovery_procedure[6] = [320., 'mnt slew']
-            recovery_procedure[7] = [320., 'mnt slew']
-            recovery_procedure[8] = [360., 'mnt track']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['mnt track', 60]
+            recovery_procedure[2] = ['mnt slew', 120]
+            recovery_procedure[3] = ['mnt track', 30]
+            recovery_procedure[4] = ['mnt unpark', 20]
+            recovery_procedure[5] = ['mnt track', 30]
+            recovery_procedure[6] = ['mnt slew', 0]
+            recovery_procedure[7] = ['mnt slew', 40]
+            recovery_procedure[8] = ['mnt track', 30]
         elif self.mode == MODE_MNT_PARKED:
-            recovery_procedure = {}
-            recovery_procedure[1] = [60., 'mnt stop']
-            recovery_procedure[2] = [120., 'mnt park']
-            recovery_procedure[3] = [180., 'mnt unpark']
-            recovery_procedure[4] = [240., 'mnt stop']
-            recovery_procedure[4] = [360., 'mnt park']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['mnt stop', 60]
+            recovery_procedure[2] = ['mnt park', 60]
+            recovery_procedure[3] = ['mnt unpark', 60]
+            recovery_procedure[4] = ['mnt stop', 120]
+            recovery_procedure[5] = ['mnt park', 120]
 
         return recovery_procedure
 
@@ -449,9 +461,10 @@ class PowerMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_ACTIVE:
-            recovery_procedure[1] = [60., 'power start']
-            recovery_procedure[2] = [120., 'power kill']
-            recovery_procedure[3] = [130., 'power start']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['power start', 60]
+            recovery_procedure[2] = ['power kill', 10]
+            recovery_procedure[3] = ['power start', 60]
 
         return recovery_procedure
 
@@ -490,9 +503,10 @@ class CamMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_ACTIVE:
-            recovery_procedure[1] = [60., 'cam start']
-            recovery_procedure[2] = [120., 'cam kill']
-            recovery_procedure[3] = [130., 'cam start']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['cam start', 60]
+            recovery_procedure[2] = ['cam kill', 10]
+            recovery_procedure[3] = ['cam start', 60]
 
         return recovery_procedure
 
@@ -531,9 +545,10 @@ class FiltMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_ACTIVE:
-            recovery_procedure[1] = [60., 'filt start']
-            recovery_procedure[2] = [120., 'filt kill']
-            recovery_procedure[3] = [130., 'filt start']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['filt start', 60]
+            recovery_procedure[2] = ['filt kill', 10]
+            recovery_procedure[3] = ['filt start', 60]
 
         return recovery_procedure
 
@@ -572,9 +587,10 @@ class FocMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_ACTIVE:
-            recovery_procedure[1] = [60., 'foc start']
-            recovery_procedure[2] = [120., 'foc kill']
-            recovery_procedure[3] = [130., 'foc start']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['foc start', 60]
+            recovery_procedure[2] = ['foc kill', 10]
+            recovery_procedure[3] = ['foc start', 60]
 
         return recovery_procedure
 
@@ -613,8 +629,9 @@ class ExqMonitor(BaseMonitor):
         recovery_procedure = {}
 
         if self.mode == MODE_ACTIVE:
-            recovery_procedure[1] = [60., 'exq start']
-            recovery_procedure[2] = [120., 'exq kill']
-            recovery_procedure[3] = [130., 'exq start']
+            recovery_procedure['delay'] = 60
+            recovery_procedure[1] = ['exq start', 60]
+            recovery_procedure[2] = ['exq kill', 10]
+            recovery_procedure[3] = ['exq start', 60]
 
         return recovery_procedure
