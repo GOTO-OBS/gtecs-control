@@ -7,6 +7,42 @@ from .daemons import daemon_info, daemon_is_alive, dependencies_are_alive
 from .misc import execute_command
 
 
+# Daemon statuses
+STATUS_UNKNOWN = 'unknown'
+STATUS_ACTIVE = 'active'
+STATUS_DOME_CLOSED = 'closed'
+STATUS_DOME_FULLOPEN = 'full_open'
+STATUS_DOME_PARTOPEN = 'part_open'
+STATUS_DOME_MOVING = 'moving'
+STATUS_MNT_TRACKING = 'tracking'
+STATUS_MNT_OFFTARGET = 'off_target'
+STATUS_MNT_MOVING = 'moving'
+STATUS_MNT_PARKED = 'parked'
+STATUS_MNT_STOPPED = 'stopped'
+STATUS_MNT_BLINKY = 'in_blinky'
+
+# Daemon modes
+MODE_ACTIVE = 'active'
+MODE_DOME_CLOSED = 'closed'
+MODE_DOME_OPEN = 'open'
+MODE_MNT_PARKED = 'parked'
+MODE_MNT_TRACKING = 'tracking'
+
+# Daemon errors
+ERROR_DEPENDENCY = 'Dependency ping failed'
+ERROR_PING = 'Ping failed'
+ERROR_INFO = 'Get info failed'
+ERROR_UNKNOWN = 'Hardware in unknown state'
+ERROR_DOME_MOVETIMEOUT = 'Moving taking too long'
+ERROR_DOME_PARTOPENTIMEOUT = 'Stuck partially open for too long'
+ERROR_DOME_NOTFULLOPEN = 'Dome not fully open'
+ERROR_DOME_NOTCLOSED = 'Dome not closed'
+ERROR_MNT_MOVETIMEOUT = 'Moving taking too long'
+ERROR_MNT_NOTONTARGET = 'Mount not on target'
+ERROR_MNT_NOTPARKED = 'Mount not parked'
+ERROR_MNT_INBLINKY = 'Mount in blinky mode'
+
+
 class BaseMonitor(ABC):
     """Generic monitor class, inherited by specific classes for each daemon.
 
@@ -28,7 +64,7 @@ class BaseMonitor(ABC):
         self.log = log
 
         self.info = None
-        self.status = 'unknown'
+        self.status = STATUS_UNKNOWN
 
         self.mode = None
         self.available_modes = []
@@ -74,8 +110,8 @@ class BaseMonitor(ABC):
 
         This abstract method must be implemented by all hardware to add hardware-specific checks.
         """
-        self.status = 'unknown'
-        return 'unknown'
+        self.status = STATUS_UNKNOWN
+        return STATUS_UNKNOWN
 
     def set_mode(self, mode):
         """Set the observing mode."""
@@ -109,21 +145,21 @@ class BaseMonitor(ABC):
         # Functional checks
         # Note these overwrite self.errors not append, because they're critical
         if not self.dependencies_are_alive():
-            self.errors = ['Dependency ping failed']
+            self.errors = [ERROR_DEPENDENCY]
             return len(self.errors), self.errors
 
         if not self.is_alive:
-            self.errors = ['Ping failed']
+            self.errors = [ERROR_PING]
             return len(self.errors), self.errors
 
         info = self.get_info()
         if info is None:
-            self.errors = ['Get info failed']
+            self.errors = [ERROR_INFO]
             return len(self.errors), self.errors
 
         status = self.get_status()
-        if status is 'unknown':
-            self.errors = ['Hardware in unknown state']
+        if status is STATUS_UNKNOWN:
+            self.errors = [ERROR_UNKNOWN]
             return len(self.errors), self.errors
 
         # Hardware checks
@@ -174,8 +210,8 @@ class DomeMonitor(BaseMonitor):
         super().__init__('dome', log)
 
         # Define modes and starting mode
-        self.available_modes = ['closed', 'open']
-        self.set_mode('closed')
+        self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
+        self.set_mode(MODE_DOME_CLOSED)
 
         # Dome attributes
         self._move_start_time = 0
@@ -187,63 +223,63 @@ class DomeMonitor(BaseMonitor):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         north = info['north']
         south = info['south']
 
         if north == 'closed' and south == 'closed':
-            status = 'closed'
+            status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
-            status = 'full_open'
+            status = STATUS_DOME_FULLOPEN
         elif north in ['opening', 'closing'] or south in ['opening', 'closing']:
-            status = 'moving'
+            status = STATUS_DOME_MOVING
         elif north in ['part_open', 'full_open'] or south in ['part_open', 'full_open']:
-            status = 'part_open'
+            status = STATUS_DOME_PARTOPEN
         else:
-            status = 'unknown'
+            status = STATUS_UNKNOWN
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'moving':
+        if self.status == STATUS_DOME_MOVING:
             # Allow some time to move before raising an error
             if not self._currently_moving:
                 self._currently_moving = True
                 self._move_start_time = time.time()
             else:
                 if time.time() - self._move_start_time > 60:
-                    self.errors.append('Moving taking too long')
+                    self.errors.append(ERROR_DOME_MOVETIMEOUT)
         else:
             self._currently_moving = False
             self._move_start_time = 0
 
-        if self.status == 'part_open':
+        if self.status == STATUS_DOME_PARTOPEN:
             # Allow some time to be partially open (sounding alarm between moving sides)
             if not self._currently_part_open:
                 self._currently_part_open = True
                 self._part_open_start_time = time.time()
             else:
                 if time.time() - self._part_open_start_time > 10:
-                    self.errors.append('Stuck partially open for too long')
+                    self.errors.append(ERROR_DOME_PARTOPENTIMEOUT)
         else:
             self._currently_part_open = False
             self._part_open_start_time = 0
 
-        if self.mode == 'open' and self.status not in ['full_open']:
-            self.errors.append('Dome not fully open')
+        if self.mode == MODE_DOME_OPEN and self.status != STATUS_DOME_FULLOPEN:
+            self.errors.append(ERROR_DOME_NOTFULLOPEN)
 
-        if self.mode == 'closed' and self.status not in ['closed']:
-            self.errors.append('Dome not closed')
+        if self.mode == MODE_DOME_CLOSED and self.status != MODE_DOME_CLOSED:
+            self.errors.append(ERROR_DOME_NOTCLOSED)
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'open':
+        if self.mode == MODE_DOME_OPEN:
             # dome open commands may need repeating if cond change has not propogated
             recovery_procedure[1] = [30., 'dome open']
             recovery_procedure[2] = [120., 'dome close both 0.1']
@@ -251,7 +287,7 @@ class DomeMonitor(BaseMonitor):
             recovery_procedure[4] = [180., 'dome open']
             recovery_procedure[5] = [240., 'dome close']
             recovery_procedure[6] = [360., 'dome open']
-        elif self.mode == 'closed':
+        elif self.mode == MODE_DOME_CLOSED:
             recovery_procedure = {}
 
         return recovery_procedure
@@ -264,8 +300,8 @@ class MntMonitor(BaseMonitor):
         super().__init__('mnt', log)
 
         # Define modes and starting mode
-        self.available_modes = ['parked', 'tracking']
-        self.set_mode('parked')
+        self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
+        self.set_mode(MODE_MNT_PARKED)
 
         # Mount attributes
         self._move_start_time = 0
@@ -277,65 +313,66 @@ class MntMonitor(BaseMonitor):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         mount = info['status']
         target_dist = info['target_dist']
 
         if mount == 'Tracking':
             if not target_dist:
-                status = 'tracking'
-            elif float(self.info['target_dist']) < 0.003:
-                status = 'tracking'
+                status = STATUS_MNT_TRACKING
+            elif float(target_dist) < 0.003:
+                status = STATUS_MNT_TRACKING
             else:
-                status = 'off_target'
+                status = STATUS_MNT_OFFTARGET
         elif mount in ['Slewing', 'Parking']:
-            status = 'moving'
+            status = STATUS_MNT_MOVING
         elif mount == 'Parked':
-            status = 'parked'
+            status = STATUS_MNT_PARKED
         elif mount == 'Stopped':
-            status = 'stopped'
+            status = STATUS_MNT_STOPPED
         elif mount == 'IN BLINKY MODE':
-            status = 'in_blinky'
+            status = STATUS_MNT_BLINKY
         else:
-            status = 'unknown'
+            status = STATUS_UNKNOWN
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'moving':
+        if self.status == STATUS_MNT_MOVING:
             if not self._currently_moving:
                 self._currently_moving = True
                 self._move_start_time = time.time()
             else:
                 if time.time() - self._move_start_time > 120:
-                    self.errors.append('Moving taking too long')
+                    self.errors.append(ERROR_MNT_MOVETIMEOUT)
         else:
             self._currently_moving = False
             self._move_start_time = 0
 
-        if self.status == 'off_target':
+        if self.status == STATUS_MNT_OFFTARGET:
             if not self._currently_off_target:
                 self._currently_off_target = True
                 self._off_target_start_time = time.time()
             else:
                 if time.time() - self._off_target_start_time > 30:
-                    self.errors.append('Not on target')
+                    self.errors.append(ERROR_MNT_NOTONTARGET)
 
-        if self.mode == 'parked' and self.status not in ['parked', 'moving']:
-            self.errors.append('Not parked')
+        if (self.mode == MODE_MNT_PARKED and
+                self.status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
+            self.errors.append(ERROR_MNT_NOTPARKED)
 
-        if self.status == 'in_blinky':
-            self.errors.append('In blinky mode')
+        if self.status == STATUS_MNT_BLINKY:
+            self.errors.append(ERROR_MNT_INBLINKY)
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'tracking':
+        if self.mode == MODE_MNT_TRACKING:
             recovery_procedure = {}
             recovery_procedure[1] = [60., 'mnt track']
             recovery_procedure[2] = [120., 'mnt slew']
@@ -345,7 +382,7 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[6] = [320., 'mnt slew']
             recovery_procedure[7] = [320., 'mnt slew']
             recovery_procedure[8] = [360., 'mnt track']
-        elif self.mode == 'parked':
+        elif self.mode == MODE_MNT_PARKED:
             recovery_procedure = {}
             recovery_procedure[1] = [60., 'mnt stop']
             recovery_procedure[2] = [120., 'mnt park']
@@ -363,33 +400,33 @@ class PowerMonitor(BaseMonitor):
         super().__init__('power', log)
 
         # Define modes and starting mode
-        self.available_modes = ['active']
-        self.set_mode('active')
+        self.available_modes = [MODE_ACTIVE]
+        self.set_mode(MODE_ACTIVE)
 
     def get_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         # no custom statuses
-        status = 'active'
+        status = STATUS_ACTIVE
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'unknown':
-            self.errors.append('Hardware in unknown state')
+        if self.status == STATUS_UNKNOWN:
+            self.errors.append(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'active':
+        if self.mode == MODE_ACTIVE:
             recovery_procedure[1] = [60., 'power start']
             recovery_procedure[2] = [120., 'power kill']
             recovery_procedure[3] = [130., 'power start']
@@ -404,33 +441,33 @@ class CamMonitor(BaseMonitor):
         super().__init__('cam', log)
 
         # Define modes and starting mode
-        self.available_modes = ['active']
-        self.set_mode('active')
+        self.available_modes = [MODE_ACTIVE]
+        self.set_mode(MODE_ACTIVE)
 
     def get_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         # no custom statuses
-        status = 'active'
+        status = STATUS_ACTIVE
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'unknown':
-            self.errors.append('Hardware in unknown state')
+        if self.status == STATUS_UNKNOWN:
+            self.errors.append(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'science':
+        if self.mode == MODE_ACTIVE:
             recovery_procedure[1] = [60., 'cam start']
             recovery_procedure[2] = [120., 'cam kill']
             recovery_procedure[3] = [130., 'cam start']
@@ -445,33 +482,33 @@ class FiltMonitor(BaseMonitor):
         super().__init__('filt', log)
 
         # Define modes and starting mode
-        self.available_modes = ['active']
-        self.set_mode('active')
+        self.available_modes = [MODE_ACTIVE]
+        self.set_mode(MODE_ACTIVE)
 
     def get_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         # no custom statuses
-        status = 'active'
+        status = STATUS_ACTIVE
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'unknown':
-            self.errors.append('Hardware in unknown state')
+        if self.status == STATUS_UNKNOWN:
+            self.errors.append(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'science':
+        if self.mode == MODE_ACTIVE:
             recovery_procedure[1] = [60., 'filt start']
             recovery_procedure[2] = [120., 'filt kill']
             recovery_procedure[3] = [130., 'filt start']
@@ -486,33 +523,33 @@ class FocMonitor(BaseMonitor):
         super().__init__('foc', log)
 
         # Define modes and starting mode
-        self.available_modes = ['active']
-        self.set_mode('active')
+        self.available_modes = [MODE_ACTIVE]
+        self.set_mode(MODE_ACTIVE)
 
     def get_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         # no custom statuses
-        status = 'active'
+        status = STATUS_ACTIVE
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'unknown':
-            self.errors.append('Hardware in unknown state')
+        if self.status == STATUS_UNKNOWN:
+            self.errors.append(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'science':
+        if self.mode == MODE_ACTIVE:
             recovery_procedure[1] = [60., 'foc start']
             recovery_procedure[2] = [120., 'foc kill']
             recovery_procedure[3] = [130., 'foc start']
@@ -527,33 +564,33 @@ class ExqMonitor(BaseMonitor):
         super().__init__('exq', log)
 
         # Define modes and starting mode
-        self.available_modes = ['active']
-        self.set_mode('active')
+        self.available_modes = [MODE_ACTIVE]
+        self.set_mode(MODE_ACTIVE)
 
     def get_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = 'unknown'
-            return 'unknown'
+            self.status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
 
         # no custom statuses
-        status = 'active'
+        status = STATUS_ACTIVE
 
         self.status = status
         return status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == 'unknown':
-            self.errors.append('Hardware in unknown state')
+        if self.status == STATUS_UNKNOWN:
+            self.errors.append(ERROR_UNKNOWN)
             return
 
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode."""
         recovery_procedure = {}
 
-        if self.mode == 'science':
+        if self.mode == MODE_ACTIVE:
             recovery_procedure[1] = [60., 'exq start']
             recovery_procedure[2] = [120., 'exq kill']
             recovery_procedure[3] = [130., 'exq start']
