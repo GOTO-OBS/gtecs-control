@@ -692,7 +692,7 @@ class CamMonitor(BaseMonitor):
             recovery_procedure[6] = ['fli kill', 10]
             recovery_procedure[7] = ['fli start', 30]
             # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, {}
+            return ERROR_DEPENDENCY, recovery_procedure
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -762,7 +762,7 @@ class FiltMonitor(BaseMonitor):
             recovery_procedure[6] = ['fli kill', 10]
             recovery_procedure[7] = ['fli start', 30]
             # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, {}
+            return ERROR_DEPENDENCY, recovery_procedure
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -832,7 +832,7 @@ class FocMonitor(BaseMonitor):
             recovery_procedure[6] = ['fli kill', 10]
             recovery_procedure[7] = ['fli start', 30]
             # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, {}
+            return ERROR_DEPENDENCY, recovery_procedure
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -915,7 +915,7 @@ class ExqMonitor(BaseMonitor):
             recovery_procedure[14] = ['fli kill', 10]
             recovery_procedure[15] = ['fli start', 30]
             # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, {}
+            return ERROR_DEPENDENCY, recovery_procedure
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
