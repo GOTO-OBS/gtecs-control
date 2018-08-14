@@ -289,24 +289,26 @@ class Pilot(object):
                 await self.startup()
         self.startup_complete = True
 
+        # now startup is complete we can start hardware checks
+        while not self.initial_hardware_check_complete:
+            self.log.info('waiting for the first successful hardware check')
+            await asyncio.sleep(30)
+
+        # make sure filters are homed and cams are cool, in case of restart
+        await self.prepare_for_images_async()
+
         # Daytime jobs: do these even in bad weather
         if not restart:
             await self.run_through_jobs(self.daytime_jobs, rising=False,
                                         ignore_conditions=True,
                                         ignore_late=late)
 
-        # make sure filters are homed and cams are cool, in case of restart
-        await self.prepare_for_images_async()
-
         # wait for the right sunalt to open dome
         await self.wait_for_sunalt(0, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hw fault
-        while self.paused or not self.initial_hardware_check_complete:
-            if self.paused:
-                self.log.info('opening suspended until pause is cleared')
-            if not self.initial_hardware_check_complete:
-                self.log.info('opening suspended until successful hardware check')
+        while self.paused:
+            self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
         # OK - open the dome and get ready to observe
