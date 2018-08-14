@@ -696,7 +696,7 @@ class CamMonitor(BaseMonitor):
             # The cam daemon depends on the FLI interfaces.
             # PROBLEM: The FLI interfaces aren't responding.
             recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Makre sure the interfaces are started.
+            # SOLUTION 1: Make sure the interfaces are started.
             recovery_procedure[1] = ['fli start', 30]
             # SOLUTION 2: Try restarting them.
             recovery_procedure[2] = ['fli restart', 30]
@@ -766,7 +766,7 @@ class FiltMonitor(BaseMonitor):
             # The filt daemon depends on the FLI interfaces.
             # PROBLEM: The FLI interfaces aren't responding.
             recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Makre sure the interfaces are started.
+            # SOLUTION 1: Make sure the interfaces are started.
             recovery_procedure[1] = ['fli start', 30]
             # SOLUTION 2: Try restarting them.
             recovery_procedure[2] = ['fli restart', 30]
@@ -836,7 +836,7 @@ class FocMonitor(BaseMonitor):
             # The foc daemon depends on the FLI interfaces.
             # PROBLEM: The FLI interfaces aren't responding.
             recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Makre sure the interfaces are started.
+            # SOLUTION 1: Make sure the interfaces are started.
             recovery_procedure[1] = ['fli start', 30]
             # SOLUTION 2: Try restarting them.
             recovery_procedure[2] = ['fli restart', 30]
@@ -911,25 +911,27 @@ class ExqMonitor(BaseMonitor):
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure the interfaces are started.
             recovery_procedure[1] = ['fli start', 30]
-            # SOLUTION 2: Make sure the daemons are started.
-            recovery_procedure[2] = ['cam start', 10]
-            recovery_procedure[3] = ['filt start', 10]
-            # SOLUTION 2: Try restarting the interfaces.
-            recovery_procedure[4] = ['fli restart', 30]
-            # SOLUTION 2: Try restarting the daemons.
-            recovery_procedure[5] = ['cam restart', 30]
-            recovery_procedure[6] = ['filt restart', 30]
+            # SOLUTION 2: Try restarting them.
+            recovery_procedure[2] = ['fli restart', 30]
             # SOLUTION 3: Kill them, then start them again.
-            recovery_procedure[7] = ['fli kill', 10]
-            recovery_procedure[8] = ['fli start', 30]
-            recovery_procedure[9] = ['cam kill', 10]
-            recovery_procedure[10] = ['cam start', 30]
-            recovery_procedure[11] = ['filt kill', 10]
-            recovery_procedure[12] = ['filt start', 30]
+            recovery_procedure[3] = ['fli kill', 10]
+            recovery_procedure[4] = ['fli start', 30]
             # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-            recovery_procedure[13] = ['power start cams,focs,filts', 30]
-            recovery_procedure[14] = ['fli kill', 10]
-            recovery_procedure[15] = ['fli start', 30]
+            recovery_procedure[5] = ['power start cams,focs,filts', 30]
+            recovery_procedure[6] = ['fli kill', 10]
+            recovery_procedure[7] = ['fli start', 30]
+            # OK, maybe it's not the interfaces but the other daemons that aren't working.
+            # SOLUTION 5: Make sure the daemons are started.
+            recovery_procedure[8] = ['cam start', 10]
+            recovery_procedure[9] = ['filt start', 10]
+            # SOLUTION 6: Try restarting the daemons.
+            recovery_procedure[10] = ['cam restart', 30]
+            recovery_procedure[11] = ['filt restart', 30]
+            # SOLUTION 7: Kill them, then start them again.
+            recovery_procedure[12] = ['cam kill', 10]
+            recovery_procedure[13] = ['cam start', 30]
+            recovery_procedure[14] = ['filt kill', 10]
+            recovery_procedure[15] = ['filt start', 30]
             # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
             return ERROR_DEPENDENCY, recovery_procedure
 
