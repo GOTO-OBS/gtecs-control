@@ -168,7 +168,7 @@ class BaseMonitor(ABC):
             self.errors = set([ERROR_DEPENDENCY])
             return len(self.errors), self.errors
 
-        if not self.is_alive:
+        if not self.is_alive():
             self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
