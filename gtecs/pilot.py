@@ -293,7 +293,7 @@ class Pilot(object):
         # Daytime jobs: do these even in bad weather
         if not restart:
             await self.run_through_jobs(self.daytime_jobs, rising=False,
-                                        ignore_conditions=False,
+                                        ignore_conditions=True,
                                         ignore_late=late)
 
         # make sure filters are homed and cams are cool, in case of restart
