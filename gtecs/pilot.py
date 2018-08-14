@@ -171,17 +171,19 @@ class Pilot(object):
             error_count = 0
             self.log.debug('running hardware checks')
             log_str = 'hardware check results: '
-            for device in self.hardware:
-                num_errs, err_list = self.hardware[device].check()
-                if num_errs > 0:
-                    log_str += ' {},{:.0f},{!r}'.format(str(device), num_errs, err_list)
+            for monitor in self.hardware.values():
+                num_errs, errors = monitor.check()
                 error_count += num_errs
                 if num_errs > 0:
-                    self.hardware[device].recover()  # Will log recovery commands
+                    msg = '{} reports {} error{}: '.format(monitor.__class__.__name__,
+                                                           num_errs,
+                                                           's' if num_errs > 1 else '')
+                    msg += ', '.join(errors)
+                    self.log.warning(log_str + msg)
+                    monitor.recover()  # Will log recovery commands
 
             if error_count > 0:
                 sleep_time = 10  # check more frequently till fixed
-                self.log.warning(log_str)
                 await self.handle_pause('hw', True)
             else:
                 sleep_time = 60
@@ -287,6 +289,7 @@ class Pilot(object):
         if not restart:
             if not self.startup_complete:
                 await self.startup()
+        self.log.info('startup complete')
         self.startup_complete = True
 
         # now startup is complete we can start hardware checks
