@@ -479,7 +479,7 @@ class Pilot(object):
                 # need to check if we're paused
                 # if ignore_conditions (daytime jobs) we can start even if
                 # paused for conditions, but not for other reasons
-                self.log.warning('currently paused, will not start {}'.format('name'))
+                self.log.warning('currently paused, will not start {}'.format(name))
                 await asyncio.sleep(15)
                 continue
 
