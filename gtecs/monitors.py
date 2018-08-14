@@ -921,12 +921,12 @@ class ExqMonitor(BaseMonitor):
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
-            recovery_procedure[1] = ['cam start', 30]
+            recovery_procedure[1] = ['exq start', 30]
             # SOLUTION 2: Try restarting it.
-            recovery_procedure[2] = ['cam restart', 30]
+            recovery_procedure[2] = ['exq restart', 30]
             # SOLUTION 3: Kill it, then start it again.
-            recovery_procedure[3] = ['cam kill', 10]
-            recovery_procedure[4] = ['cam start', 30]
+            recovery_procedure[3] = ['exq kill', 10]
+            recovery_procedure[4] = ['exq start', 30]
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
