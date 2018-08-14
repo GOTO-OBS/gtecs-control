@@ -3,7 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 
-from .daemons import daemon_info, daemon_is_alive, dependencies_are_alive
+from .daemons import daemon_function, daemon_info, daemon_is_alive, dependencies_are_alive
 from .misc import execute_command
 from .slack import send_slack_msg
 
@@ -94,6 +94,18 @@ class BaseMonitor(ABC):
         except Exception:
             return False
 
+    def is_not_in_error_state(self):
+        """Check a daemon isn't in an error state.
+
+        At the moment the only error state is when the dependencies aren't running.
+        """
+        if self.daemon_id is None:
+            return True
+        try:
+            return not daemon_function(self.daemon_id, 'check_dependency_error')
+        except Exception:
+            return False
+
     def get_info(self):
         """Get the daemon info dict."""
         if self.daemon_id is None:
@@ -158,6 +170,10 @@ class BaseMonitor(ABC):
 
         if not self.is_alive:
             self.errors = set([ERROR_PING])
+            return len(self.errors), self.errors
+
+        if not self.is_not_in_error_state():
+            self.errors = set([ERROR_DEPENDENCY])
             return len(self.errors), self.errors
 
         info = self.get_info()

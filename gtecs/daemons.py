@@ -105,6 +105,10 @@ class HardwareDaemon(BaseDaemon):
         """Check if the daemon's dependencies are alive (if any)."""
         return dependencies_are_alive(self.daemon_id)
 
+    def check_dependency_error(self):
+        """Check if the daemon is currently in an error state."""
+        return self.dependency_error
+
 
 class InterfaceDaemon(BaseDaemon):
     """Generic interface daemon class.
@@ -121,6 +125,10 @@ class InterfaceDaemon(BaseDaemon):
     def ping(self):
         """Ping the daemon."""
         return 'ping'
+
+    def check_dependency_error(self):
+        """Check if the daemon is currently in an error state."""
+        return False
 
 
 def daemon_is_running(daemon_id):
