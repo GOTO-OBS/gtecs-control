@@ -721,8 +721,7 @@ class Pilot(object):
             self.whypause[reason] = True
 
             if reason == 'cond':
-                reasons = ', '.join(self.conditions.bad_flags)
-                msg = 'Pausing operations due to bad conditions ({})'.format(reasons)
+                msg = 'Pausing due to bad conditions ({})'.format(self.conditions.bad_flags)
                 self.log.warning(msg)
 
                 if self.ready_to_observe:
