@@ -177,8 +177,7 @@ class Pilot(object):
                     log_str += ' {},{:.0f},{!r}'.format(str(device), num_errs, err_list)
                 error_count += num_errs
                 if num_errs > 0:
-                    self.log.warning('attempting recovery: {}'.format(device))
-                    self.hardware[device].recover()
+                    self.hardware[device].recover()  # Will log recovery commands
 
             if error_count > 0:
                 sleep_time = 10  # check more frequently till fixed

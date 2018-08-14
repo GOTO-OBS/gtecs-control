@@ -225,7 +225,7 @@ class BaseMonitor(ABC):
             msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
             msg += '(mode={}, status={})'.format(self.mode, self.status)
             if self.log:
-                self.log.info(msg)
+                self.log.error(msg)
             else:
                 print(msg)
             send_slack_msg(msg)
@@ -235,7 +235,7 @@ class BaseMonitor(ABC):
         msg = '{} attempting recovery '.format(self.__class__.__name__)
         msg += 'level {:.0f}: {}'.format(next_level, command)
         if self.log:
-            self.log.info(msg)
+            self.log.warning(msg)
         else:
             print(msg)
         try:
