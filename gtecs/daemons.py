@@ -24,6 +24,8 @@ class BaseDaemon(object):
 
         self.info = None
 
+        self.dependency_error = False
+
         # set up logfile
         self.log = logger.get_logger(self.daemon_id,
                                      log_to_file=params.FILE_LOGGING,
@@ -42,6 +44,15 @@ class BaseDaemon(object):
     def status_function(self):
         """Check if the daemon is running or not."""
         return self.running
+
+    def check_status(self):
+        """Check if the daemon is currently in an error state."""
+        if not self.running:
+            return 'not_running'
+        elif self.dependency_error:
+            return 'dependency_error'
+        else:
+            return 'running'
 
     def shutdown(self):
         """Shutdown the daemon."""
@@ -85,7 +96,6 @@ class HardwareDaemon(BaseDaemon):
         # initiate daemon
         BaseDaemon.__init__(self, daemon_id)
 
-        self.dependency_error = 0
         self.dependency_check_time = 0
 
         self.time_check = time.time()
@@ -104,10 +114,6 @@ class HardwareDaemon(BaseDaemon):
     def dependencies_are_alive(self):
         """Check if the daemon's dependencies are alive (if any)."""
         return dependencies_are_alive(self.daemon_id)
-
-    def check_dependency_error(self):
-        """Check if the daemon is currently in an error state."""
-        return self.dependency_error
 
 
 class InterfaceDaemon(BaseDaemon):
@@ -286,11 +292,6 @@ def daemon_proxy(daemon_id, timeout=params.PYRO_TIMEOUT):
     return proxy
 
 
-def daemon_info(daemon_id):
-    """Get a daemon's info dict."""
-    return daemon_function(daemon_id, 'get_info')
-
-
 def daemon_function(daemon_id, function_name, args=None, timeout=0.):
     """Run a given function on a daemon, after checking it's running."""
     if not daemon_is_running(daemon_id):
@@ -308,3 +309,13 @@ def daemon_function(daemon_id, function_name, args=None, timeout=0.):
         if args is None:
             args = []
         return function(*args)
+
+
+def daemon_status(daemon_id):
+    """Get a daemon's status."""
+    return daemon_function(daemon_id, 'check_status')
+
+
+def daemon_info(daemon_id):
+    """Get a daemon's info dict."""
+    return daemon_function(daemon_id, 'get_info')

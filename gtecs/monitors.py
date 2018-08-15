@@ -3,7 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 
-from .daemons import daemon_function, daemon_info, daemon_is_alive, dependencies_are_alive
+from .daemons import daemon_info, daemon_is_alive, daemon_status, dependencies_are_alive
 from .misc import execute_command
 from .slack import send_slack_msg
 
@@ -50,7 +50,7 @@ class BaseMonitor(ABC):
 
     This is an abstract class and must be subtyped.
     Needed methods to implement:
-        - get_status()
+        - check_hardware_status()
         - _check_hardware()
         - _recovery_procedure()
 
@@ -66,7 +66,7 @@ class BaseMonitor(ABC):
         self.log = log
 
         self.info = None
-        self.status = STATUS_UNKNOWN
+        self.hardware_status = STATUS_UNKNOWN
 
         self.errors = set([])
         self.active_error = None
@@ -74,7 +74,7 @@ class BaseMonitor(ABC):
         self.last_successful_check = 0.
         self.last_recovery_command = 0.
 
-        self.get_status()
+        self.check_hardware_status()
 
     def is_alive(self):
         """Ping the daemon and return True if it is running and responding."""
@@ -94,17 +94,20 @@ class BaseMonitor(ABC):
         except Exception:
             return False
 
-    def is_not_in_error_state(self):
-        """Check a daemon isn't in an error state.
+    def status(self):
+        """Get a daemon's status.
 
         At the moment the only error state is when the dependencies aren't running.
+
+        Note: Not to be confused with the hardware status.
+
         """
         if self.daemon_id is None:
             return True
         try:
-            return not daemon_function(self.daemon_id, 'check_dependency_error')
+            return daemon_status(self.daemon_id)
         except Exception:
-            return False
+            return None
 
     def get_info(self):
         """Get the daemon info dict."""
@@ -120,12 +123,12 @@ class BaseMonitor(ABC):
         return info
 
     @abstractmethod
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware.
 
         This abstract method must be implemented by all hardware to add hardware-specific checks.
         """
-        self.status = STATUS_UNKNOWN
+        self.hardware_status = STATUS_UNKNOWN
         return STATUS_UNKNOWN
 
     @property
@@ -172,8 +175,12 @@ class BaseMonitor(ABC):
             self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
-        if not self.is_not_in_error_state():
+        daemon_status = self.status()
+        if daemon_status == 'dependency_error':
             self.errors = set([ERROR_DEPENDENCY])
+            return len(self.errors), self.errors
+        elif daemon_status != 'running':
+            self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
         info = self.get_info()
@@ -181,8 +188,8 @@ class BaseMonitor(ABC):
             self.errors = set([ERROR_INFO])
             return len(self.errors), self.errors
 
-        status = self.get_status()
-        if status is STATUS_UNKNOWN:
+        hardware_status = self.check_hardware_status()
+        if hardware_status is STATUS_UNKNOWN:
             self.errors = set([ERROR_UNKNOWN])
             return len(self.errors), self.errors
 
@@ -239,7 +246,7 @@ class BaseMonitor(ABC):
         if next_level not in recovery_procedure:
             msg = '{} has run out of recovery steps '.format(self.__class__.__name__)
             msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
-            msg += '(mode={}, status={})'.format(self.mode, self.status)
+            msg += '(mode={}, status={})'.format(self.mode, self.hardware_status)
             if self.log:
                 self.log.error(msg)
             else:
@@ -283,11 +290,11 @@ class DomeMonitor(BaseMonitor):
         self._part_open_start_time = 0
         self._currently_part_open = False
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         north = info['north']
@@ -295,24 +302,24 @@ class DomeMonitor(BaseMonitor):
         lockdown = info['lockdown']
 
         if lockdown:
-            status = STATUS_DOME_LOCKDOWN
+            hardware_status = STATUS_DOME_LOCKDOWN
         if north == 'closed' and south == 'closed':
-            status = STATUS_DOME_CLOSED
+            hardware_status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
-            status = STATUS_DOME_FULLOPEN
+            hardware_status = STATUS_DOME_FULLOPEN
         elif north in ['opening', 'closing'] or south in ['opening', 'closing']:
-            status = STATUS_DOME_MOVING
+            hardware_status = STATUS_DOME_MOVING
         elif north in ['part_open', 'full_open'] or south in ['part_open', 'full_open']:
-            status = STATUS_DOME_PARTOPEN
+            hardware_status = STATUS_DOME_PARTOPEN
         else:
-            status = STATUS_UNKNOWN
+            hardware_status = STATUS_UNKNOWN
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == STATUS_DOME_MOVING:
+        if self.hardware_status == STATUS_DOME_MOVING:
             # Allow some time to move before raising an error
             if not self._currently_moving:
                 self._currently_moving = True
@@ -324,7 +331,7 @@ class DomeMonitor(BaseMonitor):
             self._currently_moving = False
             self._move_start_time = 0
 
-        if self.status == STATUS_DOME_PARTOPEN:
+        if self.hardware_status == STATUS_DOME_PARTOPEN:
             # Allow some time to be partially open (sounding alarm between moving sides)
             if not self._currently_part_open:
                 self._currently_part_open = True
@@ -336,11 +343,11 @@ class DomeMonitor(BaseMonitor):
             self._currently_part_open = False
             self._part_open_start_time = 0
 
-        if self.mode == MODE_DOME_OPEN and self.status != STATUS_DOME_FULLOPEN:
+        if self.mode == MODE_DOME_OPEN and self.hardware_status != STATUS_DOME_FULLOPEN:
             self.errors.add(ERROR_DOME_NOTFULLOPEN)
 
-        if self.mode == MODE_DOME_CLOSED and self.status not in [STATUS_DOME_CLOSED,
-                                                                 STATUS_DOME_LOCKDOWN]:
+        if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                          STATUS_DOME_LOCKDOWN]:
             self.errors.add(ERROR_DOME_NOTCLOSED)
 
     def _recovery_procedure(self):
@@ -448,11 +455,11 @@ class MntMonitor(BaseMonitor):
         self._off_target_start_time = 0
         self._currently_off_target = False
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         mount = info['status']
@@ -460,28 +467,28 @@ class MntMonitor(BaseMonitor):
 
         if mount == 'Tracking':
             if not target_dist:
-                status = STATUS_MNT_TRACKING
+                hardware_status = STATUS_MNT_TRACKING
             elif float(target_dist) < 0.003:
-                status = STATUS_MNT_TRACKING
+                hardware_status = STATUS_MNT_TRACKING
             else:
-                status = STATUS_MNT_OFFTARGET
+                hardware_status = STATUS_MNT_OFFTARGET
         elif mount in ['Slewing', 'Parking']:
-            status = STATUS_MNT_MOVING
+            hardware_status = STATUS_MNT_MOVING
         elif mount == 'Parked':
-            status = STATUS_MNT_PARKED
+            hardware_status = STATUS_MNT_PARKED
         elif mount == 'Stopped':
-            status = STATUS_MNT_STOPPED
+            hardware_status = STATUS_MNT_STOPPED
         elif mount == 'IN BLINKY MODE':
-            status = STATUS_MNT_BLINKY
+            hardware_status = STATUS_MNT_BLINKY
         else:
-            status = STATUS_UNKNOWN
+            hardware_status = STATUS_UNKNOWN
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.status == STATUS_MNT_MOVING:
+        if self.hardware_status == STATUS_MNT_MOVING:
             if not self._currently_moving:
                 self._currently_moving = True
                 self._move_start_time = time.time()
@@ -492,7 +499,7 @@ class MntMonitor(BaseMonitor):
             self._currently_moving = False
             self._move_start_time = 0
 
-        if self.status == STATUS_MNT_OFFTARGET:
+        if self.hardware_status == STATUS_MNT_OFFTARGET:
             if not self._currently_off_target:
                 self._currently_off_target = True
                 self._off_target_start_time = time.time()
@@ -500,17 +507,17 @@ class MntMonitor(BaseMonitor):
                 if time.time() - self._off_target_start_time > 30:
                     self.errors.add(ERROR_MNT_NOTONTARGET)
 
-        if self.status == STATUS_MNT_BLINKY:
+        if self.hardware_status == STATUS_MNT_BLINKY:
             self.errors.add(ERROR_MNT_INBLINKY)
 
-        if self.mode == MODE_MNT_TRACKING and self.status == STATUS_MNT_STOPPED:
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
             self.errors.add(ERROR_MNT_NOTONTARGET)
 
-        if self.mode == MODE_MNT_TRACKING and self.status == STATUS_MNT_PARKED:
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
             self.errors.add(ERROR_MNT_NOTONTARGET)
 
         if (self.mode == MODE_MNT_PARKED and
-                self.status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
+                self.hardware_status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
             self.errors.add(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
@@ -612,18 +619,18 @@ class PowerMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         # no custom statuses
-        status = STATUS_ACTIVE
+        hardware_status = STATUS_ACTIVE
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
@@ -668,18 +675,18 @@ class CamMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         # no custom statuses
-        status = STATUS_ACTIVE
+        hardware_status = STATUS_ACTIVE
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
@@ -738,18 +745,18 @@ class FiltMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         # no custom statuses
-        status = STATUS_ACTIVE
+        hardware_status = STATUS_ACTIVE
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
@@ -808,18 +815,18 @@ class FocMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         # no custom statuses
-        status = STATUS_ACTIVE
+        hardware_status = STATUS_ACTIVE
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
@@ -878,18 +885,18 @@ class ExqMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def get_status(self):
+    def check_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
-            self.status = STATUS_UNKNOWN
+            self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
         # no custom statuses
-        status = STATUS_ACTIVE
+        hardware_status = STATUS_ACTIVE
 
-        self.status = status
-        return status
+        self.hardware_status = hardware_status
+        return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""

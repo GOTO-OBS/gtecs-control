@@ -42,13 +42,13 @@ class ExqDaemon(HardwareDaemon):
                 if not self.dependencies_are_alive:
                     if not self.dependency_error:
                         self.log.error('Dependencies are not responding')
-                        self.dependency_error = 1
+                        self.dependency_error = True
                         # pause the queue
                         self.paused = 1
                 else:
                     if self.dependency_error:
                         self.log.info('Dependencies responding again')
-                        self.dependency_error = 0
+                        self.dependency_error = False
                         # unpause the queue
                         self.paused = 0
                 self.dependency_check_time = time.time()
