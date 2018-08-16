@@ -41,8 +41,11 @@ class SiTech(object):
         self._update_status()
 
     def __del__(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.socket.close()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+            self.socket.close()
+        except OSError:
+            pass
 
     def _tcp_command(self, command_str):
         """Send a command string to the device, then fetch the reply and return it as a string."""
