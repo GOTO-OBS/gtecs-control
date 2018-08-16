@@ -46,7 +46,7 @@ class HardwareDaemon(object):
         self.log.info('Daemon created')
 
     # Base daemon functions
-    def _running_check(self):
+    def _running_function(self):
         """Check if the daemon is running or not.
 
         Used for the Pyro loop condition, it needs a function so you can't just
@@ -74,7 +74,7 @@ class HardwareDaemon(object):
 
             # Start request loop
             self.log.info('Daemon registered at {}'.format(uri))
-            pyro_daemon.requestLoop(loopCondition=self._running_check)
+            pyro_daemon.requestLoop(loopCondition=self._running_function)
 
         # Loop has closed
         self.log.info('Daemon successfully shut down')
