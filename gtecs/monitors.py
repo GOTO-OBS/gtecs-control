@@ -31,6 +31,7 @@ MODE_MNT_PARKED = 'parked'
 MODE_MNT_TRACKING = 'tracking'
 
 # Daemon errors
+ERROR_HARDWARE = 'Hardware connection failed'
 ERROR_DEPENDENCY = 'Dependency ping failed'
 ERROR_PING = 'Ping failed'
 ERROR_INFO = 'Get info failed'
@@ -69,6 +70,9 @@ class BaseMonitor(ABC):
         self.hardware_status = STATUS_UNKNOWN
 
         self.errors = set([])
+        self.bad_dependencies = []
+        self.bad_hardware = []
+
         self.active_error = None
         self.recovery_level = 0
         self.last_successful_check = 0.
@@ -176,7 +180,12 @@ class BaseMonitor(ABC):
             return len(self.errors), self.errors
 
         daemon_status = self.status()
-        if daemon_status == 'dependency_error':
+        if daemon_status.split(':')[0] == 'dependency_error':
+            self.bad_dependencies = daemon_status.split(':')[1].split(',')
+            self.errors = set([ERROR_DEPENDENCY])
+            return len(self.errors), self.errors
+        if daemon_status.split(':')[0] == 'hardware_error':
+            self.bad_hardware = daemon_status.split(':')[1].split(',')
             self.errors = set([ERROR_DEPENDENCY])
             return len(self.errors), self.errors
         elif daemon_status != 'running':
@@ -353,8 +362,13 @@ class DomeMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # We've lost connection to the dome.
+            # TODO: add recovery steps...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
@@ -523,8 +537,13 @@ class MntMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # We've lost connection to the mount.
+            # TODO: add recovery steps...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
@@ -640,8 +659,13 @@ class PowerMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # We've lost connection to a power unit.
+            # TODO: add recovery steps...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The power daemon doesn't have dependencies, so this really shouldn't happen...
@@ -696,8 +720,12 @@ class CamMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The cam daemon doesn't directly talk to hardware, so this really shouldn't happen...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the FLI interfaces.
@@ -766,8 +794,12 @@ class FiltMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The filt daemon doesn't directly talk to hardware, so this really shouldn't happen...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the FLI interfaces.
@@ -836,8 +868,12 @@ class FocMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The foc daemon doesn't directly talk to hardware, so this really shouldn't happen...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the FLI interfaces.
@@ -906,8 +942,12 @@ class ExqMonitor(BaseMonitor):
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
         if not self.errors:
-            # Everything's fine, nothing to do!
+            # Everything's fine, thank you. How are you?
             return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The exq daemon doesn't directly talk to hardware, so this really shouldn't happen...
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The exq daemon depends on the FLI interfaces, cam and filt daemons.
