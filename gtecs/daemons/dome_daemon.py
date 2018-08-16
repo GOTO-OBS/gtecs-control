@@ -20,7 +20,7 @@ class DomeDaemon(HardwareDaemon):
     """Dome hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='dome')
+        super().__init__('dome')
 
         # command flags
         self.get_info_flag = 0

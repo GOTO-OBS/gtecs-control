@@ -20,7 +20,7 @@ class ConditionsDaemon(HardwareDaemon):
     """Conditions monitor daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='conditions')
+        super().__init__('conditions')
 
         # command flags
         self.get_info_flag = 0

@@ -4,15 +4,15 @@
 import datetime
 
 from gtecs import misc
-from gtecs.daemons import InterfaceDaemon
+from gtecs.daemons import HardwareDaemon
 from gtecs.scheduler import check_queue
 
 
-class SchedulerDaemon(InterfaceDaemon):
+class SchedulerDaemon(HardwareDaemon):
     """Scheduler interface daemon class."""
 
     def __init__(self):
-        InterfaceDaemon.__init__(self, daemon_id='scheduler')
+        super().__init__('scheduler')
 
     def check_queue(self, *args):
         """Check the current queue for the best pointing to do."""

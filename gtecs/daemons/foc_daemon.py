@@ -15,7 +15,7 @@ class FocDaemon(HardwareDaemon):
     """Focuser hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='foc')
+        super().__init__('foc')
 
         # command flags
         self.get_info_flag = 1
@@ -58,14 +58,16 @@ class FocDaemon(HardwareDaemon):
 
             # check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not self.dependencies_are_alive:
-                    if not self.dependency_error:
-                        self.log.error('Dependencies are not responding')
-                        self.dependency_error = True
-                else:
-                    if self.dependency_error:
-                        self.log.info('Dependencies responding again')
-                        self.dependency_error = False
+                # Check the dependencies, will populate self.bad_dependencies
+                self.check_dependencies()
+
+                # React to self.bad_dependencies
+                if len(self.bad_dependencies) > 0 and not self.dependency_error:
+                    self.log.error('Dependencies {} not responding'.format(self.bad_dependencies))
+                    self.dependency_error = True
+                elif len(self.bad_dependencies) == 0 and self.dependency_error:
+                    self.log.info('All dependencies responding again')
+                    self.dependency_error = False
                 self.dependency_check_time = time.time()
 
             if self.dependency_error:
@@ -181,7 +183,7 @@ class FocDaemon(HardwareDaemon):
         """Return focuser status info."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Set flag
         self.get_info_flag = 1
@@ -202,7 +204,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to given position."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
@@ -240,7 +242,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser by given number of steps."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if (int(move_steps) - move_steps) != 0:
@@ -280,7 +282,7 @@ class FocDaemon(HardwareDaemon):
         """Move focuser to the home position."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:

@@ -15,7 +15,7 @@ class PowerDaemon(HardwareDaemon):
     """Power hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='power')
+        super().__init__('power')
 
         # command flags
         self.get_info_flag = 1

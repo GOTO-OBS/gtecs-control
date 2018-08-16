@@ -21,7 +21,7 @@ class MntDaemon(HardwareDaemon):
     """Mount hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='mnt')
+        super().__init__('mnt')
 
         # command flags
         self.get_info_flag = 1

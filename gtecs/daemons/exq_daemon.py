@@ -16,7 +16,7 @@ class ExqDaemon(HardwareDaemon):
     """Exposure queue hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='exq')
+        super().__init__('exq')
 
         # exposure queue variables
         self.exp_queue = ExposureQueue()
@@ -39,18 +39,16 @@ class ExqDaemon(HardwareDaemon):
 
             # check dependencies
             if (self.time_check - self.dependency_check_time) > 2:
-                if not self.dependencies_are_alive:
-                    if not self.dependency_error:
-                        self.log.error('Dependencies are not responding')
-                        self.dependency_error = True
-                        # pause the queue
-                        self.paused = 1
-                else:
-                    if self.dependency_error:
-                        self.log.info('Dependencies responding again')
-                        self.dependency_error = False
-                        # unpause the queue
-                        self.paused = 0
+                # Check the dependencies, will populate self.bad_dependencies
+                self.check_dependencies()
+
+                # React to self.bad_dependencies
+                if len(self.bad_dependencies) > 0 and not self.dependency_error:
+                    self.log.error('Dependencies {} not responding'.format(self.bad_dependencies))
+                    self.dependency_error = True
+                elif len(self.bad_dependencies) == 0 and self.dependency_error:
+                    self.log.info('All dependencies responding again')
+                    self.dependency_error = False
                 self.dependency_check_time = time.time()
 
             if self.dependency_error:
@@ -103,7 +101,7 @@ class ExqDaemon(HardwareDaemon):
         """Return exposure queue status info."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # exq info is outside the loop
         info = {}
@@ -145,7 +143,7 @@ class ExqDaemon(HardwareDaemon):
         """Add an exposure to the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -192,7 +190,7 @@ class ExqDaemon(HardwareDaemon):
         """Add multiple exposures to the queue as a set."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -233,7 +231,7 @@ class ExqDaemon(HardwareDaemon):
         """Empty the exposure queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         num_in_queue = len(self.exp_queue)
@@ -246,7 +244,7 @@ class ExqDaemon(HardwareDaemon):
         """Return info on exposures in the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         queue_info = self.exp_queue.get()
@@ -257,7 +255,7 @@ class ExqDaemon(HardwareDaemon):
         """Return simple info on exposures in the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         queue_info_simple = self.exp_queue.get_simple()
@@ -268,7 +266,7 @@ class ExqDaemon(HardwareDaemon):
         """Pause the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if self.paused:
@@ -284,7 +282,7 @@ class ExqDaemon(HardwareDaemon):
         """Unpause the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if not self.paused:

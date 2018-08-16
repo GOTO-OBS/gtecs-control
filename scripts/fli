@@ -53,10 +53,10 @@ def query(command, args, daemon_ids):
                 reply = daemons.kill_daemon(daemon_id)
                 print(reply)
 
-    elif command == 'ping':
+    elif command in ['check', 'ping']:
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.ping_daemon(daemon_id)
+                reply = daemons.check_daemon(daemon_id)
                 print(reply)
 
     elif command in ['log', 'tail']:
@@ -88,7 +88,7 @@ def print_instructions():
           '  shutdown                       shutdown the interfaces',
           '  restart                        restart the interfaces',
           '  kill                           kill the interfaces',
-          '  ping                           ping the interfaces',
+          '  check/ping                     check the interfaces for errors',
           'Fli commands:'
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

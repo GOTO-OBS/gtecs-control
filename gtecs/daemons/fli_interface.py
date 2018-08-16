@@ -8,14 +8,14 @@ from fliapi import USBCamera, USBFilterWheel, USBFocuser
 
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import InterfaceDaemon, daemon_is_running
+from gtecs.daemons import HardwareDaemon, daemon_is_running
 
 
-class FLIDaemon(InterfaceDaemon):
+class FLIDaemon(HardwareDaemon):
     """FLI interface daemon class."""
 
     def __init__(self, intf):
-        InterfaceDaemon.__init__(self, daemon_id=intf)
+        super().__init__(intf)
         self.intf = intf
 
         # fli objects
