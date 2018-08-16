@@ -24,16 +24,18 @@ class HardwareDaemon(object):
         self.start_time = time.time()
 
         self.pinglife = self.params['PINGLIFE'] if 'PINGLIFE' in self.params else -1
-        self.time_check = self.start_time  # should be updated within the main control loop
+        self.loop_time = self.start_time  # should be updated within the main control loop
 
         self.info = None
 
-        self.dependency_check_time = 0
-        self.dependency_error = False
-        self.bad_dependencies = []
+        self.check_period = 2
+        self.last_check_time = 0
+        self.force_check_flag = True
 
-        self.connection_error = False
-        self.bad_hardware = []
+        self.dependency_error = False
+        self.bad_dependencies = set()
+        self.hardware_error = False
+        self.bad_hardware = set()
 
         # set up logfile
         self.log = logger.get_logger(self.daemon_id,
@@ -76,6 +78,33 @@ class HardwareDaemon(object):
         self.log.info('Daemon successfully shut down')
         time.sleep(1.)
 
+    def _check_dependencies(self):
+        """Check if the daemon's dependencies are alive (if any).
+
+        This function will set the dependency_error flag if any dependencies are not responding,
+        and save them to bad_dependencies.
+        Alternatively if all the dependencies are responding it will clear the error flag.
+        """
+        if self.params['DEPENDS'][0] == 'None':
+            return
+
+        for dependency_id in self.params['DEPENDS']:
+            if not daemon_is_alive(dependency_id):
+                if dependency_id not in self.bad_dependencies:
+                    self.log.error('Dependency {} not responding'.format(dependency_id))
+                    self.bad_dependencies.add(dependency_id)
+            else:
+                if dependency_id in self.bad_dependencies:
+                    self.log.info('Dependency {} responding'.format(dependency_id))
+                    self.bad_dependencies.remove(dependency_id)
+
+        if len(self.bad_dependencies) > 0 and not self.dependency_error:
+            self.log.warning('Dependency error detected')
+            self.dependency_error = True
+        elif len(self.bad_dependencies) == 0 and self.dependency_error:
+            self.log.warning('Dependency error cleared')
+            self.dependency_error = False
+
     # Common daemon functions
     def prod(self):
         """Prod the daemon to make sure it closes."""
@@ -91,31 +120,17 @@ class HardwareDaemon(object):
             # Any dependencies (if the daemon has them) aren't responding.
             return 'dependency_error:{}'.format(','.join(self.bad_dependencies))
 
-        elif self.connection_error:
+        elif self.hardware_error:
             # Can not connect to the hardware.
             return 'hardware_error:{}'.format(','.join(self.bad_hardware))
 
-        elif self.pinglife > 0 and abs(time.time() - self.time_check) > self.pinglife:
+        elif self.pinglife > 0 and abs(time.time() - self.loop_time) > self.pinglife:
             # Control thread has hung
-            return 'ping_error:{:.1f}s'.format(abs(time.time() - self.time_check))
+            return 'ping_error:{:.1f}s'.format(abs(time.time() - self.loop_time))
 
         else:
             # No error
             return 'running'
-
-    def check_dependencies(self):
-        """Check if the daemon's dependencies are alive (if any).
-
-        Save a list of any dependencies that aren't responding.
-        """
-        if self.params['DEPENDS'][0] == 'None':
-            return []
-
-        bad_dependencies = []
-        for dependency_id in self.params['DEPENDS']:
-            if not daemon_is_alive(dependency_id):
-                bad_dependencies += [dependency_id]
-        self.bad_dependencies = bad_dependencies
 
     def shutdown(self):
         """Shutdown the daemon."""

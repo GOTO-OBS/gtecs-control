@@ -50,25 +50,19 @@ class FiltDaemon(HardwareDaemon):
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
-            # check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                # Check the dependencies, will populate self.bad_dependencies
-                self.check_dependencies()
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
 
-                # React to self.bad_dependencies
-                if len(self.bad_dependencies) > 0 and not self.dependency_error:
-                    self.log.error('Dependencies {} not responding'.format(self.bad_dependencies))
-                    self.dependency_error = True
-                elif len(self.bad_dependencies) == 0 and self.dependency_error:
-                    self.log.info('All dependencies responding again')
-                    self.dependency_error = False
-                self.dependency_check_time = time.time()
+                # Check the dependencies
+                self._check_dependencies()
 
-            if self.dependency_error:
-                time.sleep(5)
-                continue
+                # If there is an error then keep looping.
+                if self.dependency_error:
+                    time.sleep(1)
+                    continue
 
             # control functions
             # request info
@@ -103,7 +97,7 @@ class FiltDaemon(HardwareDaemon):
                         info['homed' + tel] = self.homed[intf][hw]
 
                     info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
+                    info['ping'] = time.time() - self.loop_time
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 

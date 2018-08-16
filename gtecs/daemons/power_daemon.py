@@ -67,10 +67,10 @@ class PowerDaemon(HardwareDaemon):
                 power_units[unit_name] = power_control.ETH8020(unit_ip, unit_port, nc)
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
             # autocheck status every X seconds (if not already forced)
-            delta = self.time_check - self.status_check_time
+            delta = self.loop_time - self.status_check_time
             if delta > self.check_period:
                 self.check_status_flag = 1
 
@@ -151,7 +151,7 @@ class PowerDaemon(HardwareDaemon):
                                     info['status_' + unit][names[i]] = 'ERROR'
 
                     info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
+                    info['ping'] = time.time() - self.loop_time
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 

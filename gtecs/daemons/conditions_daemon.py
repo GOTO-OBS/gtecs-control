@@ -95,10 +95,10 @@ class ConditionsDaemon(HardwareDaemon):
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
             # check the conditions
-            if (self.time_check - self.conditions_check_time) > params.WEATHER_INTERVAL:
+            if (self.loop_time - self.conditions_check_time) > params.WEATHER_INTERVAL:
 
                 self.conditions_check_time = time.time()
 

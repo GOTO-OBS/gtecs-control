@@ -73,7 +73,7 @@ class MntDaemon(HardwareDaemon):
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
             # control functions
             # request info
@@ -97,7 +97,7 @@ class MntDaemon(HardwareDaemon):
                     info['utc'] = self.utc.iso
                     info['step'] = self.step
                     info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
+                    info['ping'] = time.time() - self.loop_time
                     now = Time.now()
                     now.precision = 0
                     info['timestamp'] = now.iso

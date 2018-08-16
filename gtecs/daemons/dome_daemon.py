@@ -88,10 +88,10 @@ class DomeDaemon(HardwareDaemon):
             dehumidifier = dome_control.Dehumidifier(ip, port)
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
             # autocheck dome status every X seconds (if not already forced)
-            delta = self.time_check - self.status_check_time
+            delta = self.loop_time - self.status_check_time
             if delta > self.status_check_period:
                 self.check_status_flag = 1
 
@@ -116,7 +116,7 @@ class DomeDaemon(HardwareDaemon):
                 self.check_status_flag = 0
 
             # autocheck warnings every Y seconds (if not already forced)
-            delta = self.time_check - self.warnings_check_time
+            delta = self.loop_time - self.warnings_check_time
             if delta > self.warnings_check_period:
                 self.check_warnings_flag = 1
 
@@ -190,7 +190,7 @@ class DomeDaemon(HardwareDaemon):
                 self.check_warnings_flag = 0
 
             # autocheck dome conditions every Z seconds (if not already forced)
-            delta = self.time_check - self.conditions_check_time
+            delta = self.loop_time - self.conditions_check_time
             if delta > self.conditions_check_period:
                 self.check_conditions_flag = 1
 
@@ -295,7 +295,7 @@ class DomeDaemon(HardwareDaemon):
                     info['alarm'] = status.alarm
 
                     info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
+                    info['ping'] = time.time() - self.loop_time
                     now = datetime.datetime.utcnow()
                     info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
 
