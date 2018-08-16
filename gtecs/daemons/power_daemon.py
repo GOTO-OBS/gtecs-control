@@ -8,7 +8,8 @@ import time
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon
-from gtecs.hardware.power import APCPDU, APCUPS, ETH8020, FakePDU, FakeUPS
+from gtecs.hardware.power import APCPDU, APCUPS, ETH8020
+from gtecs.hardware.power import FakePDU, FakeUPS
 
 
 class PowerDaemon(HardwareDaemon):
