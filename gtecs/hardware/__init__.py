@@ -1,1 +1,1 @@
-"""Daemon control classes."""
+"""Hardware control classes."""
