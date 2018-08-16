@@ -10,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.controls.exq_control import Exposure
 from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.exposures import Exposure
 from gtecs.fits import get_all_info, glance_location, image_location, write_fits
 
 

@@ -8,8 +8,8 @@ import time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.controls.exq_control import Exposure, ExposureQueue
 from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.exposures import Exposure, ExposureQueue
 
 
 class ExqDaemon(HardwareDaemon):
