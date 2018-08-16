@@ -63,6 +63,7 @@ class FocDaemon(HardwareDaemon):
             # system check
             if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
                 self.check_time = self.loop_time
+                self.force_check_flag = False
 
                 # Check the dependencies
                 self._check_dependencies()

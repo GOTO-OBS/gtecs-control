@@ -29,8 +29,8 @@ class HardwareDaemon(object):
         self.info = None
 
         self.check_period = 2
-        self.last_check_time = 0
-        self.force_check_flag = True
+        self.check_time = 0
+        self.force_check_flag = False
 
         self.dependencies = set()
         self.dependency_error = False
