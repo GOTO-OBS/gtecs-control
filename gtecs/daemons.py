@@ -32,8 +32,10 @@ class HardwareDaemon(object):
         self.last_check_time = 0
         self.force_check_flag = True
 
+        self.dependencies = set()
         self.dependency_error = False
         self.bad_dependencies = set()
+
         self.hardware_error = False
         self.bad_hardware = set()
 
@@ -85,10 +87,7 @@ class HardwareDaemon(object):
         and save them to bad_dependencies.
         Alternatively if all the dependencies are responding it will clear the error flag.
         """
-        if self.params['DEPENDS'][0] == 'None':
-            return
-
-        for dependency_id in self.params['DEPENDS']:
+        for dependency_id in self.dependencies:
             if not daemon_is_alive(dependency_id):
                 if dependency_id not in self.bad_dependencies:
                     self.log.error('Dependency {} not responding'.format(dependency_id))

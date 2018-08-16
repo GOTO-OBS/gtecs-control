@@ -18,6 +18,12 @@ class ExqDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('exq')
 
+        # exq is dependent on all the FLI interfaces, cam and filt
+        for daemon_id in params.FLI_INTERFACES:
+            self.dependencies.add(daemon_id)
+        self.dependencies.add('cam')
+        self.dependencies.add('foc')
+
         # exposure queue variables
         self.exp_queue = ExposureQueue()
         self.current_exposure = None

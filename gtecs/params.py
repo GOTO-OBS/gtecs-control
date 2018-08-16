@@ -103,9 +103,6 @@ for daemon_id in DAEMONS:
     DAEMONS[daemon_id]['ADDRESS'] = 'PYRO:{}@{}:{}'.format(daemon_id,
                                                            DAEMONS[daemon_id]['HOST'],
                                                            DAEMONS[daemon_id]['PORT'])
-    if 'fli' in DAEMONS[daemon_id]['DEPENDS']:
-        DAEMONS[daemon_id]['DEPENDS'].remove('fli')
-        DAEMONS[daemon_id]['DEPENDS'].extend([i for i in config['FLI_INTERFACES']])
 
 FLI_INTERFACES = config['FLI_INTERFACES']
 

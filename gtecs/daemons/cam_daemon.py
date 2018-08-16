@@ -21,6 +21,10 @@ class CamDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('cam')
 
+        # cam is dependent on all the FLI interfaces
+        for daemon_id in params.FLI_INTERFACES:
+            self.dependencies.add(daemon_id)
+
         # command flags
         self.get_info_flag = 1
         self.take_exposure_flag = 0

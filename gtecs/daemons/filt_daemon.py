@@ -17,6 +17,10 @@ class FiltDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('filt')
 
+        # filt is dependent on all the FLI interfaces
+        for daemon_id in params.FLI_INTERFACES:
+            self.dependencies.add(daemon_id)
+
         # command flags
         self.get_info_flag = 1
         self.set_filter_flag = 0
