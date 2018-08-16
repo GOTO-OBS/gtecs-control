@@ -51,19 +51,20 @@ class MntDaemon(HardwareDaemon):
         self.utc_str = self.utc.iso
         self.set_blinky = False
 
-        # connect to SiTechExe
-        address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = SiTech(address, port)
-
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
+    # Connect to hardware
+    def _connect(self):
+        self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
+
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
+
+        self._connect()
 
         while(self.running):
             self.loop_time = time.time()

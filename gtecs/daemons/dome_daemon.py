@@ -68,25 +68,20 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
+    # Connect to hardware
+    def _connect(self):
+        if not params.FAKE_DOME:
+            self.dome = AstroHavenDome(params.DOME_LOCATION, params.DOME_HEARTBEAT_LOCATION)
+            self.dehumidifier = Dehumidifier(params.DEHUMIDIFIER_IP, params.DEHUMIDIFIER_PORT)
+        else:
+            self.dome = FakeDome()
+            self.dehumidifier = FakeDehumidifier()
+
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
 
-        # connect to dome object
-        loc = params.DOME_LOCATION
-        hb_loc = params.DOME_HEARTBEAT_LOCATION
-        if params.FAKE_DOME == 1:
-            dome = FakeDome()
-        else:
-            dome = AstroHavenDome(loc, hb_loc)
-
-        # connect to dehumidifier object
-        ip = params.DEHUMIDIFIER_IP
-        port = params.DEHUMIDIFIER_PORT
-        if params.FAKE_DOME == 1:
-            dehumidifier = FakeDehumidifier()
-        else:
-            dehumidifier = Dehumidifier(ip, port)
+        self._connect()
 
         while(self.running):
             self.loop_time = time.time()
@@ -100,12 +95,12 @@ class DomeDaemon(HardwareDaemon):
             if self.check_status_flag:
                 try:
                     # get current dome status
-                    self.dome_status = dome.status
+                    self.dome_status = self.dome.status
                     if self.dome_status is None:
-                        dome._check_status()
+                        self.dome._check_status()
                         time.sleep(1)
-                        self.dome_status = dome.status
-                    self.heartbeat_status = dome.heartbeat_status
+                        self.dome_status = self.dome.status
+                    self.heartbeat_status = self.dome.heartbeat_status
 
                     print(self.dome_status, self.move_started, self.move_side,
                           self.open_flag, self.close_flag)
@@ -199,15 +194,15 @@ class DomeDaemon(HardwareDaemon):
             if self.check_conditions_flag:
                 try:
                     # get current dome conditions
-                    conditions = dehumidifier.conditions()
-                    print(conditions, dehumidifier.status())
+                    conditions = self.dehumidifier.conditions()
+                    print(conditions, self.dehumidifier.status())
                     humidity = conditions['humidity']
                     temperature = conditions['temperature']
 
                     currently_open = (self.dome_status['north'] != 'closed' or
                                       self.dome_status['south'] != 'closed')
 
-                    if dehumidifier.status() == '0' and not currently_open:
+                    if self.dehumidifier.status() == '0' and not currently_open:
                         if humidity > params.MAX_INTERNAL_HUMIDITY:
                             string = 'Internal humidity {}% is above {}%'
                             string = string.format(humidity, params.MAX_INTERNAL_HUMIDITY)
@@ -219,14 +214,14 @@ class DomeDaemon(HardwareDaemon):
                         if (humidity > params.MAX_INTERNAL_HUMIDITY or
                                 temperature < params.MIN_INTERNAL_TEMPERATURE):
                             self.log.info('Turning on dehumidifier')
-                            dehumidifier.on()
+                            self.dehumidifier.on()
                         elif self.override_dehumid_flag and self.dehumid_command == 'on':
                             self.log.info('Turning on dehumidifier (manual)')
-                            dehumidifier.on()
+                            self.dehumidifier.on()
                             self.override_dehumid_flag = 0
                             self.dehumid_command = 'none'
 
-                    elif dehumidifier.status() == '1' and not currently_open:
+                    elif self.dehumidifier.status() == '1' and not currently_open:
                         if (humidity < params.MAX_INTERNAL_HUMIDITY - 10 and
                                 temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
                             string = 'Internal humidity {}% is below {}%'
@@ -236,17 +231,17 @@ class DomeDaemon(HardwareDaemon):
                             string = string.format(temperature, params.MIN_INTERNAL_TEMPERATURE + 1)
                             self.log.info(string)
                             self.log.info('Turning off dehumidifier')
-                            dehumidifier.off()
+                            self.dehumidifier.off()
                         elif self.override_dehumid_flag and self.dehumid_command == 'off':
                             self.log.info('Turning off dehumidifier (manual)')
-                            dehumidifier.off()
+                            self.dehumidifier.off()
                             self.override_dehumid_flag = 0
                             self.dehumid_command = 'none'
 
-                    if dehumidifier.status() == '1' and currently_open:
+                    if self.dehumidifier.status() == '1' and currently_open:
                         self.log.info('Dome is open')
                         self.log.info('Turning off dehumidifier')
-                        dehumidifier.off()
+                        self.dehumidifier.off()
 
                     self.conditions_check_time = time.time()
                 except Exception:
@@ -274,7 +269,7 @@ class DomeDaemon(HardwareDaemon):
                     info['heartbeat'] = self.heartbeat_status
 
                     # add dehumidifier status
-                    dehumidifier_status = dehumidifier.status()
+                    dehumidifier_status = self.dehumidifier.status()
                     if dehumidifier_status == '0':
                         info['dehumidifier'] = 'off'
                     elif dehumidifier_status == '1':
@@ -335,7 +330,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = dome.open_side(side, self.move_frac)
+                                c = self.dome.open_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -345,9 +340,9 @@ class DomeDaemon(HardwareDaemon):
                                 self.log.error('Failed to open dome')
                                 self.log.debug('', exc_info=True)
                             # make sure dehumidifier is off
-                            dehumidifier.off()
+                            self.dehumidifier.off()
 
-                    if self.move_started and not dome.output_thread_running:
+                    if self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
@@ -416,7 +411,7 @@ class DomeDaemon(HardwareDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = dome.close_side(side, self.move_frac)
+                                c = self.dome.close_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -426,7 +421,7 @@ class DomeDaemon(HardwareDaemon):
                                 self.log.error('Failed to close dome')
                                 self.log.debug('', exc_info=True)
 
-                    if self.move_started and not dome.output_thread_running:
+                    if self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
@@ -464,7 +459,7 @@ class DomeDaemon(HardwareDaemon):
                 try:
                     try:
                         self.log.info('Halting dome')
-                        c = dome.halt()
+                        c = self.dome.halt()
                         if c:
                             self.log.info(c)
                     except Exception:

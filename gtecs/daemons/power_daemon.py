@@ -39,25 +39,22 @@ class PowerDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    # Primary control thread
-    def _control_thread(self):
-        self.log.info('Daemon control thread started')
-
-        # make power objects once, outside the loop
-        power_units = {}
+    # Connect to hardware
+    def _connect(self):
+        self.power_units = {}
         for unit_name in params.POWER_UNITS:
             unit_class = params.POWER_UNITS[unit_name]['CLASS']
             unit_ip = params.POWER_UNITS[unit_name]['IP']
             # fake hardware
             if unit_class == 'FakePDU':
-                power_units[unit_name] = FakePDU(unit_ip)
+                self.power_units[unit_name] = FakePDU(unit_ip)
             elif unit_class == 'FakeUPS':
-                power_units[unit_name] = FakeUPS(unit_ip)
+                self.power_units[unit_name] = FakeUPS(unit_ip)
             # APC hardware
             elif unit_class == 'APCPDU':
-                power_units[unit_name] = APCPDU(unit_ip)
+                self.power_units[unit_name] = APCPDU(unit_ip)
             elif unit_class == 'APCUPS':
-                power_units[unit_name] = APCUPS(unit_ip)
+                self.power_units[unit_name] = APCUPS(unit_ip)
             # Ethernet power unit
             elif unit_class == 'ETH8020':
                 unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
@@ -65,7 +62,13 @@ class PowerDaemon(HardwareDaemon):
                     nc = params.POWER_UNITS[unit_name]['NC']
                 except Exception:
                     nc = 0
-                power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
+                self.power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
+
+    # Primary control thread
+    def _control_thread(self):
+        self.log.info('Daemon control thread started')
+
+        self._connect()
 
         while(self.running):
             self.loop_time = time.time()
@@ -78,8 +81,8 @@ class PowerDaemon(HardwareDaemon):
             # check power status
             if self.check_status_flag:
                 try:
-                    for unit in power_units:
-                        power = power_units[unit]
+                    for unit in self.power_units:
+                        power = self.power_units[unit]
                         if power.unit_type == 'PDU':
                             try:
                                 status = power.status()
@@ -116,8 +119,8 @@ class PowerDaemon(HardwareDaemon):
             if self.get_info_flag:
                 try:
                     info = {}
-                    for unit in power_units:
-                        power = power_units[unit]
+                    for unit in self.power_units:
+                        power = self.power_units[unit]
 
                         if power.unit_type == 'PDU':
                             status = self.power_status[unit]
@@ -166,7 +169,7 @@ class PowerDaemon(HardwareDaemon):
             if self.on_flag:
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = power_units[unit]
+                        power = self.power_units[unit]
                         self.log.info('Power on unit {} outlet {}'.format(unit, outlet))
                         c = power.on(outlet)
                         if c:
@@ -183,7 +186,7 @@ class PowerDaemon(HardwareDaemon):
             if self.off_flag:
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = power_units[unit]
+                        power = self.power_units[unit]
                         self.log.info('Power off unit {} outlet {}'.format(unit, outlet))
                         c = power.off(outlet)
                         if c:
@@ -200,7 +203,7 @@ class PowerDaemon(HardwareDaemon):
             if self.reboot_flag:
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = power_units[unit]
+                        power = self.power_units[unit]
                         self.log.info('Reboot unit {} outlet {}'.format(unit, outlet))
                         c = power.reboot(outlet)
                         if c:

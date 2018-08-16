@@ -17,7 +17,10 @@ class FLIDaemon(HardwareDaemon):
         super().__init__(intf)
         self.intf = intf
 
-        # fli objects
+        self._connect()
+
+    # Connect to hardware
+    def _connect(self):
         self.cams = []
         self.focs = []
         self.filts = []
