@@ -8,7 +8,7 @@ import time
 
 import serial
 
-from .power_control import ETH002
+from .power import ETH002
 from .. import flags
 from .. import params
 from ..conditions import get_roomalert
