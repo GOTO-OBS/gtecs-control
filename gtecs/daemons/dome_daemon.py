@@ -70,21 +70,58 @@ class DomeDaemon(HardwareDaemon):
 
     # Connect to hardware
     def _connect(self):
-        if not params.FAKE_DOME:
-            self.dome = AstroHavenDome(params.DOME_LOCATION, params.DOME_HEARTBEAT_LOCATION)
-            self.dehumidifier = Dehumidifier(params.DEHUMIDIFIER_IP, params.DEHUMIDIFIER_PORT)
-        else:
+        if params.FAKE_DOME:
             self.dome = FakeDome()
             self.dehumidifier = FakeDehumidifier()
+            self.bad_hardware = set()
+            self.hardware_error = False
+            return
+
+        try:
+            self.dome = AstroHavenDome(params.DOME_LOCATION, params.DOME_HEARTBEAT_LOCATION)
+            self.log.info('Connected to dome')
+            if 'dome' in self.bad_hardware:
+                self.bad_hardware.remove('dome')
+        except Exception:
+            if 'dome' not in self.bad_hardware:
+                self.log.error('Failed to connect to dome')
+                self.bad_hardware.add('dome')
+        try:
+            self.dehumidifier = Dehumidifier(params.DEHUMIDIFIER_IP, params.DEHUMIDIFIER_PORT)
+            self.log.info('Connected to dehumidifier')
+            if 'dehumidifier' in self.bad_hardware:
+                self.bad_hardware.remove('dehumidifier')
+        except Exception:
+            if 'dehumidifier' not in self.bad_hardware:
+                self.log.error('Failed to connect to dehumidifier')
+                self.bad_hardware.add('dehumidifier')
+
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
 
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
 
-        self._connect()
-
         while(self.running):
             self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then keep looping.
+                if self.hardware_error:
+                    time.sleep(1)
+                    continue
 
             # autocheck dome status every X seconds (if not already forced)
             delta = self.loop_time - self.status_check_time

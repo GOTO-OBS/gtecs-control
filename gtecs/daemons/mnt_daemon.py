@@ -58,16 +58,42 @@ class MntDaemon(HardwareDaemon):
 
     # Connect to hardware
     def _connect(self):
-        self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
+        try:
+            self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
+            self.log.info('Connected to SiTechEXE')
+            if 'sitech' in self.bad_hardware:
+                self.bad_hardware.remove('sitech')
+        except Exception:
+            if 'sitech' not in self.bad_hardware:
+                self.log.error('Failed to connect to SiTechEXE')
+                self.bad_hardware.add('sitech')
+
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
 
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
 
-        self._connect()
-
         while(self.running):
             self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then keep looping.
+                if self.hardware_error:
+                    time.sleep(1)
+                    continue
 
             # control functions
             # request info

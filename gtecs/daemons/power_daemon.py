@@ -50,28 +50,59 @@ class PowerDaemon(HardwareDaemon):
                 self.power_units[unit_name] = FakePDU(unit_ip)
             elif unit_class == 'FakeUPS':
                 self.power_units[unit_name] = FakeUPS(unit_ip)
-            # APC hardware
-            elif unit_class == 'APCPDU':
-                self.power_units[unit_name] = APCPDU(unit_ip)
-            elif unit_class == 'APCUPS':
-                self.power_units[unit_name] = APCUPS(unit_ip)
-            # Ethernet power unit
-            elif unit_class == 'ETH8020':
-                unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
-                try:
-                    nc = params.POWER_UNITS[unit_name]['NC']
-                except Exception:
-                    nc = 0
-                self.power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
+
+            try:
+                # APC hardware
+                if unit_class == 'APCPDU':
+                    self.power_units[unit_name] = APCPDU(unit_ip)
+                elif unit_class == 'APCUPS':
+                    self.power_units[unit_name] = APCUPS(unit_ip)
+                # Ethernet power unit
+                elif unit_class == 'ETH8020':
+                    unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
+                    try:
+                        nc = params.POWER_UNITS[unit_name]['NC']
+                    except Exception:
+                        nc = 0
+                    self.power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
+
+                self.log.info('Connected to {}'.format(unit_name))
+                if unit_name in self.bad_hardware:
+                    self.bad_hardware.remove(unit_name)
+            except Exception:
+                if unit_name not in self.bad_hardware:
+                    self.log.error('Failed to connect to {}'.format(unit_name))
+                    self.bad_hardware.add(unit_name)
+                else:
+                    self.log.error('Connected to {}'.format(unit_name))
+                    self.bad_hardware.remove(unit_name)
+
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
 
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
 
-        self._connect()
-
         while(self.running):
             self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then keep looping.
+                if self.hardware_error:
+                    time.sleep(1)
+                    continue
 
             # autocheck status every X seconds (if not already forced)
             delta = self.loop_time - self.status_check_time
