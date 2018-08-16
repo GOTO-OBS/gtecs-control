@@ -985,10 +985,7 @@ class Pilot(object):
     def park_mount(self):
         """Send the mount park command and return immediately."""
         self.log.warning('parking mount')
-        if params.FREEZE_DEC:
-            execute_command('mnt stop')
-        else:
-            execute_command('mnt park')
+        execute_command('mnt park')
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
 

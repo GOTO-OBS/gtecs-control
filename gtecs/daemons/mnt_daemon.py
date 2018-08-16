@@ -52,7 +52,6 @@ class MntDaemon(HardwareDaemon):
         self.set_blinky = False
 
         # connect to SiTechExe
-        # Once, and we'll see if both threads can use it
         address = params.SITECH_HOST
         port = params.SITECH_PORT
         self.sitech = SiTech(address, port)
@@ -61,12 +60,6 @@ class MntDaemon(HardwareDaemon):
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
-
-        # start ra check thread
-        if params.FREEZE_DEC:
-            t2 = threading.Thread(target=self._ra_check_thread)
-            t2.daemon = True
-            t2.start()
 
     # Primary control thread
     def _control_thread(self):
@@ -543,55 +536,9 @@ class MntDaemon(HardwareDaemon):
         m_dec = self.sitech.dec
         t_ra = self.target_ra
         t_dec = self.target_dec
-        if not params.FREEZE_DEC:
-            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-            t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
-            return t_c.separation(m_c).deg
-        else:
-            # note m_dec for both
-            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-            t_c = SkyCoord(t_ra, m_dec, unit=(u.hour, u.deg))
-            sep = t_c.separation(m_c).deg
-            if sep < 0.07:
-                return 0
-            else:
-                return sep
-
-    def _ra_check_thread(self):
-        """Check the ra distance and cancel slewing when the mount reaches the target.
-
-        Required for when the FREEZE_DEC is set, so the mount doesn't keep
-        trying to slew to the dec target.
-
-        If activated it will check the telescope when slewing, and if it's
-        reached the RA target then stop the slewing and start tracking.
-
-        """
-        import numpy as np
-        ra_distance = 0
-        i = 0
-        j = 0
-        while True:
-            if self.sitech.slewing:
-                ra_distance_new = np.around(self._get_target_distance(), 6)
-                print(ra_distance_new, abs(ra_distance_new - ra_distance), i, j)
-                if ra_distance_new < 0.01 and abs(ra_distance_new - ra_distance) < 0.0001:
-                    i += 1
-                if abs(ra_distance_new - ra_distance) == 0:
-                    j += 1
-                if i > 10 or j > 10:
-                    self.log.info('Reached RA target, stopping slew')
-                    self.sitech.halt()
-                    time.sleep(0.1)
-                    self.sitech.track()
-                    ra_distance = 0
-                    i = 0
-                    j = 0
-                else:
-                    ra_distance = ra_distance_new
-                time.sleep(0.1)
-            else:
-                time.sleep(1)
+        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
+        return t_c.separation(m_c).deg
 
 
 if __name__ == "__main__":
