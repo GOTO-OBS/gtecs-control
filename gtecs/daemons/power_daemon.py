@@ -7,8 +7,8 @@ import time
 
 from gtecs import misc
 from gtecs import params
-from gtecs.controls import power_control
 from gtecs.daemons import HardwareDaemon
+from gtecs.hardware.power import APCPDU, APCUPS, ETH8020, FakePDU, FakeUPS
 
 
 class PowerDaemon(HardwareDaemon):
@@ -49,14 +49,14 @@ class PowerDaemon(HardwareDaemon):
             unit_ip = params.POWER_UNITS[unit_name]['IP']
             # fake hardware
             if unit_class == 'FakePDU':
-                power_units[unit_name] = power_control.FakePDU(unit_ip)
+                power_units[unit_name] = FakePDU(unit_ip)
             elif unit_class == 'FakeUPS':
-                power_units[unit_name] = power_control.FakeUPS(unit_ip)
+                power_units[unit_name] = FakeUPS(unit_ip)
             # APC hardware
             elif unit_class == 'APCPDU':
-                power_units[unit_name] = power_control.APCPDU(unit_ip)
+                power_units[unit_name] = APCPDU(unit_ip)
             elif unit_class == 'APCUPS':
-                power_units[unit_name] = power_control.APCUPS(unit_ip)
+                power_units[unit_name] = APCUPS(unit_ip)
             # Ethernet power unit
             elif unit_class == 'ETH8020':
                 unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
@@ -64,7 +64,7 @@ class PowerDaemon(HardwareDaemon):
                     nc = params.POWER_UNITS[unit_name]['NC']
                 except Exception:
                     nc = 0
-                power_units[unit_name] = power_control.ETH8020(unit_ip, unit_port, nc)
+                power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
 
         while(self.running):
             self.loop_time = time.time()

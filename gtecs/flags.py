@@ -8,7 +8,7 @@ import time
 from astropy.time import Time
 
 from . import params
-from .controls.power_control import APCUPS
+from .hardware.power import APCUPS
 from .slack import send_slack_msg
 
 

@@ -8,9 +8,9 @@ import time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.controls import dome_control
 from gtecs.daemons import HardwareDaemon
 from gtecs.flags import Conditions, Power, Status
+from gtecs.hardware.dome import AstroHavenDome, Dehumidifier, FakeDehumidifier, FakeDome
 from gtecs.slack import send_slack_msg
 
 import serial
@@ -75,17 +75,17 @@ class DomeDaemon(HardwareDaemon):
         loc = params.DOME_LOCATION
         hb_loc = params.DOME_HEARTBEAT_LOCATION
         if params.FAKE_DOME == 1:
-            dome = dome_control.FakeDome()
+            dome = FakeDome()
         else:
-            dome = dome_control.AstroHavenDome(loc, hb_loc)
+            dome = AstroHavenDome(loc, hb_loc)
 
         # connect to dehumidifier object
         ip = params.DEHUMIDIFIER_IP
         port = params.DEHUMIDIFIER_PORT
         if params.FAKE_DOME == 1:
-            dehumidifier = dome_control.FakeDehumidifier()
+            dehumidifier = FakeDehumidifier()
         else:
-            dehumidifier = dome_control.Dehumidifier(ip, port)
+            dehumidifier = Dehumidifier(ip, port)
 
         while(self.running):
             self.loop_time = time.time()

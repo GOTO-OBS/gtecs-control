@@ -12,7 +12,7 @@ from astropy.time import Time
 
 from . import misc
 from . import params
-from .controls.power_control import APCUPS, FakeUPS
+from .hardware.power import APCUPS, FakeUPS
 
 
 warnings.simplefilter("error", ErfaWarning)

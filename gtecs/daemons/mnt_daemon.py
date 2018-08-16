@@ -13,8 +13,8 @@ from gtecs import errors
 from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import check_alt_limit, find_ha, radec_from_altaz
-from gtecs.controls import mnt_control
 from gtecs.daemons import HardwareDaemon
+from gtecs.hardware.sitech import SiTech
 
 
 class MntDaemon(HardwareDaemon):
@@ -55,7 +55,7 @@ class MntDaemon(HardwareDaemon):
         # Once, and we'll see if both threads can use it
         address = params.SITECH_HOST
         port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(address, port)
+        self.sitech = SiTech(address, port)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
