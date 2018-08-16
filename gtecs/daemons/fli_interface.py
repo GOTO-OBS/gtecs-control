@@ -3,12 +3,11 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-from fliapi import FakeCamera, FakeFilterWheel, FakeFocuser
-from fliapi import USBCamera, USBFilterWheel, USBFocuser
-
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon, daemon_is_running
+from gtecs.hardware.fli import Camera, FilterWheel, Focuser
+from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 
 
 class FLIDaemon(HardwareDaemon):
@@ -26,7 +25,7 @@ class FLIDaemon(HardwareDaemon):
         for hw in range(len(params.FLI_INTERFACES[self.intf]['TELS'])):
             # cameras
             serial = params.FLI_INTERFACES[self.intf]['SERIALS']['cam'][hw]
-            cam = USBCamera.locate_device(serial)
+            cam = Camera.locate_device(serial)
             if cam is None and params.USE_FAKE_FLI:
                 cam = FakeCamera('fake', 'Fake-Cam')
             if cam is not None:
@@ -37,7 +36,7 @@ class FLIDaemon(HardwareDaemon):
 
             # focusers
             serial = params.FLI_INTERFACES[self.intf]['SERIALS']['foc'][hw]
-            foc = USBFocuser.locate_device(serial)
+            foc = Focuser.locate_device(serial)
             if foc is None and params.USE_FAKE_FLI:
                 foc = FakeFocuser('fake', 'Fake-Foc')
             if foc is not None:
@@ -48,7 +47,7 @@ class FLIDaemon(HardwareDaemon):
 
             # filter wheels
             serial = params.FLI_INTERFACES[self.intf]['SERIALS']['filt'][hw]
-            filt = USBFilterWheel.locate_device(serial)
+            filt = FilterWheel.locate_device(serial)
             if filt is None and params.USE_FAKE_FLI:
                 filt = FakeFilterWheel('fake', 'Fake-Filt')
             if filt is not None:
