@@ -23,6 +23,9 @@ class MntDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('mnt')
 
+        # hardware
+        self.sitech = None
+
         # command flags
         self.get_info_flag = 1
         self.slew_radec_flag = 0
@@ -58,15 +61,17 @@ class MntDaemon(HardwareDaemon):
 
     # Connect to hardware
     def _connect(self):
-        try:
-            self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
-            self.log.info('Connected to SiTechEXE')
-            if 'sitech' in self.bad_hardware:
-                self.bad_hardware.remove('sitech')
-        except Exception:
-            if 'sitech' not in self.bad_hardware:
+        if not self.sitech:
+            try:
+                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
+                self.log.info('Connected to SiTechEXE')
+                if 'sitech' in self.bad_hardware:
+                    self.bad_hardware.remove('sitech')
+            except Exception:
+                self.sitech = None
                 self.log.error('Failed to connect to SiTechEXE')
-                self.bad_hardware.add('sitech')
+                if 'sitech' not in self.bad_hardware:
+                    self.bad_hardware.add('sitech')
 
         if len(self.bad_hardware) > 0 and not self.hardware_error:
             self.log.warning('Hardware error detected')

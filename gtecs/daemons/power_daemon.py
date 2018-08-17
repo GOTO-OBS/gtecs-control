@@ -18,6 +18,9 @@ class PowerDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('power')
 
+        # hardware
+        self.power_units = {unit_name: None for unit_name in params.POWER_UNITS}
+
         # command flags
         self.get_info_flag = 1
         self.on_flag = 0
@@ -41,41 +44,58 @@ class PowerDaemon(HardwareDaemon):
 
     # Connect to hardware
     def _connect(self):
-        self.power_units = {}
         for unit_name in params.POWER_UNITS:
-            unit_class = params.POWER_UNITS[unit_name]['CLASS']
-            unit_ip = params.POWER_UNITS[unit_name]['IP']
-            # fake hardware
-            if unit_class == 'FakePDU':
-                self.power_units[unit_name] = FakePDU(unit_ip)
-            elif unit_class == 'FakeUPS':
-                self.power_units[unit_name] = FakeUPS(unit_ip)
+            if not self.power_units[unit_name]:
+                unit_params = params.POWER_UNITS[unit_name].copy()
+                unit_class = unit_params['CLASS']
+                unit_ip = unit_params['IP']
 
-            try:
-                # APC hardware
-                if unit_class == 'APCPDU':
-                    self.power_units[unit_name] = APCPDU(unit_ip)
-                elif unit_class == 'APCUPS':
-                    self.power_units[unit_name] = APCUPS(unit_ip)
-                # Ethernet power unit
-                elif unit_class == 'ETH8020':
-                    unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
+                # create power object by class
+                if unit_class == 'FakePDU':
+                    self.power_units[unit_name] = FakePDU(unit_ip)
+                    self.log.info('Connected to {}'.format(unit_name))
+
+                elif unit_class == 'FakeUPS':
+                    self.power_units[unit_name] = FakeUPS(unit_ip)
+                    self.log.info('Connected to {}'.format(unit_name))
+
+                elif unit_class == 'APCPDU':
                     try:
-                        nc = params.POWER_UNITS[unit_name]['NC']
+                        self.power_units[unit_name] = APCPDU(unit_ip)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
                     except Exception:
-                        nc = 0
-                    self.power_units[unit_name] = ETH8020(unit_ip, unit_port, nc)
+                        self.power_units[unit_name] = None
+                        self.log.error('Failed to connect to {}'.format(unit_name))
+                        if unit_name not in self.bad_hardware:
+                            self.bad_hardware.add(unit_name)
 
-                self.log.info('Connected to {}'.format(unit_name))
-                if unit_name in self.bad_hardware:
-                    self.bad_hardware.remove(unit_name)
-            except Exception:
-                if unit_name not in self.bad_hardware:
-                    self.log.error('Failed to connect to {}'.format(unit_name))
-                    self.bad_hardware.add(unit_name)
-                else:
-                    self.log.error('Connected to {}'.format(unit_name))
-                    self.bad_hardware.remove(unit_name)
+                elif unit_class == 'APCUPS':
+                    try:
+                        self.power_units[unit_name] = APCUPS(unit_ip)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
+                    except Exception:
+                        self.power_units[unit_name] = None
+                        self.log.error('Failed to connect to {}'.format(unit_name))
+                        if unit_name not in self.bad_hardware:
+                            self.bad_hardware.add(unit_name)
+
+                elif unit_class == 'ETH8020':
+                    try:
+                        unit_port = int(unit_params['PORT'])
+                        unit_nc = unit_params['NC'] if 'NC' in unit_params else 0
+                        self.power_units[unit_name] = ETH8020(unit_ip, unit_port, unit_nc)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
+                    except Exception:
+                        self.power_units[unit_name] = None
+                        self.log.error('Failed to connect to {}'.format(unit_name))
+                        if unit_name not in self.bad_hardware:
+                            self.bad_hardware.add(unit_name)
 
         if len(self.bad_hardware) > 0 and not self.hardware_error:
             self.log.warning('Hardware error detected')

@@ -23,6 +23,10 @@ class DomeDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('dome')
 
+        # hardware
+        self.dome = None
+        self.dehumidifier = None
+
         # command flags
         self.get_info_flag = 0
         self.open_flag = 0
@@ -72,29 +76,38 @@ class DomeDaemon(HardwareDaemon):
     def _connect(self):
         if params.FAKE_DOME:
             self.dome = FakeDome()
+            self.log.info('Connected to dome')
             self.dehumidifier = FakeDehumidifier()
+            self.log.info('Connected to dehumidifier')
             self.bad_hardware = set()
             self.hardware_error = False
             return
 
-        try:
-            self.dome = AstroHavenDome(params.DOME_LOCATION, params.DOME_HEARTBEAT_LOCATION)
-            self.log.info('Connected to dome')
-            if 'dome' in self.bad_hardware:
-                self.bad_hardware.remove('dome')
-        except Exception:
-            if 'dome' not in self.bad_hardware:
+        # Connect to the dome
+        if not self.dome:
+            try:
+                self.dome = AstroHavenDome(params.DOME_LOCATION, params.DOME_HEARTBEAT_LOCATION)
+                self.log.info('Connected to dome')
+                if 'dome' in self.bad_hardware:
+                    self.bad_hardware.remove('dome')
+            except Exception:
+                self.dome = None
                 self.log.error('Failed to connect to dome')
-                self.bad_hardware.add('dome')
-        try:
-            self.dehumidifier = Dehumidifier(params.DEHUMIDIFIER_IP, params.DEHUMIDIFIER_PORT)
-            self.log.info('Connected to dehumidifier')
-            if 'dehumidifier' in self.bad_hardware:
-                self.bad_hardware.remove('dehumidifier')
-        except Exception:
-            if 'dehumidifier' not in self.bad_hardware:
+                if 'dome' not in self.bad_hardware:
+                    self.bad_hardware.add('dome')
+
+        # Connect to the dehumidifer
+        if not self.dehumidifier:
+            try:
+                self.dehumidifier = Dehumidifier(params.DEHUMIDIFIER_IP, params.DEHUMIDIFIER_PORT)
+                self.log.info('Connected to dehumidifier')
+                if 'dehumidifier' in self.bad_hardware:
+                    self.bad_hardware.remove('dehumidifier')
+            except Exception:
+                self.dehumidifier = None
                 self.log.error('Failed to connect to dehumidifier')
-                self.bad_hardware.add('dehumidifier')
+                if 'dehumidifier' not in self.bad_hardware:
+                    self.bad_hardware.add('dehumidifier')
 
         if len(self.bad_hardware) > 0 and not self.hardware_error:
             self.log.warning('Hardware error detected')
