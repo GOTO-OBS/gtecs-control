@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Daemon to control APC PDUs and UPSs."""
 
-import datetime
 import threading
 import time
 
@@ -22,7 +21,6 @@ class PowerDaemon(HardwareDaemon):
         self.power_units = {unit_name: None for unit_name in params.POWER_UNITS}
 
         # command flags
-        self.get_info_flag = 1
         self.on_flag = 0
         self.off_flag = 0
         self.reboot_flag = 0
@@ -33,18 +31,24 @@ class PowerDaemon(HardwareDaemon):
         self.current_units = []
         self.current_outlets = []
 
-        self.check_status_flag = 1
-        self.status_check_time = 0
-        self.check_period = params.POWER_CHECK_PERIOD
-
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-    # Connect to hardware
+    def _check_errors(self):
+        """Check for any errors."""
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
+
     def _connect(self):
+        """Connect to hardware."""
         for unit_name in params.POWER_UNITS:
+            # Connect to each unit
             if not self.power_units[unit_name]:
                 unit_params = params.POWER_UNITS[unit_name].copy()
                 unit_class = unit_params['CLASS']
@@ -104,6 +108,56 @@ class PowerDaemon(HardwareDaemon):
             self.log.warning('Hardware error cleared')
             self.hardware_error = False
 
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['timestamp'] = self.loop_time
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for unit_name in self.power_units:
+            # Get info from each unit
+            try:
+                power = self.power_units[unit_name]
+                temp_status = {}
+                if power.unit_type == 'PDU':
+                    outlet_statuses = power.status()
+                elif power.unit_type == 'UPS':
+                    outlet_statuses = power.outlet_status()
+                outlet_names = params.POWER_UNITS[unit_name]['NAMES']
+                for name, status in zip(outlet_names, outlet_statuses):
+                    if status == str(power.on_value):
+                        temp_status[name] = 'on'
+                    elif status == str(power.off_value):
+                        temp_status[name] = 'off'
+                    else:
+                        temp_status[name] = 'ERROR'
+                if power.unit_type == 'UPS':
+                    temp_status['status'] = power.status()
+                    temp_status['percent'] = power.percent_remaining()
+                    temp_status['time'] = power.time_remaining()
+                    temp_status['load'] = power.load()
+                temp_info['status_' + unit_name] = temp_status
+            except Exception:
+                self.log.error('Failed to get {} info'.format(unit_name))
+                self.log.debug('', exc_info=True)
+                temp_info[unit_name] = None
+                # Report the connection as failed
+                self.power_units[unit_name] = None
+                if unit_name not in self.bad_hardware:
+                    self.bad_hardware.add(unit_name)
+
+        # Update the master info dict
+        self.info = temp_info
+
+        # Finally check if we need to report an error
+        self._check_errors()
+
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -116,106 +170,23 @@ class PowerDaemon(HardwareDaemon):
                 self.check_time = self.loop_time
                 self.force_check_flag = False
 
-                # Try to connect to the hardware.
+                # Try to connect to the hardware
                 self._connect()
 
-                # If there is an error then keep looping.
-                # It should retry the connection until it's sucsessful.
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
                 if self.hardware_error:
                     continue
 
-            # autocheck status every X seconds (if not already forced)
-            delta = self.loop_time - self.status_check_time
-            if delta > self.check_period:
-                self.check_status_flag = 1
+                # We should be connected, now try getting info
+                self._get_info()
 
-            # check power status
-            if self.check_status_flag:
-                try:
-                    for unit in self.power_units:
-                        power = self.power_units[unit]
-                        if power.unit_type == 'PDU':
-                            try:
-                                status = power.status()
-                                self.power_status[unit] = status
-                            except Exception:
-                                self.log.error('ERROR GETTING POWER STATUS, UNIT %s' % unit)
-                                self.log.debug('', exc_info=True)
-                                names = params.POWER_UNITS[unit]['NAMES']
-                                self.power_status[unit] = 'X' * len(names)
-                        elif power.unit_type == 'UPS':
-                            try:
-                                status = power.status()
-                                percent_remaining = power.percent_remaining()
-                                time_remaining = power.time_remaining()
-                                load = power.load()
-                                outlet_status = power.outlet_status()
-                                self.power_status[unit] = (status, percent_remaining,
-                                                           time_remaining, load, outlet_status)
-                            except Exception:
-                                self.log.error('ERROR GETTING POWER STATUS, UNIT %s' % unit)
-                                self.log.debug('', exc_info=True)
-                                names = params.POWER_UNITS[unit]['NAMES']
-                                outlet_status = 'X' * len(names)
-                                self.power_status[unit] = ('ERROR', 'ERROR',
-                                                           'ERROR', 'ERROR', outlet_status)
-                    self.status_check_time = time.time()
-                except Exception:
-                    self.log.error('check_status command failed')
-                    self.log.debug('', exc_info=True)
-                self.check_status_flag = 0
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
 
             # control functions
-            # request info
-            if self.get_info_flag:
-                try:
-                    info = {}
-                    for unit in self.power_units:
-                        power = self.power_units[unit]
-
-                        if power.unit_type == 'PDU':
-                            status = self.power_status[unit]
-                            names = params.POWER_UNITS[unit]['NAMES']
-
-                            info['status_' + unit] = {}
-                            for i in range(len(names)):
-                                if status[i] == str(power.on_value):
-                                    info['status_' + unit][names[i]] = 'On'
-                                elif status[i] == str(power.off_value):
-                                    info['status_' + unit][names[i]] = 'Off'
-                                else:
-                                    info['status_' + unit][names[i]] = 'ERROR'
-                        elif power.unit_type == 'UPS':
-                            (status, percent_remaining, time_remaining,
-                                load, outlet_status) = self.power_status[unit]
-
-                            info['status_' + unit] = {}
-                            info['status_' + unit]['status'] = status
-                            info['status_' + unit]['percent'] = percent_remaining
-                            info['status_' + unit]['time'] = time_remaining
-                            info['status_' + unit]['load'] = load
-
-                            names = params.POWER_UNITS[unit]['NAMES']
-
-                            for i in range(len(names)):
-                                if outlet_status[i] == str(power.on_value):
-                                    info['status_' + unit][names[i]] = 'On'
-                                elif outlet_status[i] == str(power.off_value):
-                                    info['status_' + unit][names[i]] = 'Off'
-                                else:
-                                    info['status_' + unit][names[i]] = 'ERROR'
-
-                    info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.loop_time
-                    now = datetime.datetime.utcnow()
-                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-                    self.info = info
-                except Exception:
-                    self.log.error('get_info command failed')
-                    self.log.debug('', exc_info=True)
-                self.get_info_flag = 0
-
             # power on a specified outlet
             if self.on_flag:
                 try:
@@ -275,12 +246,6 @@ class PowerDaemon(HardwareDaemon):
     # Power control functions
     def get_info(self):
         """Return power status info."""
-        # Set flag
-        self.check_status_flag = 1
-        self.get_info_flag = 1
-
-        # Wait, then return the updated info dict
-        time.sleep(0.5)
         return self.info
 
     def get_info_simple(self):

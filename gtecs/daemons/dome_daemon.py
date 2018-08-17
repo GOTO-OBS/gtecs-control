@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Daemon to control an AstroHaven dome."""
 
-import datetime
 import threading
 import time
 
@@ -28,23 +27,12 @@ class DomeDaemon(HardwareDaemon):
         self.dehumidifier = None
 
         # command flags
-        self.get_info_flag = 0
         self.open_flag = 0
         self.close_flag = 0
         self.halt_flag = 0
         self.override_dehumid_flag = 0
 
         # dome variables
-        self.dome_status = {'dome': 'unknown',
-                            'hatch': 'unknown',
-                            'estop': 'unknown',
-                            'monitorlink': 'unknown'}
-        self.heartbeat_status = 'unknown'
-
-        self.count = 0
-        self.last_hatch_status = None
-        self.last_estop_status = None
-        self.power_status = None
         self.dome_timeout = 40.
         self.lockdown = False
 
@@ -72,8 +60,17 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    # Connect to hardware
+    def _check_errors(self):
+        """Check for any errors."""
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
+
     def _connect(self):
+        """Connect to hardware."""
         # Connect to the dome
         if not self.dome:
             if params.FAKE_DOME:
@@ -112,12 +109,99 @@ class DomeDaemon(HardwareDaemon):
                     if 'dehumidifier' not in self.bad_hardware:
                         self.bad_hardware.add('dehumidifier')
 
-        if len(self.bad_hardware) > 0 and not self.hardware_error:
-            self.log.warning('Hardware error detected')
-            self.hardware_error = True
-        elif len(self.bad_hardware) == 0 and self.hardware_error:
-            self.log.warning('Hardware error cleared')
-            self.hardware_error = False
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['timestamp'] = self.loop_time
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get info from the dome
+        try:
+            dome_status = self.dome.status
+            temp_info['north'] = dome_status['north']
+            temp_info['south'] = dome_status['south']
+            temp_info['hatch'] = dome_status['hatch']
+
+            # general, backwards-compatible open/closed
+            if ('open' in temp_info['north']) or ('open' in temp_info['south']):
+                temp_info['dome'] = 'open'
+            elif (temp_info['north'] == 'closed') and (temp_info['south'] == 'closed'):
+                temp_info['dome'] = 'closed'
+            else:
+                temp_info['dome'] = 'ERROR'
+
+            heartbeat_status = self.dome.heartbeat_status
+            temp_info['heartbeat'] = heartbeat_status
+        except Exception:
+            self.log.error('Failed to get dome info')
+            self.log.debug('', exc_info=True)
+            temp_info['north'] = None
+            temp_info['south'] = None
+            temp_info['hatch'] = None
+            temp_info['dome'] = None
+            temp_info['heartbeat'] = None
+            # Report the connection as failed
+            self.dome = None
+            if 'dome' not in self.bad_hardware:
+                self.bad_hardware.add('dome')
+
+        # Get dehumidifier info
+        try:
+            dehumidifier_status = self.dehumidifier.status()
+            temp_info['dehumidifier'] = dehumidifier_status
+        except Exception:
+            self.log.error('Failed to get dehumidifier info')
+            self.log.debug('', exc_info=True)
+            temp_info['dehumidifier'] = None
+            # Report the connection as failed
+            self.dehumidifier = None
+            if 'dehumidifier' not in self.bad_hardware:
+                self.bad_hardware.add('dehumidifier')
+
+        # Get conditions info
+        try:
+            conditions = Conditions()
+            temp_info['conditions_bad'] = bool(conditions.bad)
+            temp_info['conditions_reasons'] = conditions.bad_flags
+        except Exception:
+            self.log.error('Failed to get conditions info')
+            self.log.debug('', exc_info=True)
+            temp_info['conditions_bad'] = None
+            temp_info['conditions_reasons'] = None
+
+        # Get status info
+        try:
+            status = Status()
+            temp_info['emergency'] = status.emergency_shutdown
+            temp_info['emergency_time'] = status.emergency_shutdown_time
+            temp_info['emergency_reasons'] = status.emergency_shutdown_reasons
+            temp_info['mode'] = status.mode
+            temp_info['autoclose'] = status.autoclose
+            temp_info['alarm'] = status.alarm
+        except Exception:
+            self.log.error('Failed to get status info')
+            self.log.debug('', exc_info=True)
+            temp_info['emergency'] = None
+            temp_info['emergency_time'] = None
+            temp_info['emergency_reasons'] = None
+            temp_info['mode'] = None
+            temp_info['autoclose'] = None
+            temp_info['alarm'] = None
+
+        # Get other internal info
+        temp_info['lockdown'] = self.lockdown
+
+        # Update the master info dict
+        self.info = temp_info
+
+        # Finally check if we need to report an error
+        self._check_errors()
 
     # Primary control thread
     def _control_thread(self):
@@ -131,38 +215,21 @@ class DomeDaemon(HardwareDaemon):
                 self.check_time = self.loop_time
                 self.force_check_flag = False
 
-                # Try to connect to the hardware.
+                # Try to connect to the hardware
                 self._connect()
 
-                # If there is an error then keep looping.
-                # It should retry the connection until it's sucsessful.
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
                 if self.hardware_error:
                     continue
 
-            # autocheck dome status every X seconds (if not already forced)
-            delta = self.loop_time - self.status_check_time
-            if delta > self.status_check_period:
-                self.check_status_flag = 1
+                # We should be connected, now try getting info
+                self._get_info()
 
-            # check dome status
-            if self.check_status_flag:
-                try:
-                    # get current dome status
-                    self.dome_status = self.dome.status
-                    if self.dome_status is None:
-                        self.dome._check_status()
-                        time.sleep(1)
-                        self.dome_status = self.dome.status
-                    self.heartbeat_status = self.dome.heartbeat_status
-
-                    print(self.dome_status, self.move_started, self.move_side,
-                          self.open_flag, self.close_flag)
-
-                    self.status_check_time = time.time()
-                except Exception:
-                    self.log.error('check_status command failed')
-                    self.log.debug('', exc_info=True)
-                self.check_status_flag = 0
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
 
             # autocheck warnings every Y seconds (if not already forced)
             delta = self.loop_time - self.warnings_check_time
@@ -188,8 +255,8 @@ class DomeDaemon(HardwareDaemon):
                     # Act on an emergency
                     if status.emergency_shutdown:
                         self.lockdown = True
-                        if (self.dome_status['north'] != 'closed' or
-                                self.dome_status['south'] != 'closed'):
+                        if (self.info['north'] != 'closed' or
+                                self.info['south'] != 'closed'):
                             reasons = ', '.join(status.emergency_shutdown_reasons)
                             self.log.warning('Closing dome (emergency: {})'.format(reasons))
                             if not self.close_flag:
@@ -211,8 +278,8 @@ class DomeDaemon(HardwareDaemon):
                             self.log.warning('{}, {}'.format(reason, but))
                         else:
                             self.lockdown = True
-                            if (self.dome_status['north'] != 'closed' or
-                                    self.dome_status['south'] != 'closed'):
+                            if (self.info['north'] != 'closed' or
+                                    self.info['south'] != 'closed'):
                                 reason = 'Conditions bad ({})'.format(conditions.bad_flags)
                                 self.log.warning('{}, auto-closing dome'.format(reason))
                                 if not self.close_flag:
@@ -252,8 +319,8 @@ class DomeDaemon(HardwareDaemon):
                     humidity = conditions['humidity']
                     temperature = conditions['temperature']
 
-                    currently_open = (self.dome_status['north'] != 'closed' or
-                                      self.dome_status['south'] != 'closed')
+                    currently_open = (self.info['north'] != 'closed' or
+                                      self.info['south'] != 'closed')
 
                     if self.dehumidifier.status() == '0' and not currently_open:
                         if humidity > params.MAX_INTERNAL_HUMIDITY:
@@ -303,57 +370,6 @@ class DomeDaemon(HardwareDaemon):
                 self.check_conditions_flag = 0
 
             # control functions
-            # request info
-            if self.get_info_flag:
-                try:
-                    info = {}
-                    for key in ['north', 'south', 'hatch']:
-                        info[key] = self.dome_status[key]
-
-                    # general, backwards-compatible open/closed
-                    if ('open' in info['north']) or ('open' in info['south']):
-                        info['dome'] = 'open'
-                    elif (info['north'] == 'closed') and (info['south'] == 'closed'):
-                        info['dome'] = 'closed'
-                    else:
-                        info['dome'] = 'ERROR'
-
-                    # add heartbeat status
-                    info['heartbeat'] = self.heartbeat_status
-
-                    # add dehumidifier status
-                    dehumidifier_status = self.dehumidifier.status()
-                    if dehumidifier_status == '0':
-                        info['dehumidifier'] = 'off'
-                    elif dehumidifier_status == '1':
-                        info['dehumidifier'] = 'on'
-                    else:
-                        info['dehumidifier'] = 'ERROR'
-
-                    # add conditions and status status (umm...)
-                    info['lockdown'] = self.lockdown
-                    conditions = Conditions()
-                    info['conditions_bad'] = bool(conditions.bad)
-                    info['conditions_reasons'] = conditions.bad_flags
-                    status = Status()
-                    info['emergency'] = status.emergency_shutdown
-                    info['emergency_time'] = status.emergency_shutdown_time
-                    info['emergency_reasons'] = status.emergency_shutdown_reasons
-                    info['mode'] = status.mode
-                    info['autoclose'] = status.autoclose
-                    info['alarm'] = status.alarm
-
-                    info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.loop_time
-                    now = datetime.datetime.utcnow()
-                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-                    self.info = info
-                except Exception:
-                    self.log.error('get_info command failed')
-                    self.log.debug('', exc_info=True)
-                self.get_info_flag = 0
-
             # open dome
             if self.open_flag:
                 try:
@@ -373,7 +389,7 @@ class DomeDaemon(HardwareDaemon):
 
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
-                        if self.dome_status[side] == 'full_open':
+                        if self.info[side] == 'full_open':
                             self.log.info('The {} side is already open'.format(side))
                             if self.move_side == 'both':
                                 self.move_side = 'north'
@@ -447,14 +463,14 @@ class DomeDaemon(HardwareDaemon):
                         # whenever the dome is closed, re-enable autoclose
                         status = Status()
                         if (not status.autoclose and
-                                self.dome_status['north'] == 'closed' and
-                                self.dome_status['south'] == 'closed'):
+                                self.info['north'] == 'closed' and
+                                self.info['south'] == 'closed'):
                             status.autoclose = True
                             self.log.info('Re-enabled dome auto-close')
 
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
-                        if self.dome_status[side] == 'closed':
+                        if self.info[side] == 'closed':
                             self.log.info('The {} side is already closed'.format(side))
                             if self.move_side == 'both':
                                 self.move_side = 'south'
@@ -539,11 +555,6 @@ class DomeDaemon(HardwareDaemon):
     # Dome control functions
     def get_info(self):
         """Return dome status info."""
-        # Set flag
-        self.get_info_flag = 1
-
-        # Wait, then return the updated info dict
-        time.sleep(0.1)
         return self.info
 
     def get_info_simple(self):
@@ -592,8 +603,8 @@ class DomeDaemon(HardwareDaemon):
             time.sleep(3)
 
         # Check current status
-        north_status = self.dome_status['north']
-        south_status = self.dome_status['south']
+        north_status = self.info['north']
+        south_status = self.info['south']
         if side == 'north' and north_status == 'full_open':
             return 'The north side is already fully open'
         elif side == 'south' and south_status == 'full_open':
@@ -635,8 +646,8 @@ class DomeDaemon(HardwareDaemon):
             time.sleep(3)
 
         # Check current status
-        north_status = self.dome_status['north']
-        south_status = self.dome_status['south']
+        north_status = self.info['north']
+        south_status = self.info['south']
         if side == 'north' and north_status == 'closed':
             return 'The north side is already fully closed'
         elif side == 'south' and south_status == 'closed':
@@ -673,8 +684,6 @@ class DomeDaemon(HardwareDaemon):
             raise ValueError("Command must be 'on' or 'off'")
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.3)
         dehumid_status = self.info['dehumidifier']
         currently_open = self.info['dome'] != 'closed'
         if command == 'on' and currently_open:
