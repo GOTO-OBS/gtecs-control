@@ -198,7 +198,7 @@ def print_info(info):
     print('South:        %s' % info['south'].capitalize())
     print('Hatch:        %s' % info['hatch'].capitalize())
     print('Heartbeat:    %s' % info['heartbeat'].capitalize())
-    print('Dehumidifier: %s' % info['dehumidifier'].capitalize())
+    print('Dehumidifier: %s' % ('On' if info['dehumidifier_on'] else 'Off'))
     print('Alarm:        %s' % ('On' if info['alarm'] else style.rtxt('Off')))
     print('Auto-close:   %s' % ('On' if info['autoclose'] else style.rtxt('Off')))
     print('Lockdown:     %s' % (style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
@@ -207,7 +207,6 @@ def print_info(info):
         print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
     print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.5fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
@@ -218,7 +217,7 @@ def print_info_s(info):
     if info['lockdown']:
         print(style.rtxt('                    LOCKDOWN ACTIVE'))
     print('   Hatch:           [%s]' % info['hatch'].capitalize())
-    print('   Dehumidifier:    [%s]' % info['dehumidifier'].capitalize())
+    print('   Dehumidifier:    [%s]' % ('On' if info['dehumidifier_on'] else 'Off'))
     print('   Alarm:           [%s]' % ('On' if info['alarm'] else style.rtxt('Off')))
     print('   Autoclose:       [%s]' % ('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:

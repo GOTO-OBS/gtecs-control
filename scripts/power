@@ -121,12 +121,11 @@ def print_info(info):
         for outlet in names:
             outlet_name = '({}):'.format(outlet)
             outlet_no = names.index(outlet) + 1
-            outlet_status = status[outlet]
+            outlet_status = status[outlet].capitalize()
             print('Outlet {: <2} {: <15} {}'.format(outlet_no, outlet_name, outlet_status))
         print('~~~~~~~')
 
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.5fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
@@ -151,7 +150,7 @@ def print_info_s(info):
         for outlet in names:
             outlet_name = '({}):'.format(outlet)
             outlet_no = names.index(outlet) + 1
-            outlet_status = status[outlet]
+            outlet_status = status[outlet].capitalize()
             if outlet[0] != '_':
                 print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
 

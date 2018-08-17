@@ -47,9 +47,6 @@ class MntDaemon(HardwareDaemon):
         self.temp_dec = None
         self.temp_alt = None
         self.temp_az = None
-        self.utc = Time.now()
-        self.utc.precision = 0  # only integer seconds
-        self.utc_str = self.utc.iso
         self.set_blinky = False
 
         # start control thread
@@ -81,7 +78,7 @@ class MntDaemon(HardwareDaemon):
 
         # Get basic daemon info
         temp_info['daemon_id'] = self.daemon_id
-        temp_info['timestamp'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
         # Get info from sitech
@@ -113,9 +110,6 @@ class MntDaemon(HardwareDaemon):
         temp_info['target_dec'] = self.target_dec
         temp_info['target_dist'] = self._get_target_distance()
         temp_info['step'] = self.step
-        utc = Time.now()
-        utc.precision = 0  # only integer seconds
-        temp_info['utc'] = utc.iso
 
         # Update the master info dict
         self.info = temp_info
@@ -527,7 +521,7 @@ class MntDaemon(HardwareDaemon):
             ra = self.sitech.ra - step_ra
             dec = self.sitech.dec
 
-        if check_alt_limit(ra * 360. / 24., dec, self.utc):
+        if check_alt_limit(ra * 360. / 24., dec, Time.now()):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Set values

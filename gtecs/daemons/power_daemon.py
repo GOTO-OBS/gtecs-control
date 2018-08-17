@@ -4,6 +4,8 @@
 import threading
 import time
 
+from astropy.time import Time
+
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import HardwareDaemon
@@ -108,7 +110,7 @@ class PowerDaemon(HardwareDaemon):
 
         # Get basic daemon info
         temp_info['daemon_id'] = self.daemon_id
-        temp_info['timestamp'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
         for unit_name in self.power_units:

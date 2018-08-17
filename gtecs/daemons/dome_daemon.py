@@ -4,6 +4,8 @@
 import threading
 import time
 
+from astropy.time import Time
+
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
@@ -108,7 +110,7 @@ class DomeDaemon(HardwareDaemon):
 
         # Get basic daemon info
         temp_info['daemon_id'] = self.daemon_id
-        temp_info['timestamp'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
         # Get info from the dome
@@ -155,7 +157,7 @@ class DomeDaemon(HardwareDaemon):
         except Exception:
             self.log.error('Failed to get dehumidifier info')
             self.log.debug('', exc_info=True)
-            temp_info['dehumidifier'] = None
+            temp_info['dehumidifier_on'] = None
             temp_info['humidity'] = None
             temp_info['humidity_upper'] = None
             temp_info['humidity_lower'] = None
@@ -601,7 +603,6 @@ class DomeDaemon(HardwareDaemon):
         # Set flag
         self.log.info('Starting: Opening dome')
         self.open_flag = 1
-        self.dehumidifier_off_flag = 1  # make sure dehumidifier is off
 
         if bad_idea:
             return 'Opening dome, even though conditions are bad! BE CAREFUL'
@@ -659,13 +660,13 @@ class DomeDaemon(HardwareDaemon):
             raise ValueError("Command must be 'on' or 'off'")
 
         # Check current status
-        dehumid_status = self.info['dehumidifier']
+        dehumidifier_on = self.info['dehumidifier_on']
         currently_open = self.info['dome'] != 'closed'
         if command == 'on' and currently_open:
             raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
-        elif command == 'on' and dehumid_status == 'on':
+        elif command == 'on' and dehumidifier_on:
             return 'Dehumidifier is already on'
-        elif command == 'off' and dehumid_status == 'off':
+        elif command == 'off' and not dehumidifier_on:
             return 'Dehumidifier is already off'
 
         # Set flag

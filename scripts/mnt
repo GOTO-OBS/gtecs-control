@@ -339,10 +339,8 @@ def print_info(info):
     print('~~~~~~~')
     print('LST:              %.2f' % info['lst'])
     print('Hour Angle:       %.2f' % info['ha'])
-    print('UTC:              %s' % info['utc'])
     print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.5fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
