@@ -60,15 +60,6 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    def _check_errors(self):
-        """Check for any errors."""
-        if len(self.bad_hardware) > 0 and not self.hardware_error:
-            self.log.warning('Hardware error detected')
-            self.hardware_error = True
-        elif len(self.bad_hardware) == 0 and self.hardware_error:
-            self.log.warning('Hardware error cleared')
-            self.hardware_error = False
-
     def _connect(self):
         """Connect to hardware."""
         # Connect to the dome

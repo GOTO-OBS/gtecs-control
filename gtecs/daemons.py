@@ -104,6 +104,27 @@ class HardwareDaemon(object):
             self.log.warning('Dependency error cleared')
             self.dependency_error = False
 
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _check_errors(self):
+        """Check for any errors."""
+        # Hardware errors
+        if len(self.bad_hardware) > 0 and not self.hardware_error:
+            self.log.warning('Hardware error detected')
+            self.hardware_error = True
+        elif len(self.bad_hardware) == 0 and self.hardware_error:
+            self.log.warning('Hardware error cleared')
+            self.hardware_error = False
+
+        # Dependency errors
+        if len(self.bad_dependencies) > 0 and not self.dependency_error:
+            self.log.warning('Dependency error detected')
+            self.dependency_error = True
+        elif len(self.bad_dependencies) == 0 and self.dependency_error:
+            self.log.warning('Dependency error cleared')
+            self.dependency_error = False
+
     # Common daemon functions
     def prod(self):
         """Prod the daemon to make sure it closes."""
