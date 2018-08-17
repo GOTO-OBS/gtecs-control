@@ -139,7 +139,7 @@ class PowerDaemon(HardwareDaemon):
             except Exception:
                 self.log.error('Failed to get {} info'.format(unit_name))
                 self.log.debug('', exc_info=True)
-                temp_info[unit_name] = None
+                temp_status[unit_name] = None
                 # Report the connection as failed
                 self.power_units[unit_name] = None
                 if unit_name not in self.bad_hardware:
