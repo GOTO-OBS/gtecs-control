@@ -92,12 +92,12 @@ class MntDaemon(HardwareDaemon):
                 self.check_time = self.loop_time
                 self.force_check_flag = False
 
-                # Try to connect to the hardware
+                # Try to connect to the hardware.
                 self._connect()
 
                 # If there is an error then keep looping.
+                # It should retry the connection until it's sucsessful.
                 if self.hardware_error:
-                    time.sleep(1)
                     continue
 
             # control functions
