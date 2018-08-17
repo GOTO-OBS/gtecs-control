@@ -30,7 +30,8 @@ class DomeDaemon(HardwareDaemon):
         self.open_flag = 0
         self.close_flag = 0
         self.halt_flag = 0
-        self.override_dehumid_flag = 0
+        self.dehumidifier_on_flag = 0
+        self.dehumidifier_off_flag = 0
 
         # dome variables
         self.dome_timeout = 40.
@@ -40,8 +41,6 @@ class DomeDaemon(HardwareDaemon):
         self.move_frac = 1
         self.move_started = 0
         self.move_start_time = 0
-
-        self.dehumid_command = 'none'
 
         self.check_status_flag = 1
         self.status_check_time = 0
@@ -145,26 +144,66 @@ class DomeDaemon(HardwareDaemon):
         # Get dehumidifier info
         try:
             dehumidifier_status = self.dehumidifier.status()
-            temp_info['dehumidifier'] = dehumidifier_status
+            temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
+            dome_conditions = self.dehumidifier.conditions()
+            temp_info['humidity'] = dome_conditions['humidity']
+            temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
+            temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
+            temp_info['temperature'] = dome_conditions['temperature']
+            temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
+            temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
         except Exception:
             self.log.error('Failed to get dehumidifier info')
             self.log.debug('', exc_info=True)
             temp_info['dehumidifier'] = None
+            temp_info['humidity'] = None
+            temp_info['humidity_upper'] = None
+            temp_info['humidity_lower'] = None
+            temp_info['temperature'] = None
+            temp_info['temperature_lower'] = None
+            temp_info['temperature_upper'] = None
             # Report the connection as failed
             self.dehumidifier = None
             if 'dehumidifier' not in self.bad_hardware:
                 self.bad_hardware.add('dehumidifier')
 
+        # Get button info
+        try:
+            button_pressed = self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT)
+            temp_info['button_pressed'] = button_pressed
+        except Exception:
+            self.log.error('Failed to get quick close button info')
+            self.log.debug('', exc_info=True)
+            temp_info['button_pressed'] = None
+
         # Get conditions info
         try:
             conditions = Conditions()
             temp_info['conditions_bad'] = bool(conditions.bad)
-            temp_info['conditions_reasons'] = conditions.bad_flags
+            temp_info['conditions_bad_reasons'] = conditions.bad_flags
+            temp_info['conditions_critical'] = bool(conditions.critical)
+            temp_info['conditions_critical_reasons'] = conditions.critical_flags
         except Exception:
             self.log.error('Failed to get conditions info')
             self.log.debug('', exc_info=True)
             temp_info['conditions_bad'] = None
-            temp_info['conditions_reasons'] = None
+            temp_info['conditions_bad_reasons'] = None
+            temp_info['conditions_critical'] = None
+            temp_info['conditions_critical_reasons'] = None
+
+        # Dome automation - create emergency file if needed
+        # TODO: Status() is awkward
+        try:
+            if temp_info['button_pressed']:
+                self.log.warning('Quick close button pressed!')
+                Status().create_shutdown_file(['quick close button pressed'])
+            if temp_info['conditions_critical']:
+                reasons = temp_info['conditions_critical_reasons']
+                self.log.warning('Conditions critical ({})'.format(reasons))
+                Status().create_shutdown_file(reasons.split(', '))
+        except Exception:
+            self.log.error('Failed to create emergency shutdown file')
+            self.log.debug('', exc_info=True)
 
         # Get status info
         try:
@@ -194,6 +233,74 @@ class DomeDaemon(HardwareDaemon):
         # Finally check if we need to report an error
         self._check_errors()
 
+    def _auto_close(self):
+        """Check the current conditions and set warning flags, then close if bad."""
+        if not self.dome:
+            self.log.warning('Auto close disabled while no connection to dome')
+            return
+
+        # Check if we need to set or clear the lockdown
+        if self.info['emergency']:
+            reasons = ', '.join(self.info['emergency_reasons'])
+            self.log.warning('Lockdown: emergency shutdown ({})!'.format(reasons))
+            self.lockdown = True
+        elif self.info['conditions_bad']:
+            reasons = self.info['conditions_bad_reasons']
+            if self.info['mode'] == 'manual' and not self.info['autoclose']:
+                self.log.warning('Conditions bad ({}), but autoclose is disabled!'.format(reasons))
+            else:
+                self.log.warning('Lockdown: conditions bad ({})!'.format(reasons))
+                self.lockdown = True
+        elif self.lockdown and not self.info['emergency'] and not self.info['conditions_bad']:
+            self.log.info('Conditions are clear, lockdown lifted')
+            self.lockdown = False
+
+        # React to a lockdown order
+        if self.lockdown and self.info['dome'] != 'closed':
+            self.log.warning('Autoclosing dome due to lockdown')
+            if not self.close_flag:
+                reasons = ', '.join(self.info['emergency_reasons'])
+                reasons += ' ' + self.info['conditions_bad_reasons']
+                send_slack_msg('Dome is autoclosing: {}'.format(reasons))
+                if self.open_flag:  # stop opening!
+                    self.halt_flag = 1
+                    time.sleep(2)
+                Status().alarm = True  # make sure the alarm sounds TODO: Status() is awkward
+                self.close_flag = 1
+                self.move_side = 'both'
+                self.move_frac = 1
+
+    def _auto_dehum(self):
+        """Check the current internal conditions, then turn on the dehumidifer if needed."""
+        if not self.dehumidifier:
+            self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
+            return
+
+        # Check if the dehumidifier should be on or off
+        if self.info['dome'] != 'closed' and self.info['dehumidifier_on']:
+            self.log.info('Dome is open, turning off dehumidifier')
+            self.dehumidifier_off_flag = 1
+
+        elif self.info['dome'] == 'closed' and not self.info['dehumidifier_on']:
+            if self.info['humidity'] > self.info['humidity_upper']:
+                self.log.info('Dome humidity {}% > {}%'.format(self.info['humidity'],
+                                                               self.info['humidity_upper']))
+                self.dehumidifier_on_flag = 1
+
+            if self.info['temperature'] < self.info['temperature_lower']:
+                self.log.info('Dome temperature {}C < {}C'.format(self.info['temperature'],
+                                                                  self.info['temperature_lower']))
+                self.dehumidifier_on_flag = 1
+
+        elif self.info['dome'] == 'closed' and self.info['dehumidifier_on']:
+            if (self.info['humidity'] < self.info['humidity_lower'] and
+                    self.info['temperature'] > self.info['temperature_upper']):
+                self.log.info('Dome humidity {}% < {}%'.format(self.info['humidity'],
+                                                               self.info['humidity_upper']))
+                self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
+                                                                  self.info['temperature_lower']))
+                self.dehumidifier_off_flag = 1
+
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -222,143 +329,9 @@ class DomeDaemon(HardwareDaemon):
                 if self.hardware_error:
                     continue
 
-            # autocheck warnings every Y seconds (if not already forced)
-            delta = self.loop_time - self.warnings_check_time
-            if delta > self.warnings_check_period:
-                self.check_warnings_flag = 1
-
-            # check warnings
-            if self.check_warnings_flag:
-                try:
-                    # Get external flags
-                    conditions = Conditions()
-                    status = Status()
-
-                    # Create emergency file if needed
-                    if self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT):
-                        self.log.info('Quick close button pressed!')
-                        status.create_shutdown_file(['quick close button pressed'])
-                    if conditions.critical:
-                        flags = conditions.critical_flags
-                        self.log.info('Conditions critical ({})'.format(flags))
-                        status.create_shutdown_file(conditions._crit_flags)
-
-                    # Act on an emergency
-                    if status.emergency_shutdown:
-                        self.lockdown = True
-                        if (self.info['north'] != 'closed' or
-                                self.info['south'] != 'closed'):
-                            reasons = ', '.join(status.emergency_shutdown_reasons)
-                            self.log.warning('Closing dome (emergency: {})'.format(reasons))
-                            if not self.close_flag:
-                                reason = '(emergency shutdown: {})'.format(reasons)
-                                send_slack_msg('dome_daemon is closing dome {}'.format(reason))
-                                if self.open_flag:  # stop opening!
-                                    self.halt_flag = 1
-                                    time.sleep(2)
-                                status.alarm = True  # make sure the alarm sounds
-                                self.close_flag = 1
-                                self.move_side = 'both'
-                                self.move_frac = 1
-                    elif conditions.bad:
-                        # Don't close in manual mode if autoclose is disabled
-                        # NB: Always close in robotic mode
-                        if status.mode == 'manual' and not status.autoclose:
-                            reason = 'Conditions bad ({})'.format(conditions.bad_flags)
-                            but = 'but in manual mode and autoclose disabled!'
-                            self.log.warning('{}, {}'.format(reason, but))
-                        else:
-                            self.lockdown = True
-                            if (self.info['north'] != 'closed' or
-                                    self.info['south'] != 'closed'):
-                                reason = 'Conditions bad ({})'.format(conditions.bad_flags)
-                                self.log.warning('{}, auto-closing dome'.format(reason))
-                                if not self.close_flag:
-                                    if self.open_flag:  # stop opening!
-                                        self.halt_flag = 1
-                                        time.sleep(2)
-                                    status.alarm = True  # make sure the alarm sounds
-                                    self.close_flag = 1
-                                    self.move_side = 'both'
-                                    self.move_frac = 1
-
-                    # Check if we're okay to reopen
-                    if self.lockdown:
-                        if not conditions.bad and not status.emergency_shutdown:
-                            self.log.info('Conditions are clear, lockdown lifted')
-                            self.lockdown = False
-                        else:
-                            self.log.warning('Dome is in lockdown state')
-
-                    self.warnings_check_time = time.time()
-                except Exception:
-                    self.log.error('check_warnings command failed')
-                    self.log.debug('', exc_info=True)
-                self.check_warnings_flag = 0
-
-            # autocheck dome conditions every Z seconds (if not already forced)
-            delta = self.loop_time - self.conditions_check_time
-            if delta > self.conditions_check_period:
-                self.check_conditions_flag = 1
-
-            # check dome internal conditions
-            if self.check_conditions_flag:
-                try:
-                    # get current dome conditions
-                    conditions = self.dehumidifier.conditions()
-                    print(conditions, self.dehumidifier.status())
-                    humidity = conditions['humidity']
-                    temperature = conditions['temperature']
-
-                    currently_open = (self.info['north'] != 'closed' or
-                                      self.info['south'] != 'closed')
-
-                    if self.dehumidifier.status() == '0' and not currently_open:
-                        if humidity > params.MAX_INTERNAL_HUMIDITY:
-                            string = 'Internal humidity {}% is above {}%'
-                            string = string.format(humidity, params.MAX_INTERNAL_HUMIDITY)
-                            self.log.info(string)
-                        if temperature < params.MIN_INTERNAL_TEMPERATURE:
-                            string = 'Internal temperature {}C is below {}C'
-                            string = string.format(temperature, params.MIN_INTERNAL_TEMPERATURE)
-                            self.log.info(string)
-                        if (humidity > params.MAX_INTERNAL_HUMIDITY or
-                                temperature < params.MIN_INTERNAL_TEMPERATURE):
-                            self.log.info('Turning on dehumidifier')
-                            self.dehumidifier.on()
-                        elif self.override_dehumid_flag and self.dehumid_command == 'on':
-                            self.log.info('Turning on dehumidifier (manual)')
-                            self.dehumidifier.on()
-                            self.override_dehumid_flag = 0
-                            self.dehumid_command = 'none'
-
-                    elif self.dehumidifier.status() == '1' and not currently_open:
-                        if (humidity < params.MAX_INTERNAL_HUMIDITY - 10 and
-                                temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                            string = 'Internal humidity {}% is below {}%'
-                            string = string.format(humidity, params.MAX_INTERNAL_HUMIDITY - 10)
-                            self.log.info(string)
-                            string = 'and internal temperature {}C is above {}C'
-                            string = string.format(temperature, params.MIN_INTERNAL_TEMPERATURE + 1)
-                            self.log.info(string)
-                            self.log.info('Turning off dehumidifier')
-                            self.dehumidifier.off()
-                        elif self.override_dehumid_flag and self.dehumid_command == 'off':
-                            self.log.info('Turning off dehumidifier (manual)')
-                            self.dehumidifier.off()
-                            self.override_dehumid_flag = 0
-                            self.dehumid_command = 'none'
-
-                    if self.dehumidifier.status() == '1' and currently_open:
-                        self.log.info('Dome is open')
-                        self.log.info('Turning off dehumidifier')
-                        self.dehumidifier.off()
-
-                    self.conditions_check_time = time.time()
-                except Exception:
-                    self.log.error('check_humidity command failed')
-                    self.log.debug('', exc_info=True)
-                self.check_conditions_flag = 0
+                # Dome automation: close or turn on dehumidifier if nessesary
+                self._auto_close()
+                self._auto_dehum()
 
             # control functions
             # open dome
@@ -375,8 +348,6 @@ class DomeDaemon(HardwareDaemon):
                         self.log.info('Finished: Dome is open')
                         self.move_frac = 1
                         self.open_flag = 0
-                        self.check_status_flag = 1
-                        self.check_warnings_flag = 1
 
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
@@ -399,8 +370,6 @@ class DomeDaemon(HardwareDaemon):
                             except Exception:
                                 self.log.error('Failed to open dome')
                                 self.log.debug('', exc_info=True)
-                            # make sure dehumidifier is off
-                            self.dehumidifier.off()
 
                     if self.move_started and not self.dome.output_thread_running:
                         # we've finished
@@ -411,8 +380,6 @@ class DomeDaemon(HardwareDaemon):
                             self.move_side = 'none'
                             self.move_frac = 1
                             self.open_flag = 0
-                            self.check_status_flag = 1
-                            self.check_warnings_flag = 1
                         # we should be at the target
                         elif self.move_frac == 1:
                             self.log.info('The {} side is open'.format(side))
@@ -449,13 +416,9 @@ class DomeDaemon(HardwareDaemon):
                         self.log.info('Finished: Dome is closed')
                         self.move_frac = 1
                         self.close_flag = 0
-                        self.check_status_flag = 1
-                        self.check_warnings_flag = 1
                         # whenever the dome is closed, re-enable autoclose
                         status = Status()
-                        if (not status.autoclose and
-                                self.info['north'] == 'closed' and
-                                self.info['south'] == 'closed'):
+                        if not status.autoclose and self.info['dome'] == 'closed':
                             status.autoclose = True
                             self.log.info('Re-enabled dome auto-close')
 
@@ -476,7 +439,6 @@ class DomeDaemon(HardwareDaemon):
                                     self.log.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
-                                self.check_status_flag = 1
                             except Exception:
                                 self.log.error('Failed to close dome')
                                 self.log.debug('', exc_info=True)
@@ -490,8 +452,6 @@ class DomeDaemon(HardwareDaemon):
                             self.move_side = 'none'
                             self.move_frac = 1
                             self.close_flag = 0
-                            self.check_status_flag = 1
-                            self.check_warnings_flag = 1
                         # we should be at the target
                         elif self.move_frac == 1:
                             self.log.info('The {} side is closed'.format(side))
@@ -536,7 +496,30 @@ class DomeDaemon(HardwareDaemon):
                     self.log.error('halt command failed')
                     self.log.debug('', exc_info=True)
                 self.halt_flag = 0
-                self.check_status_flag = 1
+
+            # turn on dehumidifer
+            if self.dehumidifier_on_flag:
+                try:
+                    self.log.info('Turning dehumidifer on')
+                    c = self.dehumidifier.on()
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('dehumidifer on command failed')
+                    self.log.debug('', exc_info=True)
+                self.dehumidifier_on_flag = 0
+
+            # turn off dehumidifer
+            if self.dehumidifier_off_flag:
+                try:
+                    self.log.info('Turning dehumidifer off')
+                    c = self.dehumidifier.off()
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('dehumidifer off command failed')
+                    self.log.debug('', exc_info=True)
+                self.dehumidifier_off_flag = 0
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -618,6 +601,7 @@ class DomeDaemon(HardwareDaemon):
         # Set flag
         self.log.info('Starting: Opening dome')
         self.open_flag = 1
+        self.dehumidifier_off_flag = 1  # make sure dehumidifier is off
 
         if bad_idea:
             return 'Opening dome, even though conditions are bad! BE CAREFUL'
@@ -684,16 +668,13 @@ class DomeDaemon(HardwareDaemon):
         elif command == 'off' and dehumid_status == 'off':
             return 'Dehumidifier is already off'
 
-        # Set values
-        self.dehumid_command = command
-
         # Set flag
         if command == 'on':
             self.log.info('Turning on dehumidifier (manual command)')
+            self.dehumidifier_on_flag = 1
         elif command == 'off':
             self.log.info('Turning off dehumidifier (manual command)')
-        self.override_dehumid_flag = 1
-        self.check_conditions_flag = 1
+            self.dehumidifier_off_flag = 1
 
         if command == 'on':
             return 'Turning on dehumidifier (the daemon may turn it off again)'
