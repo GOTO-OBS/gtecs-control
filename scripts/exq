@@ -478,7 +478,6 @@ def print_info(info):
         print('Items in queue:     %s' % (info['queue_length']))
     print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.3fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 

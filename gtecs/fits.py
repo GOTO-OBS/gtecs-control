@@ -175,7 +175,7 @@ def update_header(header, tel, all_info):
     # Exposure data
     header["EXPTIME "] = (current_exposure.exptime, "Exposure time, seconds")
 
-    start_time = Time(cam_info['exposure_start_time' + str(tel)])
+    start_time = Time(cam_info['exposure_start_time'])
     start_time.precision = 0
     mid_time = start_time + (current_exposure.exptime * u.second) / 2.
     header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
@@ -343,28 +343,29 @@ def update_header(header, tel, all_info):
     header["TILENAME"] = (survey_tile_name, "Name of this survey tile")
 
     # Camera info
-    cam_serial = cam_info['serial_number' + str(tel)]
+    cam_info = cam_info[tel]
+    cam_serial = cam_info['serial_number']
     header["CAMERA  "] = (cam_serial, "Camera serial number")
 
     header["XBINNING"] = (current_exposure.binning, "CCD x binning factor")
     header["YBINNING"] = (current_exposure.binning, "CCD y binning factor")
 
-    x_pixel_size = cam_info['x_pixel_size' + str(tel)] * current_exposure.binning
-    y_pixel_size = cam_info['y_pixel_size' + str(tel)] * current_exposure.binning
+    x_pixel_size = cam_info['x_pixel_size'] * current_exposure.binning
+    y_pixel_size = cam_info['y_pixel_size'] * current_exposure.binning
     header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
     header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
-    header["CCDTEMP "] = (cam_info['ccd_temp' + str(tel)], "CCD temperature, C")
-    header["CCDTEMPS"] = (cam_info['target_temp' + str(tel)], "Requested CCD temperature, C")
-    header["BASETEMP"] = (cam_info['base_temp' + str(tel)], "Peltier base temperature, C")
+    header["CCDTEMP "] = (cam_info['ccd_temp'], "CCD temperature, C")
+    header["CCDTEMPS"] = (cam_info['target_temp'], "Requested CCD temperature, C")
+    header["BASETEMP"] = (cam_info['base_temp'], "Peltier base temperature, C")
 
     # Focuser info
     try:
-        info = all_info['foc']
-        foc_serial = info['serial_number' + str(tel)]
-        foc_pos = info['current_pos' + str(tel)]
-        foc_temp_int = info['int_temp' + str(tel)]
-        foc_temp_ext = info['ext_temp' + str(tel)]
+        info = all_info['foc'][tel]
+        foc_serial = info['serial_number']
+        foc_pos = info['current_pos']
+        foc_temp_int = info['int_temp']
+        foc_temp_ext = info['ext_temp']
     except Exception:
         foc_serial = 'NA'
         foc_pos = 'NA'
@@ -378,15 +379,15 @@ def update_header(header, tel, all_info):
 
     # Filter wheel info
     try:
-        info = all_info['filt']
-        filt_serial = info['serial_number' + str(tel)]
-        if info['current_filter_num' + str(tel)] != -1:
-            filt_filter_num = info['current_filter_num' + str(tel)]
-            filt_filter = params.FILTER_LIST[filt_filter_num]
-        else:
+        info = all_info['filt'][tel]
+        filt_serial = info['serial_number']
+        if not info['homed']:
             filt_filter = 'UNHOMED'
-        filt_num = info['current_filter_num' + str(tel)]
-        filt_pos = info['current_pos' + str(tel)]
+        else:
+            filt_filter_num = info['current_filter_num']
+            filt_filter = params.FILTER_LIST[filt_filter_num]
+        filt_num = info['current_filter_num']
+        filt_pos = info['current_pos']
     except Exception:
         filt_serial = 'NA'
         filt_filter = 'NA'

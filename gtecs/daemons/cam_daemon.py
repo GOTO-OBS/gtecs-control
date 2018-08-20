@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """Daemon to control FLI cameras via fli_interface."""
 
-import datetime
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+
+from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
@@ -26,55 +27,96 @@ class CamDaemon(HardwareDaemon):
             self.dependencies.add(daemon_id)
 
         # command flags
-        self.get_info_flag = 1
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
         self.set_temp_flag = 0
 
         # camera variables
+        self.active_tel = []
+        self.abort_tel = []
+
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.run_number = 0
 
         self.pool = ThreadPoolExecutor(max_workers=len(params.TEL_DICT))
 
+        self.current_exposure = None
+        self.exposing = False
+        self.exposure_start_time = 0
         self.all_info = None
-
-        self.exposing = 0
         self.image_ready = {tel: 0 for tel in params.TEL_DICT}
         self.image_saving = {tel: 0 for tel in params.TEL_DICT}
 
-        self.remaining = {}
-        self.exposure_start_time = {}
-        self.ccd_temp = {}
-        self.base_temp = {}
-        self.cooler_power = {}
-        self.cam_info = {}
-        self.target_temp = {}
-
-        for intf in params.FLI_INTERFACES:
-            nhw = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.remaining[intf] = [0] * nhw
-            self.exposure_start_time[intf] = [0] * nhw
-            self.ccd_temp[intf] = [0] * nhw
-            self.base_temp[intf] = [0] * nhw
-            self.cooler_power[intf] = [0] * nhw
-            self.cam_info[intf] = [0] * nhw
-            self.target_temp[intf] = [0] * nhw
-
-        self.active_tel = []
-        self.abort_tel = []
-
-        self.exposure_status = 0
-
-        self.finished = 0
-        self.saving_flag = 0
-
-        self.current_exposure = None
+        self.target_temp = {tel: 0 for tel in params.TEL_DICT}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for tel in params.TEL_DICT:
+            # Get info from each interface
+            try:
+                intf, hw = params.TEL_DICT[tel]
+                tel_info = {}
+                tel_info['intf'] = intf
+                tel_info['hw'] = hw
+
+                if self.exposing and tel in self.active_tel:
+                    tel_info['status'] = 'Exposing'
+                elif self.image_saving[tel] == 1:
+                    tel_info['status'] = 'Reading'
+                else:
+                    tel_info['status'] = 'Ready'
+                tel_info['image_ready'] = self.image_ready[tel]
+                tel_info['image_saving'] = self.image_saving[tel]
+                tel_info['target_temp'] = self.target_temp[tel]
+
+                with daemon_proxy(intf) as fli:
+                    tel_info['remaining'] = fli.get_camera_time_remaining(hw)
+                    tel_info['ccd_temp'] = fli.get_camera_temp('CCD', hw)
+                    tel_info['base_temp'] = fli.get_camera_temp('BASE', hw)
+                    tel_info['cooler_power'] = fli.get_camera_cooler_power(hw)
+                    cam_info = fli.get_camera_info(hw)
+                    tel_info['serial_number'] = cam_info['serial_number']
+                    tel_info['x_pixel_size'] = cam_info['pixel_size'][0]
+                    tel_info['y_pixel_size'] = cam_info['pixel_size'][1]
+
+                temp_info[tel] = tel_info
+            except Exception:
+                self.log.error('Failed to get camera {} info'.format(tel))
+                self.log.debug('', exc_info=True)
+                temp_info[tel] = None
+
+        # Get other internal info
+        temp_info['exposing'] = self.exposing
+        temp_info['exposure_start_time'] = self.exposure_start_time
+        temp_info['current_exposure'] = self.current_exposure
+        if self.current_exposure is not None:
+            temp_info['current_tel_list'] = self.current_exposure.tel_list
+            temp_info['current_exptime'] = self.current_exposure.exptime
+            temp_info['current_binning'] = self.current_exposure.binning
+            temp_info['current_frametype'] = self.current_exposure.frametype
+            temp_info['current_target'] = self.current_exposure.target
+            temp_info['current_imgtype'] = self.current_exposure.imgtype
+            temp_info['current_set_pos'] = self.current_exposure.set_pos
+            temp_info['current_set_total'] = self.current_exposure.set_total
+            temp_info['current_db_id'] = self.current_exposure.db_id
+        temp_info['run_number'] = self.run_number
+        temp_info['glance'] = self.run_number < 0
+
+        # Update the master info dict
+        self.info = temp_info
 
     # Primary control thread
     def _control_thread(self):
@@ -91,81 +133,20 @@ class CamDaemon(HardwareDaemon):
                 # Check the dependencies
                 self._check_dependencies()
 
-                # If there is an error then keep looping.
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's successful
                 if self.dependency_error:
-                    time.sleep(1)
                     continue
 
+                # We should be connected, now try getting info
+                self._get_info()
+
             # control functions
-            # request info
-            if self.get_info_flag:
-                try:
-                    # update variables
-                    for tel in params.TEL_DICT:
-                        intf, hw = params.TEL_DICT[tel]
-                        try:
-                            with daemon_proxy(intf) as fli:
-                                self.cam_info[intf][hw] = fli.get_camera_info(hw)
-                                self.remaining[intf][hw] = fli.get_camera_time_remaining(hw)
-                                self.ccd_temp[intf][hw] = fli.get_camera_temp('CCD', hw)
-                                self.base_temp[intf][hw] = fli.get_camera_temp('BASE', hw)
-                                self.cooler_power[intf][hw] = fli.get_camera_cooler_power(hw)
-                        except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
-                            self.log.debug('', exc_info=True)
-                    # save info
-                    info = {}
-                    info['exposing'] = self.exposing
-                    info['current_exposure'] = self.current_exposure
-                    if self.current_exposure is not None:
-                        info['current_tel_list'] = self.current_exposure.tel_list
-                        info['current_exptime'] = self.current_exposure.exptime
-                        info['current_binning'] = self.current_exposure.binning
-                        info['current_frametype'] = self.current_exposure.frametype
-                        info['current_target'] = self.current_exposure.target
-                        info['current_imgtype'] = self.current_exposure.imgtype
-                        info['current_set_pos'] = self.current_exposure.set_pos
-                        info['current_set_total'] = self.current_exposure.set_total
-                        info['current_db_id'] = self.current_exposure.db_id
-                    for tel in params.TEL_DICT:
-                        intf, hw = params.TEL_DICT[tel]
-                        # tel = str(params.FLI_INTERFACES[intf]['TELS'][hw])
-                        info['remaining' + str(tel)] = self.remaining[intf][hw]
-                        if self.exposing == 1 and tel in self.active_tel:
-                            info['status' + str(tel)] = 'Exposing'
-                        elif self.image_saving[tel] == 1:
-                            info['status' + str(tel)] = 'Reading'
-                        else:
-                            info['status' + str(tel)] = 'Ready'
-                        info['image_ready' + str(tel)] = self.image_ready[tel]
-                        info['image_saving' + str(tel)] = self.image_saving[tel]
-                        info['exposure_start_time' + str(tel)] = self.exposure_start_time[intf][hw]
-                        info['ccd_temp' + str(tel)] = self.ccd_temp[intf][hw]
-                        info['target_temp' + str(tel)] = self.target_temp[intf][hw]
-                        info['base_temp' + str(tel)] = self.base_temp[intf][hw]
-                        info['cooler_power' + str(tel)] = self.cooler_power[intf][hw]
-                        info['serial_number' + str(tel)] = self.cam_info[intf][hw]['serial_number']
-                        info['x_pixel_size' + str(tel)] = self.cam_info[intf][hw]['pixel_size'][0]
-                        info['y_pixel_size' + str(tel)] = self.cam_info[intf][hw]['pixel_size'][1]
-
-                    info['run_number'] = self.run_number
-                    info['glance'] = self.run_number < 0
-                    info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.loop_time
-                    now = datetime.datetime.utcnow()
-                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-                    self.info = info
-                except Exception:
-                    self.log.error('get_info command failed')
-                    self.log.debug('', exc_info=True)
-                self.get_info_flag = 0
-
             # take exposure
             if self.take_exposure_flag:
                 # start exposures
-                if self.exposing == 0:
-                    self.exposing = 1
+                if not self.exposing:
+                    self.exposing = True
                     # get exposure info
                     exptime = self.current_exposure.exptime
                     exptime_ms = exptime * 1000.
@@ -199,8 +180,9 @@ class CamDaemon(HardwareDaemon):
                                 if c:
                                     self.log.info(c)
                                 # start the exposure
-                                now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                                self.exposure_start_time[intf][hw] = now
+                                # now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                                # FORMAT FITS
+                                self.exposure_start_time = self.loop_time
                                 c = fli.start_exposure(hw)
                                 if c:
                                     self.log.info(c)
@@ -209,12 +191,12 @@ class CamDaemon(HardwareDaemon):
                             self.log.debug('', exc_info=True)
 
                     # set flags
-                    self.exposing = 1
-                    self.get_info_flag = 1
+                    self.exposing = True
+                    self.force_check_flag = True
 
                 # wait for exposures to finish
-                elif self.exposing == 1 and self.get_info_flag == 0:
-
+                # need to wait for at least a single check to update the info dict
+                elif self.exposing and self.info['time'] > self.exposure_start_time:
                     # get daemon info (once, for all images)
                     # do it here so we know the cam info has been updated
                     if self.all_info is None:
@@ -247,7 +229,8 @@ class CamDaemon(HardwareDaemon):
                         t.start()
 
                         # clear tags, ready for next exposure
-                        self.exposing = 0
+                        self.exposing = False
+                        self.exposure_start_time = 0
                         self.image_ready = {tel: 0 for tel in params.TEL_DICT}
                         self.active_tel = []
                         self.all_info = None
@@ -278,7 +261,7 @@ class CamDaemon(HardwareDaemon):
                         self.active_tel.remove(tel)
                     if len(self.active_tel) == 0:
                         # we've aborted everything, stop the exposure
-                        self.exposing = 0
+                        self.exposing = False
                         self.active_tel = []
                         self.all_info = None
                         self.take_exposure_flag = 0
@@ -293,7 +276,7 @@ class CamDaemon(HardwareDaemon):
                 try:
                     for tel in self.active_tel:
                         intf, hw = params.TEL_DICT[tel]
-                        target_temp = self.target_temp[intf][hw]
+                        target_temp = self.target_temp[tel]
                         camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
                         self.log.info('Setting temperature on %s to %i', camstr, target_temp)
                         try:
@@ -318,15 +301,6 @@ class CamDaemon(HardwareDaemon):
     # Camera control functions
     def get_info(self):
         """Return camera status info."""
-        # Check restrictions
-        if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Set flag
-        self.get_info_flag = 1
-
-        # Wait, then return the updated info dict
-        time.sleep(0.1)
         return self.info
 
     def get_info_simple(self):
@@ -395,7 +369,7 @@ class CamDaemon(HardwareDaemon):
             raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Check current status
-        if self.exposing == 1:
+        if self.exposing:
             raise errors.HardwareStatusError('Cameras are already exposing')
 
         # Find and update run number
@@ -439,7 +413,7 @@ class CamDaemon(HardwareDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Check current status
-        if self.exposing == 0:
+        if not self.exposing:
             return 'Cameras are not currently exposing'
 
         # Set values
@@ -475,8 +449,7 @@ class CamDaemon(HardwareDaemon):
 
         # Set values
         for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            self.target_temp[intf][hw] = target_temp
+            self.target_temp[tel] = target_temp
             self.active_tel += [tel]
 
         # Set flag

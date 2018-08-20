@@ -110,6 +110,7 @@ class DomeDaemon(HardwareDaemon):
 
         # Get basic daemon info
         temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 

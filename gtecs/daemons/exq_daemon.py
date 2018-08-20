@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """Daemon to control the exposure queue."""
 
-import datetime
 import threading
 import time
+
+from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
@@ -26,6 +27,7 @@ class ExqDaemon(HardwareDaemon):
 
         # exposure queue variables
         self.exp_queue = ExposureQueue()
+        self.queue_len = len(self.exp_queue)
         self.current_exposure = None
 
         self.working = 0
@@ -35,6 +37,36 @@ class ExqDaemon(HardwareDaemon):
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get internal info
+        if self.paused:
+            temp_info['status'] = 'Paused'
+        elif self.working:
+            temp_info['status'] = 'Working'
+        else:
+            temp_info['status'] = 'Ready'
+        temp_info['queue_length'] = self.queue_len
+        if self.working and self.current_exposure is not None:
+            temp_info['current_tel_list'] = self.current_exposure.tel_list
+            temp_info['current_exptime'] = self.current_exposure.exptime
+            temp_info['current_filter'] = self.current_exposure.filt
+            temp_info['current_binning'] = self.current_exposure.binning
+            temp_info['current_frametype'] = self.current_exposure.frametype
+            temp_info['current_target'] = self.current_exposure.target
+            temp_info['current_imgtype'] = self.current_exposure.imgtype
+
+        # Update the master info dict
+        self.info = temp_info
 
     # Primary control thread
     def _control_thread(self):
@@ -51,10 +83,13 @@ class ExqDaemon(HardwareDaemon):
                 # Check the dependencies
                 self._check_dependencies()
 
-                # If there is an error then keep looping.
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's successful
                 if self.dependency_error:
-                    time.sleep(1)
                     continue
+
+                # We should be connected, now try getting info
+                self._get_info()
 
             # exposure queue processes
             # check the queue, take off the first entry (if not paused)
@@ -96,38 +131,10 @@ class ExqDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Exposure queue functions
+    # Focuser control functions
     def get_info(self):
-        """Return exposure queue status info."""
-        # Check restrictions
-        if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # exq info is outside the loop
-        info = {}
-        if self.paused:
-            info['status'] = 'Paused'
-        elif self.working:
-            info['status'] = 'Working'
-        else:
-            info['status'] = 'Ready'
-        info['queue_length'] = self.queue_len
-        if self.working and self.current_exposure is not None:
-            info['current_tel_list'] = self.current_exposure.tel_list
-            info['current_exptime'] = self.current_exposure.exptime
-            info['current_filter'] = self.current_exposure.filt
-            info['current_binning'] = self.current_exposure.binning
-            info['current_frametype'] = self.current_exposure.frametype
-            info['current_target'] = self.current_exposure.target
-            info['current_imgtype'] = self.current_exposure.imgtype
-
-        info['uptime'] = time.time() - self.start_time
-        info['ping'] = time.time() - self.loop_time
-        now = datetime.datetime.utcnow()
-        info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-        # Return the updated info dict
-        return info
+        """Return focuser status info."""
+        return self.info
 
     def get_info_simple(self):
         """Return plain status dict, or None."""
@@ -304,7 +311,7 @@ class ExqDaemon(HardwareDaemon):
         tel_list = self.current_exposure.tel_list
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
+        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
                  for tel in tel_list]
         if all(check):
             return False
@@ -325,12 +332,12 @@ class ExqDaemon(HardwareDaemon):
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
+        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
                  for tel in tel_list]
         while not all(check):
             with daemon_proxy('filt') as filt_daemon:
                 filt_info = filt_daemon.get_info()
-            check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
+            check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
                      for tel in tel_list]
             time.sleep(0.5)
 
