@@ -38,6 +38,92 @@ class PowerDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
+    # Primary control thread
+    def _control_thread(self):
+        self.log.info('Daemon control thread started')
+
+        while(self.running):
+            self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
+                if self.hardware_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
+
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
+
+            # control functions
+            # power on a specified outlet
+            if self.on_flag:
+                try:
+                    for unit, outlet in zip(self.current_units, self.current_outlets):
+                        power = self.power_units[unit]
+                        self.log.info('Power on unit {} outlet {}'.format(unit, outlet))
+                        c = power.on(outlet)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('on command failed')
+                    self.log.debug('', exc_info=True)
+                self.current_units = []
+                self.current_outlets = []
+                self.on_flag = 0
+                self.force_check_flag = True
+
+            # power off a specified outlet
+            if self.off_flag:
+                try:
+                    for unit, outlet in zip(self.current_units, self.current_outlets):
+                        power = self.power_units[unit]
+                        self.log.info('Power off unit {} outlet {}'.format(unit, outlet))
+                        c = power.off(outlet)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('off command failed')
+                    self.log.debug('', exc_info=True)
+                self.current_units = []
+                self.current_outlets = []
+                self.off_flag = 0
+                self.force_check_flag = True
+
+            # reboot a specified outlet
+            if self.reboot_flag:
+                try:
+                    for unit, outlet in zip(self.current_units, self.current_outlets):
+                        power = self.power_units[unit]
+                        self.log.info('Reboot unit {} outlet {}'.format(unit, outlet))
+                        c = power.reboot(outlet)
+                        if c:
+                            self.log.info(c)
+                except Exception:
+                    self.log.error('reboot command failed')
+                    self.log.debug('', exc_info=True)
+                self.current_units = []
+                self.current_outlets = []
+                self.reboot_flag = 0
+                self.force_check_flag = True
+
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
+
+        self.log.info('Daemon control thread stopped')
+        return
+
+    # Internal functions
     def _connect(self):
         """Connect to hardware."""
         for unit_name in params.POWER_UNITS:
@@ -152,92 +238,65 @@ class PowerDaemon(HardwareDaemon):
         # Finally check if we need to report an error
         self._check_errors()
 
-    # Primary control thread
-    def _control_thread(self):
-        self.log.info('Daemon control thread started')
+    def _parse_input(self, outlet_list, unit=''):
+        if unit in params.POWER_UNITS:
+            # specific unit given, all outlets should be from that unit
+            outlets = self._get_valid_outlets(unit, outlet_list)
+            units = [unit] * len(outlets)
+        else:
+            # first check for group names
+            for outlet in outlet_list.copy():
+                if outlet in params.POWER_GROUPS:
+                    outlet_list.remove(outlet)
+                    outlet_list += params.POWER_GROUPS[outlet]
 
-        while(self.running):
-            self.loop_time = time.time()
+            # remove duplicate outlets
+            outlet_list = list(set(outlet_list))
 
-            # system check
-            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
-                self.check_time = self.loop_time
-                self.force_check_flag = False
+            # a list of outlet names, we need to find their matching units
+            unit_list = self._units_from_names(outlet_list)
+            units = []
+            outlets = []
+            for unit in unit_list:
+                valid_outlets = self._get_valid_outlets(unit, outlet_list)
+                outlets += valid_outlets
+                units += [unit] * len(valid_outlets)
+        return outlets, units
 
-                # Try to connect to the hardware
-                self._connect()
-
-                # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
-                if self.hardware_error:
-                    continue
-
-                # We should be connected, now try getting info
-                self._get_info()
-
-                # If there is an error then getting info failed.
-                # Restart the loop to try reconnecting above.
-                if self.hardware_error:
-                    continue
-
-            # control functions
-            # power on a specified outlet
-            if self.on_flag:
+    def _units_from_names(self, name_list):
+        unit_list = []
+        for name in name_list:
+            found_units = []
+            for unit in params.POWER_UNITS:
                 try:
-                    for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = self.power_units[unit]
-                        self.log.info('Power on unit {} outlet {}'.format(unit, outlet))
-                        c = power.on(outlet)
-                        if c:
-                            self.log.info(c)
+                    if name in params.POWER_UNITS[unit]['NAMES'] or str(name) in ['0', 'all']:
+                        found_units.append(unit)
                 except Exception:
-                    self.log.error('on command failed')
-                    self.log.debug('', exc_info=True)
-                self.current_units = []
-                self.current_outlets = []
-                self.on_flag = 0
-                self.force_check_flag = True
+                    pass  # for UPSs, that don't have NAMES
+            if len(found_units) > 1 and str(name) not in ['0', 'all']:
+                raise ValueError('Duplicate names defined in params')
+            for unit in found_units:
+                if unit not in unit_list:
+                    unit_list.append(unit)
+        return unit_list
 
-            # power off a specified outlet
-            if self.off_flag:
-                try:
-                    for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = self.power_units[unit]
-                        self.log.info('Power off unit {} outlet {}'.format(unit, outlet))
-                        c = power.off(outlet)
-                        if c:
-                            self.log.info(c)
-                except Exception:
-                    self.log.error('off command failed')
-                    self.log.debug('', exc_info=True)
-                self.current_units = []
-                self.current_outlets = []
-                self.off_flag = 0
-                self.force_check_flag = True
+    def _get_valid_outlets(self, unit, outlet_list):
+        """Check outlets are valid and convert any names to numbers."""
+        names = params.POWER_UNITS[unit]['NAMES']
+        n_outlets = len(names)
+        valid_list = []
+        for outlet in outlet_list:
+            if outlet == 'all':
+                valid_list = [0]
+            elif outlet.isdigit():
+                x = int(outlet)
+                if 0 <= x < (n_outlets + 1):
+                    valid_list.append(x)
+            elif outlet in names:
+                valid_list.append(names.index(outlet) + 1)
+        return valid_list
 
-            # reboot a specified outlet
-            if self.reboot_flag:
-                try:
-                    for unit, outlet in zip(self.current_units, self.current_outlets):
-                        power = self.power_units[unit]
-                        self.log.info('Reboot unit {} outlet {}'.format(unit, outlet))
-                        c = power.reboot(outlet)
-                        if c:
-                            self.log.info(c)
-                except Exception:
-                    self.log.error('reboot command failed')
-                    self.log.debug('', exc_info=True)
-                self.current_units = []
-                self.current_outlets = []
-                self.reboot_flag = 0
-                self.force_check_flag = True
-
-            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
-
-        self.log.info('Daemon control thread stopped')
-        return
-
-    # Power control functions
+    # Control functions
     def get_info(self):
         """Return power status info."""
         return self.info
@@ -296,65 +355,6 @@ class PowerDaemon(HardwareDaemon):
         # Set flag
         self.reboot_flag = 1
         return 'Rebooting power'
-
-    # Internal functions
-    def _parse_input(self, outlet_list, unit=''):
-        if unit in params.POWER_UNITS:
-            # specific unit given, all outlets should be from that unit
-            outlets = self._get_valid_outlets(unit, outlet_list)
-            units = [unit] * len(outlets)
-        else:
-            # first check for group names
-            for outlet in outlet_list.copy():
-                if outlet in params.POWER_GROUPS:
-                    outlet_list.remove(outlet)
-                    outlet_list += params.POWER_GROUPS[outlet]
-
-            # remove duplicate outlets
-            outlet_list = list(set(outlet_list))
-
-            # a list of outlet names, we need to find their matching units
-            unit_list = self._units_from_names(outlet_list)
-            units = []
-            outlets = []
-            for unit in unit_list:
-                valid_outlets = self._get_valid_outlets(unit, outlet_list)
-                outlets += valid_outlets
-                units += [unit] * len(valid_outlets)
-        return outlets, units
-
-    def _units_from_names(self, name_list):
-        unit_list = []
-        for name in name_list:
-            found_units = []
-            for unit in params.POWER_UNITS:
-                try:
-                    if name in params.POWER_UNITS[unit]['NAMES'] or str(name) in ['0', 'all']:
-                        found_units.append(unit)
-                except Exception:
-                    pass  # for UPSs, that don't have NAMES
-            if len(found_units) > 1 and str(name) not in ['0', 'all']:
-                raise ValueError('Duplicate names defined in params')
-            for unit in found_units:
-                if unit not in unit_list:
-                    unit_list.append(unit)
-        return unit_list
-
-    def _get_valid_outlets(self, unit, outlet_list):
-        """Check outlets are valid and convert any names to numbers."""
-        names = params.POWER_UNITS[unit]['NAMES']
-        n_outlets = len(names)
-        valid_list = []
-        for outlet in outlet_list:
-            if outlet == 'all':
-                valid_list = [0]
-            elif outlet.isdigit():
-                x = int(outlet)
-                if 0 <= x < (n_outlets + 1):
-                    valid_list.append(x)
-            elif outlet in names:
-                valid_list.append(names.index(outlet) + 1)
-        return valid_list
 
 
 if __name__ == "__main__":

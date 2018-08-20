@@ -35,49 +35,6 @@ class FocDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    def _get_info(self):
-        """Get the latest status info from the heardware."""
-        temp_info = {}
-
-        # Get basic daemon info
-        temp_info['daemon_id'] = self.daemon_id
-        temp_info['time'] = self.loop_time
-        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
-        temp_info['uptime'] = self.loop_time - self.start_time
-
-        for tel in params.TEL_DICT:
-            # Get info from each interface
-            try:
-                intf, hw = params.TEL_DICT[tel]
-                tel_info = {}
-                tel_info['intf'] = intf
-                tel_info['hw'] = hw
-
-                with daemon_proxy(intf) as fli:
-                    tel_info['remaining'] = fli.get_focuser_steps_remaining(hw)
-                    tel_info['current_pos'] = fli.get_focuser_position(hw)
-                    tel_info['limit'] = fli.get_focuser_limit(hw)
-                    tel_info['int_temp'] = fli.get_focuser_temp('internal', hw)
-                    tel_info['ext_temp'] = fli.get_focuser_temp('external', hw)
-                    tel_info['serial_number'] = fli.get_focuser_serial_number(hw)
-
-                if tel_info['remaining'] > 0:
-                    tel_info['status'] = 'Moving'
-                    if self.move_steps[tel] == 0:
-                        # Homing, needed due to bug in remaining
-                        tel_info['remaining'] = tel_info['current_pos']
-                else:
-                    tel_info['status'] = 'Ready'
-
-                temp_info[tel] = tel_info
-            except Exception:
-                self.log.error('Failed to get filter wheel {} info'.format(tel))
-                self.log.debug('', exc_info=True)
-                temp_info[tel] = None
-
-        # Update the master info dict
-        self.info = temp_info
-
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -159,7 +116,51 @@ class FocDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Focuser control functions
+    # Internal functions
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for tel in params.TEL_DICT:
+            # Get info from each interface
+            try:
+                intf, hw = params.TEL_DICT[tel]
+                tel_info = {}
+                tel_info['intf'] = intf
+                tel_info['hw'] = hw
+
+                with daemon_proxy(intf) as fli:
+                    tel_info['remaining'] = fli.get_focuser_steps_remaining(hw)
+                    tel_info['current_pos'] = fli.get_focuser_position(hw)
+                    tel_info['limit'] = fli.get_focuser_limit(hw)
+                    tel_info['int_temp'] = fli.get_focuser_temp('internal', hw)
+                    tel_info['ext_temp'] = fli.get_focuser_temp('external', hw)
+                    tel_info['serial_number'] = fli.get_focuser_serial_number(hw)
+
+                if tel_info['remaining'] > 0:
+                    tel_info['status'] = 'Moving'
+                    if self.move_steps[tel] == 0:
+                        # Homing, needed due to bug in remaining
+                        tel_info['remaining'] = tel_info['current_pos']
+                else:
+                    tel_info['status'] = 'Ready'
+
+                temp_info[tel] = tel_info
+            except Exception:
+                self.log.error('Failed to get filter wheel {} info'.format(tel))
+                self.log.debug('', exc_info=True)
+                temp_info[tel] = None
+
+        # Update the master info dict
+        self.info = temp_info
+
+    # Control functions
     def get_info(self):
         """Return focuser status info."""
         return self.info

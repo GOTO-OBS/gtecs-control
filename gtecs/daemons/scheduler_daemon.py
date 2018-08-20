@@ -14,6 +14,7 @@ class SchedulerDaemon(HardwareDaemon):
     def __init__(self):
         super().__init__('scheduler')
 
+    # Control functions
     def check_queue(self, *args):
         """Check the current queue for the best pointing to do."""
         next_pointing = check_queue(*args)

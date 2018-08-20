@@ -19,7 +19,7 @@ class FLIDaemon(HardwareDaemon):
 
         self._connect()
 
-    # Connect to hardware
+    # Internal functions
     def _connect(self):
         self.cams = []
         self.focs = []

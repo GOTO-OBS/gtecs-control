@@ -54,70 +54,6 @@ class CamDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    def _get_info(self):
-        """Get the latest status info from the heardware."""
-        temp_info = {}
-
-        # Get basic daemon info
-        temp_info['daemon_id'] = self.daemon_id
-        temp_info['time'] = self.loop_time
-        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
-        temp_info['uptime'] = self.loop_time - self.start_time
-
-        for tel in params.TEL_DICT:
-            # Get info from each interface
-            try:
-                intf, hw = params.TEL_DICT[tel]
-                tel_info = {}
-                tel_info['intf'] = intf
-                tel_info['hw'] = hw
-
-                if self.exposing and tel in self.active_tel:
-                    tel_info['status'] = 'Exposing'
-                elif self.image_saving[tel] == 1:
-                    tel_info['status'] = 'Reading'
-                else:
-                    tel_info['status'] = 'Ready'
-                tel_info['image_ready'] = self.image_ready[tel]
-                tel_info['image_saving'] = self.image_saving[tel]
-                tel_info['target_temp'] = self.target_temp[tel]
-
-                with daemon_proxy(intf) as fli:
-                    tel_info['remaining'] = fli.get_camera_time_remaining(hw)
-                    tel_info['ccd_temp'] = fli.get_camera_temp('CCD', hw)
-                    tel_info['base_temp'] = fli.get_camera_temp('BASE', hw)
-                    tel_info['cooler_power'] = fli.get_camera_cooler_power(hw)
-                    cam_info = fli.get_camera_info(hw)
-                    tel_info['serial_number'] = cam_info['serial_number']
-                    tel_info['x_pixel_size'] = cam_info['pixel_size'][0]
-                    tel_info['y_pixel_size'] = cam_info['pixel_size'][1]
-
-                temp_info[tel] = tel_info
-            except Exception:
-                self.log.error('Failed to get camera {} info'.format(tel))
-                self.log.debug('', exc_info=True)
-                temp_info[tel] = None
-
-        # Get other internal info
-        temp_info['exposing'] = self.exposing
-        temp_info['exposure_start_time'] = self.exposure_start_time
-        temp_info['current_exposure'] = self.current_exposure
-        if self.current_exposure is not None:
-            temp_info['current_tel_list'] = self.current_exposure.tel_list
-            temp_info['current_exptime'] = self.current_exposure.exptime
-            temp_info['current_binning'] = self.current_exposure.binning
-            temp_info['current_frametype'] = self.current_exposure.frametype
-            temp_info['current_target'] = self.current_exposure.target
-            temp_info['current_imgtype'] = self.current_exposure.imgtype
-            temp_info['current_set_pos'] = self.current_exposure.set_pos
-            temp_info['current_set_total'] = self.current_exposure.set_total
-            temp_info['current_db_id'] = self.current_exposure.db_id
-        temp_info['run_number'] = self.run_number
-        temp_info['glance'] = self.run_number < 0
-
-        # Update the master info dict
-        self.info = temp_info
-
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -301,7 +237,139 @@ class CamDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Camera control functions
+    # Internal functions
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for tel in params.TEL_DICT:
+            # Get info from each interface
+            try:
+                intf, hw = params.TEL_DICT[tel]
+                tel_info = {}
+                tel_info['intf'] = intf
+                tel_info['hw'] = hw
+
+                if self.exposing and tel in self.active_tel:
+                    tel_info['status'] = 'Exposing'
+                elif self.image_saving[tel] == 1:
+                    tel_info['status'] = 'Reading'
+                else:
+                    tel_info['status'] = 'Ready'
+                tel_info['image_ready'] = self.image_ready[tel]
+                tel_info['image_saving'] = self.image_saving[tel]
+                tel_info['target_temp'] = self.target_temp[tel]
+
+                with daemon_proxy(intf) as fli:
+                    tel_info['remaining'] = fli.get_camera_time_remaining(hw)
+                    tel_info['ccd_temp'] = fli.get_camera_temp('CCD', hw)
+                    tel_info['base_temp'] = fli.get_camera_temp('BASE', hw)
+                    tel_info['cooler_power'] = fli.get_camera_cooler_power(hw)
+                    cam_info = fli.get_camera_info(hw)
+                    tel_info['serial_number'] = cam_info['serial_number']
+                    tel_info['x_pixel_size'] = cam_info['pixel_size'][0]
+                    tel_info['y_pixel_size'] = cam_info['pixel_size'][1]
+
+                temp_info[tel] = tel_info
+            except Exception:
+                self.log.error('Failed to get camera {} info'.format(tel))
+                self.log.debug('', exc_info=True)
+                temp_info[tel] = None
+
+        # Get other internal info
+        temp_info['exposing'] = self.exposing
+        temp_info['exposure_start_time'] = self.exposure_start_time
+        temp_info['current_exposure'] = self.current_exposure
+        if self.current_exposure is not None:
+            temp_info['current_tel_list'] = self.current_exposure.tel_list
+            temp_info['current_exptime'] = self.current_exposure.exptime
+            temp_info['current_binning'] = self.current_exposure.binning
+            temp_info['current_frametype'] = self.current_exposure.frametype
+            temp_info['current_target'] = self.current_exposure.target
+            temp_info['current_imgtype'] = self.current_exposure.imgtype
+            temp_info['current_set_pos'] = self.current_exposure.set_pos
+            temp_info['current_set_total'] = self.current_exposure.set_total
+            temp_info['current_db_id'] = self.current_exposure.db_id
+        temp_info['run_number'] = self.run_number
+        temp_info['glance'] = self.run_number < 0
+
+        # Update the master info dict
+        self.info = temp_info
+
+    def _exposure_saving_thread(self, active_tel, all_info):
+        """Thread to be started whenever an exposure is completed.
+
+        By containing fetching images from the interfaces and saving them to
+        FITS files within this thread a new exposure can be started as soon as
+        the previous one is finished.
+        """
+        pool = ThreadPoolExecutor(max_workers=len(active_tel))
+
+        run_number = all_info['cam']['run_number']
+
+        # start fetching images from the interfaces in parallel
+        future_images = {tel: None for tel in active_tel}
+        for tel in active_tel:
+            self.image_saving[tel] = 1
+            intf, hw = params.TEL_DICT[tel]
+            fli = daemon_proxy(intf, timeout=99)
+            try:
+                if run_number > 0:
+                    expstr = 'exposure r%07d' % run_number
+                else:
+                    expstr = 'glance'
+                camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                self.log.info('Fetching %s from %s', expstr, camstr)
+                future_images[tel] = pool.submit(fli.fetch_exposure, hw)
+            except Exception:
+                self.log.error('No response from fli interface on %s', intf)
+                self.log.debug('', exc_info=True)
+
+        # wait for images to be fetched
+        images = {tel: None for tel in active_tel}
+        while True:
+            time.sleep(0.001)
+            for tel in active_tel:
+                intf, hw = params.TEL_DICT[tel]
+                if future_images[tel].done() and images[tel] is None:
+                    images[tel] = future_images[tel].result()
+                    if run_number > 0:
+                        expstr = 'exposure r%07d' % run_number
+                    else:
+                        expstr = 'glance'
+                    camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
+                    self.log.info('Fetched %s from %s', expstr, camstr)
+
+            # keep looping until all the images are fetched
+            if all(images[tel] is not None for tel in active_tel):
+                break
+
+        # save images in parallel
+        for tel in active_tel:
+            # get image and filename
+            image = images[tel]
+            if run_number > 0:
+                filename = image_location(run_number, tel)
+            else:
+                filename = glance_location(tel)
+
+            # write the FITS file
+            if run_number > 0:
+                expstr = 'exposure r%07d' % run_number
+            else:
+                expstr = 'glance'
+            self.log.info('Saving %s to %s', expstr, filename)
+            pool.submit(write_fits, image, filename, tel, all_info, log=self.log)
+
+            self.image_saving[tel] = 0
+
+    # Control functions
     def get_info(self):
         """Return camera status info."""
         return self.info
@@ -471,74 +539,6 @@ class CamDaemon(HardwareDaemon):
         Used to save time when the exposure queue doesn't need the full info.
         """
         return self.exposing
-
-    # Internal functions
-    def _exposure_saving_thread(self, active_tel, all_info):
-        """Thread to be started whenever an exposure is completed.
-
-        By containing fetching images from the interfaces and saving them to
-        FITS files within this thread a new exposure can be started as soon as
-        the previous one is finished.
-        """
-        pool = ThreadPoolExecutor(max_workers=len(active_tel))
-
-        run_number = all_info['cam']['run_number']
-
-        # start fetching images from the interfaces in parallel
-        future_images = {tel: None for tel in active_tel}
-        for tel in active_tel:
-            self.image_saving[tel] = 1
-            intf, hw = params.TEL_DICT[tel]
-            fli = daemon_proxy(intf, timeout=99)
-            try:
-                if run_number > 0:
-                    expstr = 'exposure r%07d' % run_number
-                else:
-                    expstr = 'glance'
-                camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
-                self.log.info('Fetching %s from %s', expstr, camstr)
-                future_images[tel] = pool.submit(fli.fetch_exposure, hw)
-            except Exception:
-                self.log.error('No response from fli interface on %s', intf)
-                self.log.debug('', exc_info=True)
-
-        # wait for images to be fetched
-        images = {tel: None for tel in active_tel}
-        while True:
-            time.sleep(0.001)
-            for tel in active_tel:
-                intf, hw = params.TEL_DICT[tel]
-                if future_images[tel].done() and images[tel] is None:
-                    images[tel] = future_images[tel].result()
-                    if run_number > 0:
-                        expstr = 'exposure r%07d' % run_number
-                    else:
-                        expstr = 'glance'
-                    camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
-                    self.log.info('Fetched %s from %s', expstr, camstr)
-
-            # keep looping until all the images are fetched
-            if all(images[tel] is not None for tel in active_tel):
-                break
-
-        # save images in parallel
-        for tel in active_tel:
-            # get image and filename
-            image = images[tel]
-            if run_number > 0:
-                filename = image_location(run_number, tel)
-            else:
-                filename = glance_location(tel)
-
-            # write the FITS file
-            if run_number > 0:
-                expstr = 'exposure r%07d' % run_number
-            else:
-                expstr = 'glance'
-            self.log.info('Saving %s to %s', expstr, filename)
-            pool.submit(write_fits, image, filename, tel, all_info, log=self.log)
-
-            self.image_saving[tel] = 0
 
 
 if __name__ == "__main__":

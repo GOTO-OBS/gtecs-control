@@ -54,70 +54,6 @@ class MntDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    def _connect(self):
-        """Connect to hardware."""
-        # Connect to sitech
-        if not self.sitech:
-            try:
-                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
-                self.log.info('Connected to SiTechEXE')
-                if 'sitech' in self.bad_hardware:
-                    self.bad_hardware.remove('sitech')
-            except Exception:
-                self.sitech = None
-                self.log.error('Failed to connect to SiTechEXE')
-                if 'sitech' not in self.bad_hardware:
-                    self.bad_hardware.add('sitech')
-
-        # Finally check if we need to report an error
-        self._check_errors()
-
-    def _get_info(self):
-        """Get the latest status info from the heardware."""
-        temp_info = {}
-
-        # Get basic daemon info
-        temp_info['daemon_id'] = self.daemon_id
-        temp_info['time'] = self.loop_time
-        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
-        temp_info['uptime'] = self.loop_time - self.start_time
-
-        # Get info from sitech
-        try:
-            temp_info['status'] = self.sitech.status
-            temp_info['mount_alt'] = self.sitech.alt
-            temp_info['mount_az'] = self.sitech.az
-            temp_info['mount_ra'] = self.sitech.ra
-            temp_info['mount_dec'] = self.sitech.dec
-            temp_info['lst'] = self.sitech.sidereal_time
-            temp_info['ha'] = find_ha(temp_info['mount_ra'], temp_info['lst'])
-        except Exception:
-            self.log.error('Failed to get mount info')
-            self.log.debug('', exc_info=True)
-            temp_info['status'] = None
-            temp_info['mount_alt'] = None
-            temp_info['mount_az'] = None
-            temp_info['mount_ra'] = None
-            temp_info['mount_dec'] = None
-            temp_info['lst'] = None
-            temp_info['ha'] = None
-            # Report the connection as failed
-            self.sitech = None
-            if 'sitech' not in self.bad_hardware:
-                self.bad_hardware.add('sitech')
-
-        # Get other internal info
-        temp_info['target_ra'] = self.target_ra
-        temp_info['target_dec'] = self.target_dec
-        temp_info['target_dist'] = self._get_target_distance()
-        temp_info['step'] = self.step
-
-        # Update the master info dict
-        self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
-
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -259,7 +195,85 @@ class MntDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Mount control functions
+    # Internal functions
+    def _connect(self):
+        """Connect to hardware."""
+        # Connect to sitech
+        if not self.sitech:
+            try:
+                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT)
+                self.log.info('Connected to SiTechEXE')
+                if 'sitech' in self.bad_hardware:
+                    self.bad_hardware.remove('sitech')
+            except Exception:
+                self.sitech = None
+                self.log.error('Failed to connect to SiTechEXE')
+                if 'sitech' not in self.bad_hardware:
+                    self.bad_hardware.add('sitech')
+
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get info from sitech
+        try:
+            temp_info['status'] = self.sitech.status
+            temp_info['mount_alt'] = self.sitech.alt
+            temp_info['mount_az'] = self.sitech.az
+            temp_info['mount_ra'] = self.sitech.ra
+            temp_info['mount_dec'] = self.sitech.dec
+            temp_info['lst'] = self.sitech.sidereal_time
+            temp_info['ha'] = find_ha(temp_info['mount_ra'], temp_info['lst'])
+        except Exception:
+            self.log.error('Failed to get mount info')
+            self.log.debug('', exc_info=True)
+            temp_info['status'] = None
+            temp_info['mount_alt'] = None
+            temp_info['mount_az'] = None
+            temp_info['mount_ra'] = None
+            temp_info['mount_dec'] = None
+            temp_info['lst'] = None
+            temp_info['ha'] = None
+            # Report the connection as failed
+            self.sitech = None
+            if 'sitech' not in self.bad_hardware:
+                self.bad_hardware.add('sitech')
+
+        # Get other internal info
+        temp_info['target_ra'] = self.target_ra
+        temp_info['target_dec'] = self.target_dec
+        temp_info['target_dist'] = self._get_target_distance()
+        temp_info['step'] = self.step
+
+        # Update the master info dict
+        self.info = temp_info
+
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_target_distance(self):
+        """Return the distance to the current target."""
+        # Need to catch error if target not yet set
+        if self.target_ra is None or self.target_dec is None:
+            return None
+        m_ra = self.sitech.ra
+        m_dec = self.sitech.dec
+        t_ra = self.target_ra
+        t_dec = self.target_dec
+        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
+        return t_c.separation(m_c).deg
+
+    # Control functions
     def get_info(self):
         """Return mount status info."""
         return self.info
@@ -552,20 +566,6 @@ class MntDaemon(HardwareDaemon):
         self.step = offset
 
         return 'New offset step set'
-
-    # Internal functions
-    def _get_target_distance(self):
-        """Return the distance to the current target."""
-        # Need to catch error if target not yet set
-        if self.target_ra is None or self.target_dec is None:
-            return None
-        m_ra = self.sitech.ra
-        m_dec = self.sitech.dec
-        t_ra = self.target_ra
-        t_dec = self.target_dec
-        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
-        return t_c.separation(m_c).deg
 
 
 if __name__ == "__main__":

@@ -35,45 +35,6 @@ class FiltDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
-    def _get_info(self):
-        """Get the latest status info from the heardware."""
-        temp_info = {}
-
-        # Get basic daemon info
-        temp_info['daemon_id'] = self.daemon_id
-        temp_info['time'] = self.loop_time
-        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
-        temp_info['uptime'] = self.loop_time - self.start_time
-
-        for tel in params.TEL_DICT:
-            # Get info from each interface
-            try:
-                intf, hw = params.TEL_DICT[tel]
-                tel_info = {}
-                tel_info['intf'] = intf
-                tel_info['hw'] = hw
-
-                with daemon_proxy(intf) as fli:
-                    tel_info['remaining'] = fli.get_filter_steps_remaining(hw)
-                    tel_info['current_filter_num'] = fli.get_filter_number(hw)
-                    tel_info['current_pos'] = fli.get_filter_position(hw)
-                    tel_info['serial_number'] = fli.get_filter_serial_number(hw)
-                    tel_info['homed'] = fli.get_filter_homed(hw)
-
-                if tel_info['remaining'] > 0:
-                    tel_info['status'] = 'Moving'
-                else:
-                    tel_info['status'] = 'Ready'
-
-                temp_info[tel] = tel_info
-            except Exception:
-                self.log.error('Failed to get filter wheel {} info'.format(tel))
-                self.log.debug('', exc_info=True)
-                temp_info[tel] = None
-
-        # Update the master info dict
-        self.info = temp_info
-
     # Primary control thread
     def _control_thread(self):
         self.log.info('Daemon control thread started')
@@ -152,7 +113,47 @@ class FiltDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Filter wheel control functions
+    # Internal functions
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for tel in params.TEL_DICT:
+            # Get info from each interface
+            try:
+                intf, hw = params.TEL_DICT[tel]
+                tel_info = {}
+                tel_info['intf'] = intf
+                tel_info['hw'] = hw
+
+                with daemon_proxy(intf) as fli:
+                    tel_info['remaining'] = fli.get_filter_steps_remaining(hw)
+                    tel_info['current_filter_num'] = fli.get_filter_number(hw)
+                    tel_info['current_pos'] = fli.get_filter_position(hw)
+                    tel_info['serial_number'] = fli.get_filter_serial_number(hw)
+                    tel_info['homed'] = fli.get_filter_homed(hw)
+
+                if tel_info['remaining'] > 0:
+                    tel_info['status'] = 'Moving'
+                else:
+                    tel_info['status'] = 'Ready'
+
+                temp_info[tel] = tel_info
+            except Exception:
+                self.log.error('Failed to get filter wheel {} info'.format(tel))
+                self.log.debug('', exc_info=True)
+                temp_info[tel] = None
+
+        # Update the master info dict
+        self.info = temp_info
+
+    # Control functions
     def get_info(self):
         """Return filter wheel status info."""
         return self.info

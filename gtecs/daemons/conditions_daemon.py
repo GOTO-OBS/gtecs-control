@@ -299,7 +299,7 @@ class ConditionsDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Conditions functions
+    # Control functions
     def get_info(self):
         """Return current conditions flags and weather info."""
         return {'flags': self.data,

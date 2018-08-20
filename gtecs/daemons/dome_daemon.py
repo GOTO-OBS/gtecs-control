@@ -49,6 +49,238 @@ class DomeDaemon(HardwareDaemon):
         t.daemon = True
         t.start()
 
+    # Primary control thread
+    def _control_thread(self):
+        self.log.info('Daemon control thread started')
+
+        while(self.running):
+            self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
+                if self.hardware_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
+
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
+
+                # Dome automation: close or turn on dehumidifier if nessesary
+                self._auto_close()
+                self._auto_dehum()
+
+            # control functions
+            # open dome
+            if self.open_flag:
+                try:
+                    # chose the side to move
+                    if self.move_side == 'south':
+                        side = 'south'
+                    elif self.move_side == 'north':
+                        side = 'north'
+                    elif self.move_side == 'both':
+                        side = 'south'
+                    elif self.move_side == 'none':
+                        self.log.info('Finished: Dome is open')
+                        self.move_frac = 1
+                        self.open_flag = 0
+                        self.force_check_flag = True
+
+                    if self.open_flag and not self.move_started:
+                        # before we start check if it's already there
+                        if self.info[side] == 'full_open':
+                            self.log.info('The {} side is already open'.format(side))
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                        # otherwise ready to start moving
+                        else:
+                            try:
+                                self.log.info('Opening {} side of dome'.format(side))
+                                c = self.dome.open_side(side, self.move_frac)
+                                if c:
+                                    self.log.info(c)
+                                self.move_started = 1
+                                self.move_start_time = time.time()
+                                self.force_check_flag = True
+                            except Exception:
+                                self.log.error('Failed to open dome')
+                                self.log.debug('', exc_info=True)
+
+                    if self.move_started and not self.dome.output_thread_running:
+                        # we've finished
+                        # check if we timed out
+                        if time.time() - self.move_start_time > self.dome_timeout:
+                            self.log.info('Moving timed out')
+                            self.move_started = 0
+                            self.move_side = 'none'
+                            self.move_frac = 1
+                            self.open_flag = 0
+                        # we should be at the target
+                        elif self.move_frac == 1:
+                            self.log.info('The {} side is open'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                        elif self.move_frac != 1:
+                            self.log.info('The {} side moved requested fraction'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'north'
+                            else:
+                                self.move_side = 'none'
+                except Exception:
+                    self.log.error('open command failed')
+                    self.log.debug('', exc_info=True)
+                    self.open_flag = 0
+
+            # close dome
+            if self.close_flag:
+                try:
+                    # chose the side to move
+                    if self.move_side == 'south':
+                        side = 'south'
+                    elif self.move_side == 'north':
+                        side = 'north'
+                    elif self.move_side == 'both':
+                        side = 'north'
+                    elif self.move_side == 'none':
+                        self.log.info('Finished: Dome is closed')
+                        self.move_frac = 1
+                        self.close_flag = 0
+                        self.force_check_flag = True
+                        # whenever the dome is closed, re-enable autoclose
+                        status = Status()
+                        if not status.autoclose and self.info['dome'] == 'closed':
+                            status.autoclose = True
+                            self.log.info('Re-enabled dome auto-close')
+
+                    if self.close_flag and not self.move_started:
+                        # before we start check if it's already there
+                        if self.info[side] == 'closed':
+                            self.log.info('The {} side is already closed'.format(side))
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                        # otherwise ready to start moving
+                        else:
+                            try:
+                                self.log.info('Closing {} side of dome'.format(side))
+                                c = self.dome.close_side(side, self.move_frac)
+                                if c:
+                                    self.log.info(c)
+                                self.move_started = 1
+                                self.move_start_time = time.time()
+                                self.force_check_flag = True
+                            except Exception:
+                                self.log.error('Failed to close dome')
+                                self.log.debug('', exc_info=True)
+
+                    if self.move_started and not self.dome.output_thread_running:
+                        # we've finished
+                        # check if we timed out
+                        if time.time() - self.move_start_time > self.dome_timeout:
+                            self.log.info('Moving timed out')
+                            self.move_started = 0
+                            self.move_side = 'none'
+                            self.move_frac = 1
+                            self.close_flag = 0
+                        # we should be at the target
+                        elif self.move_frac == 1:
+                            self.log.info('The {} side is closed'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                        elif self.move_frac != 1:
+                            self.log.info('The {} side moved requested fraction'.format(side))
+                            self.move_started = 0
+                            self.move_start_time = 0
+                            if self.move_side == 'both':
+                                self.move_side = 'south'
+                            else:
+                                self.move_side = 'none'
+                except Exception:
+                    self.log.error('close command failed')
+                    self.log.debug('', exc_info=True)
+                    self.close_flag = 0
+
+            # halt dome motion
+            if self.halt_flag:
+                try:
+                    try:
+                        self.log.info('Halting dome')
+                        c = self.dome.halt()
+                        if c:
+                            self.log.info(c)
+                    except Exception:
+                        self.log.error('Failed to halt dome')
+                        self.log.debug('', exc_info=True)
+                    # reset everything
+                    self.open_flag = 0
+                    self.close_flag = 0
+                    self.move_side = 'none'
+                    self.move_frac = 1
+                    self.move_started = 0
+                    self.move_start_time = 0
+                except Exception:
+                    self.log.error('halt command failed')
+                    self.log.debug('', exc_info=True)
+                self.halt_flag = 0
+                self.force_check_flag = True
+
+            # turn on dehumidifer
+            if self.dehumidifier_on_flag:
+                try:
+                    self.log.info('Turning dehumidifer on')
+                    c = self.dehumidifier.on()
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('dehumidifer on command failed')
+                    self.log.debug('', exc_info=True)
+                self.dehumidifier_on_flag = 0
+                self.force_check_flag = True
+
+            # turn off dehumidifer
+            if self.dehumidifier_off_flag:
+                try:
+                    self.log.info('Turning dehumidifer off')
+                    c = self.dehumidifier.off()
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('dehumidifer off command failed')
+                    self.log.debug('', exc_info=True)
+                self.dehumidifier_off_flag = 0
+                self.force_check_flag = True
+
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
+
+        self.log.info('Daemon control thread stopped')
+        return
+
+    # Internal functions
     def _connect(self):
         """Connect to hardware."""
         # Connect to the dome
@@ -292,238 +524,23 @@ class DomeDaemon(HardwareDaemon):
                                                                   self.info['temperature_lower']))
                 self.dehumidifier_off_flag = 1
 
-    # Primary control thread
-    def _control_thread(self):
-        self.log.info('Daemon control thread started')
+    def _button_pressed(self, port='/dev/ttyS3'):
+        """Send a message to the serial port and try to read it back."""
+        if not params.QUICK_CLOSE_BUTTON:
+            return False
+        button_port = serial.Serial(port, timeout=1, xonxoff=True)
+        chances = 3
+        for _ in range(chances):
+            button_port.write(b'bob\n')
+            reply = button_port.readlines()
+            for x in reply:
+                if x.find(b'bob') >= 0:
+                    button_port.close()
+                    return False
+        button_port.close()
+        return True
 
-        while(self.running):
-            self.loop_time = time.time()
-
-            # system check
-            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
-                self.check_time = self.loop_time
-                self.force_check_flag = False
-
-                # Try to connect to the hardware
-                self._connect()
-
-                # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
-                if self.hardware_error:
-                    continue
-
-                # We should be connected, now try getting info
-                self._get_info()
-
-                # If there is an error then getting info failed.
-                # Restart the loop to try reconnecting above.
-                if self.hardware_error:
-                    continue
-
-                # Dome automation: close or turn on dehumidifier if nessesary
-                self._auto_close()
-                self._auto_dehum()
-
-            # control functions
-            # open dome
-            if self.open_flag:
-                try:
-                    # chose the side to move
-                    if self.move_side == 'south':
-                        side = 'south'
-                    elif self.move_side == 'north':
-                        side = 'north'
-                    elif self.move_side == 'both':
-                        side = 'south'
-                    elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is open')
-                        self.move_frac = 1
-                        self.open_flag = 0
-                        self.force_check_flag = True
-
-                    if self.open_flag and not self.move_started:
-                        # before we start check if it's already there
-                        if self.info[side] == 'full_open':
-                            self.log.info('The {} side is already open'.format(side))
-                            if self.move_side == 'both':
-                                self.move_side = 'north'
-                            else:
-                                self.move_side = 'none'
-                        # otherwise ready to start moving
-                        else:
-                            try:
-                                self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
-                                self.move_started = 1
-                                self.move_start_time = time.time()
-                                self.force_check_flag = True
-                            except Exception:
-                                self.log.error('Failed to open dome')
-                                self.log.debug('', exc_info=True)
-
-                    if self.move_started and not self.dome.output_thread_running:
-                        # we've finished
-                        # check if we timed out
-                        if time.time() - self.move_start_time > self.dome_timeout:
-                            self.log.info('Moving timed out')
-                            self.move_started = 0
-                            self.move_side = 'none'
-                            self.move_frac = 1
-                            self.open_flag = 0
-                        # we should be at the target
-                        elif self.move_frac == 1:
-                            self.log.info('The {} side is open'.format(side))
-                            self.move_started = 0
-                            self.move_start_time = 0
-                            if self.move_side == 'both':
-                                self.move_side = 'north'
-                            else:
-                                self.move_side = 'none'
-                        elif self.move_frac != 1:
-                            self.log.info('The {} side moved requested fraction'.format(side))
-                            self.move_started = 0
-                            self.move_start_time = 0
-                            if self.move_side == 'both':
-                                self.move_side = 'north'
-                            else:
-                                self.move_side = 'none'
-                except Exception:
-                    self.log.error('open command failed')
-                    self.log.debug('', exc_info=True)
-                    self.open_flag = 0
-
-            # close dome
-            if self.close_flag:
-                try:
-                    # chose the side to move
-                    if self.move_side == 'south':
-                        side = 'south'
-                    elif self.move_side == 'north':
-                        side = 'north'
-                    elif self.move_side == 'both':
-                        side = 'north'
-                    elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is closed')
-                        self.move_frac = 1
-                        self.close_flag = 0
-                        self.force_check_flag = True
-                        # whenever the dome is closed, re-enable autoclose
-                        status = Status()
-                        if not status.autoclose and self.info['dome'] == 'closed':
-                            status.autoclose = True
-                            self.log.info('Re-enabled dome auto-close')
-
-                    if self.close_flag and not self.move_started:
-                        # before we start check if it's already there
-                        if self.info[side] == 'closed':
-                            self.log.info('The {} side is already closed'.format(side))
-                            if self.move_side == 'both':
-                                self.move_side = 'south'
-                            else:
-                                self.move_side = 'none'
-                        # otherwise ready to start moving
-                        else:
-                            try:
-                                self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
-                                self.move_started = 1
-                                self.move_start_time = time.time()
-                                self.force_check_flag = True
-                            except Exception:
-                                self.log.error('Failed to close dome')
-                                self.log.debug('', exc_info=True)
-
-                    if self.move_started and not self.dome.output_thread_running:
-                        # we've finished
-                        # check if we timed out
-                        if time.time() - self.move_start_time > self.dome_timeout:
-                            self.log.info('Moving timed out')
-                            self.move_started = 0
-                            self.move_side = 'none'
-                            self.move_frac = 1
-                            self.close_flag = 0
-                        # we should be at the target
-                        elif self.move_frac == 1:
-                            self.log.info('The {} side is closed'.format(side))
-                            self.move_started = 0
-                            self.move_start_time = 0
-                            if self.move_side == 'both':
-                                self.move_side = 'south'
-                            else:
-                                self.move_side = 'none'
-                        elif self.move_frac != 1:
-                            self.log.info('The {} side moved requested fraction'.format(side))
-                            self.move_started = 0
-                            self.move_start_time = 0
-                            if self.move_side == 'both':
-                                self.move_side = 'south'
-                            else:
-                                self.move_side = 'none'
-                except Exception:
-                    self.log.error('close command failed')
-                    self.log.debug('', exc_info=True)
-                    self.close_flag = 0
-
-            # halt dome motion
-            if self.halt_flag:
-                try:
-                    try:
-                        self.log.info('Halting dome')
-                        c = self.dome.halt()
-                        if c:
-                            self.log.info(c)
-                    except Exception:
-                        self.log.error('Failed to halt dome')
-                        self.log.debug('', exc_info=True)
-                    # reset everything
-                    self.open_flag = 0
-                    self.close_flag = 0
-                    self.move_side = 'none'
-                    self.move_frac = 1
-                    self.move_started = 0
-                    self.move_start_time = 0
-                except Exception:
-                    self.log.error('halt command failed')
-                    self.log.debug('', exc_info=True)
-                self.halt_flag = 0
-                self.force_check_flag = True
-
-            # turn on dehumidifer
-            if self.dehumidifier_on_flag:
-                try:
-                    self.log.info('Turning dehumidifer on')
-                    c = self.dehumidifier.on()
-                    if c:
-                        self.log.info(c)
-                except Exception:
-                    self.log.error('dehumidifer on command failed')
-                    self.log.debug('', exc_info=True)
-                self.dehumidifier_on_flag = 0
-                self.force_check_flag = True
-
-            # turn off dehumidifer
-            if self.dehumidifier_off_flag:
-                try:
-                    self.log.info('Turning dehumidifer off')
-                    c = self.dehumidifier.off()
-                    if c:
-                        self.log.info(c)
-                except Exception:
-                    self.log.error('dehumidifer off command failed')
-                    self.log.debug('', exc_info=True)
-                self.dehumidifier_off_flag = 0
-                self.force_check_flag = True
-
-            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
-
-        self.log.info('Daemon control thread stopped')
-        return
-
-    # Dome control functions
+    # Control functions
     def get_info(self):
         """Return dome status info."""
         return self.info
@@ -676,23 +693,6 @@ class DomeDaemon(HardwareDaemon):
             return 'Turning on dehumidifier (the daemon may turn it off again)'
         elif command == 'off':
             return 'Turning off dehumidifier (the daemon may turn it on again)'
-
-    # Internal functions
-    def _button_pressed(self, port='/dev/ttyS3'):
-        """Send a message to the serial port and try to read it back."""
-        if not params.QUICK_CLOSE_BUTTON:
-            return False
-        button_port = serial.Serial(port, timeout=1, xonxoff=True)
-        chances = 3
-        for _ in range(chances):
-            button_port.write(b'bob\n')
-            reply = button_port.readlines()
-            for x in reply:
-                if x.find(b'bob') >= 0:
-                    button_port.close()
-                    return False
-        button_port.close()
-        return True
 
 
 if __name__ == "__main__":
