@@ -22,7 +22,7 @@ class ExqDaemon(HardwareDaemon):
         for daemon_id in params.FLI_INTERFACES:
             self.dependencies.add(daemon_id)
         self.dependencies.add('cam')
-        self.dependencies.add('foc')
+        self.dependencies.add('filt')
 
         # exposure queue variables
         self.exp_queue = ExposureQueue()
