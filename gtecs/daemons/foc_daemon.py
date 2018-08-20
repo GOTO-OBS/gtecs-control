@@ -161,10 +161,6 @@ class FocDaemon(HardwareDaemon):
         self.info = temp_info
 
     # Control functions
-    def get_info(self):
-        """Return focuser status info."""
-        return self.info
-
     def set_focuser(self, new_pos, tel_list):
         """Move focuser to given position."""
         # Check restrictions

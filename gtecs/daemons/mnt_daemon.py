@@ -274,10 +274,6 @@ class MntDaemon(HardwareDaemon):
         return t_c.separation(m_c).deg
 
     # Control functions
-    def get_info(self):
-        """Return mount status info."""
-        return self.info
-
     def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates."""
         # Check input

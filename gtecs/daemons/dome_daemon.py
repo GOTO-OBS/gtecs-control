@@ -541,10 +541,6 @@ class DomeDaemon(HardwareDaemon):
         return True
 
     # Control functions
-    def get_info(self):
-        """Return dome status info."""
-        return self.info
-
     def open_dome(self, side='both', frac=1):
         """Open the dome."""
         conditions = Conditions()

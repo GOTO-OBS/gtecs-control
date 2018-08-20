@@ -84,10 +84,6 @@ class SchedulerDaemon(HardwareDaemon):
             self.log.info('Scheduler returns: None')
         return next_pointing
 
-    def get_info(self, *args):
-        """Return scheduler info."""
-        return self.info
-
 
 if __name__ == "__main__":
     daemon_id = 'scheduler'

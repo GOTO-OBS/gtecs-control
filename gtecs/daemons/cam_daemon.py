@@ -370,10 +370,6 @@ class CamDaemon(HardwareDaemon):
             self.image_saving[tel] = 0
 
     # Control functions
-    def get_info(self):
-        """Return camera status info."""
-        return self.info
-
     def take_image(self, exptime, binning, imgtype, tel_list):
         """Take a normal frame with the camera."""
         # Create exposure object

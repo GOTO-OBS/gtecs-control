@@ -152,6 +152,10 @@ class HardwareDaemon(object):
             # No error
             return 'running'
 
+    def get_info(self):
+        """Return hardware information."""
+        return self.info
+
     def shutdown(self):
         """Shutdown the daemon."""
         self.log.info('Daemon shutting down')

@@ -297,10 +297,6 @@ class PowerDaemon(HardwareDaemon):
         return valid_list
 
     # Control functions
-    def get_info(self):
-        """Return power status info."""
-        return self.info
-
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)."""
         # Check input

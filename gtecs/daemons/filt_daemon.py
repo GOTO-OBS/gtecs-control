@@ -154,10 +154,6 @@ class FiltDaemon(HardwareDaemon):
         self.info = temp_info
 
     # Control functions
-    def get_info(self):
-        """Return filter wheel status info."""
-        return self.info
-
     def set_filter(self, new_filter, tel_list):
         """Move filter wheel to given filter."""
         # Check restrictions

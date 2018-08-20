@@ -238,10 +238,6 @@ class ExqDaemon(HardwareDaemon):
         self.log.info('Camera exposure complete')
 
     # Control functions
-    def get_info(self):
-        """Return focuser status info."""
-        return self.info
-
     def add(self, tel_list, exptime,
             filt=None, binning=1, frametype='normal',
             target='NA', imgtype='SCIENCE', glance=False):

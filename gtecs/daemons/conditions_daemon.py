@@ -347,11 +347,6 @@ class ConditionsDaemon(HardwareDaemon):
             logline += '{}: {} '.format(key, self.flags[key])
         self.log.info(logline)
 
-    # Control functions
-    def get_info(self):
-        """Return current conditions flags and weather info."""
-        return self.info
-
 
 if __name__ == "__main__":
     daemon_id = 'conditions'
