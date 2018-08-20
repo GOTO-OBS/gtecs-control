@@ -311,12 +311,41 @@ class ExqDaemon(HardwareDaemon):
         tel_list = self.current_exposure.tel_list
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
+        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        if not all(homed_check):
+            self.log.info('Need to home filter wheels')
+            self._home_filter_wheels()
+
         check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
                  for tel in tel_list]
         if all(check):
             return False
         else:
             return True
+
+    def _home_filter_wheels(self):
+        self.log.info('Homing filter wheels')
+        tel_list = self.current_exposure.tel_list
+        try:
+            with daemon_proxy('filt') as filt_daemon:
+                filt_daemon.home_filter(tel_list)
+        except Exception:
+            self.log.error('No response from filter wheel daemon')
+            self.log.debug('', exc_info=True)
+
+        time.sleep(3)
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
+        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        while not all(homed_check):
+            with daemon_proxy('filt') as filt_daemon:
+                filt_info = filt_daemon.get_info()
+            homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+            time.sleep(0.5)
+
+            # keep ping alive
+            self.loop_time = time.time()
+        self.log.info('Filter wheels homed')
 
     def _set_filter(self):
         new_filt = self.current_exposure.filt
