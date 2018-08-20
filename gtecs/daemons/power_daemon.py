@@ -180,13 +180,6 @@ class PowerDaemon(HardwareDaemon):
                         if unit_name not in self.bad_hardware:
                             self.bad_hardware.add(unit_name)
 
-        if len(self.bad_hardware) > 0 and not self.hardware_error:
-            self.log.warning('Hardware error detected')
-            self.hardware_error = True
-        elif len(self.bad_hardware) == 0 and self.hardware_error:
-            self.log.warning('Hardware error cleared')
-            self.hardware_error = False
-
         # Finally check if we need to report an error
         self._check_errors()
 
