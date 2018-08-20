@@ -309,14 +309,6 @@ class ConditionsDaemon(HardwareDaemon):
                 'free_diskspace': self.free_diskspace,
                 }
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
-
 
 if __name__ == "__main__":
     daemon_id = 'conditions'

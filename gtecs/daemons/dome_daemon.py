@@ -545,14 +545,6 @@ class DomeDaemon(HardwareDaemon):
         """Return dome status info."""
         return self.info
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
-
     def open_dome(self, side='both', frac=1):
         """Open the dome."""
         conditions = Conditions()

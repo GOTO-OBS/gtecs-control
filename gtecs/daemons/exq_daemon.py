@@ -242,14 +242,6 @@ class ExqDaemon(HardwareDaemon):
         """Return focuser status info."""
         return self.info
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
-
     def add(self, tel_list, exptime,
             filt=None, binning=1, frametype='normal',
             target='NA', imgtype='SCIENCE', glance=False):

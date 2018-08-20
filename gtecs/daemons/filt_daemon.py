@@ -158,14 +158,6 @@ class FiltDaemon(HardwareDaemon):
         """Return filter wheel status info."""
         return self.info
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
-
     def set_filter(self, new_filter, tel_list):
         """Move filter wheel to given filter."""
         # Check restrictions

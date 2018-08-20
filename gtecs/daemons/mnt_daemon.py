@@ -278,14 +278,6 @@ class MntDaemon(HardwareDaemon):
         """Return mount status info."""
         return self.info
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
-
     def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates."""
         # Check input

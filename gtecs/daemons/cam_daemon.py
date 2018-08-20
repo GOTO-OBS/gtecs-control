@@ -374,17 +374,6 @@ class CamDaemon(HardwareDaemon):
         """Return camera status info."""
         return self.info
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except errors.DaemonStatusError:
-            return None
-        # remove custom class
-        if info:
-            del info['current_exposure']
-        return info
-
     def take_image(self, exptime, binning, imgtype, tel_list):
         """Take a normal frame with the camera."""
         # Create exposure object
