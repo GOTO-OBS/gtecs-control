@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """Interface to access FLI hardware."""
 
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+
+from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
@@ -22,19 +26,50 @@ class FLIDaemon(HardwareDaemon):
         self.focusers = {hw: None for hw in self.tels}
         self.filterwheels = {hw: None for hw in self.tels}
 
-        # Try to connect to the hardware
-        self._connect()
+        # start control thread
+        t = threading.Thread(target=self._control_thread)
+        t.daemon = True
+        t.start()
 
-        if self.hardware_error:
-            # can't run if the hardware isn't found (and we won't make fake ones)
-            self.log.error('Hardware error, shutting down')
-            self.shutdown()
+    # Primary control thread
+    def _control_thread(self):
+        self.log.info('Daemon control thread started')
+
+        while(self.running):
+            self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
+                if self.hardware_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
+
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
+
+            time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
+
+        self.log.info('Daemon control thread stopped')
+        return
 
     # Internal functions
     def _connect(self):
         """Connect to hardware."""
         # Connect to cameras
         for hw in self.cameras:
+            hw_name = 'camera_' + str(hw)
             try:
                 serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'][hw]
                 camera = Camera.locate_device(serial)
@@ -43,18 +78,19 @@ class FLIDaemon(HardwareDaemon):
                 if camera is not None:
                     self.cameras[hw] = camera
                     self.log.info('Connected to Camera {} ("{}")'.format(hw, serial))
-                    if serial in self.bad_hardware:
-                        self.bad_hardware.remove(serial)
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
                 else:
                     raise Exception('Camera not found')
             except Exception:
                 self.cameras[hw] = None
                 self.log.error('Failed to connect to Camera {} ("{}")'.format(hw, serial))
-                if serial not in self.bad_hardware:
-                    self.bad_hardware.add(serial)
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
 
         # Connect to focusers
         for hw in self.focusers:
+            hw_name = 'focuser_' + str(hw)
             try:
                 serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
                 focuser = Focuser.locate_device(serial)
@@ -63,18 +99,19 @@ class FLIDaemon(HardwareDaemon):
                 if focuser is not None:
                     self.focusers[hw] = focuser
                     self.log.info('Connected to Focuser {} ("{}")'.format(hw, serial))
-                    if serial in self.bad_hardware:
-                        self.bad_hardware.remove(serial)
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
                 else:
                     raise Exception('Focuser not found')
             except Exception:
                 self.focusers[hw] = None
                 self.log.error('Failed to connect to Focuser {} ("{}")'.format(hw, serial))
-                if serial not in self.bad_hardware:
-                    self.bad_hardware.add(serial)
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
         for hw in self.filterwheels:
+            hw_name = 'filterwheel_' + str(hw)
             try:
                 serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
                 filterwheel = FilterWheel.locate_device(serial)
@@ -83,15 +120,79 @@ class FLIDaemon(HardwareDaemon):
                 if filterwheel is not None:
                     self.filterwheels[hw] = filterwheel
                     self.log.info('Connected to Filter Wheel {} ("{}")'.format(hw, serial))
-                    if serial in self.bad_hardware:
-                        self.bad_hardware.remove(serial)
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
                 else:
                     raise Exception('Filter Wheel not found')
             except Exception:
                 self.filterwheels[hw] = None
                 self.log.error('Failed to connect to Filter Wheel {} ("{}")'.format(hw, serial))
-                if serial not in self.bad_hardware:
-                    self.bad_hardware.add(serial)
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
+
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        for hw in self.cameras:
+            # Get info from each camera
+            hw_name = 'camera_' + str(hw)
+            try:
+                camera = self.cameras[hw]
+                temp_info[hw_name] = camera.serial_number
+            except Exception:
+                self.log.error('Failed to get Camera {:.0f} info'.format(hw))
+                self.log.debug('', exc_info=True)
+                temp_info[hw_name] = None
+                # Report the connection as failed
+                self.cameras[hw] = None
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
+
+        for hw in self.focusers:
+            # Get info from each focuser
+            hw_name = 'focuser_' + str(hw)
+            try:
+                focuser = self.focusers[hw]
+                temp_info[hw_name] = focuser.serial_number
+            except Exception:
+                self.log.error('Failed to get Focuser {:.0f} info'.format(hw))
+                self.log.debug('', exc_info=True)
+                temp_info[hw_name] = None
+                # Report the connection as failed
+                self.focusers[hw] = None
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
+
+        for hw in self.filterwheels:
+            # Get info from each filterwheel
+            hw_name = 'filterwheel_' + str(hw)
+            try:
+                filterwheel = self.filterwheels[hw]
+                temp_info[hw_name] = filterwheel.serial_number
+            except Exception:
+                self.log.error('Failed to get Filter Wheel {:.0f} info'.format(hw))
+                self.log.debug('', exc_info=True)
+                temp_info[hw_name] = None
+                # Report the connection as failed
+                self.filterwheels[hw] = None
+                if hw_name not in self.bad_hardware:
+                    self.bad_hardware.add(hw_name)
+
+        # Get other internal info
+        temp_info['tels'] = self.tels
+
+        # Update the master info dict
+        self.info = temp_info
 
         # Finally check if we need to report an error
         self._check_errors()
