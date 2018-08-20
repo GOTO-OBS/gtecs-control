@@ -69,66 +69,69 @@ class FLIDaemon(HardwareDaemon):
         """Connect to hardware."""
         # Connect to cameras
         for hw in self.cameras:
-            hw_name = 'camera_' + str(hw)
-            try:
-                serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'][hw]
-                camera = Camera.locate_device(serial)
-                if camera is None and params.USE_FAKE_FLI:
-                    camera = FakeCamera('fake', 'FakeCamera')
-                if camera is not None:
-                    self.cameras[hw] = camera
-                    self.log.info('Connected to Camera {} ("{}")'.format(hw, serial))
-                    if hw_name in self.bad_hardware:
-                        self.bad_hardware.remove(hw_name)
-                else:
-                    raise Exception('Camera not found')
-            except Exception:
-                self.cameras[hw] = None
-                self.log.error('Failed to connect to Camera {} ("{}")'.format(hw, serial))
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if not self.cameras[hw]:
+                hw_name = 'camera_' + str(hw)
+                try:
+                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'][hw]
+                    camera = Camera.locate_device(serial)
+                    if camera is None and params.USE_FAKE_FLI:
+                        camera = FakeCamera('fake', 'FakeCamera')
+                    if camera is not None:
+                        self.cameras[hw] = camera
+                        self.log.info('Connected to Camera {} ("{}")'.format(hw, serial))
+                        if hw_name in self.bad_hardware:
+                            self.bad_hardware.remove(hw_name)
+                    else:
+                        raise Exception('Camera not found')
+                except Exception:
+                    self.cameras[hw] = None
+                    self.log.error('Failed to connect to Camera {} ("{}")'.format(hw, serial))
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
         # Connect to focusers
         for hw in self.focusers:
-            hw_name = 'focuser_' + str(hw)
-            try:
-                serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
-                focuser = Focuser.locate_device(serial)
-                if focuser is None and params.USE_FAKE_FLI:
-                    focuser = FakeFocuser('fake', 'FakeFocuser')
-                if focuser is not None:
-                    self.focusers[hw] = focuser
-                    self.log.info('Connected to Focuser {} ("{}")'.format(hw, serial))
-                    if hw_name in self.bad_hardware:
-                        self.bad_hardware.remove(hw_name)
-                else:
-                    raise Exception('Focuser not found')
-            except Exception:
-                self.focusers[hw] = None
-                self.log.error('Failed to connect to Focuser {} ("{}")'.format(hw, serial))
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if not self.focusers[hw]:
+                hw_name = 'focuser_' + str(hw)
+                try:
+                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
+                    focuser = Focuser.locate_device(serial)
+                    if focuser is None and params.USE_FAKE_FLI:
+                        focuser = FakeFocuser('fake', 'FakeFocuser')
+                    if focuser is not None:
+                        self.focusers[hw] = focuser
+                        self.log.info('Connected to Focuser {} ("{}")'.format(hw, serial))
+                        if hw_name in self.bad_hardware:
+                            self.bad_hardware.remove(hw_name)
+                    else:
+                        raise Exception('Focuser not found')
+                except Exception:
+                    self.focusers[hw] = None
+                    self.log.error('Failed to connect to Focuser {} ("{}")'.format(hw, serial))
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
         for hw in self.filterwheels:
-            hw_name = 'filterwheel_' + str(hw)
-            try:
-                serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
-                filterwheel = FilterWheel.locate_device(serial)
-                if filterwheel is None and params.USE_FAKE_FLI:
-                    filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
-                if filterwheel is not None:
-                    self.filterwheels[hw] = filterwheel
-                    self.log.info('Connected to Filter Wheel {} ("{}")'.format(hw, serial))
-                    if hw_name in self.bad_hardware:
-                        self.bad_hardware.remove(hw_name)
-                else:
-                    raise Exception('Filter Wheel not found')
-            except Exception:
-                self.filterwheels[hw] = None
-                self.log.error('Failed to connect to Filter Wheel {} ("{}")'.format(hw, serial))
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if not self.filterwheels[hw]:
+                hw_name = 'filterwheel_' + str(hw)
+                try:
+                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
+                    filterwheel = FilterWheel.locate_device(serial)
+                    if filterwheel is None and params.USE_FAKE_FLI:
+                        filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
+                    if filterwheel is not None:
+                        self.filterwheels[hw] = filterwheel
+                        self.log.info('Connected to Filter Wheel {} ("{}")'.format(hw, serial))
+                        if hw_name in self.bad_hardware:
+                            self.bad_hardware.remove(hw_name)
+                    else:
+                        raise Exception('Filter Wheel not found')
+                except Exception:
+                    self.filterwheels[hw] = None
+                    self.log.error('Failed to connect to Filter Wheel {} ("{}")'.format(hw, serial))
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
         # Finally check if we need to report an error
         self._check_errors()
