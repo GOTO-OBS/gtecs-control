@@ -41,8 +41,7 @@ def get_cam_temps():
     cam_info = daemon_info('cam')
     values = {}
     for tel in params.TEL_DICT:
-        key = 'ccd_temp{}'.format(tel)
-        values[tel] = cam_info[key]
+        values[tel] = cam_info[tel]['ccd_temp']
     return values
 
 
@@ -100,8 +99,7 @@ def get_current_focus():
     foc_info = daemon_info('foc')
     values = {}
     for tel in params.TEL_DICT:
-        key = 'current_pos{}'.format(tel)
-        values[tel] = foc_info[key]
+        values[tel] = foc_info[tel]['current_pos']
     return values
 
 
@@ -117,13 +115,12 @@ def wait_for_focuser(timeout):
     start_time = time.time()
     still_moving = True
     timed_out = False
-    status_keys = ['status{}'.format(tel) for tel in params.TEL_DICT]
     while still_moving and not timed_out:
         try:
             foc_info = daemon_info('foc')
         except Exception:
             pass
-        if np.all([foc_info[key] == 'Ready' for key in status_keys]):
+        if np.all([foc_info[tel]['status'] == 'Ready' for tel in params.TEL_DICT]):
             still_moving = False
         if time.time() - start_time > timeout:
             timed_out = True
@@ -359,16 +356,14 @@ def exposure_queue_is_empty():
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt')
-    return all([filt_info[key] for key in filt_info if key.startswith('homed')])
+    return all([filt_info[tel]['homed'] for tel in params.TEL_DICT])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
     cam_info = daemon_info('cam')
-    return all([cam_info[key] < target_temp + 0.1
-                for key in cam_info
-                if key.startswith('ccd_temp')])
+    return all([cam_info[tel]['ccd_temp'] < target_temp + 0.1 for tel in params.TEL_DICT])
 
 
 def wait_for_exposure_queue(timeout=None):
@@ -420,7 +415,7 @@ def wait_for_cameras(timeout=None):
         try:
             cam_info = daemon_info('cam')
 
-            cam_status = [cam_info['status%d' % tel] for tel in params.TEL_DICT]
+            cam_status = [cam_info[tel]['status'] for tel in params.TEL_DICT]
             ready = [status == 'Ready' for status in cam_status]
             if all(ready):
                 still_working = False
