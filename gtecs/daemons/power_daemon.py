@@ -196,7 +196,7 @@ class PowerDaemon(HardwareDaemon):
                 self.current_units = []
                 self.current_outlets = []
                 self.on_flag = 0
-                self.check_status_flag = 1
+                self.force_check_flag = True
 
             # power off a specified outlet
             if self.off_flag:
@@ -213,7 +213,7 @@ class PowerDaemon(HardwareDaemon):
                 self.current_units = []
                 self.current_outlets = []
                 self.off_flag = 0
-                self.check_status_flag = 1
+                self.force_check_flag = True
 
             # reboot a specified outlet
             if self.reboot_flag:
@@ -230,7 +230,7 @@ class PowerDaemon(HardwareDaemon):
                 self.current_units = []
                 self.current_outlets = []
                 self.reboot_flag = 0
-                self.check_status_flag = 1
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 

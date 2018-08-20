@@ -44,18 +44,6 @@ class DomeDaemon(HardwareDaemon):
         self.move_started = 0
         self.move_start_time = 0
 
-        self.check_status_flag = 1
-        self.status_check_time = 0
-        self.status_check_period = 1
-
-        self.check_warnings_flag = 1
-        self.warnings_check_time = 0
-        self.warnings_check_period = 3  # params.DOME_CHECK_PERIOD
-
-        self.check_conditions_flag = 1
-        self.conditions_check_time = 0
-        self.conditions_check_period = 60
-
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -351,6 +339,7 @@ class DomeDaemon(HardwareDaemon):
                         self.log.info('Finished: Dome is open')
                         self.move_frac = 1
                         self.open_flag = 0
+                        self.force_check_flag = True
 
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
@@ -369,7 +358,7 @@ class DomeDaemon(HardwareDaemon):
                                     self.log.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
-                                self.check_status_flag = 1
+                                self.force_check_flag = True
                             except Exception:
                                 self.log.error('Failed to open dome')
                                 self.log.debug('', exc_info=True)
@@ -419,6 +408,7 @@ class DomeDaemon(HardwareDaemon):
                         self.log.info('Finished: Dome is closed')
                         self.move_frac = 1
                         self.close_flag = 0
+                        self.force_check_flag = True
                         # whenever the dome is closed, re-enable autoclose
                         status = Status()
                         if not status.autoclose and self.info['dome'] == 'closed':
@@ -442,6 +432,7 @@ class DomeDaemon(HardwareDaemon):
                                     self.log.info(c)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
+                                self.force_check_flag = True
                             except Exception:
                                 self.log.error('Failed to close dome')
                                 self.log.debug('', exc_info=True)
@@ -499,6 +490,7 @@ class DomeDaemon(HardwareDaemon):
                     self.log.error('halt command failed')
                     self.log.debug('', exc_info=True)
                 self.halt_flag = 0
+                self.force_check_flag = True
 
             # turn on dehumidifer
             if self.dehumidifier_on_flag:
@@ -511,6 +503,7 @@ class DomeDaemon(HardwareDaemon):
                     self.log.error('dehumidifer on command failed')
                     self.log.debug('', exc_info=True)
                 self.dehumidifier_on_flag = 0
+                self.force_check_flag = True
 
             # turn off dehumidifer
             if self.dehumidifier_off_flag:
@@ -523,6 +516,7 @@ class DomeDaemon(HardwareDaemon):
                     self.log.error('dehumidifer off command failed')
                     self.log.debug('', exc_info=True)
                 self.dehumidifier_off_flag = 0
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 

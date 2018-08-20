@@ -121,6 +121,7 @@ class ExqDaemon(HardwareDaemon):
 
                 # done!
                 self.working = 0
+                self.force_check_flag = True
 
             elif self.queue_len == 0 or self.paused:
                 # either we are paused, or nothing in the queue

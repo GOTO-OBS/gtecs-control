@@ -160,6 +160,7 @@ class MntDaemon(HardwareDaemon):
                 self.temp_ra = None
                 self.temp_dec = None
                 self.slew_radec_flag = 0
+                self.force_check_flag = True
 
             # slew to target
             if self.slew_target_flag:
@@ -172,6 +173,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('slew_target command failed')
                     self.log.debug('', exc_info=True)
                 self.slew_target_flag = 0
+                self.force_check_flag = True
 
             # slew to given alt/az
             if self.slew_altaz_flag:
@@ -186,6 +188,7 @@ class MntDaemon(HardwareDaemon):
                 self.temp_alt = None
                 self.temp_az = None
                 self.slew_altaz_flag = 0
+                self.force_check_flag = True
 
             # start tracking
             if self.start_tracking_flag:
@@ -197,6 +200,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('start_tracking command failed')
                     self.log.debug('', exc_info=True)
                 self.start_tracking_flag = 0
+                self.force_check_flag = True
 
             # stop all motion (tracking or slewing)
             if self.full_stop_flag:
@@ -208,6 +212,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('full_stop command failed')
                     self.log.debug('', exc_info=True)
                 self.full_stop_flag = 0
+                self.force_check_flag = True
 
             # turn blinky mode on or off
             if self.set_blinky_mode_flag:
@@ -220,6 +225,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 0
+                self.force_check_flag = True
 
             # park the mount
             if self.park_flag:
@@ -234,6 +240,7 @@ class MntDaemon(HardwareDaemon):
                 self.target_ra = None
                 self.target_dec = None
                 self.park_flag = 0
+                self.force_check_flag = True
 
             # unpark the mount
             if self.unpark_flag:
@@ -245,6 +252,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('unpark command failed')
                     self.log.debug('', exc_info=True)
                 self.unpark_flag = 0
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 

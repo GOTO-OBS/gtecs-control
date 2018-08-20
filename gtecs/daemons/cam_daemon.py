@@ -235,6 +235,7 @@ class CamDaemon(HardwareDaemon):
                         self.active_tel = []
                         self.all_info = None
                         self.take_exposure_flag = 0
+                        self.force_check_flag = True
 
             # abort exposure
             if self.abort_exposure_flag:
@@ -270,6 +271,7 @@ class CamDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.abort_tel = []
                 self.abort_exposure_flag = 0
+                self.force_check_flag = True
 
             # set camera temperature
             if self.set_temp_flag:
@@ -292,6 +294,7 @@ class CamDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_temp_flag = 0
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
