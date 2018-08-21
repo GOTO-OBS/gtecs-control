@@ -239,6 +239,8 @@ class AstroHavenDome(object):
         self.dome_serial = serial.Serial(self.dome_serial_port,
                                          baudrate=self.dome_serial_baudrate,
                                          timeout=self.dome_serial_timeout)
+        # start thread
+        self._check_status()
 
         # serial connection to the dome monitor box
         if self.heartbeat_enabled and self.heartbeat_serial_port:

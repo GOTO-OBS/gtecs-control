@@ -297,6 +297,8 @@ class DomeDaemon(BaseDaemon):
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
                         self.bad_hardware.remove('dome')
+                    # sleep brefly, to make sure the connection has started
+                    time.sleep(3)
                 except Exception:
                     self.dome = None
                     self.log.error('Failed to connect to dome')
