@@ -3,6 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 
+from . import params
 from .daemons import daemon_info, daemon_is_running, get_daemon_status
 from .misc import execute_command
 from .slack import send_slack_msg
@@ -373,9 +374,22 @@ class DomeMonitor(BaseMonitor):
             return None, {}
 
         if ERROR_HARDWARE in self.errors:
-            # We've lost connection to the dome.
-            # TODO: add recovery steps...
-            return ERROR_HARDWARE, {}
+            # PROBLEM: We've lost connection to the dome or the dehumidifier.
+            #          The dome is obviously the higher priority to try and fix.
+            recovery_procedure = {'delay': 0}
+            if 'dome' in self.bad_hardware:
+                # SOLUTION 1: Try rebooting the dome power.
+                recovery_procedure[1] = ['power reboot dome', 60]
+                # OUT OF SOLUTIONS: We can't contact the dome, panic! Send out the alert.
+                return ERROR_HARDWARE + 'dome', recovery_procedure
+            elif 'dehumidifer' in self.bad_hardware:
+                # SOLUTION 1: Try rebooting the dehumidifier power.
+                recovery_procedure[1] = ['power reboot dehumid', 60]
+                # OUT OF SOLUTIONS: Not much else we can do, must be a hardware problem.
+                return ERROR_HARDWARE + 'dehumidifer', recovery_procedure
+            else:
+                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+                return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
@@ -548,9 +562,18 @@ class MntMonitor(BaseMonitor):
             return None, {}
 
         if ERROR_HARDWARE in self.errors:
-            # We've lost connection to the mount.
-            # TODO: add recovery steps...
-            return ERROR_HARDWARE, {}
+            # PROBLEM: We've lost connection to SiTechEXE.
+            recovery_procedure = {'delay': 0}
+            if 'sitech' in self.bad_hardware:
+                # SOLUTION 1: Try rebooting the mount NUC.
+                #             Note we need to wait for ages for Windows to restart.
+                recovery_procedure[1] = ['power off mount_nuc', 10]
+                recovery_procedure[2] = ['power on mount_nuc', 180]
+                # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
+                return ERROR_HARDWARE + 'sitech', recovery_procedure
+            else:
+                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+                return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
@@ -670,9 +693,17 @@ class PowerMonitor(BaseMonitor):
             return None, {}
 
         if ERROR_HARDWARE in self.errors:
-            # We've lost connection to a power unit.
-            # TODO: add recovery steps...
-            return ERROR_HARDWARE, {}
+            # PROBLEM: We've lost connection to a power unit.
+            #          Need to go through one-by-one.
+            recovery_procedure = {'delay': 0}
+            for bad_unit in self.bad_hardware:
+                if bad_unit not in params.POWER_UNITS:
+                    # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+                    return ERROR_HARDWARE, {}
+                else:
+                    # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
+                    #                   TODO: Add that.
+                    return ERROR_HARDWARE + bad_unit, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The power daemon doesn't have dependencies, so this really shouldn't happen...
