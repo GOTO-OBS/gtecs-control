@@ -700,14 +700,13 @@ class PowerMonitor(BaseMonitor):
             # PROBLEM: We've lost connection to a power unit.
             #          Need to go through one-by-one.
             recovery_procedure = {'delay': 0}
-            for bad_unit in self.bad_hardware:
-                if bad_unit not in params.POWER_UNITS:
-                    # OUT OF SOLUTIONS: We don't know where the hardware error is from?
-                    return ERROR_HARDWARE, {}
-                else:
+            for unit_name in params.POWER_UNITS:
+                if unit_name in self.bad_hardware:
                     # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
                     #                   TODO: Add that.
-                    return ERROR_HARDWARE + bad_unit, {}
+                    return ERROR_HARDWARE + unit_name, {}
+            # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+            return ERROR_HARDWARE, {}
 
         if ERROR_DEPENDENCY in self.errors:
             # The power daemon doesn't have dependencies, so this really shouldn't happen...
@@ -771,21 +770,25 @@ class CamMonitor(BaseMonitor):
 
         if ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the FLI interfaces.
-            # PROBLEM: The FLI interfaces aren't responding.
-            recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Make sure the interfaces are started.
-            recovery_procedure[1] = ['fli start', 30]
-            # SOLUTION 2: Try restarting them.
-            recovery_procedure[2] = ['fli restart', 30]
-            # SOLUTION 3: Kill them, then start them again.
-            recovery_procedure[3] = ['fli kill', 10]
-            recovery_procedure[4] = ['fli start', 30]
-            # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-            recovery_procedure[5] = ['power start cams,focs,filts', 30]
-            recovery_procedure[6] = ['fli kill', 10]
-            recovery_procedure[7] = ['fli start', 30]
-            # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, recovery_procedure
+            for daemon_id in params.FLI_INTERFACES:
+                if daemon_id in self.bad_dependencies:
+                    # PROBLEM: The FLI interfaces aren't responding.
+                    recovery_procedure = {'delay': 30}
+                    # SOLUTION 1: Make sure the interfaces are started.
+                    recovery_procedure[1] = ['fli start', 30]
+                    # SOLUTION 2: Try restarting them.
+                    recovery_procedure[2] = ['fli restart', 30]
+                    # SOLUTION 3: Kill them, then start them again.
+                    recovery_procedure[3] = ['fli kill', 10]
+                    recovery_procedure[4] = ['fli start', 30]
+                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[6] = ['fli kill', 10]
+                    recovery_procedure[7] = ['fli start', 30]
+                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+            # OUT OF SOLUTIONS: We don't know where the dependency error is from?
+            return ERROR_DEPENDENCY, {}
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -845,21 +848,25 @@ class FiltMonitor(BaseMonitor):
 
         if ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the FLI interfaces.
-            # PROBLEM: The FLI interfaces aren't responding.
-            recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Make sure the interfaces are started.
-            recovery_procedure[1] = ['fli start', 30]
-            # SOLUTION 2: Try restarting them.
-            recovery_procedure[2] = ['fli restart', 30]
-            # SOLUTION 3: Kill them, then start them again.
-            recovery_procedure[3] = ['fli kill', 10]
-            recovery_procedure[4] = ['fli start', 30]
-            # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-            recovery_procedure[5] = ['power start cams,focs,filts', 30]
-            recovery_procedure[6] = ['fli kill', 10]
-            recovery_procedure[7] = ['fli start', 30]
-            # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, recovery_procedure
+            for daemon_id in params.FLI_INTERFACES:
+                if daemon_id in self.bad_dependencies:
+                    # PROBLEM: The FLI interfaces aren't responding.
+                    recovery_procedure = {'delay': 30}
+                    # SOLUTION 1: Make sure the interfaces are started.
+                    recovery_procedure[1] = ['fli start', 30]
+                    # SOLUTION 2: Try restarting them.
+                    recovery_procedure[2] = ['fli restart', 30]
+                    # SOLUTION 3: Kill them, then start them again.
+                    recovery_procedure[3] = ['fli kill', 10]
+                    recovery_procedure[4] = ['fli start', 30]
+                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[6] = ['fli kill', 10]
+                    recovery_procedure[7] = ['fli start', 30]
+                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+            # OUT OF SOLUTIONS: We don't know where the dependency error is from?
+            return ERROR_DEPENDENCY, {}
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -919,21 +926,25 @@ class FocMonitor(BaseMonitor):
 
         if ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the FLI interfaces.
-            # PROBLEM: The FLI interfaces aren't responding.
-            recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Make sure the interfaces are started.
-            recovery_procedure[1] = ['fli start', 30]
-            # SOLUTION 2: Try restarting them.
-            recovery_procedure[2] = ['fli restart', 30]
-            # SOLUTION 3: Kill them, then start them again.
-            recovery_procedure[3] = ['fli kill', 10]
-            recovery_procedure[4] = ['fli start', 30]
-            # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-            recovery_procedure[5] = ['power start cams,focs,filts', 30]
-            recovery_procedure[6] = ['fli kill', 10]
-            recovery_procedure[7] = ['fli start', 30]
-            # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, recovery_procedure
+            for daemon_id in params.FLI_INTERFACES:
+                if daemon_id in self.bad_dependencies:
+                    # PROBLEM: The FLI interfaces aren't responding.
+                    recovery_procedure = {'delay': 30}
+                    # SOLUTION 1: Make sure the interfaces are started.
+                    recovery_procedure[1] = ['fli start', 30]
+                    # SOLUTION 2: Try restarting them.
+                    recovery_procedure[2] = ['fli restart', 30]
+                    # SOLUTION 3: Kill them, then start them again.
+                    recovery_procedure[3] = ['fli kill', 10]
+                    recovery_procedure[4] = ['fli start', 30]
+                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[6] = ['fli kill', 10]
+                    recovery_procedure[7] = ['fli start', 30]
+                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+            # OUT OF SOLUTIONS: We don't know where the dependency error is from?
+            return ERROR_DEPENDENCY, {}
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
@@ -996,33 +1007,49 @@ class ExqMonitor(BaseMonitor):
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
             # fails.
-            # PROBLEM: Some combination of the above aren't responding.
-            recovery_procedure = {'delay': 30}
-            # SOLUTION 1: Make sure the interfaces are started.
-            recovery_procedure[1] = ['fli start', 30]
-            # SOLUTION 2: Try restarting them.
-            recovery_procedure[2] = ['fli restart', 30]
-            # SOLUTION 3: Kill them, then start them again.
-            recovery_procedure[3] = ['fli kill', 10]
-            recovery_procedure[4] = ['fli start', 30]
-            # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-            recovery_procedure[5] = ['power start cams,focs,filts', 30]
-            recovery_procedure[6] = ['fli kill', 10]
-            recovery_procedure[7] = ['fli start', 30]
-            # OK, maybe it's not the interfaces but the other daemons that aren't working.
-            # SOLUTION 5: Make sure the daemons are started.
-            recovery_procedure[8] = ['cam start', 10]
-            recovery_procedure[9] = ['filt start', 10]
-            # SOLUTION 6: Try restarting the daemons.
-            recovery_procedure[10] = ['cam restart', 30]
-            recovery_procedure[11] = ['filt restart', 30]
-            # SOLUTION 7: Kill them, then start them again.
-            recovery_procedure[12] = ['cam kill', 10]
-            recovery_procedure[13] = ['cam start', 30]
-            recovery_procedure[14] = ['filt kill', 10]
-            recovery_procedure[15] = ['filt start', 30]
-            # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-            return ERROR_DEPENDENCY, recovery_procedure
+            for daemon_id in params.FLI_INTERFACES:
+                if daemon_id in self.bad_dependencies:
+                    # PROBLEM: The FLI interfaces aren't responding.
+                    recovery_procedure = {'delay': 30}
+                    # SOLUTION 1: Make sure the interfaces are started.
+                    recovery_procedure[1] = ['fli start', 30]
+                    # SOLUTION 2: Try restarting them.
+                    recovery_procedure[2] = ['fli restart', 30]
+                    # SOLUTION 3: Kill them, then start them again.
+                    recovery_procedure[3] = ['fli kill', 10]
+                    recovery_procedure[4] = ['fli start', 30]
+                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[6] = ['fli kill', 10]
+                    recovery_procedure[7] = ['fli start', 30]
+                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+            if 'cam' in self.bad_dependencies:
+                # PROBLEM: Cam daemon is not responding or not returning info.
+                recovery_procedure = {'delay': 30}
+                # SOLUTION 1: Make sure it's started.
+                recovery_procedure[1] = ['cam start', 30]
+                # SOLUTION 2: Try restarting it.
+                recovery_procedure[2] = ['cam restart', 30]
+                # SOLUTION 3: Kill it, then start it again.
+                recovery_procedure[3] = ['cam kill', 10]
+                recovery_procedure[4] = ['cam start', 30]
+                # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+                return ERROR_DEPENDENCY + 'cam', recovery_procedure
+            elif 'filt' in self.bad_dependencies:
+                # PROBLEM: Filt daemon is not responding or not returning info.
+                recovery_procedure = {'delay': 30}
+                # SOLUTION 1: Make sure it's started.
+                recovery_procedure[1] = ['filt start', 30]
+                # SOLUTION 2: Try restarting it.
+                recovery_procedure[2] = ['filt restart', 30]
+                # SOLUTION 3: Kill it, then start it again.
+                recovery_procedure[3] = ['filt kill', 10]
+                recovery_procedure[4] = ['filt start', 30]
+                # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+                return ERROR_DEPENDENCY + 'filt', recovery_procedure
+            # OUT OF SOLUTIONS: We don't know where the dependency error is from?
+            return ERROR_DEPENDENCY, {}
 
         if ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
