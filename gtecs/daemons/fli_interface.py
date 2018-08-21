@@ -118,7 +118,7 @@ class FLIDaemon(BaseDaemon):
             if not self.filterwheels[hw]:
                 hw_name = 'filterwheel_' + str(hw)
                 try:
-                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
+                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['filt'][hw]
                     filterwheel = FilterWheel.locate_device(serial)
                     if filterwheel is None and params.USE_FAKE_FLI:
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
