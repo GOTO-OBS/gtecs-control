@@ -21,10 +21,11 @@ class FLIDaemon(BaseDaemon):
         super().__init__(daemon_id)
 
         # hardware
-        self.tels = range(len(params.FLI_INTERFACES[self.daemon_id]['TELS']))
-        self.cameras = {hw: None for hw in self.tels}
-        self.focusers = {hw: None for hw in self.tels}
-        self.filterwheels = {hw: None for hw in self.tels}
+        self.tels = params.FLI_INTERFACES[self.daemon_id]['TELS'].copy()
+        self.hw = list(range(len(self.tels)))
+        self.cameras = {hw: None for hw in self.hw}
+        self.focusers = {hw: None for hw in self.hw}
+        self.filterwheels = {hw: None for hw in self.hw}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -194,6 +195,7 @@ class FLIDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['tels'] = list(self.tels)
+        temp_info['hw'] = list(self.hw)
 
         # Update the master info dict
         self.info = temp_info
