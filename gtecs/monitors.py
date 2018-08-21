@@ -263,7 +263,13 @@ class BaseMonitor(ABC):
         if next_level not in recovery_procedure:
             msg = '{} has run out of recovery steps '.format(self.__class__.__name__)
             msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
-            msg += '(mode={}, status={})'.format(self.mode, self.hardware_status)
+            msg += '(mode={}, status={}'.format(self.mode, self.hardware_status)
+            if ERROR_HARDWARE in self.errors:
+                msg += ', bad_hardware={})'.format(self.bad_hardware)
+            elif ERROR_DEPENDENCY in self.errors:
+                msg += ', bad_dependencies={})'.format(self.bad_dependencies)
+            else:
+                msg += ')'
             if self.log:
                 self.log.error(msg)
             else:
