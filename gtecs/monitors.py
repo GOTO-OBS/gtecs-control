@@ -44,7 +44,8 @@ ERROR_PING = 'Ping failed'
 ERROR_INFO = 'Get info failed'
 ERROR_HARDWARE = 'Hardware connection failed'
 ERROR_DEPENDENCY = 'Dependency ping failed'
-ERROR_UNKNOWN = 'Hardware in unknown state'
+ERROR_STATE = 'Hardware in unknown state'
+ERROR_UNKNOWN = 'Unexpected error returned'
 ERROR_DOME_MOVETIMEOUT = 'Moving taking too long'
 ERROR_DOME_PARTOPENTIMEOUT = 'Stuck partially open for too long'
 ERROR_DOME_NOTFULLOPEN = 'Dome not fully open'
@@ -204,7 +205,7 @@ class BaseMonitor(ABC):
 
         hardware_status = self.get_hardware_status()
         if hardware_status is STATUS_UNKNOWN:
-            self.errors.add(ERROR_UNKNOWN)
+            self.errors.add(ERROR_STATE)
             return len(self.errors), self.errors
 
         # Hardware checks
@@ -377,7 +378,7 @@ class DomeMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to the dome or the dehumidifier.
             #          The dome is obviously the higher priority to try and fix.
             recovery_procedure = {'delay': 0}
@@ -395,11 +396,11 @@ class DomeMonitor(BaseMonitor):
                 # OUT OF SOLUTIONS: We don't know where the hardware error is from?
                 return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -417,11 +418,12 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
-            return ERROR_UNKNOWN, {}
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
 
-        if ERROR_DOME_MOVETIMEOUT in self.errors:
+        elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
             #          No delay, because this is only raised after a timeout period already.
             recovery_procedure = {}
@@ -432,7 +434,7 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_DOME_MOVETIMEOUT, recovery_procedure
 
-        if ERROR_DOME_NOTCLOSED in self.errors:
+        elif ERROR_DOME_NOTCLOSED in self.errors:
             # PROBLEM: The dome's not closed when it should be. That's bad.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Try closing again.
@@ -440,7 +442,7 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We can't close, panic! Send out the alert.
             return ERROR_DOME_NOTCLOSED, recovery_procedure
 
-        if ERROR_DOME_PARTOPENTIMEOUT in self.errors:
+        elif ERROR_DOME_PARTOPENTIMEOUT in self.errors:
             # PROBLEM: The dome has been partially open for too long.
             #          Note the dome can naturally stick partially open in the middle of moving
             #          for a while (i.e. when it's sounding the siren to move the second side).
@@ -466,7 +468,7 @@ class DomeMonitor(BaseMonitor):
                 # OUT OF SOLUTIONS: We can't close, panic! Send out the alert.
                 return ERROR_DOME_PARTOPENTIMEOUT, recovery_procedure
 
-        if ERROR_DOME_NOTFULLOPEN in self.errors:
+        elif ERROR_DOME_NOTFULLOPEN in self.errors:
             # PROBLEM: The dome should be open, but it's closed (part_open is caught above).
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Try opening a few times.
@@ -476,6 +478,10 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: It's not opening, either it's stuck or it's in lockdown and the
             #                   pilot hasn't realised yet. At least it's safe.
             return ERROR_DOME_NOTFULLOPEN, recovery_procedure
+
+        else:
+            # Some unexpected error.
+            return ERROR_UNKNOWN, {}
 
 
 class MntMonitor(BaseMonitor):
@@ -565,7 +571,7 @@ class MntMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to SiTechEXE.
             recovery_procedure = {'delay': 0}
             if 'sitech' in self.bad_hardware:
@@ -579,11 +585,11 @@ class MntMonitor(BaseMonitor):
                 # OUT OF SOLUTIONS: We don't know where the hardware error is from?
                 return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -604,11 +610,12 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
-            return ERROR_UNKNOWN, {}
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
 
-        if ERROR_MNT_INBLINKY in self.errors:
+        elif ERROR_MNT_INBLINKY in self.errors:
             # PROBLEM: The mount is in blinky mode.
             #          Maybe it's been tracking for too long and reached the limit,
             #          or there's been some voltage problem.
@@ -626,7 +633,7 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
 
-        if ERROR_MNT_MOVETIMEOUT in self.errors:
+        elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.
             #          No delay, because this is only raised after a timeout period already.
             recovery_procedure = {}
@@ -637,7 +644,7 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
 
-        if ERROR_MNT_NOTONTARGET in self.errors:
+        elif ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
             recovery_procedure = {'delay': 60}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
@@ -650,7 +657,7 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: It can't reach the target for some reason.
             return ERROR_MNT_NOTONTARGET, recovery_procedure
 
-        if ERROR_MNT_NOTPARKED in self.errors:
+        elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
             recovery_procedure = {'delay': 60}
             # SOLUTION 1: Try parking.
@@ -661,6 +668,9 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be a problem, maybe the park position isn't defined.
             return ERROR_MNT_NOTPARKED, recovery_procedure
 
+        else:
+            # Some unexpected error.
+            return ERROR_UNKNOWN, {}
 
 class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
@@ -696,7 +706,7 @@ class PowerMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to a power unit.
             #          Need to go through one-by-one.
             recovery_procedure = {'delay': 0}
@@ -708,11 +718,11 @@ class PowerMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The power daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -725,8 +735,13 @@ class PowerMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -764,11 +779,11 @@ class CamMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The cam daemon doesn't directly talk to hardware, so this really shouldn't happen...
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the FLI interfaces.
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
@@ -790,7 +805,7 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -803,8 +818,13 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -842,11 +862,11 @@ class FiltMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The filt daemon doesn't directly talk to hardware, so this really shouldn't happen...
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the FLI interfaces.
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
@@ -868,7 +888,7 @@ class FiltMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -881,8 +901,13 @@ class FiltMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -920,11 +945,11 @@ class FocMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The foc daemon doesn't directly talk to hardware, so this really shouldn't happen...
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the FLI interfaces.
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
@@ -946,7 +971,7 @@ class FocMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -959,8 +984,13 @@ class FocMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -998,11 +1028,11 @@ class ExqMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The exq daemon doesn't directly talk to hardware, so this really shouldn't happen...
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The exq daemon depends on the FLI interfaces, cam and filt daemons.
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
@@ -1051,7 +1081,7 @@ class ExqMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -1064,8 +1094,13 @@ class ExqMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -1103,15 +1138,15 @@ class ConditionsMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The conditions daemon doesn't raise hardware errors.
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The conditions daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -1124,8 +1159,13 @@ class ConditionsMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
 
@@ -1163,15 +1203,15 @@ class SchedulerMonitor(BaseMonitor):
             # Everything's fine, thank you. How are you?
             return None, {}
 
-        if ERROR_HARDWARE in self.errors:
+        elif ERROR_HARDWARE in self.errors:
             # The scheduler daemon doesn't raise hardware errors.
             return ERROR_HARDWARE, {}
 
-        if ERROR_DEPENDENCY in self.errors:
+        elif ERROR_DEPENDENCY in self.errors:
             # The scheduler daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not responding or not returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
@@ -1184,6 +1224,11 @@ class SchedulerMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        if ERROR_UNKNOWN in self.errors:
-            # We don't know what to do.
+        elif ERROR_STATE in self.errors:
+            # PROBLEM: Daemon is in an unknown state.
+            # OUT OF SOLUTIONS: We don't know what to do.
+            return ERROR_STATE, {}
+
+        else:
+            # Some unexpected error.
             return ERROR_UNKNOWN, {}
