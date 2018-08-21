@@ -176,11 +176,11 @@ class BaseDaemon(ABC):
 
         elif self.dependency_error:
             # Any dependencies (if the daemon has them) aren't responding.
-            return 'dependency_error:{}'.format(','.join(self.bad_dependencies))
+            return 'dependency_error:{}'.format(','.join(sorted(self.bad_dependencies)))
 
         elif self.hardware_error:
             # Can not connect to the hardware.
-            return 'hardware_error:{}'.format(','.join(self.bad_hardware))
+            return 'hardware_error:{}'.format(','.join(sorted(self.bad_hardware)))
 
         elif self.pinglife > 0 and abs(time.time() - self.loop_time) > self.pinglife:
             # Control thread has hung
@@ -288,7 +288,12 @@ def start_daemon(daemon_id):
     """Start a daemon (unless it is already running)."""
     host = params.DAEMONS[daemon_id]['HOST']
     if daemon_is_running(daemon_id):
-        return 'Daemon already running on {} (PID {})'.format(host, misc.get_pid(daemon_id))
+        try:
+            check_daemon(daemon_id)  # Will raise status error if found
+            return 'Daemon already running on {} (PID {})'.format(host, misc.get_pid(daemon_id))
+        except Exception:
+            print('Daemon already running but reports error:')
+            raise
 
     process_path = os.path.join(params.DAEMON_PATH, params.DAEMONS[daemon_id]['PROCESS'])
     process_options = {'in_background': True,
@@ -303,8 +308,12 @@ def start_daemon(daemon_id):
     while True:
         pid = misc.get_pid(daemon_id, host)
         if pid:
-            check_daemon(daemon_id)  # Will raise status error if found
-            return 'Daemon started on {} (PID {})'.format(host, pid)
+            try:
+                check_daemon(daemon_id)  # Will raise status error if found
+                return 'Daemon started on {} (PID {})'.format(host, pid)
+            except Exception:
+                print('Daemon started but reports error:')
+                raise
         if time.time() - start_time > 4:
             raise errors.DaemonConnectionError('Daemon did not start, check logs')
         time.sleep(0.5)
