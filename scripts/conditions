@@ -74,10 +74,9 @@ def print_info(info):
         print('CONDITIONS:')
         print('  None yet, try again')
     else:
+        print('FLAGS ({}):'.format(info['timestamp']))
         flags = info['flags']
         weather = info['weather']
-        print('FLAGS ({}):'.format(flags['update_time'][:-4]))
-        del flags['update_time']
         for flag in sorted(flags):
             if flags[flag] == 0:
                 status = style.gtxt('Good')
