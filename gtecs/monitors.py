@@ -3,12 +3,19 @@
 import time
 from abc import ABC, abstractmethod
 
-from .daemons import daemon_info, daemon_is_alive, daemon_status, dependencies_are_alive
+from .daemons import daemon_info, daemon_is_running, daemon_status
 from .misc import execute_command
 from .slack import send_slack_msg
 
-
 # Daemon statuses
+DAEMON_RUNNING = 'running'
+DAEMON_ERROR_STATUS = 'status_error'
+DAEMON_ERROR_RUNNING = 'running_error'
+DAEMON_ERROR_DEPENDENCY = 'dependency_error'
+DAEMON_ERROR_HARDWARE = 'hardware_error'
+DAEMON_ERROR_PING = 'ping_error'
+
+# Hardware statuses
 STATUS_UNKNOWN = 'unknown'
 STATUS_ACTIVE = 'active'
 STATUS_DOME_LOCKDOWN = 'in_lockdown'
@@ -23,18 +30,19 @@ STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_BLINKY = 'in_blinky'
 
-# Daemon modes
+# Hardware modes
 MODE_ACTIVE = 'active'
 MODE_DOME_CLOSED = 'closed'
 MODE_DOME_OPEN = 'open'
 MODE_MNT_PARKED = 'parked'
 MODE_MNT_TRACKING = 'tracking'
 
-# Daemon errors
-ERROR_HARDWARE = 'Hardware connection failed'
-ERROR_DEPENDENCY = 'Dependency ping failed'
+# Hardware errors
+ERROR_RUNNING = 'Daemon not running'
 ERROR_PING = 'Ping failed'
 ERROR_INFO = 'Get info failed'
+ERROR_HARDWARE = 'Hardware connection failed'
+ERROR_DEPENDENCY = 'Dependency ping failed'
 ERROR_UNKNOWN = 'Hardware in unknown state'
 ERROR_DOME_MOVETIMEOUT = 'Moving taking too long'
 ERROR_DOME_PARTOPENTIMEOUT = 'Stuck partially open for too long'
@@ -81,23 +89,25 @@ class BaseMonitor(ABC):
         self.get_hardware_status()
 
     # Status functions
-    def is_alive(self):
-        """Ping the daemon and return True if it is running and responding."""
-        if self.daemon_id is None:
-            return True
+    def is_running(self):
+        """Check if the daemon is running."""
         try:
-            return daemon_is_alive(self.daemon_id)
+            return daemon_is_running(self.daemon_id)
         except Exception:
             return False
 
     def get_daemon_status(self):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
-        if self.daemon_id is None:
-            return True
         try:
-            return daemon_status(self.daemon_id)
+            status = daemon_status(self.daemon_id)
+            try:
+                status, args = status.split(':')
+                return status, args.split(',')
+            except ValueError:
+                # no arguments
+                return status, None
         except Exception:
-            return None
+            return DAEMON_ERROR_STATUS, None
 
     def get_info(self):
         """Get the daemon hardware info dict."""
@@ -159,31 +169,43 @@ class BaseMonitor(ABC):
 
         # Functional checks
         # Note these overwrite self.errors instead of adding to it, because they're critical
-        if not self.is_alive():
-            self.errors = set([ERROR_PING])
+        if not self.is_running():
+            self.errors.add(ERROR_RUNNING)
             return len(self.errors), self.errors
 
-        daemon_status = self.get_daemon_status()
-        if daemon_status.split(':')[0] == 'dependency_error':
-            self.bad_dependencies = daemon_status.split(':')[1].split(',')
-            self.errors = set([ERROR_DEPENDENCY])
+        status, args = self.get_daemon_status()
+        if status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+            self.errors.add(ERROR_PING)
             return len(self.errors), self.errors
-        if daemon_status.split(':')[0] == 'hardware_error':
-            self.bad_hardware = daemon_status.split(':')[1].split(',')
-            self.errors = set([ERROR_DEPENDENCY])
+
+        if status == DAEMON_ERROR_DEPENDENCY:
+            for dependency in args:
+                self.bad_dependencies.add(dependency)
+            self.errors.add(ERROR_DEPENDENCY)
             return len(self.errors), self.errors
-        elif daemon_status != 'running':
-            self.errors = set([ERROR_PING])
+        else:
+            self.bad_dependencies.clear()
+
+        if status == DAEMON_ERROR_HARDWARE:
+            for hardware in args:
+                self.bad_hardware.add(hardware)
+            self.errors.add(ERROR_HARDWARE)
+            return len(self.errors), self.errors
+        else:
+            self.bad_hardware.clear()
+
+        if status != DAEMON_RUNNING:
+            self.errors.add(ERROR_PING)
             return len(self.errors), self.errors
 
         info = self.get_info()
         if info is None:
-            self.errors = set([ERROR_INFO])
+            self.errors.add(ERROR_INFO)
             return len(self.errors), self.errors
 
         hardware_status = self.get_hardware_status()
         if hardware_status is STATUS_UNKNOWN:
-            self.errors = set([ERROR_UNKNOWN])
+            self.errors.add(ERROR_UNKNOWN)
             return len(self.errors), self.errors
 
         # Hardware checks
