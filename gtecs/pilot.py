@@ -618,7 +618,8 @@ class Pilot(object):
                                    self.current_id, elapsed, self.current_mintime))
                 else:
                     self.log.warning('nothing to observe!')
-                    send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
+                    if not self.testing:
+                        send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
 
             elif self.new_id is not None:
                 if self.current_id is not None:
