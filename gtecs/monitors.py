@@ -179,21 +179,19 @@ class BaseMonitor(ABC):
             self.errors.add(ERROR_PING)
             return len(self.errors), self.errors
 
+        self.bad_dependencies.clear()
         if daemon_status == DAEMON_ERROR_DEPENDENCY:
             for dependency in args:
                 self.bad_dependencies.add(dependency)
             self.errors.add(ERROR_DEPENDENCY)
             return len(self.errors), self.errors
-        else:
-            self.bad_dependencies.clear()
 
+        self.bad_hardware.clear()
         if daemon_status == DAEMON_ERROR_HARDWARE:
             for hardware in args:
                 self.bad_hardware.add(hardware)
             self.errors.add(ERROR_HARDWARE)
             return len(self.errors), self.errors
-        else:
-            self.bad_hardware.clear()
 
         if daemon_status != DAEMON_RUNNING:
             self.errors.add(ERROR_PING)
