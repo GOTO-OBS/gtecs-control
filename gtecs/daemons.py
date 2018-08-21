@@ -2,6 +2,7 @@
 
 import os
 import time
+from abc import ABC, abstractmethod
 
 import Pyro4
 
@@ -11,8 +12,28 @@ from . import misc
 from . import params
 
 
-class HardwareDaemon(object):
-    """Base class for hardware daemons."""
+class BaseDaemon(ABC):
+    """Base class for hardware daemons.
+
+    Daemons can be put into two catogaries:
+        - those dependent on hardware (e.g. dome, fli)
+        - those dependent on other daemons (e.g. cam, exq)
+
+    Each daemon should implement a master control loop, which includes a status check routine.
+
+    Hardware-dependent daemons will attempt to connect to their hardware and enter a hardware
+    error if they can not. They should implement a _connect() function to connect to each piece of
+    hardware.
+
+    Daemon-dependent daemons will attempt to connect to their dependencies and enter a dependency
+    error if they can not. They should run the built-in _check_dependencies function to ensure the
+    dependency daemons are still running.
+
+    This is an abstract class and must be subtyped.
+    Needed methods to implement:
+        - _control_thread()
+        - _get_info()
+    """
 
     def __init__(self, daemon_id):
         if daemon_id not in params.DAEMONS:
@@ -44,6 +65,15 @@ class HardwareDaemon(object):
                                      log_to_file=params.FILE_LOGGING,
                                      log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Daemon created')
+
+    # Primary control thread
+    @abstractmethod
+    def _control_thread(self):
+        """Primary control loop.
+
+        This abstract method must be implemented by all daemons to add hardware-specific functions.
+        """
+        return
 
     # Base daemon functions
     def _running_function(self):
@@ -124,6 +154,14 @@ class HardwareDaemon(object):
         elif len(self.bad_dependencies) == 0 and self.dependency_error:
             self.log.warning('Dependency error cleared')
             self.dependency_error = False
+
+    @abstractmethod
+    def _get_info(self):
+        """Get the latest status info from the hardware.
+
+        This abstract method must be implemented by all daemons to add hardware-specific checks.
+        """
+        return
 
     # Common daemon functions
     def prod(self):

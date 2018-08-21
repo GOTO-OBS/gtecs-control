@@ -13,11 +13,11 @@ from gtecs import errors
 from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import check_alt_limit, find_ha, radec_from_altaz
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
 
 
-class MntDaemon(HardwareDaemon):
+class MntDaemon(BaseDaemon):
     """Mount hardware daemon class."""
 
     def __init__(self):
@@ -56,6 +56,7 @@ class MntDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

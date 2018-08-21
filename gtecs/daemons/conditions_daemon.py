@@ -11,12 +11,12 @@ from gtecs import conditions
 from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import get_sunalt
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import BaseDaemon
 
 import numpy as np
 
 
-class ConditionsDaemon(HardwareDaemon):
+class ConditionsDaemon(BaseDaemon):
     """Conditions monitor daemon class."""
 
     def __init__(self):
@@ -49,6 +49,7 @@ class ConditionsDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

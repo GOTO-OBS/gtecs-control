@@ -11,12 +11,12 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.daemons import BaseDaemon, daemon_proxy
 from gtecs.exposures import Exposure
 from gtecs.fits import get_all_info, glance_location, image_location, write_fits
 
 
-class CamDaemon(HardwareDaemon):
+class CamDaemon(BaseDaemon):
     """Camera hardware daemon class."""
 
     def __init__(self):
@@ -56,6 +56,7 @@ class CamDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

@@ -8,12 +8,12 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import BaseDaemon
 from gtecs.hardware.power import APCPDU, APCUPS, ETH8020
 from gtecs.hardware.power import FakePDU, FakeUPS
 
 
-class PowerDaemon(HardwareDaemon):
+class PowerDaemon(BaseDaemon):
     """Power hardware daemon class."""
 
     def __init__(self):
@@ -40,6 +40,7 @@ class PowerDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

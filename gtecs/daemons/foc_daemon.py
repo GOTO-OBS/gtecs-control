@@ -9,10 +9,10 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.daemons import BaseDaemon, daemon_proxy
 
 
-class FocDaemon(HardwareDaemon):
+class FocDaemon(BaseDaemon):
     """Focuser hardware daemon class."""
 
     def __init__(self):
@@ -37,6 +37,7 @@ class FocDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

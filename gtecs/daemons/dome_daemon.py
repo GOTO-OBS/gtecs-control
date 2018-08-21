@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Power, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
@@ -18,7 +18,7 @@ from gtecs.slack import send_slack_msg
 import serial
 
 
-class DomeDaemon(HardwareDaemon):
+class DomeDaemon(BaseDaemon):
     """Dome hardware daemon class."""
 
     def __init__(self):
@@ -51,6 +51,7 @@ class DomeDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):

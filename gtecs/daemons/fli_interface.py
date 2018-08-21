@@ -9,12 +9,12 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_is_running
+from gtecs.daemons import BaseDaemon, daemon_is_running
 from gtecs.hardware.fli import Camera, FilterWheel, Focuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 
 
-class FLIDaemon(HardwareDaemon):
+class FLIDaemon(BaseDaemon):
     """FLI interface daemon class."""
 
     def __init__(self, daemon_id):
@@ -33,6 +33,7 @@ class FLIDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):
