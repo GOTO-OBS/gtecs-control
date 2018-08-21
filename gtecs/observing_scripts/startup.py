@@ -41,6 +41,7 @@ def run():
     execute_command('fli shutdown')
     time.sleep(4)
     execute_command('fli start')
+    time.sleep(1)
 
     # Make sure all the other daemons are running
     for daemon in list(params.DAEMONS):
