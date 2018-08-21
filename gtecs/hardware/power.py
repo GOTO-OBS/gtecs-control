@@ -386,8 +386,11 @@ class ETH8020(object):
         self.socket.connect((self.address, self.port))
 
     def __del__(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.socket.close()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+            self.socket.close()
+        except OSError:
+            pass
 
     def _tcp_command(self, command_bytes):
         """Send command bytes to the device, then fetch the reply bytes and return them."""
@@ -465,8 +468,11 @@ class ETH002(object):
         self.socket.connect((self.address, self.port))
 
     def __del__(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.socket.close()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+            self.socket.close()
+        except OSError:
+            pass
 
     def _tcp_command(self, command_bytes):
         """Send command bytes to the device, then fetch the reply bytes and return them."""

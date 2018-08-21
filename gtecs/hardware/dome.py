@@ -260,7 +260,10 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'disabled'
 
     def __del__(self):
-        self.dome_serial.close()
+        try:
+            self.dome_serial.close()
+        except AttributeError:
+            pass
 
     def _read_plc(self):
         try:
