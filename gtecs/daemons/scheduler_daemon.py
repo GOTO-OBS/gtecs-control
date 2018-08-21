@@ -76,7 +76,7 @@ class SchedulerDaemon(BaseDaemon):
         self._check_errors()
 
     # Control functions
-    def check_queue(self, *args):
+    def check_queue(self):
         """Check the current queue for the best pointing to do."""
         next_pointing = self.info['next_pointing']
         if next_pointing is not None:

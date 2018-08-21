@@ -142,7 +142,7 @@ class Pilot(object):
             # check scheduler daemon
             self.log.debug('checking scheduler')
 
-            check_results = check_schedule(Time.now(), True)
+            check_results = check_schedule()
             self.new_id, self.new_priority, self.new_mintime = check_results
             # NOTE we don't actually use the priority anywhere in the pilot!
 

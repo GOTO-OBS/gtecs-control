@@ -17,10 +17,10 @@ from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
 
-def check_schedule(check_time, write_html):
+def check_schedule():
     """Check the schedule."""
     try:
-        new_pointing = daemon_function('scheduler', 'check_queue', [check_time, write_html])
+        new_pointing = daemon_function('scheduler', 'check_queue')
         if new_pointing is not None:
             return new_pointing.pointing_id, new_pointing.priority_now, new_pointing.mintime
         else:
