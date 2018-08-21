@@ -23,6 +23,9 @@ class FLIDaemon(BaseDaemon):
         # hardware
         self.tels = params.FLI_INTERFACES[self.daemon_id]['TELS'].copy()
         self.hw = list(range(len(self.tels)))
+        self.cam_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
+        self.foc_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
+        self.filt_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
         self.cameras = {hw: None for hw in self.hw}
         self.focusers = {hw: None for hw in self.hw}
         self.filterwheels = {hw: None for hw in self.hw}
@@ -74,7 +77,7 @@ class FLIDaemon(BaseDaemon):
             if not self.cameras[hw]:
                 hw_name = 'camera_' + str(hw)
                 try:
-                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'][hw]
+                    serial = self.cam_serials[hw]
                     camera = Camera.locate_device(serial)
                     if camera is None and params.USE_FAKE_FLI:
                         camera = FakeCamera('fake', 'FakeCamera')
@@ -96,7 +99,7 @@ class FLIDaemon(BaseDaemon):
             if not self.focusers[hw]:
                 hw_name = 'focuser_' + str(hw)
                 try:
-                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'][hw]
+                    serial = self.foc_serials[hw]
                     focuser = Focuser.locate_device(serial)
                     if focuser is None and params.USE_FAKE_FLI:
                         focuser = FakeFocuser('fake', 'FakeFocuser')
@@ -118,7 +121,7 @@ class FLIDaemon(BaseDaemon):
             if not self.filterwheels[hw]:
                 hw_name = 'filterwheel_' + str(hw)
                 try:
-                    serial = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['filt'][hw]
+                    serial = self.filt_serials[hw]
                     filterwheel = FilterWheel.locate_device(serial)
                     if filterwheel is None and params.USE_FAKE_FLI:
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
@@ -152,7 +155,12 @@ class FLIDaemon(BaseDaemon):
             # Get info from each camera
             hw_name = 'camera_' + str(hw)
             try:
-                camera = self.cameras[hw]
+                # First check if it's alive
+                serial = self.cam_serials[hw]
+                camera = Camera.locate_device(serial)
+                if camera is None and not params.USE_FAKE_FLI:
+                    raise Exception('Camera not found')
+                # Only if it's alive can you use the old object, or it will crash
                 temp_info[hw_name] = camera.serial_number
             except Exception:
                 self.log.error('Failed to get Camera {:.0f} info'.format(hw))
@@ -167,7 +175,12 @@ class FLIDaemon(BaseDaemon):
             # Get info from each focuser
             hw_name = 'focuser_' + str(hw)
             try:
-                focuser = self.focusers[hw]
+                # First check if it's alive
+                serial = self.foc_serials[hw]
+                focuser = Focuser.locate_device(serial)
+                if focuser is None and not params.USE_FAKE_FLI:
+                    raise Exception('Focuser not found')
+                # Only if it's alive can you connect, or it will crash
                 temp_info[hw_name] = focuser.serial_number
             except Exception:
                 self.log.error('Failed to get Focuser {:.0f} info'.format(hw))
@@ -182,7 +195,12 @@ class FLIDaemon(BaseDaemon):
             # Get info from each filterwheel
             hw_name = 'filterwheel_' + str(hw)
             try:
-                filterwheel = self.filterwheels[hw]
+                # First check if it's alive
+                serial = self.filt_serials[hw]
+                filterwheel = FilterWheel.locate_device(serial)
+                if filterwheel is None and not params.USE_FAKE_FLI:
+                    raise Exception('Filter Wheel not found')
+                # Only if it's alive can you connect, or it will crash
                 temp_info[hw_name] = filterwheel.serial_number
             except Exception:
                 self.log.error('Failed to get Filter Wheel {:.0f} info'.format(hw))
@@ -196,6 +214,9 @@ class FLIDaemon(BaseDaemon):
         # Get other internal info
         temp_info['tels'] = list(self.tels)
         temp_info['hw'] = list(self.hw)
+        temp_info['cam_serials'] = list(self.cam_serials)
+        temp_info['foc_serials'] = list(self.foc_serials)
+        temp_info['filt_serials'] = list(self.filt_serials)
 
         # Update the master info dict
         self.info = temp_info
