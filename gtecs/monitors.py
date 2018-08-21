@@ -30,6 +30,7 @@ STATUS_MNT_MOVING = 'moving'
 STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_BLINKY = 'in_blinky'
+STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 
 # Hardware modes
 MODE_ACTIVE = 'active'
@@ -54,6 +55,7 @@ ERROR_MNT_MOVETIMEOUT = 'Moving taking too long'
 ERROR_MNT_NOTONTARGET = 'Mount not on target'
 ERROR_MNT_NOTPARKED = 'Mount not parked'
 ERROR_MNT_INBLINKY = 'Mount in blinky mode'
+ERROR_MNT_CONNECTION = 'SiTechEXE has lost connection to controller'
 
 
 class BaseMonitor(ABC):
@@ -525,6 +527,8 @@ class MntMonitor(BaseMonitor):
             hardware_status = STATUS_MNT_STOPPED
         elif mount == 'IN BLINKY MODE':
             hardware_status = STATUS_MNT_BLINKY
+        elif mount == 'CONNECTION ERROR':
+            hardware_status = STATUS_MNT_CONNECTION_ERROR
         else:
             hardware_status = STATUS_UNKNOWN
 
@@ -554,6 +558,9 @@ class MntMonitor(BaseMonitor):
 
         if self.hardware_status == STATUS_MNT_BLINKY:
             self.errors.add(ERROR_MNT_INBLINKY)
+
+        if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
+            self.errors.add(ERROR_MNT_CONNECTION)
 
         if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
             self.errors.add(ERROR_MNT_NOTONTARGET)
@@ -599,14 +606,6 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 3: Kill it, then start it again.
             recovery_procedure[3] = ['mnt kill', 10]
             recovery_procedure[4] = ['mnt start', 30]
-            # SOLUTION 4: Maybe there's a problem with the mount.
-            recovery_procedure[5] = ['power off mount_nuc', 10]
-            recovery_procedure[6] = ['power off sitech', 10]
-            recovery_procedure[7] = ['power on sitech', 60]
-            recovery_procedure[8] = ['power on mount_nuc', 180]
-            # SOLUTION 5: Try restarting the daemon again.
-            recovery_procedure[9] = ['mnt kill', 10]
-            recovery_procedure[10] = ['mnt start', 60]
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
@@ -614,6 +613,18 @@ class MntMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
+
+        elif ERROR_MNT_CONNECTION in self.errors:
+            # PROBLEM: The SiTechEXE has lost connection to the mount controller.
+            #          Maybe it's been powered off.
+            recovery_procedure = {}
+            # SOLUTION 1: Try turning on the sitech box.
+            recovery_procedure[1] = ['power on sitech', 60]
+            # SOLUTION 2: Still an error? Try restarting it.
+            recovery_procedure[2] = ['power off sitech', 10]
+            recovery_procedure[3] = ['power on sitech', 60]
+            # OUT OF SOLUTIONS: It still can't connect, sounds like a hardware issue.
+            return ERROR_MNT_CONNECTION, recovery_procedure
 
         elif ERROR_MNT_INBLINKY in self.errors:
             # PROBLEM: The mount is in blinky mode.
