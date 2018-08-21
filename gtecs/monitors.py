@@ -798,7 +798,7 @@ class CamMonitor(BaseMonitor):
                     recovery_procedure[3] = ['fli kill', 10]
                     recovery_procedure[4] = ['fli start', 30]
                     # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
                     recovery_procedure[6] = ['fli kill', 10]
                     recovery_procedure[7] = ['fli start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
@@ -881,7 +881,7 @@ class FiltMonitor(BaseMonitor):
                     recovery_procedure[3] = ['fli kill', 10]
                     recovery_procedure[4] = ['fli start', 30]
                     # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
                     recovery_procedure[6] = ['fli kill', 10]
                     recovery_procedure[7] = ['fli start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
@@ -964,7 +964,7 @@ class FocMonitor(BaseMonitor):
                     recovery_procedure[3] = ['fli kill', 10]
                     recovery_procedure[4] = ['fli start', 30]
                     # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
                     recovery_procedure[6] = ['fli kill', 10]
                     recovery_procedure[7] = ['fli start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
@@ -1050,7 +1050,7 @@ class ExqMonitor(BaseMonitor):
                     recovery_procedure[3] = ['fli kill', 10]
                     recovery_procedure[4] = ['fli start', 30]
                     # SOLUTION 4: Maybe the FLI hardware isn't powered on.
-                    recovery_procedure[5] = ['power start cams,focs,filts', 30]
+                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
                     recovery_procedure[6] = ['fli kill', 10]
                     recovery_procedure[7] = ['fli start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
