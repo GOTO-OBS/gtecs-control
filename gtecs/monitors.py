@@ -51,7 +51,7 @@ class BaseMonitor(ABC):
 
     This is an abstract class and must be subtyped.
     Needed methods to implement:
-        - check_hardware_status()
+        - get_hardware_status()
         - _check_hardware()
         - _recovery_procedure()
 
@@ -69,17 +69,18 @@ class BaseMonitor(ABC):
         self.info = None
         self.hardware_status = STATUS_UNKNOWN
 
-        self.errors = set([])
-        self.bad_dependencies = []
-        self.bad_hardware = []
+        self.errors = set()
+        self.bad_dependencies = set()
+        self.bad_hardware = set()
 
         self.active_error = None
         self.recovery_level = 0
         self.last_successful_check = 0.
         self.last_recovery_command = 0.
 
-        self.check_hardware_status()
+        self.get_hardware_status()
 
+    # Status functions
     def is_alive(self):
         """Ping the daemon and return True if it is running and responding."""
         if self.daemon_id is None:
@@ -89,23 +90,8 @@ class BaseMonitor(ABC):
         except Exception:
             return False
 
-    def dependencies_are_alive(self):
-        """Ping a daemon's dependencies and return True if they are all running and responding."""
-        if self.daemon_id is None:
-            return True
-        try:
-            return dependencies_are_alive(self.daemon_id)
-        except Exception:
-            return False
-
-    def status(self):
-        """Get a daemon's status.
-
-        At the moment the only error state is when the dependencies aren't running.
-
-        Note: Not to be confused with the hardware status.
-
-        """
+    def get_daemon_status(self):
+        """Get the current status of the daemon (not to be confused with the hardware status)."""
         if self.daemon_id is None:
             return True
         try:
@@ -114,7 +100,7 @@ class BaseMonitor(ABC):
             return None
 
     def get_info(self):
-        """Get the daemon info dict."""
+        """Get the daemon hardware info dict."""
         if self.daemon_id is None:
             return None
         try:
@@ -127,7 +113,7 @@ class BaseMonitor(ABC):
         return info
 
     @abstractmethod
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware.
 
         This abstract method must be implemented by all hardware to add hardware-specific checks.
@@ -135,6 +121,7 @@ class BaseMonitor(ABC):
         self.hardware_status = STATUS_UNKNOWN
         return STATUS_UNKNOWN
 
+    # System mode
     @property
     def mode(self):
         """Get the observing mode of the hardware."""
@@ -148,9 +135,10 @@ class BaseMonitor(ABC):
             raise ValueError('Invalid mode: {} not in {!r}'.format(mode,
                                                                    self.available_modes))
 
+    # System checks
     @abstractmethod
     def _check_hardware(self):
-        """Check the hardware by running through the recovery steps.
+        """Check the hardware status and report any errors to self.errors.
 
         This abstract method must be implemented by all hardware to add hardware-specific checks.
         """
@@ -171,15 +159,11 @@ class BaseMonitor(ABC):
 
         # Functional checks
         # Note these overwrite self.errors instead of adding to it, because they're critical
-        if not self.dependencies_are_alive():
-            self.errors = set([ERROR_DEPENDENCY])
-            return len(self.errors), self.errors
-
         if not self.is_alive():
             self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
-        daemon_status = self.status()
+        daemon_status = self.get_daemon_status()
         if daemon_status.split(':')[0] == 'dependency_error':
             self.bad_dependencies = daemon_status.split(':')[1].split(',')
             self.errors = set([ERROR_DEPENDENCY])
@@ -197,7 +181,7 @@ class BaseMonitor(ABC):
             self.errors = set([ERROR_INFO])
             return len(self.errors), self.errors
 
-        hardware_status = self.check_hardware_status()
+        hardware_status = self.get_hardware_status()
         if hardware_status is STATUS_UNKNOWN:
             self.errors = set([ERROR_UNKNOWN])
             return len(self.errors), self.errors
@@ -212,6 +196,7 @@ class BaseMonitor(ABC):
 
         return len(self.errors), self.errors
 
+    # System recovery
     @abstractmethod
     def _recovery_procedure(self):
         """Get the recovery commands based on the current observing mode.
@@ -299,7 +284,7 @@ class DomeMonitor(BaseMonitor):
         self._part_open_start_time = 0
         self._currently_part_open = False
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -469,7 +454,7 @@ class MntMonitor(BaseMonitor):
         self._off_target_start_time = 0
         self._currently_off_target = False
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -638,7 +623,7 @@ class PowerMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -699,7 +684,7 @@ class CamMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -773,7 +758,7 @@ class FiltMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -847,7 +832,7 @@ class FocMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
@@ -921,7 +906,7 @@ class ExqMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
-    def check_hardware_status(self):
+    def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
         if info is None:
