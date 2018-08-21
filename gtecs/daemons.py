@@ -213,7 +213,7 @@ def daemon_proxy(daemon_id, timeout=params.PYRO_TIMEOUT):
     return proxy
 
 
-def daemon_status(daemon_id):
+def get_daemon_status(daemon_id):
     """Get a daemon's current status."""
     if not daemon_is_running(daemon_id):
         host = params.DAEMONS[daemon_id]['HOST']
@@ -230,7 +230,7 @@ def daemon_status(daemon_id):
 def daemon_is_alive(daemon_id):
     """Check if a daemon is running and reports no errors."""
     try:
-        return bool(daemon_status(daemon_id) == 'running')
+        return bool(get_daemon_status(daemon_id) == 'running')
     except Exception:
         return False
 
@@ -241,7 +241,7 @@ def check_daemon(daemon_id):
     pid = misc.get_pid(daemon_id)
     runstr = 'Daemon running on {} (PID {})'.format(host, pid)
 
-    status = daemon_status(daemon_id)
+    status = get_daemon_status(daemon_id)
 
     if status == 'running':
         return runstr

@@ -3,7 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 
-from .daemons import daemon_info, daemon_is_running, daemon_status
+from .daemons import daemon_info, daemon_is_running, get_daemon_status
 from .misc import execute_command
 from .slack import send_slack_msg
 
@@ -99,7 +99,7 @@ class BaseMonitor(ABC):
     def get_daemon_status(self):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
         try:
-            status = daemon_status(self.daemon_id)
+            status = get_daemon_status(self.daemon_id)
             try:
                 status, args = status.split(':')
                 return status, args.split(',')
@@ -173,12 +173,12 @@ class BaseMonitor(ABC):
             self.errors.add(ERROR_RUNNING)
             return len(self.errors), self.errors
 
-        status, args = self.get_daemon_status()
-        if status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+        daemon_status, args = self.get_daemon_status()
+        if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
             self.errors.add(ERROR_PING)
             return len(self.errors), self.errors
 
-        if status == DAEMON_ERROR_DEPENDENCY:
+        if daemon_status == DAEMON_ERROR_DEPENDENCY:
             for dependency in args:
                 self.bad_dependencies.add(dependency)
             self.errors.add(ERROR_DEPENDENCY)
@@ -186,7 +186,7 @@ class BaseMonitor(ABC):
         else:
             self.bad_dependencies.clear()
 
-        if status == DAEMON_ERROR_HARDWARE:
+        if daemon_status == DAEMON_ERROR_HARDWARE:
             for hardware in args:
                 self.bad_hardware.add(hardware)
             self.errors.add(ERROR_HARDWARE)
@@ -194,7 +194,7 @@ class BaseMonitor(ABC):
         else:
             self.bad_hardware.clear()
 
-        if status != DAEMON_RUNNING:
+        if daemon_status != DAEMON_RUNNING:
             self.errors.add(ERROR_PING)
             return len(self.errors), self.errors
 
