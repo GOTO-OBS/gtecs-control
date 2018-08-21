@@ -192,7 +192,7 @@ class FLIDaemon(HardwareDaemon):
                     self.bad_hardware.add(hw_name)
 
         # Get other internal info
-        temp_info['tels'] = self.tels
+        temp_info['tels'] = list(self.tels)
 
         # Update the master info dict
         self.info = temp_info
