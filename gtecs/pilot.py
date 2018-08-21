@@ -96,6 +96,8 @@ class Pilot(object):
                          'filt': monitors.FiltMonitor(self.log),
                          'foc': monitors.FocMonitor(self.log),
                          'exq': monitors.ExqMonitor(self.log),
+                         'conditions': monitors.ConditionsMonitor(self.log),
+                         'scheduler': monitors.SchedulerMonitor(self.log),
                          }
 
         # override and conditions flags

@@ -1067,3 +1067,123 @@ class ExqMonitor(BaseMonitor):
         if ERROR_UNKNOWN in self.errors:
             # We don't know what to do.
             return ERROR_UNKNOWN, {}
+
+
+class ConditionsMonitor(BaseMonitor):
+    """Hardware monitor for the conditions daemon."""
+
+    def __init__(self, log=None):
+        super().__init__('conditions', log)
+
+        # Define modes and starting mode
+        self.available_modes = [MODE_ACTIVE]
+        self.mode = MODE_ACTIVE
+
+    def get_hardware_status(self):
+        """Get the current status of the hardware."""
+        info = self.get_info()
+        if info is None:
+            self.hardware_status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
+
+        # no custom statuses
+        hardware_status = STATUS_ACTIVE
+
+        self.hardware_status = hardware_status
+        return hardware_status
+
+    def _check_hardware(self):
+        """Check the hardware and report any detected errors."""
+        # no custom errors
+        return
+
+    def _recovery_procedure(self):
+        """Get the recovery commands for the current error(s), based on hardware status and mode."""
+        if not self.errors:
+            # Everything's fine, thank you. How are you?
+            return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The conditions daemon doesn't raise hardware errors.
+            return ERROR_HARDWARE, {}
+
+        if ERROR_DEPENDENCY in self.errors:
+            # The conditions daemon doesn't have dependencies, so this really shouldn't happen...
+            return ERROR_DEPENDENCY, {}
+
+        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not responding or not returning info.
+            recovery_procedure = {'delay': 30}
+            # SOLUTION 1: Make sure it's started.
+            recovery_procedure[1] = ['conditions start', 30]
+            # SOLUTION 2: Try restarting it.
+            recovery_procedure[2] = ['conditions restart', 30]
+            # SOLUTION 3: Kill it, then start it again.
+            recovery_procedure[3] = ['conditions kill', 10]
+            recovery_procedure[4] = ['conditions start', 30]
+            # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+            return ERROR_PING + ERROR_INFO, recovery_procedure
+
+        if ERROR_UNKNOWN in self.errors:
+            # We don't know what to do.
+            return ERROR_UNKNOWN, {}
+
+
+class SchedulerMonitor(BaseMonitor):
+    """Hardware monitor for the scheduler daemon."""
+
+    def __init__(self, log=None):
+        super().__init__('scheduler', log)
+
+        # Define modes and starting mode
+        self.available_modes = [MODE_ACTIVE]
+        self.mode = MODE_ACTIVE
+
+    def get_hardware_status(self):
+        """Get the current status of the hardware."""
+        info = self.get_info()
+        if info is None:
+            self.hardware_status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
+
+        # no custom statuses
+        hardware_status = STATUS_ACTIVE
+
+        self.hardware_status = hardware_status
+        return hardware_status
+
+    def _check_hardware(self):
+        """Check the hardware and report any detected errors."""
+        # no custom errors
+        return
+
+    def _recovery_procedure(self):
+        """Get the recovery commands for the current error(s), based on hardware status and mode."""
+        if not self.errors:
+            # Everything's fine, thank you. How are you?
+            return None, {}
+
+        if ERROR_HARDWARE in self.errors:
+            # The scheduler daemon doesn't raise hardware errors.
+            return ERROR_HARDWARE, {}
+
+        if ERROR_DEPENDENCY in self.errors:
+            # The scheduler daemon doesn't have dependencies, so this really shouldn't happen...
+            return ERROR_DEPENDENCY, {}
+
+        if ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not responding or not returning info.
+            recovery_procedure = {'delay': 30}
+            # SOLUTION 1: Make sure it's started.
+            recovery_procedure[1] = ['scheduler start', 30]
+            # SOLUTION 2: Try restarting it.
+            recovery_procedure[2] = ['scheduler restart', 30]
+            # SOLUTION 3: Kill it, then start it again.
+            recovery_procedure[3] = ['scheduler kill', 10]
+            recovery_procedure[4] = ['scheduler start', 30]
+            # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+            return ERROR_PING + ERROR_INFO, recovery_procedure
+
+        if ERROR_UNKNOWN in self.errors:
+            # We don't know what to do.
+            return ERROR_UNKNOWN, {}
