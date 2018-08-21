@@ -400,8 +400,8 @@ class DomeMonitor(BaseMonitor):
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['dome start', 30]
@@ -589,8 +589,8 @@ class MntMonitor(BaseMonitor):
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['mnt start', 30]
@@ -672,6 +672,7 @@ class MntMonitor(BaseMonitor):
             # Some unexpected error.
             return ERROR_UNKNOWN, {}
 
+
 class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
 
@@ -722,8 +723,8 @@ class PowerMonitor(BaseMonitor):
             # The power daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['power start', 30]
@@ -805,8 +806,8 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['cam start', 30]
@@ -888,8 +889,8 @@ class FiltMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['filt start', 30]
@@ -971,8 +972,8 @@ class FocMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['foc start', 30]
@@ -1081,8 +1082,8 @@ class ExqMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['exq start', 30]
@@ -1146,8 +1147,8 @@ class ConditionsMonitor(BaseMonitor):
             # The conditions daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['conditions start', 30]
@@ -1211,8 +1212,8 @@ class SchedulerMonitor(BaseMonitor):
             # The scheduler daemon doesn't have dependencies, so this really shouldn't happen...
             return ERROR_DEPENDENCY, {}
 
-        elif ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not responding or not returning info.
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
             recovery_procedure = {'delay': 30}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['scheduler start', 30]
