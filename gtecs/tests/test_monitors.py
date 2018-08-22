@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Test code: a simple version of the pilot check_hardware routine to test the monitors."""
 
+import sys
 import time
 
 from gtecs import misc
@@ -42,6 +43,22 @@ def check_hardware(hardware):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        mnt_mode = 'parked'
+        dome_mode = 'closed'
+    elif len(sys.argv) == 2:
+        mnt_mode = sys.argv[1]
+        if mnt_mode not in ['tracking', 'parked']:
+            raise ValueError('Mount mode must be tracking or parked')
+        dome_mode = 'closed'
+    elif len(sys.argv) == 3:
+        mnt_mode = sys.argv[1]
+        if mnt_mode not in ['tracking', 'parked']:
+            raise ValueError('Mount mode must be tracking or parked')
+        dome_mode = sys.argv[2]
+        if dome_mode not in ['closed', 'open']:
+            raise ValueError('Dome mode must be closed or open')
+
     # hardware to keep track of and fix if necessary
     hardware = {'dome': monitors.DomeMonitor(),
                 'mnt': monitors.MntMonitor(),
@@ -53,5 +70,7 @@ if __name__ == "__main__":
                 'conditions': monitors.ConditionsMonitor(),
                 'scheduler': monitors.SchedulerMonitor(),
                 }
+    hardware['mnt'].mode = mnt_mode
+    hardware['dome'].mode = dome_mode
 
     check_hardware(hardware)
