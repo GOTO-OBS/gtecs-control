@@ -157,11 +157,12 @@ class FLIDaemon(BaseDaemon):
             try:
                 # First check if it's alive
                 serial = self.cam_serials[hw]
-                camera = Camera.locate_device(serial)
-                if camera is None and not params.USE_FAKE_FLI:
+                temp = Camera.locate_device(serial)
+                if temp is None and not params.USE_FAKE_FLI:
                     raise Exception('Camera not found')
+                del temp
                 # Only if it's alive can you use the old object, or it will crash
-                temp_info[hw_name] = camera.serial_number
+                temp_info[hw_name] = self.cameras[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Camera {:.0f} info'.format(hw))
                 self.log.debug('', exc_info=True)
@@ -177,11 +178,12 @@ class FLIDaemon(BaseDaemon):
             try:
                 # First check if it's alive
                 serial = self.foc_serials[hw]
-                focuser = Focuser.locate_device(serial)
-                if focuser is None and not params.USE_FAKE_FLI:
+                temp = Focuser.locate_device(serial)
+                if temp is None and not params.USE_FAKE_FLI:
                     raise Exception('Focuser not found')
+                del temp
                 # Only if it's alive can you connect, or it will crash
-                temp_info[hw_name] = focuser.serial_number
+                temp_info[hw_name] = self.focusers[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Focuser {:.0f} info'.format(hw))
                 self.log.debug('', exc_info=True)
@@ -197,11 +199,12 @@ class FLIDaemon(BaseDaemon):
             try:
                 # First check if it's alive
                 serial = self.filt_serials[hw]
-                filterwheel = FilterWheel.locate_device(serial)
-                if filterwheel is None and not params.USE_FAKE_FLI:
+                temp = FilterWheel.locate_device(serial)
+                if temp is None and not params.USE_FAKE_FLI:
                     raise Exception('Filter Wheel not found')
+                del temp
                 # Only if it's alive can you connect, or it will crash
-                temp_info[hw_name] = filterwheel.serial_number
+                temp_info[hw_name] = self.filterwheels[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Filter Wheel {:.0f} info'.format(hw))
                 self.log.debug('', exc_info=True)
