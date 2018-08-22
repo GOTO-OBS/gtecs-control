@@ -52,10 +52,11 @@ def execute_command(command_string, timeout=30):
     """For commands that should return quickly."""
     print('{}:'.format(command_string))
     try:
-        ret_str = subprocess.check_output(command_string,
-                                          shell=True,
-                                          stderr=subprocess.STDOUT,
-                                          timeout=timeout)
+        p = subprocess.Popen(command_string,
+                             shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        ret_str, _ = p.communicate(timeout=timeout)
         print('> ' + ret_str.strip().decode().replace('\n', '\n> '))
         return 0
     except subprocess.TimeoutExpired:
