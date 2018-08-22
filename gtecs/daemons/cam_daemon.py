@@ -90,7 +90,7 @@ class CamDaemon(BaseDaemon):
                     binning = self.current_exposure.binning
                     frametype = self.current_exposure.frametype
 
-                    # set exposure info and start exposure
+                    # set exposure info
                     for tel in self.active_tel:
                         intf, hw = params.TEL_DICT[tel]
                         if self.run_number > 0:
@@ -100,7 +100,6 @@ class CamDaemon(BaseDaemon):
                         argstr = '%is, %ix%i, %s' % (exptime, binning, binning, frametype)
                         camstr = 'camera %i (%s-%i)' % (tel, intf, hw)
                         self.log.info('Taking %s (%s) on %s' % (expstr, argstr, camstr))
-
                         try:
                             with daemon_proxy(intf) as fli:
                                 fli.clear_exposure_queue(hw)
@@ -116,6 +115,16 @@ class CamDaemon(BaseDaemon):
                                 c = fli.set_camera_area(0, 0, 8304, 6220, hw)
                                 if c:
                                     self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.debug('', exc_info=True)
+
+                    # start exposure
+                    # (seperate from the above, so they all start closer together)
+                    for tel in self.active_tel:
+                        intf, hw = params.TEL_DICT[tel]
+                        try:
+                            with daemon_proxy(intf) as fli:
                                 # start the exposure
                                 self.exposure_start_time = self.loop_time
                                 c = fli.start_exposure(hw)
