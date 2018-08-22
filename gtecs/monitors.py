@@ -1,5 +1,6 @@
 """Daemon monitor classes for the pilot."""
 
+import traceback
 import time
 from abc import ABC, abstractmethod
 
@@ -293,6 +294,7 @@ class BaseMonitor(ABC):
                 self.log.debug('', exc_info=True)
             else:
                 print('Error executing recovery command {}'.format(command))
+                traceback.print_exc()
 
         self.last_recovery_command = time.time()
         self.recovery_level += 1
