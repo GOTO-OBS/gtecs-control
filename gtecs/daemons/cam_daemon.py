@@ -117,8 +117,6 @@ class CamDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                                 # start the exposure
-                                # now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-                                # FORMAT FITS
                                 self.exposure_start_time = self.loop_time
                                 c = fli.start_exposure(hw)
                                 if c:

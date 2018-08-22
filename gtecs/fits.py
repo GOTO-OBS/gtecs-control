@@ -1,6 +1,5 @@
 """Functions to write FITS image files."""
 
-import datetime
 import math
 import os
 
@@ -140,9 +139,9 @@ def update_header(header, tel, all_info):
     header["RUN     "] = (run_number, "GOTO run number")
     header["RUN-ID  "] = (run_id, "Padded run ID string")
 
-    now = datetime.datetime.utcnow()
-    hdu_date = now.strftime("%Y-%m-%dT%H:%M:%S")
-    header["DATE    "] = (hdu_date, "Date HDU created")
+    write_time = Time.now()
+    write_time.precision = 0
+    header["DATE    "] = (write_time.isot, "Date HDU created")
 
     header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
     header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
@@ -175,7 +174,7 @@ def update_header(header, tel, all_info):
     # Exposure data
     header["EXPTIME "] = (current_exposure.exptime, "Exposure time, seconds")
 
-    start_time = Time(cam_info['exposure_start_time'])
+    start_time = Time(cam_info['exposure_start_time'], format='unix')
     start_time.precision = 0
     mid_time = start_time + (current_exposure.exptime * u.second) / 2.
     header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
