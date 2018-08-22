@@ -156,7 +156,9 @@ class CamDaemon(BaseDaemon):
                             self.log.debug('', exc_info=True)
 
                     # start saving thread when all exposures are complete
-                    if all(self.image_ready[tel] == 1 for tel in self.active_tel):
+                    # also make sure there's only one thread running at once.
+                    if (all(self.image_ready[tel] == 1 for tel in self.active_tel) and
+                            not any(self.image_saving[tel] for tel in self.active_tel)):
                         t = threading.Thread(target=self._exposure_saving_thread,
                                              args=[self.active_tel.copy(),
                                                    self.all_info.copy()])
