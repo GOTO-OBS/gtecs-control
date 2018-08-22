@@ -1,7 +1,7 @@
 """Daemon monitor classes for the pilot."""
 
-import traceback
 import time
+import traceback
 from abc import ABC, abstractmethod
 
 from . import params

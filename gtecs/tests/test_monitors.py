@@ -4,7 +4,6 @@
 import sys
 import time
 
-from gtecs import misc
 from gtecs import monitors
 
 
