@@ -38,6 +38,7 @@ def check_hardware(hardware):
         # save error count so we dont restart whilst broken
         error_count = error_count
 
+        print('~############################~')
         time.sleep(sleep_time)
 
 
