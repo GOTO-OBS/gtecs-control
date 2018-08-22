@@ -54,6 +54,8 @@ ERROR_DOME_NOTFULLOPEN = 'Dome not fully open'
 ERROR_DOME_NOTCLOSED = 'Dome not closed'
 ERROR_MNT_MOVETIMEOUT = 'Moving taking too long'
 ERROR_MNT_NOTONTARGET = 'Mount not on target'
+ERROR_MNT_STOPPED = 'Mount not tracking'
+ERROR_MNT_PARKED = 'Mount parked'
 ERROR_MNT_NOTPARKED = 'Mount not parked'
 ERROR_MNT_INBLINKY = 'Mount in blinky mode'
 ERROR_MNT_CONNECTION = 'SiTechEXE has lost connection to controller'
@@ -565,10 +567,10 @@ class MntMonitor(BaseMonitor):
             self.errors.add(ERROR_MNT_CONNECTION)
 
         if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
-            self.errors.add(ERROR_MNT_NOTONTARGET)
+            self.errors.add(ERROR_MNT_STOPPED)
 
         if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
-            self.errors.add(ERROR_MNT_NOTONTARGET)
+            self.errors.add(ERROR_MNT_PARKED)
 
         if (self.mode == MODE_MNT_PARKED and
                 self.hardware_status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
@@ -669,6 +671,32 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[4] = ['mnt track', 30]
             # OUT OF SOLUTIONS: It can't reach the target for some reason.
             return ERROR_MNT_NOTONTARGET, recovery_procedure
+
+        elif ERROR_MNT_STOPPED in self.errors:
+            # PROBLEM: The mount is in tracking mode but it's not tracking.
+            recovery_procedure = {'delay': 60}
+            # SOLUTION 1: Try tracking.
+            recovery_procedure[1] = ['mnt track', 30]
+            # SOLUTION 2: Try again.
+            recovery_procedure[2] = ['mnt stop', 30]
+            recovery_procedure[3] = ['mnt track', 60]
+            # SOLUTION 3: It might not be tracking because it's below the horizon.
+            #             If this is the error then it doesn't have a target set, so we've probably
+            #             only just unparked.
+            #             Try slewing to the neutral position.
+            recovery_procedure[4] = ['mnt altaz 50 0', 60]
+            # OUT OF SOLUTIONS: There must be a problem that's not letting it track.
+            return ERROR_MNT_STOPPED, recovery_procedure
+
+        elif ERROR_MNT_PARKED in self.errors:
+            # PROBLEM: The mount is in tracking mode but it's parked.
+            recovery_procedure = {'delay': 60}
+            # SOLUTION 1: Try unparking.
+            recovery_procedure[1] = ['mnt unpark', 30]
+            # SOLUTION 2: Try again.
+            recovery_procedure[2] = ['mnt unpark', 60]
+            # OUT OF SOLUTIONS: There must be a problem and it's stuck parked.
+            return ERROR_MNT_NOTPARKED, recovery_procedure
 
         elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
