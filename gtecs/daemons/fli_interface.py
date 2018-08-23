@@ -155,13 +155,6 @@ class FLIDaemon(BaseDaemon):
             # Get info from each camera
             hw_name = 'camera_' + str(hw)
             try:
-                # First check if it's alive
-                serial = self.cam_serials[hw]
-                temp = Camera.locate_device(serial)
-                if temp is None and not params.USE_FAKE_FLI:
-                    raise Exception('Camera not found')
-                del temp
-                # Only if it's alive can you use the old object, or it will crash
                 temp_info[hw_name] = self.cameras[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Camera {:.0f} info'.format(hw))
@@ -176,13 +169,6 @@ class FLIDaemon(BaseDaemon):
             # Get info from each focuser
             hw_name = 'focuser_' + str(hw)
             try:
-                # First check if it's alive
-                serial = self.foc_serials[hw]
-                temp = Focuser.locate_device(serial)
-                if temp is None and not params.USE_FAKE_FLI:
-                    raise Exception('Focuser not found')
-                del temp
-                # Only if it's alive can you connect, or it will crash
                 temp_info[hw_name] = self.focusers[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Focuser {:.0f} info'.format(hw))
@@ -197,13 +183,6 @@ class FLIDaemon(BaseDaemon):
             # Get info from each filterwheel
             hw_name = 'filterwheel_' + str(hw)
             try:
-                # First check if it's alive
-                serial = self.filt_serials[hw]
-                temp = FilterWheel.locate_device(serial)
-                if temp is None and not params.USE_FAKE_FLI:
-                    raise Exception('Filter Wheel not found')
-                del temp
-                # Only if it's alive can you connect, or it will crash
                 temp_info[hw_name] = self.filterwheels[hw].serial_number
             except Exception:
                 self.log.error('Failed to get Filter Wheel {:.0f} info'.format(hw))
