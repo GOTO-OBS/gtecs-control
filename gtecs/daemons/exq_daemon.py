@@ -177,6 +177,7 @@ class ExqDaemon(BaseDaemon):
 
             # keep ping alive
             self.loop_time = time.time()
+            self._get_info()
         self.log.info('Filter wheels homed')
 
     def _set_filter(self):
@@ -233,9 +234,10 @@ class ExqDaemon(BaseDaemon):
             with daemon_proxy('cam') as cam_daemon:
                 cam_exposing = cam_daemon.is_exposing()
 
-            time.sleep(0.05)
-            # keep ping alive
+            time.sleep(0.5)
+            # keep main thread alive
             self.loop_time = time.time()
+            self._get_info()
         self.log.info('Camera exposure complete')
 
     # Control functions
