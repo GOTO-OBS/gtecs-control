@@ -1,6 +1,5 @@
 """Classes to control SiTechExe."""
 
-import datetime
 import socket
 import threading
 import time
@@ -11,7 +10,7 @@ from .. import params
 class SiTech(object):
     """SiTech servo controller class using TCP/IP commands."""
 
-    def __init__(self, address, port):
+    def __init__(self, address, port, log=None):
         self.address = address
         self.port = port
         self.buffer_size = 1024
@@ -32,6 +31,8 @@ class SiTech(object):
                          }
         self._status_update_time = 0
 
+        self.log = log
+
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)
@@ -50,11 +51,13 @@ class SiTech(object):
     def _tcp_command(self, command_str):
         """Send a command string to the device, then fetch the reply and return it as a string."""
         try:
-            print(datetime.datetime.now().time(), 'SEND:', command_str[:-1])
+            if self.log:
+                self.log.debug('SEND:{}'.format(command_str[:-1]))
             with self.thread_lock:
                 self.socket.send(command_str.encode())
                 reply = self.socket.recv(self.buffer_size)
-            print(datetime.datetime.now().time(), 'RECV:', reply.decode()[:-1])
+            if self.log:
+                self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
             return reply.decode()
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
