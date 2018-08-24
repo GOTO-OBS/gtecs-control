@@ -171,17 +171,15 @@ class Pilot(object):
                 continue
 
             error_count = 0
-            self.log.debug('running hardware checks')
-            log_str = 'hardware check results: '
+            self.log.info('running hardware checks:')
             for monitor in self.hardware.values():
                 num_errs, errors = monitor.check()
                 error_count += num_errs
                 if num_errs > 0:
-                    msg = '{} reports {} error{}: '.format(monitor.__class__.__name__,
-                                                           num_errs,
-                                                           's' if num_errs > 1 else '')
-                    msg += ', '.join(errors)
-                    self.log.warning(log_str + msg)
+                    msg = '{} ({}) '.format(monitor.__class__.__name__, monitor.hardware_status)
+                    msg += 'reports {} error{}: {}'.format(num_errs, 's' if num_errs > 1 else '',
+                                                           ', '.join(errors))
+                    self.log.warning(msg)
                     monitor.recover()  # Will log recovery commands
 
             if error_count > 0:
@@ -189,7 +187,7 @@ class Pilot(object):
                 await self.handle_pause('hw', True)
             else:
                 sleep_time = 60
-                self.log.info(log_str + 'AOK')
+                self.log.info('no hardware errors reported - AOK')
                 await self.handle_pause('hw', False)
 
                 # only allow the night marshal to open after a
