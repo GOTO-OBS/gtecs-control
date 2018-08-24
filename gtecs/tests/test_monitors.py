@@ -43,22 +43,6 @@ def check_hardware(hardware):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        mnt_mode = 'parked'
-        dome_mode = 'closed'
-    elif len(sys.argv) == 2:
-        mnt_mode = sys.argv[1]
-        if mnt_mode not in ['tracking', 'parked']:
-            raise ValueError('Mount mode must be tracking or parked')
-        dome_mode = 'closed'
-    elif len(sys.argv) == 3:
-        mnt_mode = sys.argv[1]
-        if mnt_mode not in ['tracking', 'parked']:
-            raise ValueError('Mount mode must be tracking or parked')
-        dome_mode = sys.argv[2]
-        if dome_mode not in ['closed', 'open']:
-            raise ValueError('Dome mode must be closed or open')
-
     # hardware to keep track of and fix if necessary
     hardware = {'dome': monitors.DomeMonitor(),
                 'mnt': monitors.MntMonitor(),
@@ -70,7 +54,33 @@ if __name__ == "__main__":
                 'conditions': monitors.ConditionsMonitor(),
                 'scheduler': monitors.SchedulerMonitor(),
                 }
-    hardware['mnt'].mode = mnt_mode
-    hardware['dome'].mode = dome_mode
+
+    # Set modes
+    while True:
+        mode = input('Mount mode ({}: '.format(hardware['mnt'].available_modes))
+        try:
+            hardware['mnt'].mode = mode
+            break
+        except Exception:
+            print('   Invalid mode, must be in {}'.format(hardware['mnt'].available_modes))
+            continue
+
+    while True:
+        mode = input('Dome mode ({}: '.format(hardware['dome'].available_modes))
+        try:
+            hardware['dome'].mode = mode
+            break
+        except Exception:
+            print('   Invalid mode, must be in {}'.format(hardware['dome'].available_modes))
+            continue
+
+    while True:
+        mode = input('Camera mode ({}: '.format(hardware['cam'].available_modes))
+        try:
+            hardware['cam'].mode = mode
+            break
+        except Exception:
+            print('   Invalid mode, must be in {}'.format(hardware['cam'].available_modes))
+            continue
 
     check_hardware(hardware)
