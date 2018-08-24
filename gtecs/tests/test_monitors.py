@@ -11,7 +11,7 @@ def check_hardware(hardware):
     """Continuously monitor hardware and try to fix any issues."""
     print('hardware check routine initialised')
 
-    sleep_time = 60
+    sleep_time = 10
     while True:
         print('~############################~')
         error_count = 0
@@ -32,7 +32,7 @@ def check_hardware(hardware):
         if error_count > 0:
             sleep_time = 10  # check more frequently till fixed
         else:
-            sleep_time = 30  # was 60 in pilot
+            sleep_time = 10  # was 60 in pilot
             print(log_str + 'AOK')
 
         # save error count so we dont restart whilst broken
