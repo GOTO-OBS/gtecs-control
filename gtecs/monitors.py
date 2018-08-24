@@ -32,6 +32,7 @@ STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
+STATUS_FILT_UNHOMED = 'unhomed'
 
 # Hardware modes
 MODE_ACTIVE = 'active'
@@ -59,6 +60,7 @@ ERROR_MNT_PARKED = 'Mount parked'
 ERROR_MNT_NOTPARKED = 'Mount not parked'
 ERROR_MNT_INBLINKY = 'Mount in blinky mode'
 ERROR_MNT_CONNECTION = 'SiTechEXE has lost connection to controller'
+ERROR_FILT_UNHOMED = 'Filter wheels are not homed'
 
 
 class BaseMonitor(ABC):
@@ -889,16 +891,19 @@ class FiltMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        # no custom statuses
-        hardware_status = STATUS_ACTIVE
+        all_homed = all([info[tel]['homed'] for tel in params.TEL_DICT])
+        if not all_homed:
+            hardware_status = STATUS_FILT_UNHOMED
+        else:
+            hardware_status = STATUS_ACTIVE
 
         self.hardware_status = hardware_status
         return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # no custom errors
-        return
+        if self.hardware_status == STATUS_FILT_UNHOMED:
+            self.errors.add(ERROR_FILT_UNHOMED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -949,6 +954,16 @@ class FiltMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
+
+        elif ERROR_FILT_UNHOMED in self.errors:
+            # PROBLEM: The filter wheels aren't homed.
+            recovery_procedure = {}
+            # SOLUTION 1: Try homing them.
+            recovery_procedure[1] = ['filt home', 60]
+            # SOLUTION 2: Still not homed? Try again.
+            recovery_procedure[2] = ['filt home', 120]
+            # OUT OF SOLUTIONS: Sounds like a hardware issue.
+            return ERROR_FILT_UNHOMED, recovery_procedure
 
         else:
             # Some unexpected error.
