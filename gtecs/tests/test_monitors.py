@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Test code: a simple version of the pilot check_hardware routine to test the monitors."""
 
-import sys
 import time
 
 from gtecs import monitors
