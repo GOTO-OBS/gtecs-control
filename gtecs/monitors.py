@@ -371,10 +371,12 @@ class DomeMonitor(BaseMonitor):
             self._currently_part_open = False
             self._part_open_start_time = 0
 
-        if self.mode == MODE_DOME_OPEN and self.hardware_status != STATUS_DOME_FULLOPEN:
+        if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
+                                                                        STATUS_DOME_MOVING]:
             self.errors.add(ERROR_DOME_NOTFULLOPEN)
 
         if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                          STATUS_DOME_MOVING,
                                                                           STATUS_DOME_LOCKDOWN]:
             self.errors.add(ERROR_DOME_NOTCLOSED)
 
