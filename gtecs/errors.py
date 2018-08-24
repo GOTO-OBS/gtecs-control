@@ -50,3 +50,9 @@ class HorizonError(Exception):
     """To be used if a slew command would bring the mount below the limit."""
 
     pass
+
+
+class RecoveryError(Exception):
+    """To be used if a hardware monitor is out of recovery commands."""
+
+    pass

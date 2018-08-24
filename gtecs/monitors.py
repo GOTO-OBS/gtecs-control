@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 
 from . import params
 from .daemons import daemon_info, daemon_is_running, get_daemon_status
+from .errors import RecoveryError
 from .misc import execute_command
-from .slack import send_slack_msg
 
 # Daemon statuses
 DAEMON_RUNNING = 'running'
@@ -285,8 +285,7 @@ class BaseMonitor(ABC):
                 self.log.error(msg)
             else:
                 print(msg)
-            send_slack_msg(msg)
-            return
+            raise RecoveryError(msg)
 
         command = recovery_procedure[next_level][0]
         msg = '{} attempting recovery '.format(self.__class__.__name__)

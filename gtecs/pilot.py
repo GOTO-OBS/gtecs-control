@@ -19,6 +19,7 @@ from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .asyncio_protocols import SimpleProtocol
+from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
@@ -180,7 +181,12 @@ class Pilot(object):
                     msg += 'reports {} error{}: {}'.format(num_errs, 's' if num_errs > 1 else '',
                                                            ', '.join(errors))
                     self.log.warning(msg)
-                    monitor.recover()  # Will log recovery commands
+                    try:
+                        monitor.recover()  # Will log recovery commands
+                    except RecoveryError as err:
+                        # Uh oh, we're out of options
+                        send_slack_msg(err)
+                        asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
                 sleep_time = 10  # check more frequently till fixed
