@@ -557,7 +557,7 @@ class MntMonitor(BaseMonitor):
                 self._currently_off_target = True
                 self._off_target_start_time = time.time()
             else:
-                if time.time() - self._off_target_start_time > 30:
+                if time.time() - self._off_target_start_time > 90:
                     self.errors.add(ERROR_MNT_NOTONTARGET)
 
         if self.hardware_status == STATUS_MNT_BLINKY:
