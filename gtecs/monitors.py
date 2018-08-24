@@ -32,6 +32,8 @@ STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
+STATUS_CAM_COOL = 'cool'
+STATUS_CAM_WARM = 'warm'
 STATUS_FILT_UNHOMED = 'unhomed'
 
 # Hardware modes
@@ -40,6 +42,8 @@ MODE_DOME_CLOSED = 'closed'
 MODE_DOME_OPEN = 'open'
 MODE_MNT_PARKED = 'parked'
 MODE_MNT_TRACKING = 'tracking'
+MODE_CAM_COOL = 'cool'
+MODE_CAM_WARM = 'warm'
 
 # Hardware errors
 ERROR_RUNNING = 'Daemon not running'
@@ -60,6 +64,7 @@ ERROR_MNT_PARKED = 'Mount parked'
 ERROR_MNT_NOTPARKED = 'Mount not parked'
 ERROR_MNT_INBLINKY = 'Mount in blinky mode'
 ERROR_MNT_CONNECTION = 'SiTechEXE has lost connection to controller'
+ERROR_CAM_WARM = 'Cameras are not cool'
 ERROR_FILT_UNHOMED = 'Filter wheels are not homed'
 
 
@@ -798,8 +803,8 @@ class CamMonitor(BaseMonitor):
         super().__init__('cam', log)
 
         # Define modes and starting mode
-        self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.available_modes = [MODE_CAM_COOL, MODE_CAM_WARM]
+        self.mode = MODE_CAM_COOL
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -808,16 +813,19 @@ class CamMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        # no custom statuses
-        hardware_status = STATUS_ACTIVE
+        all_cool = all([info[tel]['ccd_temp'] < params.CCD_TEMP + 0.1 for tel in params.TEL_DICT])
+        if not all_cool:
+            hardware_status = STATUS_CAM_WARM
+        else:
+            hardware_status = STATUS_CAM_COOL
 
         self.hardware_status = hardware_status
         return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # no custom errors
-        return
+        if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
+            self.errors.add(ERROR_CAM_WARM)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -868,6 +876,16 @@ class CamMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
+
+        elif ERROR_CAM_WARM in self.errors:
+            # PROBLEM: The cameras aren't cool.
+            recovery_procedure = {}
+            # SOLUTION 1: Try setting the target temperature.
+            #             Note we need to wait for a long time, assuming they're at room temp.
+            recovery_procedure[1] = ['cam temp {}'.format(params.CCD_TEMP), 600]
+            # OUT OF SOLUTIONS: Having trouble getting down to temperature,
+            #                   Either it's a hardware issue or it's just too warm.
+            return ERROR_CAM_WARM, recovery_procedure
 
         else:
             # Some unexpected error.
