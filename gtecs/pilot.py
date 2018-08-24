@@ -247,7 +247,8 @@ class Pilot(object):
                 continue
 
             if not self.dome_is_open and not self.dome_confirmed_closed:
-                if self.dome_status == 'closed':
+                dome_status = self.hardware['dome'].get_hardware_status()
+                if dome_status == 'closed':
                     # phew
                     self.dome_confirmed_closed = True
                     self.log.info('dome confirmed closed')
@@ -893,36 +894,6 @@ class Pilot(object):
         self.shutdown_now = 1
 
     # Hardware commands
-    @property
-    def dome_status(self):
-        """Get the current status of the dome."""
-        try:
-            dome_info = self.hardware['dome'].get_info()
-            if dome_info['dome'] == 'closed':
-                return 'closed'
-            elif (dome_info['north'] == 'full_open' and dome_info['south'] == 'full_open'):
-                return 'full_open'
-            else:
-                return 'part_open'
-        except Exception:
-            return 'err'
-
-    @property
-    def mount_status(self):
-        """Get the current status of the mount."""
-        try:
-            mnt_info = self.hardware['mnt'].get_info()
-            if mnt_info['status'] in ['Parked', 'Stopped']:
-                return 'Parked'
-            elif mnt_info['status'] in ['Slewing', 'Parking']:
-                return 'Moving'
-            elif mnt_info['status'] in ['Tracking']:
-                return 'Tracking'
-            else:
-                return 'err'
-        except Exception:
-            return 'err'
-
     async def open_dome(self):
         """Open the dome and await until it is finished."""
         self.log.warning('opening dome')
@@ -930,9 +901,14 @@ class Pilot(object):
         self.dome_is_open = True
         self.dome_confirmed_closed = False
         self.hardware['dome'].mode = 'open'
-        while self.dome_status != 'full_open':
-            self.log.info('dome is {}'.format(self.dome_status))
-            await asyncio.sleep(5)
+        # wait for dome to open
+        sleep_time = 5
+        while True:
+            dome_status = self.hardware['dome'].get_hardware_status()
+            self.log.info('dome is {}'.format(dome_status))
+            if dome_status == 'full_open':
+                break
+            await asyncio.sleep(sleep_time)
         self.log.info('dome confirmed open')
 
     def close_dome(self):
@@ -956,8 +932,13 @@ class Pilot(object):
         start_time = time.time()
         self.close_dome()
 
-        while self.dome_status != 'closed':
-            self.log.info('dome is {}'.format(self.dome_status))
+        # wait for dome to close
+        sleep_time = 5
+        while True:
+            dome_status = self.hardware['dome'].get_hardware_status()
+            self.log.info('dome is {}'.format(dome_status))
+            if dome_status == 'closed':
+                break
 
             # panic time
             elapsed_time = time.time() - start_time
@@ -966,7 +947,7 @@ class Pilot(object):
                 send_email(message=msg)
                 send_slack_msg(msg)
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(sleep_time)
 
         self.dome_confirmed_closed = True
         self.log.info('dome confirmed closed')
@@ -980,9 +961,14 @@ class Pilot(object):
         # slew to above horizon, to stop errors
         await asyncio.sleep(5)
         execute_command('mnt slew_altaz 50 0')
-        while self.mount_status != 'Tracking':
-            self.log.info('mount is {}'.format(self.mount_status))
-            await asyncio.sleep(2)
+        # wait for mount to slew
+        sleep_time = 5
+        while True:
+            mount_status = self.hardware['mnt'].get_hardware_status()
+            self.log.info('mount is {}'.format(mount_status))
+            if mount_status == 'tracking':
+                break
+            await asyncio.sleep(sleep_time)
         self.log.info('mount confirmed tracking')
 
     def park_mount(self):
