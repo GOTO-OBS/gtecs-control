@@ -956,17 +956,19 @@ class Pilot(object):
         execute_command('mnt unpark')
         self.mount_is_tracking = True
         self.hardware['mnt'].mode = 'tracking'
-        # slew to above horizon, to stop errors
         await asyncio.sleep(5)
-        execute_command('mnt slew_altaz 50 0')
-        # wait for mount to slew
-        sleep_time = 5
-        while True:
-            mount_status = self.hardware['mnt'].get_hardware_status()
-            self.log.info('mount is {}'.format(mount_status))
-            if mount_status == 'tracking':
-                break
-            await asyncio.sleep(sleep_time)
+        mount_status = self.hardware['mnt'].get_hardware_status()
+        if not mount_status == 'tracking':
+            # slew to above horizon, to stop errors
+            execute_command('mnt slew_altaz 50 0')
+            # wait for mount to slew
+            sleep_time = 5
+            while True:
+                mount_status = self.hardware['mnt'].get_hardware_status()
+                self.log.info('mount is {}'.format(mount_status))
+                if mount_status == 'tracking':
+                    break
+                await asyncio.sleep(sleep_time)
         self.log.info('mount confirmed tracking')
 
     def park_mount(self):
