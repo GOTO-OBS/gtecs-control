@@ -283,6 +283,8 @@ class ConditionsDaemon(BaseDaemon):
         # link flag
         good['link'] = np.all(pings == 1)
         valid['link'] = len(pings) >= 1
+        good_delay['link'] = params.LINK_GOODDELAY
+        bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
         good['diskspace'] = disckspace_low
