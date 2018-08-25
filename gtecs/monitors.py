@@ -57,6 +57,7 @@ ERROR_DOME_MOVETIMEOUT = 'Moving taking too long'
 ERROR_DOME_PARTOPENTIMEOUT = 'Stuck partially open for too long'
 ERROR_DOME_NOTFULLOPEN = 'Dome not fully open'
 ERROR_DOME_NOTCLOSED = 'Dome not closed'
+ERROR_DOME_INLOCKDOWN = 'Dome in lockdown state'
 ERROR_MNT_MOVETIMEOUT = 'Moving taking too long'
 ERROR_MNT_NOTONTARGET = 'Mount not on target'
 ERROR_MNT_STOPPED = 'Mount not tracking'
@@ -337,7 +338,7 @@ class DomeMonitor(BaseMonitor):
 
         if lockdown:
             hardware_status = STATUS_DOME_LOCKDOWN
-        if north == 'closed' and south == 'closed':
+        elif north == 'closed' and south == 'closed':
             hardware_status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
             hardware_status = STATUS_DOME_FULLOPEN
@@ -385,6 +386,9 @@ class DomeMonitor(BaseMonitor):
                                                                           STATUS_DOME_MOVING,
                                                                           STATUS_DOME_LOCKDOWN]:
             self.errors.add(ERROR_DOME_NOTCLOSED)
+
+        if self.hardware_status == STATUS_DOME_LOCKDOWN:
+            self.errors.add(ERROR_DOME_INLOCKDOWN)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -436,6 +440,17 @@ class DomeMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
+
+        elif ERROR_DOME_INLOCKDOWN in self.errors:
+            # PROBLEM: The conditions are bad and the dome is in lockdown.
+            #          This is a weird one, because it's not really an error we can fix.
+            #          The dome will refuse any commands while it's locked down.
+            #          However we still want the pilot to pause, so it's treated like an error.
+            #          It is a good use of the delay feature through.
+            #          The delay here (24h) will last a whole night.
+            recovery_procedure = {'delay': 86400}
+            # OUT OF SOLUTIONS: There aren't any, but after that delay what else can you do?
+            return ERROR_DOME_INLOCKDOWN, recovery_procedure
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
