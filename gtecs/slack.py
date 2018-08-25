@@ -1,5 +1,7 @@
 """Slack messaging tools."""
 
+import time
+
 from astropy.utils.decorators import lazyproperty
 
 from slackclient import SlackClient
@@ -13,11 +15,22 @@ BOT_NAME = params.SLACK_BOT_NAME
 CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
-def send_slack_msg(msg):
+def send_slack_msg(msg, retries=3):
     """Send a Slack message to the GOTO channel."""
     if params.ENABLE_SLACK:
         bot = SlackBot()
-        bot.send_message(msg)
+        for i in range(retries):
+            try:
+                bot.send_message(msg)
+            except ConnectionError:
+                print('Connection to Slack failed! - attempt {}'.format(i + 1))
+                print('SLACK:', msg)
+                time.sleep(60)
+            else:
+                break
+        else:
+            print('All retries exhausted')
+
     else:
         print('SLACK:', msg)
 
