@@ -252,7 +252,7 @@ class Pilot(object):
 
             if not self.dome_is_open and not self.dome_confirmed_closed:
                 dome_status = self.hardware['dome'].get_hardware_status()
-                if dome_status == 'closed':
+                if dome_status in ['closed', 'in_lockdown']:
                     # phew
                     self.dome_confirmed_closed = True
                     self.log.info('dome confirmed closed')
@@ -941,7 +941,7 @@ class Pilot(object):
         while True:
             dome_status = self.hardware['dome'].get_hardware_status()
             self.log.info('dome is {}'.format(dome_status))
-            if dome_status == 'closed':
+            if dome_status in ['closed', 'in_lockdown']:
                 break
 
             # panic time
