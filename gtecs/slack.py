@@ -15,22 +15,15 @@ BOT_NAME = params.SLACK_BOT_NAME
 CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
-def send_slack_msg(msg, retries=3):
+def send_slack_msg(msg):
     """Send a Slack message to the GOTO channel."""
     if params.ENABLE_SLACK:
         bot = SlackBot()
-        for i in range(retries):
-            try:
-                bot.send_message(msg)
-            except ConnectionError:
-                print('Connection to Slack failed! - attempt {}'.format(i + 1))
-                print('SLACK:', msg)
-                time.sleep(60)
-            else:
-                break
-        else:
-            print('All retries exhausted')
-
+        try:
+            bot.send_message(msg)
+        except ConnectionError:
+            print('Connection to Slack failed!')
+            print('SLACK:', msg)
     else:
         print('SLACK:', msg)
 
