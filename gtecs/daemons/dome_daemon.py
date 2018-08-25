@@ -486,9 +486,9 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoclosing dome due to lockdown')
             if not self.close_flag:
                 reasons = ''
-                if self.info['emergency_reasons']:
+                if self.info['emergency'] and self.info['emergency_reasons'][0]:
                     reasons += ', '.join(self.info['emergency_reasons'])
-                if self.info(self.info['conditions_bad_reasons']):
+                if self.info['conditions_bad'] and self.info['conditions_bad_reasons']:
                     reasons += ' ' + self.info['conditions_bad_reasons']
                 send_slack_msg('Dome is autoclosing: {}'.format(reasons))
                 if self.open_flag:  # stop opening!
