@@ -21,7 +21,7 @@ def send_slack_msg(msg):
         bot = SlackBot()
         try:
             bot.send_message(msg)
-        except ConnectionError:
+        except Exception:
             print('Connection to Slack failed!')
             print('SLACK:', msg)
     else:
