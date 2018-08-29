@@ -158,8 +158,11 @@ class Pilot(object):
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
         self.log.info('hardware check routine initialised')
+        good_sleep_time = 30
+        bad_sleep_time = 10
+        bad_timestamp = 0
 
-        sleep_time = 60
+        sleep_time = good_sleep_time
         while True:
             if self.status.mode == 'manual':
                 self.log.debug('hardware checks suspended in manual mode')
@@ -189,16 +192,25 @@ class Pilot(object):
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
-                sleep_time = 10  # check more frequently till fixed
                 await self.handle_pause('hw', True)
+
+                # check more frequently untill fixed, and save time for delay afterwards
+                sleep_time = bad_sleep_time
+                bad_timestamp = time.time()
             else:
-                sleep_time = 60
                 self.log.info('no hardware errors reported - AOK')
                 await self.handle_pause('hw', False)
 
                 # only allow the night marshal to open after a
                 # successful hardware check
                 self.initial_hardware_check_complete = True
+
+                # Revert to 30 checks after a minute of good checks
+                if time.time() - bad_timestamp > 60:
+                    sleep_time = good_sleep_time
+                    bad_timestamp = 0
+                else:
+                    sleep_time = bad_sleep_time
 
             # save error count so we dont restart whilst broken
             self.error_count = error_count
