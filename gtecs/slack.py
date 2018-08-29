@@ -1,7 +1,5 @@
 """Slack messaging tools."""
 
-import time
-
 from astropy.utils.decorators import lazyproperty
 
 from slackclient import SlackClient
