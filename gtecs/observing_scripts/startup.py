@@ -51,10 +51,8 @@ def run():
 
     time.sleep(10)
 
-    # Unpark the mount
-    execute_command('mnt unpark')
-
-    # Don't set a target, we want to stay parked while opening
+    # Don't unpark the mount or set a target, we want to stay parked while opening
+    # execute_command('mnt unpark')
     # print('Setting target to Zenith')
     # lst = find_lst(Time.now()) * u.hourangle
     # obs = observatory_location()
