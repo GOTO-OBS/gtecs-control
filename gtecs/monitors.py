@@ -181,45 +181,43 @@ class BaseMonitor(ABC):
             details of errors found
 
         """
-        self.errors = set()
-
         # Functional checks
         # Note these overwrite self.errors instead of adding to it, because they're critical
         if not self.is_running():
-            self.errors.add(ERROR_RUNNING)
+            self.errors = set([ERROR_RUNNING])
             return len(self.errors), self.errors
 
         daemon_status, args = self.get_daemon_status()
         if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
-            self.errors.add(ERROR_PING)
+            self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
         self.bad_dependencies.clear()
         if daemon_status == DAEMON_ERROR_DEPENDENCY:
             for dependency in args:
                 self.bad_dependencies.add(dependency)
-            self.errors.add(ERROR_DEPENDENCY)
+            self.errors = set([ERROR_DEPENDENCY])
             return len(self.errors), self.errors
 
         self.bad_hardware.clear()
         if daemon_status == DAEMON_ERROR_HARDWARE:
             for hardware in args:
                 self.bad_hardware.add(hardware)
-            self.errors.add(ERROR_HARDWARE)
+            self.errors = set([ERROR_HARDWARE])
             return len(self.errors), self.errors
 
         if daemon_status != DAEMON_RUNNING:
-            self.errors.add(ERROR_PING)
+            self.errors = set([ERROR_PING])
             return len(self.errors), self.errors
 
         info = self.get_info()
         if info is None:
-            self.errors.add(ERROR_INFO)
+            self.errors = set([ERROR_INFO])
             return len(self.errors), self.errors
 
         hardware_status = self.get_hardware_status()
         if hardware_status is STATUS_UNKNOWN:
-            self.errors.add(ERROR_STATE)
+            self.errors = set([ERROR_STATE])
             return len(self.errors), self.errors
 
         # Hardware checks
@@ -357,41 +355,89 @@ class DomeMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.hardware_status == STATUS_DOME_MOVING:
-            # Allow some time to move before raising an error
-            if not self._currently_moving:
-                self._currently_moving = True
-                self._move_start_time = time.time()
+        # Moving timeout error
+        if ERROR_DOME_MOVETIMEOUT not in self.errors:
+            # Set the error if we've been moving for too long
+            if self.hardware_status == STATUS_DOME_MOVING:
+                if not self._currently_moving:
+                    self._currently_moving = True
+                    self._move_start_time = time.time()
+                else:
+                    if time.time() - self._move_start_time > 60:
+                        self.errors.add(ERROR_DOME_MOVETIMEOUT)
             else:
-                if time.time() - self._move_start_time > 60:
-                    self.errors.add(ERROR_DOME_MOVETIMEOUT)
+                self._currently_moving = False
+                self._move_start_time = 0
         else:
-            self._currently_moving = False
-            self._move_start_time = 0
+            # Clear the error if we're not moving
+            if self.hardware_status != STATUS_DOME_MOVING:
+                self.errors.remove(ERROR_DOME_MOVETIMEOUT)
 
-        if self.hardware_status == STATUS_DOME_PARTOPEN:
-            # Allow some time to be partially open (sounding alarm between moving sides)
-            if not self._currently_part_open:
-                self._currently_part_open = True
-                self._part_open_start_time = time.time()
+        # Part open timeout error
+        if ERROR_DOME_PARTOPENTIMEOUT not in self.errors:
+            # Set the error if we've been partially open for too long
+            if self.hardware_status == STATUS_DOME_PARTOPEN:
+                if not self._currently_part_open:
+                    self._currently_part_open = True
+                    self._part_open_start_time = time.time()
+                else:
+                    if time.time() - self._part_open_start_time > 10:
+                        self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
             else:
-                if time.time() - self._part_open_start_time > 10:
-                    self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
+                self._currently_part_open = False
+                self._part_open_start_time = 0
         else:
-            self._currently_part_open = False
-            self._part_open_start_time = 0
+            # Clear the error if we are where we're supposed to be
+            # Note this keeps the error set while we're moving
+            # Also note we clear the error if we're in lockdown, because we can't move anyway
+            if self.mode == MODE_DOME_OPEN and self.hardware_status in [STATUS_DOME_FULLOPEN,
+                                                                        STATUS_DOME_LOCKDOWN]:
+                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
+            elif self.mode == MODE_DOME_CLOSED and self.hardware_status in [STATUS_DOME_CLOSED,
+                                                                            STATUS_DOME_LOCKDOWN]:
+                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
 
-        if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
-                                                                        STATUS_DOME_MOVING]:
-            self.errors.add(ERROR_DOME_NOTFULLOPEN)
+        # Not fully open error
+        if ERROR_DOME_NOTFULLOPEN not in self.errors:
+            # Set the error if we should be open and we're not
+            # Note we're allowed to be moving, that has its own error above
+            # Also note the overlap with the part open timeout above
+            if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
+                                                                            STATUS_DOME_MOVING]:
+                self.errors.add(ERROR_DOME_NOTFULLOPEN)
+        else:
+            # Clear the error if we're fully open, or we shouldn't be any more
+            # Note this keeps the error set while we're moving
+            # Also note we clear the error if we're in lockdown, because we can't move anyway
+            if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
+                                                                       STATUS_DOME_LOCKDOWN]:
+                self.errors.remove(ERROR_DOME_NOTFULLOPEN)
 
-        if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
-                                                                          STATUS_DOME_MOVING,
-                                                                          STATUS_DOME_LOCKDOWN]:
-            self.errors.add(ERROR_DOME_NOTCLOSED)
+        # Not fully closed error
+        if ERROR_DOME_NOTCLOSED not in self.errors:
+            # Set the error if we should be closed and we're not
+            # Note we're allowed to be moving, that has its own error above
+            if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                              STATUS_DOME_MOVING,
+                                                                              STATUS_DOME_LOCKDOWN]:
+                self.errors.add(ERROR_DOME_NOTCLOSED)
+        else:
+            # Clear the error if we're fully closed, or we shouldn't be any more
+            # Note this keeps the error set while we're moving
+            # Also note we clear the error if we're in lockdown, because we can't move anyway
+            if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
+                                                                         STATUS_DOME_LOCKDOWN]:
+                self.errors.remove(ERROR_DOME_NOTCLOSED)
 
-        if self.hardware_status == STATUS_DOME_LOCKDOWN:
-            self.errors.add(ERROR_DOME_INLOCKDOWN)
+        # Lockdown error
+        if ERROR_DOME_INLOCKDOWN not in self.errors:
+            # Set the error if we're in lockdown
+            if self.hardware_status == STATUS_DOME_LOCKDOWN:
+                self.errors.add(ERROR_DOME_INLOCKDOWN)
+        else:
+            # Clear the error if we're no longer in lockdown
+            if self.hardware_status != STATUS_DOME_LOCKDOWN:
+                self.errors.remove(ERROR_DOME_INLOCKDOWN)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -567,40 +613,90 @@ class MntMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.hardware_status == STATUS_MNT_MOVING:
-            if not self._currently_moving:
-                self._currently_moving = True
-                self._move_start_time = time.time()
+        # Moving timeout error
+        if ERROR_MNT_MOVETIMEOUT not in self.errors:
+            # Set the error if we've been moving for too long
+            if self.hardware_status == STATUS_MNT_MOVING:
+                if not self._currently_moving:
+                    self._currently_moving = True
+                    self._move_start_time = time.time()
+                else:
+                    if time.time() - self._move_start_time > 120:
+                        self.errors.add(ERROR_MNT_MOVETIMEOUT)
             else:
-                if time.time() - self._move_start_time > 120:
-                    self.errors.add(ERROR_MNT_MOVETIMEOUT)
+                self._currently_moving = False
+                self._move_start_time = 0
         else:
-            self._currently_moving = False
-            self._move_start_time = 0
+            # Clear the error if we're not moving
+            if self.hardware_status != STATUS_MNT_MOVING:
+                self.errors.remove(ERROR_MNT_MOVETIMEOUT)
 
-        if self.hardware_status == STATUS_MNT_OFFTARGET:
-            if not self._currently_off_target:
-                self._currently_off_target = True
-                self._off_target_start_time = time.time()
-            else:
-                if time.time() - self._off_target_start_time > 90:
-                    self.errors.add(ERROR_MNT_NOTONTARGET)
+        # Off target timeout error
+        if ERROR_MNT_NOTONTARGET not in self.errors:
+            # Set the error if we've been off target for too long
+            if self.hardware_status == STATUS_MNT_OFFTARGET:
+                if not self._currently_off_target:
+                    self._currently_off_target = True
+                    self._off_target_start_time = time.time()
+                else:
+                    if time.time() - self._off_target_start_time > 90:
+                        self.errors.add(ERROR_MNT_NOTONTARGET)
+        else:
+            # Clear the error if we're on target (or we don't have a target, like parking)
+            if self.hardware_status != STATUS_MNT_OFFTARGET:
+                self.errors.remove(ERROR_MNT_NOTONTARGET)
 
-        if self.hardware_status == STATUS_MNT_BLINKY:
-            self.errors.add(ERROR_MNT_INBLINKY)
+        # In blinky error
+        if ERROR_MNT_INBLINKY not in self.errors:
+            # Set the error if we've in blinky mode
+            if self.hardware_status == STATUS_MNT_BLINKY:
+                self.errors.add(ERROR_MNT_INBLINKY)
+        else:
+            # Clear the error if blinky is off
+            if self.hardware_status != STATUS_MNT_BLINKY:
+                self.errors.remove(ERROR_MNT_INBLINKY)
 
-        if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
-            self.errors.add(ERROR_MNT_CONNECTION)
+        # Connection error
+        if ERROR_MNT_CONNECTION not in self.errors:
+            # Set the error if we've in blinky mode
+            if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
+                self.errors.add(ERROR_MNT_CONNECTION)
+        else:
+            # Clear the error if we've restored connection
+            if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
+                self.errors.remove(ERROR_MNT_CONNECTION)
 
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
-            self.errors.add(ERROR_MNT_STOPPED)
+        # Stopped error
+        if ERROR_MNT_STOPPED not in self.errors:
+            # Set the error if we're not moving and we should be tracking
+            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+                self.errors.add(ERROR_MNT_STOPPED)
+        else:
+            # Clear the error if we're tracking or we shouldn't be any more
+            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+                self.errors.remove(ERROR_MNT_STOPPED)
 
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
-            self.errors.add(ERROR_MNT_PARKED)
+        # Parked error
+        if ERROR_MNT_PARKED not in self.errors:
+            # Set the error if we're parked and we should be tracking
+            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
+                self.errors.add(ERROR_MNT_PARKED)
+        else:
+            # Clear the error if we're no longer parked or we should be
+            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
+                self.errors.remove(ERROR_MNT_PARKED)
 
-        if (self.mode == MODE_MNT_PARKED and
-                self.hardware_status not in [STATUS_MNT_PARKED, STATUS_MNT_MOVING]):
-            self.errors.add(ERROR_MNT_NOTPARKED)
+        # Unparked error
+        if ERROR_MNT_NOTPARKED not in self.errors:
+            # Set the error if we're not parked (or moving (parking)) and we should be
+            if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
+                                                                             STATUS_MNT_MOVING]:
+                self.errors.add(ERROR_MNT_NOTPARKED)
+        else:
+            # Clear the error if we parked or we shouldn't be
+            # Note this keeps the error set while we're moving
+            if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
+                self.errors.remove(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -841,8 +937,15 @@ class CamMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
-            self.errors.add(ERROR_CAM_WARM)
+        # Warm error
+        if ERROR_CAM_WARM not in self.errors:
+            # Set the error if the cameras should be cool and they're not
+            if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
+                self.errors.add(ERROR_CAM_WARM)
+        else:
+            # Clear the error if the cameras are cool or they shouldn't be
+            if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
+                self.errors.remove(ERROR_CAM_WARM)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -937,8 +1040,15 @@ class FiltMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        if self.hardware_status == STATUS_FILT_UNHOMED:
-            self.errors.add(ERROR_FILT_UNHOMED)
+        # Unhomed error
+        if ERROR_FILT_UNHOMED not in self.errors:
+            # Set the error if the filter wheels aren't homed
+            if self.hardware_status == STATUS_FILT_UNHOMED:
+                self.errors.add(ERROR_FILT_UNHOMED)
+        else:
+            # Clear the error if the filter wheels have been homed
+            if self.hardware_status != STATUS_FILT_UNHOMED:
+                self.errors.remove(ERROR_FILT_UNHOMED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
