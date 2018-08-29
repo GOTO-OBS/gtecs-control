@@ -722,7 +722,7 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 2: Try again.
             recovery_procedure[2] = ['mnt unpark', 60]
             # OUT OF SOLUTIONS: There must be a problem and it's stuck parked.
-            return ERROR_MNT_NOTPARKED, recovery_procedure
+            return ERROR_MNT_PARKED, recovery_procedure
 
         elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
