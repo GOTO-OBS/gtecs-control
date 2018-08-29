@@ -16,7 +16,8 @@ def check_hardware(hardware):
         error_count = 0
         print('running hardware checks')
         log_str = 'hardware check results: '
-        for monitor in hardware.values():
+        for monitor in sorted(hardware.values(), key=lambda x: x.__class__.__name__):
+            print('  {: >20}: {}'.format(monitor.__class__.__name__, monitor.hardware_status))
             num_errs, errors = monitor.check()
             error_count += num_errs
             if num_errs > 0:
