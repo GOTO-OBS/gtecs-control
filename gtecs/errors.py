@@ -4,7 +4,7 @@
 class DaemonConnectionError(Exception):
     """To be used when a command to a daemon fails.
 
-    e.g. if the Daemon is not running or is not responding
+    e.g. if the Daemon is not running or is not responding.
     """
 
     pass
@@ -12,6 +12,15 @@ class DaemonConnectionError(Exception):
 
 class DaemonDependencyError(Exception):
     """To be used if a daemons's dependendecneis are not responding."""
+
+    pass
+
+
+class DaemonStatusError(Exception):
+    """To be used if a daemon reports an error status.
+
+    e.g. dependencies not responding, hardware not responding.
+    """
 
     pass
 
@@ -31,7 +40,7 @@ class InputError(Exception):
 class HardwareStatusError(Exception):
     """To be used if a command isn't possible due to the hardware status.
 
-    e.g. trying to start an exposure when the cameras are already exposing
+    e.g. trying to start an exposure when the cameras are already exposing.
     """
 
     pass
@@ -39,5 +48,11 @@ class HardwareStatusError(Exception):
 
 class HorizonError(Exception):
     """To be used if a slew command would bring the mount below the limit."""
+
+    pass
+
+
+class RecoveryError(Exception):
+    """To be used if a hardware monitor is out of recovery commands."""
 
     pass

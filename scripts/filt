@@ -39,8 +39,8 @@ def query(command, args, daemon_id):
         reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
-    elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_id)
+    elif command in ['check', 'ping']:
+        reply = daemons.check_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
@@ -113,23 +113,22 @@ def print_info(info):
     print('#### FILTER WHEEL INFO ####')
     for tel in sorted(params.TEL_DICT):
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
-        if info['status' + str(tel)] != 'Moving':
-            print('Status: %s' % info['status' + str(tel)])
-            if info['current_filter_num' + str(tel)] != -1:
-                current_filter_num = info['current_filter_num' + str(tel)]
+        if info[tel]['status'] != 'Moving':
+            print('Status: %s' % info[tel]['status'])
+            if not info[tel]['homed']:
+                print('Current filter: UNHOMED')
+            else:
+                current_filter_num = info[tel]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
                 print('Current filter:     %s' % current_filter)
-            else:
-                print('Current filter: UNHOMED')
         else:
-            print('Status: %s (%i)' % (info['status' + str(tel)], info['remaining' + str(tel)]))
+            print('Status: %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
             print('Current filter:     N/A')
-        print('Current filter num: %s' % info['current_filter_num' + str(tel)])
-        print('Current motor pos:  %s' % info['current_pos' + str(tel)])
-        print('Serial number:      %s' % info['serial_number' + str(tel)])
+        print('Current filter num: %s' % info[tel]['current_filter_num'])
+        print('Current motor pos:  %s' % info[tel]['current_pos'])
+        print('Serial number:      %s' % info[tel]['serial_number'])
         print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.5fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
@@ -138,17 +137,17 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     for tel in sorted(params.TEL_DICT):
         print('FILTER WHEEL ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
-        if info['status' + str(tel)] != 'Moving':
-            if info['current_filter_num' + str(tel)] != -1:
-                current_filter_num = info['current_filter_num' + str(tel)]
+        if info[tel]['status'] != 'Moving':
+            if not info[tel]['homed']:
+                print('Current filter: UNHOMED', end=' ')
+            else:
+                current_filter_num = info[tel]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
                 print('  Current filter: %s' % current_filter, end=' ')
-            else:
-                print('  Current filter: UNHOMED', end=' ')
-            print('(%i)' % info['current_filter_num' + str(tel)], end=' ')
-            print('  [%s]' % info['status' + str(tel)])
+                print('(%i)' % info[tel]['current_filter_num'], end=' ')
+            print('  [%s]' % info[tel]['status'])
         else:
-            print('  %s (%i)' % (info['status' + str(tel)], info['remaining' + str(tel)]))
+            print('  %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
 
 
 def print_instructions():
@@ -159,7 +158,7 @@ def print_instructions():
           '  shutdown                       shutdown the daemon',
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
-          '  ping                           ping the daemon',
+          '  check/ping                     check the daemon for errors',
           'Filter wheel commands:',
           '  set [tels] filter              set wheel to given filter',
           '  home [tels]                    home given filter',

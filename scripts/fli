@@ -53,11 +53,22 @@ def query(command, args, daemon_ids):
                 reply = daemons.kill_daemon(daemon_id)
                 print(reply)
 
-    elif command == 'ping':
+    elif command in ['check', 'ping']:
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.ping_daemon(daemon_id)
+                reply = daemons.check_daemon(daemon_id)
                 print(reply)
+
+    elif command in ['info', 'status']:
+        for daemon_id in daemon_ids:
+            with misc.print_errors():
+                # send command
+                reply = daemons.daemon_function(daemon_id, 'get_info')
+                # print response
+                if not reply:
+                    raise ValueError('No info returned, check daemon')
+                else:
+                    print_info(reply)
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
@@ -80,6 +91,23 @@ def query(command, args, daemon_ids):
         raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
+def print_info(info):
+    """Print the full info dict."""
+    print('FLI INTERFACE {}:'.format(info['daemon_id']))
+    print('   Cameras:       ', end='\t')
+    for key in sorted([key for key in info if key.startswith('camera_')]):
+        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    print('')
+    print('   Focusers:      ', end='\t')
+    for key in sorted([key for key in info if key.startswith('focuser_')]):
+        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    print('')
+    print('   Filter Wheels: ', end='\t')
+    for key in sorted([key for key in info if key.startswith('filterwheel_')]):
+        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    print('')
+
+
 def print_instructions():
     """Print instructions for using the daemon."""
     print('Usage: fli command [options]',
@@ -88,8 +116,9 @@ def print_instructions():
           '  shutdown                       shutdown the interfaces',
           '  restart                        restart the interfaces',
           '  kill                           kill the interfaces',
-          '  ping                           ping the interfaces',
-          'Fli commands:'
+          '  check/ping                     check the interfaces for errors',
+          'Fli commands:',
+          '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',

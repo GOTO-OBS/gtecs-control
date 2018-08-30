@@ -40,8 +40,8 @@ def query(command, args, daemon_id):
         reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
-    elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_id)
+    elif command in ['check', 'ping']:
+        reply = daemons.check_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
@@ -74,10 +74,9 @@ def print_info(info):
         print('CONDITIONS:')
         print('  None yet, try again')
     else:
+        print('FLAGS ({}):'.format(info['timestamp']))
         flags = info['flags']
         weather = info['weather']
-        print('FLAGS ({}):'.format(flags['update_time'][:-4]))
-        del flags['update_time']
         for flag in sorted(flags):
             if flags[flag] == 0:
                 status = style.gtxt('Good')
@@ -232,7 +231,7 @@ def print_instructions():
           '  shutdown                       shutdown the daemon',
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
-          '  ping                           ping the daemon',
+          '  check/ping                     check the daemon for errors',
           'Conditions commands:',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',

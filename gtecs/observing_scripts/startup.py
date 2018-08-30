@@ -41,6 +41,7 @@ def run():
     execute_command('fli shutdown')
     time.sleep(4)
     execute_command('fli start')
+    time.sleep(1)
 
     # Make sure all the other daemons are running
     for daemon in list(params.DAEMONS):
@@ -50,10 +51,8 @@ def run():
 
     time.sleep(10)
 
-    # Unpark the mount
-    execute_command('mnt unpark')
-
-    # Don't set a target, we want to stay parked while opening
+    # Don't unpark the mount or set a target, we want to stay parked while opening
+    # execute_command('mnt unpark')
     # print('Setting target to Zenith')
     # lst = find_lst(Time.now()) * u.hourangle
     # obs = observatory_location()

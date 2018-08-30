@@ -4,8 +4,6 @@
 import os
 import sys
 
-from astropy.time import Time
-
 from gtecs import daemons
 from gtecs import errors
 from gtecs import misc
@@ -41,8 +39,8 @@ def query(command, args, daemon_id):
         reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
-    elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_id)
+    elif command in ['check', 'ping']:
+        reply = daemons.check_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
@@ -54,7 +52,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', [Time.now()])
+        reply = daemons.daemon_function(daemon_id, 'get_info')
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -143,7 +141,7 @@ def print_instructions():
           '  shutdown                       shutdown the daemon',
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
-          '  ping                           ping the daemon',
+          '  check/ping                     check the daemon for errors',
           'Scheduler commands:',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',

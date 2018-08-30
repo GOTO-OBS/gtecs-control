@@ -1,25 +1,33 @@
 #!/usr/bin/env python
 """Daemon to control the exposure queue."""
 
-import datetime
 import threading
 import time
+
+from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.controls.exq_control import Exposure, ExposureQueue
-from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.daemons import BaseDaemon, daemon_proxy
+from gtecs.exposures import Exposure, ExposureQueue
 
 
-class ExqDaemon(HardwareDaemon):
+class ExqDaemon(BaseDaemon):
     """Exposure queue hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='exq')
+        super().__init__('exq')
+
+        # exq is dependent on all the FLI interfaces, cam and filt
+        for daemon_id in params.FLI_INTERFACES:
+            self.dependencies.add(daemon_id)
+        self.dependencies.add('cam')
+        self.dependencies.add('filt')
 
         # exposure queue variables
         self.exp_queue = ExposureQueue()
+        self.queue_len = len(self.exp_queue)
         self.current_exposure = None
 
         self.working = 0
@@ -32,33 +40,29 @@ class ExqDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
-            # check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not self.dependencies_are_alive:
-                    if not self.dependency_error:
-                        self.log.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                        # pause the queue
-                        self.paused = 1
-                else:
-                    if self.dependency_error:
-                        self.log.info('Dependencies responding again')
-                        self.dependency_error = 0
-                        # unpause the queue
-                        self.paused = 0
-                self.dependency_check_time = time.time()
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
 
-            if self.dependency_error:
-                time.sleep(5)
-                continue
+                # Check the dependencies
+                self._check_dependencies()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's successful
+                if self.dependency_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
 
             # exposure queue processes
-
             # check the queue, take off the first entry (if not paused)
             self.queue_len = len(self.exp_queue)
             if (self.queue_len > 0) and not self.paused and not self.working:
@@ -88,6 +92,7 @@ class ExqDaemon(HardwareDaemon):
 
                 # done!
                 self.working = 0
+                self.force_check_flag = True
 
             elif self.queue_len == 0 or self.paused:
                 # either we are paused, or nothing in the queue
@@ -98,54 +103,151 @@ class ExqDaemon(HardwareDaemon):
         self.log.info('Daemon control thread stopped')
         return
 
-    # Exposure queue functions
-    def get_info(self):
-        """Return exposure queue status info."""
-        # Check restrictions
-        if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+    # Internal functions
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
 
-        # Exq info is outside the loop
-        info = {}
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get internal info
         if self.paused:
-            info['status'] = 'Paused'
+            temp_info['status'] = 'Paused'
         elif self.working:
-            info['status'] = 'Working'
+            temp_info['status'] = 'Working'
         else:
-            info['status'] = 'Ready'
-        info['queue_length'] = self.queue_len
+            temp_info['status'] = 'Ready'
+        temp_info['queue_length'] = self.queue_len
         if self.working and self.current_exposure is not None:
-            info['current_tel_list'] = self.current_exposure.tel_list
-            info['current_exptime'] = self.current_exposure.exptime
-            info['current_filter'] = self.current_exposure.filt
-            info['current_binning'] = self.current_exposure.binning
-            info['current_frametype'] = self.current_exposure.frametype
-            info['current_target'] = self.current_exposure.target
-            info['current_imgtype'] = self.current_exposure.imgtype
+            temp_info['current_tel_list'] = self.current_exposure.tel_list
+            temp_info['current_exptime'] = self.current_exposure.exptime
+            temp_info['current_filter'] = self.current_exposure.filt
+            temp_info['current_binning'] = self.current_exposure.binning
+            temp_info['current_frametype'] = self.current_exposure.frametype
+            temp_info['current_target'] = self.current_exposure.target
+            temp_info['current_imgtype'] = self.current_exposure.imgtype
 
-        info['uptime'] = time.time() - self.start_time
-        info['ping'] = time.time() - self.time_check
-        now = datetime.datetime.utcnow()
-        info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
+        # Update the master info dict
+        self.info = temp_info
 
-        # Return the updated info dict
-        return info
+    def _need_to_change_filter(self):
+        new_filt = self.current_exposure.filt
+        if new_filt is None:
+            # filter doesn't matter, e.g. dark
+            return False
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
+        tel_list = self.current_exposure.tel_list
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
+        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        if not all(homed_check):
+            self.log.info('Need to home filter wheels')
+            self._home_filter_wheels()
+
+        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
+                 for tel in tel_list]
+        if all(check):
+            return False
+        else:
+            return True
+
+    def _home_filter_wheels(self):
+        self.log.info('Homing filter wheels')
+        tel_list = self.current_exposure.tel_list
         try:
-            info = self.get_info()
+            with daemon_proxy('filt') as filt_daemon:
+                filt_daemon.home_filter(tel_list)
         except Exception:
-            return None
-        return info
+            self.log.error('No response from filter wheel daemon')
+            self.log.debug('', exc_info=True)
 
+        time.sleep(3)
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
+        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        while not all(homed_check):
+            with daemon_proxy('filt') as filt_daemon:
+                filt_info = filt_daemon.get_info()
+            homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+            time.sleep(0.5)
+
+            # keep ping alive
+            self.loop_time = time.time()
+            self._get_info()
+        self.log.info('Filter wheels homed')
+
+    def _set_filter(self):
+        new_filt = self.current_exposure.filt
+        tel_list = self.current_exposure.tel_list
+        self.log.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
+        try:
+            with daemon_proxy('filt') as filt_daemon:
+                filt_daemon.set_filter(new_filt, tel_list)
+        except Exception:
+            self.log.error('No response from filter wheel daemon')
+            self.log.debug('', exc_info=True)
+
+        time.sleep(3)
+        with daemon_proxy('filt') as filt_daemon:
+            filt_info = filt_daemon.get_info()
+        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
+                 for tel in tel_list]
+        while not all(check):
+            with daemon_proxy('filt') as filt_daemon:
+                filt_info = filt_daemon.get_info()
+            check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
+                     for tel in tel_list]
+            time.sleep(0.5)
+
+            # keep ping alive
+            self.loop_time = time.time()
+        self.log.info('Filter wheel move complete, now at {}'.format(new_filt))
+
+    def _take_image(self):
+        exptime = self.current_exposure.exptime
+        binning = self.current_exposure.binning
+        frametype = self.current_exposure.frametype
+        tel_list = self.current_exposure.tel_list
+        glance = self.current_exposure.glance
+        if not glance:
+            self.log.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+                          exptime, binning, binning, frametype, tel_list))
+        else:
+            self.log.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
+                          exptime, binning, binning, frametype, tel_list))
+        try:
+            with daemon_proxy('cam') as cam_daemon:
+                cam_daemon.take_exposure(self.current_exposure)
+        except Exception:
+            self.log.error('No response from camera daemon')
+            self.log.debug('', exc_info=True)
+
+        time.sleep(2)
+
+        with daemon_proxy('cam') as cam_daemon:
+            cam_exposing = cam_daemon.is_exposing()
+        while cam_exposing:
+            with daemon_proxy('cam') as cam_daemon:
+                cam_exposing = cam_daemon.is_exposing()
+
+            time.sleep(0.5)
+            # keep main thread alive
+            self.loop_time = time.time()
+            self._get_info()
+        self.log.info('Camera exposure complete')
+
+    # Control functions
     def add(self, tel_list, exptime,
             filt=None, binning=1, frametype='normal',
             target='NA', imgtype='SCIENCE', glance=False):
         """Add an exposure to the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -192,7 +294,7 @@ class ExqDaemon(HardwareDaemon):
         """Add multiple exposures to the queue as a set."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -233,7 +335,7 @@ class ExqDaemon(HardwareDaemon):
         """Empty the exposure queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         num_in_queue = len(self.exp_queue)
@@ -246,7 +348,7 @@ class ExqDaemon(HardwareDaemon):
         """Return info on exposures in the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         queue_info = self.exp_queue.get()
@@ -257,7 +359,7 @@ class ExqDaemon(HardwareDaemon):
         """Return simple info on exposures in the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Call the command
         queue_info_simple = self.exp_queue.get_simple()
@@ -268,7 +370,7 @@ class ExqDaemon(HardwareDaemon):
         """Pause the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if self.paused:
@@ -284,7 +386,7 @@ class ExqDaemon(HardwareDaemon):
         """Unpause the queue."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if not self.paused:
@@ -295,82 +397,6 @@ class ExqDaemon(HardwareDaemon):
 
         self.log.info('Queue resumed')
         return 'Queue resumed'
-
-    # Internal functions
-    def _need_to_change_filter(self):
-        new_filt = self.current_exposure.filt
-        if new_filt is None:
-            # filter doesn't matter, e.g. dark
-            return False
-
-        tel_list = self.current_exposure.tel_list
-        with daemon_proxy('filt') as filt_daemon:
-            filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
-                 for tel in tel_list]
-        if all(check):
-            return False
-        else:
-            return True
-
-    def _set_filter(self):
-        new_filt = self.current_exposure.filt
-        tel_list = self.current_exposure.tel_list
-        self.log.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
-        try:
-            with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.set_filter(new_filt, tel_list)
-        except Exception:
-            self.log.error('No response from filter wheel daemon')
-            self.log.debug('', exc_info=True)
-
-        time.sleep(3)
-        with daemon_proxy('filt') as filt_daemon:
-            filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
-                 for tel in tel_list]
-        while not all(check):
-            with daemon_proxy('filt') as filt_daemon:
-                filt_info = filt_daemon.get_info()
-            check = [params.FILTER_LIST[filt_info['current_filter_num' + str(tel)]] == new_filt
-                     for tel in tel_list]
-            time.sleep(0.5)
-
-            # keep ping alive
-            self.time_check = time.time()
-        self.log.info('Filter wheel move complete, now at {}'.format(new_filt))
-
-    def _take_image(self):
-        exptime = self.current_exposure.exptime
-        binning = self.current_exposure.binning
-        frametype = self.current_exposure.frametype
-        tel_list = self.current_exposure.tel_list
-        glance = self.current_exposure.glance
-        if not glance:
-            self.log.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, tel_list))
-        else:
-            self.log.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, tel_list))
-        try:
-            with daemon_proxy('cam') as cam_daemon:
-                cam_daemon.take_exposure(self.current_exposure)
-        except Exception:
-            self.log.error('No response from camera daemon')
-            self.log.debug('', exc_info=True)
-
-        time.sleep(2)
-
-        with daemon_proxy('cam') as cam_daemon:
-            cam_exposing = cam_daemon.is_exposing()
-        while cam_exposing:
-            with daemon_proxy('cam') as cam_daemon:
-                cam_exposing = cam_daemon.is_exposing()
-
-            time.sleep(0.05)
-            # keep ping alive
-            self.time_check = time.time()
-        self.log.info('Camera exposure complete')
 
 
 if __name__ == "__main__":

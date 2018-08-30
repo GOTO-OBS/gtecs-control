@@ -8,7 +8,7 @@ import time
 
 import serial
 
-from .power_control import ETH002
+from .power import ETH002
 from .. import flags
 from .. import params
 from ..conditions import get_roomalert
@@ -239,6 +239,8 @@ class AstroHavenDome(object):
         self.dome_serial = serial.Serial(self.dome_serial_port,
                                          baudrate=self.dome_serial_baudrate,
                                          timeout=self.dome_serial_timeout)
+        # start thread
+        self._check_status()
 
         # serial connection to the dome monitor box
         if self.heartbeat_enabled and self.heartbeat_serial_port:
@@ -260,7 +262,10 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'disabled'
 
     def __del__(self):
-        self.dome_serial.close()
+        try:
+            self.dome_serial.close()
+        except AttributeError:
+            pass
 
     def _read_plc(self):
         try:

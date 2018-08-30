@@ -1,42 +1,32 @@
 #!/usr/bin/env python
 """Daemon to control FLI filter wheels via fli_interface."""
 
-import datetime
 import threading
 import time
+
+from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import HardwareDaemon, daemon_proxy
+from gtecs.daemons import BaseDaemon, daemon_proxy
 
 
-class FiltDaemon(HardwareDaemon):
+class FiltDaemon(BaseDaemon):
     """Filter wheel hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='filt')
+        super().__init__('filt')
+
+        # filt is dependent on all the FLI interfaces
+        for daemon_id in params.FLI_INTERFACES:
+            self.dependencies.add(daemon_id)
 
         # command flags
-        self.get_info_flag = 1
         self.set_filter_flag = 0
         self.home_filter_flag = 0
 
         # filter wheel variables
-        self.current_pos = {}
-        self.current_filter_num = {}
-        self.remaining = {}
-        self.serial_number = {}
-        self.homed = {}
-
-        for intf in params.FLI_INTERFACES:
-            nhw = len(params.FLI_INTERFACES[intf]['TELS'])
-            self.current_pos[intf] = [0] * nhw
-            self.remaining[intf] = [0] * nhw
-            self.current_filter_num[intf] = [0] * nhw
-            self.serial_number[intf] = [0] * nhw
-            self.homed[intf] = [0] * nhw
-
         self.active_tel = []
         self.new_filter = ''
 
@@ -47,70 +37,29 @@ class FiltDaemon(HardwareDaemon):
 
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
 
-            # check dependencies
-            if (self.time_check - self.dependency_check_time) > 2:
-                if not self.dependencies_are_alive:
-                    if not self.dependency_error:
-                        self.log.error('Dependencies are not responding')
-                        self.dependency_error = 1
-                else:
-                    if self.dependency_error:
-                        self.log.info('Dependencies responding again')
-                        self.dependency_error = 0
-                self.dependency_check_time = time.time()
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
 
-            if self.dependency_error:
-                time.sleep(5)
-                continue
+                # Check the dependencies
+                self._check_dependencies()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's successful
+                if self.dependency_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
 
             # control functions
-            # request info
-            if self.get_info_flag:
-                try:
-                    # update variables
-                    for tel in params.TEL_DICT:
-                        intf, hw = params.TEL_DICT[tel]
-                        try:
-                            with daemon_proxy(intf) as fli:
-                                self.current_pos[intf][hw] = fli.get_filter_position(hw)
-                                self.remaining[intf][hw] = fli.get_filter_steps_remaining(hw)
-                                self.current_filter_num[intf][hw] = fli.get_filter_number(hw)
-                                self.serial_number[intf][hw] = fli.get_filter_serial_number(hw)
-                                self.homed[intf][hw] = fli.get_filter_homed(hw)
-                        except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
-                            self.log.debug('', exc_info=True)
-                    # save info
-                    info = {}
-                    for tel in params.TEL_DICT:
-                        intf, hw = params.TEL_DICT[tel]
-                        tel = str(params.FLI_INTERFACES[intf]['TELS'][hw])
-                        if self.remaining[intf][hw] > 0:
-                            info['status' + tel] = 'Moving'
-                            info['remaining' + tel] = self.remaining[intf][hw]
-                        else:
-                            info['status' + tel] = 'Ready'
-                        info['current_filter_num' + tel] = self.current_filter_num[intf][hw]
-                        info['current_pos' + tel] = self.current_pos[intf][hw]
-                        info['serial_number' + tel] = self.serial_number[intf][hw]
-                        info['homed' + tel] = self.homed[intf][hw]
-
-                    info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
-                    now = datetime.datetime.utcnow()
-                    info['timestamp'] = now.strftime("%Y-%m-%d %H:%M:%S")
-
-                    self.info = info
-                except Exception:
-                    self.log.error('get_info command failed')
-                    self.log.debug('', exc_info=True)
-                self.get_info_flag = 0
-
             # set the active filter
             if self.set_filter_flag:
                 try:
@@ -134,6 +83,7 @@ class FiltDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.set_filter_flag = 0
+                self.force_check_flag = True
 
             # home the filter
             if self.home_filter_flag:
@@ -157,39 +107,59 @@ class FiltDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.active_tel = []
                 self.home_filter_flag = 0
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
         return
 
-    # Filter wheel control functions
-    def get_info(self):
-        """Return filter wheel status info."""
-        # Check restrictions
-        if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+    # Internal functions
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
 
-        # Set flag
-        self.get_info_flag = 1
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
 
-        # Wait, then return the updated info dict
-        time.sleep(0.1)
-        return self.info
+        for tel in params.TEL_DICT:
+            # Get info from each interface
+            try:
+                intf, hw = params.TEL_DICT[tel]
+                tel_info = {}
+                tel_info['intf'] = intf
+                tel_info['hw'] = hw
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
-        try:
-            info = self.get_info()
-        except Exception:
-            return None
-        return info
+                with daemon_proxy(intf) as fli:
+                    tel_info['remaining'] = fli.get_filter_steps_remaining(hw)
+                    tel_info['current_filter_num'] = fli.get_filter_number(hw)
+                    tel_info['current_pos'] = fli.get_filter_position(hw)
+                    tel_info['serial_number'] = fli.get_filter_serial_number(hw)
+                    tel_info['homed'] = fli.get_filter_homed(hw)
 
+                if tel_info['remaining'] > 0:
+                    tel_info['status'] = 'Moving'
+                else:
+                    tel_info['status'] = 'Ready'
+
+                temp_info[tel] = tel_info
+            except Exception:
+                self.log.error('Failed to get filter wheel {} info'.format(tel))
+                self.log.debug('', exc_info=True)
+                temp_info[tel] = None
+
+        # Update the master info dict
+        self.info = temp_info
+
+    # Control functions
     def set_filter(self, new_filter, tel_list):
         """Move filter wheel to given filter."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         if new_filter.upper() not in params.FILTER_LIST:
@@ -202,8 +172,7 @@ class FiltDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            if self.remaining[intf][hw] == 0 and self.homed[intf][hw]:
+            if self.info[tel]['remaining'] == 0 and self.info[tel]['homed']:
                 self.active_tel += [tel]
         self.new_filter = new_filter
 
@@ -213,11 +182,10 @@ class FiltDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
             s += '\n  '
-            if self.remaining[intf][hw] > 0:
+            if self.info[tel]['remaining'] > 0:
                 s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % tel)
-            elif not self.homed[intf][hw]:
+            elif not self.info[tel]['homed']:
                 s += misc.errortxt('"HardwareStatusError: Filter wheel %i not homed"' % tel)
             else:
                 s += 'Moving filter wheel %i' % tel
@@ -227,7 +195,7 @@ class FiltDaemon(HardwareDaemon):
         """Move filter wheel to home position."""
         # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonDependencyError('Dependencies are not running')
+            raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
         for tel in tel_list:
@@ -238,8 +206,7 @@ class FiltDaemon(HardwareDaemon):
         self.get_info_flag = 1
         time.sleep(0.1)
         for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            if self.remaining[intf][hw] == 0:
+            if self.info[tel]['remaining'] == 0:
                 self.active_tel += [tel]
 
         # Set flag
@@ -248,9 +215,8 @@ class FiltDaemon(HardwareDaemon):
         # Format return string
         s = 'Moving:'
         for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
             s += '\n  '
-            if self.remaining[intf][hw] > 0:
+            if self.info[tel]['remaining'] > 0:
                 s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % tel)
             else:
                 s += 'Homing filter wheel %i' % tel

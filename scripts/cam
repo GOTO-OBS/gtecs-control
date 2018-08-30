@@ -39,8 +39,8 @@ def query(command, args, daemon_id):
         reply = daemons.kill_daemon(daemon_id)
         print(reply)
 
-    elif command == 'ping':
-        reply = daemons.ping_daemon(daemon_id)
+    elif command in ['check', 'ping']:
+        reply = daemons.check_daemon(daemon_id)
         print(reply)
 
     elif command in ['info', 'status']:
@@ -185,28 +185,27 @@ def print_info(info):
     print('####### CAMERA INFO #######')
     for tel in sorted(params.TEL_DICT):
         print('CAMERA ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
-        if info['status' + str(tel)] != 'Exposing':
-            print('Status: %s' % info['status' + str(tel)])
+        if info[tel]['status'] != 'Exposing':
+            print('Status: %s' % info[tel]['status'])
         else:
             if info['run_number'] > 0:
-                print('Status: %s r%07d (%.2fs)' % (info['status' + str(tel)],
+                print('Status: %s r%07d (%.2fs)' % (info[tel]['status'],
                                                     info['run_number'],
-                                                    info['remaining' + str(tel)]))
+                                                    info[tel]['remaining']))
             else:
-                print('Status: %s glance (%.2fs)' % (info['status' + str(tel)],
-                                                     info['remaining' + str(tel)]))
+                print('Status: %s glance (%.2fs)' % (info[tel]['status'],
+                                                     info[tel]['remaining']))
             if info['current_exposure'] and tel in info['current_exposure'].tel_list:
                 print('Exposure time:      %.2fs' % info['current_exposure'].exptime)
                 print('Binning:            %i' % info['current_exposure'].binning)
                 print('Frame type:         %s' % info['current_exposure'].frametype)
-        print('CCD Temperature:    %.2fC' % info['ccd_temp' + str(tel)])
-        print('Target Temperature: %.2fC' % info['target_temp' + str(tel)])
-        print('Base Temperature:   %.2fC' % info['base_temp' + str(tel)])
-        print('Cooler power:       %i%%' % info['cooler_power' + str(tel)])
-        print('Serial number:      %s' % info['serial_number' + str(tel)])
+        print('CCD Temperature:    %.2fC' % info[tel]['ccd_temp'])
+        print('Target Temperature: %.2fC' % info[tel]['target_temp'])
+        print('Base Temperature:   %.2fC' % info[tel]['base_temp'])
+        print('Cooler power:       %i%%' % info[tel]['cooler_power'])
+        print('Serial number:      %s' % info[tel]['serial_number'])
         print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
-    print('Ping: %.5fs' % info['ping'])
     print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
@@ -215,17 +214,17 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     for tel in sorted(params.TEL_DICT):
         print('CAMERA ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
-        if info['status' + str(tel)] != 'Exposing':
-            print('  Temp: %6.2fC' % info['ccd_temp' + str(tel)], end=' ')
-            print('  [%s]' % info['status' + str(tel)])
+        if info[tel]['status'] != 'Exposing':
+            print('  Temp: %6.2fC' % info[tel]['ccd_temp'], end=' ')
+            print('  [%s]' % info[tel]['status'])
         else:
             if info['run_number'] > 0:
-                print('  %s r%07d (%.2fs)' % (info['status' + str(tel)],
+                print('  %s r%07d (%.2fs)' % (info[tel]['status'],
                                               info['run_number'],
-                                              info['remaining' + str(tel)]))
+                                              info[tel]['remaining']))
             else:
-                print('  %s glance (%.2fs)' % (info['status' + str(tel)],
-                                               info['remaining' + str(tel)]))
+                print('  %s glance (%.2fs)' % (info[tel]['status'],
+                                               info[tel]['remaining']))
 
 
 def print_instructions():
@@ -236,7 +235,7 @@ def print_instructions():
           '  shutdown                       shutdown the daemon',
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
-          '  ping                           ping the daemon',
+          '  check/ping                     check the daemon for errors',
           'Camera commands:',
           '  image [tels] exptime binning   take a normal exposure',
           '  glance [tels] exptime binning  take a temporary glance',

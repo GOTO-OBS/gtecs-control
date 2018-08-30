@@ -1,12 +1,11 @@
-#!/usr/bin/env python
-"""Classes to control the exposure queue."""
+"""Classes represent individual exposures and the exposure queue."""
 
 import os
 import time
 from collections import MutableSequence
 
-from .. import misc
-from .. import params
+from . import misc
+from . import params
 
 
 class Exposure(object):

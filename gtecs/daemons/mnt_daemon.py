@@ -13,18 +13,20 @@ from gtecs import errors
 from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import check_alt_limit, find_ha, radec_from_altaz
-from gtecs.controls import mnt_control
-from gtecs.daemons import HardwareDaemon
+from gtecs.daemons import BaseDaemon
+from gtecs.hardware.sitech import SiTech
 
 
-class MntDaemon(HardwareDaemon):
+class MntDaemon(BaseDaemon):
     """Mount hardware daemon class."""
 
     def __init__(self):
-        HardwareDaemon.__init__(self, daemon_id='mnt')
+        super().__init__('mnt')
+
+        # hardware
+        self.sitech = None
 
         # command flags
-        self.get_info_flag = 1
         self.slew_radec_flag = 0
         self.slew_target_flag = 0
         self.slew_altaz_flag = 0
@@ -39,75 +41,49 @@ class MntDaemon(HardwareDaemon):
 
         # mount variables
         self.step = params.DEFAULT_OFFSET_STEP
-        self.mount_status = 'Unknown'
         self.target_ra = None
         self.target_dec = None
         self.temp_ra = None
         self.temp_dec = None
         self.temp_alt = None
         self.temp_az = None
-        self.utc = Time.now()
-        self.utc.precision = 0  # only integer seconds
-        self.utc_str = self.utc.iso
         self.set_blinky = False
-
-        # connect to SiTechExe
-        # Once, and we'll see if both threads can use it
-        address = params.SITECH_HOST
-        port = params.SITECH_PORT
-        self.sitech = mnt_control.SiTech(address, port)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
         t.start()
 
-        # start ra check thread
-        if params.FREEZE_DEC:
-            t2 = threading.Thread(target=self._ra_check_thread)
-            t2.daemon = True
-            t2.start()
-
     # Primary control thread
     def _control_thread(self):
+        """Primary control loop."""
         self.log.info('Daemon control thread started')
 
         while(self.running):
-            self.time_check = time.time()
+            self.loop_time = time.time()
+
+            # system check
+            if self.force_check_flag or (self.loop_time - self.check_time) > self.check_period:
+                self.check_time = self.loop_time
+                self.force_check_flag = False
+
+                # Try to connect to the hardware
+                self._connect()
+
+                # If there is an error then the connection failed.
+                # Keep looping, it should retry the connection until it's sucsessful
+                if self.hardware_error:
+                    continue
+
+                # We should be connected, now try getting info
+                self._get_info()
+
+                # If there is an error then getting info failed.
+                # Restart the loop to try reconnecting above.
+                if self.hardware_error:
+                    continue
 
             # control functions
-            # request info
-            if self.get_info_flag:
-                try:
-                    info = {}
-                    self.mount_status = self.sitech.status
-                    info['status'] = self.mount_status
-                    info['mount_alt'] = self.sitech.alt
-                    info['mount_az'] = self.sitech.az
-                    info['mount_ra'] = self.sitech.ra
-                    info['mount_dec'] = self.sitech.dec
-                    info['target_ra'] = self.target_ra
-                    info['target_dec'] = self.target_dec
-                    info['target_dist'] = self._get_target_distance()
-                    info['lst'] = self.sitech.sidereal_time
-                    info['ha'] = find_ha(info['mount_ra'], info['lst'])
-
-                    self.utc = Time.now()
-                    self.utc.precision = 0  # only integer seconds
-                    info['utc'] = self.utc.iso
-                    info['step'] = self.step
-                    info['uptime'] = time.time() - self.start_time
-                    info['ping'] = time.time() - self.time_check
-                    now = Time.now()
-                    now.precision = 0
-                    info['timestamp'] = now.iso
-
-                    self.info = info
-                except Exception:
-                    self.log.error('get_info command failed')
-                    self.log.debug('', exc_info=True)
-                self.get_info_flag = 0
-
             # slew to given coordinates
             if self.slew_radec_flag:
                 try:
@@ -121,6 +97,7 @@ class MntDaemon(HardwareDaemon):
                 self.temp_ra = None
                 self.temp_dec = None
                 self.slew_radec_flag = 0
+                self.force_check_flag = True
 
             # slew to target
             if self.slew_target_flag:
@@ -133,6 +110,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('slew_target command failed')
                     self.log.debug('', exc_info=True)
                 self.slew_target_flag = 0
+                self.force_check_flag = True
 
             # slew to given alt/az
             if self.slew_altaz_flag:
@@ -147,6 +125,7 @@ class MntDaemon(HardwareDaemon):
                 self.temp_alt = None
                 self.temp_az = None
                 self.slew_altaz_flag = 0
+                self.force_check_flag = True
 
             # start tracking
             if self.start_tracking_flag:
@@ -158,6 +137,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('start_tracking command failed')
                     self.log.debug('', exc_info=True)
                 self.start_tracking_flag = 0
+                self.force_check_flag = True
 
             # stop all motion (tracking or slewing)
             if self.full_stop_flag:
@@ -169,6 +149,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('full_stop command failed')
                     self.log.debug('', exc_info=True)
                 self.full_stop_flag = 0
+                self.force_check_flag = True
 
             # turn blinky mode on or off
             if self.set_blinky_mode_flag:
@@ -181,6 +162,7 @@ class MntDaemon(HardwareDaemon):
                     self.log.debug('', exc_info=True)
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 0
+                self.force_check_flag = True
 
             # park the mount
             if self.park_flag:
@@ -195,6 +177,7 @@ class MntDaemon(HardwareDaemon):
                 self.target_ra = None
                 self.target_dec = None
                 self.park_flag = 0
+                self.force_check_flag = True
 
             # unpark the mount
             if self.unpark_flag:
@@ -206,30 +189,92 @@ class MntDaemon(HardwareDaemon):
                     self.log.error('unpark command failed')
                     self.log.debug('', exc_info=True)
                 self.unpark_flag = 0
+                self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
         return
 
-    # Mount control functions
-    def get_info(self):
-        """Return mount status info."""
-        # Set flag
-        self.get_info_flag = 1
+    # Internal functions
+    def _connect(self):
+        """Connect to hardware."""
+        # Connect to sitech
+        if not self.sitech:
+            try:
+                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT, self.log)
+                self.log.info('Connected to SiTechEXE')
+                if 'sitech' in self.bad_hardware:
+                    self.bad_hardware.remove('sitech')
+            except Exception:
+                self.sitech = None
+                self.log.error('Failed to connect to SiTechEXE')
+                if 'sitech' not in self.bad_hardware:
+                    self.bad_hardware.add('sitech')
 
-        # Wait, then return the updated info dict
-        time.sleep(0.5)
-        return self.info
+        # Finally check if we need to report an error
+        self._check_errors()
 
-    def get_info_simple(self):
-        """Return plain status dict, or None."""
+    def _get_info(self):
+        """Get the latest status info from the heardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get info from sitech
         try:
-            info = self.get_info()
+            temp_info['status'] = self.sitech.status
+            temp_info['mount_alt'] = self.sitech.alt
+            temp_info['mount_az'] = self.sitech.az
+            temp_info['mount_ra'] = self.sitech.ra
+            temp_info['mount_dec'] = self.sitech.dec
+            temp_info['lst'] = self.sitech.sidereal_time
+            temp_info['ha'] = find_ha(temp_info['mount_ra'], temp_info['lst'])
         except Exception:
-            return None
-        return info
+            self.log.error('Failed to get mount info')
+            self.log.debug('', exc_info=True)
+            temp_info['status'] = None
+            temp_info['mount_alt'] = None
+            temp_info['mount_az'] = None
+            temp_info['mount_ra'] = None
+            temp_info['mount_dec'] = None
+            temp_info['lst'] = None
+            temp_info['ha'] = None
+            # Report the connection as failed
+            self.sitech = None
+            if 'sitech' not in self.bad_hardware:
+                self.bad_hardware.add('sitech')
 
+        # Get other internal info
+        temp_info['target_ra'] = self.target_ra
+        temp_info['target_dec'] = self.target_dec
+        temp_info['target_dist'] = self._get_target_distance()
+        temp_info['step'] = self.step
+
+        # Update the master info dict
+        self.info = temp_info
+
+        # Finally check if we need to report an error
+        self._check_errors()
+
+    def _get_target_distance(self):
+        """Return the distance to the current target."""
+        # Need to catch error if target not yet set
+        if self.target_ra is None or self.target_dec is None:
+            return None
+        m_ra = self.sitech.ra
+        m_dec = self.sitech.dec
+        t_ra = self.target_ra
+        t_dec = self.target_dec
+        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
+        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
+        return t_c.separation(m_c).deg
+
+    # Control functions
     def slew_to_radec(self, ra, dec):
         """Slew to specified coordinates."""
         # Check input
@@ -241,13 +286,11 @@ class MntDaemon(HardwareDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Slewing':
+        if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
@@ -268,13 +311,11 @@ class MntDaemon(HardwareDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Slewing':
+        if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set flag
@@ -293,13 +334,11 @@ class MntDaemon(HardwareDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Slewing':
+        if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
@@ -317,15 +356,13 @@ class MntDaemon(HardwareDaemon):
     def start_tracking(self):
         """Start the mount tracking."""
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Tracking':
+        if self.info['status'] == 'Tracking':
             return 'Already tracking'
-        elif self.mount_status == 'Slewing':
+        elif self.info['status'] == 'Slewing':
             return 'Currently slewing, will track when reached target'
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked')
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         if check_alt_limit(self.info['mount_ra'] * 360. / 24., self.info['mount_dec'], Time.now()):
             raise errors.HardwareStatusError('Mount is currently below horizon, cannot track')
@@ -338,11 +375,9 @@ class MntDaemon(HardwareDaemon):
     def full_stop(self):
         """Stop the mount moving (slewing or tracking)."""
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Stopped':
+        if self.info['status'] == 'Stopped':
             return 'Already stopped'
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked')
 
         # Set flag
@@ -373,13 +408,11 @@ class MntDaemon(HardwareDaemon):
     def park(self):
         """Move the mount to the park position."""
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Parked':
+        if self.info['status'] == 'Parked':
             return 'Already parked'
-        elif self.mount_status == 'Parking':
+        elif self.info['status'] == 'Parking':
             return 'Already parking'
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Set flag
@@ -390,9 +423,7 @@ class MntDaemon(HardwareDaemon):
     def unpark(self):
         """Unpark the mount."""
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status != 'Parked':
+        if self.info['status'] != 'Parked':
             return 'Mount is not parked'
 
         # First turn off blinky mode
@@ -412,9 +443,7 @@ class MntDaemon(HardwareDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Parked':
+        if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -430,9 +459,7 @@ class MntDaemon(HardwareDaemon):
             raise ValueError('Dec in degrees must be between -90 and +90')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Parked':
+        if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -450,9 +477,7 @@ class MntDaemon(HardwareDaemon):
             raise ValueError('Dec in degrees must be between -90 and +90')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Parked':
+        if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -483,13 +508,11 @@ class MntDaemon(HardwareDaemon):
             raise ValueError('Invalid direction')
 
         # Check current status
-        self.get_info_flag = 1
-        time.sleep(0.1)
-        if self.mount_status == 'Slewing':
+        if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.mount_status == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked')
-        elif self.mount_status == 'IN BLINKY MODE':
+        elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Calculate offset position
@@ -510,7 +533,7 @@ class MntDaemon(HardwareDaemon):
             ra = self.sitech.ra - step_ra
             dec = self.sitech.dec
 
-        if check_alt_limit(ra * 360. / 24., dec, self.utc):
+        if check_alt_limit(ra * 360. / 24., dec, Time.now()):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Set values
@@ -532,66 +555,6 @@ class MntDaemon(HardwareDaemon):
         self.step = offset
 
         return 'New offset step set'
-
-    # Internal functions
-    def _get_target_distance(self):
-        """Return the distance to the current target."""
-        # Need to catch error if target not yet set
-        if self.target_ra is None or self.target_dec is None:
-            return None
-        m_ra = self.sitech.ra
-        m_dec = self.sitech.dec
-        t_ra = self.target_ra
-        t_dec = self.target_dec
-        if not params.FREEZE_DEC:
-            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-            t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
-            return t_c.separation(m_c).deg
-        else:
-            # note m_dec for both
-            m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-            t_c = SkyCoord(t_ra, m_dec, unit=(u.hour, u.deg))
-            sep = t_c.separation(m_c).deg
-            if sep < 0.07:
-                return 0
-            else:
-                return sep
-
-    def _ra_check_thread(self):
-        """Check the ra distance and cancel slewing when the mount reaches the target.
-
-        Required for when the FREEZE_DEC is set, so the mount doesn't keep
-        trying to slew to the dec target.
-
-        If activated it will check the telescope when slewing, and if it's
-        reached the RA target then stop the slewing and start tracking.
-
-        """
-        import numpy as np
-        ra_distance = 0
-        i = 0
-        j = 0
-        while True:
-            if self.sitech.slewing:
-                ra_distance_new = np.around(self._get_target_distance(), 6)
-                print(ra_distance_new, abs(ra_distance_new - ra_distance), i, j)
-                if ra_distance_new < 0.01 and abs(ra_distance_new - ra_distance) < 0.0001:
-                    i += 1
-                if abs(ra_distance_new - ra_distance) == 0:
-                    j += 1
-                if i > 10 or j > 10:
-                    self.log.info('Reached RA target, stopping slew')
-                    self.sitech.halt()
-                    time.sleep(0.1)
-                    self.sitech.track()
-                    ra_distance = 0
-                    i = 0
-                    j = 0
-                else:
-                    ra_distance = ra_distance_new
-                time.sleep(0.1)
-            else:
-                time.sleep(1)
 
 
 if __name__ == "__main__":

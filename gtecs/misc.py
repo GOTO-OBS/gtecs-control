@@ -52,10 +52,11 @@ def execute_command(command_string, timeout=30):
     """For commands that should return quickly."""
     print('{}:'.format(command_string))
     try:
-        ret_str = subprocess.check_output(command_string,
-                                          shell=True,
-                                          stderr=subprocess.STDOUT,
-                                          timeout=timeout)
+        p = subprocess.Popen(command_string,
+                             shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        ret_str, _ = p.communicate(timeout=timeout)
         print('> ' + ret_str.strip().decode().replace('\n', '\n> '))
         return 0
     except subprocess.TimeoutExpired:
@@ -124,13 +125,24 @@ class NeatCloser(object, metaclass=abc.ABCMeta):
         return
 
 
-def get_pid(pidname, host='127.0.0.1'):
+def get_pid(pidname, host=None):
     """Check if a pid file exists with the given name.
 
     Returns the pid if it is found, or None if not.
     """
     # pid.PidFile(pidname, piddir=params.PID_PATH).check() is nicer,
     # but won't work with remote machines
+
+    if pidname in params.DAEMONS:
+        new_host = params.DAEMONS[pidname]['HOST']
+        if host and new_host != host:
+            raise ValueError('Given host ({}) does not match host defined in params ({})'.format(
+                             host, new_host))
+        else:
+            host = new_host
+    elif not host:
+        host = '127.0.0.1'
+
     pidpath = os.path.join(params.PID_PATH, pidname + '.pid')
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'cat {}'.format(pidpath)

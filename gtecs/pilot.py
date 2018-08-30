@@ -15,12 +15,12 @@ from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 import pkg_resources
 
 from . import logger
+from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .asyncio_protocols import SimpleProtocol
+from .errors import RecoveryError
 from .flags import Conditions, Status
-from .hardware_wrappers import (CameraMonitor, DomeMonitor, ExposureQueueMonitor,
-                                FilterWheelMonitor, FocuserMonitor, MountMonitor)
 from .misc import execute_command, send_email
 from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
                         get_pointing_status)
@@ -90,12 +90,15 @@ class Pilot(object):
         self.dome_is_open = False        # should the dome be open?
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': DomeMonitor(self.log),
-                         'mnt': MountMonitor(self.log),
-                         'cams': CameraMonitor(self.log),
-                         'filts': FilterWheelMonitor(self.log),
-                         'focs': FocuserMonitor(self.log),
-                         'exq': ExposureQueueMonitor(self.log),
+        self.hardware = {'dome': monitors.DomeMonitor(self.log),
+                         'mnt': monitors.MntMonitor(self.log),
+                         'power': monitors.PowerMonitor(self.log),
+                         'cam': monitors.CamMonitor(self.log),
+                         'filt': monitors.FiltMonitor(self.log),
+                         'foc': monitors.FocMonitor(self.log),
+                         'exq': monitors.ExqMonitor(self.log),
+                         'conditions': monitors.ConditionsMonitor(self.log),
+                         'scheduler': monitors.SchedulerMonitor(self.log),
                          }
 
         # override and conditions flags
@@ -140,7 +143,7 @@ class Pilot(object):
             # check scheduler daemon
             self.log.debug('checking scheduler')
 
-            check_results = check_schedule(Time.now(), True)
+            check_results = check_schedule()
             self.new_id, self.new_priority, self.new_mintime = check_results
             # NOTE we don't actually use the priority anywhere in the pilot!
 
@@ -155,8 +158,11 @@ class Pilot(object):
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
         self.log.info('hardware check routine initialised')
+        good_sleep_time = 30
+        bad_sleep_time = 10
+        bad_timestamp = 0
 
-        sleep_time = 60
+        sleep_time = good_sleep_time
         while True:
             if self.status.mode == 'manual':
                 self.log.debug('hardware checks suspended in manual mode')
@@ -169,29 +175,42 @@ class Pilot(object):
                 continue
 
             error_count = 0
-            self.log.debug('running hardware checks')
-            log_str = 'hardware check results: '
-            for device in self.hardware:
-                num_errs, err_list = self.hardware[device].check()
-                if num_errs > 0:
-                    log_str += ' {},{:.0f},{!r}'.format(str(device), num_errs, err_list)
+            self.log.info('running hardware checks:')
+            for monitor in self.hardware.values():
+                num_errs, errors = monitor.check()
                 error_count += num_errs
                 if num_errs > 0:
-                    self.log.warning('attempting recovery: {}'.format(device))
-                    self.hardware[device].recover()
+                    msg = '{} ({}) '.format(monitor.__class__.__name__, monitor.hardware_status)
+                    msg += 'reports {} error{}: {}'.format(num_errs, 's' if num_errs > 1 else '',
+                                                           ', '.join(errors))
+                    self.log.warning(msg)
+                    try:
+                        monitor.recover()  # Will log recovery commands
+                    except RecoveryError as err:
+                        # Uh oh, we're out of options
+                        send_slack_msg(err)
+                        asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
-                sleep_time = 10  # check more frequently till fixed
-                self.log.warning(log_str)
                 await self.handle_pause('hw', True)
+
+                # check more frequently untill fixed, and save time for delay afterwards
+                sleep_time = bad_sleep_time
+                bad_timestamp = time.time()
             else:
-                sleep_time = 60
-                self.log.info(log_str + 'AOK')
+                self.log.info('no hardware errors reported - AOK')
                 await self.handle_pause('hw', False)
 
                 # only allow the night marshal to open after a
                 # successful hardware check
                 self.initial_hardware_check_complete = True
+
+                # Revert to 30 checks after a minute of good checks
+                if time.time() - bad_timestamp > 60:
+                    sleep_time = good_sleep_time
+                    bad_timestamp = 0
+                else:
+                    sleep_time = bad_sleep_time
 
             # save error count so we dont restart whilst broken
             self.error_count = error_count
@@ -244,7 +263,8 @@ class Pilot(object):
                 continue
 
             if not self.dome_is_open and not self.dome_confirmed_closed:
-                if self.dome_status == 'closed':
+                dome_status = self.hardware['dome'].get_hardware_status()
+                if dome_status in ['closed', 'in_lockdown']:
                     # phew
                     self.dome_confirmed_closed = True
                     self.log.info('dome confirmed closed')
@@ -288,7 +308,16 @@ class Pilot(object):
         if not restart:
             if not self.startup_complete:
                 await self.startup()
+        self.log.info('startup complete')
         self.startup_complete = True
+
+        # now startup is complete we can start hardware checks
+        while not self.initial_hardware_check_complete:
+            self.log.info('waiting for the first successful hardware check')
+            await asyncio.sleep(30)
+
+        # make sure filters are homed and cams are cool, in case of restart
+        await self.prepare_for_images_async()
 
         # Daytime jobs: do these even in bad weather
         if not restart:
@@ -296,18 +325,12 @@ class Pilot(object):
                                         ignore_conditions=True,
                                         ignore_late=late)
 
-        # make sure filters are homed and cams are cool, in case of restart
-        await self.prepare_for_images_async()
-
         # wait for the right sunalt to open dome
         await self.wait_for_sunalt(0, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hw fault
-        while self.paused or not self.initial_hardware_check_complete:
-            if self.paused:
-                self.log.info('opening suspended until pause is cleared')
-            if not self.initial_hardware_check_complete:
-                self.log.info('opening suspended until successful hardware check')
+        while self.paused:
+            self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
         # OK - open the dome and get ready to observe
@@ -612,7 +635,8 @@ class Pilot(object):
                                    self.current_id, elapsed, self.current_mintime))
                 else:
                     self.log.warning('nothing to observe!')
-                    send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
+                    if not self.testing:
+                        send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
 
             elif self.new_id is not None:
                 if self.current_id is not None:
@@ -886,46 +910,21 @@ class Pilot(object):
         self.shutdown_now = 1
 
     # Hardware commands
-    @property
-    def dome_status(self):
-        """Get the current status of the dome."""
-        try:
-            dome_info = self.hardware['dome'].get_info()
-            if dome_info['dome'] == 'closed':
-                return 'closed'
-            elif (dome_info['north'] == 'full_open' and dome_info['south'] == 'full_open'):
-                return 'full_open'
-            else:
-                return 'part_open'
-        except Exception:
-            return 'err'
-
-    @property
-    def mount_status(self):
-        """Get the current status of the mount."""
-        try:
-            mnt_info = self.hardware['mnt'].get_info()
-            if mnt_info['status'] in ['Parked', 'Stopped']:
-                return 'Parked'
-            elif mnt_info['status'] in ['Slewing', 'Parking']:
-                return 'Moving'
-            elif mnt_info['status'] in ['Tracking']:
-                return 'Tracking'
-            else:
-                return 'err'
-        except Exception:
-            return 'err'
-
     async def open_dome(self):
         """Open the dome and await until it is finished."""
         self.log.warning('opening dome')
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
-        self.hardware['dome'].set_mode('open')
-        while self.dome_status != 'full_open':
-            self.log.info('dome is {}'.format(self.dome_status))
-            await asyncio.sleep(5)
+        self.hardware['dome'].mode = 'open'
+        # wait for dome to open
+        sleep_time = 5
+        while True:
+            dome_status = self.hardware['dome'].get_hardware_status()
+            self.log.info('dome is {}'.format(dome_status))
+            if dome_status == 'full_open':
+                break
+            await asyncio.sleep(sleep_time)
         self.log.info('dome confirmed open')
 
     def close_dome(self):
@@ -933,7 +932,7 @@ class Pilot(object):
         self.log.warning('closing dome')
         execute_command('dome close')
         self.dome_is_open = False
-        self.hardware['dome'].set_mode(None)
+        self.hardware['dome'].mode = 'closed'
         self.dome_confirmed_closed = False
         self.close_command_time = time.time()
 
@@ -949,8 +948,13 @@ class Pilot(object):
         start_time = time.time()
         self.close_dome()
 
-        while self.dome_status != 'closed':
-            self.log.info('dome is {}'.format(self.dome_status))
+        # wait for dome to close
+        sleep_time = 5
+        while True:
+            dome_status = self.hardware['dome'].get_hardware_status()
+            self.log.info('dome is {}'.format(dome_status))
+            if dome_status in ['closed', 'in_lockdown']:
+                break
 
             # panic time
             elapsed_time = time.time() - start_time
@@ -959,7 +963,7 @@ class Pilot(object):
                 send_email(message=msg)
                 send_slack_msg(msg)
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(sleep_time)
 
         self.dome_confirmed_closed = True
         self.log.info('dome confirmed closed')
@@ -969,24 +973,28 @@ class Pilot(object):
         self.log.warning('unparking mount')
         execute_command('mnt unpark')
         self.mount_is_tracking = True
-        self.hardware['mnt'].set_mode('tracking')
-        # slew to above horizon, to stop errors
+        self.hardware['mnt'].mode = 'tracking'
         await asyncio.sleep(5)
-        execute_command('mnt slew_altaz 50 0')
-        while self.mount_status != 'Tracking':
-            self.log.info('mount is {}'.format(self.mount_status))
-            await asyncio.sleep(2)
+        mount_status = self.hardware['mnt'].get_hardware_status()
+        if not mount_status == 'tracking':
+            # slew to above horizon, to stop errors
+            execute_command('mnt slew_altaz 50 0')
+            # wait for mount to slew
+            sleep_time = 5
+            while True:
+                mount_status = self.hardware['mnt'].get_hardware_status()
+                self.log.info('mount is {}'.format(mount_status))
+                if mount_status == 'tracking':
+                    break
+                await asyncio.sleep(sleep_time)
         self.log.info('mount confirmed tracking')
 
     def park_mount(self):
         """Send the mount park command and return immediately."""
         self.log.warning('parking mount')
-        if params.FREEZE_DEC:
-            execute_command('mnt stop')
-        else:
-            execute_command('mnt park')
+        execute_command('mnt park')
         self.mount_is_tracking = False
-        self.hardware['mnt'].set_mode('parked')
+        self.hardware['mnt'].mode = 'parked'
 
     async def prepare_for_images_async(self):
         """Prepare for taking images."""

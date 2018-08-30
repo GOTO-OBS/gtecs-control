@@ -17,7 +17,11 @@ def send_slack_msg(msg):
     """Send a Slack message to the GOTO channel."""
     if params.ENABLE_SLACK:
         bot = SlackBot()
-        bot.send_message(msg)
+        try:
+            bot.send_message(msg)
+        except Exception:
+            print('Connection to Slack failed!')
+            print('SLACK:', msg)
     else:
         print('SLACK:', msg)
 
