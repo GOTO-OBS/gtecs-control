@@ -401,8 +401,9 @@ class DomeMonitor(BaseMonitor):
         if ERROR_DOME_NOTFULLOPEN not in self.errors:
             # Set the error if we should be open and we're not
             # Note we're allowed to be moving, that has its own error above
-            # Also note the overlap with the part open timeout above
+            # Also note that part_open is delt with above
             if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
+                                                                            STATUS_DOME_PARTOPEN,
                                                                             STATUS_DOME_MOVING]:
                 self.errors.add(ERROR_DOME_NOTFULLOPEN)
         else:
@@ -417,7 +418,9 @@ class DomeMonitor(BaseMonitor):
         if ERROR_DOME_NOTCLOSED not in self.errors:
             # Set the error if we should be closed and we're not
             # Note we're allowed to be moving, that has its own error above
+            # Also note that part_open is delt with above
             if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                              STATUS_DOME_PARTOPEN,
                                                                               STATUS_DOME_MOVING,
                                                                               STATUS_DOME_LOCKDOWN]:
                 self.errors.add(ERROR_DOME_NOTCLOSED)
