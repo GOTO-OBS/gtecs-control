@@ -594,7 +594,7 @@ class MntMonitor(BaseMonitor):
         if mount == 'Tracking':
             if not target_dist:
                 hardware_status = STATUS_MNT_TRACKING
-            elif float(target_dist) < 0.003:
+            elif float(target_dist) < 0.01:
                 hardware_status = STATUS_MNT_TRACKING
             else:
                 hardware_status = STATUS_MNT_OFFTARGET
@@ -642,7 +642,7 @@ class MntMonitor(BaseMonitor):
                     self._currently_off_target = True
                     self._off_target_start_time = time.time()
                 else:
-                    if time.time() - self._off_target_start_time > 90:
+                    if time.time() - self._off_target_start_time > 30:
                         self.errors.add(ERROR_MNT_NOTONTARGET)
         else:
             # Clear the error if we're on target (or we don't have a target, like parking)
@@ -786,7 +786,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
             recovery_procedure[1] = ['mnt slew', 60]
             # SOLUTION 2: Maybe we're parked?
