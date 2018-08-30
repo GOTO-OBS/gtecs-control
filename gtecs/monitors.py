@@ -507,7 +507,7 @@ class DomeMonitor(BaseMonitor):
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
             #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['dome halt', 30]
             # SOLUTION 2: Still moving? Okay, kill the dome daemon.
@@ -517,7 +517,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTCLOSED in self.errors:
             # PROBLEM: The dome's not closed when it should be. That's bad.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try closing again.
             recovery_procedure[1] = ['dome close', 90]
             # OUT OF SOLUTIONS: We can't close, panic! Send out the alert.
@@ -530,7 +530,7 @@ class DomeMonitor(BaseMonitor):
             #          This is for when it's been too long like that, such as when the Honeywell
             #          switches fail to catch.
             #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # The recovery procudure depends on if it should be open or closed:
             if self.mode == 'open':
                 # SOLUTION 1: Try to open again.
@@ -551,7 +551,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTFULLOPEN in self.errors:
             # PROBLEM: The dome should be open, but it's closed (part_open is caught above).
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try opening a few times.
             recovery_procedure[1] = ['dome open', 90]
             recovery_procedure[2] = ['dome open', 90]
@@ -746,7 +746,7 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
             #          Maybe it's been powered off.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try turning on the sitech box.
             recovery_procedure[1] = ['power on sitech', 60]
             # SOLUTION 2: Still an error? Try restarting it.
@@ -760,7 +760,7 @@ class MntMonitor(BaseMonitor):
             #          Maybe it's been tracking for too long and reached the limit,
             #          or there's been some voltage problem.
             #          No delay, if it's in blinky mode it's not going to fix itself.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
             # SOLUTION 2: Maybe there's a problem with the mount.
@@ -776,7 +776,7 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.
             #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
             # SOLUTION 2: Still moving? Okay, kill the mnt daemon.
@@ -786,7 +786,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
-            recovery_procedure = {'delay': 60}
+            recovery_procedure = {'delay': 30}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
             recovery_procedure[1] = ['mnt slew', 60]
             # SOLUTION 2: Maybe we're parked?
@@ -799,7 +799,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_STOPPED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking.
-            recovery_procedure = {'delay': 60}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try tracking.
             recovery_procedure[1] = ['mnt track', 30]
             # SOLUTION 2: Try again.
@@ -815,7 +815,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_PARKED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's parked.
-            recovery_procedure = {'delay': 60}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try unparking.
             recovery_procedure[1] = ['mnt unpark', 30]
             # SOLUTION 2: Try again.
@@ -825,7 +825,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
-            recovery_procedure = {'delay': 60}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try parking.
             recovery_procedure[1] = ['mnt park', 120]
             # SOLUTION 2: Try again.
@@ -1002,7 +1002,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try setting the target temperature.
             #             Note we need to wait for a long time, assuming they're at room temp.
             recovery_procedure[1] = ['cam temp {}'.format(params.CCD_TEMP), 600]
@@ -1105,7 +1105,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
-            recovery_procedure = {}
+            recovery_procedure = {'delay': 0}
             # SOLUTION 1: Try homing them.
             recovery_procedure[1] = ['filt home', 60]
             # SOLUTION 2: Still not homed? Try again.
