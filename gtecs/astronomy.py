@@ -167,7 +167,7 @@ def observatory_location():
                          height=params.SITE_ALTITUDE)
 
 
-def altaz_from_radec(ra_deg, dec_deg, now):
+def altaz_from_radec(ra_deg, dec_deg, now=None):
     """Calculate Altitude and Azimuth of coordinates.
 
     Refraction from atmosphere is ignored.
@@ -178,8 +178,9 @@ def altaz_from_radec(ra_deg, dec_deg, now):
         right ascension in degrees
     dec_deg : float or numpy.ndarray
         declination in degrees
-    now : `~astropy.time.Time`
-        time(s) to calculate Altitude and Azimuth
+    now : `~astropy.time.Time`, optional
+        time(s) to calculate at
+        default is `Time.now()`
 
     Returns
     --------
@@ -189,6 +190,8 @@ def altaz_from_radec(ra_deg, dec_deg, now):
         azimuth in degrees
 
     """
+    if now is None:
+        now = Time.now()
     loc = observatory_location()
     radec_coo = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)  # ICRS J2000
     altaz_frame = AltAz(obstime=now, location=loc)
@@ -196,7 +199,7 @@ def altaz_from_radec(ra_deg, dec_deg, now):
     return (altaz_coo.alt.degree, altaz_coo.az.degree)
 
 
-def radec_from_altaz(alt_deg, az_deg, now):
+def radec_from_altaz(alt_deg, az_deg, now=None):
     """Calculate RA and Dec coordinates at a given Altitude and Azimuth.
 
     Refraction from atmosphere is ignored.
@@ -207,8 +210,9 @@ def radec_from_altaz(alt_deg, az_deg, now):
         altitude in degrees
     az_deg : float or numpy.ndarray
         azimuth in degrees
-    now : `~astropy.time.Time`
-        time(s) to calculate Altitude and Azimuth
+    now : `~astropy.time.Time`, optional
+        time(s) to calculate at
+        default is `Time.now()`
 
     Returns
     --------
@@ -218,6 +222,8 @@ def radec_from_altaz(alt_deg, az_deg, now):
         declination in degrees
 
     """
+    if now is None:
+        now = Time.now()
     loc = observatory_location()
     altaz = AltAz(az=az_deg * u.deg, alt=alt_deg * u.deg, obstime=now, location=loc)
     altaz_coo = SkyCoord(altaz)
