@@ -579,12 +579,13 @@ class DomeDaemon(BaseDaemon):
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
 
-        # We want new commands to overwrite the old ones
-        if self.open_flag or self.close_flag:
+        # Check current status
+        if self.open_flag:
+            return 'The dome is already opening'
+        elif self.close_flag:
+            # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
-
-        # Check current status
         north_status = self.info['north']
         south_status = self.info['south']
         if side == 'north' and north_status == 'full_open':
@@ -622,12 +623,13 @@ class DomeDaemon(BaseDaemon):
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
 
-        # We want new commands to overwrite the old ones
-        if self.open_flag or self.close_flag:
+        # Check current status
+        if self.close_flag:
+            return 'The dome is already closing'
+        elif self.open_flag:
+            # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
-
-        # Check current status
         north_status = self.info['north']
         south_status = self.info['south']
         if side == 'north' and north_status == 'closed':
