@@ -12,7 +12,7 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.astronomy import check_alt_limit, find_ha, radec_from_altaz
+from gtecs.astronomy import altaz_from_radec, check_alt_limit, find_ha, radec_from_altaz
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
 
@@ -87,7 +87,15 @@ class MntDaemon(BaseDaemon):
             # slew to given coordinates
             if self.slew_radec_flag:
                 try:
-                    self.log.info('Slewing to ra %.2f, dec%.2f', self.temp_ra, self.temp_dec)
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    new_ra, new_dec = self.temp_ra, self.temp_dec
+                    new_alt, new_az = altaz_from_radec(new_ra * 360 / 24, new_dec)
+                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
+                                                                     new_alt, new_az)
+                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
                     c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
                     if c:
                         self.log.info(c)
@@ -102,7 +110,15 @@ class MntDaemon(BaseDaemon):
             # slew to target
             if self.slew_target_flag:
                 try:
-                    self.log.info('Slewing to target')
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    new_ra, new_dec = self.target_ra, self.target_dec
+                    new_alt, new_az = altaz_from_radec(new_ra * 360 / 24, new_dec)
+                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
+                                                                     new_alt, new_az)
+                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
                     c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
                     if c:
                         self.log.info(c)
@@ -115,7 +131,15 @@ class MntDaemon(BaseDaemon):
             # slew to given alt/az
             if self.slew_altaz_flag:
                 try:
-                    self.log.info('Slewing to alt %.2f, az %.2f', self.temp_alt, self.temp_az)
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    new_alt, new_az = self.temp_alt, self.temp_az
+                    new_ra, new_dec = radec_from_altaz(self.temp_alt, self.temp_az)
+                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
+                                                                     new_alt, new_az)
+                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
                     c = self.sitech.slew_to_altaz(self.temp_alt, self.temp_az)
                     if c:
                         self.log.info(c)
