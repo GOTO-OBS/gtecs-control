@@ -153,7 +153,7 @@ def get_roomalert(source):
 def get_local_weather(source):
     """Get the current weather from the Warwick stations."""
     source = source.lower()
-    sources = ['goto', 'onemetre', 'superwasp']
+    sources = ['goto', 'w1m', 'superwasp']
     if source not in sources:
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
@@ -162,8 +162,8 @@ def get_local_weather(source):
     if source == 'goto':
         json_file = 'goto-vaisala'
         vaisala = True
-    elif source == 'onemetre':
-        json_file = 'onemetre-vaisala'
+    elif source == 'w1m':
+        json_file = 'w1m-vaisala'
         vaisala = True
     elif source == 'superwasp':
         json_file = 'superwasp-log'
@@ -452,7 +452,7 @@ def get_weather():
     weather = {}
 
     # Get the weather from the local stations
-    local_sources = ['goto', 'onemetre', 'superwasp']
+    local_sources = ['goto', 'w1m', 'superwasp']
     for source in local_sources:
         try:
             weather[source] = get_local_weather(source)

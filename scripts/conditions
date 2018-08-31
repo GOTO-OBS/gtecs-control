@@ -101,7 +101,7 @@ def print_info(info):
         # SuperWASP wind readings aren't trustworthy
         weather['superwasp']['windspeed'] = 'NA'
 
-        for source in ['goto', 'onemetre', 'superwasp']:
+        for source in ['goto', 'w1m', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
             windspeed = weather[source]['windspeed']
