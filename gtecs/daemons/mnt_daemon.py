@@ -154,6 +154,7 @@ class MntDaemon(BaseDaemon):
             # start tracking
             if self.start_tracking_flag:
                 try:
+                    self.log.info('Starting tracking')
                     c = self.sitech.track()
                     if c:
                         self.log.info(c)
@@ -166,6 +167,7 @@ class MntDaemon(BaseDaemon):
             # stop all motion (tracking or slewing)
             if self.full_stop_flag:
                 try:
+                    self.log.info('Halting mount')
                     c = self.sitech.halt()
                     if c:
                         self.log.info(c)
@@ -178,6 +180,8 @@ class MntDaemon(BaseDaemon):
             # turn blinky mode on or off
             if self.set_blinky_mode_flag:
                 try:
+                    mode = 'on' if self.set_blinky else 'off'
+                    self.log.info('Turing blinky mode {}'.format(mode))
                     c = self.sitech.set_blinky_mode(self.set_blinky)
                     if c:
                         self.log.info(c)
@@ -191,6 +195,7 @@ class MntDaemon(BaseDaemon):
             # park the mount
             if self.park_flag:
                 try:
+                    self.log.info('Parking mount')
                     c = self.sitech.park()
                     if c:
                         self.log.info(c)
@@ -206,6 +211,7 @@ class MntDaemon(BaseDaemon):
             # unpark the mount
             if self.unpark_flag:
                 try:
+                    self.log.info('Unparking mount')
                     c = self.sitech.unpark()
                     if c:
                         self.log.info(c)
