@@ -85,8 +85,8 @@ def print_info(info):
             else:
                 status = style.rtxt('ERROR')
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
-        print('WEATHER:')
 
+        print('WEATHER:')
         sunalt = info['sunalt']
         if sunalt < 0:
             sunalt_str = style.ytxt('{:>5.1f}'.format(sunalt))
@@ -197,11 +197,12 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}C  {}%                    dt={}'.format(int_temperature_str,
-                                                                     int_humidity_str,
-                                                                     dt_str)
+            weather_str = '{}C  {}%                     dt={}'.format(int_temperature_str,
+                                                                      int_humidity_str,
+                                                                      dt_str)
             print(weather_str)
 
+        print('OTHER:')
         ups_percents = info['ups_percent']
         ups_strings = []
         for ups_percent in ups_percents:
