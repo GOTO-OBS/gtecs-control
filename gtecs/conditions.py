@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import time
+import traceback
 import warnings
 
 from astropy._erfa import ErfaWarning
@@ -80,6 +81,7 @@ def hatch_closed():
         data = json.loads(indata)
     except Exception:
         print('Error fetching hatch data')
+        traceback.print_exc()
         return False
 
     try:
@@ -94,6 +96,7 @@ def hatch_closed():
                 return False
     except Exception:
         print('Error parsing hatch status')
+        traceback.print_exc()
         return False
 
 
@@ -120,6 +123,7 @@ def get_roomalert(source):
         data = json.loads(indata)
     except Exception:
         print('Error fetching RoomAlert data')
+        traceback.print_exc()
         return weather_dict
 
     try:
@@ -146,6 +150,7 @@ def get_roomalert(source):
 
     except Exception:
         print('Error parsing RoomAlert page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -182,11 +187,13 @@ def get_local_weather(source):
             indata = curl_data_from_url(url, outfile)
         except Exception:
             print('Error fetching JSON for {}'.format(source))
+            traceback.print_exc()
 
     try:
         data = json.loads(indata)
     except Exception:
         print('Error reading data for {}'.format(source))
+        traceback.print_exc()
         print(indata)
 
     weather_dict = {'update_time': -999,
@@ -207,12 +214,14 @@ def get_local_weather(source):
             weather_dict['temperature'] = float(data['ext_temperature'])
     except Exception:
         print('Error parsing temperature for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if (vaisala and data['pressure_valid']) or not vaisala:
             weather_dict['pressure'] = float(data['pressure'])
     except Exception:
         print('Error parsing pressure for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if vaisala and data['wind_speed_valid']:
@@ -222,6 +231,7 @@ def get_local_weather(source):
             del weather_dict['windspeed']
     except Exception:
         print('Error parsing wind speed for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if vaisala and data['wind_direction_valid']:
@@ -231,6 +241,7 @@ def get_local_weather(source):
             del weather_dict['winddir']
     except Exception:
         print('Error parsing wind direction for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if vaisala and data['relative_humidity_valid']:
@@ -239,6 +250,7 @@ def get_local_weather(source):
             weather_dict['humidity'] = float(data['ext_humidity'])
     except Exception:
         print('Error parsing humidity for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if vaisala and data['rain_intensity_valid']:
@@ -251,6 +263,7 @@ def get_local_weather(source):
             del weather_dict['rain']
     except Exception:
         print('Error parsing rain for {}'.format(source))
+        traceback.print_exc()
 
     try:
         if vaisala:
@@ -259,6 +272,7 @@ def get_local_weather(source):
             weather_dict['skytemp'] = float(data['sky_temp'])
     except Exception:
         print('Error parsing sky temp for {}'.format(source))
+        traceback.print_exc()
 
     try:
         weather_dict['update_time'] = Time(data['date'], precision=0).iso
@@ -266,6 +280,7 @@ def get_local_weather(source):
         weather_dict['dt'] = int(dt.to('second').value)
     except Exception:
         print('Error parsing update time for {}'.format(source))
+        traceback.print_exc()
 
     return weather_dict
 
@@ -298,36 +313,42 @@ def get_ing_weather():
                     weather_dict['temperature'] = float(columns[1])
                 except Exception:
                     print('Error parsing temperature for ing:', columns[1])
+                    traceback.print_exc()
 
             elif columns[0] == 'Pressure':
                 try:
                     weather_dict['pressure'] = float(columns[1])
                 except Exception:
                     print('Error parsing pressure for ing:', columns[1])
+                    traceback.print_exc()
 
             elif columns[0] == 'Wind' and columns[1] == 'Speed':
                 try:
                     weather_dict['windspeed'] = float(columns[2])
                 except Exception:
                     print('Error parsing wind speed for ing:', columns[2])
+                    traceback.print_exc()
 
             elif columns[0] == 'Wind' and columns[1] == 'Direction':
                 try:
                     weather_dict['winddir'] = str(columns[2])
                 except Exception:
                     print('Error parsing wind direction for ing:', columns[2])
+                    traceback.print_exc()
 
             elif columns[0] == 'Wind' and columns[1] == 'Gust':
                 try:
                     weather_dict['windgust'] = float(columns[2])
                 except Exception:
                     print('Error parsing wind gust for ing:', columns[2])
+                    traceback.print_exc()
 
             elif columns[0] == 'Humidity':
                 try:
                     weather_dict['humidity'] = float(columns[1])
                 except Exception:
                     print('Error parsing humidity for ing:', columns[1])
+                    traceback.print_exc()
 
             elif columns[0] == 'Rain':
                 try:
@@ -337,6 +358,7 @@ def get_ing_weather():
                         weather_dict['rain'] = True
                 except Exception:
                     print('Error parsing rain for ing:', columns[1])
+                    traceback.print_exc()
 
             elif len(columns) == 4 and columns[3] == 'UT':
                 try:
@@ -348,9 +370,11 @@ def get_ing_weather():
                     weather_dict['dt'] = int(dt.to('second').value)
                 except Exception:
                     print('Error parsing update time for ing:', *columns)
+                    traceback.print_exc()
 
     except Exception:
         print('Error parsing ing weather page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -395,42 +419,49 @@ def get_ing_internal_weather(weather_source):
                     weather_dict['dt'] = int(dt.to('second').value)
                 except Exception:
                     print('Error parsing update time:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastAirTemp' or label == 'MainMastAirTemp':
                 try:
                     weather_dict['temperature'] = float(value)
                 except Exception:
                     print('Error parsing temperature:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastPressure' or label == 'MainMastPressure':
                 try:
                     weather_dict['pressure'] = float(value)
                 except Exception:
                     print('Error parsing pressure:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastWindSpeed' or label == 'MainMastWindSpeed':
                 try:
                     weather_dict['windspeed'] = float(value)
                 except Exception:
                     print('Error parsing wind speed:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastWindDirection' or label == 'MainMastWindDirection':
                 try:
                     weather_dict['winddir'] = str(value)
                 except Exception:
                     print('Error parsing wind direction:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastGust' or label == 'MainMastGust':
                 try:
                     weather_dict['windgust'] = float(value)
                 except Exception:
                     print('Error parsing wind gust:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastHumidity' or label == 'MainMastHumidity':
                 try:
                     weather_dict['humidity'] = float(value)
                 except Exception:
                     print('Error parsing humidity:', value)
+                    traceback.print_exc()
 
             elif label == 'LocalMastWetness' or label == 'MainMastWetness':
                 try:
@@ -440,9 +471,11 @@ def get_ing_internal_weather(weather_source):
                         weather_dict['rain'] = True
                 except Exception:
                     print('Error parsing rain:', value)
+                    traceback.print_exc()
 
     except Exception:
         print('Error parsing weather page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -458,6 +491,7 @@ def get_weather():
             weather[source] = get_local_weather(source)
         except Exception:
             print('Error getting weather from "{}"'.format(source))
+            traceback.print_exc()
 
     # Get the weather fron the ING webpage as a backup
     if params.USE_ING_WEATHER:
@@ -465,6 +499,7 @@ def get_weather():
             weather['ing'] = get_ing_weather()
         except Exception:
             print('Error getting weather from "ing"')
+            traceback.print_exc()
 
     # Get the internal conditions from the RoomAlert
     internal_sources = ['pier']
