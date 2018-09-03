@@ -219,6 +219,7 @@ class ConditionsDaemon(BaseDaemon):
         valid = {flag: False for flag in self.flag_names}
         good_delay = {flag: 0 for flag in self.flag_names}
         bad_delay = {flag: 0 for flag in self.flag_names}
+        error_delay = 30
 
         # rain flag
         good['rain'] = np.all(rain == 0)
@@ -304,9 +305,14 @@ class ConditionsDaemon(BaseDaemon):
         for flag in self.flag_names:
             # check if invalid
             if not valid[flag] and self.flags[flag] != 2:
-                self.log.info('Setting {} to ERROR (2)'.format(flag))
-                self.flags[flag] = 2
-                self.update_time[flag] = update_time
+                dt = update_time - self.update_time[flag]
+                if dt > error_delay:
+                    self.log.info('Setting {} to ERROR (2)'.format(flag))
+                    self.flags[flag] = 2
+                    self.update_time[flag] = update_time
+                else:
+                    frac = '{:.0f}/{:.0f}'.format(dt, error_delay)
+                    self.log.info('{} is ERROR but delay is {}'.format(flag, frac))
                 continue
 
             # check if good

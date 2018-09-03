@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import time
+import traceback
 import warnings
 
 from astropy._erfa import ErfaWarning
@@ -146,6 +147,7 @@ def get_roomalert(source):
 
     except Exception:
         print('Error parsing RoomAlert page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -187,6 +189,7 @@ def get_local_weather(source):
         data = json.loads(indata)
     except Exception:
         print('Error reading data for {}'.format(source))
+        traceback.print_exc()
         print(indata)
 
     weather_dict = {'update_time': -999,
@@ -351,6 +354,7 @@ def get_ing_weather():
 
     except Exception:
         print('Error parsing ing weather page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -443,6 +447,7 @@ def get_ing_internal_weather(weather_source):
 
     except Exception:
         print('Error parsing weather page')
+        traceback.print_exc()
 
     return weather_dict
 
@@ -458,6 +463,7 @@ def get_weather():
             weather[source] = get_local_weather(source)
         except Exception:
             print('Error getting weather from "{}"'.format(source))
+            traceback.print_exc()
 
     # Get the weather fron the ING webpage as a backup
     if params.USE_ING_WEATHER:
@@ -465,11 +471,16 @@ def get_weather():
             weather['ing'] = get_ing_weather()
         except Exception:
             print('Error getting weather from "ing"')
+            traceback.print_exc()
 
     # Get the internal conditions from the RoomAlert
     internal_sources = ['pier']
     for source in internal_sources:
-        weather[source] = get_roomalert(source)
+        try:
+            weather[source] = get_roomalert(source)
+        except Exception:
+            print('Error getting weather from "{}"'.format(source))
+            traceback.print_exc()
 
     return weather
 
