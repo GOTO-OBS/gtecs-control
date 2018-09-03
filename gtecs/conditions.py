@@ -121,7 +121,6 @@ def get_roomalert(source):
         data = json.loads(indata)
     except Exception:
         print('Error fetching RoomAlert data')
-        traceback.print_exc()
         return weather_dict
 
     try:
@@ -185,7 +184,6 @@ def get_local_weather(source):
             indata = curl_data_from_url(url, outfile)
         except Exception:
             print('Error fetching JSON for {}'.format(source))
-            traceback.print_exc()
 
     try:
         data = json.loads(indata)
@@ -478,7 +476,11 @@ def get_weather():
     # Get the internal conditions from the RoomAlert
     internal_sources = ['pier']
     for source in internal_sources:
-        weather[source] = get_roomalert(source)
+        try:
+            weather[source] = get_roomalert(source)
+        except Exception:
+            print('Error getting weather from "{}"'.format(source))
+            traceback.print_exc()
 
     return weather
 
