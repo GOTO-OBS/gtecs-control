@@ -68,6 +68,7 @@ def run(pointing_id):
         # clear & pause queue to make sure
         execute_command('exq clear')
         execute_command('exq pause')
+        execute_command('cam abort')
 
         # start slew
         print('Moving to target')
