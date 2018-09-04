@@ -226,7 +226,7 @@ class ExqDaemon(BaseDaemon):
             self.log.error('No response from camera daemon')
             self.log.debug('', exc_info=True)
 
-        time.sleep(2)
+        time.sleep(3)
 
         with daemon_proxy('cam') as cam_daemon:
             cam_exposing = cam_daemon.is_exposing()
