@@ -154,7 +154,11 @@ class MntDaemon(BaseDaemon):
             # start tracking
             if self.start_tracking_flag:
                 try:
-                    self.log.info('Starting tracking')
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Starting tracking [pos {}]'.format(now_str))
                     c = self.sitech.track()
                     if c:
                         self.log.info(c)
@@ -167,7 +171,11 @@ class MntDaemon(BaseDaemon):
             # stop all motion (tracking or slewing)
             if self.full_stop_flag:
                 try:
-                    self.log.info('Halting mount')
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Halting mount [pos {}]'.format(now_str))
                     c = self.sitech.halt()
                     if c:
                         self.log.info(c)
@@ -180,8 +188,12 @@ class MntDaemon(BaseDaemon):
             # turn blinky mode on or off
             if self.set_blinky_mode_flag:
                 try:
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
                     mode = 'on' if self.set_blinky else 'off'
-                    self.log.info('Turing blinky mode {}'.format(mode))
+                    self.log.info('Turing blinky mode {} [pos {}]'.format(mode, now_str))
                     c = self.sitech.set_blinky_mode(self.set_blinky)
                     if c:
                         self.log.info(c)
@@ -195,7 +207,11 @@ class MntDaemon(BaseDaemon):
             # park the mount
             if self.park_flag:
                 try:
-                    self.log.info('Parking mount')
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Parking mount [pos {}]'.format(now_str))
                     c = self.sitech.park()
                     if c:
                         self.log.info(c)
@@ -211,7 +227,11 @@ class MntDaemon(BaseDaemon):
             # unpark the mount
             if self.unpark_flag:
                 try:
-                    self.log.info('Unparking mount')
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Unparking mount [pos {}]'.format(now_str))
                     c = self.sitech.unpark()
                     if c:
                         self.log.info(c)
@@ -328,6 +348,7 @@ class MntDaemon(BaseDaemon):
         self.temp_dec = dec
 
         # Set flag
+        self.force_check_flag = True
         self.slew_radec_flag = 1
 
         return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
@@ -349,6 +370,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set flag
+        self.force_check_flag = True
         self.slew_target_flag = 1
 
         return 'Slewing to target ({:.2f} deg)'.format(self._get_target_distance())
@@ -379,6 +401,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
 
         # Set flag
+        self.force_check_flag = True
         self.slew_altaz_flag = 1
 
         return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
@@ -398,6 +421,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is currently below horizon, cannot track')
 
         # Set flag
+        self.force_check_flag = True
         self.start_tracking_flag = 1
 
         return 'Started tracking'
@@ -411,6 +435,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
 
         # Set flag
+        self.force_check_flag = True
         self.full_stop_flag = 1
 
         return 'Stopping mount'
@@ -427,6 +452,7 @@ class MntDaemon(BaseDaemon):
         self.set_blinky = activate
 
         # Set flag
+        self.force_check_flag = True
         self.set_blinky_mode_flag = 1
 
         if activate:
@@ -446,6 +472,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
         # Set flag
+        self.force_check_flag = True
         self.park_flag = 1
 
         return 'Parking mount'
@@ -462,6 +489,7 @@ class MntDaemon(BaseDaemon):
         time.sleep(0.2)
 
         # Set flag
+        self.force_check_flag = True
         self.unpark_flag = 1
 
         return 'Unparking mount'
@@ -571,6 +599,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
 
         # Set flag
+        self.force_check_flag = True
         self.slew_target_flag = 1
 
         return 'Slewing to offset coordinates'
