@@ -47,6 +47,7 @@ if __name__ == "__main__":
                 'exq': monitors.ExqMonitor(),
                 'conditions': monitors.ConditionsMonitor(),
                 'scheduler': monitors.SchedulerMonitor(),
+                'sentinel': monitors.SentinelMonitor(),
                 }
 
     # Set modes
