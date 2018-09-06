@@ -354,7 +354,7 @@ class ConditionsDaemon(BaseDaemon):
         logline = ''
         for key in sorted(self.flags):
             logline += '{}: {} '.format(key, self.flags[key])
-        self.log.info(logline)
+        self.log.debug(logline)
 
 
 if __name__ == "__main__":
