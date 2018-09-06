@@ -18,6 +18,8 @@ from lxml.etree import XMLSyntaxError
 
 from six.moves.urllib.parse import quote_plus
 
+import voeventparse as vp
+
 
 class SentinelDaemon(BaseDaemon):
     """Sentinel alerts daemon class."""
@@ -76,7 +78,8 @@ class SentinelDaemon(BaseDaemon):
             Based on PyGCN's default archive handler:
             https://github.com/lpsinger/pygcn/blob/master/gcn/handlers.py
             """
-            ivorn = root.attrib['ivorn']
+            v = vp.loads(payload)
+            ivorn = v.attrib['ivorn']
             filename = quote_plus(ivorn)
             alert_direc = params.CONFIG_PATH + 'voevents/'
             if not os.path.exists(alert_direc):
@@ -85,7 +88,11 @@ class SentinelDaemon(BaseDaemon):
             with open(alert_direc + filename, 'wb') as f:
                 f.write(payload)
 
-            self.log.info('archived %s', ivorn)
+            role = v.attrib['role']
+            ra = vp.get_event_position(v).ra
+            dec = vp.get_event_position(v).dec
+            self.log.info('ivorn={}, role={}, ra={}, dec={}'.format(ivorn, role, ra, dec))
+            self.log.info('Archived to {}'.format(alert_direc))
 
         # This first while loop means the socket will be recreated if it closes.
         while self.running:
