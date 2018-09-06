@@ -176,8 +176,8 @@ class SiTech(object):
         self._hours = float(reply[9])
 
         # need to "uncook" the SiTech coordinates into J2000
-        ra_j2000, dec_j2000 = uncook(ra_temp * 180 / 24, dec_temp, self._jd)
-        self._ra = ra_j2000
+        ra_j2000, dec_j2000 = uncook(ra_temp * 360 / 24, dec_temp, self._jd)
+        self._ra = ra_j2000 * 24 / 360
         self._dec = dec_j2000
 
         # find the message and return it
