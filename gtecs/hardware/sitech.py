@@ -330,7 +330,7 @@ class SiTech(object):
         self.target_radec = (ra, dec)
 
         # first need to "cook" the coordinates into SiTech's JNow
-        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, self._jd)
+        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, Time.now().jd)
         ra_jnow *= 24 / 180
 
         command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
@@ -351,7 +351,7 @@ class SiTech(object):
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
         # first need to "cook" the coordinates into SiTech's JNow
-        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, self._jd)
+        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, Time.now().jd)
         ra_jnow *= 24 / 180
 
         command = self.commands['SYNC_RADEC'].format(float(ra_jnow), float(dec_jnow))
