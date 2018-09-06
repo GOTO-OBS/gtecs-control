@@ -332,8 +332,8 @@ class SiTech(object):
         self.target_radec = (ra, dec)
 
         # first need to "cook" the coordinates into SiTech's JNow
-        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, Time.now().jd)
-        ra_jnow *= 24 / 180
+        ra_jnow, dec_jnow = cook(ra * 360 / 24, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
         self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
