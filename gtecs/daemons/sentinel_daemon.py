@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Daemon to listen for alerts and insert them into the database."""
 
-import os
 import socket
 import threading
 import time
@@ -13,12 +12,9 @@ import gcn.voeventclient as pygcn
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
+from gtecs.voevents import Handler
 
 from lxml.etree import XMLSyntaxError
-
-from six.moves.urllib.parse import quote_plus
-
-import voeventparse as vp
 
 
 class SentinelDaemon(BaseDaemon):
@@ -71,31 +67,11 @@ class SentinelDaemon(BaseDaemon):
         """
         self.log.info('Alert Listener thread started')
 
-        # Define a very basic handler
-        def archive_handler(payload, root):
-            """Payload handler that archives VOEvent messages as files in the config directory.
-
-            Based on PyGCN's default archive handler:
-            https://github.com/lpsinger/pygcn/blob/master/gcn/handlers.py
-            """
-            v = vp.loads(payload)
-            ivorn = v.attrib['ivorn']
-            filename = quote_plus(ivorn)
-            alert_direc = params.CONFIG_PATH + 'voevents/'
-            if not os.path.exists(alert_direc):
-                os.mkdir(alert_direc)
-
-            with open(alert_direc + filename, 'wb') as f:
-                f.write(payload)
-
-            role = v.attrib['role']
-            ra = vp.get_event_position(v).ra
-            dec = vp.get_event_position(v).dec
-            self.log.info('ivorn={}, role={}, ra={}, dec={}'.format(ivorn, role, ra, dec))
-            self.log.info('Archived to {}'.format(alert_direc))
-
         # This first while loop means the socket will be recreated if it closes.
         while self.running:
+            # Generate a handler function using the logger
+            handler = Handler(self.log).get_handler()
+
             # Create the socket
             vo_socket = pygcn._open_socket(params.VOSERVER_HOST, params.VOSERVER_PORT,
                                            log=self.log,
@@ -104,7 +80,7 @@ class SentinelDaemon(BaseDaemon):
 
             try:
                 while True:
-                    pygcn._ingest_packet(vo_socket, params.LOCAL_IVO, archive_handler, self.log)
+                    pygcn._ingest_packet(vo_socket, params.LOCAL_IVO, handler, self.log)
             except socket.timeout:
                 self.log.warning('socket timed out')
             except socket.error:
