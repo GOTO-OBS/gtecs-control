@@ -181,6 +181,8 @@ class SiTech(object):
         ra_j2000, dec_j2000 = uncook(ra_temp * 360 / 24, dec_temp, self._jd)
         self._ra = ra_j2000 * 24 / 360
         self._dec = dec_j2000
+        self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra_temp, dec_temp,
+                                                                        self._ra, self._dec))
 
         # find the message and return it
         message = reply[10][1:-1]  # strip leading '_' and trailing '\n'
@@ -332,6 +334,7 @@ class SiTech(object):
         # first need to "cook" the coordinates into SiTech's JNow
         ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, Time.now().jd)
         ra_jnow *= 24 / 180
+        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
@@ -353,6 +356,7 @@ class SiTech(object):
         # first need to "cook" the coordinates into SiTech's JNow
         ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, Time.now().jd)
         ra_jnow *= 24 / 180
+        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SYNC_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
