@@ -74,9 +74,11 @@ class SiTech(object):
         self.port = port
         self.buffer_size = 1024
         self.commands = {'GET_STATUS': 'ReadScopeStatus\n',
-                         'SLEW_RADEC': 'GoTo {:.5f} {:.5f} J2K\n',
+                         'SLEW_RADEC': 'GoTo {:.5f} {:.5f}\n',
+                         'SLEW_RADEC_J2K': 'GoTo {:.5f} {:.5f} J2K\n',
                          'SLEW_ALTAZ': 'GoToAltAz {:.5f} {:.5f}\n',
-                         'SYNC_RADEC': 'Sync {:.5f} {:.5f} J2K\n',
+                         'SYNC_RADEC': 'Sync {:.5f} {:.5f}\n',
+                         'SYNC_RADEC_J2K': 'Sync {:.5f} {:.5f} J2K\n',
                          'SYNC_ALTAZ': 'SyncToAltAz {:.5f} {:.5f}\n',
                          'PARK': 'Park\n',
                          'UNPARK': 'UnPark\n',
@@ -327,7 +329,11 @@ class SiTech(object):
         """Slew to given RA and Dec coordinates (in J2000)."""
         self.target_radec = (ra, dec)
 
-        command = self.commands['SLEW_RADEC'].format(float(ra), float(dec))
+        # first need to "cook" the coordinates into SiTech's JNow
+        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, self._jd)
+        ra_jnow *= 24 / 180
+
+        command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -344,7 +350,11 @@ class SiTech(object):
 
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
-        command = self.commands['SYNC_RADEC'].format(float(ra), float(dec))
+        # first need to "cook" the coordinates into SiTech's JNow
+        ra_jnow, dec_jnow = cook(ra * 180 / 24, dec, self._jd)
+        ra_jnow *= 24 / 180
+
+        command = self.commands['SYNC_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
