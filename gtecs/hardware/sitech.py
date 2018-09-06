@@ -4,7 +4,66 @@ import socket
 import threading
 import time
 
+from astropy import units as u
+from astropy._erfa import eo06a
+from astropy.coordinates import CIRS, FK5, SkyCoord
+from astropy.coordinates.builtin_frames.utils import get_jd12
+from astropy.time import Time
+
 from .. import params
+
+
+def cook(ra, dec, jd):
+    """Find the apparent place for a star at J2000, FK5 coordinates.
+
+    This is equivalent to the 'JNow' coordinates used by the scitech mount.
+
+    Arguments
+    -----------
+    ra, dec: float
+        J2000, FK5 coordinates of star in decimal degrees
+    jd: float
+        Julian date to calculate apparent place
+
+    Returns
+    --------
+    ra, dec: float
+         Apparent RA and Dec of star.
+
+    """
+    j2000 = SkyCoord(ra, dec, unit=u.deg, frame='fk5')
+    now = Time(jd, format='jd')
+    cirs = j2000.transform_to(CIRS(obstime=now))
+    # find the equation of the origins to transform CIRS to apparent place
+    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
+    return (cirs.ra - eo).deg, cirs.dec.deg
+
+
+def uncook(ra, dec, jd):
+    """Find the J2000, FK5 coordinates of a star given the apparent place.
+
+    Apparent place is the same as the 'JNow' coordinates used by the scitech mount.
+
+    Arguments
+    -----------
+    ra, dec: float
+        Apparent RA and Dec of star in decimal degrees
+    jd: float
+        Julian date of apparent place
+
+    Returns
+    --------
+    ra, dec: float
+         J2000, FK5 RA and Dec of star.
+
+    """
+    now = Time(jd, format='jd')
+    # find the equation of the origins to transform apparent place  to CIRS
+    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
+    cirs = SkyCoord(ra + eo.to(u.deg).value, dec, unit=u.deg,
+                    frame=CIRS(obstime=now))
+    j2000 = cirs.transform_to(FK5())
+    return j2000.ra.deg, j2000.dec.deg
 
 
 class SiTech(object):
@@ -107,8 +166,7 @@ class SiTech(object):
         ra_temp = float(reply[1])
         if ra_temp >= 24:  # fix for RA
             ra_temp -= 24
-        self._ra_jnow = ra_temp
-        self._dec_jnow = float(reply[2])
+        dec_temp = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
         self._secondary_angle = float(reply[5])
@@ -116,6 +174,11 @@ class SiTech(object):
         self._sidereal_time = float(reply[7])
         self._jd = float(reply[8])
         self._hours = float(reply[9])
+
+        # need to "uncook" the SiTech coordinates into J2000
+        ra_j2000, dec_j2000 = uncook(ra_temp * 180 / 24, dec_temp, self._jd)
+        self._ra = ra_j2000
+        self._dec = dec_j2000
 
         # find the message and return it
         message = reply[10][1:-1]  # strip leading '_' and trailing '\n'
@@ -131,20 +194,6 @@ class SiTech(object):
             command = self.commands['GET_STATUS']
             reply_string = self._tcp_command(command)
             self._parse_reply_string(reply_string)  # no message
-
-    def _get_j2000(self):
-        """Find the current RA and Dec values and convert them to J2000."""
-        self._update_status()
-        command = self.commands['JNOW_TO_J2K'].format(self._ra_jnow, self._dec_jnow)
-        reply_string = self._tcp_command(command)
-        message = self._parse_reply_string(reply_string)
-        try:
-            assert len(message.split(' ')) == 2
-            ra_j2000 = float(message.split(' ')[0])
-            dec_j2000 = float(message.split(' ')[1])
-            return (ra_j2000, dec_j2000)
-        except Exception:
-            raise ValueError('Bad return from coordinates: {}'.format(message))
 
     @property
     def status(self):
@@ -223,14 +272,14 @@ class SiTech(object):
     @property
     def ra(self):
         """Return the current RA (J2000)."""
-        ra_j2000, _ = self._get_j2000()
-        return ra_j2000
+        self._update_status()
+        return self._ra
 
     @property
     def dec(self):
         """Return the current Dec (J2000)."""
-        _, dec_j2000 = self._get_j2000()
-        return dec_j2000
+        self._update_status()
+        return self._dec
 
     @property
     def alt(self):
