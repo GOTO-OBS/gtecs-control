@@ -67,41 +67,63 @@ class SentinelDaemon(BaseDaemon):
         """
         self.log.info('Alert Listener thread started')
 
+        # Generate a handler function using the logger
+        handler = Handler(self.log).get_handler()
+
         # This first while loop means the socket will be recreated if it closes.
         while self.running:
-            # Generate a handler function using the logger
-            handler = Handler(self.log).get_handler()
-
             # Create the socket
             vo_socket = pygcn._open_socket(params.VOSERVER_HOST, params.VOSERVER_PORT,
                                            log=self.log,
-                                           iamalive_timeout=180,
-                                           max_reconnect_timeout=120)
+                                           iamalive_timeout=90,
+                                           max_reconnect_timeout=32)
 
-            try:
-                while True:
-                    pygcn._ingest_packet(vo_socket, params.LOCAL_IVO, handler, self.log)
-            except socket.timeout:
-                self.log.warning('socket timed out')
-            except socket.error:
-                self.log.error('socket error')
-                self.log.debug('', exc_info=True)
-            except XMLSyntaxError:
-                self.log.error('XML syntax error')
-                self.log.debug('', exc_info=True)
-            finally:
+            # Create a simple listen function
+            def _listen(vo_socket, handler):
                 try:
-                    vo_socket.shutdown(socket.SHUT_RDWR)
+                    while True:
+                        pygcn._ingest_packet(vo_socket, params.LOCAL_IVO, handler, self.log)
+                except socket.timeout:
+                    self.log.warning('socket timed out')
                 except socket.error:
-                    self.log.error('could not shut down socket')
-                try:
-                    vo_socket.close()
-                except socket.error:
-                    self.log.error('could not close socket')
+                    self.log.warning('socket error')
+                except XMLSyntaxError:
+                    self.log.error('XML syntax error')
+                    self.log.debug('', exc_info=True)
+                except Exception as err:
+                    self.log.error('Error in alert listener')
+                    self.log.debug('', exc_info=True)
+
+            # launch the listener within a new thread
+            listner = threading.Thread(target=_listen, args=(vo_socket, handler))
+            listner.daemon = True
+            listner.start()
+
+            # This second loop will monitor the thread
+            while self.running:
+                if listner.is_alive():
+                    time.sleep(1)
                 else:
-                    self.log.info('closed socket')
+                    print('Alert listener failed')
+                    break
+
+            # Either the listener failed or we're no longer running
+            # Close the socket nicely
+            try:
+                vo_socket.shutdown(socket.SHUT_RDWR)
+            except socket.error:
+                self.log.error('Could not shut down socket')
+                self.log.debug('', exc_info=True)
+            try:
+                vo_socket.close()
+            except socket.error:
+                self.log.error('Could not close socket')
+                self.log.debug('', exc_info=True)
+            else:
+                self.log.info('closed socket connection')
 
         self.log.info('Alert Listener thread stopped')
+        return
 
     # Internal functions
     def _get_info(self):
