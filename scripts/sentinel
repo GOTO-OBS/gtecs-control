@@ -62,6 +62,15 @@ def query(command, args, daemon_id):
         # send command
         misc.execute_long_command(tail_command)
 
+    # Daemon functions
+    elif command == 'pause':
+        reply = daemons.daemon_function(daemon_id, 'pause_listener')
+        print(reply)
+
+    elif command in ['resume', 'unpause']:
+        reply = daemons.daemon_function(daemon_id, 'resume_listener')
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -83,7 +92,9 @@ def print_instructions():
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
-          'Scheduler commands:',
+          'Sentinel commands:',
+          '  pause                          pause the alert listener',
+          '  unpause/resume                 resumes the alert listener',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
