@@ -88,7 +88,9 @@ class SentinelDaemon(BaseDaemon):
                     except socket.timeout:
                         self.log.warning('socket timed out')
                     except socket.error:
-                        self.log.warning('socket error')
+                        if self.running and self.listening:
+                            # It's only a problem if we're not the one shutting the socket
+                            self.log.warning('socket error')
                     except XMLSyntaxError:
                         self.log.error('XML syntax error')
                         self.log.debug('', exc_info=True)
