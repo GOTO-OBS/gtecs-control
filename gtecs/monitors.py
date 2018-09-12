@@ -642,7 +642,7 @@ class MntMonitor(BaseMonitor):
                     self._currently_off_target = True
                     self._off_target_start_time = time.time()
                 else:
-                    if time.time() - self._off_target_start_time > 30:
+                    if time.time() - self._off_target_start_time > 90:
                         self.errors.add(ERROR_MNT_NOTONTARGET)
         else:
             # Clear the error if we're on target (or we don't have a target, like parking)
