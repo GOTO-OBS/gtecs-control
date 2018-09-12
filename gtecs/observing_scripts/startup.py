@@ -41,7 +41,7 @@ def run():
     execute_command('fli shutdown')
     time.sleep(4)
     execute_command('fli start')
-    time.sleep(1)
+    time.sleep(4)
 
     # Make sure all the other daemons are running
     for daemon in list(params.DAEMONS):
@@ -49,7 +49,7 @@ def run():
         if daemon not in params.FLI_INTERFACES:
             execute_command('{} start'.format(daemon))
 
-    time.sleep(10)
+    time.sleep(4)
 
     # Don't unpark the mount or set a target, we want to stay parked while opening
     # execute_command('mnt unpark')
