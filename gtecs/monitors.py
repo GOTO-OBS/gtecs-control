@@ -929,7 +929,7 @@ class CamMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all([info[tel]['ccd_temp'] < params.CCD_TEMP + 0.1 for tel in params.TEL_DICT])
+        all_cool = all([info[tel]['ccd_temp'] < params.CCD_TEMP + 1 for tel in params.TEL_DICT])
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
         else:
