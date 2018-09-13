@@ -613,7 +613,7 @@ class Pilot(object):
             now = Time.now()
             midnight = local_midnight(night_startdate())
             sunalt_now = get_sunalt(now)
-            if sunalt_now > last_obs_sunalt:
+            if now > midnight and sunalt_now > last_obs_sunalt:
                 self.observing = False
             if now > midnight and sunalt_now > until_sunalt:
                 break
