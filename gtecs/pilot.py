@@ -349,12 +349,10 @@ class Pilot(object):
         await self.wait_for_sunalt(-15, 'OBS')
 
         # Start observing: will automatically stop at the target sun alt
-        self.observing = True
         if self.testing:
             await self.observe(until_sunalt=90)
         else:
-            await self.observe(until_sunalt=-15)
-        self.observing = False
+            await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
 
         # Morning jobs
         await self.run_through_jobs(self.morning_jobs, rising=True,
@@ -583,16 +581,19 @@ class Pilot(object):
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
-    async def observe(self, until_sunalt=-15):
+    async def observe(self, until_sunalt=-14.6, last_obs_sunalt=-15):
         """Observe until further notice.
 
         Parameters
         ----------
         until_sunalt : float
             sun altitude at which to stop observing
+        last_obs_sunalt : float
+            sun altitude at which to schedule last new observation
 
         """
         self.log.info('observing')
+        self.observing = True
 
         sleep_time = 5
         while True:
@@ -611,8 +612,13 @@ class Pilot(object):
             now = Time.now()
             midnight = local_midnight(night_startdate())
             sunalt_now = get_sunalt(now)
-            if now > midnight and sunalt_now > until_sunalt:
-                break
+            if now > midnight:
+                if sunalt_now > last_obs_sunalt and self.observing:
+                    self.log.info('stopping scheduler checks, current observation will continue')
+                    self.observing = False
+                if sunalt_now > until_sunalt:
+                    # end observing
+                    break
 
             # See if a new target has arrived and mark job appropriately
             # There are 6 options (technically 5, bottom left & bottom right
@@ -708,6 +714,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
         self.log.info('observing completed!')
+        self.observing = False
 
         # finish observing
         execute_command('exq clear')
