@@ -353,7 +353,7 @@ class Pilot(object):
         if self.testing:
             await self.observe(until_sunalt=90)
         else:
-            await self.observe(until_sunalt=-15)
+            await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
         self.observing = False
 
         # Morning jobs
@@ -583,13 +583,15 @@ class Pilot(object):
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
-    async def observe(self, until_sunalt=-15):
+    async def observe(self, until_sunalt=-14.6, last_obs_sunalt=-15):
         """Observe until further notice.
 
         Parameters
         ----------
         until_sunalt : float
             sun altitude at which to stop observing
+        last_obs_sunalt : float
+            sun altitude at which to schedule last new observation
 
         """
         self.log.info('observing')
@@ -611,6 +613,8 @@ class Pilot(object):
             now = Time.now()
             midnight = local_midnight(night_startdate())
             sunalt_now = get_sunalt(now)
+            if sunalt_now > last_obs_sunalt:
+                self.observing = False
             if now > midnight and sunalt_now > until_sunalt:
                 break
 
