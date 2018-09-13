@@ -324,7 +324,7 @@ def sunalt_time(date, sunalt, eve=True):
         start = Time(date + " 12:00:00")
         return observer.sun_set_time(start, which='next', horizon=sunalt)
     else:
-        start = Time(date + " 12:00:00") + u.day
+        start = Time(date + " 12:00:00") + 1 * u.day
         return observer.sun_rise_time(start, which='previous', horizon=sunalt)
 
 
