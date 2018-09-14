@@ -180,11 +180,6 @@ class Pilot(object):
                 num_errs, errors = monitor.check()
                 error_count += num_errs
                 if num_errs > 0:
-                    msg = '{} ({}) '.format(monitor.__class__.__name__, monitor.hardware_status)
-                    msg += 'reports {} error{}: {}'.format(num_errs, 's' if num_errs > 1 else '',
-                                                           ', '.join(errors))
-                    self.log.warning(msg)
-                    send_slack_msg(msg)
                     try:
                         monitor.recover()  # Will log recovery commands
                     except RecoveryError as err:

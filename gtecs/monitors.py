@@ -288,8 +288,18 @@ class BaseMonitor(ABC):
         if not found_error:
             self._check_hardware()
 
-        # If there are no errors record the time
-        if len(self.errors) < 1:
+        if len(self.errors) > 0:
+            # If there are errors log them
+            msg = '{} ({}) '.format(self.__class__.__name__, self.hardware_status)
+            msg += 'reports {} error{}: {}'.format(len(self.errors),
+                                                   's' if len(self.errors) > 1 else '',
+                                                   ', '.join(self.errors))
+            if self.log:
+                self.log.warning(msg)
+            else:
+                print(msg)
+        else:
+            # If there are no errors record the time
             self.last_successful_check = time.time()
             self.recovery_start_time = 0
             self.recovery_level = 0

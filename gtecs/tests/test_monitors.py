@@ -21,11 +21,6 @@ def check_hardware(hardware):
             print('  {: >20}: {}'.format(monitor.__class__.__name__, monitor.hardware_status))
             error_count += num_errs
             if num_errs > 0:
-                msg = '{} reports {} error{}: '.format(monitor.__class__.__name__,
-                                                       num_errs,
-                                                       's' if num_errs > 1 else '')
-                msg += ', '.join(errors)
-                print(log_str + msg)
                 monitor.recover()  # Will log recovery commands
 
         if error_count > 0:
