@@ -98,7 +98,7 @@ class BaseMonitor(ABC):
 
         self.active_error = None
         self.recovery_level = 0
-        self.error_start_time = 0
+        self.recovery_start_time = 0
         self.last_successful_check = 0.
         self.last_recovery_command = 0.
 
@@ -291,7 +291,7 @@ class BaseMonitor(ABC):
         # If there are no errors record the time
         if len(self.errors) < 1:
             self.last_successful_check = time.time()
-            self.error_start_time = 0
+            self.recovery_start_time = 0
             self.recovery_level = 0
 
         return len(self.errors), self.errors
@@ -320,12 +320,12 @@ class BaseMonitor(ABC):
         if self.active_error != active_error:
             # We're working on a new procedure, reset the counter.
             self.active_error = active_error
-            self.error_start_time = time.time()
+            self.recovery_start_time = time.time()
             self.recovery_level = 0
 
         if self.recovery_level == 0 and 'delay' in recovery_procedure:
             # Sometimes you don't want to start recovery immediately, give it time to fix itself.
-            downtime = time.time() - self.error_start_time
+            downtime = time.time() - self.recovery_start_time
             delay = recovery_procedure['delay']
             if downtime < delay:
                 return
