@@ -98,9 +98,10 @@ class BaseMonitor(ABC):
 
         self.active_error = None
         self.recovery_level = 0
-        self.recovery_start_time = 0
-        self.last_successful_check = 0.
-        self.last_recovery_command = 0.
+
+        self.successful_check_time = 0
+        self.active_error_start_time = 0
+        self.recovery_command_time = 0
 
         self.get_hardware_status()
 
@@ -300,8 +301,9 @@ class BaseMonitor(ABC):
                 print(msg)
         else:
             # If there are no errors record the time
-            self.last_successful_check = time.time()
-            self.recovery_start_time = 0
+            self.successful_check_time = time.time()
+            self.active_error_start_time = 0
+            self.recovery_command_time = 0
             self.recovery_level = 0
 
         return len(self.errors), self.errors
@@ -330,21 +332,21 @@ class BaseMonitor(ABC):
         if self.active_error != active_error:
             # We're working on a new procedure, reset the counter.
             self.active_error = active_error
-            self.recovery_start_time = time.time()
+            self.active_error_start_time = time.time()
             self.recovery_level = 0
 
         if self.recovery_level == 0 and 'delay' in recovery_procedure:
             # Sometimes you don't want to start recovery immediately, give it time to fix itself.
-            downtime = time.time() - self.recovery_start_time
+            time_since_error_activated = time.time() - self.active_error_start_time
             delay = recovery_procedure['delay']
-            if downtime < delay:
+            if time_since_error_activated < delay:
                 return
 
         elif self.recovery_level != 0:
             # Each command has a time to wait until progressing to the next level
-            waittime = time.time() - self.last_recovery_command
-            wait = recovery_procedure[self.recovery_level][1]
-            if waittime < wait:
+            time_since_last_command = time.time() - self.recovery_command_time
+            delay = recovery_procedure[self.recovery_level][1]
+            if time_since_last_command < delay:
                 return
 
         next_level = self.recovery_level + 1
@@ -381,7 +383,7 @@ class BaseMonitor(ABC):
                 print('Error executing recovery command {}'.format(command))
                 traceback.print_exc()
 
-        self.last_recovery_command = time.time()
+        self.recovery_command_time = time.time()
         self.recovery_level += 1
 
 
