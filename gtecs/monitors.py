@@ -1,7 +1,7 @@
 """Daemon monitor classes for the pilot."""
 
+import logging
 import time
-import traceback
 from abc import ABC, abstractmethod
 
 from . import params
@@ -87,7 +87,13 @@ class BaseMonitor(ABC):
 
     def __init__(self, daemon_id, log=None):
         self.daemon_id = daemon_id
-        self.log = log
+        self.monitor_id = self.__class__.__name__
+
+        if log:
+            self.log = log
+        else:
+            logging.basicConfig(level=logging.DEBUG)
+            self.log = logging.getLogger(self.monitor_id)
 
         self.info = None
         self.hardware_status = STATUS_UNKNOWN
@@ -295,14 +301,11 @@ class BaseMonitor(ABC):
         # The above two will have populated self.errors
         if len(self.errors) > 0:
             # If there are errors log them
-            msg = '{} ({}) '.format(self.__class__.__name__, self.hardware_status)
+            msg = '{} ({}) '.format(self.monitor_id, self.hardware_status)
             msg += 'reports {} error{}: {}'.format(len(self.errors),
                                                    's' if len(self.errors) > 1 else '',
                                                    ', '.join(self.errors))
-            if self.log:
-                self.log.warning(msg)
-            else:
-                print(msg)
+            self.log.warning(msg)
         else:
             # If there are no errors record the time
             self.successful_check_time = time.time()
@@ -364,28 +367,18 @@ class BaseMonitor(ABC):
                 msg += ', bad_dependencies={})'.format(self.bad_dependencies)
             else:
                 msg += ')'
-            if self.log:
-                self.log.error(msg)
-            else:
-                print(msg)
+            self.log.error(msg)
             raise RecoveryError(msg)
 
         command = recovery_procedure[next_level][0]
         msg = '{} attempting recovery '.format(self.__class__.__name__)
         msg += 'level {:.0f}: {}'.format(next_level, command)
-        if self.log:
-            self.log.warning(msg)
-        else:
-            print(msg)
+        self.log.warning(msg)
         try:
             execute_command(command)
         except Exception:
-            if self.log:
-                self.log.error('Error executing recovery command {}'.format(command))
-                self.log.debug('', exc_info=True)
-            else:
-                print('Error executing recovery command {}'.format(command))
-                traceback.print_exc()
+            self.log.error('Error executing recovery command {}'.format(command))
+            self.log.debug('', exc_info=True)
 
         self.recovery_command_time = time.time()
         self.recovery_level += 1
