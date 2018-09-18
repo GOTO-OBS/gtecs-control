@@ -428,13 +428,19 @@ class DomeMonitor(BaseMonitor):
             # Set the error if we've been moving for too long
             if self.hardware_status == STATUS_DOME_MOVING:
                 if ERROR_DOME_MOVETIMEOUT not in self.pending_errors:
+                    self.log.debug('Dome moving, starting timer')
                     self.pending_errors[ERROR_DOME_MOVETIMEOUT] = time.time()
-                elif time.time() - self.pending_errors[ERROR_DOME_MOVETIMEOUT] > 60:
-                    del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
-                    self.errors.add(ERROR_DOME_MOVETIMEOUT)
+                else:
+                    timeout = time.time() - self.pending_errors[ERROR_DOME_MOVETIMEOUT]
+                    self.log.debug('Dome moving timer: {:.1f}'.format(timeout))
+                    if timeout > 60:
+                        self.log.debug('Dome moving timed out')
+                        del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
+                        self.errors.add(ERROR_DOME_MOVETIMEOUT)
             else:
                 # Clear the pending error if we're not moving
                 if ERROR_DOME_MOVETIMEOUT in self.pending_errors:
+                    self.log.debug('Dome no longer moving, clearing timer')
                     del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
         else:
             # Clear the error if we're not moving
@@ -446,13 +452,19 @@ class DomeMonitor(BaseMonitor):
             # Set the error if we've been partially open for too long
             if self.hardware_status == STATUS_DOME_PARTOPEN:
                 if ERROR_DOME_PARTOPENTIMEOUT not in self.pending_errors:
+                    self.log.debug('Dome part open, starting timer')
                     self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT] = time.time()
-                elif time.time() - self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT] > 60:
-                    del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
-                    self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
+                else:
+                    timeout = time.time() - self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
+                    self.log.debug('Dome part open timer: {:.1f}'.format(timeout))
+                    if timeout > 60:
+                        self.log.debug('Dome part open timed out')
+                        del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
+                        self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
             else:
                 # Clear the pending error if we're not partially open
                 if ERROR_DOME_PARTOPENTIMEOUT in self.pending_errors:
+                    self.log.debug('Dome no longer part open, clearing timer')
                     del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
         else:
             # Clear the error if we are where we're supposed to be
@@ -683,13 +695,19 @@ class MntMonitor(BaseMonitor):
             # Set the error if we've been moving for too long
             if self.hardware_status == STATUS_MNT_MOVING:
                 if ERROR_MNT_MOVETIMEOUT not in self.pending_errors:
+                    self.log.debug('Mount moving, starting timer')
                     self.pending_errors[ERROR_MNT_MOVETIMEOUT] = time.time()
-                elif time.time() - self.pending_errors[ERROR_MNT_MOVETIMEOUT] > 120:
-                    del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
-                    self.errors.add(ERROR_MNT_MOVETIMEOUT)
+                else:
+                    timeout = time.time() - self.pending_errors[ERROR_MNT_MOVETIMEOUT]
+                    self.log.debug('Mount moving timer: {:.1f}'.format(timeout))
+                    if timeout > 120:
+                        self.log.debug('Mount moving timed out')
+                        del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
+                        self.errors.add(ERROR_MNT_MOVETIMEOUT)
             else:
                 # Clear the pending error if we're not moving
                 if ERROR_MNT_MOVETIMEOUT in self.pending_errors:
+                    self.log.debug('Mount no longer moving, clearing timer')
                     del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
         else:
             # Clear the error if we're not moving
@@ -701,13 +719,19 @@ class MntMonitor(BaseMonitor):
             # Set the error if we've been off target for too long
             if self.hardware_status == STATUS_MNT_OFFTARGET:
                 if ERROR_MNT_NOTONTARGET not in self.pending_errors:
+                    self.log.debug('Mount off target, starting timer')
                     self.pending_errors[ERROR_MNT_NOTONTARGET] = time.time()
-                elif time.time() - self.pending_errors[ERROR_MNT_NOTONTARGET] > 90:
-                    del self.pending_errors[ERROR_MNT_NOTONTARGET]
-                    self.errors.add(ERROR_MNT_NOTONTARGET)
+                else:
+                    timeout = time.time() - self.pending_errors[ERROR_MNT_NOTONTARGET]
+                    self.log.debug('Mount off target timer: {:.1f}'.format(timeout))
+                    if timeout > 60:
+                        self.log.debug('Mount off target timed out')
+                        del self.pending_errors[ERROR_MNT_NOTONTARGET]
+                        self.errors.add(ERROR_MNT_NOTONTARGET)
             else:
                 # Clear the pending error if we're not off target
                 if ERROR_MNT_NOTONTARGET in self.pending_errors:
+                    self.log.debug('Mount no longer off target, clearing timer')
                     del self.pending_errors[ERROR_MNT_NOTONTARGET]
         else:
             # Clear the error if we're on target (or we don't have a target, like parking)
