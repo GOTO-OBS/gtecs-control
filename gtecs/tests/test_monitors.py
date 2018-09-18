@@ -16,9 +16,9 @@ def check_hardware(hardware):
         error_count = 0
         print('running hardware checks')
         log_str = 'hardware check results: '
-        for monitor in sorted(hardware.values(), key=lambda x: x.__class__.__name__):
+        for monitor in sorted(hardware.values(), key=lambda x: x.monitor_id):
             num_errs, errors = monitor.check()
-            print('  {: >20}: {}'.format(monitor.__class__.__name__, monitor.hardware_status))
+            print('  {: >20}: {}'.format(monitor.monitor_id, monitor.hardware_status))
             error_count += num_errs
             if num_errs > 0:
                 monitor.recover()  # Will log recovery commands

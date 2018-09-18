@@ -358,7 +358,7 @@ class BaseMonitor(ABC):
 
         next_level = self.recovery_level + 1
         if next_level not in recovery_procedure:
-            msg = '{} has run out of recovery steps '.format(self.__class__.__name__)
+            msg = '{} has run out of recovery steps '.format(self.monitor_id)
             msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
             msg += '(mode={}, status={}'.format(self.mode, self.hardware_status)
             if ERROR_HARDWARE in self.errors:
@@ -371,7 +371,7 @@ class BaseMonitor(ABC):
             raise RecoveryError(msg)
 
         command = recovery_procedure[next_level][0]
-        msg = '{} attempting recovery '.format(self.__class__.__name__)
+        msg = '{} attempting recovery '.format(self.monitor_id)
         msg += 'level {:.0f}: {}'.format(next_level, command)
         self.log.warning(msg)
         try:
