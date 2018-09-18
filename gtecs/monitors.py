@@ -92,15 +92,18 @@ class BaseMonitor(ABC):
         self.info = None
         self.hardware_status = STATUS_UNKNOWN
 
+        self.successful_check_time = 0
+
+        self.pending_errors = dict()
+
         self.errors = set()
         self.bad_dependencies = set()
         self.bad_hardware = set()
 
         self.active_error = None
-        self.recovery_level = 0
-
-        self.successful_check_time = 0
         self.active_error_start_time = 0
+
+        self.recovery_level = 0
         self.recovery_command_time = 0
 
         self.get_hardware_status()
@@ -289,6 +292,7 @@ class BaseMonitor(ABC):
         if not found_error:
             self._check_hardware()
 
+        # The above two will have populated self.errors
         if len(self.errors) > 0:
             # If there are errors log them
             msg = '{} ({}) '.format(self.__class__.__name__, self.hardware_status)
@@ -397,12 +401,6 @@ class DomeMonitor(BaseMonitor):
         self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
         self.mode = MODE_DOME_CLOSED
 
-        # Dome attributes
-        self._move_start_time = 0
-        self._currently_moving = False
-        self._part_open_start_time = 0
-        self._currently_part_open = False
-
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
@@ -436,15 +434,15 @@ class DomeMonitor(BaseMonitor):
         if ERROR_DOME_MOVETIMEOUT not in self.errors:
             # Set the error if we've been moving for too long
             if self.hardware_status == STATUS_DOME_MOVING:
-                if not self._currently_moving:
-                    self._currently_moving = True
-                    self._move_start_time = time.time()
-                else:
-                    if time.time() - self._move_start_time > 60:
-                        self.errors.add(ERROR_DOME_MOVETIMEOUT)
+                if ERROR_DOME_MOVETIMEOUT not in self.pending_errors:
+                    self.pending_errors[ERROR_DOME_MOVETIMEOUT] = time.time()
+                elif time.time() - self.pending_errors[ERROR_DOME_MOVETIMEOUT] > 60:
+                    del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
+                    self.errors.add(ERROR_DOME_MOVETIMEOUT)
             else:
-                self._currently_moving = False
-                self._move_start_time = 0
+                # Clear the pending error if we're not moving
+                if ERROR_DOME_MOVETIMEOUT in self.pending_errors:
+                    del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
         else:
             # Clear the error if we're not moving
             if self.hardware_status != STATUS_DOME_MOVING:
@@ -454,15 +452,15 @@ class DomeMonitor(BaseMonitor):
         if ERROR_DOME_PARTOPENTIMEOUT not in self.errors:
             # Set the error if we've been partially open for too long
             if self.hardware_status == STATUS_DOME_PARTOPEN:
-                if not self._currently_part_open:
-                    self._currently_part_open = True
-                    self._part_open_start_time = time.time()
-                else:
-                    if time.time() - self._part_open_start_time > 10:
-                        self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
+                if ERROR_DOME_PARTOPENTIMEOUT not in self.pending_errors:
+                    self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT] = time.time()
+                elif time.time() - self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT] > 60:
+                    del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
+                    self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
             else:
-                self._currently_part_open = False
-                self._part_open_start_time = 0
+                # Clear the pending error if we're not partially open
+                if ERROR_DOME_PARTOPENTIMEOUT in self.pending_errors:
+                    del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
         else:
             # Clear the error if we are where we're supposed to be
             # Note this keeps the error set while we're moving
@@ -652,12 +650,6 @@ class MntMonitor(BaseMonitor):
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
         self.mode = MODE_MNT_PARKED
 
-        # Mount attributes
-        self._move_start_time = 0
-        self._currently_moving = False
-        self._off_target_start_time = 0
-        self._currently_off_target = False
-
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
@@ -697,15 +689,15 @@ class MntMonitor(BaseMonitor):
         if ERROR_MNT_MOVETIMEOUT not in self.errors:
             # Set the error if we've been moving for too long
             if self.hardware_status == STATUS_MNT_MOVING:
-                if not self._currently_moving:
-                    self._currently_moving = True
-                    self._move_start_time = time.time()
-                else:
-                    if time.time() - self._move_start_time > 120:
-                        self.errors.add(ERROR_MNT_MOVETIMEOUT)
+                if ERROR_MNT_MOVETIMEOUT not in self.pending_errors:
+                    self.pending_errors[ERROR_MNT_MOVETIMEOUT] = time.time()
+                elif time.time() - self.pending_errors[ERROR_MNT_MOVETIMEOUT] > 120:
+                    del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
+                    self.errors.add(ERROR_MNT_MOVETIMEOUT)
             else:
-                self._currently_moving = False
-                self._move_start_time = 0
+                # Clear the pending error if we're not moving
+                if ERROR_MNT_MOVETIMEOUT in self.pending_errors:
+                    del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
         else:
             # Clear the error if we're not moving
             if self.hardware_status != STATUS_MNT_MOVING:
@@ -715,12 +707,15 @@ class MntMonitor(BaseMonitor):
         if ERROR_MNT_NOTONTARGET not in self.errors:
             # Set the error if we've been off target for too long
             if self.hardware_status == STATUS_MNT_OFFTARGET:
-                if not self._currently_off_target:
-                    self._currently_off_target = True
-                    self._off_target_start_time = time.time()
-                else:
-                    if time.time() - self._off_target_start_time > 90:
-                        self.errors.add(ERROR_MNT_NOTONTARGET)
+                if ERROR_MNT_NOTONTARGET not in self.pending_errors:
+                    self.pending_errors[ERROR_MNT_NOTONTARGET] = time.time()
+                elif time.time() - self.pending_errors[ERROR_MNT_NOTONTARGET] > 90:
+                    del self.pending_errors[ERROR_MNT_NOTONTARGET]
+                    self.errors.add(ERROR_MNT_NOTONTARGET)
+            else:
+                # Clear the pending error if we're not off target
+                if ERROR_MNT_NOTONTARGET in self.pending_errors:
+                    del self.pending_errors[ERROR_MNT_NOTONTARGET]
         else:
             # Clear the error if we're on target (or we don't have a target, like parking)
             if self.hardware_status != STATUS_MNT_OFFTARGET:
