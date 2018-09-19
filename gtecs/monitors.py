@@ -218,7 +218,7 @@ class BaseMonitor(ABC):
                 return 1
         else:
             # Clear the error if we are running
-            if not self.is_running():
+            if self.is_running():
                 self.errors.remove(ERROR_RUNNING)
 
         # Get the daemon status
