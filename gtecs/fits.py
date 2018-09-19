@@ -545,7 +545,7 @@ def update_header(header, tel, all_info):
         else:
             ext_wind = numpy.around(ext_wind, decimals=1)
 
-        int_weather = info['weather']['dome']
+        int_weather = info['weather']['pier']
 
         int_temp = int_weather['int_temperature']
         if int_temp == -999:
