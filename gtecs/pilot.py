@@ -923,6 +923,7 @@ class Pilot(object):
     async def open_dome(self):
         """Open the dome and await until it is finished."""
         self.log.warning('opening dome')
+        send_slack_msg('{} pilot is opening the dome'.format(params.TELESCOP))
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
@@ -940,6 +941,7 @@ class Pilot(object):
     def close_dome(self):
         """Send the dome close command and return immediately."""
         self.log.warning('closing dome')
+        send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
         execute_command('dome close')
         self.dome_is_open = False
         self.hardware['dome'].mode = 'closed'
