@@ -57,7 +57,6 @@ ERROR_DOME_MOVETIMEOUT = 'MOVING_TIMEOUT'
 ERROR_DOME_PARTOPENTIMEOUT = 'PARTOPEN_TIMEOUT'
 ERROR_DOME_NOTFULLOPEN = 'NOT_FULLOPEN'
 ERROR_DOME_NOTCLOSED = 'NOT_CLOSED'
-ERROR_DOME_INLOCKDOWN = 'IN_LOCKDOWN'
 ERROR_MNT_MOVETIMEOUT = 'MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'NOT_ONTARGET'
 ERROR_MNT_STOPPED = 'NOT_TRACKING'
@@ -472,10 +471,9 @@ class DomeMonitor(BaseMonitor):
         # Clear the error if the dome is where it's supposed to be
         # Note this keeps the error set while it's moving
         # Also note we clear the error if the dome's in lockdown, because we can't move anyway
-        if ((self.mode == MODE_DOME_OPEN and self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                      STATUS_DOME_LOCKDOWN]) or
-            (self.mode == MODE_DOME_CLOSED and self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                        STATUS_DOME_LOCKDOWN])):
+        if ((self.mode == MODE_DOME_OPEN and self.hardware_status == STATUS_DOME_FULLOPEN) or
+            (self.mode == MODE_DOME_CLOSED and self.hardware_status == STATUS_DOME_CLOSED) or
+            (self.hardware_status == STATUS_DOME_LOCKDOWN)):
             self.clear_error(ERROR_DOME_PARTOPENTIMEOUT)
 
         # ERROR_DOME_NOTFULLOPEN
@@ -508,14 +506,6 @@ class DomeMonitor(BaseMonitor):
         if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
                                                                      STATUS_DOME_LOCKDOWN]:
             self.clear_error(ERROR_DOME_NOTCLOSED)
-
-        # ERROR_DOME_INLOCKDOWN
-        # Set the error if the dome's in lockdown
-        if self.hardware_status == STATUS_DOME_LOCKDOWN:
-            self.add_error(ERROR_DOME_INLOCKDOWN, timeout=0)
-        # Clear the error if the dome's no longer in lockdown
-        if self.hardware_status != STATUS_DOME_LOCKDOWN:
-            self.clear_error(ERROR_DOME_INLOCKDOWN)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -567,17 +557,6 @@ class DomeMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
-
-        elif ERROR_DOME_INLOCKDOWN in self.errors:
-            # PROBLEM: The conditions are bad and the dome is in lockdown.
-            #          This is a weird one, because it's not really an error we can fix.
-            #          The dome will refuse any commands while it's locked down.
-            #          However we still want the pilot to pause, so it's treated like an error.
-            #          It is a good use of the delay feature through.
-            #          The delay here (24h) will last a whole night.
-            recovery_procedure = {'delay': 86400}
-            # OUT OF SOLUTIONS: There aren't any, but after that delay what else can you do?
-            return ERROR_DOME_INLOCKDOWN, recovery_procedure
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
