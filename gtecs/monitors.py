@@ -172,6 +172,40 @@ class BaseMonitor(ABC):
                                                                    self.available_modes))
 
     # System checks
+    def add_error(self, error, timeout=0):
+        """Add the error to self.errors if it's not already there.
+
+        If a timeout if given only add the error after timeout seconds.
+        """
+        if error not in self.errors:
+            if not timeout:
+                # Sometimes we don't want to wait
+                self.log.debug('Adding error "{}"'.format(error))
+                self.errors.add(error)
+                return
+
+            if error not in self.pending_errors:
+                self.log.debug('"{}" timer started'.format(error))
+                self.pending_errors[error] = time.time()
+                return
+            else:
+                error_time = time.time() - self.pending_errors[error]
+                self.log.debug('"{}" timer: {:.1f}'.format(error, error_time))
+                if error_time > timeout:
+                    self.log.debug('Adding error "{}" after {}s'.format(error, timeout))
+                    del self.pending_errors[error]
+                    self.errors.add(error)
+                    return
+
+    def clear_error(self, error):
+        """Remove the error from self.errors if it's there."""
+        if error in self.pending_errors:
+            self.log.debug('Clearing pending error "{}"'.format(error))
+            del self.pending_errors[error]
+        if error in self.errors:
+            self.log.debug('Clearing error "{}"'.format(error))
+            self.errors.remove(error)
+
     def _check_systems(self):
         """Check critical functions common to all daemons.
 
@@ -423,104 +457,65 @@ class DomeMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Moving timeout error
-        if ERROR_DOME_MOVETIMEOUT not in self.errors:
-            # Set the error if we've been moving for too long
-            if self.hardware_status == STATUS_DOME_MOVING:
-                if ERROR_DOME_MOVETIMEOUT not in self.pending_errors:
-                    self.log.debug('Dome moving, starting timer')
-                    self.pending_errors[ERROR_DOME_MOVETIMEOUT] = time.time()
-                else:
-                    timeout = time.time() - self.pending_errors[ERROR_DOME_MOVETIMEOUT]
-                    self.log.debug('Dome moving timer: {:.1f}'.format(timeout))
-                    if timeout > 60:
-                        self.log.debug('Dome moving timed out')
-                        del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
-                        self.errors.add(ERROR_DOME_MOVETIMEOUT)
-            else:
-                # Clear the pending error if we're not moving
-                if ERROR_DOME_MOVETIMEOUT in self.pending_errors:
-                    self.log.debug('Dome no longer moving, clearing timer')
-                    del self.pending_errors[ERROR_DOME_MOVETIMEOUT]
-        else:
-            # Clear the error if we're not moving
-            if self.hardware_status != STATUS_DOME_MOVING:
-                self.errors.remove(ERROR_DOME_MOVETIMEOUT)
+        # ERROR_DOME_MOVETIMEOUT
+        # Set the error if the dome has been moving for too long
+        if self.hardware_status == STATUS_DOME_MOVING:
+            self.add_error(ERROR_DOME_MOVETIMEOUT, timeout=60)
+        # Clear the error if the dome is not moving
+        if self.hardware_status != STATUS_DOME_MOVING:
+            self.clear_error(ERROR_DOME_MOVETIMEOUT)
 
-        # Part open timeout error
-        if ERROR_DOME_PARTOPENTIMEOUT not in self.errors:
-            # Set the error if we've been partially open for too long
-            if self.hardware_status == STATUS_DOME_PARTOPEN:
-                if ERROR_DOME_PARTOPENTIMEOUT not in self.pending_errors:
-                    self.log.debug('Dome part open, starting timer')
-                    self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT] = time.time()
-                else:
-                    timeout = time.time() - self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
-                    self.log.debug('Dome part open timer: {:.1f}'.format(timeout))
-                    if timeout > 60:
-                        self.log.debug('Dome part open timed out')
-                        del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
-                        self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
-            else:
-                # Clear the pending error if we're not partially open
-                if ERROR_DOME_PARTOPENTIMEOUT in self.pending_errors:
-                    self.log.debug('Dome no longer part open, clearing timer')
-                    del self.pending_errors[ERROR_DOME_PARTOPENTIMEOUT]
-        else:
-            # Clear the error if we are where we're supposed to be
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode == MODE_DOME_OPEN and self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                        STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
-            elif self.mode == MODE_DOME_CLOSED and self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                            STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
+        # ERROR_DOME_PARTOPENTIMEOUT
+        # Set the error if the dome has been partially open for too long
+        if self.hardware_status == STATUS_DOME_PARTOPEN:
+            self.add_error(ERROR_DOME_PARTOPENTIMEOUT, timeout=60)
+        # Clear the error if the dome is where it's supposed to be
+        # Note this keeps the error set while it's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if ((self.mode == MODE_DOME_OPEN and self.hardware_status in [STATUS_DOME_FULLOPEN,
+                                                                      STATUS_DOME_LOCKDOWN]) or
+            (self.mode == MODE_DOME_CLOSED and self.hardware_status in [STATUS_DOME_CLOSED,
+                                                                        STATUS_DOME_LOCKDOWN])):
+            self.clear_error(ERROR_DOME_PARTOPENTIMEOUT)
 
-        # Not fully open error
-        if ERROR_DOME_NOTFULLOPEN not in self.errors:
-            # Set the error if we should be open and we're not
-            # Note we're allowed to be moving, that has its own error above
-            # Also note that part_open is delt with above
-            if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
-                                                                            STATUS_DOME_PARTOPEN,
-                                                                            STATUS_DOME_MOVING]:
-                self.errors.add(ERROR_DOME_NOTFULLOPEN)
-        else:
-            # Clear the error if we're fully open, or we shouldn't be any more
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                       STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_NOTFULLOPEN)
+        # ERROR_DOME_NOTFULLOPEN
+        # Set the error if the dome should be open and it's not
+        # Note the dome's allowed to be moving, that has its own error above
+        # Also note that part_open is delt with above
+        if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
+                                                                        STATUS_DOME_PARTOPEN,
+                                                                        STATUS_DOME_MOVING]:
+            self.add_error(ERROR_DOME_NOTFULLOPEN, timeout=30)
+        # Clear the error if the dome's fully open, or it shouldn't be any more
+        # Note this keeps the error set while the dome's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
+                                                                   STATUS_DOME_LOCKDOWN]:
+            self.clear_error(ERROR_DOME_NOTFULLOPEN)
 
-        # Not fully closed error
-        if ERROR_DOME_NOTCLOSED not in self.errors:
-            # Set the error if we should be closed and we're not
-            # Note we're allowed to be moving, that has its own error above
-            # Also note that part_open is delt with above
-            if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
-                                                                              STATUS_DOME_PARTOPEN,
-                                                                              STATUS_DOME_MOVING,
-                                                                              STATUS_DOME_LOCKDOWN]:
-                self.errors.add(ERROR_DOME_NOTCLOSED)
-        else:
-            # Clear the error if we're fully closed, or we shouldn't be any more
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                         STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_NOTCLOSED)
+        # ERROR_DOME_NOTCLOSED
+        # Set the error if the dome should be closed and it's not
+        # Notethe dome's allowed to be moving, that has its own error above
+        # Also note that part_open is delt with above
+        if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                          STATUS_DOME_PARTOPEN,
+                                                                          STATUS_DOME_MOVING,
+                                                                          STATUS_DOME_LOCKDOWN]:
+            self.add_error(ERROR_DOME_NOTCLOSED, timeout=30)
+        # Clear the error if the dome's fully closed, or it shouldn't be any more
+        # Note this keeps the error set while the dome's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
+                                                                     STATUS_DOME_LOCKDOWN]:
+            self.clear_error(ERROR_DOME_NOTCLOSED)
 
-        # Lockdown error
-        if ERROR_DOME_INLOCKDOWN not in self.errors:
-            # Set the error if we're in lockdown
-            if self.hardware_status == STATUS_DOME_LOCKDOWN:
-                self.errors.add(ERROR_DOME_INLOCKDOWN)
-        else:
-            # Clear the error if we're no longer in lockdown
-            if self.hardware_status != STATUS_DOME_LOCKDOWN:
-                self.errors.remove(ERROR_DOME_INLOCKDOWN)
+        # ERROR_DOME_INLOCKDOWN
+        # Set the error if the dome's in lockdown
+        if self.hardware_status == STATUS_DOME_LOCKDOWN:
+            self.add_error(ERROR_DOME_INLOCKDOWN, timeout=0)
+        # Clear the error if the dome's no longer in lockdown
+        if self.hardware_status != STATUS_DOME_LOCKDOWN:
+            self.clear_error(ERROR_DOME_INLOCKDOWN)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -690,105 +685,63 @@ class MntMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Moving timeout error
-        if ERROR_MNT_MOVETIMEOUT not in self.errors:
-            # Set the error if we've been moving for too long
-            if self.hardware_status == STATUS_MNT_MOVING:
-                if ERROR_MNT_MOVETIMEOUT not in self.pending_errors:
-                    self.log.debug('Mount moving, starting timer')
-                    self.pending_errors[ERROR_MNT_MOVETIMEOUT] = time.time()
-                else:
-                    timeout = time.time() - self.pending_errors[ERROR_MNT_MOVETIMEOUT]
-                    self.log.debug('Mount moving timer: {:.1f}'.format(timeout))
-                    if timeout > 120:
-                        self.log.debug('Mount moving timed out')
-                        del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
-                        self.errors.add(ERROR_MNT_MOVETIMEOUT)
-            else:
-                # Clear the pending error if we're not moving
-                if ERROR_MNT_MOVETIMEOUT in self.pending_errors:
-                    self.log.debug('Mount no longer moving, clearing timer')
-                    del self.pending_errors[ERROR_MNT_MOVETIMEOUT]
-        else:
-            # Clear the error if we're not moving
-            if self.hardware_status != STATUS_MNT_MOVING:
-                self.errors.remove(ERROR_MNT_MOVETIMEOUT)
+        # ERROR_MNT_MOVETIMEOUT
+        # Set the error if the mount has been moving for too long
+        if self.hardware_status == STATUS_MNT_MOVING:
+            self.add_error(ERROR_MNT_MOVETIMEOUT, timeout=120)
+        # Clear the error if the mount is not moving
+        if self.hardware_status != STATUS_MNT_MOVING:
+            self.clear_error(ERROR_MNT_MOVETIMEOUT)
 
-        # Off target timeout error
-        if ERROR_MNT_NOTONTARGET not in self.errors:
-            # Set the error if we've been off target for too long
-            if self.hardware_status == STATUS_MNT_OFFTARGET:
-                if ERROR_MNT_NOTONTARGET not in self.pending_errors:
-                    self.log.debug('Mount off target, starting timer')
-                    self.pending_errors[ERROR_MNT_NOTONTARGET] = time.time()
-                else:
-                    timeout = time.time() - self.pending_errors[ERROR_MNT_NOTONTARGET]
-                    self.log.debug('Mount off target timer: {:.1f}'.format(timeout))
-                    if timeout > 60:
-                        self.log.debug('Mount off target timed out')
-                        del self.pending_errors[ERROR_MNT_NOTONTARGET]
-                        self.errors.add(ERROR_MNT_NOTONTARGET)
-            else:
-                # Clear the pending error if we're not off target
-                if ERROR_MNT_NOTONTARGET in self.pending_errors:
-                    self.log.debug('Mount no longer off target, clearing timer')
-                    del self.pending_errors[ERROR_MNT_NOTONTARGET]
-        else:
-            # Clear the error if we're on target (or we don't have a target, like parking)
-            if self.hardware_status != STATUS_MNT_OFFTARGET:
-                self.errors.remove(ERROR_MNT_NOTONTARGET)
+        # ERROR_MNT_NOTONTARGET
+        # Set the error if the mount has been off target for too long
+        if self.hardware_status == STATUS_MNT_OFFTARGET:
+            self.add_error(ERROR_MNT_NOTONTARGET, timeout=60)
+        # Clear the error if the mount is on target (or it doesn't have a target, like parking)
+        if self.hardware_status != STATUS_MNT_OFFTARGET:
+            self.clear_error(ERROR_MNT_NOTONTARGET)
 
-        # In blinky error
-        if ERROR_MNT_INBLINKY not in self.errors:
-            # Set the error if we've in blinky mode
-            if self.hardware_status == STATUS_MNT_BLINKY:
-                self.errors.add(ERROR_MNT_INBLINKY)
-        else:
-            # Clear the error if blinky is off
-            if self.hardware_status != STATUS_MNT_BLINKY:
-                self.errors.remove(ERROR_MNT_INBLINKY)
+        # ERROR_MNT_INBLINKY
+        # Set the error if the mount is in blinky mode
+        if self.hardware_status == STATUS_MNT_BLINKY:
+            self.add_error(ERROR_MNT_INBLINKY)
+        # Clear the error if blinky is off
+        if self.hardware_status != STATUS_MNT_BLINKY:
+            self.clear_error(ERROR_MNT_INBLINKY)
 
-        # Connection error
-        if ERROR_MNT_CONNECTION not in self.errors:
-            # Set the error if we've in blinky mode
-            if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
-                self.errors.add(ERROR_MNT_CONNECTION)
-        else:
-            # Clear the error if we've restored connection
-            if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
-                self.errors.remove(ERROR_MNT_CONNECTION)
+        # ERROR_MNT_CONNECTION
+        # Set the error if SiTech has lost connection to the mount
+        if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
+            self.add_error(ERROR_MNT_CONNECTION)
+        # Clear the error if SiTech has restored connection
+        if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
+            self.clear_error(ERROR_MNT_CONNECTION)
 
-        # Stopped error
-        if ERROR_MNT_STOPPED not in self.errors:
-            # Set the error if we're not moving and we should be tracking
-            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
-                self.errors.add(ERROR_MNT_STOPPED)
-        else:
-            # Clear the error if we're tracking or we shouldn't be any more
-            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
-                self.errors.remove(ERROR_MNT_STOPPED)
+        # ERROR_MNT_STOPPED
+        # Set the error if the mount is not moving and it should be tracking
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+            self.add_error(ERROR_MNT_STOPPED, timeout=30)
+        # Clear the error if the mount is tracking or it shouldn't be any more
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+            self.clear_error(ERROR_MNT_STOPPED)
 
-        # Parked error
-        if ERROR_MNT_PARKED not in self.errors:
-            # Set the error if we're parked and we should be tracking
-            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
-                self.errors.add(ERROR_MNT_PARKED)
-        else:
-            # Clear the error if we're no longer parked or we should be
-            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
-                self.errors.remove(ERROR_MNT_PARKED)
+        # ERROR_MNT_PARKED
+        # Set the error if the mount is parked and it should be tracking
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
+            self.add_error(ERROR_MNT_PARKED, timeout=30)
+        # Clear the error if the mount is no longer parked or it should be
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
+            self.clear_error(ERROR_MNT_PARKED)
 
-        # Unparked error
-        if ERROR_MNT_NOTPARKED not in self.errors:
-            # Set the error if we're not parked (or moving (parking)) and we should be
-            if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
-                                                                             STATUS_MNT_MOVING]:
-                self.errors.add(ERROR_MNT_NOTPARKED)
-        else:
-            # Clear the error if we parked or we shouldn't be
-            # Note this keeps the error set while we're moving
-            if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
-                self.errors.remove(ERROR_MNT_NOTPARKED)
+        # ERROR_MNT_NOTPARKED
+        # Set the error if the mount isn't parked (or moving (parking)) and it should be
+        if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
+                                                                         STATUS_MNT_MOVING]:
+            self.add_error(ERROR_MNT_NOTPARKED, timeout=30)
+        # Clear the error if the mount is parked or it shouldn't be any more
+        # Note this keeps the error set while the mount is moving
+        if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
+            self.clear_error(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1029,15 +982,13 @@ class CamMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Warm error
-        if ERROR_CAM_WARM not in self.errors:
-            # Set the error if the cameras should be cool and they're not
-            if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
-                self.errors.add(ERROR_CAM_WARM)
-        else:
-            # Clear the error if the cameras are cool or they shouldn't be
-            if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
-                self.errors.remove(ERROR_CAM_WARM)
+        # ERROR_CAM_WARM
+        # Set the error if the cameras should be cool and they're not
+        if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
+            self.add_error(ERROR_CAM_WARM, timeout=30)
+        # Clear the error if the cameras are cool or they shouldn't be
+        if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
+            self.clear_error(ERROR_CAM_WARM)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1132,15 +1083,13 @@ class FiltMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Unhomed error
-        if ERROR_FILT_UNHOMED not in self.errors:
-            # Set the error if the filter wheels aren't homed
-            if self.hardware_status == STATUS_FILT_UNHOMED:
-                self.errors.add(ERROR_FILT_UNHOMED)
-        else:
-            # Clear the error if the filter wheels have been homed
-            if self.hardware_status != STATUS_FILT_UNHOMED:
-                self.errors.remove(ERROR_FILT_UNHOMED)
+        # ERROR_FILT_UNHOMED
+        # Set the error if the filter wheels aren't homed
+        if self.hardware_status == STATUS_FILT_UNHOMED:
+            self.add_error(ERROR_FILT_UNHOMED)
+        # Clear the error if the filter wheels have been homed
+        if self.hardware_status != STATUS_FILT_UNHOMED:
+            self.clear_error(ERROR_FILT_UNHOMED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
