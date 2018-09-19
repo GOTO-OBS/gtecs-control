@@ -171,16 +171,21 @@ class BaseMonitor(ABC):
                                                                    self.available_modes))
 
     # System checks
-    def add_error(self, error, timeout=0):
+    def add_error(self, error, timeout=0, critical=False):
         """Add the error to self.errors if it's not already there.
 
         If a timeout if given only add the error after timeout seconds.
+
+        If critical=True it will overwrite self.errors with just this error.
         """
         if error not in self.errors:
             if not timeout:
                 # Sometimes we don't want to wait
                 self.log.debug('Adding error "{}"'.format(error))
-                self.errors.add(error)
+                if not critical:
+                    self.errors.add(error)
+                else:
+                    self.errors = set([error])
                 return
 
             if error not in self.pending_errors:
@@ -193,7 +198,10 @@ class BaseMonitor(ABC):
                 if error_time > timeout:
                     self.log.debug('Adding error "{}" after {}s'.format(error, timeout))
                     del self.pending_errors[error]
-                    self.errors.add(error)
+                    if not critical:
+                        self.errors.add(error)
+                    else:
+                        self.errors = set([error])
                     return
 
     def clear_error(self, error):
@@ -210,100 +218,86 @@ class BaseMonitor(ABC):
 
         Note these overwrite self.errors (instead of adding to it) and then return immediately.
         """
-        # Not running error
-        if ERROR_RUNNING not in self.errors:
-            # Set the error if the daemon isn't running
-            if not self.is_running():
-                self.errors = set([ERROR_RUNNING])
-                return 1
-        else:
-            # Clear the error if we are running
-            if self.is_running():
-                self.errors.remove(ERROR_RUNNING)
+        # ERROR_RUNNING
+        # Set the error if the daemon isn't running
+        if not self.is_running():
+            self.add_error(ERROR_RUNNING, critical=True)
+            return 1
+        # Clear the error if we are running
+        if self.is_running():
+            self.clear_error(ERROR_RUNNING)
 
         # Get the daemon status
         daemon_status, args = self.get_daemon_status()
 
-        # Bad status error
-        if ERROR_PING not in self.errors:
-            # Set the error if the daemon returns a bad status
-            if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
-                self.errors = set([ERROR_PING])
-                return 1
-        else:
-            # Clear the error if the status isn't one of the above
-            if daemon_status not in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
-                self.errors.remove(ERROR_PING)
+        # ERROR_PING
+        # Set the error if the daemon returns a bad status
+        if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+            self.add_error(ERROR_PING, critical=True)
+            return 1
+        # Clear the error if the status isn't one of the above
+        if daemon_status not in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+            self.clear_error(ERROR_PING)
 
-        # Bad dependencies error
-        if ERROR_DEPENDENCY not in self.errors:
-            # Set the error if the daemon reports a dependency error status
-            self.bad_dependencies.clear()
-            if daemon_status == DAEMON_ERROR_DEPENDENCY:
-                # store the bad dependencies
-                for dependency in args:
-                    self.bad_dependencies.add(dependency)
-                self.errors = set([ERROR_DEPENDENCY])
-                return 1
-        else:
-            # Clear the error if the dependency error is cleared
-            if daemon_status != DAEMON_ERROR_DEPENDENCY:
-                self.errors.remove(ERROR_DEPENDENCY)
+        # ERROR_DEPENDENCY
+        # Set the error if the daemon reports a dependency error status
+        self.bad_dependencies.clear()
+        if daemon_status == DAEMON_ERROR_DEPENDENCY:
+            # store the bad dependencies
+            for dependency in args:
+                self.bad_dependencies.add(dependency)
+            self.add_error(ERROR_DEPENDENCY, critical=True)
+            return 1
+        # Clear the error if the dependency error is cleared
+        if daemon_status != DAEMON_ERROR_DEPENDENCY:
+            self.clear_error(ERROR_DEPENDENCY)
 
-        # Bad hardware error
-        if ERROR_HARDWARE not in self.errors:
-            # Set the error if the daemon reports a hardware error status
-            self.bad_hardware.clear()
-            if daemon_status == DAEMON_ERROR_HARDWARE:
-                # store the bad hardware
-                for hardware in args:
-                    self.bad_hardware.add(hardware)
-                self.errors = set([ERROR_HARDWARE])
-                return 1
-        else:
-            # Clear the error if the hardware error is cleared
-            if daemon_status != DAEMON_ERROR_HARDWARE:
-                self.errors.remove(ERROR_HARDWARE)
+        # ERROR_HARDWARE
+        # Set the error if the daemon reports a hardware error status
+        self.bad_hardware.clear()
+        if daemon_status == DAEMON_ERROR_HARDWARE:
+            # store the bad hardware
+            for hardware in args:
+                self.bad_hardware.add(hardware)
+            self.add_error(ERROR_HARDWARE, critical=True)
+            return 1
+        # Clear the error if the hardware error is cleared
+        if daemon_status != DAEMON_ERROR_HARDWARE:
+            self.clear_error(ERROR_HARDWARE)
 
-        # Any other bad status error
-        if ERROR_PING not in self.errors:
-            # Set the error if the daemon still reports any status other than running
-            if daemon_status != DAEMON_RUNNING:
-                self.errors = set([ERROR_PING])
-                return 1
-        else:
-            # Clear the error if the hardware error is cleared
-            if daemon_status == DAEMON_RUNNING:
-                self.errors.remove(ERROR_PING)
+        # ERROR_PING
+        # Set the error if the daemon still reports any status other than running
+        if daemon_status != DAEMON_RUNNING:
+            self.add_error(ERROR_PING, critical=True)
+            return 1
+        # Clear the error if the hardware error is cleared
+        if daemon_status == DAEMON_RUNNING:
+            self.clear_error(ERROR_PING)
 
         # Get the daemon info
         info = self.get_info()
 
-        # No info error
-        if ERROR_INFO not in self.errors:
-            # Set the error if the daemon doesn't return any info dict
-            # TODO: maybe should be on a timer, for conditions/scheduler?
-            if info is None or not isinstance(info, dict):
-                self.errors = set([ERROR_INFO])
-                return 1
-        else:
-            # Clear the error if the daemon returns info
-            if isinstance(info, dict):
-                self.errors.remove(ERROR_INFO)
+        # ERROR_INFO
+        # Set the error if the daemon doesn't return any info dict
+        # TODO: maybe should be on a timer, for conditions/scheduler?
+        if info is None or not isinstance(info, dict):
+            self.add_error(ERROR_INFO, critical=True)
+            return 1
+        # Clear the error if the daemon returns info
+        if isinstance(info, dict):
+            self.clear_error(ERROR_INFO)
 
         # Get the daemon hardware status
         hardware_status = self.get_hardware_status()
 
-        # Unknown hardware status error
-        if ERROR_STATE not in self.errors:
-            # Set the error if the daemon doesn't return any info dict
-            if hardware_status == STATUS_UNKNOWN:
-                self.errors = set([ERROR_STATE])
-                return 1
-        else:
-            # Clear the error if the daemon returns info
-            if hardware_status != STATUS_UNKNOWN:
-                self.errors.remove(ERROR_STATE)
+        # ERROR_STATE
+        # Set the error if the daemon doesn't return any info dict
+        if hardware_status == STATUS_UNKNOWN:
+            self.add_error(ERROR_STATE, critical=True)
+            return 1
+        # Clear the error if the daemon returns info
+        if hardware_status != STATUS_UNKNOWN:
+            self.clear_error(ERROR_STATE)
 
     @abstractmethod
     def _check_hardware(self):
