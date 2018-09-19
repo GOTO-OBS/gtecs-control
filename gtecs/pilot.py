@@ -307,6 +307,10 @@ class Pilot(object):
             self.log.info('in manual mode, tasks suspended')
             await asyncio.sleep(30)
 
+        # wait for the right sunalt to start
+        if not restart:
+            await self.wait_for_sunalt(12, 'STARTUP')
+
         # Startup: do this always, unless we're restarting
         if not restart:
             if not self.startup_complete:
