@@ -1,7 +1,7 @@
 """Daemon monitor classes for the pilot."""
 
+import logging
 import time
-import traceback
 from abc import ABC, abstractmethod
 
 from . import params
@@ -46,27 +46,26 @@ MODE_CAM_COOL = 'cool'
 MODE_CAM_WARM = 'warm'
 
 # Hardware errors
-ERROR_RUNNING = 'Daemon not running'
-ERROR_PING = 'Ping failed'
-ERROR_INFO = 'Get info failed'
-ERROR_HARDWARE = 'Hardware connection failed'
-ERROR_DEPENDENCY = 'Dependency ping failed'
-ERROR_STATE = 'Hardware in unknown state'
-ERROR_UNKNOWN = 'Unexpected error returned'
-ERROR_DOME_MOVETIMEOUT = 'Moving taking too long'
-ERROR_DOME_PARTOPENTIMEOUT = 'Stuck partially open for too long'
-ERROR_DOME_NOTFULLOPEN = 'Dome not fully open'
-ERROR_DOME_NOTCLOSED = 'Dome not closed'
-ERROR_DOME_INLOCKDOWN = 'Dome in lockdown state'
-ERROR_MNT_MOVETIMEOUT = 'Moving taking too long'
-ERROR_MNT_NOTONTARGET = 'Mount not on target'
-ERROR_MNT_STOPPED = 'Mount not tracking'
-ERROR_MNT_PARKED = 'Mount parked'
-ERROR_MNT_NOTPARKED = 'Mount not parked'
-ERROR_MNT_INBLINKY = 'Mount in blinky mode'
-ERROR_MNT_CONNECTION = 'SiTechEXE has lost connection to controller'
-ERROR_CAM_WARM = 'Cameras are not cool'
-ERROR_FILT_UNHOMED = 'Filter wheels are not homed'
+ERROR_RUNNING = 'NOT_RUNNING'
+ERROR_PING = 'PING_FAILED'
+ERROR_INFO = 'INFO_FAILED'
+ERROR_HARDWARE = 'HARDWARE_FAILED'
+ERROR_DEPENDENCY = 'DEPEND_FAILED'
+ERROR_STATE = 'HARDWARE_UNKNOWN'
+ERROR_UNKNOWN = 'UNKNOWN'
+ERROR_DOME_MOVETIMEOUT = 'DOME:MOVING_TIMEOUT'
+ERROR_DOME_PARTOPENTIMEOUT = 'DOME:PARTOPEN_TIMEOUT'
+ERROR_DOME_NOTFULLOPEN = 'DOME:NOT_FULLOPEN'
+ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
+ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
+ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
+ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
+ERROR_MNT_PARKED = 'MNT:PARKED'
+ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
+ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
+ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
+ERROR_CAM_WARM = 'CAM:NOT_COOL'
+ERROR_FILT_UNHOMED = 'FLIT:NOT_HOMED'
 
 
 class BaseMonitor(ABC):
@@ -87,10 +86,20 @@ class BaseMonitor(ABC):
 
     def __init__(self, daemon_id, log=None):
         self.daemon_id = daemon_id
-        self.log = log
+        self.monitor_id = self.__class__.__name__
+
+        if log:
+            self.log = log
+        else:
+            logging.basicConfig(level=logging.DEBUG)
+            self.log = logging.getLogger(self.monitor_id)
 
         self.info = None
         self.hardware_status = STATUS_UNKNOWN
+
+        self.successful_check_time = 0
+
+        self.pending_errors = dict()
 
         self.errors = set()
         self.bad_dependencies = set()
@@ -98,9 +107,7 @@ class BaseMonitor(ABC):
 
         self.active_error = None
         self.recovery_level = 0
-        self.error_start_time = 0
-        self.last_successful_check = 0.
-        self.last_recovery_command = 0.
+        self.recovery_command_time = 0
 
         self.get_hardware_status()
 
@@ -162,9 +169,137 @@ class BaseMonitor(ABC):
                                                                    self.available_modes))
 
     # System checks
+    def add_error(self, error, delay=0, critical=False):
+        """Add the error to self.errors if it's not already there.
+
+        If a delay if given only add the error after thant many seconds.
+
+        If critical=True it will overwrite self.errors with just this error.
+        """
+        if error not in self.errors:
+            if not delay:
+                # Sometimes we don't want to wait
+                self.log.debug('Adding error "{}"'.format(error))
+                if not critical:
+                    self.errors.add(error)
+                else:
+                    self.errors = set([error])
+                return
+
+            if error not in self.pending_errors:
+                self.log.debug('"{}" timer started'.format(error))
+                self.pending_errors[error] = time.time()
+                return
+            else:
+                error_time = time.time() - self.pending_errors[error]
+                self.log.debug('"{}" timer: {:.1f}'.format(error, error_time))
+                if error_time > delay:
+                    self.log.debug('Adding error "{}" after {}s'.format(error, delay))
+                    del self.pending_errors[error]
+                    if not critical:
+                        self.errors.add(error)
+                    else:
+                        self.errors = set([error])
+                    return
+
+    def clear_error(self, error):
+        """Remove the error from self.errors if it's there."""
+        if error in self.pending_errors:
+            self.log.debug('Clearing pending error "{}"'.format(error))
+            del self.pending_errors[error]
+        if error in self.errors:
+            self.log.debug('Clearing error "{}"'.format(error))
+            self.errors.remove(error)
+
+    def _check_systems(self):
+        """Check critical functions common to all daemons.
+
+        Note these overwrite self.errors (instead of adding to it) and then return immediately.
+        """
+        # ERROR_RUNNING
+        # Set the error if the daemon isn't running
+        if not self.is_running():
+            self.add_error(ERROR_RUNNING, critical=True)
+            return 1
+        # Clear the error if we are running
+        if self.is_running():
+            self.clear_error(ERROR_RUNNING)
+
+        # Get the daemon status
+        daemon_status, args = self.get_daemon_status()
+
+        # ERROR_PING
+        # Set the error if the daemon returns a bad status
+        if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+            self.add_error(ERROR_PING, critical=True)
+            return 1
+        # Clear the error if the status isn't one of the above
+        if daemon_status not in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
+            self.clear_error(ERROR_PING)
+
+        # ERROR_DEPENDENCY
+        # Set the error if the daemon reports a dependency error status
+        self.bad_dependencies.clear()
+        if daemon_status == DAEMON_ERROR_DEPENDENCY:
+            # store the bad dependencies
+            for dependency in args:
+                self.bad_dependencies.add(dependency)
+            self.add_error(ERROR_DEPENDENCY, critical=True)
+            return 1
+        # Clear the error if the dependency error is cleared
+        if daemon_status != DAEMON_ERROR_DEPENDENCY:
+            self.clear_error(ERROR_DEPENDENCY)
+
+        # ERROR_HARDWARE
+        # Set the error if the daemon reports a hardware error status
+        self.bad_hardware.clear()
+        if daemon_status == DAEMON_ERROR_HARDWARE:
+            # store the bad hardware
+            for hardware in args:
+                self.bad_hardware.add(hardware)
+            self.add_error(ERROR_HARDWARE, critical=True)
+            return 1
+        # Clear the error if the hardware error is cleared
+        if daemon_status != DAEMON_ERROR_HARDWARE:
+            self.clear_error(ERROR_HARDWARE)
+
+        # ERROR_PING
+        # Set the error if the daemon still reports any status other than running
+        if daemon_status != DAEMON_RUNNING:
+            self.add_error(ERROR_PING, critical=True)
+            return 1
+        # Clear the error if the hardware error is cleared
+        if daemon_status == DAEMON_RUNNING:
+            self.clear_error(ERROR_PING)
+
+        # Get the daemon info
+        info = self.get_info()
+
+        # ERROR_INFO
+        # Set the error if the daemon doesn't return any info dict
+        # TODO: maybe should be on a timer, for conditions/scheduler?
+        if info is None or not isinstance(info, dict):
+            self.add_error(ERROR_INFO, critical=True)
+            return 1
+        # Clear the error if the daemon returns info
+        if isinstance(info, dict):
+            self.clear_error(ERROR_INFO)
+
+        # Get the daemon hardware status
+        hardware_status = self.get_hardware_status()
+
+        # ERROR_STATE
+        # Set the error if the daemon doesn't return any info dict
+        if hardware_status == STATUS_UNKNOWN:
+            self.add_error(ERROR_STATE, critical=True)
+            return 1
+        # Clear the error if the daemon returns info
+        if hardware_status != STATUS_UNKNOWN:
+            self.clear_error(ERROR_STATE)
+
     @abstractmethod
     def _check_hardware(self):
-        """Check the hardware status and report any errors to self.errors.
+        """Check the hardware status and add any errors to self.errors.
 
         This abstract method must be implemented by all hardware to add hardware-specific checks.
         """
@@ -177,56 +312,29 @@ class BaseMonitor(ABC):
         -------
         num_errors : int
             0 for OK, >0 for errors
-        errors : list of string
+        errors : set of strings
             details of errors found
 
         """
-        # Functional checks
-        # Note these overwrite self.errors instead of adding to it, because they're critical
-        if not self.is_running():
-            self.errors = set([ERROR_RUNNING])
-            return len(self.errors), self.errors
+        # First run common systems checks
+        found_error = self._check_systems()
 
-        daemon_status, args = self.get_daemon_status()
-        if daemon_status in [DAEMON_ERROR_STATUS, DAEMON_ERROR_RUNNING, DAEMON_ERROR_PING]:
-            self.errors = set([ERROR_PING])
-            return len(self.errors), self.errors
+        # Then run custom hardware checks, unless there's already a systems error
+        if not found_error:
+            self._check_hardware()
 
-        self.bad_dependencies.clear()
-        if daemon_status == DAEMON_ERROR_DEPENDENCY:
-            for dependency in args:
-                self.bad_dependencies.add(dependency)
-            self.errors = set([ERROR_DEPENDENCY])
-            return len(self.errors), self.errors
-
-        self.bad_hardware.clear()
-        if daemon_status == DAEMON_ERROR_HARDWARE:
-            for hardware in args:
-                self.bad_hardware.add(hardware)
-            self.errors = set([ERROR_HARDWARE])
-            return len(self.errors), self.errors
-
-        if daemon_status != DAEMON_RUNNING:
-            self.errors = set([ERROR_PING])
-            return len(self.errors), self.errors
-
-        info = self.get_info()
-        if info is None:
-            self.errors = set([ERROR_INFO])
-            return len(self.errors), self.errors
-
-        hardware_status = self.get_hardware_status()
-        if hardware_status is STATUS_UNKNOWN:
-            self.errors = set([ERROR_STATE])
-            return len(self.errors), self.errors
-
-        # Hardware checks
-        # Will fill self.errors if it finds any
-        self._check_hardware()
-
-        if len(self.errors) < 1:
-            self.last_successful_check = time.time()
-            self.error_start_time = 0
+        # The above two will have populated self.errors
+        if len(self.errors) > 0:
+            # If there are errors log them
+            msg = '{} ({}) '.format(self.monitor_id, self.hardware_status)
+            msg += 'reports {} error{}: {}'.format(len(self.errors),
+                                                   's' if len(self.errors) > 1 else '',
+                                                   ', '.join(self.errors))
+            self.log.warning(msg)
+        else:
+            # If there are no errors record the time
+            self.successful_check_time = time.time()
+            self.recovery_command_time = 0
             self.recovery_level = 0
 
         return len(self.errors), self.errors
@@ -255,26 +363,18 @@ class BaseMonitor(ABC):
         if self.active_error != active_error:
             # We're working on a new procedure, reset the counter.
             self.active_error = active_error
-            self.error_start_time = time.time()
             self.recovery_level = 0
 
-        if self.recovery_level == 0 and 'delay' in recovery_procedure:
-            # Sometimes you don't want to start recovery immediately, give it time to fix itself.
-            downtime = time.time() - self.error_start_time
-            delay = recovery_procedure['delay']
-            if downtime < delay:
-                return
-
-        elif self.recovery_level != 0:
+        if self.recovery_level != 0:
             # Each command has a time to wait until progressing to the next level
-            waittime = time.time() - self.last_recovery_command
-            wait = recovery_procedure[self.recovery_level][1]
-            if waittime < wait:
+            time_since_last_command = time.time() - self.recovery_command_time
+            delay = recovery_procedure[self.recovery_level][1]
+            if time_since_last_command < delay:
                 return
 
         next_level = self.recovery_level + 1
         if next_level not in recovery_procedure:
-            msg = '{} has run out of recovery steps '.format(self.__class__.__name__)
+            msg = '{} has run out of recovery steps '.format(self.monitor_id)
             msg += 'with {:.0f} error(s): {!r} '.format(len(self.errors), self.errors)
             msg += '(mode={}, status={}'.format(self.mode, self.hardware_status)
             if ERROR_HARDWARE in self.errors:
@@ -283,30 +383,20 @@ class BaseMonitor(ABC):
                 msg += ', bad_dependencies={})'.format(self.bad_dependencies)
             else:
                 msg += ')'
-            if self.log:
-                self.log.error(msg)
-            else:
-                print(msg)
+            self.log.error(msg)
             raise RecoveryError(msg)
 
         command = recovery_procedure[next_level][0]
-        msg = '{} attempting recovery '.format(self.__class__.__name__)
+        msg = '{} attempting recovery '.format(self.monitor_id)
         msg += 'level {:.0f}: {}'.format(next_level, command)
-        if self.log:
-            self.log.warning(msg)
-        else:
-            print(msg)
+        self.log.warning(msg)
         try:
             execute_command(command)
         except Exception:
-            if self.log:
-                self.log.error('Error executing recovery command {}'.format(command))
-                self.log.debug('', exc_info=True)
-            else:
-                print('Error executing recovery command {}'.format(command))
-                traceback.print_exc()
+            self.log.error('Error executing recovery command {}'.format(command))
+            self.log.debug('', exc_info=True)
 
-        self.last_recovery_command = time.time()
+        self.recovery_command_time = time.time()
         self.recovery_level += 1
 
 
@@ -319,12 +409,6 @@ class DomeMonitor(BaseMonitor):
         # Define modes and starting mode
         self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
         self.mode = MODE_DOME_CLOSED
-
-        # Dome attributes
-        self._move_start_time = 0
-        self._currently_moving = False
-        self._part_open_start_time = 0
-        self._currently_part_open = False
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -355,92 +439,56 @@ class DomeMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Moving timeout error
-        if ERROR_DOME_MOVETIMEOUT not in self.errors:
-            # Set the error if we've been moving for too long
-            if self.hardware_status == STATUS_DOME_MOVING:
-                if not self._currently_moving:
-                    self._currently_moving = True
-                    self._move_start_time = time.time()
-                else:
-                    if time.time() - self._move_start_time > 60:
-                        self.errors.add(ERROR_DOME_MOVETIMEOUT)
-            else:
-                self._currently_moving = False
-                self._move_start_time = 0
-        else:
-            # Clear the error if we're not moving
-            if self.hardware_status != STATUS_DOME_MOVING:
-                self.errors.remove(ERROR_DOME_MOVETIMEOUT)
+        # ERROR_DOME_MOVETIMEOUT
+        # Set the error if the dome has been moving for too long
+        if self.hardware_status == STATUS_DOME_MOVING:
+            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=60)
+        # Clear the error if the dome is not moving
+        if self.hardware_status != STATUS_DOME_MOVING:
+            self.clear_error(ERROR_DOME_MOVETIMEOUT)
 
-        # Part open timeout error
-        if ERROR_DOME_PARTOPENTIMEOUT not in self.errors:
-            # Set the error if we've been partially open for too long
-            if self.hardware_status == STATUS_DOME_PARTOPEN:
-                if not self._currently_part_open:
-                    self._currently_part_open = True
-                    self._part_open_start_time = time.time()
-                else:
-                    if time.time() - self._part_open_start_time > 10:
-                        self.errors.add(ERROR_DOME_PARTOPENTIMEOUT)
-            else:
-                self._currently_part_open = False
-                self._part_open_start_time = 0
-        else:
-            # Clear the error if we are where we're supposed to be
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode == MODE_DOME_OPEN and self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                        STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
-            elif self.mode == MODE_DOME_CLOSED and self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                            STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_PARTOPENTIMEOUT)
+        # ERROR_DOME_PARTOPENTIMEOUT
+        # Set the error if the dome has been partially open for too long
+        if self.hardware_status == STATUS_DOME_PARTOPEN:
+            self.add_error(ERROR_DOME_PARTOPENTIMEOUT, delay=60)
+        # Clear the error if the dome is where it's supposed to be
+        # Note this keeps the error set while it's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if ((self.mode == MODE_DOME_OPEN and self.hardware_status == STATUS_DOME_FULLOPEN) or
+            (self.mode == MODE_DOME_CLOSED and self.hardware_status == STATUS_DOME_CLOSED) or
+                (self.hardware_status == STATUS_DOME_LOCKDOWN)):
+            self.clear_error(ERROR_DOME_PARTOPENTIMEOUT)
 
-        # Not fully open error
-        if ERROR_DOME_NOTFULLOPEN not in self.errors:
-            # Set the error if we should be open and we're not
-            # Note we're allowed to be moving, that has its own error above
-            # Also note that part_open is delt with above
-            if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
-                                                                            STATUS_DOME_PARTOPEN,
-                                                                            STATUS_DOME_MOVING]:
-                self.errors.add(ERROR_DOME_NOTFULLOPEN)
-        else:
-            # Clear the error if we're fully open, or we shouldn't be any more
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                       STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_NOTFULLOPEN)
+        # ERROR_DOME_NOTFULLOPEN
+        # Set the error if the dome should be open and it's not
+        # Note the dome's allowed to be moving, that has its own error above
+        # Also note that part_open is delt with above
+        if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
+                                                                        STATUS_DOME_PARTOPEN,
+                                                                        STATUS_DOME_MOVING]:
+            self.add_error(ERROR_DOME_NOTFULLOPEN, delay=30)
+        # Clear the error if the dome's fully open, or it shouldn't be any more
+        # Note this keeps the error set while the dome's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
+                                                                   STATUS_DOME_LOCKDOWN]:
+            self.clear_error(ERROR_DOME_NOTFULLOPEN)
 
-        # Not fully closed error
-        if ERROR_DOME_NOTCLOSED not in self.errors:
-            # Set the error if we should be closed and we're not
-            # Note we're allowed to be moving, that has its own error above
-            # Also note that part_open is delt with above
-            if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
-                                                                              STATUS_DOME_PARTOPEN,
-                                                                              STATUS_DOME_MOVING,
-                                                                              STATUS_DOME_LOCKDOWN]:
-                self.errors.add(ERROR_DOME_NOTCLOSED)
-        else:
-            # Clear the error if we're fully closed, or we shouldn't be any more
-            # Note this keeps the error set while we're moving
-            # Also note we clear the error if we're in lockdown, because we can't move anyway
-            if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                         STATUS_DOME_LOCKDOWN]:
-                self.errors.remove(ERROR_DOME_NOTCLOSED)
-
-        # Lockdown error
-        if ERROR_DOME_INLOCKDOWN not in self.errors:
-            # Set the error if we're in lockdown
-            if self.hardware_status == STATUS_DOME_LOCKDOWN:
-                self.errors.add(ERROR_DOME_INLOCKDOWN)
-        else:
-            # Clear the error if we're no longer in lockdown
-            if self.hardware_status != STATUS_DOME_LOCKDOWN:
-                self.errors.remove(ERROR_DOME_INLOCKDOWN)
+        # ERROR_DOME_NOTCLOSED
+        # Set the error if the dome should be closed and it's not
+        # Notethe dome's allowed to be moving, that has its own error above
+        # Also note that part_open is delt with above
+        if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
+                                                                          STATUS_DOME_PARTOPEN,
+                                                                          STATUS_DOME_MOVING,
+                                                                          STATUS_DOME_LOCKDOWN]:
+            self.add_error(ERROR_DOME_NOTCLOSED, delay=30)
+        # Clear the error if the dome's fully closed, or it shouldn't be any more
+        # Note this keeps the error set while the dome's moving
+        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
+        if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
+                                                                     STATUS_DOME_LOCKDOWN]:
+            self.clear_error(ERROR_DOME_NOTCLOSED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -451,7 +499,7 @@ class DomeMonitor(BaseMonitor):
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to the dome or the dehumidifier.
             #          The dome is obviously the higher priority to try and fix.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             if 'dome' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the dome power.
                 recovery_procedure[1] = ['power reboot dome', 60]
@@ -472,7 +520,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['dome start', 30]
             # SOLUTION 2: Try restarting it.
@@ -493,21 +541,9 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATE, {}
 
-        elif ERROR_DOME_INLOCKDOWN in self.errors:
-            # PROBLEM: The conditions are bad and the dome is in lockdown.
-            #          This is a weird one, because it's not really an error we can fix.
-            #          The dome will refuse any commands while it's locked down.
-            #          However we still want the pilot to pause, so it's treated like an error.
-            #          It is a good use of the delay feature through.
-            #          The delay here (24h) will last a whole night.
-            recovery_procedure = {'delay': 86400}
-            # OUT OF SOLUTIONS: There aren't any, but after that delay what else can you do?
-            return ERROR_DOME_INLOCKDOWN, recovery_procedure
-
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['dome halt', 30]
             # SOLUTION 2: Still moving? Okay, kill the dome daemon.
@@ -517,7 +553,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTCLOSED in self.errors:
             # PROBLEM: The dome's not closed when it should be. That's bad.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try closing again.
             recovery_procedure[1] = ['dome close', 90]
             # OUT OF SOLUTIONS: We can't close, panic! Send out the alert.
@@ -529,8 +565,7 @@ class DomeMonitor(BaseMonitor):
             #          for a while (i.e. when it's sounding the siren to move the second side).
             #          This is for when it's been too long like that, such as when the Honeywell
             #          switches fail to catch.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # The recovery procudure depends on if it should be open or closed:
             if self.mode == 'open':
                 # SOLUTION 1: Try to open again.
@@ -551,7 +586,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTFULLOPEN in self.errors:
             # PROBLEM: The dome should be open, but it's closed (part_open is caught above).
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try opening a few times.
             recovery_procedure[1] = ['dome open', 90]
             recovery_procedure[2] = ['dome open', 90]
@@ -574,12 +609,6 @@ class MntMonitor(BaseMonitor):
         # Define modes and starting mode
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
         self.mode = MODE_MNT_PARKED
-
-        # Mount attributes
-        self._move_start_time = 0
-        self._currently_moving = False
-        self._off_target_start_time = 0
-        self._currently_off_target = False
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -616,90 +645,63 @@ class MntMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Moving timeout error
-        if ERROR_MNT_MOVETIMEOUT not in self.errors:
-            # Set the error if we've been moving for too long
-            if self.hardware_status == STATUS_MNT_MOVING:
-                if not self._currently_moving:
-                    self._currently_moving = True
-                    self._move_start_time = time.time()
-                else:
-                    if time.time() - self._move_start_time > 120:
-                        self.errors.add(ERROR_MNT_MOVETIMEOUT)
-            else:
-                self._currently_moving = False
-                self._move_start_time = 0
-        else:
-            # Clear the error if we're not moving
-            if self.hardware_status != STATUS_MNT_MOVING:
-                self.errors.remove(ERROR_MNT_MOVETIMEOUT)
+        # ERROR_MNT_MOVETIMEOUT
+        # Set the error if the mount has been moving for too long
+        if self.hardware_status == STATUS_MNT_MOVING:
+            self.add_error(ERROR_MNT_MOVETIMEOUT, delay=120)
+        # Clear the error if the mount is not moving
+        if self.hardware_status != STATUS_MNT_MOVING:
+            self.clear_error(ERROR_MNT_MOVETIMEOUT)
 
-        # Off target timeout error
-        if ERROR_MNT_NOTONTARGET not in self.errors:
-            # Set the error if we've been off target for too long
-            if self.hardware_status == STATUS_MNT_OFFTARGET:
-                if not self._currently_off_target:
-                    self._currently_off_target = True
-                    self._off_target_start_time = time.time()
-                else:
-                    if time.time() - self._off_target_start_time > 90:
-                        self.errors.add(ERROR_MNT_NOTONTARGET)
-        else:
-            # Clear the error if we're on target (or we don't have a target, like parking)
-            if self.hardware_status != STATUS_MNT_OFFTARGET:
-                self.errors.remove(ERROR_MNT_NOTONTARGET)
+        # ERROR_MNT_NOTONTARGET
+        # Set the error if the mount has been off target for too long
+        if self.hardware_status == STATUS_MNT_OFFTARGET:
+            self.add_error(ERROR_MNT_NOTONTARGET, delay=60)
+        # Clear the error if the mount is on target (or it doesn't have a target, like parking)
+        if self.hardware_status != STATUS_MNT_OFFTARGET:
+            self.clear_error(ERROR_MNT_NOTONTARGET)
 
-        # In blinky error
-        if ERROR_MNT_INBLINKY not in self.errors:
-            # Set the error if we've in blinky mode
-            if self.hardware_status == STATUS_MNT_BLINKY:
-                self.errors.add(ERROR_MNT_INBLINKY)
-        else:
-            # Clear the error if blinky is off
-            if self.hardware_status != STATUS_MNT_BLINKY:
-                self.errors.remove(ERROR_MNT_INBLINKY)
+        # ERROR_MNT_INBLINKY
+        # Set the error if the mount is in blinky mode
+        if self.hardware_status == STATUS_MNT_BLINKY:
+            self.add_error(ERROR_MNT_INBLINKY)
+        # Clear the error if blinky is off
+        if self.hardware_status != STATUS_MNT_BLINKY:
+            self.clear_error(ERROR_MNT_INBLINKY)
 
-        # Connection error
-        if ERROR_MNT_CONNECTION not in self.errors:
-            # Set the error if we've in blinky mode
-            if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
-                self.errors.add(ERROR_MNT_CONNECTION)
-        else:
-            # Clear the error if we've restored connection
-            if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
-                self.errors.remove(ERROR_MNT_CONNECTION)
+        # ERROR_MNT_CONNECTION
+        # Set the error if SiTech has lost connection to the mount
+        if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
+            self.add_error(ERROR_MNT_CONNECTION)
+        # Clear the error if SiTech has restored connection
+        if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
+            self.clear_error(ERROR_MNT_CONNECTION)
 
-        # Stopped error
-        if ERROR_MNT_STOPPED not in self.errors:
-            # Set the error if we're not moving and we should be tracking
-            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
-                self.errors.add(ERROR_MNT_STOPPED)
-        else:
-            # Clear the error if we're tracking or we shouldn't be any more
-            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
-                self.errors.remove(ERROR_MNT_STOPPED)
+        # ERROR_MNT_STOPPED
+        # Set the error if the mount is not moving and it should be tracking
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+            self.add_error(ERROR_MNT_STOPPED, delay=30)
+        # Clear the error if the mount is tracking or it shouldn't be any more
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+            self.clear_error(ERROR_MNT_STOPPED)
 
-        # Parked error
-        if ERROR_MNT_PARKED not in self.errors:
-            # Set the error if we're parked and we should be tracking
-            if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
-                self.errors.add(ERROR_MNT_PARKED)
-        else:
-            # Clear the error if we're no longer parked or we should be
-            if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
-                self.errors.remove(ERROR_MNT_PARKED)
+        # ERROR_MNT_PARKED
+        # Set the error if the mount is parked and it should be tracking
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
+            self.add_error(ERROR_MNT_PARKED, delay=30)
+        # Clear the error if the mount is no longer parked or it should be
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
+            self.clear_error(ERROR_MNT_PARKED)
 
-        # Unparked error
-        if ERROR_MNT_NOTPARKED not in self.errors:
-            # Set the error if we're not parked (or moving (parking)) and we should be
-            if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
-                                                                             STATUS_MNT_MOVING]:
-                self.errors.add(ERROR_MNT_NOTPARKED)
-        else:
-            # Clear the error if we parked or we shouldn't be
-            # Note this keeps the error set while we're moving
-            if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
-                self.errors.remove(ERROR_MNT_NOTPARKED)
+        # ERROR_MNT_NOTPARKED
+        # Set the error if the mount isn't parked (or moving (parking)) and it should be
+        if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
+                                                                         STATUS_MNT_MOVING]:
+            self.add_error(ERROR_MNT_NOTPARKED, delay=30)
+        # Clear the error if the mount is parked or it shouldn't be any more
+        # Note this keeps the error set while the mount is moving
+        if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
+            self.clear_error(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -709,7 +711,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to SiTechEXE.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             if 'sitech' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
@@ -727,7 +729,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['mnt start', 30]
             # SOLUTION 2: Try restarting it.
@@ -746,7 +748,7 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
             #          Maybe it's been powered off.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try turning on the sitech box.
             recovery_procedure[1] = ['power on sitech', 60]
             # SOLUTION 2: Still an error? Try restarting it.
@@ -759,8 +761,7 @@ class MntMonitor(BaseMonitor):
             # PROBLEM: The mount is in blinky mode.
             #          Maybe it's been tracking for too long and reached the limit,
             #          or there's been some voltage problem.
-            #          No delay, if it's in blinky mode it's not going to fix itself.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
             # SOLUTION 2: Maybe there's a problem with the mount.
@@ -775,8 +776,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
             # SOLUTION 2: Still moving? Okay, kill the mnt daemon.
@@ -786,7 +786,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
             recovery_procedure[1] = ['mnt slew', 60]
             # SOLUTION 2: Maybe we're parked?
@@ -799,7 +799,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_STOPPED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try tracking.
             recovery_procedure[1] = ['mnt track', 30]
             # SOLUTION 2: Try again.
@@ -815,7 +815,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_PARKED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's parked.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try unparking.
             recovery_procedure[1] = ['mnt unpark', 30]
             # SOLUTION 2: Try again.
@@ -825,7 +825,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try parking.
             recovery_procedure[1] = ['mnt park', 120]
             # SOLUTION 2: Try again.
@@ -876,7 +876,7 @@ class PowerMonitor(BaseMonitor):
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to a power unit.
             #          Need to go through one-by-one.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             for unit_name in params.POWER_UNITS:
                 if unit_name in self.bad_hardware:
                     # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
@@ -891,7 +891,7 @@ class PowerMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['power start', 30]
             # SOLUTION 2: Try restarting it.
@@ -940,15 +940,13 @@ class CamMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Warm error
-        if ERROR_CAM_WARM not in self.errors:
-            # Set the error if the cameras should be cool and they're not
-            if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
-                self.errors.add(ERROR_CAM_WARM)
-        else:
-            # Clear the error if the cameras are cool or they shouldn't be
-            if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
-                self.errors.remove(ERROR_CAM_WARM)
+        # ERROR_CAM_WARM
+        # Set the error if the cameras should be cool and they're not
+        if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
+            self.add_error(ERROR_CAM_WARM, delay=30)
+        # Clear the error if the cameras are cool or they shouldn't be
+        if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
+            self.clear_error(ERROR_CAM_WARM)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -965,7 +963,7 @@ class CamMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -984,7 +982,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['cam start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1002,7 +1000,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
             #             Note we need to wait for a long time, assuming they're at room temp.
             recovery_procedure[1] = ['cam temp {}'.format(params.CCD_TEMP), 600]
@@ -1043,15 +1041,13 @@ class FiltMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # Unhomed error
-        if ERROR_FILT_UNHOMED not in self.errors:
-            # Set the error if the filter wheels aren't homed
-            if self.hardware_status == STATUS_FILT_UNHOMED:
-                self.errors.add(ERROR_FILT_UNHOMED)
-        else:
-            # Clear the error if the filter wheels have been homed
-            if self.hardware_status != STATUS_FILT_UNHOMED:
-                self.errors.remove(ERROR_FILT_UNHOMED)
+        # ERROR_FILT_UNHOMED
+        # Set the error if the filter wheels aren't homed
+        if self.hardware_status == STATUS_FILT_UNHOMED:
+            self.add_error(ERROR_FILT_UNHOMED)
+        # Clear the error if the filter wheels have been homed
+        if self.hardware_status != STATUS_FILT_UNHOMED:
+            self.clear_error(ERROR_FILT_UNHOMED)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1068,7 +1064,7 @@ class FiltMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1087,7 +1083,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['filt start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1105,7 +1101,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try homing them.
             recovery_procedure[1] = ['filt home', 60]
             # SOLUTION 2: Still not homed? Try again.
@@ -1161,7 +1157,7 @@ class FocMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1180,7 +1176,7 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['foc start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1247,7 +1243,7 @@ class ExqMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1263,7 +1259,7 @@ class ExqMonitor(BaseMonitor):
                     return ERROR_DEPENDENCY + 'fli', recovery_procedure
             if 'cam' in self.bad_dependencies:
                 # PROBLEM: Cam daemon is not responding or not returning info.
-                recovery_procedure = {'delay': 30}
+                recovery_procedure = {}
                 # SOLUTION 1: Make sure it's started.
                 recovery_procedure[1] = ['cam start', 30]
                 # SOLUTION 2: Try restarting it.
@@ -1275,7 +1271,7 @@ class ExqMonitor(BaseMonitor):
                 return ERROR_DEPENDENCY + 'cam', recovery_procedure
             elif 'filt' in self.bad_dependencies:
                 # PROBLEM: Filt daemon is not responding or not returning info.
-                recovery_procedure = {'delay': 30}
+                recovery_procedure = {}
                 # SOLUTION 1: Make sure it's started.
                 recovery_procedure[1] = ['filt start', 30]
                 # SOLUTION 2: Try restarting it.
@@ -1290,7 +1286,7 @@ class ExqMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['exq start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1355,7 +1351,7 @@ class ConditionsMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['conditions start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1420,7 +1416,7 @@ class SchedulerMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['scheduler start', 30]
             # SOLUTION 2: Try restarting it.

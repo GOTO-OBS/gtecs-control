@@ -100,6 +100,7 @@ class Pilot(object):
                          'conditions': monitors.ConditionsMonitor(self.log),
                          'scheduler': monitors.SchedulerMonitor(self.log),
                          }
+        self.current_errors = {k: set() for k in self.hardware.keys()}
 
         # override and conditions flags
         self.status = Status()
@@ -107,7 +108,6 @@ class Pilot(object):
 
         # dictionary of reasons to pause
         self.whypause = {'hw': False, 'cond': False, 'manual': False}
-        self.error_count = 0
         self.time_paused = 0
 
         # dome check flags
@@ -178,13 +178,18 @@ class Pilot(object):
             self.log.info('running hardware checks:')
             for monitor in self.hardware.values():
                 num_errs, errors = monitor.check()
-                error_count += num_errs
-                if num_errs > 0:
-                    msg = '{} ({}) '.format(monitor.__class__.__name__, monitor.hardware_status)
-                    msg += 'reports {} error{}: {}'.format(num_errs, 's' if num_errs > 1 else '',
-                                                           ', '.join(errors))
+                for error in [e for e in errors if e not in self.current_errors[monitor.daemon_id]]:
+                    self.current_errors[monitor.daemon_id].add(error)
+                    msg = 'New error from {}: {}'.format(monitor.monitor_id, error)
                     self.log.warning(msg)
                     send_slack_msg(msg)
+                for error in [e for e in self.current_errors[monitor.daemon_id] if e not in errors]:
+                    self.current_errors[monitor.daemon_id].remove(error)
+                    msg = 'Fixed error from {}: {}'.format(monitor.monitor_id, error)
+                    self.log.info(msg)
+                    send_slack_msg(msg)
+                error_count += num_errs
+                if num_errs > 0:
                     try:
                         monitor.recover()  # Will log recovery commands
                     except RecoveryError as err:
@@ -212,9 +217,6 @@ class Pilot(object):
                     bad_timestamp = 0
                 else:
                     sleep_time = bad_sleep_time
-
-            # save error count so we dont restart whilst broken
-            self.error_count = error_count
 
             await asyncio.sleep(sleep_time)
 
