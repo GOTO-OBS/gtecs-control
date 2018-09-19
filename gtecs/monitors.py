@@ -106,8 +106,6 @@ class BaseMonitor(ABC):
         self.bad_hardware = set()
 
         self.active_error = None
-        self.active_error_start_time = 0
-
         self.recovery_level = 0
         self.recovery_command_time = 0
 
@@ -336,7 +334,6 @@ class BaseMonitor(ABC):
         else:
             # If there are no errors record the time
             self.successful_check_time = time.time()
-            self.active_error_start_time = 0
             self.recovery_command_time = 0
             self.recovery_level = 0
 
@@ -366,17 +363,9 @@ class BaseMonitor(ABC):
         if self.active_error != active_error:
             # We're working on a new procedure, reset the counter.
             self.active_error = active_error
-            self.active_error_start_time = time.time()
             self.recovery_level = 0
 
-        if self.recovery_level == 0 and 'delay' in recovery_procedure:
-            # Sometimes you don't want to start recovery immediately, give it time to fix itself.
-            time_since_error_activated = time.time() - self.active_error_start_time
-            delay = recovery_procedure['delay']
-            if time_since_error_activated < delay:
-                return
-
-        elif self.recovery_level != 0:
+        if self.recovery_level != 0:
             # Each command has a time to wait until progressing to the next level
             time_since_last_command = time.time() - self.recovery_command_time
             delay = recovery_procedure[self.recovery_level][1]
@@ -510,7 +499,7 @@ class DomeMonitor(BaseMonitor):
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to the dome or the dehumidifier.
             #          The dome is obviously the higher priority to try and fix.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             if 'dome' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the dome power.
                 recovery_procedure[1] = ['power reboot dome', 60]
@@ -531,7 +520,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['dome start', 30]
             # SOLUTION 2: Try restarting it.
@@ -554,8 +543,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['dome halt', 30]
             # SOLUTION 2: Still moving? Okay, kill the dome daemon.
@@ -565,7 +553,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTCLOSED in self.errors:
             # PROBLEM: The dome's not closed when it should be. That's bad.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try closing again.
             recovery_procedure[1] = ['dome close', 90]
             # OUT OF SOLUTIONS: We can't close, panic! Send out the alert.
@@ -577,8 +565,7 @@ class DomeMonitor(BaseMonitor):
             #          for a while (i.e. when it's sounding the siren to move the second side).
             #          This is for when it's been too long like that, such as when the Honeywell
             #          switches fail to catch.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # The recovery procudure depends on if it should be open or closed:
             if self.mode == 'open':
                 # SOLUTION 1: Try to open again.
@@ -599,7 +586,7 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_DOME_NOTFULLOPEN in self.errors:
             # PROBLEM: The dome should be open, but it's closed (part_open is caught above).
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try opening a few times.
             recovery_procedure[1] = ['dome open', 90]
             recovery_procedure[2] = ['dome open', 90]
@@ -724,7 +711,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to SiTechEXE.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             if 'sitech' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
@@ -742,7 +729,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['mnt start', 30]
             # SOLUTION 2: Try restarting it.
@@ -761,7 +748,7 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
             #          Maybe it's been powered off.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try turning on the sitech box.
             recovery_procedure[1] = ['power on sitech', 60]
             # SOLUTION 2: Still an error? Try restarting it.
@@ -774,8 +761,7 @@ class MntMonitor(BaseMonitor):
             # PROBLEM: The mount is in blinky mode.
             #          Maybe it's been tracking for too long and reached the limit,
             #          or there's been some voltage problem.
-            #          No delay, if it's in blinky mode it's not going to fix itself.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
             # SOLUTION 2: Maybe there's a problem with the mount.
@@ -790,8 +776,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.
-            #          No delay, because this is only raised after a timeout period already.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
             # SOLUTION 2: Still moving? Okay, kill the mnt daemon.
@@ -801,7 +786,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTONTARGET in self.errors:
             # PROBLEM: The mount is in tracking mode and has a target, but it's not on target.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try slewing to the target, this should start tracking too.
             recovery_procedure[1] = ['mnt slew', 60]
             # SOLUTION 2: Maybe we're parked?
@@ -814,7 +799,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_STOPPED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try tracking.
             recovery_procedure[1] = ['mnt track', 30]
             # SOLUTION 2: Try again.
@@ -830,7 +815,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_PARKED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's parked.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try unparking.
             recovery_procedure[1] = ['mnt unpark', 30]
             # SOLUTION 2: Try again.
@@ -840,7 +825,7 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_MNT_NOTPARKED in self.errors:
             # PROBLEM: The mount is in parked mode but it isn't parked.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try parking.
             recovery_procedure[1] = ['mnt park', 120]
             # SOLUTION 2: Try again.
@@ -891,7 +876,7 @@ class PowerMonitor(BaseMonitor):
         elif ERROR_HARDWARE in self.errors:
             # PROBLEM: We've lost connection to a power unit.
             #          Need to go through one-by-one.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             for unit_name in params.POWER_UNITS:
                 if unit_name in self.bad_hardware:
                     # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
@@ -906,7 +891,7 @@ class PowerMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['power start', 30]
             # SOLUTION 2: Try restarting it.
@@ -978,7 +963,7 @@ class CamMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -997,7 +982,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['cam start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1015,7 +1000,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
             #             Note we need to wait for a long time, assuming they're at room temp.
             recovery_procedure[1] = ['cam temp {}'.format(params.CCD_TEMP), 600]
@@ -1079,7 +1064,7 @@ class FiltMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1098,7 +1083,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['filt start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1116,7 +1101,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
-            recovery_procedure = {'delay': 0}
+            recovery_procedure = {}
             # SOLUTION 1: Try homing them.
             recovery_procedure[1] = ['filt home', 60]
             # SOLUTION 2: Still not homed? Try again.
@@ -1172,7 +1157,7 @@ class FocMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1191,7 +1176,7 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['foc start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1258,7 +1243,7 @@ class ExqMonitor(BaseMonitor):
             for daemon_id in params.FLI_INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The FLI interfaces aren't responding.
-                    recovery_procedure = {'delay': 30}
+                    recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
                     recovery_procedure[1] = ['fli start', 30]
                     # SOLUTION 2: Try restarting them.
@@ -1274,7 +1259,7 @@ class ExqMonitor(BaseMonitor):
                     return ERROR_DEPENDENCY + 'fli', recovery_procedure
             if 'cam' in self.bad_dependencies:
                 # PROBLEM: Cam daemon is not responding or not returning info.
-                recovery_procedure = {'delay': 30}
+                recovery_procedure = {}
                 # SOLUTION 1: Make sure it's started.
                 recovery_procedure[1] = ['cam start', 30]
                 # SOLUTION 2: Try restarting it.
@@ -1286,7 +1271,7 @@ class ExqMonitor(BaseMonitor):
                 return ERROR_DEPENDENCY + 'cam', recovery_procedure
             elif 'filt' in self.bad_dependencies:
                 # PROBLEM: Filt daemon is not responding or not returning info.
-                recovery_procedure = {'delay': 30}
+                recovery_procedure = {}
                 # SOLUTION 1: Make sure it's started.
                 recovery_procedure[1] = ['filt start', 30]
                 # SOLUTION 2: Try restarting it.
@@ -1301,7 +1286,7 @@ class ExqMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['exq start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1366,7 +1351,7 @@ class ConditionsMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['conditions start', 30]
             # SOLUTION 2: Try restarting it.
@@ -1431,7 +1416,7 @@ class SchedulerMonitor(BaseMonitor):
 
         elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
             # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {'delay': 30}
+            recovery_procedure = {}
             # SOLUTION 1: Make sure it's started.
             recovery_procedure[1] = ['scheduler start', 30]
             # SOLUTION 2: Try restarting it.
