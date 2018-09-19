@@ -169,15 +169,15 @@ class BaseMonitor(ABC):
                                                                    self.available_modes))
 
     # System checks
-    def add_error(self, error, timeout=0, critical=False):
+    def add_error(self, error, delay=0, critical=False):
         """Add the error to self.errors if it's not already there.
 
-        If a timeout if given only add the error after timeout seconds.
+        If a delay if given only add the error after thant many seconds.
 
         If critical=True it will overwrite self.errors with just this error.
         """
         if error not in self.errors:
-            if not timeout:
+            if not delay:
                 # Sometimes we don't want to wait
                 self.log.debug('Adding error "{}"'.format(error))
                 if not critical:
@@ -193,8 +193,8 @@ class BaseMonitor(ABC):
             else:
                 error_time = time.time() - self.pending_errors[error]
                 self.log.debug('"{}" timer: {:.1f}'.format(error, error_time))
-                if error_time > timeout:
-                    self.log.debug('Adding error "{}" after {}s'.format(error, timeout))
+                if error_time > delay:
+                    self.log.debug('Adding error "{}" after {}s'.format(error, delay))
                     del self.pending_errors[error]
                     if not critical:
                         self.errors.add(error)
@@ -442,7 +442,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_MOVETIMEOUT
         # Set the error if the dome has been moving for too long
         if self.hardware_status == STATUS_DOME_MOVING:
-            self.add_error(ERROR_DOME_MOVETIMEOUT, timeout=60)
+            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=60)
         # Clear the error if the dome is not moving
         if self.hardware_status != STATUS_DOME_MOVING:
             self.clear_error(ERROR_DOME_MOVETIMEOUT)
@@ -450,7 +450,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_PARTOPENTIMEOUT
         # Set the error if the dome has been partially open for too long
         if self.hardware_status == STATUS_DOME_PARTOPEN:
-            self.add_error(ERROR_DOME_PARTOPENTIMEOUT, timeout=60)
+            self.add_error(ERROR_DOME_PARTOPENTIMEOUT, delay=60)
         # Clear the error if the dome is where it's supposed to be
         # Note this keeps the error set while it's moving
         # Also note we clear the error if the dome's in lockdown, because we can't move anyway
@@ -466,7 +466,7 @@ class DomeMonitor(BaseMonitor):
         if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
                                                                         STATUS_DOME_PARTOPEN,
                                                                         STATUS_DOME_MOVING]:
-            self.add_error(ERROR_DOME_NOTFULLOPEN, timeout=30)
+            self.add_error(ERROR_DOME_NOTFULLOPEN, delay=30)
         # Clear the error if the dome's fully open, or it shouldn't be any more
         # Note this keeps the error set while the dome's moving
         # Also note we clear the error if the dome's in lockdown, because we can't move anyway
@@ -482,7 +482,7 @@ class DomeMonitor(BaseMonitor):
                                                                           STATUS_DOME_PARTOPEN,
                                                                           STATUS_DOME_MOVING,
                                                                           STATUS_DOME_LOCKDOWN]:
-            self.add_error(ERROR_DOME_NOTCLOSED, timeout=30)
+            self.add_error(ERROR_DOME_NOTCLOSED, delay=30)
         # Clear the error if the dome's fully closed, or it shouldn't be any more
         # Note this keeps the error set while the dome's moving
         # Also note we clear the error if the dome's in lockdown, because we can't move anyway
@@ -648,7 +648,7 @@ class MntMonitor(BaseMonitor):
         # ERROR_MNT_MOVETIMEOUT
         # Set the error if the mount has been moving for too long
         if self.hardware_status == STATUS_MNT_MOVING:
-            self.add_error(ERROR_MNT_MOVETIMEOUT, timeout=120)
+            self.add_error(ERROR_MNT_MOVETIMEOUT, delay=120)
         # Clear the error if the mount is not moving
         if self.hardware_status != STATUS_MNT_MOVING:
             self.clear_error(ERROR_MNT_MOVETIMEOUT)
@@ -656,7 +656,7 @@ class MntMonitor(BaseMonitor):
         # ERROR_MNT_NOTONTARGET
         # Set the error if the mount has been off target for too long
         if self.hardware_status == STATUS_MNT_OFFTARGET:
-            self.add_error(ERROR_MNT_NOTONTARGET, timeout=60)
+            self.add_error(ERROR_MNT_NOTONTARGET, delay=60)
         # Clear the error if the mount is on target (or it doesn't have a target, like parking)
         if self.hardware_status != STATUS_MNT_OFFTARGET:
             self.clear_error(ERROR_MNT_NOTONTARGET)
@@ -680,7 +680,7 @@ class MntMonitor(BaseMonitor):
         # ERROR_MNT_STOPPED
         # Set the error if the mount is not moving and it should be tracking
         if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
-            self.add_error(ERROR_MNT_STOPPED, timeout=30)
+            self.add_error(ERROR_MNT_STOPPED, delay=30)
         # Clear the error if the mount is tracking or it shouldn't be any more
         if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
             self.clear_error(ERROR_MNT_STOPPED)
@@ -688,7 +688,7 @@ class MntMonitor(BaseMonitor):
         # ERROR_MNT_PARKED
         # Set the error if the mount is parked and it should be tracking
         if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
-            self.add_error(ERROR_MNT_PARKED, timeout=30)
+            self.add_error(ERROR_MNT_PARKED, delay=30)
         # Clear the error if the mount is no longer parked or it should be
         if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
             self.clear_error(ERROR_MNT_PARKED)
@@ -697,7 +697,7 @@ class MntMonitor(BaseMonitor):
         # Set the error if the mount isn't parked (or moving (parking)) and it should be
         if self.mode == MODE_MNT_PARKED and self.hardware_status not in [STATUS_MNT_PARKED,
                                                                          STATUS_MNT_MOVING]:
-            self.add_error(ERROR_MNT_NOTPARKED, timeout=30)
+            self.add_error(ERROR_MNT_NOTPARKED, delay=30)
         # Clear the error if the mount is parked or it shouldn't be any more
         # Note this keeps the error set while the mount is moving
         if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
@@ -943,7 +943,7 @@ class CamMonitor(BaseMonitor):
         # ERROR_CAM_WARM
         # Set the error if the cameras should be cool and they're not
         if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
-            self.add_error(ERROR_CAM_WARM, timeout=30)
+            self.add_error(ERROR_CAM_WARM, delay=30)
         # Clear the error if the cameras are cool or they shouldn't be
         if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
             self.clear_error(ERROR_CAM_WARM)
