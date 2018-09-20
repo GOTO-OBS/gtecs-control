@@ -1057,7 +1057,7 @@ class Pilot(object):
                    'title': 'External webcam view',
                    'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
                    'text': 'Image attached:',
-                   'image_url': 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static',
+                   'image_url': image_url,
                    'color': colour,
                    'ts': conditions.update_time,
                    }
