@@ -366,8 +366,8 @@ class Pilot(object):
                                     ignore_late=False)
 
         # Finished. Set flag so dome does not reopen
+        # Note the final morning job will still be running, so we can't just shutdown here
         self.ready_to_observe = False
-
         self.log.info('night marshal completed')
 
     # External scripts
