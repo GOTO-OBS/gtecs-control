@@ -1065,7 +1065,7 @@ class Pilot(object):
                         'color': colour,
                         }
 
-        ts = '{:0f}'.format(conditions.update_time)
+        ts = '{:.0f}'.format(conditions.update_time)
         webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
         attach_webcm = {'fallback': 'External webcam view',
                         'title': 'External webcam view',
