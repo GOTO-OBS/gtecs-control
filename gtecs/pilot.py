@@ -1039,7 +1039,7 @@ class Pilot(object):
             msg2 = ':warning: Conditions are bad! :warning:'
             colour = 'danger'
         else:
-            msg2 = 'Conditions are good.'
+            msg2 = 'Conditions are good'
             colour = 'good'
 
         attach_conds = {'fallback': 'Conditions summary',
@@ -1049,17 +1049,19 @@ class Pilot(object):
                         'ts': conditions.update_time,
                         }
 
-        envpg_url = 'http://lapalma-observatory.warwick.ac.uk/environment/',
-        attach_envpg = {'fallback': 'Enviroment link',
-                        'title': 'Local enviroment page',
-                        'title_link': envpg_url,
-                        'color': colour,
-                        }
-
-        mforc_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-        attach_mforc = {'fallback': 'Weather forecast link',
-                        'title': 'Mountain forecast page',
-                        'title_link': mforc_url,
+        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
+        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
+        not_url = 'http://www.not.iac.es/weather/'
+        tng_url = 'https://tngweb.tng.iac.es/weather/'
+        links = ['<{}|Local enviroment page>'.format(env_url),
+                 '<{}|Mountain forecast>'.format(mf_url),
+                 '<{}|ING>'.format(ing_url),
+                 '<{}|NOT>'.format(not_url),
+                 '<{}|TNG>'.format(tng_url),
+                 ]
+        attach_links = {'fallback': 'Useful links',
+                        'text': '  -  '.join(links),
                         'color': colour,
                         }
 
@@ -1082,7 +1084,7 @@ class Pilot(object):
                         'color': colour,
                         }
 
-        send_slack_msg(msg, [attach_conds, attach_envpg, attach_mforc, attach_webcm, attach_irsat])
+        send_slack_msg(msg, [attach_conds, attach_links, attach_webcm, attach_irsat])
 
 
 def run(test=False, restart=False, late=False):
