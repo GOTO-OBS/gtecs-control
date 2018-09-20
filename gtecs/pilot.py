@@ -1036,10 +1036,10 @@ class Pilot(object):
         conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
                                                              bad=':exclamation:')
         if conditions.bad:
-            msg2 = ':warning: Conditions are BAD :warning:'
+            msg2 = ':warning: Conditions are bad! :warning:'
             colour = 'danger'
         else:
-            msg2 = 'Conditions are GOOD'
+            msg2 = 'Conditions are good.'
             colour = 'good'
 
         attach1 = {'fallback': 'Conditions summary',
