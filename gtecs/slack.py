@@ -13,17 +13,23 @@ BOT_NAME = params.SLACK_BOT_NAME
 CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
-def send_slack_msg(msg):
+def send_slack_msg(msg, attachments=None):
     """Send a Slack message to the GOTO channel."""
     if params.ENABLE_SLACK:
         bot = SlackBot()
         try:
-            bot.send_message(msg)
+            bot.send_message(msg, attachments)
         except Exception:
             print('Connection to Slack failed!')
-            print('SLACK:', msg)
+            if not attachments:
+                print('SLACK:', msg)
+            else:
+                print('SLACK:', msg, attachments)
     else:
-        print('SLACK:', msg)
+        if not attachments:
+            print('SLACK:', msg)
+        else:
+            print('SLACK:', msg, attachments)
 
 
 class SlackBot(object):
@@ -66,13 +72,13 @@ class SlackBot(object):
         else:
             raise Exception("cannot get channel")
 
-    def send_message(self, msg):
+    def send_message(self, msg, attachments=None):
         """Send a message to the channel for this bot."""
-        api_call = self.client.api_call(
-            "chat.postMessage",
-            channel=self.channel,
-            text="@channel " + msg,
-            username=self.name
-        )
+        text = "@channel " + msg
+        if not attachments:
+            attachments = {}
+        api_call = self.client.api_call("chat.postMessage",
+                                        channel=self.channel, username=self.name,
+                                        text=text, attachments=attachments)
         if not api_call.get('ok'):
             raise Exception('unable to post message')
