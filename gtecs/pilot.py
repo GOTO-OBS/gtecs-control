@@ -1059,7 +1059,6 @@ class Pilot(object):
                    'text': 'Image attached:',
                    'image_url': image_url,
                    'color': colour,
-                   'ts': conditions.update_time,
                    }
 
         send_slack_msg(msg, [attach1, attach2])
