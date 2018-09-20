@@ -316,6 +316,7 @@ class Pilot(object):
             if not self.startup_complete:
                 await self.startup()
         self.log.info('startup complete')
+        send_slack_msg('{} pilot reports startup complete'.format(params.TELESCOP))
         self.startup_complete = True
 
         # now startup is complete we can start hardware checks
