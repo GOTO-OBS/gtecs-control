@@ -316,7 +316,7 @@ class Pilot(object):
             if not self.startup_complete:
                 await self.startup()
         self.log.info('startup complete')
-        send_slack_msg('{} pilot reports startup complete'.format(params.TELESCOP))
+        self.send_startup_report()
         self.startup_complete = True
 
         # now startup is complete we can start hardware checks
@@ -1028,6 +1028,39 @@ class Pilot(object):
             while not cameras_are_cool():
                 asyncio.sleep(1)
         self.log.info('cameras are cool')
+
+    def send_startup_report(self):
+        """Format and send a Slack message with a summery of the current conditions."""
+        msg = '{} pilot reports startup complete'.format(params.TELESCOP)
+        conditions = Conditions()
+        conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                                             bad=':exclamation:')
+        if conditions.bad:
+            msg2 = ':warning: Conditions are BAD :warning:'
+            colour = 'danger'
+        else:
+            msg2 = 'Conditions are GOOD'
+            colour = 'good'
+
+        attach1 = {'fallback': 'Conditions summary',
+                   'pretext': msg2,
+                   'title': 'La Palma conditions',
+                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/environment/',
+                   'text': conditions_summary,
+                   'color': colour,
+                   'ts': conditions.update_time,
+                   }
+
+        attach2 = {'fallback': 'External webcam view',
+                   'title': 'External webcam view',
+                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                   'text': 'Image attached:',
+                   'image_url': 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static',
+                   'color': colour,
+                   'ts': conditions.update_time,
+                   }
+
+        send_slack_msg(msg, [attach1, attach2])
 
 
 def run(test=False, restart=False, late=False):
