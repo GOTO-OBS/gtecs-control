@@ -1051,6 +1051,8 @@ class Pilot(object):
                    'ts': conditions.update_time,
                    }
 
+        ts = '{:0f}'.format(conditions.update_time)
+        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?{}' + ts
         attach2 = {'fallback': 'External webcam view',
                    'title': 'External webcam view',
                    'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
