@@ -135,8 +135,10 @@ class Conditions(object):
 
     def get_formatted_string(self, good='1', bad='0'):
         """Get a formatted string of the conditions flags."""
-        arr = ['{} {}'.format(flag, good if not self.conditions_dict[flag] else bad)
-               for flag in sorted(self.conditions_dict.keys())]
+        flags = self.conditions_dict.copy()
+        del flags['dark']
+        arr = ['{} {}'.format(flag, good if not flags[flag] else bad)
+               for flag in sorted(flags.keys())]
         return ' - '.join(arr)
 
 
