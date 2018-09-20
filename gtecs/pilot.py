@@ -1042,26 +1042,47 @@ class Pilot(object):
             msg2 = 'Conditions are good.'
             colour = 'good'
 
-        attach1 = {'fallback': 'Conditions summary',
-                   'pretext': msg2,
-                   'title': 'La Palma conditions',
-                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/environment/',
-                   'text': conditions_summary,
-                   'color': colour,
-                   'ts': conditions.update_time,
-                   }
+        attach_conds = {'fallback': 'Conditions summary',
+                        'title': msg2,
+                        'text': conditions_summary,
+                        'color': colour,
+                        'ts': conditions.update_time,
+                        }
+
+        envpg_url = 'http://lapalma-observatory.warwick.ac.uk/environment/',
+        attach_envpg = {'fallback': 'Enviroment link',
+                        'title': 'Local enviroment page',
+                        'title_link': envpg_url,
+                        'color': colour,
+                        }
+
+        mforc_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+        attach_mforc = {'fallback': 'Weather forecast link',
+                        'title': 'Mountain forecast page',
+                        'title_link': mforc_url,
+                        'color': colour,
+                        }
 
         ts = '{:0f}'.format(conditions.update_time)
-        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?{}' + ts
-        attach2 = {'fallback': 'External webcam view',
-                   'title': 'External webcam view',
-                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                   'text': 'Image attached:',
-                   'image_url': image_url,
-                   'color': colour,
-                   }
+        webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+        attach_webcm = {'fallback': 'External webcam view',
+                        'title': 'External webcam view',
+                        'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                        'text': 'Image attached:',
+                        'image_url': webcam_url,
+                        'color': colour,
+                        }
 
-        send_slack_msg(msg, [attach1, attach2])
+        sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
+        attach_irsat = {'fallback': 'IR satellite view',
+                        'title': 'IR satellite view',
+                        'title_link': 'https://en.sat24.com/en/ce/infraPolair',
+                        'text': 'Image attached:',
+                        'image_url': sat_url,
+                        'color': colour,
+                        }
+
+        send_slack_msg(msg, [attach_conds, attach_envpg, attach_mforc, attach_webcm, attach_irsat])
 
 
 def run(test=False, restart=False, late=False):
