@@ -307,11 +307,16 @@ class Pilot(object):
             self.log.info('in manual mode, tasks suspended')
             await asyncio.sleep(30)
 
+        # wait for the right sunalt to start
+        if not restart:
+            await self.wait_for_sunalt(12, 'STARTUP')
+
         # Startup: do this always, unless we're restarting
         if not restart:
             if not self.startup_complete:
                 await self.startup()
         self.log.info('startup complete')
+        self.send_startup_report()
         self.startup_complete = True
 
         # now startup is complete we can start hardware checks
@@ -361,8 +366,8 @@ class Pilot(object):
                                     ignore_late=False)
 
         # Finished. Set flag so dome does not reopen
+        # Note the final morning job will still be running, so we can't just shutdown here
         self.ready_to_observe = False
-
         self.log.info('night marshal completed')
 
     # External scripts
@@ -923,6 +928,7 @@ class Pilot(object):
     async def open_dome(self):
         """Open the dome and await until it is finished."""
         self.log.warning('opening dome')
+        send_slack_msg('{} pilot is opening the dome'.format(params.TELESCOP))
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
@@ -940,6 +946,7 @@ class Pilot(object):
     def close_dome(self):
         """Send the dome close command and return immediately."""
         self.log.warning('closing dome')
+        send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
         execute_command('dome close')
         self.dome_is_open = False
         self.hardware['dome'].mode = 'closed'
@@ -1021,6 +1028,63 @@ class Pilot(object):
             while not cameras_are_cool():
                 asyncio.sleep(1)
         self.log.info('cameras are cool')
+
+    def send_startup_report(self):
+        """Format and send a Slack message with a summery of the current conditions."""
+        msg = '{} pilot reports startup complete'.format(params.TELESCOP)
+        conditions = Conditions()
+        conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                                             bad=':exclamation:')
+        if conditions.bad:
+            msg2 = ':warning: Conditions are bad! :warning:'
+            colour = 'danger'
+        else:
+            msg2 = 'Conditions are good'
+            colour = 'good'
+
+        attach_conds = {'fallback': 'Conditions summary',
+                        'title': msg2,
+                        'text': conditions_summary,
+                        'color': colour,
+                        'ts': conditions.update_time,
+                        }
+
+        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
+        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
+        not_url = 'http://www.not.iac.es/weather/'
+        tng_url = 'https://tngweb.tng.iac.es/weather/'
+        links = ['<{}|Local enviroment page>'.format(env_url),
+                 '<{}|Mountain forecast>'.format(mf_url),
+                 '<{}|ING>'.format(ing_url),
+                 '<{}|NOT>'.format(not_url),
+                 '<{}|TNG>'.format(tng_url),
+                 ]
+        attach_links = {'fallback': 'Useful links',
+                        'text': '  -  '.join(links),
+                        'color': colour,
+                        }
+
+        ts = '{:.0f}'.format(conditions.update_time)
+        webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+        attach_webcm = {'fallback': 'External webcam view',
+                        'title': 'External webcam view',
+                        'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                        'text': 'Image attached:',
+                        'image_url': webcam_url,
+                        'color': colour,
+                        }
+
+        sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
+        attach_irsat = {'fallback': 'IR satellite view',
+                        'title': 'IR satellite view',
+                        'title_link': 'https://en.sat24.com/en/ce/infraPolair',
+                        'text': 'Image attached:',
+                        'image_url': sat_url,
+                        'color': colour,
+                        }
+
+        send_slack_msg(msg, [attach_conds, attach_links, attach_webcm, attach_irsat])
 
 
 def run(test=False, restart=False, late=False):

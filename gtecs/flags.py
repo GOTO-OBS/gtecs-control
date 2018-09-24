@@ -65,9 +65,11 @@ class Conditions(object):
         update_time = int(Time(conditions_dict['update_time']).unix)
         del conditions_dict['update_time']
 
-        # set Condtions properties (which are stored in __dict__)
+        # set conditions properties (which are stored in __dict__)
         # to the values in the dictionary
         self.__dict__ = copy.copy(conditions_dict)
+        # and store the dict itself for easy access
+        self.conditions_dict = conditions_dict
 
         # add the update time
         self.update_time = update_time
@@ -130,6 +132,14 @@ class Conditions(object):
             - UPSs are below critical charge
         """
         return self._crit_sum
+
+    def get_formatted_string(self, good='1', bad='0'):
+        """Get a formatted string of the conditions flags."""
+        flags = self.conditions_dict.copy()
+        del flags['dark']
+        arr = ['{} {}'.format(flag, good if not flags[flag] else bad)
+               for flag in sorted(flags.keys())]
+        return ' - '.join(arr)
 
 
 class Status(object):
