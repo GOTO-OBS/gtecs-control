@@ -58,11 +58,10 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
 
 
 def find_best_focus(m1, m2, delta, xval, yval):
-    """Given two lines with gradients m1, m2 whose intercepts differ by delta.
+    """Find the best focus by fitting to the V-curve.
 
-    Now find the point where the lines cross, given a location xval, yval on
-    the line with gradient m2.
-
+    Given two lines with gradients m1 (positive) and m2 (negative) with intercepts differ by delta,
+    find the point where the lines cross, given a location xval, yval on the line with gradient m2.
     """
     c2 = yval - m2 * xval
     c1 = m1 * (-delta + c2 / m2)
