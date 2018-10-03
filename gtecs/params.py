@@ -46,8 +46,8 @@ for loc in paths:
 validator = validate.Validator()
 result = config.validate(validator)
 if result is not True:
-    print(result)
     print('Config file validation failed')
+    print([k for k in result if not result[k]])
     sys.exit(1)
 
 ############################################################
