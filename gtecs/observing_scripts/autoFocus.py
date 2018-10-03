@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Script to autofocus the telescopes.
 
-autoFocus [filter]
+autoFocus
 
 Image quality is measured via the half-flux-diameter (HFD).
 
@@ -14,7 +14,6 @@ The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
 
-import argparse
 import time
 
 from astropy.convolution import Gaussian2DKernel
@@ -58,10 +57,11 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
         raise
 
 
-def measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs):
+def measure_focus_carefully(target_name, orig_focus, **kwargs):
     """Take an image, measure the HFDs and return them."""
     try:
-        data = get_analysis_image(exptime, filt, name, 'FOCUS', glance=False)
+        data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
+                                  target_name, 'FOCUS', glance=False)
         return get_hfd(data, **kwargs)['median']
     except Exception:
         set_new_focus(orig_focus)
@@ -186,13 +186,8 @@ def get_hfd(data, filter_width=3, threshold=5, **kwargs):
                          'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
 
 
-def run(filt):
+def run():
     """Run the autofocus routine."""
-    bigstep = params.AUTOFOCUS_BIGSTEP
-    smallstep = params.AUTOFOCUS_SMALLSTEP
-    exptime = params.AUTOFOCUS_EXPTIME
-    nfv = params.AUTOFOCUS_NEARFOCUSVALUE
-
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)
     kwargs = {'xslice': xslice, 'yslice': yslice,
@@ -204,7 +199,7 @@ def run(filt):
     print('Starting focus routine')
     star = focus_star(Time.now())
     print('Slewing to star', star)
-    name = star.name
+    target_name = star.name
 
     coordinate = star.coord_now()
     goto(coordinate.ra.deg, coordinate.dec.deg)
@@ -217,7 +212,8 @@ def run(filt):
     delta = pd.Series(params.FOCUS_INTERCEPT_DIFFERENCE, dtype='float')
 
     # start where we are now.
-    data = get_analysis_image(exptime, filt, star.name, 'FOCUS', glance=False)
+    data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
+                              target_name, 'FOCUS', glance=False)
     hfd_values = get_hfd(data, **kwargs)['median']
     orig_focus = pd.Series(get_current_focus())
     print('Previous focus:\n{!r}'.format(orig_focus))
@@ -228,12 +224,12 @@ def run(filt):
 
     # move to +ve side of best focus position
     print('Move focus OUT')
-    set_focus_carefully(orig_focus + bigstep, orig_focus)
+    set_focus_carefully(orig_focus + params.AUTOFOCUS_BIGSTEP, orig_focus)
 
     # hfd should have increased substantially
     # if it hasn't focus measurement is not reliable (dominated by CRs or BPs)?
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs)
+    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -246,11 +242,11 @@ def run(filt):
         raise Exception('image quality estimate not changing with focus position')
 
     # check we are actually on the +ve side of best focus by moving towards best focus
-    set_focus_carefully(pd.Series(get_current_focus()) - smallstep, orig_focus)
+    set_focus_carefully(pd.Series(get_current_focus()) - params.AUTOFOCUS_SMALLSTEP, orig_focus)
 
     # check the IQ has got better
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs)
+    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
     if np.any(old_hfd < hfd_values):
@@ -258,6 +254,7 @@ def run(filt):
         raise Exception('cannot be sure we are on the correct side of best focus')
 
     # while we are > than twice the near focus value, keep halving the hfd_values
+    nfv = params.AUTOFOCUS_NEARFOCUSVALUE
     while np.any(hfd_values > nfv):
         print('stepping towards near focus')
         mask = hfd_values > nfv
@@ -266,7 +263,7 @@ def run(filt):
         new_focus_values = estimate_focus(target_hfds, hfd_values,
                                           pd.Series(get_current_focus()), m2)
         set_focus_carefully(new_focus_values, orig_focus)
-        hfd_values = pd.Series(measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs))
+        hfd_values = pd.Series(measure_focus_carefully(target_name, orig_focus, **kwargs))
         print('Focus: {!r}'.format(get_current_focus()))
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -279,7 +276,7 @@ def run(filt):
     # measure NFV five times and take average
     hfd_measurements = None
     for _ in range(5):
-        hfd_values = measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs)
+        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
@@ -307,7 +304,7 @@ def run(filt):
     # Measure the final value 3 times to get a reasonable average
     best_hfd_measurements = None
     for _ in range(3):
-        best_hfd_values = measure_focus_carefully(exptime, filt, name, orig_focus, **kwargs)
+        best_hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
         if best_hfd_measurements is not None:
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
         else:
@@ -323,12 +320,4 @@ def run(filt):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('filt', nargs='?', default='L')
-    args = parser.parse_args()
-
-    if args.filt not in params.FILTER_LIST:
-        raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
-
-    run(args.filt)
+    run()
