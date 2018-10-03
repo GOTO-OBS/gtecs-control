@@ -254,6 +254,7 @@ FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
 FLATS_NUM = config['FLATS_NUM']
 
 FOCUSRUN_EXPTIME = config['FOCUSRUN_EXPTIME']
+FOCUSRUN_FILTER = config['FOCUSRUN_FILTER']
 FOCUSRUN_DELTAS = config['FOCUSRUN_DELTAS']
 
 ############################################################
