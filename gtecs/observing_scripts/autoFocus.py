@@ -291,9 +291,9 @@ def run():
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus:\n{!r}'.format(near_focus_pos))
 
-    # Measure the HFD at the near-focus position five times.
+    # Measure the HFD at the near-focus position three times.
     nf_hfd_measurements = None
-    for _ in range(5):
+    for _ in range(3):
         hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
         if nf_hfd_measurements is not None:
             nf_hfd_measurements = nf_hfd_measurements.append(hfd_values)
