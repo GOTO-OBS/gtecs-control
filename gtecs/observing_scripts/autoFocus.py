@@ -283,36 +283,37 @@ def run():
 
     ##########
     # STEP 5
-    # Now we're close enough to the near focus value.
+    # Now we're close enough to the near-focus value (NFV).
     # Estimate the distance to the NFV and move to that position.
     print('Starting near focus measurements')
     near_focus_pos = estimate_focus(nfv, hfd_values, pd.Series(get_current_focus()), m2)
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus:\n{!r}'.format(near_focus_pos))
 
-    # Measure the HFD at the NFV five times.
-    hfd_measurements = None
+    # Measure the HFD at the near-focus position five times.
+    nf_hfd_measurements = None
     for _ in range(5):
         hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
-        if hfd_measurements is not None:
-            hfd_measurements = hfd_measurements.append(hfd_values)
+        if nf_hfd_measurements is not None:
+            nf_hfd_measurements = nf_hfd_measurements.append(hfd_values)
         else:
-            hfd_measurements = hfd_values
+            nf_hfd_measurements = hfd_values
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
-    # Assume the measurements are normally distributed, use them as a sample.
-    # ARGUBLY we want to use the minimum here instead, for the same reasons as step 7.
-    hfd_measurements = hfd_measurements.groupby(level=0)
-    hfd_means = hfd_measurements.mean()
-    hfd_std = hfd_measurements.std()
-    hfd_samples = pd.DataFrame()
-    for tel in hfd_means.keys():
-        hfd_samples[tel] = np.random.normal(size=10**4, loc=hfd_means[tel], scale=hfd_std[tel])
+    # Take the smallest value of the 5 as the best estimate for the HFD at the near-focus position.
+    # The reasoning is that we already average the HFD over many stars in each frame,
+    # so across multiple frames we only sample external fluctuations, usually windshake,
+    # which will always make the hfd worse, never better.
+    nf_hfd_measurements = nf_hfd_measurements.groupby(level=0)
+    nf_hfd = nf_hfd_measurements.min()
+    nf_hfd_std = nf_hfd_measurements.std()
+    nf_hfd_df = pd.DataFrame({'min': nf_hfd, 'std_dev': nf_hfd_std})
+    print('HFD at near-focus position =\n{!r}'.format(nf_hfd_df))
 
     ##########
     # STEP 6
     # Now we have the near-focus HFDs, find the best focus using `find_best_focus` and move there.
-    best_focus = find_best_focus(m1, m2, delta, near_focus_pos, hfd_samples)
+    best_focus = find_best_focus(m1, m2, delta, near_focus_pos, nf_hfd)
     best_focus_mean = best_focus.mean(axis=0)
     best_focus_std = best_focus.std(axis=0)
     df = pd.DataFrame({'mean': best_focus_mean, 'std_dev': best_focus_std})
@@ -322,8 +323,6 @@ def run():
     ##########
     # STEP 7
     # Measure the final value 3 times, then take the smallest as the best focus value.
-    # We average the HFD over many stars in each frame so across multiple frames we sample
-    #     external fluctuations, usually windshake, which always make the hfd worse, never better.
     best_hfd_measurements = None
     for _ in range(3):
         best_hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
