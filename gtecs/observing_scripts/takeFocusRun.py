@@ -72,10 +72,16 @@ def run(width, step, filt, make_plots):
               'filter_width': 4, 'threshold': 15}
 
     orig_focus = get_current_focus()
-    deltas = np.arange(-width, +width + 1, step)
-    print('Steps ({:.0f}): '.format(len(deltas)), deltas)
-    pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
 
+    if not params.FOCUSRUN_DELTAS:
+        # Create deltas from the given width and steps
+        deltas = np.arange(-width, +width + 1, step)
+    else:
+        # We've been given overwrite deltas
+        deltas = np.array(params.FOCUSRUN_DELTAS)
+    print('Steps ({:.0f}): '.format(len(deltas)), deltas)
+
+    pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
     pos_master_list = pd.DataFrame(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
