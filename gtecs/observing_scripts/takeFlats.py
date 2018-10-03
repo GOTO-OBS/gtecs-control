@@ -10,6 +10,7 @@ import time
 from astropy import units as u
 from astropy.time import Time
 
+from gtecs import params
 from gtecs.astronomy import night_startdate, sunalt_time
 from gtecs.catalogs import antisun_flat, exposure_sequence, extrapolate_from_filters
 from gtecs.observing import get_analysis_image, goto, offset, prepare_for_images, wait_for_telescope
@@ -72,15 +73,14 @@ def run(eve, alt, late=False):
     wait_for_telescope(120)  # 120s timeout
 
     # Set exposure order and check for sky brightness
-    sky_mean_target = 25000.0
+    sky_mean_target = params.FLATS_SKYMEANTARGET
+    nflats = params.FLATS_NUM
     if eve:
         start_exptime = 3.0
-        nflats = 3
         filt_list = ['B', 'G', 'R', 'L']
         sky_mean = 40000.0
     else:
         start_exptime = 40.0
-        nflats = 3
         filt_list = ['L', 'R', 'G', 'B']
         sky_mean = 2.0
 

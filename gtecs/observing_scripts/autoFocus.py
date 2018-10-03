@@ -188,10 +188,10 @@ def get_hfd(data, filter_width=3, threshold=5, **kwargs):
 
 def run(filt):
     """Run the autofocus routine."""
-    bigstep = 5000
-    smallstep = 1000
-    exptime = 30
-    nfv = 7
+    bigstep = params.AUTOFOCUS_BIGSTEP
+    smallstep = params.AUTOFOCUS_SMALLSTEP
+    exptime = params.AUTOFOCUS_EXPTIME
+    nfv = params.AUTOFOCUS_NEARFOCUSVALUE
 
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)

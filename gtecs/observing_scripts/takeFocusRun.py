@@ -64,7 +64,7 @@ def run(width, step, filt, make_plots):
     # make sure hardware is ready
     prepare_for_images()
 
-    exptime = 30
+    exptime = params.FOCUSRUN_EXPTIME
 
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)

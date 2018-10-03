@@ -244,6 +244,18 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 
 ############################################################
+# Obs script parameters
+AUTOFOCUS_NEARFOCUSVALUE = config['AUTOFOCUS_NEARFOCUSVALUE']
+AUTOFOCUS_BIGSTEP = config['AUTOFOCUS_BIGSTEP']
+AUTOFOCUS_SMALLSTEP = config['AUTOFOCUS_SMALLSTEP']
+AUTOFOCUS_EXPTIME = config['AUTOFOCUS_EXPTIME']
+
+FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
+FLATS_NUM = config['FLATS_NUM']
+
+FOCUSRUN_EXPTIME = config['FOCUSRUN_EXPTIME']
+
+############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
 
