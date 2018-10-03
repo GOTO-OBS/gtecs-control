@@ -83,6 +83,8 @@ def run(width, step, filt, make_plots):
 
     pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
     pos_master_list = pd.DataFrame(pos_master_list)
+    print('Run positions for each UT:')
+    print(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
     RestoreFocus(orig_focus)
