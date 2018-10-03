@@ -60,9 +60,9 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
 def measure_focus_carefully(target_name, orig_focus, **kwargs):
     """Take an image, measure the HFDs and return them."""
     try:
-        data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
-                                  target_name, 'FOCUS', glance=False)
-        return get_hfd(data, **kwargs)['median']
+        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
+                                        target_name, 'FOCUS', glance=False)
+        return get_hfd(image_data, **kwargs)['median']
     except Exception:
         set_new_focus(orig_focus)
         raise
@@ -147,7 +147,7 @@ def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
         return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
-def get_hfd(data, filter_width=3, threshold=5, **kwargs):
+def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
     """Measure the HFD diameter from multiple files.
 
     Returns a Pandas dataframe with an index of telescope ID
@@ -159,29 +159,29 @@ def get_hfd(data, filter_width=3, threshold=5, **kwargs):
     std_dict = {}
     fwhm_dict = {}
     stdf_dict = {}
-    for tel_key in data:
+    for tel in image_data:
         try:
-            median, std, fwhm, f_std = measure_hfd(data[tel_key],
+            median, std, fwhm, f_std = measure_hfd(image_data[tel],
                                                    filter_width, threshold, **kwargs)
         except Exception as error:
-            print('HFD measurement for UT{} errored: {}'.format(tel_key, str(error)))
+            print('HFD measurement for UT{} errored: {}'.format(tel, str(error)))
             std = -1.0
             median = -1.0
             f_std = -1
             fwhm = -1
 
         if std > 0.0:
-            median_dict[tel_key] = median
-            std_dict[tel_key] = std
+            median_dict[tel] = median
+            std_dict[tel] = std
         else:
-            median_dict[tel_key] = np.nan
-            std_dict[tel_key] = np.nan
+            median_dict[tel] = np.nan
+            std_dict[tel] = np.nan
         if f_std > 0.0:
-            fwhm_dict[tel_key] = fwhm
-            stdf_dict[tel_key] = f_std
+            fwhm_dict[tel] = fwhm
+            stdf_dict[tel] = f_std
         else:
-            fwhm_dict[tel_key] = np.nan
-            stdf_dict[tel_key] = np.nan
+            fwhm_dict[tel] = np.nan
+            stdf_dict[tel] = np.nan
     return pd.DataFrame({'median': median_dict, 'std': std_dict,
                          'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
 
@@ -304,11 +304,11 @@ def run():
     # Assume the measurements are normally distributed, use them as a sample.
     # ARGUBLY we want to use the minimum here instead, for the same reasons as step 7.
     hfd_measurements = hfd_measurements.groupby(level=0)
-    hfd_values = hfd_measurements.mean()
+    hfd_means = hfd_measurements.mean()
     hfd_std = hfd_measurements.std()
     hfd_samples = pd.DataFrame()
-    for key in hfd_values.keys():
-        hfd_samples[key] = np.random.normal(size=10**4, loc=hfd_values[key], scale=hfd_std[key])
+    for tel in hfd_means.keys():
+        hfd_samples[tel] = np.random.normal(size=10**4, loc=hfd_means[tel], scale=hfd_std[tel])
 
     ##########
     # STEP 6
