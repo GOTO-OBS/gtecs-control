@@ -314,11 +314,8 @@ def run():
     # STEP 6
     # Now we have the near-focus HFDs, find the best focus using `find_best_focus` and move there.
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, nf_hfd)
-    best_focus_mean = best_focus.mean(axis=0)
-    best_focus_std = best_focus.std(axis=0)
-    df = pd.DataFrame({'mean': best_focus_mean, 'std_dev': best_focus_std})
-    print("Best focus at\n{!r}".format(df))
-    set_focus_carefully(best_focus_mean, orig_focus)
+    print("Best focus at\n{!r}".format(best_focus))
+    set_focus_carefully(best_focus, orig_focus)
 
     ##########
     # STEP 7
