@@ -291,7 +291,7 @@ def run():
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus:\n{!r}'.format(near_focus_pos))
 
-    # Measure the HFD five times and take average.
+    # Measure the HFD at the NFV five times.
     hfd_measurements = None
     for _ in range(5):
         hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
@@ -302,6 +302,7 @@ def run():
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     # Assume the measurements are normally distributed, use them as a sample.
+    # ARGUBLY we want to use the minimum here instead, for the same reasons as step 7.
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.mean()
     hfd_std = hfd_measurements.std()
