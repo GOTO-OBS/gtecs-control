@@ -74,8 +74,7 @@ def run(width, step, filt, make_plots):
     orig_focus = get_current_focus()
     deltas = np.arange(-width, +width + 1, step)
     print('Steps ({:.0f}): '.format(len(deltas)), deltas)
-    pos_master_list = {tel: np.arange(orig_focus[tel] - width, orig_focus[tel] + width + 1, step)
-                       for tel in params.TEL_DICT}
+    pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
 
     pos_master_list = pd.DataFrame(pos_master_list)
 
