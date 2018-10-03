@@ -321,7 +321,9 @@ def run():
 
     ##########
     # STEP 7
-    # Measure the final value 3 times to get a reasonable average.
+    # Measure the final value 3 times, then take the smallest as the best focus value.
+    # We average the HFD over many stars in each frame so across multiple frames we sample
+    #     external fluctuations, usually windshake, which always make the hfd worse, never better.
     best_hfd_measurements = None
     for _ in range(3):
         best_hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
@@ -331,9 +333,9 @@ def run():
             best_hfd_measurements = best_hfd_values
         print('Half-flux-diameters:\n{!r}'.format(best_hfd_values))
     best_hfd_measurements = best_hfd_measurements.groupby(level=0)
-    best_hfd_mean = best_hfd_measurements.mean()
+    best_hfd = best_hfd_measurements.min()
     best_hfd_std = best_hfd_measurements.std()
-    best_hfd_df = pd.DataFrame({'mean': best_hfd_mean, 'std_dev': best_hfd_std})
+    best_hfd_df = pd.DataFrame({'min': best_hfd, 'std_dev': best_hfd_std})
     print('HFD at best focus =\n{!r}'.format(best_hfd_df))
 
     print('Done')
