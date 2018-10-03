@@ -57,17 +57,6 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
         raise
 
 
-def measure_focus_carefully(target_name, orig_focus, **kwargs):
-    """Take an image, measure the HFDs and return them."""
-    try:
-        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
-                                        target_name, 'FOCUS', glance=False)
-        return get_hfd(image_data, **kwargs)['median']
-    except Exception:
-        set_new_focus(orig_focus)
-        raise
-
-
 def find_best_focus(m1, m2, delta, xval, yval):
     """Given two lines with gradients m1, m2 whose intercepts differ by delta.
 
@@ -184,6 +173,17 @@ def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
             stdf_dict[tel] = np.nan
     return pd.DataFrame({'median': median_dict, 'std': std_dict,
                          'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
+
+
+def measure_focus_carefully(target_name, orig_focus, **kwargs):
+    """Take an image, measure the HFDs and return them."""
+    try:
+        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
+                                        target_name, 'FOCUS', glance=False)
+        return get_hfd(image_data, **kwargs)['median']
+    except Exception:
+        set_new_focus(orig_focus)
+        raise
 
 
 def run():
