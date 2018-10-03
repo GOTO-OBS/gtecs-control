@@ -217,6 +217,7 @@ def run():
     goto(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
     wait_for_telescope(120)  # 120s timeout
+    print('Reached target')
 
     ##########
     # STEP 1
