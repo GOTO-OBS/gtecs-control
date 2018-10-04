@@ -33,6 +33,7 @@ class SentinelDaemon(BaseDaemon):
         self.events_queue = []
         self.latest_event = None
         self.processed_events = 0
+        self.interesting_events = 0
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -174,6 +175,7 @@ class SentinelDaemon(BaseDaemon):
         temp_info['pending_events'] = len(self.events_queue)
         temp_info['latest_event'] = self.latest_event
         temp_info['processed_events'] = self.processed_events
+        temp_info['interesting_events'] = self.interesting_events
 
         # Update the master info dict
         self.info = temp_info
@@ -197,7 +199,9 @@ class SentinelDaemon(BaseDaemon):
         self.log.info('Archived to {}'.format(alert_direc))
 
         # Run GOTO-alert's event handler
-        event_handler(payload, self.log, write_html=True, send_messages=False)
+        ret = event_handler(payload, self.log, write_html=True, send_messages=False)
+        if ret:
+            self.interesting_events += 1
 
         # Done!
         self.processed_events += 1
