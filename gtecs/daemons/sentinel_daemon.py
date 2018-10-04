@@ -1,20 +1,25 @@
 #!/usr/bin/env python
 """Daemon to listen for alerts and insert them into the database."""
 
+import os
 import socket
 import threading
 import time
+from urllib.parse import quote_plus
 
 from astropy.time import Time
 
 import gcn.voeventclient as pygcn
 
+from gotoalert.alert import event_handler
+
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
-from gtecs.voevents import Handler
 
 from lxml.etree import XMLSyntaxError
+
+import voeventparse as vp
 
 
 class SentinelDaemon(BaseDaemon):
@@ -25,6 +30,9 @@ class SentinelDaemon(BaseDaemon):
 
         # sentinel variables
         self.listening = True
+        self.events_queue = []
+        self.latest_event = None
+        self.processed_events = 0
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -52,6 +60,18 @@ class SentinelDaemon(BaseDaemon):
                 # Nothing to connect to, just get the info
                 self._get_info()
 
+            # sentinel processes
+            # check the events queue, take off the first entry (if not paused)
+            if len(self.events_queue) > 0:
+                # There's at least one new event!
+                self.latest_event = self.events_queue.pop(0)
+                self.log.info('Processing new event')
+                try:
+                    self._handle_event()
+                except Exception:
+                    self.log.error('handle_event command failed')
+                    self.log.debug('', exc_info=True)
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -67,8 +87,10 @@ class SentinelDaemon(BaseDaemon):
         """
         self.log.info('Alert listener thread started')
 
-        # Generate a handler function using the logger
-        handler = Handler(self.log).get_handler()
+        # Define a handler function
+        # All we need this to do is add the event payload to the queue
+        def _handler(payload, root):
+            self.events_queue.append(payload)
 
         # This first while loop means the socket will be recreated if it closes.
         while self.running:
@@ -99,7 +121,7 @@ class SentinelDaemon(BaseDaemon):
                         self.log.debug('', exc_info=True)
 
                 # launch the listener within a new thread
-                listener = threading.Thread(target=_listen, args=(vo_socket, handler))
+                listener = threading.Thread(target=_listen, args=(vo_socket, _handler))
                 listener.daemon = True
                 listener.start()
 
@@ -144,11 +166,41 @@ class SentinelDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get internal info
+        if self.listening:
+            temp_info['status'] = 'Listening'
+        else:
+            temp_info['status'] = 'Paused'
+        temp_info['pending_events'] = len(self.events_queue)
+        temp_info['latest_event'] = self.latest_event
+        temp_info['processed_events'] = self.processed_events
+
         # Update the master info dict
         self.info = temp_info
 
         # Finally check if we need to report an error
         self._check_errors()
+
+    def _handle_event(self):
+        """Archive each VOEvent, then pass it to GOTO-alert."""
+        payload = self.latest_event
+        v = vp.loads(payload)
+        ivorn = v.attrib['ivorn']
+        filename = quote_plus(ivorn)
+        alert_direc = params.CONFIG_PATH + 'voevents/'
+        if not os.path.exists(alert_direc):
+            os.mkdir(alert_direc)
+
+        with open(alert_direc + filename, 'wb') as f:
+            f.write(payload)
+        self.log.info(ivorn)
+        self.log.info('Archived to {}'.format(alert_direc))
+
+        # Run GOTO-alert's event handler
+        event_handler(payload, self.log, write_html=True, send_messages=False)
+
+        # Done!
+        self.processed_events += 1
 
     # Control functions
     def pause_listener(self):

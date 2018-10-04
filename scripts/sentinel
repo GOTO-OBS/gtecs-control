@@ -79,7 +79,14 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('####### SENTINEL INFO ########')
-    print('Timestamp: %s' % info['timestamp'])
+    print('Status: %s' % info['status'])
+    print('~~~~~~~')
+    if info['pending_events'] > 0:
+        print('Processed events:   %i (%i pending)' % (info['processed_events'],
+                                                       info['pending_events']))
+    else:
+        print('Processed events:   %i' % (info['processed_events']))
+    print('Latest event: \n%s' % (info['latest_event']))
     print('###########################')
 
 
