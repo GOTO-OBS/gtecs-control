@@ -87,6 +87,9 @@ def print_info(info):
     else:
         print('Processed events:   %i' % (info['processed_events']))
     print('Latest event: \n%s' % (info['latest_event']))
+    print('~~~~~~~')
+    print('Uptime: %.1fs' % info['uptime'])
+    print('Timestamp: %s' % info['timestamp'])
     print('###########################')
 
 
