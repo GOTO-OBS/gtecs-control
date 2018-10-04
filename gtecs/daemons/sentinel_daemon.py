@@ -57,7 +57,7 @@ class SentinelDaemon(BaseDaemon):
                 self._get_info()
 
             # sentinel processes
-            # check the events queue, take off the first entry (if not paused)
+            # check the events queue, take off the first entry
             if len(self.events_queue) > 0:
                 # There's at least one new event!
                 self.latest_event = self.events_queue.pop(0)
