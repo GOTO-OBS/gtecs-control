@@ -24,7 +24,7 @@ class Event(object):
     def __repr__(self):
             return self.ivorn
 
-    def archive(self, log):
+    def archive(self, log=None):
         """Archive this event in the config directory."""
         self.alert_direc = params.CONFIG_PATH + 'voevents/'
         if not os.path.exists(self.alert_direc):
@@ -33,4 +33,5 @@ class Event(object):
         with open(self.alert_direc + self.filename, 'wb') as f:
             f.write(self.payload)
 
-        log.info('Archived to {}'.format(self.alert_direc))
+        if log:
+            log.info('Archived to {}'.format(self.alert_direc))
