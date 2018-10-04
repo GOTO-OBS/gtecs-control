@@ -2,6 +2,8 @@
 
 import os
 
+from gotoalert.alert import event_handler
+
 from six.moves.urllib.parse import quote_plus
 
 import voeventparse as vp
@@ -21,10 +23,10 @@ class Handler(object):
     def get_handler(self):
         """Create a handler function."""
         def handler(payload, root):
-            """Payload handler that archives VOEvent messages as files in the config directory.
+            """Payload handler that calls GOTO-alert's `event_handler`.
 
-            Based on PyGCN's default archive handler:
-            https://github.com/lpsinger/pygcn/blob/master/gcn/handlers.py
+            It also archives the alert as a file in the config directory, based on PyGCN's
+            default archive handler.
             """
             v = vp.loads(payload)
             ivorn = v.attrib['ivorn']
@@ -35,11 +37,10 @@ class Handler(object):
 
             with open(alert_direc + filename, 'wb') as f:
                 f.write(payload)
-
-            role = v.attrib['role']
-            ra = vp.get_event_position(v).ra
-            dec = vp.get_event_position(v).dec
-            self.log.info('ivorn={}, role={}, ra={}, dec={}'.format(ivorn, role, ra, dec))
+            self.log.info(ivorn)
             self.log.info('Archived to {}'.format(alert_direc))
+
+            # Run GOTO-alert's event handler
+            event_handler(payload, self.log, write_html=True, send_messages=False)
 
         return handler
