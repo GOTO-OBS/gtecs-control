@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 """Daemon to listen for alerts and insert them into the database."""
 
-import os
 import socket
 import threading
 import time
-from urllib.parse import quote_plus
 
 from astropy.time import Time
 
@@ -16,10 +14,9 @@ from gotoalert.alert import event_handler
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
+from gtecs.voevents import Event
 
 from lxml.etree import XMLSyntaxError
-
-import voeventparse as vp
 
 
 class SentinelDaemon(BaseDaemon):
@@ -66,7 +63,7 @@ class SentinelDaemon(BaseDaemon):
             if len(self.events_queue) > 0:
                 # There's at least one new event!
                 self.latest_event = self.events_queue.pop(0)
-                self.log.info('Processing new event')
+                self.log.info('Processing new event: {}'.format(self.latest_event.ivorn))
                 try:
                     self._handle_event()
                 except Exception:
@@ -89,9 +86,10 @@ class SentinelDaemon(BaseDaemon):
         self.log.info('Alert listener thread started')
 
         # Define a handler function
-        # All we need this to do is add the event payload to the queue
+        # All we need this to do is create and Event and add it to the queue
         def _handler(payload, root):
-            self.events_queue.append(payload)
+            event = Event(payload)
+            self.events_queue.append(event)
 
         # This first while loop means the socket will be recreated if it closes.
         while self.running:
@@ -185,21 +183,13 @@ class SentinelDaemon(BaseDaemon):
 
     def _handle_event(self):
         """Archive each VOEvent, then pass it to GOTO-alert."""
-        payload = self.latest_event
-        v = vp.loads(payload)
-        ivorn = v.attrib['ivorn']
-        filename = quote_plus(ivorn)
-        alert_direc = params.CONFIG_PATH + 'voevents/'
-        if not os.path.exists(alert_direc):
-            os.mkdir(alert_direc)
+        event = self.latest_event
 
-        with open(alert_direc + filename, 'wb') as f:
-            f.write(payload)
-        self.log.info(ivorn)
-        self.log.info('Archived to {}'.format(alert_direc))
+        # Archive the event
+        event.archive(self.log)
 
         # Run GOTO-alert's event handler
-        ret = event_handler(payload, self.log, write_html=True, send_messages=False)
+        ret = event_handler(event.payload, self.log, write_html=True, send_messages=False)
         if ret:
             self.interesting_events += 1
 
