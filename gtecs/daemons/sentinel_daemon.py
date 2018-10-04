@@ -16,8 +16,6 @@ from gtecs import params
 from gtecs.daemons import BaseDaemon
 from gtecs.voevents import Event
 
-from lxml.etree import XMLSyntaxError
-
 
 class SentinelDaemon(BaseDaemon):
     """Sentinel alerts daemon class."""
@@ -112,9 +110,6 @@ class SentinelDaemon(BaseDaemon):
                         if self.running and self.listening:
                             # It's only a problem if we're not the one shutting the socket
                             self.log.warning('socket error')
-                    except XMLSyntaxError:
-                        self.log.error('XML syntax error')
-                        self.log.debug('', exc_info=True)
                     except Exception as err:
                         self.log.error('Error in alert listener')
                         self.log.debug('', exc_info=True)
