@@ -30,6 +30,7 @@ class ConditionsDaemon(BaseDaemon):
                            'windspeed',
                            'humidity',
                            'temperature',
+                           'dew_point',
                            'ups',
                            'link',
                            'hatch',
@@ -179,6 +180,8 @@ class ConditionsDaemon(BaseDaemon):
                          if 'temperature' in weather[source]])
         humidity = np.array([weather[source]['humidity'] for source in weather
                              if 'humidity' in weather[source]])
+        dew_point = np.array([weather[source]['dew_point'] for source in weather
+                             if 'dew_point' in weather[source]])
         int_temp = np.array([weather[source]['int_temperature'] for source in weather
                              if 'int_temperature' in weather[source]])
         int_humidity = np.array([weather[source]['int_humidity'] for source in weather
@@ -188,6 +191,7 @@ class ConditionsDaemon(BaseDaemon):
         windspeed = windspeed[windspeed != -999]
         temp = temp[temp != -999]
         humidity = humidity[humidity != -999]
+        dew_point = dew_point[dew_point != -999]
         int_temp = int_temp[int_temp != -999]
         int_humidity = int_humidity[int_humidity != -999]
 
@@ -254,6 +258,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['humidity'] = len(humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
+
+        # dew_point flag
+        good['dew_point'] = np.all(dew_point > params.MIN_DEWPOINT)
+        valid['dew_point'] = len(dew_point) >= 1
+        good_delay['dew_point'] = params.DEWPOINT_GOODDELAY
+        bad_delay['dew_point'] = params.DEWPOINT_BADDELAY
 
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and

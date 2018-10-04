@@ -201,6 +201,7 @@ def get_local_weather(source):
                     'windspeed': -999,
                     'humidity': -999,
                     'skytemp': -999,
+                    'dew_point': -999,
                     }
 
     try:
@@ -262,6 +263,14 @@ def get_local_weather(source):
             weather_dict['skytemp'] = float(data['sky_temp'])
     except Exception:
         print('Error parsing sky temp for {}'.format(source))
+
+    try:
+        if vaisala and data['dew_point_delta_valid']:
+            weather_dict['dew_point'] = float(data['dew_point_delta'])
+        elif not vaisala:
+            del weather_dict['dew_point']
+    except Exception:
+        print('Error parsing dew point for {}'.format(source))
 
     try:
         weather_dict['update_time'] = Time(data['date'], precision=0).iso
