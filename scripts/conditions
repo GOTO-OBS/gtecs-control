@@ -202,6 +202,15 @@ def print_info(info):
                                                                       dt_str)
             print(weather_str)
 
+        sat_clouds = info['sat_clouds']
+        if sat_clouds > params.MAX_SATCLOUDS - 5:
+            sat_clouds_str = style.ytxt('{:>5.1f}'.format(sat_clouds))
+            if sat_clouds > params.MAX_SATCLOUDS:
+                sat_clouds_str = style.rtxt('{:>5.1f}'.format(sat_clouds))
+        else:
+            sat_clouds_str = style.gtxt('{:>5.1f}'.format(sat_clouds))
+        print('  {: <10}   {}%'.format('sat_clouds', sat_clouds_str))
+
         print('OTHER:')
         ups_percents = info['ups_percent']
         ups_strings = []

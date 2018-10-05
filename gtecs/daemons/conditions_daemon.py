@@ -38,6 +38,7 @@ class ConditionsDaemon(BaseDaemon):
                            'low_battery',
                            'internal',
                            'ice',
+                           'sat_clouds',
                            ]
 
         self.flags = {flag: 2 for flag in self.flag_names}
@@ -146,6 +147,15 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['free_diskspace'] = None
 
+        # Get info from the satellite IR cloud image
+        try:
+            sat_clouds = conditions.get_satellite_clouds() * 100.
+            temp_info['sat_clouds'] = sat_clouds
+        except Exception:
+            self.log.error('Failed to get satellite clouds info')
+            self.log.debug('', exc_info=True)
+            temp_info['sat_clouds'] = None
+
         # Get current sun alt
         temp_info['sunalt'] = get_sunalt(Time(self.loop_time, format='unix'))
 
@@ -210,6 +220,9 @@ class ConditionsDaemon(BaseDaemon):
 
         # Diskspace
         diskspace_low = info['free_diskspace'] > params.MIN_DISKSPACE
+
+        # Clouds
+        sat_clouds = info['sat_clouds']
 
         # Sunalt
         sun_up = info['sunalt'] < params.SUN_ELEVATION_LIMIT
@@ -302,6 +315,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['diskspace'] = True
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
+
+        # sat_clouds flag
+        good['sat_clouds'] = sat_clouds < params.MAX_SATCLOUDS
+        valid['sat_clouds'] = True
+        good_delay['sat_clouds'] = params.SATCLOUDS_GOODDELAY
+        bad_delay['sat_clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
         good['dark'] = sun_up
