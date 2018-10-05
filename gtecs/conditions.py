@@ -6,10 +6,15 @@ import os
 import subprocess
 import time
 import traceback
+import urllib
 import warnings
 
 from astropy._erfa import ErfaWarning
 from astropy.time import Time
+
+import cv2
+
+import numpy as np
 
 from . import misc
 from . import params
@@ -517,3 +522,29 @@ def get_diskspace_remaining(path):
     total = statvfs.f_bsize * statvfs.f_blocks / 1024
 
     return available / total
+
+
+def get_satellite_clouds():
+    """Download the Eumetsat IR image from sat24.com, and use it to judge clouds over La Palma.
+
+    Returns a value between 0 and 1, representing the median pixel illumination.
+    """
+    # Download image
+    with urllib.request.urlopen('https://en.sat24.com/image?type=infraPolair&region=ce') as url:
+        arr = np.asarray(bytearray(url.read()), dtype='uint8')
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+
+    # Crop La Palma area
+    img_crop = img[205:225, 310:330]
+
+    # Get standard deviation between the channels to mask out the coastline
+    std = np.std(cv2.split(img_crop), axis=0)
+    mask = std < 20
+
+    # Mask image and average across the colour channels
+    img_masked = img_crop[mask]
+    img_av = np.mean(img_masked, axis=1)
+
+    # Measure the median pixel value, and scale by the pixel range (0-255)
+    median = np.median(img_av) / 255
+    return median
