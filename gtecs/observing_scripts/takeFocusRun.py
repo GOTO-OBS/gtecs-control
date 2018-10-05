@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Script to take a series of images running through focus.
 
-takeFocusRun [width=2000] [step=200] [filter] [plot (y/n)]
+takeFocusRun [width=2000] [step=200] [plot (y/n)]
 
 It assumes you're already on a reasonable patch of sky and that you're
 already focused (see autoFocus script)
@@ -59,12 +59,10 @@ def plot_results(df):
     plt.show()
 
 
-def run(width, step, filt, make_plots):
+def run(width, step, make_plots):
     """Run the focus run routine."""
     # make sure hardware is ready
     prepare_for_images()
-
-    exptime = 30
 
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)
@@ -72,12 +70,19 @@ def run(width, step, filt, make_plots):
               'filter_width': 4, 'threshold': 15}
 
     orig_focus = get_current_focus()
-    deltas = np.arange(-width, +width + 1, step)
-    print('Steps ({:.0f}): '.format(len(deltas)), deltas)
-    pos_master_list = {tel: np.arange(orig_focus[tel] - width, orig_focus[tel] + width + 1, step)
-                       for tel in params.TEL_DICT}
 
+    if not params.FOCUSRUN_DELTAS:
+        # Create deltas from the given width and steps
+        deltas = np.arange(-width, +width + 1, step)
+    else:
+        # We've been given overwrite deltas
+        deltas = np.array(params.FOCUSRUN_DELTAS)
+    print('Steps ({:.0f}): '.format(len(deltas)), deltas)
+
+    pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
     pos_master_list = pd.DataFrame(pos_master_list)
+    print('Run positions for each UT:')
+    print(pos_master_list)
 
     # from here any exception or attempt to close should move to old focus
     RestoreFocus(orig_focus)
@@ -92,7 +97,8 @@ def run(width, step, filt, make_plots):
         set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
         print('Taking frames')
-        data = get_analysis_image(exptime, filt, 'Focus run', 'FOCUS', glance=False)
+        data = get_analysis_image(params.FOCUSRUN_EXPTIME, params.FOCUSRUN_FILTER,
+                                  'Focus run', 'FOCUS', glance=False)
         hfd_values = get_hfd(data, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
         hfd_values['pos'] = pd.Series(get_current_focus())
@@ -125,11 +131,7 @@ if __name__ == "__main__":
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('width', nargs='?', default=2000)
     parser.add_argument('step', nargs='?', default=200)
-    parser.add_argument('filt', nargs='?', default='L')
     parser.add_argument('plot', nargs='?', default='y')
     args = parser.parse_args()
 
-    if args.filt not in params.FILTER_LIST:
-        raise ValueError('filter not one of {!r}'.format(params.FILTER_LIST))
-
-    run(int(args.width), int(args.step), args.filt, args.plot)
+    run(int(args.width), int(args.step), args.plot)

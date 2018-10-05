@@ -46,8 +46,8 @@ for loc in paths:
 validator = validate.Validator()
 result = config.validate(validator)
 if result is not True:
-    print(result)
     print('Config file validation failed')
+    print([k for k in result if not result[k]])
     sys.exit(1)
 
 ############################################################
@@ -192,26 +192,6 @@ FILTER_LIST = config['FILTER_LIST']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 
-# cant add these to validation without adding unwanted defaults
-# enforce type here instead.
-if 'FOCUS_SLOPE_ABOVE' in config:
-    FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
-                         for key in config['FOCUS_SLOPE_ABOVE']}
-else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in TEL_DICT}
-
-if 'FOCUS_SLOPE_BELOW' in config:
-    FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
-                         for key in config['FOCUS_SLOPE_BELOW']}
-else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in TEL_DICT}
-
-if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
-    FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
-                                  for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
-else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
-
 ############################################################
 # Exposure Queue parameters
 QUEUE_PATH = CONFIG_PATH
@@ -242,6 +222,42 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 ############################################################
 # Observing parameters
 MOONELEV_LIMIT = config['MOONELEV_LIMIT']
+
+############################################################
+# Obs script parameters
+AUTOFOCUS_NEARFOCUSVALUE = config['AUTOFOCUS_NEARFOCUSVALUE']
+AUTOFOCUS_BIGSTEP = config['AUTOFOCUS_BIGSTEP']
+AUTOFOCUS_SMALLSTEP = config['AUTOFOCUS_SMALLSTEP']
+AUTOFOCUS_EXPTIME = config['AUTOFOCUS_EXPTIME']
+AUTOFOCUS_FILTER = config['AUTOFOCUS_FILTER']
+
+# cant add these to validation without adding unwanted defaults
+# enforce type here instead.
+if 'FOCUS_SLOPE_ABOVE' in config:
+    FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
+                         for key in config['FOCUS_SLOPE_ABOVE']}
+else:
+    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in TEL_DICT}
+
+if 'FOCUS_SLOPE_BELOW' in config:
+    FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
+                         for key in config['FOCUS_SLOPE_BELOW']}
+else:
+    FOCUS_SLOPE_BELOW = {key: -12.0 for key in TEL_DICT}
+
+if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
+    FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
+                                  for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
+else:
+    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
+
+
+FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
+FLATS_NUM = config['FLATS_NUM']
+
+FOCUSRUN_EXPTIME = config['FOCUSRUN_EXPTIME']
+FOCUSRUN_FILTER = config['FOCUSRUN_FILTER']
+FOCUSRUN_DELTAS = config['FOCUSRUN_DELTAS']
 
 ############################################################
 # Pilot parameters

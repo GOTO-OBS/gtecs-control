@@ -471,7 +471,7 @@ class Pilot(object):
         foc_run = {'name': 'FOCRUN',
                    'sunalt': -14.5,
                    'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
-                   'args': ['1000', '100', 'L', 'n'],
+                   'args': ['1000', '100', 'n'],
                    'protocol': SimpleProtocol}
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
