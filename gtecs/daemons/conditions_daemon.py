@@ -209,7 +209,7 @@ class ConditionsDaemon(BaseDaemon):
         pings = np.array(info['pings'])
 
         # Diskspace
-        disckspace_low = info['free_diskspace'] > params.MIN_DISKSPACE
+        diskspace_low = info['free_diskspace'] > params.MIN_DISKSPACE
 
         # Sunalt
         sun_up = info['sunalt'] < params.SUN_ELEVATION_LIMIT
@@ -298,7 +298,7 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
-        good['diskspace'] = disckspace_low
+        good['diskspace'] = diskspace_low
         valid['diskspace'] = True
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
