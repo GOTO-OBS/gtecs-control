@@ -14,6 +14,7 @@ from gotoalert.alert import event_handler
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
+from gtecs.slack import send_slack_msg
 from gtecs.voevents import Event
 
 
@@ -186,6 +187,8 @@ class SentinelDaemon(BaseDaemon):
         # Run GOTO-alert's event handler
         ret = event_handler(event.payload, self.log, write_html=True, send_messages=False)
         if ret:
+            event_name = ret['event_name']
+            send_slack_msg('Sentinel processed an interesting event: {}'.format(event_name))
             self.interesting_events += 1
 
         # Done!
