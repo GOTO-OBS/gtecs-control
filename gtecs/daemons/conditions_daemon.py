@@ -117,8 +117,8 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get UPS info')
             self.log.debug('', exc_info=True)
-            temp_info['ups_percent'] = None
-            temp_info['ups_status'] = None
+            temp_info['ups_percent'] = -999
+            temp_info['ups_status'] = -999
 
         # Get info from the dome hatch
         try:
@@ -127,7 +127,7 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get hatch info')
             self.log.debug('', exc_info=True)
-            temp_info['hatch_closed'] = None
+            temp_info['hatch_closed'] = -999
 
         # Get info from the link ping check
         try:
@@ -136,7 +136,7 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get link info')
             self.log.debug('', exc_info=True)
-            temp_info['pings'] = None
+            temp_info['pings'] = -999
 
         # Get info from the disk usage check
         try:
@@ -145,7 +145,7 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get diskspace info')
             self.log.debug('', exc_info=True)
-            temp_info['free_diskspace'] = None
+            temp_info['free_diskspace'] = -999
 
         # Get info from the satellite IR cloud image
         try:
@@ -154,10 +154,16 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get satellite clouds info')
             self.log.debug('', exc_info=True)
-            temp_info['sat_clouds'] = None
+            temp_info['sat_clouds'] = -999
 
         # Get current sun alt
-        temp_info['sunalt'] = get_sunalt(Time(self.loop_time, format='unix'))
+        try:
+            sunalt = get_sunalt(Time(self.loop_time, format='unix'))
+            temp_info['sunalt'] = sunalt
+        except Exception:
+            self.log.error('Failed to get sunalt info')
+            self.log.debug('', exc_info=True)
+            temp_info['sunalt'] = -999
 
         # Set the conditions flags
         try:
@@ -213,19 +219,24 @@ class ConditionsDaemon(BaseDaemon):
         ups_status = ups_status[ups_status != -999]
 
         # Hatch
-        hatch_closed = info['hatch_closed']
+        hatch_closed = np.array(info['hatch_closed'])
+        hatch_closed = hatch_closed[hatch_closed != -999]
 
         # Link
         pings = np.array(info['pings'])
+        pings = pings[pings != -999]
 
         # Diskspace
-        diskspace_low = info['free_diskspace'] > params.MIN_DISKSPACE
+        free_diskspace = np.array(info['free_diskspace'])
+        free_diskspace = free_diskspace[free_diskspace != -999]
 
         # Clouds
-        sat_clouds = info['sat_clouds']
+        sat_clouds = np.array(info['sat_clouds'])
+        sat_clouds = sat_clouds[sat_clouds != -999]
 
         # Sunalt
-        sun_up = info['sunalt'] < params.SUN_ELEVATION_LIMIT
+        sunalt = np.array(info['sunalt'])
+        sunalt = sunalt[sunalt != -999]
 
         # ~~~~~~~~~~~~~~
         # Calcualte the flags and if they are valid.
@@ -299,8 +310,8 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['low_battery'] = 0
 
         # hatch flag
-        good['hatch'] = hatch_closed
-        valid['hatch'] = True
+        good['hatch'] = np.all(hatch_closed == 1)
+        valid['hatch'] = len(hatch_closed) >= 1
         good_delay['hatch'] = params.HATCH_GOODDELAY
         bad_delay['hatch'] = params.HATCH_BADDELAY
 
@@ -311,20 +322,20 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
-        good['diskspace'] = diskspace_low
-        valid['diskspace'] = True
+        good['diskspace'] = np.all(free_diskspace > params.MIN_DISKSPACE)
+        valid['diskspace'] = len(free_diskspace) >= 1
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
         # sat_clouds flag
-        good['sat_clouds'] = sat_clouds < params.MAX_SATCLOUDS
-        valid['sat_clouds'] = True
+        good['sat_clouds'] = np.all(sat_clouds < params.MAX_SATCLOUDS)
+        valid['sat_clouds'] = len(sat_clouds) >= 1
         good_delay['sat_clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['sat_clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
-        good['dark'] = sun_up
-        valid['dark'] = True
+        good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
+        valid['dark'] = len(sunalt) >= 1
         good_delay['dark'] = 0
         bad_delay['dark'] = 0
 
