@@ -985,6 +985,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
         self.dome_confirmed_closed = True
+        send_slack_msg('{} pilot confirmed dome is closed'.format(params.TELESCOP))
         self.log.info('dome confirmed closed')
 
     async def unpark_mount(self):
