@@ -979,8 +979,11 @@ class Pilot(object):
             elapsed_time = time.time() - start_time
             if elapsed_time / 60. > mins_until_panic:
                 msg = "IMPORTANT: {} pilot cannot close dome!".format(params.TELESCOP)
-                send_email(message=msg)
                 send_slack_msg(msg)
+                try:
+                    send_email(message=msg)
+                except Exception:
+                    self.log.error('Error sending email')
 
             await asyncio.sleep(sleep_time)
 
