@@ -946,7 +946,9 @@ class Pilot(object):
     def close_dome(self):
         """Send the dome close command and return immediately."""
         self.log.warning('closing dome')
-        send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
+        dome_status = self.hardware['dome'].get_hardware_status()
+        if dome_status not in ['closed', 'in_lockdown']:
+            send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
         execute_command('dome close')
         self.dome_is_open = False
         self.hardware['dome'].mode = 'closed'
