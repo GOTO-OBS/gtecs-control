@@ -30,6 +30,7 @@ class ConditionsDaemon(BaseDaemon):
                            'windspeed',
                            'humidity',
                            'temperature',
+                           'dew_point',
                            'ups',
                            'link',
                            'hatch',
@@ -37,6 +38,7 @@ class ConditionsDaemon(BaseDaemon):
                            'low_battery',
                            'internal',
                            'ice',
+                           'sat_clouds',
                            ]
 
         self.flags = {flag: 2 for flag in self.flag_names}
@@ -115,8 +117,8 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get UPS info')
             self.log.debug('', exc_info=True)
-            temp_info['ups_percent'] = None
-            temp_info['ups_status'] = None
+            temp_info['ups_percent'] = -999
+            temp_info['ups_status'] = -999
 
         # Get info from the dome hatch
         try:
@@ -125,7 +127,7 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get hatch info')
             self.log.debug('', exc_info=True)
-            temp_info['hatch_closed'] = None
+            temp_info['hatch_closed'] = -999
 
         # Get info from the link ping check
         try:
@@ -134,7 +136,7 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get link info')
             self.log.debug('', exc_info=True)
-            temp_info['pings'] = None
+            temp_info['pings'] = -999
 
         # Get info from the disk usage check
         try:
@@ -143,10 +145,25 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get diskspace info')
             self.log.debug('', exc_info=True)
-            temp_info['free_diskspace'] = None
+            temp_info['free_diskspace'] = -999
+
+        # Get info from the satellite IR cloud image
+        try:
+            sat_clouds = conditions.get_satellite_clouds() * 100.
+            temp_info['sat_clouds'] = sat_clouds
+        except Exception:
+            self.log.error('Failed to get satellite clouds info')
+            self.log.debug('', exc_info=True)
+            temp_info['sat_clouds'] = -999
 
         # Get current sun alt
-        temp_info['sunalt'] = get_sunalt(Time(self.loop_time, format='unix'))
+        try:
+            sunalt = get_sunalt(Time(self.loop_time, format='unix'))
+            temp_info['sunalt'] = sunalt
+        except Exception:
+            self.log.error('Failed to get sunalt info')
+            self.log.debug('', exc_info=True)
+            temp_info['sunalt'] = -999
 
         # Set the conditions flags
         try:
@@ -179,6 +196,8 @@ class ConditionsDaemon(BaseDaemon):
                          if 'temperature' in weather[source]])
         humidity = np.array([weather[source]['humidity'] for source in weather
                              if 'humidity' in weather[source]])
+        dew_point = np.array([weather[source]['dew_point'] for source in weather
+                             if 'dew_point' in weather[source]])
         int_temp = np.array([weather[source]['int_temperature'] for source in weather
                              if 'int_temperature' in weather[source]])
         int_humidity = np.array([weather[source]['int_humidity'] for source in weather
@@ -188,6 +207,7 @@ class ConditionsDaemon(BaseDaemon):
         windspeed = windspeed[windspeed != -999]
         temp = temp[temp != -999]
         humidity = humidity[humidity != -999]
+        dew_point = dew_point[dew_point != -999]
         int_temp = int_temp[int_temp != -999]
         int_humidity = int_humidity[int_humidity != -999]
 
@@ -199,16 +219,24 @@ class ConditionsDaemon(BaseDaemon):
         ups_status = ups_status[ups_status != -999]
 
         # Hatch
-        hatch_closed = info['hatch_closed']
+        hatch_closed = np.array(info['hatch_closed'])
+        hatch_closed = hatch_closed[hatch_closed != -999]
 
         # Link
         pings = np.array(info['pings'])
+        pings = pings[pings != -999]
 
         # Diskspace
-        disckspace_low = info['free_diskspace'] > params.MIN_DISKSPACE
+        free_diskspace = np.array(info['free_diskspace'])
+        free_diskspace = free_diskspace[free_diskspace != -999]
+
+        # Clouds
+        sat_clouds = np.array(info['sat_clouds'])
+        sat_clouds = sat_clouds[sat_clouds != -999]
 
         # Sunalt
-        sun_up = info['sunalt'] < params.SUN_ELEVATION_LIMIT
+        sunalt = np.array(info['sunalt'])
+        sunalt = sunalt[sunalt != -999]
 
         # ~~~~~~~~~~~~~~
         # Calcualte the flags and if they are valid.
@@ -255,6 +283,12 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
 
+        # dew_point flag
+        good['dew_point'] = np.all(dew_point > params.MIN_DEWPOINT)
+        valid['dew_point'] = len(dew_point) >= 1
+        good_delay['dew_point'] = params.DEWPOINT_GOODDELAY
+        bad_delay['dew_point'] = params.DEWPOINT_BADDELAY
+
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
                             np.all(int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
@@ -276,8 +310,8 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['low_battery'] = 0
 
         # hatch flag
-        good['hatch'] = hatch_closed
-        valid['hatch'] = True
+        good['hatch'] = np.all(hatch_closed == 1)
+        valid['hatch'] = len(hatch_closed) >= 1
         good_delay['hatch'] = params.HATCH_GOODDELAY
         bad_delay['hatch'] = params.HATCH_BADDELAY
 
@@ -288,14 +322,20 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
-        good['diskspace'] = disckspace_low
-        valid['diskspace'] = True
+        good['diskspace'] = np.all(free_diskspace > params.MIN_DISKSPACE)
+        valid['diskspace'] = len(free_diskspace) >= 1
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
+        # sat_clouds flag
+        good['sat_clouds'] = np.all(sat_clouds < params.MAX_SATCLOUDS)
+        valid['sat_clouds'] = len(sat_clouds) >= 1
+        good_delay['sat_clouds'] = params.SATCLOUDS_GOODDELAY
+        bad_delay['sat_clouds'] = params.SATCLOUDS_BADDELAY
+
         # dark flag
-        good['dark'] = sun_up
-        valid['dark'] = True
+        good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
+        valid['dark'] = len(sunalt) >= 1
         good_delay['dark'] = 0
         bad_delay['dark'] = 0
 
@@ -316,7 +356,7 @@ class ConditionsDaemon(BaseDaemon):
                 continue
 
             # check if good
-            if good[flag] and self.flags[flag] != 0:
+            if valid[flag] and good[flag] and self.flags[flag] != 0:
                 dt = update_time - self.update_time[flag]
                 if dt > good_delay[flag]:
                     self.log.info('Setting {} to good (0)'.format(flag))
@@ -328,7 +368,7 @@ class ConditionsDaemon(BaseDaemon):
                 continue
 
             # check if bad
-            if not good[flag] and self.flags[flag] != 1:
+            if valid[flag] and not good[flag] and self.flags[flag] != 1:
                 dt = update_time - self.update_time[flag]
                 if dt > bad_delay[flag]:
                     self.log.info('Setting {} to bad (1)'.format(flag))

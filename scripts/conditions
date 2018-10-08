@@ -104,6 +104,7 @@ def print_info(info):
         for source in ['goto', 'w1m', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
+            dewpoint = weather[source]['dew_point']
             windspeed = weather[source]['windspeed']
             rain = weather[source]['rain']
             dt = weather[source]['dt']
@@ -118,6 +119,15 @@ def print_info(info):
                     temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+
+            if dewpoint == -999:
+                dewpoint_str = style.rtxt('  ERR')
+            elif (dewpoint > params.MIN_DEWPOINT):
+                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
+                if (dewpoint > params.MIN_DEWPOINT + 1):
+                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
+            else:
+                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
 
             if humidity == -999:
                 humidity_str = style.rtxt('  ERR')
@@ -156,11 +166,12 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}C  {}%  {} km/h  {}  dt={}'.format(temperature_str,
-                                                                humidity_str,
-                                                                windspeed_str,
-                                                                rain_str,
-                                                                dt_str)
+            weather_str = '{}C  {}%  {}C  {} km/h  {}  dt={}'.format(temperature_str,
+                                                                     humidity_str,
+                                                                     dewpoint_str,
+                                                                     windspeed_str,
+                                                                     rain_str,
+                                                                     dt_str)
             print(weather_str)
 
         # for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
@@ -197,10 +208,19 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}C  {}%                     dt={}'.format(int_temperature_str,
-                                                                      int_humidity_str,
-                                                                      dt_str)
+            weather_str = '{}C  {}%                             dt={}'.format(int_temperature_str,
+                                                                              int_humidity_str,
+                                                                              dt_str)
             print(weather_str)
+
+        sat_clouds = info['sat_clouds']
+        if sat_clouds > params.MAX_SATCLOUDS - 5:
+            sat_clouds_str = style.ytxt('{:>5.1f}'.format(sat_clouds))
+            if sat_clouds > params.MAX_SATCLOUDS:
+                sat_clouds_str = style.rtxt('{:>5.1f}'.format(sat_clouds))
+        else:
+            sat_clouds_str = style.gtxt('{:>5.1f}'.format(sat_clouds))
+        print('  {: <10}   {}%'.format('sat_clouds', sat_clouds_str))
 
         print('OTHER:')
         ups_percents = info['ups_percent']

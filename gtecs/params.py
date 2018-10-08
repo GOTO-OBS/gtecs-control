@@ -138,6 +138,11 @@ MAX_WINDSPEED = config['MAX_WINDSPEED']
 WINDSPEED_BADDELAY = config['WINDSPEED_BADDELAY']
 WINDSPEED_GOODDELAY = config['WINDSPEED_GOODDELAY']
 
+# Dew point - measured in Celsius above ambient temperature
+MIN_DEWPOINT = config['MIN_DEWPOINT']
+DEWPOINT_BADDELAY = config['DEWPOINT_BADDELAY']
+DEWPOINT_GOODDELAY = config['DEWPOINT_GOODDELAY']
+
 # Temperature - measured in Celsius
 MAX_TEMPERATURE = config['MAX_TEMPERATURE']
 MIN_TEMPERATURE = config['MIN_TEMPERATURE']
@@ -172,8 +177,13 @@ IGNORE_HATCH = config['IGNORE_HATCH']
 HATCH_BADDELAY = config['HATCH_BADDELAY']
 HATCH_GOODDELAY = config['HATCH_GOODDELAY']
 
-# Diskspace - free space in %
+# Diskspace - free space measured in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
+
+# Satellite clouds - opacity measured in %
+MAX_SATCLOUDS = config['MAX_SATCLOUDS']
+SATCLOUDS_BADDELAY = config['SATCLOUDS_BADDELAY']
+SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 
 ############################################################
 # Mount parameters
