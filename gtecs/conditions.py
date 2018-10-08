@@ -270,10 +270,8 @@ def get_local_weather(source):
         print('Error parsing sky temp for {}'.format(source))
 
     try:
-        if vaisala and data['dew_point_delta_valid']:
+        if vaisala and data['dew_point_delta_valid'] or not vaisala:
             weather_dict['dew_point'] = float(data['dew_point_delta'])
-        elif not vaisala:
-            del weather_dict['dew_point']
     except Exception:
         print('Error parsing dew point for {}'.format(source))
 
