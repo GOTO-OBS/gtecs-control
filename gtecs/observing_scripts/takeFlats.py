@@ -111,6 +111,11 @@ def run(eve, alt, late=False):
 
     for i, exptime in enumerate(exp_list):
         print('Taking {} filter flat {}/{}'.format(current_filter, i + 1, len(exp_list)))
+
+        if exptime > params.FLATS_MAXEXPTIME:
+            print('Limiting exposure time to {:.1f}'.format(params.FLATS_MAXEXPTIME))
+            exptime = params.FLATS_MAXEXPTIME
+
         sky_mean = take_sky(exptime, current_filter, field_name)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
@@ -128,12 +133,20 @@ def run(eve, alt, late=False):
         scaling_factor = 25000.0 / sky_mean
         start_exptime = exptime * scaling_factor
         print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, start_exptime))
+        if start_exptime > params.FLATS_MAXEXPTIME:
+            print('Limiting exposure time to {:.1f}'.format(params.FLATS_MAXEXPTIME))
+            start_exptime = params.FLATS_MAXEXPTIME
 
         print('Taking flats in {} filter'.format(current_filter))
         exp_list = exposure_sequence(today, 1, start_exptime, nflats=nflats, eve=eve)
 
         for i, exptime in enumerate(exp_list):
             print('Taking {} filter flat {}/{}'.format(current_filter, i + 1, len(exp_list)))
+
+            if exptime > params.FLATS_MAXEXPTIME:
+                print('Limiting exposure time to {:.1f}'.format(params.FLATS_MAXEXPTIME))
+                exptime = params.FLATS_MAXEXPTIME
+
             sky_mean = take_sky(exptime, current_filter, field_name)
             print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
