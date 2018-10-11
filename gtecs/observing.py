@@ -115,6 +115,7 @@ def wait_for_focuser(timeout):
     start_time = time.time()
     still_moving = True
     timed_out = False
+    time.sleep(2)
     while still_moving and not timed_out:
         try:
             foc_info = daemon_info('foc')
