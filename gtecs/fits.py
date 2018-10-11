@@ -53,7 +53,7 @@ def write_fits(image, filename, tel, all_info, log=None):
 
     # update the image header
     run_number = all_info['cam']['run_number']
-    update_header(hdu.header, tel, all_info)
+    update_header(hdu.header, tel, all_info, log)
 
     # write the image log to the database
     if run_number > 0:
@@ -119,10 +119,9 @@ def get_all_info(cam_info):
     return all_info
 
 
-def update_header(header, tel, all_info):
+def update_header(header, tel, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
-    # These cards are set automatically by AstroPy, we just give them
-    # better comments
+    # These cards are set automatically by AstroPy, we just give them better comments
     header.comments["SIMPLE  "] = "Standard FITS"
     header.comments["BITPIX  "] = "Bits per pixel"
     header.comments["NAXIS   "] = "Number of dimensions"
@@ -366,6 +365,8 @@ def update_header(header, tel, all_info):
         foc_temp_int = info['int_temp']
         foc_temp_ext = info['ext_temp']
     except Exception:
+        log.error('Failed to write focuser info to header')
+        log.debug('', exc_info=True)
         foc_serial = 'NA'
         foc_pos = 'NA'
         foc_temp_int = 'NA'
@@ -388,6 +389,8 @@ def update_header(header, tel, all_info):
         filt_num = info['current_filter_num']
         filt_pos = info['current_pos']
     except Exception:
+        log.error('Failed to write filter wheel info to header')
+        log.debug('', exc_info=True)
         filt_serial = 'NA'
         filt_filter = 'NA'
         filt_num = 'NA'
@@ -418,6 +421,8 @@ def update_header(header, tel, all_info):
         dome_open = info['dome'] == 'open'
 
     except Exception:
+        log.error('Failed to write dome info to header')
+        log.debug('', exc_info=True)
         dome_status = 'NA'
         dome_open = 'NA'
 
@@ -467,6 +472,8 @@ def update_header(header, tel, all_info):
         moon_dist = numpy.around(moon_dist, decimals=2)
 
     except Exception:
+        log.error('Failed to write mount info to header')
+        log.debug('', exc_info=True)
         mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
@@ -511,6 +518,8 @@ def update_header(header, tel, all_info):
 
         sun_alt = numpy.around(info['sun_alt'], decimals=1)
     except Exception:
+        log.error('Failed to write astronomy info to header')
+        log.debug('', exc_info=True)
         moon_alt = 'NA'
         moon_ill = 'NA'
         moon_phase = 'NA'
@@ -566,6 +575,8 @@ def update_header(header, tel, all_info):
             int_hum = numpy.around(int_hum, decimals=1)
 
     except Exception:
+        log.error('Failed to write conditions info to header')
+        log.debug('', exc_info=True)
         clouds = 'NA'
         ext_temp = 'NA'
         ext_hum = 'NA'
