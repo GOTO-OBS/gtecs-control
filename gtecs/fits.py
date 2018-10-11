@@ -72,7 +72,7 @@ def write_fits(image, filename, tel, all_info, log=None):
             log.info('Glance saved')
 
 
-def get_all_info(cam_info):
+def get_all_info(cam_info, log):
     """Get all info dicts from the running daemons, and other common info."""
     all_info = {}
 
@@ -83,30 +83,40 @@ def get_all_info(cam_info):
     try:
         all_info['foc'] = daemon_info('foc')
     except Exception:
+        log.error('Failed to fetch focuser info')
+        log.debug('', exc_info=True)
         all_info['foc'] = None
 
     # Filter wheel info
     try:
         all_info['filt'] = daemon_info('filt')
     except Exception:
+        log.error('Failed to fetch filter wheel info')
+        log.debug('', exc_info=True)
         all_info['filt'] = None
 
     # Dome info
     try:
         all_info['dome'] = daemon_info('dome')
     except Exception:
+        log.error('Failed to fetch dome info')
+        log.debug('', exc_info=True)
         all_info['dome'] = None
 
     # Mount info
     try:
         all_info['mnt'] = daemon_info('mnt')
     except Exception:
+        log.error('Failed to fetch mount info')
+        log.debug('', exc_info=True)
         all_info['mnt'] = None
 
     # Conditions info
     try:
         all_info['conditions'] = daemon_info('conditions')
     except Exception:
+        log.error('Failed to fetch conditions info')
+        log.debug('', exc_info=True)
         all_info['conditions'] = None
 
     # Astronomy
