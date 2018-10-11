@@ -236,7 +236,18 @@ def run():
     print('Moveing focus OUT')
     set_focus_carefully(orig_focus + params.AUTOFOCUS_BIGSTEP, orig_focus)
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+
+    # Measure the final value 3 times, then take the smallest as the HFD value.
+    hfd_measurements = None
+    for _ in range(3):
+        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        if hfd_measurements is not None:
+            hfd_measurements = hfd_measurements.append(hfd_values)
+        else:
+            hfd_measurements = hfd_values
+        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    hfd_measurements = hfd_measurements.groupby(level=0)
+    hfd_values = hfd_measurements.min()
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -255,7 +266,18 @@ def run():
     # This should confirm we're actually on the positive side of the V-curve.
     set_focus_carefully(pd.Series(get_current_focus()) - params.AUTOFOCUS_SMALLSTEP, orig_focus)
     old_hfd = hfd_values
-    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+
+    # Measure the final value 3 times, then take the smallest as the HFD value.
+    hfd_measurements = None
+    for _ in range(3):
+        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        if hfd_measurements is not None:
+            hfd_measurements = hfd_measurements.append(hfd_values)
+        else:
+            hfd_measurements = hfd_values
+        print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    hfd_measurements = hfd_measurements.groupby(level=0)
+    hfd_values = hfd_measurements.min()
     print('Focus: {!r}'.format(get_current_focus()))
     print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
