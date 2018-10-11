@@ -360,6 +360,9 @@ def update_header(header, tel, all_info, log):
     # Focuser info
     try:
         info = all_info['foc'][tel]
+        if info is None:
+            raise ValueError('No focuser info fetched')
+
         foc_serial = info['serial_number']
         foc_pos = info['current_pos']
         foc_temp_int = info['int_temp']
@@ -380,6 +383,9 @@ def update_header(header, tel, all_info, log):
     # Filter wheel info
     try:
         info = all_info['filt'][tel]
+        if info is None:
+            raise ValueError('No filter wheel info fetched')
+
         filt_serial = info['serial_number']
         if not info['homed']:
             filt_filter = 'UNHOMED'
@@ -405,6 +411,9 @@ def update_header(header, tel, all_info, log):
     # Dome info
     try:
         info = all_info['dome']
+        if info is None:
+            raise ValueError('No dome info fetched')
+
         north_status = info['north']
         south_status = info['south']
         if north_status == 'ERROR' or south_status == 'ERROR':
@@ -432,6 +441,8 @@ def update_header(header, tel, all_info, log):
     # Mount info
     try:
         info = all_info['mnt']
+        if info is None:
+            raise ValueError('No mount info fetched')
 
         mount_tracking = info['status'] == 'Tracking'
 
@@ -511,6 +522,8 @@ def update_header(header, tel, all_info, log):
     # Astronomy info
     try:
         info = all_info['astro']
+        if info is None:
+            raise ValueError('No astronomy info fetched')
 
         moon_alt = numpy.around(info['moon_alt'], decimals=2)
         moon_ill = numpy.around(info['moon_ill'] * 100., decimals=1)
@@ -533,6 +546,8 @@ def update_header(header, tel, all_info, log):
     # Conditions info
     try:
         info = all_info['conditions']
+        if info is None:
+            raise ValueError('No conditions info fetched')
 
         clouds = info['sat_clouds']
         if clouds == -999:
