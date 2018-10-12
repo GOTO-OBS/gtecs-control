@@ -53,7 +53,7 @@ def write_fits(image, filename, tel, all_info, log=None):
 
     # update the image header
     run_number = all_info['cam']['run_number']
-    update_header(hdu.header, tel, all_info)
+    update_header(hdu.header, tel, all_info, log)
 
     # write the image log to the database
     if run_number > 0:
@@ -72,7 +72,7 @@ def write_fits(image, filename, tel, all_info, log=None):
             log.info('Glance saved')
 
 
-def get_all_info(cam_info):
+def get_all_info(cam_info, log):
     """Get all info dicts from the running daemons, and other common info."""
     all_info = {}
 
@@ -83,30 +83,40 @@ def get_all_info(cam_info):
     try:
         all_info['foc'] = daemon_info('foc')
     except Exception:
+        log.error('Failed to fetch focuser info')
+        log.debug('', exc_info=True)
         all_info['foc'] = None
 
     # Filter wheel info
     try:
         all_info['filt'] = daemon_info('filt')
     except Exception:
+        log.error('Failed to fetch filter wheel info')
+        log.debug('', exc_info=True)
         all_info['filt'] = None
 
     # Dome info
     try:
         all_info['dome'] = daemon_info('dome')
     except Exception:
+        log.error('Failed to fetch dome info')
+        log.debug('', exc_info=True)
         all_info['dome'] = None
 
     # Mount info
     try:
         all_info['mnt'] = daemon_info('mnt')
     except Exception:
+        log.error('Failed to fetch mount info')
+        log.debug('', exc_info=True)
         all_info['mnt'] = None
 
     # Conditions info
     try:
         all_info['conditions'] = daemon_info('conditions')
     except Exception:
+        log.error('Failed to fetch conditions info')
+        log.debug('', exc_info=True)
         all_info['conditions'] = None
 
     # Astronomy
@@ -119,10 +129,9 @@ def get_all_info(cam_info):
     return all_info
 
 
-def update_header(header, tel, all_info):
+def update_header(header, tel, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
-    # These cards are set automatically by AstroPy, we just give them
-    # better comments
+    # These cards are set automatically by AstroPy, we just give them better comments
     header.comments["SIMPLE  "] = "Standard FITS"
     header.comments["BITPIX  "] = "Bits per pixel"
     header.comments["NAXIS   "] = "Number of dimensions"
@@ -360,12 +369,18 @@ def update_header(header, tel, all_info):
 
     # Focuser info
     try:
+        if all_info['foc'] is None:
+            raise ValueError('No focuser info provided')
+
         info = all_info['foc'][tel]
+
         foc_serial = info['serial_number']
         foc_pos = info['current_pos']
         foc_temp_int = info['int_temp']
         foc_temp_ext = info['ext_temp']
     except Exception:
+        log.error('Failed to write focuser info to header')
+        log.debug('', exc_info=True)
         foc_serial = 'NA'
         foc_pos = 'NA'
         foc_temp_int = 'NA'
@@ -378,7 +393,11 @@ def update_header(header, tel, all_info):
 
     # Filter wheel info
     try:
+        if all_info['filt'] is None:
+            raise ValueError('No filter wheel info provided')
+
         info = all_info['filt'][tel]
+
         filt_serial = info['serial_number']
         if not info['homed']:
             filt_filter = 'UNHOMED'
@@ -388,6 +407,8 @@ def update_header(header, tel, all_info):
         filt_num = info['current_filter_num']
         filt_pos = info['current_pos']
     except Exception:
+        log.error('Failed to write filter wheel info to header')
+        log.debug('', exc_info=True)
         filt_serial = 'NA'
         filt_filter = 'NA'
         filt_num = 'NA'
@@ -401,7 +422,11 @@ def update_header(header, tel, all_info):
 
     # Dome info
     try:
+        if all_info['dome'] is None:
+            raise ValueError('No dome info provided')
+
         info = all_info['dome']
+
         north_status = info['north']
         south_status = info['south']
         if north_status == 'ERROR' or south_status == 'ERROR':
@@ -418,6 +443,8 @@ def update_header(header, tel, all_info):
         dome_open = info['dome'] == 'open'
 
     except Exception:
+        log.error('Failed to write dome info to header')
+        log.debug('', exc_info=True)
         dome_status = 'NA'
         dome_open = 'NA'
 
@@ -426,6 +453,9 @@ def update_header(header, tel, all_info):
 
     # Mount info
     try:
+        if all_info['mnt'] is None:
+            raise ValueError('No mount info provided')
+
         info = all_info['mnt']
 
         mount_tracking = info['status'] == 'Tracking'
@@ -467,6 +497,8 @@ def update_header(header, tel, all_info):
         moon_dist = numpy.around(moon_dist, decimals=2)
 
     except Exception:
+        log.error('Failed to write mount info to header')
+        log.debug('', exc_info=True)
         mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
@@ -503,6 +535,9 @@ def update_header(header, tel, all_info):
 
     # Astronomy info
     try:
+        if all_info['astro'] is None:
+            raise ValueError('No astronomy info provided')
+
         info = all_info['astro']
 
         moon_alt = numpy.around(info['moon_alt'], decimals=2)
@@ -511,6 +546,8 @@ def update_header(header, tel, all_info):
 
         sun_alt = numpy.around(info['sun_alt'], decimals=1)
     except Exception:
+        log.error('Failed to write astronomy info to header')
+        log.debug('', exc_info=True)
         moon_alt = 'NA'
         moon_ill = 'NA'
         moon_phase = 'NA'
@@ -523,6 +560,9 @@ def update_header(header, tel, all_info):
 
     # Conditions info
     try:
+        if all_info['conditions'] is None:
+            raise ValueError('No conditions info provided')
+
         info = all_info['conditions']
 
         clouds = info['sat_clouds']
@@ -566,6 +606,8 @@ def update_header(header, tel, all_info):
             int_hum = numpy.around(int_hum, decimals=1)
 
     except Exception:
+        log.error('Failed to write conditions info to header')
+        log.debug('', exc_info=True)
         clouds = 'NA'
         ext_temp = 'NA'
         ext_hum = 'NA'

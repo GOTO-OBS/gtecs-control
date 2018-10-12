@@ -144,7 +144,7 @@ class CamDaemon(BaseDaemon):
                     # get daemon info (once, for all images)
                     # do it here so we know the cam info has been updated
                     if self.all_info is None:
-                        self.all_info = get_all_info(self.info)
+                        self.all_info = get_all_info(self.info, self.log)
 
                     # check if exposures are complete
                     for tel in self.active_tel:
