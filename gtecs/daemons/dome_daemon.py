@@ -474,6 +474,7 @@ class DomeDaemon(BaseDaemon):
             reasons = self.info['conditions_bad_reasons']
             if self.info['mode'] == 'manual' and not self.info['autoclose']:
                 self.log.warning('Conditions bad ({}), but autoclose is disabled!'.format(reasons))
+                self.lockdown = False
             else:
                 self.log.warning('Lockdown: conditions bad ({})!'.format(reasons))
                 self.lockdown = True
@@ -482,7 +483,7 @@ class DomeDaemon(BaseDaemon):
             self.lockdown = False
 
         # React to a lockdown order
-        if self.lockdown and self.info['dome'] != 'closed':
+        if self.lockdown and self.info['dome'] != 'closed' and self.info['autoclose']:
             self.log.warning('Autoclosing dome due to lockdown')
             if not self.close_flag:
                 reasons = ''
