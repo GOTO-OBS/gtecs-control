@@ -186,6 +186,12 @@ SATCLOUDS_BADDELAY = config['SATCLOUDS_BADDELAY']
 SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 
 ############################################################
+# Alert sentinel parameters
+LOCAL_IVO = config['LOCAL_IVO']
+VOSERVER_HOST = config['VOSERVER_HOST']
+VOSERVER_PORT = config['VOSERVER_PORT']
+
+############################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION']
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP']
