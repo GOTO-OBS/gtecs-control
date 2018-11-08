@@ -190,12 +190,17 @@ class BaseDaemon(ABC):
             # No error
             return 'running'
 
+    def wait_for_info(self):
+        """Force an info check and wait until the dictionary has been updated."""
+        self.force_check_flag = True
+        while self.info['time'] < self.loop_time:
+            time.sleep(0.01)
+        return
+
     def get_info(self, force_update=True):
         """Return hardware information."""
         if force_update:
-            self.force_check_flag = True
-            while self.force_check_flag:
-                time.sleep(0.01)
+            self.wait_for_info()
         return self.info
 
     def shutdown(self):
