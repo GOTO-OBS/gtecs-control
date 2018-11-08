@@ -587,6 +587,7 @@ class DomeDaemon(BaseDaemon):
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+        self.wait_for_info()
         north_status = self.info['north']
         south_status = self.info['south']
         if side == 'north' and north_status == 'full_open':
@@ -631,6 +632,7 @@ class DomeDaemon(BaseDaemon):
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+        self.wait_for_info()
         north_status = self.info['north']
         south_status = self.info['south']
         if side == 'north' and north_status == 'closed':
@@ -669,6 +671,7 @@ class DomeDaemon(BaseDaemon):
             raise ValueError("Command must be 'on' or 'off'")
 
         # Check current status
+        self.wait_for_info()
         dehumidifier_on = self.info['dehumidifier_on']
         currently_open = self.info['dome'] != 'closed'
         if command == 'on' and currently_open:

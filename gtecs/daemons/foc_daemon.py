@@ -176,8 +176,7 @@ class FocDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
-        self.get_info_flag = 1
-        time.sleep(0.1)
+        self.wait_for_info()
         for tel in tel_list:
             intf, hw = params.TEL_DICT[tel]
             if self.info[tel]['remaining'] == 0 and new_pos <= self.info[tel]['limit']:
@@ -214,8 +213,7 @@ class FocDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
-        self.get_info_flag = 1
-        time.sleep(0.1)
+        self.wait_for_info()
         for tel in tel_list:
             intf, hw = params.TEL_DICT[tel]
             new_pos = self.info[tel]['current_pos'] + move_steps
@@ -252,8 +250,7 @@ class FocDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
-        self.get_info_flag = 1
-        time.sleep(0.1)
+        self.wait_for_info()
         for tel in tel_list:
             intf, hw = params.TEL_DICT[tel]
             if self.info[tel]['remaining'] == 0:

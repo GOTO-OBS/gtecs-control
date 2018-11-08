@@ -169,8 +169,7 @@ class FiltDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
-        self.get_info_flag = 1
-        time.sleep(0.1)
+        self.wait_for_info()
         for tel in tel_list:
             if self.info[tel]['remaining'] == 0 and self.info[tel]['homed']:
                 self.active_tel += [tel]
@@ -203,8 +202,7 @@ class FiltDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
 
         # Set values
-        self.get_info_flag = 1
-        time.sleep(0.1)
+        self.wait_for_info()
         for tel in tel_list:
             if self.info[tel]['remaining'] == 0:
                 self.active_tel += [tel]
