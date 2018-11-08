@@ -45,7 +45,7 @@ def query(command, args, daemon_id):
 
     elif command in ['info', 'status']:
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info')
+        reply = daemons.daemon_function(daemon_id, 'get_info', args=[False])
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:

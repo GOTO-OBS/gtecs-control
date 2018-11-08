@@ -54,7 +54,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info')
+        reply = daemons.daemon_function(daemon_id, 'get_info', args=[False])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
