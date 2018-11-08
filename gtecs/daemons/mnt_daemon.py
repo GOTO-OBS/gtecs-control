@@ -336,6 +336,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
         elif self.info['status'] == 'Parked':
@@ -362,6 +363,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
         elif self.info['status'] == 'Parked':
@@ -386,6 +388,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HorizonError('Target too low, cannot slew')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
         elif self.info['status'] == 'Parked':
@@ -409,6 +412,7 @@ class MntDaemon(BaseDaemon):
     def start_tracking(self):
         """Start the mount tracking."""
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Tracking':
             return 'Already tracking'
         elif self.info['status'] == 'Slewing':
@@ -429,6 +433,7 @@ class MntDaemon(BaseDaemon):
     def full_stop(self):
         """Stop the mount moving (slewing or tracking)."""
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Stopped':
             return 'Already stopped'
         elif self.info['status'] == 'Parked':
@@ -443,6 +448,7 @@ class MntDaemon(BaseDaemon):
     def blinky(self, activate):
         """Turn on or off blinky mode."""
         # Check current status
+        self.wait_for_info()
         if activate and self.sitech.blinky:
             return 'Already in blinky mode'
         elif not activate and not self.sitech.blinky:
@@ -464,6 +470,7 @@ class MntDaemon(BaseDaemon):
     def park(self):
         """Move the mount to the park position."""
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Parked':
             return 'Already parked'
         elif self.info['status'] == 'Parking':
@@ -480,6 +487,7 @@ class MntDaemon(BaseDaemon):
     def unpark(self):
         """Unpark the mount."""
         # Check current status
+        self.wait_for_info()
         if self.info['status'] != 'Parked':
             return 'Mount is not parked'
 
@@ -501,6 +509,7 @@ class MntDaemon(BaseDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
@@ -517,6 +526,7 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Dec in degrees must be between -90 and +90')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
@@ -535,6 +545,7 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Dec in degrees must be between -90 and +90')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
@@ -549,6 +560,7 @@ class MntDaemon(BaseDaemon):
     def clear_target(self):
         """Clear the stored target."""
         # Check current status
+        self.wait_for_info()
         if self.target_ra is None and self.target_dec is None:
             return 'No current target'
 
@@ -566,6 +578,7 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Invalid direction')
 
         # Check current status
+        self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
         elif self.info['status'] == 'Parked':
