@@ -190,8 +190,12 @@ class BaseDaemon(ABC):
             # No error
             return 'running'
 
-    def get_info(self):
+    def get_info(self, force_update=True):
         """Return hardware information."""
+        if force_update:
+            self.force_check_flag = True
+            while self.force_check_flag:
+                time.sleep(0.01)
         return self.info
 
     def shutdown(self):
@@ -279,9 +283,9 @@ def daemon_function(daemon_id, function_name, args=None, timeout=0.):
         return function(*args)
 
 
-def daemon_info(daemon_id):
+def daemon_info(daemon_id, force_update=True):
     """Get a daemon's info dict."""
-    return daemon_function(daemon_id, 'get_info')
+    return daemon_function(daemon_id, 'get_info', args=[force_update])
 
 
 def start_daemon(daemon_id):
