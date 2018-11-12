@@ -358,7 +358,7 @@ class ConditionsDaemon(BaseDaemon):
             # check if good
             if valid[flag] and good[flag] and self.flags[flag] != 0:
                 dt = update_time - self.update_time[flag]
-                if dt > good_delay[flag]:
+                if dt > good_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to good (0)'.format(flag))
                     self.flags[flag] = 0
                     self.update_time[flag] = update_time
@@ -370,7 +370,7 @@ class ConditionsDaemon(BaseDaemon):
             # check if bad
             if valid[flag] and not good[flag] and self.flags[flag] != 1:
                 dt = update_time - self.update_time[flag]
-                if dt > bad_delay[flag]:
+                if dt > bad_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
                     self.update_time[flag] = update_time
