@@ -51,7 +51,7 @@ ERROR_PING = 'PING_FAILED'
 ERROR_INFO = 'INFO_FAILED'
 ERROR_HARDWARE = 'HARDWARE_FAILED'
 ERROR_DEPENDENCY = 'DEPEND_FAILED'
-ERROR_STATE = 'HARDWARE_UNKNOWN'
+ERROR_STATUS = 'STATUS_FAILED'
 ERROR_UNKNOWN = 'UNKNOWN'
 ERROR_DOME_MOVETIMEOUT = 'DOME:MOVING_TIMEOUT'
 ERROR_DOME_PARTOPENTIMEOUT = 'DOME:PARTOPEN_TIMEOUT'
@@ -288,14 +288,14 @@ class BaseMonitor(ABC):
         # Get the daemon hardware status
         hardware_status = self.get_hardware_status()
 
-        # ERROR_STATE
+        # ERROR_STATUS
         # Set the error if the daemon doesn't return any info dict
         if hardware_status == STATUS_UNKNOWN:
-            self.add_error(ERROR_STATE, critical=True)
+            self.add_error(ERROR_STATUS, critical=True)
             return 1
         # Clear the error if the daemon returns info
         if hardware_status != STATUS_UNKNOWN:
-            self.clear_error(ERROR_STATE)
+            self.clear_error(ERROR_STATUS)
 
     @abstractmethod
     def _check_hardware(self):
@@ -536,10 +536,10 @@ class DomeMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
@@ -740,10 +740,10 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
@@ -902,10 +902,10 @@ class PowerMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
@@ -993,10 +993,10 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
@@ -1094,10 +1094,10 @@ class FiltMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
@@ -1187,10 +1187,10 @@ class FocMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
@@ -1297,10 +1297,10 @@ class ExqMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
@@ -1362,10 +1362,10 @@ class ConditionsMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
@@ -1427,10 +1427,10 @@ class SchedulerMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
@@ -1492,10 +1492,10 @@ class SentinelMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
-        elif ERROR_STATE in self.errors:
+        elif ERROR_STATUS in self.errors:
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
-            return ERROR_STATE, {}
+            return ERROR_STATUS, {}
 
         else:
             # Some unexpected error.
