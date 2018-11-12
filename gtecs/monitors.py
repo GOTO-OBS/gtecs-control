@@ -192,9 +192,9 @@ class BaseMonitor(ABC):
                 return
             else:
                 error_time = time.time() - self.pending_errors[error]
-                self.log.debug('"{}" timer: {:.1f}'.format(error, error_time))
+                self.log.debug('"{}" timer: {:.0f}/{:.0f}s'.format(error, error_time, delay))
                 if error_time > delay:
-                    self.log.debug('Adding error "{}" after {}s'.format(error, delay))
+                    self.log.debug('Adding error "{}" after {:.0f}s'.format(error, delay))
                     del self.pending_errors[error]
                     if not critical:
                         self.errors.add(error)
@@ -205,7 +205,7 @@ class BaseMonitor(ABC):
     def clear_error(self, error):
         """Remove the error from self.errors if it's there."""
         if error in self.pending_errors:
-            self.log.debug('Clearing pending error "{}"'.format(error))
+            self.log.debug('Resetting "{}" timer'.format(error))
             del self.pending_errors[error]
         if error in self.errors:
             self.log.debug('Clearing error "{}"'.format(error))
