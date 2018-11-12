@@ -565,7 +565,7 @@ def update_header(header, tel, all_info, log):
 
         info = all_info['conditions']
 
-        clouds = info['sat_clouds']
+        clouds = info['clouds']
         if clouds == -999:
             clouds = 'NA'
         else:

@@ -886,14 +886,16 @@ class Pilot(object):
         Close any running scripts and jobs, run the shutdown script, ensure the
         dome is closed and finish.
         """
-        # first, cancel any currently running script
-        await self.cancel_running_script(why='shutdown started')
-
-        # close any running tasks, so check_flags
-        # doesn't initiate two shutdowns
+        # first shut down all running tasks
+        # this is so check_flags doesn't initiate two shutdowns,
+        # or we don't end up trying to restart if conditions clear
+        # or an "unfixible" hardware error gets fixed
         self.log.warning('cancelling running tasks')
         for task in self.running_tasks:
             task.cancel()
+
+        # then cancel any currently running script
+        await self.cancel_running_script(why='shutdown')
 
         # start shutdown script
         self.log.warning('running shutdown script')

@@ -25,7 +25,8 @@ class ConditionsDaemon(BaseDaemon):
         # conditions variables
         self.check_period = params.WEATHER_INTERVAL
 
-        self.flag_names = ['dark',
+        self.flag_names = ['clouds',
+                           'dark',
                            'rain',
                            'windspeed',
                            'humidity',
@@ -38,7 +39,6 @@ class ConditionsDaemon(BaseDaemon):
                            'low_battery',
                            'internal',
                            'ice',
-                           'sat_clouds',
                            ]
 
         self.flags = {flag: 2 for flag in self.flag_names}
@@ -149,12 +149,12 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the satellite IR cloud image
         try:
-            sat_clouds = conditions.get_satellite_clouds() * 100.
-            temp_info['sat_clouds'] = sat_clouds
+            clouds = conditions.get_satellite_clouds() * 100
+            temp_info['clouds'] = clouds
         except Exception:
             self.log.error('Failed to get satellite clouds info')
             self.log.debug('', exc_info=True)
-            temp_info['sat_clouds'] = -999
+            temp_info['clouds'] = -999
 
         # Get current sun alt
         try:
@@ -231,8 +231,8 @@ class ConditionsDaemon(BaseDaemon):
         free_diskspace = free_diskspace[free_diskspace != -999]
 
         # Clouds
-        sat_clouds = np.array(info['sat_clouds'])
-        sat_clouds = sat_clouds[sat_clouds != -999]
+        clouds = np.array(info['clouds'])
+        clouds = clouds[clouds != -999]
 
         # Sunalt
         sunalt = np.array(info['sunalt'])
@@ -327,11 +327,11 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
-        # sat_clouds flag
-        good['sat_clouds'] = np.all(sat_clouds < params.MAX_SATCLOUDS)
-        valid['sat_clouds'] = len(sat_clouds) >= 1
-        good_delay['sat_clouds'] = params.SATCLOUDS_GOODDELAY
-        bad_delay['sat_clouds'] = params.SATCLOUDS_BADDELAY
+        # clouds flag
+        good['clouds'] = np.all(clouds < params.MAX_SATCLOUDS)
+        valid['clouds'] = len(clouds) >= 1
+        good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
+        bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
@@ -358,7 +358,7 @@ class ConditionsDaemon(BaseDaemon):
             # check if good
             if valid[flag] and good[flag] and self.flags[flag] != 0:
                 dt = update_time - self.update_time[flag]
-                if dt > good_delay[flag]:
+                if dt > good_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to good (0)'.format(flag))
                     self.flags[flag] = 0
                     self.update_time[flag] = update_time
@@ -370,7 +370,7 @@ class ConditionsDaemon(BaseDaemon):
             # check if bad
             if valid[flag] and not good[flag] and self.flags[flag] != 1:
                 dt = update_time - self.update_time[flag]
-                if dt > bad_delay[flag]:
+                if dt > bad_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
                     self.update_time[flag] = update_time
