@@ -1,5 +1,7 @@
 """Slack messaging tools."""
 
+import traceback
+
 from astropy.utils.decorators import lazyproperty
 
 from slackclient import SlackClient
@@ -21,6 +23,7 @@ def send_slack_msg(msg, attachments=None):
             bot.send_message(msg, attachments)
         except Exception:
             print('Connection to Slack failed!')
+            traceback.print_exc()
             if not attachments:
                 print('SLACK:', msg)
             else:
