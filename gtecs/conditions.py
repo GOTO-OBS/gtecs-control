@@ -528,7 +528,8 @@ def get_satellite_clouds():
     Returns a value between 0 and 1, representing the median pixel illumination.
     """
     # Download image
-    with urllib.request.urlopen('https://en.sat24.com/image?type=infraPolair&region=ce') as url:
+    image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce'
+    with urllib.request.urlopen(image_url, timeout=2) as url:
         arr = np.asarray(bytearray(url.read()), dtype='uint8')
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
