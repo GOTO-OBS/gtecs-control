@@ -74,11 +74,11 @@ class Conditions(object):
         # add the update time
         self.update_time = update_time
 
-        # store a summary of all flags, excluding dark
+        # store a summary of all flags, excluding clouds and dark
         self._summary = 0
         self._bad_flags = []
         for key, value in conditions_dict.items():
-            if key != 'dark':
+            if key not in ['clouds', 'dark']:
                 self._summary += value
                 if value:
                     self._bad_flags += [key]
@@ -136,6 +136,7 @@ class Conditions(object):
     def get_formatted_string(self, good='1', bad='0'):
         """Get a formatted string of the conditions flags."""
         flags = self.conditions_dict.copy()
+        del flags['clouds']
         del flags['dark']
         arr = ['{} {}'.format(flag, good if not flags[flag] else bad)
                for flag in sorted(flags.keys())]
