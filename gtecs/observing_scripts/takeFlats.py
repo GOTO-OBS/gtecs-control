@@ -21,10 +21,12 @@ import numpy as np
 def take_sky(exptime, current_filter, name, glance=False):
     """Offset the telescope then take an image and return the mean sky brightness."""
     # make offsets to move stars
-    offset('n', 60)
-    time.sleep(1)
-    offset('w', 60)
-    time.sleep(2)
+    offset('n', params.FLATS_STEPSIZE)
+    time.sleep(3)
+    wait_for_telescope(30)  # 30s timeout
+    offset('w', params.FLATS_STEPSIZE)
+    time.sleep(3)
+    wait_for_telescope(30)  # 30s timeout
 
     # take the image and load the image data
     data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
