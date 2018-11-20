@@ -54,24 +54,21 @@ def prepare_for_images():
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
-        execute_command('exq pause')
-        time.sleep(1)
         execute_command('exq clear')
         while not exposure_queue_is_empty():
-            time.sleep(1)
-    execute_command('exq resume')
+            time.sleep(0.5)
 
     # Home the filter wheels
     if not filters_are_homed():
         execute_command('filt home')
         while not filters_are_homed():
-            time.sleep(1)
+            time.sleep(0.5)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
-            time.sleep(1)
+            time.sleep(0.5)
 
 
 def set_new_focus(values):
@@ -350,20 +347,20 @@ def get_glances():
 
 def exposure_queue_is_empty():
     """Check if the image queue is empty."""
-    exq_info = daemon_info('exq')
+    exq_info = daemon_info('exq', force_update=False)
     return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
-    filt_info = daemon_info('filt')
+    filt_info = daemon_info('filt', force_update=False)
     return all([filt_info[tel]['homed'] for tel in params.TEL_DICT])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
-    cam_info = daemon_info('cam')
+    cam_info = daemon_info('cam', force_update=False)
     return all([cam_info[tel]['ccd_temp'] < target_temp + 0.1 for tel in params.TEL_DICT])
 
 
