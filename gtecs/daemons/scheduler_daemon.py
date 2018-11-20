@@ -78,6 +78,8 @@ class SchedulerDaemon(BaseDaemon):
     # Control functions
     def check_queue(self):
         """Check the current queue for the best pointing to do."""
+        # Force an info update
+        self.wait_for_info()
         next_pointing = self.info['next_pointing']
         if next_pointing is not None:
             self.log.info('Scheduler returns: pointing ID {}'.format(next_pointing.pointing_id))
