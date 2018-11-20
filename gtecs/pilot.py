@@ -134,34 +134,30 @@ class Pilot(object):
 
         sleep_time = 10
         while True:
-            if not self.observing:
-                self.log.debug('scheduler checks suspended when not observing')
-                await asyncio.sleep(30)
-                continue
-
-            if self.paused:
-                self.log.debug('scheduler checks suspended while paused')
-                await asyncio.sleep(10)
-                continue
-
             now = time.time()
             if self.force_scheduler_check or (now - self.scheduler_check_time) > sleep_time:
-                # check scheduler daemon
-                self.log.debug('checking scheduler')
-
-                check_results = check_schedule()
-                self.new_id, self.new_priority, self.new_mintime = check_results
-                # NOTE we don't actually use the priority anywhere in the pilot!
-
-                if self.new_id != self.current_id:
-                    self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
+                if not self.observing:
+                    self.log.debug('scheduler checks suspended when not observing')
+                elif self.paused:
+                    self.log.debug('scheduler checks suspended while paused')
                 else:
-                    self.log.info('scheduler check: continue {}'.format(self.current_id))
+                    # check scheduler daemon
+                    self.log.debug('checking scheduler')
+
+                    check_results = check_schedule()
+                    self.new_id, self.new_priority, self.new_mintime = check_results
+                    # NOTE we don't actually use the priority anywhere in the pilot!
+
+                    if self.new_id != self.current_id:
+                        self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
+                    else:
+                        self.log.info('scheduler check: continue {}'.format(self.current_id))
+
+                    self.initial_scheduler_check_complete = True
 
                 self.scheduler_check_time = now
                 self.force_scheduler_check = False
-                self.initial_scheduler_check_complete = True
-                await asyncio.sleep(1)
+            await asyncio.sleep(1)
 
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
