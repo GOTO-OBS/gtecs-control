@@ -98,6 +98,7 @@ def run(pointing_id):
     # hey, if we got here no-one else will mark as completed
     mark_completed(pointing_id)
     print('Pointing {} completed'.format(pointing_id))
+    sys.exit(0)
 
 
 if __name__ == "__main__":
