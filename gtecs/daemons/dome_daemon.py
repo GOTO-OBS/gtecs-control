@@ -453,6 +453,12 @@ class DomeDaemon(BaseDaemon):
         # Get other internal info
         temp_info['lockdown'] = self.lockdown
 
+        # Print a debug log line
+        if not self.info:
+            self.log.debug('Dome is {}'.format(temp_info['dome']))
+        elif temp_info['dome'] != self.info['dome']:
+            self.log.debug('Dome is {}'.format(temp_info['dome']))
+
         # Update the master info dict
         self.info = temp_info
 

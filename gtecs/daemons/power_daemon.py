@@ -226,6 +226,9 @@ class PowerDaemon(BaseDaemon):
                 if unit_name not in self.bad_hardware:
                     self.bad_hardware.add(unit_name)
 
+        # Print a debug log line
+        # NONE, no quick status
+
         # Update the master info dict
         self.info = temp_info
 

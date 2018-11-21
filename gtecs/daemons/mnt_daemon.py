@@ -279,6 +279,12 @@ class MntDaemon(BaseDaemon):
         temp_info['target_dist'] = self._get_target_distance()
         temp_info['step'] = self.step
 
+        # Print a debug log line
+        if not self.info:
+            self.log.debug('Mount is {}'.format(temp_info['status']))
+        elif temp_info['status'] != self.info['status']:
+            self.log.debug('Mount is {}'.format(temp_info['status']))
+
         # Update the master info dict
         self.info = temp_info
 

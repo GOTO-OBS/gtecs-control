@@ -176,6 +176,9 @@ class ConditionsDaemon(BaseDaemon):
         # Get internal info
         temp_info['flags'] = self.flags
 
+        # Print a debug log line
+        # NONE, we do it already
+
         # Update the master info dict
         self.info = temp_info
 

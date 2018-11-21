@@ -200,6 +200,9 @@ class FLIDaemon(BaseDaemon):
         temp_info['foc_serials'] = list(self.foc_serials)
         temp_info['filt_serials'] = list(self.filt_serials)
 
+        # Print a debug log line
+        # NONE, nothing really changes
+
         # Update the master info dict
         self.info = temp_info
 

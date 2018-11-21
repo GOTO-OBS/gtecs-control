@@ -309,6 +309,19 @@ class CamDaemon(BaseDaemon):
         temp_info['run_number'] = self.run_number
         temp_info['glance'] = self.run_number < 0
 
+        # Print a debug log line
+        now_strs = ['{}:{}'.format(tel, temp_info[tel]['status'])
+                    for tel in sorted(params.TEL_DICT)]
+        now_str = ' '.join(now_strs)
+        if not self.info:
+            self.log.debug('Cameras are {}'.format(now_str))
+        else:
+            old_strs = ['{}:{}'.format(tel, self.info[tel]['status'])
+                        for tel in sorted(params.TEL_DICT)]
+            old_str = ' '.join(old_strs)
+            if now_str != old_str:
+                self.log.debug('Cameras are {}'.format(now_str))
+
         # Update the master info dict
         self.info = temp_info
 
