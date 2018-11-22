@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 
 from . import params
-from .daemons import daemon_info, daemon_is_running, get_daemon_status
+from .daemons import daemon_is_running, daemon_proxy
 from .errors import RecoveryError
 from .misc import execute_command
 
@@ -122,7 +122,8 @@ class BaseMonitor(ABC):
     def get_daemon_status(self):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
         try:
-            status = get_daemon_status(self.daemon_id)
+            with daemon_proxy(self.daemon_id) as daemon:
+                status = daemon.get_status()
             try:
                 status, args = status.split(':')
                 return status, args.split(',')
@@ -137,7 +138,8 @@ class BaseMonitor(ABC):
         if self.daemon_id is None:
             return None
         try:
-            info = daemon_info(self.daemon_id, force_update=False)
+            with daemon_proxy(self.daemon_id) as daemon:
+                info = daemon.get_info(force_update=False)
             assert isinstance(info, dict)
         except Exception:
             info = None
