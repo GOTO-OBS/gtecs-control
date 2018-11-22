@@ -143,8 +143,8 @@ def wait_for_focuser(target_values, timeout=None):
         raise TimeoutError('Focuser timed out')
 
 
-def goto(ra, dec):
-    """Move telescope to given RA/Dec.
+def slew_to_radec(ra, dec):
+    """Move mount to given RA/Dec.
 
     Parameters
     ----------
@@ -159,8 +159,8 @@ def goto(ra, dec):
     execute_command("mnt slew {} {}".format(ra, dec))
 
 
-def goto_altaz(alt, az):
-    """Move telescope to given Alt/Az.
+def slew_to_altaz(alt, az):
+    """Move mount to given Alt/Az.
 
     Parameters
     ----------
@@ -175,7 +175,7 @@ def goto_altaz(alt, az):
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
-def wait_for_telescope(timeout=None, targ_dist=0.003):
+def wait_for_mount(timeout=None, targ_dist=0.003):
     """Wait for mount to be in target position.
 
     Parameters

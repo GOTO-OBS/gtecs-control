@@ -24,8 +24,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_current_focus, goto, prepare_for_images,
-                             set_new_focus, wait_for_focuser, wait_for_telescope)
+from gtecs.observing import (get_analysis_image, get_current_focus, prepare_for_images,
+                             set_new_focus, slew_to_radec, wait_for_focuser, wait_for_mount)
 
 import numpy as np
 
@@ -215,9 +215,9 @@ def run():
     print('Slewing to target', star)
     target_name = star.name
     coordinate = star.coord_now()
-    goto(coordinate.ra.deg, coordinate.dec.deg)
+    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
     time.sleep(10)
-    wait_for_telescope(120)  # 120s timeout
+    wait_for_mount(120)  # 120s timeout
     print('Reached target')
 
     ##########
