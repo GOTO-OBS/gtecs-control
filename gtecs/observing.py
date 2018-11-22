@@ -193,7 +193,7 @@ def slew_to_altaz(alt, az):
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
-def wait_for_mount(target_ra=None, target_dec=None,
+def wait_for_mount(target_ra, target_dec,
                    timeout=None, targ_dist=0.003):
     """Wait for mount to be in target position.
 
@@ -201,10 +201,8 @@ def wait_for_mount(target_ra=None, target_dec=None,
     ----------
     target_ra : float
         target J2000 ra in decimal degrees
-        must be given with dec
     target_dec : float
         target J2000 dec in decimal degrees
-        must be given with ra
     timeout : float
         time in seconds after which to timeout, None to wait forever
     targ_dist : float
@@ -212,10 +210,6 @@ def wait_for_mount(target_ra=None, target_dec=None,
         default is 0.003 degrees
 
     """
-    if ((target_ra is not None and target_dec is None) or
-            (target_ra is None and target_dec is not None)):
-        raise ValueError('Need both ra and dec')
-
     start_time = time.time()
     reached_position = False
     timed_out = False
@@ -224,9 +218,14 @@ def wait_for_mount(target_ra=None, target_dec=None,
 
         try:
             mnt_info = daemon_info('mnt', force_update=True)
+
+            print(mnt_info['status'], mnt_info['target_ra'] * 360 / 24, mnt_info['target_dec'],
+                  mnt_info['target_dist'])
+            print(mnt_info['status'], target_ra, target_dec, targ_dist)
+
             done = (mnt_info['status'] == 'Tracking' and
-                    mnt_info['target_ra'] == target_ra if target_ra else True and
-                    mnt_info['target_dec'] == target_dec if target_dec else True and
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
+                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
                     mnt_info['target_dist'] < targ_dist)
             if done:
                 reached_position = True
