@@ -13,9 +13,9 @@ def check_hardware(hardware):
     sleep_time = 10
     while True:
         print('~############################~')
+        start_time = time.time()
         error_count = 0
-        print('running hardware checks')
-        log_str = 'hardware check results: '
+        print('running hardware checks...')
         for monitor in sorted(hardware.values(), key=lambda x: x.monitor_id):
             num_errs, errors = monitor.check()
             print('  {: >20}: {}'.format(monitor.monitor_id, monitor.hardware_status))
@@ -23,15 +23,14 @@ def check_hardware(hardware):
             if num_errs > 0:
                 monitor.recover()  # Will log recovery commands
 
+        print('------------------------------')
         if error_count > 0:
             sleep_time = 10  # check more frequently till fixed
+            print('hardware check results: {:.0f} errors detected'.format(error_count))
         else:
             sleep_time = 10  # was 60 in pilot
-            print(log_str + 'AOK')
-
-        # save error count so we dont restart whilst broken
-        error_count = error_count
-
+            print('hardware check results: AOK')
+        print('           checks took: {:.2f}s'.format(time.time() - start_time))
         print('~############################~')
         time.sleep(sleep_time)
 
