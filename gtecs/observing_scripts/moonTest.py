@@ -5,7 +5,6 @@ moonTest
 """
 
 import sys
-import time
 
 from astropy.time import Time
 
@@ -74,8 +73,7 @@ def run():
             continue
 
         slew_to_altaz(alt, az)
-        time.sleep(1)  # was 10
-        wait_for_mount(120, targ_dist=0.1)  # 120s timeout, lower distance for altaz
+        wait_for_mount(timeout=120, targ_dist=0.1)  # lower distance for altaz
 
         take_image_set(exposure_list, 'L', 'Moon Test Pointing')
 

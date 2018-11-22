@@ -5,7 +5,6 @@ observe [pointing_id]
 """
 
 import sys
-import time
 
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
 from gtecs.observing import (prepare_for_images, slew_to_radec,
@@ -73,7 +72,8 @@ def run(pointing_id):
 
         # start slew
         print('Moving to target')
-        slew_to_radec(*get_position(pointing_id))
+        ra, dec = get_position(pointing_id)
+        slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
         exq_command_list = get_exq_commands(pointing_id)
@@ -81,8 +81,7 @@ def run(pointing_id):
             execute_command(exq_command)
 
         # wait for telescope (timeout 120s)
-        time.sleep(10)
-        wait_for_mount(120)
+        wait_for_mount(ra, dec, timout=120)
 
         print('In position: starting exposures')
         # resume the queue

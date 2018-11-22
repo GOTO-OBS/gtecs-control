@@ -24,10 +24,10 @@ def take_sky(exptime, current_filter, name, glance=False):
     # make offsets to move stars
     offset('n', params.FLATS_STEPSIZE)
     time.sleep(3)
-    wait_for_mount(30)  # 30s timeout
+    wait_for_mount(timeout=30)
     offset('w', params.FLATS_STEPSIZE)
     time.sleep(3)
-    wait_for_mount(30)  # 30s timeout
+    wait_for_mount(timeout=30)
 
     # take the image and load the image data
     data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)

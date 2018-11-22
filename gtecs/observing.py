@@ -175,11 +175,18 @@ def slew_to_altaz(alt, az):
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
-def wait_for_mount(timeout=None, targ_dist=0.003):
+def wait_for_mount(target_ra=None, target_dec=None,
+                   timeout=None, targ_dist=0.003):
     """Wait for mount to be in target position.
 
     Parameters
     ----------
+    target_ra : float
+        target J2000 ra in decimal degrees
+        must be given with dec
+    target_dec : float
+        target J2000 dec in decimal degrees
+        must be given with ra
     timeout : float
         time in seconds after which to timeout, None to wait forever
     targ_dist : float
@@ -187,6 +194,10 @@ def wait_for_mount(timeout=None, targ_dist=0.003):
         default is 0.003 degrees
 
     """
+    if ((target_ra is not None and target_dec is None) or
+            (target_ra is None and target_dec is not None)):
+        raise ValueError('Need both ra and dec')
+
     start_time = time.time()
     reached_position = False
     timed_out = False
@@ -196,6 +207,8 @@ def wait_for_mount(timeout=None, targ_dist=0.003):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
             done = (mnt_info['status'] == 'Tracking' and
+                    mnt_info['target_ra'] == target_ra if target_ra else True and
+                    mnt_info['target_dec'] == target_dec if target_dec else True and
                     mnt_info['target_dist'] < targ_dist)
             if done:
                 reached_position = True

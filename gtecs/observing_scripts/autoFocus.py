@@ -14,8 +14,6 @@ The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
 
-import time
-
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.stats.sigma_clipping import sigma_clipped_stats
@@ -216,8 +214,7 @@ def run():
     target_name = star.name
     coordinate = star.coord_now()
     slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-    time.sleep(10)
-    wait_for_mount(120)  # 120s timeout
+    wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
     print('Reached target')
 
     ##########

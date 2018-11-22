@@ -59,7 +59,7 @@ def run(n_alt, n_az):
         print('Slewing to Alt {}, Az {}'.format(alt, az))
         slew_to_altaz(alt, az)
         time.sleep(10)
-        wait_for_mount(120, targ_dist=0.1)  # 120s timeout, lower distance for altaz
+        wait_for_mount(timeout=120, targ_dist=0.1)  # lower distance for altaz
 
         take_image_set(exposure_list, 'L', 'Test Pointing')
 
