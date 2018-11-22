@@ -137,7 +137,7 @@ class BaseMonitor(ABC):
         if self.daemon_id is None:
             return None
         try:
-            info = daemon_info(self.daemon_id)
+            info = daemon_info(self.daemon_id, force_update=False)
             assert isinstance(info, dict)
         except Exception:
             info = None
