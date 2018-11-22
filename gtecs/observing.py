@@ -12,7 +12,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate, tel_str
+from .astronomy import check_alt_limit, night_startdate
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -156,11 +156,7 @@ def goto(ra, dec):
     """
     if check_alt_limit(ra, dec, Time.now()):
         raise ValueError('target too low, cannot set target')
-    ra_string, dec_string = tel_str(ra, dec)
-    execute_command("mnt ra " + ra_string)
-    execute_command("mnt dec " + dec_string)
-    time.sleep(1)
-    execute_command("mnt slew")
+    execute_command("mnt slew {} {}".format(ra, dec))
 
 
 def goto_altaz(alt, az):
