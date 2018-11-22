@@ -180,34 +180,37 @@ def goto_altaz(alt, az):
 
 
 def wait_for_telescope(timeout=None, targ_dist=0.003):
-    """Wait for telescope to be ready.
+    """Wait for mount to be in target position.
 
     Parameters
     ----------
     timeout : float
-        time in seconds after which to timeout. None to wait forever
+        time in seconds after which to timeout, None to wait forever
     targ_dist : float
         distance in degrees from the target to consider returning after
+        default is 0.003 degrees
 
     """
     start_time = time.time()
-    still_moving = True
+    reached_position = False
     timed_out = False
-    while still_moving and not timed_out:
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
         try:
-            mnt_info = daemon_info('mnt')
+            mnt_info = daemon_info('mnt', force_update=True)
+            done = (mnt_info['status'] == 'Tracking' and
+                    mnt_info['target_dist'] < targ_dist)
+            if done:
+                reached_position = True
         except Exception:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < targ_dist:
-            still_moving = False
 
-        if timeout and (time.time() - start_time) > timeout:
+        if timeout and time.time() - start_time > timeout:
             timed_out = True
 
-        # don't hammer the daemons
-        time.sleep(5)
     if timed_out:
-        raise TimeoutError('Telescope timed out')
+        raise TimeoutError('Mount timed out')
 
 
 def random_offset(offset_size):
@@ -387,27 +390,26 @@ def wait_for_exposure_queue(timeout=None):
     Parameters
     ----------
     timeout : float
-        time in seconds after which to timeout. None to wait forever
+        time in seconds after which to timeout, None to wait forever
 
     """
-    # we should not return straight away, but wait until queue is empty
     start_time = time.time()
-    still_working = True
+    finished = False
     timed_out = False
-    while still_working and not timed_out:
-        time.sleep(10)
+    while not finished and not timed_out:
+        time.sleep(0.5)
         try:
-            exq_info = daemon_info('exq')
-
-            nexp = exq_info['queue_length']
-            status = exq_info['status']
-            if nexp == 0 and status == 'Ready':
-                still_working = False
+            exq_info = daemon_info('exq', force_update=True)
+            done = (exq_info['queue_length'] == 0 and
+                    exq_info['status'] == 'Ready')
+            if done:
+                finished = True
         except Exception:
             pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Exposure queue timed out')
 
@@ -421,24 +423,24 @@ def wait_for_cameras(timeout=None):
         time in seconds after which to timeout. None to wait forever
 
     """
-    # we should not return straight away, but wait until queue is empty
     start_time = time.time()
-    still_working = True
+    finished = False
     timed_out = False
-    while still_working and not timed_out:
-        time.sleep(2)
-        try:
-            cam_info = daemon_info('cam')
+    while not finished and not timed_out:
+        time.sleep(0.5)
 
-            cam_status = [cam_info[tel]['status'] for tel in params.TEL_DICT]
-            ready = [status == 'Ready' for status in cam_status]
-            if all(ready):
-                still_working = False
+        try:
+            cam_info = daemon_info('cam', force_update=True)
+            done = [cam_info[tel]['status'] == 'Ready'
+                    for tel in params.TEL_DICT]
+            if np.all(done):
+                finished = True
         except Exception:
             pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Cameras timed out')
 
