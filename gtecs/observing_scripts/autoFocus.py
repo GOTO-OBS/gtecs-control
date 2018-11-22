@@ -51,7 +51,7 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
     """Move to focus, but restore old values if we fail."""
     try:
         set_new_focus(new_focus_values)
-        wait_for_focuser(timeout)
+        wait_for_focuser(new_focus_values, timeout)
     except Exception:
         set_new_focus(orig_focus)
         raise

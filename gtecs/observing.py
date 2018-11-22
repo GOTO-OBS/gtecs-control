@@ -100,28 +100,45 @@ def get_current_focus():
     return values
 
 
-def wait_for_focuser(timeout):
-    """Wait until focuser has finished moving.
+def wait_for_focuser(target_values, timeout=None):
+    """Wait until focuser has reached the target position.
 
     Parameters
     ----------
+    target_values : float, dict
+        a dictionary of telescope IDs and focus values
+        (see `gtecs.observing.set_new_focus`)
     timeout : float
-        time in seconds after which to timeout
+        time in seconds after which to timeout, None to wait forever
 
     """
+    try:
+        # will raise if not a dict, or keys not valid
+        assert all(tel in params.TEL_DICT for tel in target_values.keys())
+    except Exception:
+        # same value for all
+        target_values = {tel: target_values for tel in params.TEL_DICT}
+
     start_time = time.time()
-    still_moving = True
+    reached_position = False
     timed_out = False
-    time.sleep(2)
-    while still_moving and not timed_out:
+    while not reached_position and not timed_out:
+        time.sleep(0.2)
+
         try:
-            foc_info = daemon_info('foc')
+            foc_info = daemon_info('foc', force_update=True)
+
+            done = [(foc_info[tel]['current_pos'] == target_values[tel] and
+                    foc_info[tel]['status'] == 'Ready')
+                    for tel in target_values]
+            if np.all(done):
+                reached_position = True
         except Exception:
             pass
-        if np.all([foc_info[tel]['status'] == 'Ready' for tel in params.TEL_DICT]):
-            still_moving = False
-        if time.time() - start_time > timeout:
+
+        if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Focuser timed out')
 
