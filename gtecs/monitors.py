@@ -216,13 +216,16 @@ class BaseMonitor(ABC):
 
         Note these overwrite self.errors (instead of adding to it) and then return immediately.
         """
+        # Check if the daemon is running
+        is_running = self.is_running()
+
         # ERROR_RUNNING
         # Set the error if the daemon isn't running
-        if not self.is_running():
+        if not is_running:
             self.add_error(ERROR_RUNNING, critical=True)
             return 1
         # Clear the error if we are running
-        if self.is_running():
+        if is_running:
             self.clear_error(ERROR_RUNNING)
 
         # Get the daemon status
