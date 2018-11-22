@@ -25,7 +25,11 @@ def take_sky(exptime, current_filter, name, glance=False):
     step = params.FLATS_STEPSIZE * u.arcsec
     current_ra, current_dec = get_current_mount_position()
     new_ra = current_ra + step.to(u.deg).value
+    if new_ra >= 360:
+        new_ra -= 360
     new_dec = current_dec + step.to(u.deg).value
+    if new_dec > 90:
+        new_dec = current_dec - step.to(u.deg).value
 
     # move to the new position and wait until we're there
     slew_to_radec(new_ra, new_dec)
