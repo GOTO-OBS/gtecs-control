@@ -5,9 +5,11 @@ testPointings [n_alt] [n_az]
 """
 
 import sys
-import time
 
-from gtecs.observing import prepare_for_images, slew_to_altaz, take_image_set, wait_for_mount
+from astropy.time import Time
+
+from gtecs.astronomy import radec_from_altaz
+from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set, wait_for_mount
 
 
 def run(n_alt, n_az):
@@ -57,9 +59,11 @@ def run(n_alt, n_az):
     for altaz in altaz_list:
         alt, az = altaz
         print('Slewing to Alt {}, Az {}'.format(alt, az))
-        slew_to_altaz(alt, az)
-        time.sleep(10)
-        wait_for_mount(timeout=120, targ_dist=0.1)  # lower distance for altaz
+
+        # Slew to position
+        ra, dec = radec_from_altaz(alt, az, Time.now())
+        slew_to_radec(ra, dec)
+        wait_for_mount(ra, dec, timeout=120)
 
         take_image_set(exposure_list, 'L', 'Test Pointing')
 

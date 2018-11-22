@@ -9,7 +9,7 @@ import sys
 from astropy.time import Time
 
 from gtecs.astronomy import get_moon_distance, radec_from_altaz
-from gtecs.observing import (prepare_for_images, slew_to_altaz, take_image_set, wait_for_mount)
+from gtecs.observing import (prepare_for_images, slew_to_radec, take_image_set, wait_for_mount)
 
 
 def run():
@@ -67,13 +67,14 @@ def run():
         # need to check distance to the moon
         ra, dec = radec_from_altaz(alt, az, t)
         moon_dist = get_moon_distance(ra, dec, t)
-        print('Distane to Moon = {}'.format(moon_dist))
+        print('Distance to Moon = {}'.format(moon_dist))
         if moon_dist < 30:
             print('Too close (<30), skipping to next target...')
             continue
 
-        slew_to_altaz(alt, az)
-        wait_for_mount(timeout=120, targ_dist=0.1)  # lower distance for altaz
+        # Slew to position
+        slew_to_radec(ra, dec)
+        wait_for_mount(ra, dec, timeout=120)
 
         take_image_set(exposure_list, 'L', 'Moon Test Pointing')
 
