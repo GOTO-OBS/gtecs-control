@@ -143,6 +143,24 @@ def wait_for_focuser(target_values, timeout=None):
         raise TimeoutError('Focuser timed out')
 
 
+def get_current_mount_position():
+    """Find the current mount position.
+
+    Returns
+    -------
+    ra : float
+        J2000 ra in decimal degrees
+    dec : float
+        J2000 dec in decimal degrees
+
+    """
+    mnt_info = daemon_info('mnt')
+    ra = mnt_info['mount_ra']
+    ra = ra * 360 / 24.  # mount uses RA in hours
+    dec = mnt_info['mount_dec']
+    return ra, dec
+
+
 def slew_to_radec(ra, dec):
     """Move mount to given RA/Dec.
 
