@@ -139,7 +139,12 @@ class BaseMonitor(ABC):
             return None
         try:
             with daemon_proxy(self.daemon_id) as daemon:
-                info = daemon.get_info(force_update=False)
+                # Force an update if we're currently fixing an error,
+                # otherwise it's not as important so don't force to save time
+                if len(self.errors) > 0:
+                    info = daemon.get_info(force_update=True)
+                else:
+                    info = daemon.get_info(force_update=False)
             assert isinstance(info, dict)
         except Exception:
             info = None
