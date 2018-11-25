@@ -130,7 +130,7 @@ def wait_for_focuser(target_values, timeout=None):
 
             done = [(foc_info[tel]['current_pos'] == target_values[tel] and
                     foc_info[tel]['status'] == 'Ready')
-                    for tel in target_values]
+                    for tel in target_values.keys()]
             if np.all(done):
                 reached_position = True
         except Exception:
