@@ -81,7 +81,7 @@ def run(pointing_id):
             execute_command(exq_command)
 
         # wait for telescope (timeout 120s)
-        wait_for_mount(ra, dec, timout=120)
+        wait_for_mount(ra, dec, timeout=120)
 
         print('In position: starting exposures')
         # resume the queue
