@@ -219,10 +219,6 @@ def wait_for_mount(target_ra, target_dec,
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
-            print(mnt_info['status'], mnt_info['target_ra'] * 360 / 24, mnt_info['target_dec'],
-                  mnt_info['target_dist'])
-            print(mnt_info['status'], target_ra, target_dec, targ_dist)
-
             done = (mnt_info['status'] == 'Tracking' and
                     np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
                     np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
