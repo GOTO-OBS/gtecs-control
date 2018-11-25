@@ -128,7 +128,7 @@ def wait_for_focuser(target_values, timeout=None):
         try:
             foc_info = daemon_info('foc', force_update=True)
 
-            done = [(foc_info[tel]['current_pos'] == target_values[tel] and
+            done = [(foc_info[tel]['current_pos'] == int(target_values[tel]) and
                     foc_info[tel]['status'] == 'Ready')
                     for tel in target_values.keys()]
             if np.all(done):
