@@ -292,7 +292,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     """
     # Fund the current image count, so we know what to wait for
-    cam_num = get_current_image_count()
+    img_num = get_current_image_count()
 
     if not glance:
         exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
@@ -301,8 +301,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     execute_command(exq_command)
     execute_command('exq resume')  # just in case
 
-    # wait for the camera daemon, to be sure it's finished saving
-    wait_for_cameras(cam_num + 1, exptime + 30)
+    # wait for the camera daemon to finish saving the images
+    wait_for_images(img_num + 1, exptime + 30)
     time.sleep(1)  # just in case
 
     if not glance:
@@ -444,7 +444,7 @@ def get_current_image_count():
     return cam_info['num_taken']
 
 
-def wait_for_cameras(target_image_number, timeout=None):
+def wait_for_images(target_image_number, timeout=None):
     """With a set of exposures underway, wait for the cameras to finish saving.
 
     Parameters
