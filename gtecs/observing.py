@@ -423,6 +423,7 @@ def wait_for_exposure_queue(timeout=None):
         try:
             exq_info = daemon_info('exq', force_update=True)
             done = (exq_info['queue_length'] == 0 and
+                    exq_info['exposing'] is False and
                     exq_info['status'] == 'Ready')
             if done:
                 finished = True

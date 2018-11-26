@@ -66,9 +66,9 @@ class ExqDaemon(BaseDaemon):
             queue_len = len(self.exp_queue)
             if (queue_len > 0) and not self.paused and not self.working:
                 # OK - time to add a new exposure
-                self.current_exposure = self.exp_queue.pop(0)
                 self.log.info('Taking exposure')
                 self.working = 1
+                self.current_exposure = self.exp_queue.pop(0)
 
                 # set the filter, if needed
                 if self._need_to_change_filter():
@@ -121,7 +121,8 @@ class ExqDaemon(BaseDaemon):
         else:
             temp_info['status'] = 'Ready'
         temp_info['queue_length'] = len(self.exp_queue)
-        if self.working and self.current_exposure is not None:
+        if self.current_exposure is not None:
+            temp_info['exposing'] = True
             temp_info['current_tel_list'] = self.current_exposure.tel_list
             temp_info['current_exptime'] = self.current_exposure.exptime
             temp_info['current_filter'] = self.current_exposure.filt
@@ -129,6 +130,8 @@ class ExqDaemon(BaseDaemon):
             temp_info['current_frametype'] = self.current_exposure.frametype
             temp_info['current_target'] = self.current_exposure.target
             temp_info['current_imgtype'] = self.current_exposure.imgtype
+        else:
+            temp_info['exposing'] = False
 
         # Print a debug log line
         now_str = '{} ({:.0f} in queue)'.format(temp_info['status'], temp_info['queue_length'])
