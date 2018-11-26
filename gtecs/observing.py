@@ -291,6 +291,9 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
         a dictionary of the image files, with the UT numbers as keys
 
     """
+    # Fund the current image count, so we know what to wait for
+    cam_num = get_current_image_count()
+
     if not glance:
         exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
     else:
@@ -298,10 +301,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     execute_command(exq_command)
     execute_command('exq resume')  # just in case
 
-    # wait for the exposure queue to empty
-    wait_for_exposure_queue(exptime + 30)
-    # then also wait for the camera daemon, to be sure it's finished saving
-    wait_for_cameras(30)
+    # wait for the camera daemon, to be sure it's finished saving
+    wait_for_cameras(cam_num + 1, exptime + 30)
     time.sleep(1)  # just in case
 
     if not glance:
@@ -437,11 +438,19 @@ def wait_for_exposure_queue(timeout=None):
         raise TimeoutError('Exposure queue timed out')
 
 
-def wait_for_cameras(timeout=None):
+def get_current_image_count():
+    """Find the current camera image number."""
+    cam_info = daemon_info('cam')
+    return cam_info['num_taken']
+
+
+def wait_for_cameras(target_image_number, timeout=None):
     """With a set of exposures underway, wait for the cameras to finish saving.
 
     Parameters
     ----------
+    target_image_number : int
+        camera image number to wait for
     timeout : float
         time in seconds after which to timeout. None to wait forever
 
@@ -454,7 +463,8 @@ def wait_for_cameras(timeout=None):
 
         try:
             cam_info = daemon_info('cam', force_update=True)
-            done = [cam_info[tel]['status'] == 'Ready'
+            done = [(cam_info[tel]['status'] == 'Ready' and
+                     int(cam_info['num_taken']) == int(target_image_number))
                     for tel in params.TEL_DICT]
             if np.all(done):
                 finished = True
