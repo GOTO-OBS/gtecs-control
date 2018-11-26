@@ -14,8 +14,6 @@ The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
 
-import time
-
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.stats.sigma_clipping import sigma_clipped_stats
@@ -24,8 +22,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_current_focus, goto, prepare_for_images,
-                             set_new_focus, wait_for_focuser, wait_for_telescope)
+from gtecs.observing import (get_analysis_image, get_current_focus, prepare_for_images,
+                             set_new_focus, slew_to_radec, wait_for_focuser, wait_for_mount)
 
 import numpy as np
 
@@ -51,7 +49,7 @@ def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
     """Move to focus, but restore old values if we fail."""
     try:
         set_new_focus(new_focus_values)
-        wait_for_focuser(timeout)
+        wait_for_focuser(new_focus_values, timeout)
     except Exception:
         set_new_focus(orig_focus)
         raise
@@ -215,9 +213,8 @@ def run():
     print('Slewing to target', star)
     target_name = star.name
     coordinate = star.coord_now()
-    goto(coordinate.ra.deg, coordinate.dec.deg)
-    time.sleep(10)
-    wait_for_telescope(120)  # 120s timeout
+    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
+    wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
     print('Reached target')
 
     ##########

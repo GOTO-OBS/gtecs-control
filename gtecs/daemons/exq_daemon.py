@@ -27,7 +27,6 @@ class ExqDaemon(BaseDaemon):
 
         # exposure queue variables
         self.exp_queue = ExposureQueue()
-        self.queue_len = len(self.exp_queue)
         self.current_exposure = None
 
         self.working = 0
@@ -64,12 +63,12 @@ class ExqDaemon(BaseDaemon):
 
             # exposure queue processes
             # check the queue, take off the first entry (if not paused)
-            self.queue_len = len(self.exp_queue)
-            if (self.queue_len > 0) and not self.paused and not self.working:
+            queue_len = len(self.exp_queue)
+            if (queue_len > 0) and not self.paused and not self.working:
                 # OK - time to add a new exposure
-                self.current_exposure = self.exp_queue.pop(0)
                 self.log.info('Taking exposure')
                 self.working = 1
+                self.current_exposure = self.exp_queue.pop(0)
 
                 # set the filter, if needed
                 if self._need_to_change_filter():
@@ -94,7 +93,7 @@ class ExqDaemon(BaseDaemon):
                 self.working = 0
                 self.force_check_flag = True
 
-            elif self.queue_len == 0 or self.paused:
+            elif queue_len == 0 or self.paused:
                 # either we are paused, or nothing in the queue
                 time.sleep(1.0)
 
@@ -121,8 +120,9 @@ class ExqDaemon(BaseDaemon):
             temp_info['status'] = 'Working'
         else:
             temp_info['status'] = 'Ready'
-        temp_info['queue_length'] = self.queue_len
-        if self.working and self.current_exposure is not None:
+        temp_info['queue_length'] = len(self.exp_queue)
+        if self.current_exposure is not None:
+            temp_info['exposing'] = True
             temp_info['current_tel_list'] = self.current_exposure.tel_list
             temp_info['current_exptime'] = self.current_exposure.exptime
             temp_info['current_filter'] = self.current_exposure.filt
@@ -130,6 +130,17 @@ class ExqDaemon(BaseDaemon):
             temp_info['current_frametype'] = self.current_exposure.frametype
             temp_info['current_target'] = self.current_exposure.target
             temp_info['current_imgtype'] = self.current_exposure.imgtype
+        else:
+            temp_info['exposing'] = False
+
+        # Print a debug log line
+        now_str = '{} ({:.0f} in queue)'.format(temp_info['status'], temp_info['queue_length'])
+        if not self.info:
+            self.log.debug('Exposure queue is {}'.format(now_str))
+        else:
+            old_str = '{} ({:.0f} in queue)'.format(self.info['status'], self.info['queue_length'])
+            if now_str != old_str:
+                self.log.debug('Exposure queue is {}'.format(now_str))
 
         # Update the master info dict
         self.info = temp_info

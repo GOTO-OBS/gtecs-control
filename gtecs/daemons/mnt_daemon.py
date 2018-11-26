@@ -27,7 +27,6 @@ class MntDaemon(BaseDaemon):
         self.sitech = None
 
         # command flags
-        self.slew_radec_flag = 0
         self.slew_target_flag = 0
         self.slew_altaz_flag = 0
         self.start_tracking_flag = 0
@@ -43,8 +42,6 @@ class MntDaemon(BaseDaemon):
         self.step = params.DEFAULT_OFFSET_STEP
         self.target_ra = None
         self.target_dec = None
-        self.temp_ra = None
-        self.temp_dec = None
         self.temp_alt = None
         self.temp_az = None
         self.set_blinky = False
@@ -84,29 +81,6 @@ class MntDaemon(BaseDaemon):
                     continue
 
             # control functions
-            # slew to given coordinates
-            if self.slew_radec_flag:
-                try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    new_ra, new_dec = self.temp_ra, self.temp_dec
-                    new_alt, new_az = altaz_from_radec(new_ra * 360 / 24, new_dec)
-                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
-                                                                     new_alt, new_az)
-                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
-                    c = self.sitech.slew_to_radec(self.temp_ra, self.temp_dec)
-                    if c:
-                        self.log.info(c)
-                except Exception:
-                    self.log.error('slew_radec command failed')
-                    self.log.debug('', exc_info=True)
-                self.temp_ra = None
-                self.temp_dec = None
-                self.slew_radec_flag = 0
-                self.force_check_flag = True
-
             # slew to target
             if self.slew_target_flag:
                 try:
@@ -305,6 +279,12 @@ class MntDaemon(BaseDaemon):
         temp_info['target_dist'] = self._get_target_distance()
         temp_info['step'] = self.step
 
+        # Print a debug log line
+        if not self.info:
+            self.log.debug('Mount is {}'.format(temp_info['status']))
+        elif temp_info['status'] != self.info['status']:
+            self.log.debug('Mount is {}'.format(temp_info['status']))
+
         # Update the master info dict
         self.info = temp_info
 
@@ -325,9 +305,18 @@ class MntDaemon(BaseDaemon):
         return t_c.separation(m_c).deg
 
     # Control functions
-    def slew_to_radec(self, ra, dec):
-        """Slew to specified coordinates."""
+    def slew_to_radec(self, ra=None, dec=None):
+        """Slew to specified coordinates.
+
+        If coordinates are not given, slew to the saved target.
+        """
         # Check input
+        if ra is None:
+            ra = self.target_ra
+        if dec is None:
+            dec = self.target_dec
+        if ra is None or dec is None:
+            raise errors.HardwareStatusError('No coordinates given, and target not set')
         if not (0 <= ra < 24):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
@@ -345,37 +334,14 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
-        self.temp_ra = ra
-        self.temp_dec = dec
-
-        # Set flag
-        self.force_check_flag = True
-        self.slew_radec_flag = 1
-
-        return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
-
-    def slew_to_target(self):
-        """Slew to current set target."""
-        # Check input
-        if self.target_ra is None or self.target_dec is None:
-            raise errors.HardwareStatusError('Target not set')
-        if check_alt_limit(self.target_ra * 360. / 24., self.target_dec, Time.now()):
-            raise errors.HorizonError('Target too low, cannot slew')
-
-        # Check current status
-        self.wait_for_info()
-        if self.info['status'] == 'Slewing':
-            raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
-            raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
-        elif self.info['status'] == 'IN BLINKY MODE':
-            raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        self.target_ra = ra
+        self.target_dec = dec
 
         # Set flag
         self.force_check_flag = True
         self.slew_target_flag = 1
 
-        return 'Slewing to target ({:.2f} deg)'.format(self._get_target_distance())
+        return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
 
     def slew_to_altaz(self, alt, az):
         """Slew to specified alt/az."""

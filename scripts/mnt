@@ -78,8 +78,24 @@ def query(command, args, daemon_id):
 
     # Daemon functions
     elif command == 'slew':
-        reply = daemons.daemon_function(daemon_id, 'slew_to_target')
-        print(reply)
+        # parse arguments
+        if len(args) == 0:
+            # slew to already set target
+            reply = daemons.daemon_function(daemon_id, 'slew_to_radec')
+            print(reply)
+        elif len(args) == 2:
+            # decimal ra and dec
+            ra_deg = float(args[0])
+            dec_deg = float(args[1])
+            assert 0 <= ra_deg < 360
+            ra_hrs = ra_deg * 24. / 360.
+            assert 0 <= ra_hrs < 24
+            assert -90 <= dec_deg <= 90
+            # slew to given target
+            reply = daemons.daemon_function(daemon_id, 'slew_to_radec', [ra_hrs, dec_deg])
+            print(reply)
+        else:
+            raise errors.InputError('Invalid arguments')
 
     elif command == 'track':
         reply = daemons.daemon_function(daemon_id, 'start_tracking')
@@ -379,7 +395,7 @@ def print_instructions():
           '  dec d m s                      set target dec',
           '  target name                    set target as named object (can include spaces)',
           '  clear                          clear the stored target',
-          '  slew                           slew to target ra/dec',
+          '  slew [ra dec]                  slew to target or given ra/dec',
           '  slew_altaz alt az              slew to given alt/az',
           '  track                          start tracking',
           '  stop                           stop moving (tracking/slewing)',

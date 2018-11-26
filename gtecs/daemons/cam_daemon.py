@@ -37,6 +37,7 @@ class CamDaemon(BaseDaemon):
 
         self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
         self.run_number = 0
+        self.num_taken = 0
 
         self.pool = ThreadPoolExecutor(max_workers=len(params.TEL_DICT))
 
@@ -180,6 +181,7 @@ class CamDaemon(BaseDaemon):
                         self.image_ready = {tel: 0 for tel in params.TEL_DICT}
                         self.active_tel = []
                         self.all_info = None
+                        self.num_taken += 1
                         self.take_exposure_flag = 0
                         self.force_check_flag = True
 
@@ -211,6 +213,7 @@ class CamDaemon(BaseDaemon):
                         self.exposing = False
                         self.active_tel = []
                         self.all_info = None
+                        self.num_taken += 1
                         self.take_exposure_flag = 0
                 except Exception:
                     self.log.error('abort_exposure command failed')
@@ -307,7 +310,21 @@ class CamDaemon(BaseDaemon):
             temp_info['current_set_total'] = self.current_exposure.set_total
             temp_info['current_db_id'] = self.current_exposure.db_id
         temp_info['run_number'] = self.run_number
+        temp_info['num_taken'] = self.num_taken
         temp_info['glance'] = self.run_number < 0
+
+        # Print a debug log line
+        now_strs = ['{}:{}'.format(tel, temp_info[tel]['status'])
+                    for tel in sorted(params.TEL_DICT)]
+        now_str = ' '.join(now_strs)
+        if not self.info:
+            self.log.debug('Cameras are {}'.format(now_str))
+        else:
+            old_strs = ['{}:{}'.format(tel, self.info[tel]['status'])
+                        for tel in sorted(params.TEL_DICT)]
+            old_str = ' '.join(old_strs)
+            if now_str != old_str:
+                self.log.debug('Cameras are {}'.format(now_str))
 
         # Update the master info dict
         self.info = temp_info

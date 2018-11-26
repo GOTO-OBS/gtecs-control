@@ -116,6 +116,9 @@ class Pilot(object):
         self.close_command_time = 0.
 
         self.initial_hardware_check_complete = False
+
+        self.force_scheduler_check = False
+        self.scheduler_check_time = 0
         self.initial_scheduler_check_complete = False
 
         # flag for daytime testing
@@ -131,30 +134,30 @@ class Pilot(object):
 
         sleep_time = 10
         while True:
-            if not self.observing:
-                self.log.debug('scheduler checks suspended when not observing')
-                await asyncio.sleep(30)
-                continue
+            now = time.time()
+            if self.force_scheduler_check or (now - self.scheduler_check_time) > sleep_time:
+                if not self.observing:
+                    self.log.debug('scheduler checks suspended when not observing')
+                elif self.paused:
+                    self.log.debug('scheduler checks suspended while paused')
+                else:
+                    # check scheduler daemon
+                    self.log.debug('checking scheduler')
 
-            if self.paused:
-                self.log.debug('scheduler checks suspended while paused')
-                await asyncio.sleep(10)
-                continue
+                    check_results = check_schedule()
+                    self.new_id, self.new_priority, self.new_mintime = check_results
+                    # NOTE we don't actually use the priority anywhere in the pilot!
 
-            # check scheduler daemon
-            self.log.debug('checking scheduler')
+                    if self.new_id != self.current_id:
+                        self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
+                    else:
+                        self.log.info('scheduler check: continue {}'.format(self.current_id))
 
-            check_results = check_schedule()
-            self.new_id, self.new_priority, self.new_mintime = check_results
-            # NOTE we don't actually use the priority anywhere in the pilot!
+                    self.initial_scheduler_check_complete = True
 
-            if self.new_id != self.current_id:
-                self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
-            else:
-                self.log.info('scheduler check: continue {}'.format(self.current_id))
-
-            self.initial_scheduler_check_complete = True
-            await asyncio.sleep(sleep_time)
+                self.scheduler_check_time = now
+                self.force_scheduler_check = False
+            await asyncio.sleep(1)
 
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
@@ -413,6 +416,12 @@ class Pilot(object):
 
         # done
         self.log.info("finished {}".format(name))
+
+        # if it was an observation that just finished, force a scheduler check
+        if name == 'OBS':
+            self.log.debug("forcing scheduler check".format(name))
+            self.force_scheduler_check = True
+
         return retcode, result
 
     async def cancel_running_script(self, why):
@@ -613,7 +622,8 @@ class Pilot(object):
             # no point observing if we haven't checked the scheduler yet
             while not self.initial_scheduler_check_complete:
                 self.log.info('waiting for first scheduler check')
-                await asyncio.sleep(30)
+                self.force_scheduler_check = True
+                await asyncio.sleep(2)
                 continue
 
             # should we stop for the sun?

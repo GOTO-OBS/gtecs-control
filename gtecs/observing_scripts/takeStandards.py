@@ -6,14 +6,12 @@ takeStandards
 with a range of colours and airmasses.
 """
 
-import time
-
 from astropy.time import Time
 
 from gtecs import params
 from gtecs.astronomy import check_alt_limit
 from gtecs.catalogs import standard_star
-from gtecs.observing import goto, prepare_for_images, take_image_set, wait_for_telescope
+from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set, wait_for_mount
 
 
 def run():
@@ -36,9 +34,8 @@ def run():
 
         print('Slewing to star', star)
         name = star.name
-        goto(coordinate.ra.deg, coordinate.dec.deg)
-        time.sleep(10)
-        wait_for_telescope(120)  # 120s timeout
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
+        wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
         # take 20 second exposures in all filters
         take_image_set(20, params.FILTER_LIST, name, imgtype='STD')

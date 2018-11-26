@@ -5,10 +5,10 @@ observe [pointing_id]
 """
 
 import sys
-import time
 
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
-from gtecs.observing import goto, prepare_for_images, wait_for_exposure_queue, wait_for_telescope
+from gtecs.observing import (prepare_for_images, slew_to_radec,
+                             wait_for_exposure_queue, wait_for_mount)
 
 from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running, open_session
 
@@ -72,7 +72,8 @@ def run(pointing_id):
 
         # start slew
         print('Moving to target')
-        goto(*get_position(pointing_id))
+        ra, dec = get_position(pointing_id)
+        slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
         exq_command_list = get_exq_commands(pointing_id)
@@ -80,8 +81,7 @@ def run(pointing_id):
             execute_command(exq_command)
 
         # wait for telescope (timeout 120s)
-        time.sleep(10)
-        wait_for_telescope(120)
+        wait_for_mount(ra, dec, timeout=120)
 
         print('In position: starting exposures')
         # resume the queue
@@ -98,6 +98,7 @@ def run(pointing_id):
     # hey, if we got here no-one else will mark as completed
     mark_completed(pointing_id)
     print('Pointing {} completed'.format(pointing_id))
+    sys.exit(0)
 
 
 if __name__ == "__main__":

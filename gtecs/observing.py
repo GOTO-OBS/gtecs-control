@@ -12,7 +12,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate, tel_str
+from .astronomy import check_alt_limit, night_startdate
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -54,24 +54,21 @@ def prepare_for_images():
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
-        execute_command('exq pause')
-        time.sleep(1)
         execute_command('exq clear')
         while not exposure_queue_is_empty():
-            time.sleep(1)
-    execute_command('exq resume')
+            time.sleep(0.5)
 
     # Home the filter wheels
     if not filters_are_homed():
         execute_command('filt home')
         while not filters_are_homed():
-            time.sleep(1)
+            time.sleep(0.5)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
-            time.sleep(1)
+            time.sleep(0.5)
 
 
 def set_new_focus(values):
@@ -103,34 +100,69 @@ def get_current_focus():
     return values
 
 
-def wait_for_focuser(timeout):
-    """Wait until focuser has finished moving.
+def wait_for_focuser(target_values, timeout=None):
+    """Wait until focuser has reached the target position.
 
     Parameters
     ----------
+    target_values : float, dict
+        a dictionary of telescope IDs and focus values
+        (see `gtecs.observing.set_new_focus`)
     timeout : float
-        time in seconds after which to timeout
+        time in seconds after which to timeout, None to wait forever
 
     """
+    try:
+        # will raise if not a dict, or keys not valid
+        assert all(tel in params.TEL_DICT for tel in target_values.keys())
+    except Exception:
+        # same value for all
+        target_values = {tel: target_values for tel in params.TEL_DICT}
+
     start_time = time.time()
-    still_moving = True
+    reached_position = False
     timed_out = False
-    time.sleep(2)
-    while still_moving and not timed_out:
+    while not reached_position and not timed_out:
+        time.sleep(0.2)
+
         try:
-            foc_info = daemon_info('foc')
+            foc_info = daemon_info('foc', force_update=True)
+
+            done = [(foc_info[tel]['current_pos'] == int(target_values[tel]) and
+                    foc_info[tel]['status'] == 'Ready')
+                    for tel in target_values.keys()]
+            if np.all(done):
+                reached_position = True
         except Exception:
             pass
-        if np.all([foc_info[tel]['status'] == 'Ready' for tel in params.TEL_DICT]):
-            still_moving = False
-        if time.time() - start_time > timeout:
+
+        if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Focuser timed out')
 
 
-def goto(ra, dec):
-    """Move telescope to given RA/Dec.
+def get_current_mount_position():
+    """Find the current mount position.
+
+    Returns
+    -------
+    ra : float
+        J2000 ra in decimal degrees
+    dec : float
+        J2000 dec in decimal degrees
+
+    """
+    mnt_info = daemon_info('mnt')
+    ra = mnt_info['mount_ra']
+    ra = ra * 360 / 24.  # mount uses RA in hours
+    dec = mnt_info['mount_dec']
+    return ra, dec
+
+
+def slew_to_radec(ra, dec):
+    """Move mount to given RA/Dec.
 
     Parameters
     ----------
@@ -142,15 +174,11 @@ def goto(ra, dec):
     """
     if check_alt_limit(ra, dec, Time.now()):
         raise ValueError('target too low, cannot set target')
-    ra_string, dec_string = tel_str(ra, dec)
-    execute_command("mnt ra " + ra_string)
-    execute_command("mnt dec " + dec_string)
-    time.sleep(1)
-    execute_command("mnt slew")
+    execute_command("mnt slew {} {}".format(ra, dec))
 
 
-def goto_altaz(alt, az):
-    """Move telescope to given Alt/Az.
+def slew_to_altaz(alt, az):
+    """Move mount to given Alt/Az.
 
     Parameters
     ----------
@@ -165,35 +193,46 @@ def goto_altaz(alt, az):
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
-def wait_for_telescope(timeout=None, targ_dist=0.003):
-    """Wait for telescope to be ready.
+def wait_for_mount(target_ra, target_dec,
+                   timeout=None, targ_dist=0.003):
+    """Wait for mount to be in target position.
 
     Parameters
     ----------
+    target_ra : float
+        target J2000 ra in decimal degrees
+    target_dec : float
+        target J2000 dec in decimal degrees
     timeout : float
-        time in seconds after which to timeout. None to wait forever
+        time in seconds after which to timeout, None to wait forever
     targ_dist : float
         distance in degrees from the target to consider returning after
+        default is 0.003 degrees
 
     """
     start_time = time.time()
-    still_moving = True
+    reached_position = False
     timed_out = False
-    while still_moving and not timed_out:
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
         try:
-            mnt_info = daemon_info('mnt')
+            mnt_info = daemon_info('mnt', force_update=True)
+
+            done = (mnt_info['status'] == 'Tracking' and
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
+                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
+                    mnt_info['target_dist'] < targ_dist)
+            if done:
+                reached_position = True
         except Exception:
             pass
-        if mnt_info['status'] == 'Tracking' and mnt_info['target_dist'] < targ_dist:
-            still_moving = False
 
-        if timeout and (time.time() - start_time) > timeout:
+        if timeout and time.time() - start_time > timeout:
             timed_out = True
 
-        # don't hammer the daemons
-        time.sleep(5)
     if timed_out:
-        raise TimeoutError('Telescope timed out')
+        raise TimeoutError('Mount timed out')
 
 
 def random_offset(offset_size):
@@ -252,6 +291,9 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
         a dictionary of the image files, with the UT numbers as keys
 
     """
+    # Fund the current image count, so we know what to wait for
+    img_num = get_current_image_count()
+
     if not glance:
         exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
     else:
@@ -259,10 +301,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     execute_command(exq_command)
     execute_command('exq resume')  # just in case
 
-    # wait for the exposure queue to empty
-    wait_for_exposure_queue(exptime + 30)
-    # then also wait for the camera daemon, to be sure it's finished saving
-    wait_for_cameras(30)
+    # wait for the camera daemon to finish saving the images
+    wait_for_images(img_num + 1, exptime + 30)
     time.sleep(1)  # just in case
 
     if not glance:
@@ -350,20 +390,20 @@ def get_glances():
 
 def exposure_queue_is_empty():
     """Check if the image queue is empty."""
-    exq_info = daemon_info('exq')
+    exq_info = daemon_info('exq', force_update=False)
     return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
-    filt_info = daemon_info('filt')
+    filt_info = daemon_info('filt', force_update=False)
     return all([filt_info[tel]['homed'] for tel in params.TEL_DICT])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
-    cam_info = daemon_info('cam')
+    cam_info = daemon_info('cam', force_update=False)
     return all([cam_info[tel]['ccd_temp'] < target_temp + 0.1 for tel in params.TEL_DICT])
 
 
@@ -373,58 +413,67 @@ def wait_for_exposure_queue(timeout=None):
     Parameters
     ----------
     timeout : float
-        time in seconds after which to timeout. None to wait forever
+        time in seconds after which to timeout, None to wait forever
 
     """
-    # we should not return straight away, but wait until queue is empty
     start_time = time.time()
-    still_working = True
+    finished = False
     timed_out = False
-    while still_working and not timed_out:
-        time.sleep(10)
+    while not finished and not timed_out:
+        time.sleep(0.5)
         try:
-            exq_info = daemon_info('exq')
-
-            nexp = exq_info['queue_length']
-            status = exq_info['status']
-            if nexp == 0 and status == 'Ready':
-                still_working = False
+            exq_info = daemon_info('exq', force_update=True)
+            done = (exq_info['queue_length'] == 0 and
+                    exq_info['exposing'] is False and
+                    exq_info['status'] == 'Ready')
+            if done:
+                finished = True
         except Exception:
             pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Exposure queue timed out')
 
 
-def wait_for_cameras(timeout=None):
+def get_current_image_count():
+    """Find the current camera image number."""
+    cam_info = daemon_info('cam')
+    return cam_info['num_taken']
+
+
+def wait_for_images(target_image_number, timeout=None):
     """With a set of exposures underway, wait for the cameras to finish saving.
 
     Parameters
     ----------
+    target_image_number : int
+        camera image number to wait for
     timeout : float
         time in seconds after which to timeout. None to wait forever
 
     """
-    # we should not return straight away, but wait until queue is empty
     start_time = time.time()
-    still_working = True
+    finished = False
     timed_out = False
-    while still_working and not timed_out:
-        time.sleep(2)
-        try:
-            cam_info = daemon_info('cam')
+    while not finished and not timed_out:
+        time.sleep(0.5)
 
-            cam_status = [cam_info[tel]['status'] for tel in params.TEL_DICT]
-            ready = [status == 'Ready' for status in cam_status]
-            if all(ready):
-                still_working = False
+        try:
+            cam_info = daemon_info('cam', force_update=True)
+            done = [(cam_info[tel]['status'] == 'Ready' and
+                     int(cam_info['num_taken']) == int(target_image_number))
+                    for tel in params.TEL_DICT]
+            if np.all(done):
+                finished = True
         except Exception:
             pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True
+
     if timed_out:
         raise TimeoutError('Cameras timed out')
 

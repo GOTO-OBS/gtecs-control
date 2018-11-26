@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 
 from . import params
-from .daemons import daemon_info, daemon_is_running, get_daemon_status
+from .daemons import daemon_is_running, daemon_proxy
 from .errors import RecoveryError
 from .misc import execute_command
 
@@ -122,7 +122,8 @@ class BaseMonitor(ABC):
     def get_daemon_status(self):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
         try:
-            status = get_daemon_status(self.daemon_id)
+            with daemon_proxy(self.daemon_id) as daemon:
+                status = daemon.get_status()
             try:
                 status, args = status.split(':')
                 return status, args.split(',')
@@ -137,7 +138,13 @@ class BaseMonitor(ABC):
         if self.daemon_id is None:
             return None
         try:
-            info = daemon_info(self.daemon_id)
+            with daemon_proxy(self.daemon_id) as daemon:
+                # Force an update if we're currently fixing an error,
+                # otherwise it's not as important so don't force to save time
+                if len(self.errors) > 0:
+                    info = daemon.get_info(force_update=True)
+                else:
+                    info = daemon.get_info(force_update=False)
             assert isinstance(info, dict)
         except Exception:
             info = None
@@ -216,13 +223,16 @@ class BaseMonitor(ABC):
 
         Note these overwrite self.errors (instead of adding to it) and then return immediately.
         """
+        # Check if the daemon is running
+        is_running = self.is_running()
+
         # ERROR_RUNNING
         # Set the error if the daemon isn't running
-        if not self.is_running():
+        if not is_running:
             self.add_error(ERROR_RUNNING, critical=True)
             return 1
         # Clear the error if we are running
-        if self.is_running():
+        if is_running:
             self.clear_error(ERROR_RUNNING)
 
         # Get the daemon status

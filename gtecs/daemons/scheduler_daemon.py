@@ -69,6 +69,21 @@ class SchedulerDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['next_pointing'] = None
 
+        # Print a debug log line
+        now_pointing = temp_info['next_pointing']
+        if not self.info:
+            if now_pointing is not None:
+                self.log.debug('Scheduler returns pointing {}'.format(now_pointing.pointing_id))
+            else:
+                self.log.debug('Scheduler returns None')
+        else:
+            old_pointing = self.info['next_pointing']
+            if now_pointing != old_pointing:
+                if now_pointing is not None:
+                    self.log.debug('Scheduler returns pointing {}'.format(now_pointing.pointing_id))
+                else:
+                    self.log.debug('Scheduler returns None')
+
         # Update the master info dict
         self.info = temp_info
 
@@ -78,11 +93,9 @@ class SchedulerDaemon(BaseDaemon):
     # Control functions
     def check_queue(self):
         """Check the current queue for the best pointing to do."""
+        # Force an info update
+        self.wait_for_info()
         next_pointing = self.info['next_pointing']
-        if next_pointing is not None:
-            self.log.info('Scheduler returns: pointing ID {}'.format(next_pointing.pointing_id))
-        else:
-            self.log.info('Scheduler returns: None')
         return next_pointing
 
 
