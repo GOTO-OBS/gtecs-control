@@ -176,6 +176,7 @@ class ExqDaemon(BaseDaemon):
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)
 
+        self._get_info()
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
@@ -202,6 +203,7 @@ class ExqDaemon(BaseDaemon):
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)
 
+        self._get_info()
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
@@ -216,6 +218,7 @@ class ExqDaemon(BaseDaemon):
 
             # keep ping alive
             self.loop_time = time.time()
+            self._get_info()
         self.log.info('Filter wheel move complete, now at {}'.format(new_filt))
 
     def _take_image(self):
@@ -237,8 +240,8 @@ class ExqDaemon(BaseDaemon):
             self.log.error('No response from camera daemon')
             self.log.debug('', exc_info=True)
 
+        self._get_info()
         time.sleep(3)
-
         with daemon_proxy('cam') as cam_daemon:
             cam_exposing = cam_daemon.is_exposing()
         while cam_exposing:
