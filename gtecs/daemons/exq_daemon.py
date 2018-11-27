@@ -91,6 +91,7 @@ class ExqDaemon(BaseDaemon):
 
                 # done!
                 self.working = 0
+                self.current_exposure = None
                 self.force_check_flag = True
 
             elif queue_len == 0 or self.paused:
