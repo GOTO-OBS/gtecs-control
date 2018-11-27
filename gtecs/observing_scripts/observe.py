@@ -38,10 +38,15 @@ def get_exq_commands(pointing_id):
     """Get the exposure queue command for a given pointing."""
     command_template = 'exq multimage {numexp} {tels}{expTime:.1f} '\
                        '{filt} {binning} "{objectName}" SCIENCE {expID}'
+    total_time = 0
     commands = []
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointing_id)
         for exposure_set in pointing.exposure_sets:
+            # store total time
+            total_time += (exposure_set.numexp * exposure_set.expTime)
+
+            # format command
             keywords = pointing.__dict__.copy()
             keywords.update(exposure_set.__dict__)
             if exposure_set.utMask is not None:
@@ -51,7 +56,7 @@ def get_exq_commands(pointing_id):
             else:
                 keywords['tels'] = ''
             commands.append(command_template.format(**keywords))
-    return commands
+    return commands, total_time
 
 
 def run(pointing_id):
@@ -76,7 +81,7 @@ def run(pointing_id):
         slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
-        exq_command_list = get_exq_commands(pointing_id)
+        exq_command_list, total_time = get_exq_commands(pointing_id)
         for exq_command in exq_command_list:
             execute_command(exq_command)
 
@@ -87,8 +92,8 @@ def run(pointing_id):
         # resume the queue
         execute_command('exq resume')
 
-        # wait for the queue to empty, no timeout
-        wait_for_exposure_queue()
+        # wait for the queue to empty
+        wait_for_exposure_queue(total_time * 1.5)
 
     except Exception:
         # something went wrong
