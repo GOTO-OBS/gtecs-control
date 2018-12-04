@@ -15,6 +15,7 @@ This script should perform the following simple tasks:
 import time
 
 from gtecs.misc import execute_command
+from gtecs.observing import wait_for_dome, wait_for_mount_parking
 
 
 def run():
@@ -39,13 +40,11 @@ def run():
 
     # Park the mount
     execute_command('mnt park')
+    wait_for_mount_parking(timeout=60)
 
-    # give time before closing dome
-    time.sleep(60)
-
-    # close dome and wait (pilot will try again before shutdown)
+    # Close the dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
-    time.sleep(65)
+    wait_for_dome(target_position='closed', timeout=65)
 
 
 if __name__ == "__main__":
