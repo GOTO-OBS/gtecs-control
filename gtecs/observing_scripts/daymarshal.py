@@ -1,0 +1,132 @@
+#!/usr/bin/env python
+"""Script to run in the morning to confirm the dome is closed.
+
+daymarshal [-t]
+
+This script should perform the following tasks:
+    * wait until shortly after sunrise
+    * make sure the dome is closed
+    * send the morning report to Slack
+"""
+
+import sys
+import time
+
+import astropy.units as u
+from astropy.time import Time
+
+from gtecs import logger
+from gtecs import params
+from gtecs.astronomy import night_startdate, sunalt_time
+from gtecs.daemons import daemon_info
+from gtecs.misc import execute_command
+from gtecs.observing import wait_for_dome
+from gtecs.slack import send_slack_msg
+
+
+def send_dome_report(msg, confirmed_closed):
+    """Send Slack message with webcams attached."""
+    ts = '{:.0f}'.format(time.time())
+    ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+    attach_ext = {'fallback': 'External webcam view',
+                  'title': 'External webcam view',
+                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                  'text': 'Image attached:',
+                  'image_url': ext_url,
+                  'color': 'good' if confirmed_closed else 'danger',
+                  }
+    int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
+    attach_int = {'fallback': 'Internal webcam view',
+                  'title': 'Internal webcam view',
+                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
+                  'text': 'Image attached:',
+                  'image_url': int_url,
+                  'color': 'good' if confirmed_closed else 'danger',
+                  }
+
+    send_slack_msg(msg, [attach_ext, attach_int])
+
+
+def run(test=False):
+    """Run morning safety checks."""
+    # Log output
+    log = logger.get_logger('daymarshal', log_to_file=False, log_to_stdout=True)
+
+    # Get the current night starting date and time of sunrise
+    date = night_startdate()
+    log.info('Started for night of {}'.format(date))
+    sunrise = sunalt_time(date, 0 * u.deg, eve=False)
+
+    # Wait until shortly after sunrise, so the pilot should be finished
+    target = sunrise + 5 * u.min
+    log.info('Waiting until {}'.format(target.datetime.strftime('%H:%M:%S')))
+    while True and not test:
+        if Time.now() > target:
+            log.info('Passed target time')
+            break
+        time.sleep(2)
+
+    # Check the dome status
+    msg = ''
+    confirmed_closed = False
+    try:
+        dome_info = daemon_info('dome')
+        dome_status = dome_info['dome']
+        if dome_status == 'closed':
+            msg = '{} dome confirmed closed'.format(params.TELESCOP)
+            log.info('Dome confirmed closed')
+            confirmed_closed = True
+        else:
+            # Uh-oh
+            msg = 'WARNING: could not confirm {} dome is closed'.format(params.TELESCOP)
+            log.warning('The dome is not closed!')
+    except Exception:
+        msg = 'WARNING: {} dome status check failed'.format(params.TELESCOP)
+        log.error('Error checking the dome', exc_info=True)
+
+    # Send the report to Slack
+    send_dome_report(msg, confirmed_closed)
+
+    # It's not closed...
+    # Maybe something happened to the pilot or the dome daemon
+    while not confirmed_closed:
+        time.sleep(30)
+        try:
+            # Try sending the command
+            log.warning('Sending dome close command')
+            execute_command('dome restart')
+            time.sleep(5)
+            execute_command('dome close')
+
+            # Wait for the dome to (hopefully) close
+            wait_for_dome(target_position='closed', timeout=65)
+
+            # Check again
+            dome_info = daemon_info('dome')
+            dome_status = dome_info['dome']
+            if dome_status == 'closed':
+                msg = 'Daymarshal has closed the {} dome'.format(params.TELESCOP)
+                log.info('Dome confirmed closed')
+                confirmed_closed = True
+            else:
+                # UH-OH
+                msg = 'CRITICAL: {} dome could not be closed!'.format(params.TELESCOP)
+                log.warning('The dome is still not closed!')
+
+        except Exception:
+            log.error('Error sending dome command', exc_info=True)
+            msg = 'CRITICAL: {} dome could not be closed!'.format(params.TELESCOP)
+
+        # Send the report to Slack again
+        send_dome_report(msg, confirmed_closed)
+
+    log.info('Done')
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ['t', 'test', '-t', '--test']:
+        test = True
+    else:
+        test = False
+
+    run(test)
