@@ -99,7 +99,7 @@ def run(test=False):
             execute_command('dome close')
 
             # Wait for the dome to (hopefully) close
-            wait_for_dome(target_position='closed', timeout=65)
+            wait_for_dome(target_position='closed', timeout=120)
 
             # Check again
             dome_info = daemon_info('dome')

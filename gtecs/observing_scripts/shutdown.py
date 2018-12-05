@@ -44,7 +44,7 @@ def run():
 
     # Close the dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
-    wait_for_dome(target_position='closed', timeout=65)
+    wait_for_dome(target_position='closed', timeout=120)
 
 
 if __name__ == "__main__":
