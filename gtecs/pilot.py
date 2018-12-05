@@ -1040,14 +1040,14 @@ class Pilot(object):
         if not filters_are_homed():
             execute_command('filt home')
             while not filters_are_homed():
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
         self.log.info('filters are homed')
 
         # Bring the CCDs down to temperature
         if not cameras_are_cool():
             execute_command('cam temp {}'.format(params.CCD_TEMP))
             while not cameras_are_cool():
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
         self.log.info('cameras are cool')
 
     def send_startup_report(self):
