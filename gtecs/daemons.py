@@ -274,11 +274,15 @@ def check_daemon(daemon_id):
     raise errors.DaemonStatusError(errstr)
 
 
-def daemon_function(daemon_id, function_name, args=None, timeout=0.):
+def daemon_function(daemon_id, function_name, args=None, timeout=0., asynchronous=False):
     """Run a given function on a daemon."""
     check_daemon(daemon_id)  # Will raise an error if one occurs
 
     with daemon_proxy(daemon_id, timeout) as daemon:
+        if asynchronous:
+            # enable asynchronous running of daemon.
+            # result will be a Pyro.Future - check result.ready to see if it's complete
+            daemon._pyroAsync()
         try:
             function = getattr(daemon, function_name)
         except AttributeError:

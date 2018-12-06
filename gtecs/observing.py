@@ -3,6 +3,7 @@
 import glob
 import os
 import time
+import asyncio
 
 from astropy.io import fits
 from astropy.time import Time
@@ -15,6 +16,22 @@ from . import params
 from .astronomy import check_alt_limit, night_startdate
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
+
+
+async def check_schedule_async():
+    """Check the schedule, but hand back control to the main loop whilst waiting for result"""
+    try:
+        future = daemon_function('scheduler', 'check_queue', asynchronous=True)
+        while not future.ready:
+            await asyncio.sleep(0.2)
+        new_pointing = future.value
+        if new_pointing is not None:
+            return new_pointing.pointing_id, new_pointing.priority_now, new_pointing.mintime
+        else:
+            return None, None, None
+    except Exception as error:
+        print('{} checking scheduler: {}'.format(type(error).__name__, error))
+        return None, None, None
 
 
 def check_schedule():

@@ -22,7 +22,7 @@ from .asyncio_protocols import SimpleProtocol
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
+from .observing import (cameras_are_cool, check_schedule_async, filters_are_homed,
                         get_pointing_status)
 from .slack import send_slack_msg
 
@@ -144,7 +144,7 @@ class Pilot(object):
                     # check scheduler daemon
                     self.log.debug('checking scheduler')
 
-                    check_results = check_schedule()
+                    check_results = await check_schedule_async()
                     self.new_id, self.new_priority, self.new_mintime = check_results
                     # NOTE we don't actually use the priority anywhere in the pilot!
 
