@@ -36,6 +36,41 @@ def check_dome_closed():
     return dome_info['dome'] == 'closed'
 
 
+def wait_for_dome(target_position, timeout=None):
+    """Wait until the dome has reached the target position.
+
+    Parameters
+    ----------
+    target_position : 'open' or 'closed'
+        the final position the dome should be in
+    timeout : float
+        time in seconds after which to timeout, None to wait forever
+
+    """
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.2)
+
+        try:
+            dome_info = daemon_info('dome', force_update=True)
+
+            done = [dome_info['dome'] == target_position.lower() and
+                    dome_info['north'] == target_position.lower() and
+                    dome_info['south'] == target_position.lower()]
+            if np.all(done):
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Dome timed out')
+
+
 def get_cam_temps():
     """Get a dict of camera temps."""
     cam_info = daemon_info('cam')
@@ -223,6 +258,37 @@ def wait_for_mount(target_ra, target_dec,
                     np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
                     np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
                     mnt_info['target_dist'] < targ_dist)
+            if done:
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Mount timed out')
+
+
+def wait_for_mount_parking(timeout=None):
+    """Wait for mount to be parked.
+
+    Parameters
+    ----------
+    timeout : float
+        time in seconds after which to timeout, None to wait forever
+
+    """
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            mnt_info = daemon_info('mnt', force_update=True)
+
+            done = mnt_info['status'] == 'Parked'
             if done:
                 reached_position = True
         except Exception:

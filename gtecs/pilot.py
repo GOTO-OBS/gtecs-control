@@ -363,7 +363,7 @@ class Pilot(object):
         if self.testing:
             await self.observe(until_sunalt=90)
         else:
-            #await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
+            # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
             await self.observe(until_sunalt=-12, last_obs_sunalt=-12.4)
 
         # Morning jobs
@@ -479,7 +479,7 @@ class Pilot(object):
         self.evening_jobs = [flats_e, autofoc]
 
         # morning jobs: done after observing, before closing the dome
-        #foc_run = {'name': 'FOCRUN',
+        # foc_run = {'name': 'FOCRUN',
         #           'sunalt': -14.5,
         #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
         #           'args': ['1000', '100', 'n'],
@@ -490,7 +490,7 @@ class Pilot(object):
                    'args': ['MORN'],
                    'protocol': SimpleProtocol}
 
-        #self.morning_jobs = [foc_run, flats_m]
+        # self.morning_jobs = [foc_run, flats_m]
         self.morning_jobs = [flats_m]
 
     async def run_through_jobs(self, job_list, rising=False,
