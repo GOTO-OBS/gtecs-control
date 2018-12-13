@@ -210,8 +210,28 @@ class SentinelDaemon(BaseDaemon):
 
     def _send_slack_report(self, event):
         """Send a report to Slack detailing the interesting event."""
-        send_slack_msg('Sentinel processed an interesting event: {}'.format(event.name))
+        title = ['*Sentinel processed {} event {}*'.format(event.source, event.id)]
 
+        details = ['IVORN: {}'.format(event.ivorn),
+                   'Notice type: {}'.format(event.notice),
+                   'Type: {}'.format(event.type),
+                   'Event time: {}'.format(event.time),
+                   'Applied to grid: {}'.format(event.grid.name),
+                   'Tile table:']
+
+        table = ['```',
+                 'tilename  ra        dec       prob    ',
+                 '[str]     [deg]     [deg]     [%]     ',
+                 '--------  --------  --------  ------- ',
+                 ]
+        line = '{}     {:8.4f}  {:+8.4f}  {:6.2f}% '
+        table += [line.format(row['tilename'], row['ra'].value, row['dec'].value, row['prob'] * 100)
+                  for row in event.tile_table]
+        table.append('```')
+
+        msg = '\n'.join(title + details + table)
+
+        send_slack_msg(msg)
 
     # Control functions
     def pause_listener(self):
