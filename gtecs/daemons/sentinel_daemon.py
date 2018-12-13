@@ -198,13 +198,20 @@ class SentinelDaemon(BaseDaemon):
         event.archive(params.CONFIG_PATH + 'voevents/', self.log)
 
         # Run GOTO-alert's event handler
-        ret = event_handler(event, self.log, write_html=True, send_messages=False)
-        if ret:
-            send_slack_msg('Sentinel processed an interesting event: {}'.format(event.name))
+        event = event_handler(event, self.log, write_html=True, send_messages=False)
+        if event:
+            # If the event was returned it was classed as "interesting"
+            # If event is None then we don't care
+            self._send_slack_report(event)
             self.interesting_events += 1
 
         # Done!
         self.processed_events += 1
+
+    def _send_slack_report(self, event):
+        """Send a report to Slack detailing the interesting event."""
+        send_slack_msg('Sentinel processed an interesting event: {}'.format(event.name))
+
 
     # Control functions
     def pause_listener(self):
