@@ -376,7 +376,19 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     else:
         fnames = get_glances()
 
-    data = {tel: fits.getdata(fnames[tel]).astype('float') for tel in fnames}
+    data = {}
+    for tel in fnames:
+        try:
+            data[tel] == fits.getdata(fnames[tel]).astype('float')
+        except TypeError:
+            # "buffer is too small for requested array"
+            # We must be reading before the file has been fully written, I think.
+            # Wait a little while, then try again.
+            time.sleep(1)
+            try:
+                data[tel] == fits.getdata(fnames[tel]).astype('float')
+            except TypeError:
+                raise
 
     return data
 
