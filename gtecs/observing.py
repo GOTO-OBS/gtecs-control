@@ -403,8 +403,12 @@ def get_latest_image_data(glance=False):
 
         print('Loading glances:', end=' ')
 
-    fnames = {key: root + '_UT{}.fits'.format(key) for key in params.TEL_DICT}
-    fnames = {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT}
+    fnames = {tel: os.path.join(path, root + '_UT{}.fits'.format(tel))
+              for tel in params.TEL_DICT}
+
+    # limit it to only existing files
+    fnames = {tel: fnames[tel] for tel in fnames if os.path.exists(fnames[tel])}
+
     print('{} images'.format(len(fnames)))
 
     data = {}
