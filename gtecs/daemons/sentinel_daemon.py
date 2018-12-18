@@ -171,18 +171,22 @@ class SentinelDaemon(BaseDaemon):
         temp_info['processed_events'] = self.processed_events
         temp_info['interesting_events'] = self.interesting_events
 
-        # Print a debug log line
-        now_str = '{} ({} processed, {} interesting)'.format(temp_info['status'],
-                                                             temp_info['processed_events'],
-                                                             temp_info['interesting_events'])
-        if not self.info:
-            self.log.debug('Sentinel is {}'.format(now_str))
-        else:
-            old_str = '{} ({} processed, {} interesting)'.format(self.info['status'],
-                                                                 self.info['processed_events'],
-                                                                 self.info['interesting_events'])
-            if now_str != old_str:
+        # Write debug log line
+        try:
+            now_str = '{} ({} processed, {} interesting)'.format(temp_info['status'],
+                                                                 temp_info['processed_events'],
+                                                                 temp_info['interesting_events'])
+            if not self.info:
                 self.log.debug('Sentinel is {}'.format(now_str))
+            else:
+                old_str = '{} ({} processed, {} interesting)'.format(
+                    self.info['status'],
+                    self.info['processed_events'],
+                    self.info['interesting_events'])
+                if now_str != old_str:
+                    self.log.debug('Sentinel is {}'.format(now_str))
+        except Exception:
+            self.log.error('Could not write current status')
 
         # Update the master info dict
         self.info = temp_info
