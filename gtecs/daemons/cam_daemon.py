@@ -380,6 +380,14 @@ class CamDaemon(BaseDaemon):
             if all(images[tel] is not None for tel in active_tel):
                 break
 
+        # if taking glance images, clear all old glances
+        if run_number <= 0:
+            glance_files = [os.path.join(params.IMAGE_PATH, 'glance_UT{:d}.fits'.format(tel))
+                            for tel in params.TEL_DICT]
+            for glance_file in glance_files:
+                if os.path.exists(glance_file):
+                    os.remove(glance_file)
+
         # save images in parallel
         for tel in active_tel:
             # get image and filename
