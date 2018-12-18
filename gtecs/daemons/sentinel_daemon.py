@@ -198,13 +198,40 @@ class SentinelDaemon(BaseDaemon):
         event.archive(params.CONFIG_PATH + 'voevents/', self.log)
 
         # Run GOTO-alert's event handler
-        ret = event_handler(event, self.log, write_html=True, send_messages=False)
-        if ret:
-            send_slack_msg('Sentinel processed an interesting event: {}'.format(event.name))
+        event = event_handler(event, self.log, write_html=True, send_messages=False)
+        if event:
+            # If the event was returned it was classed as "interesting"
+            # If event is None then we don't care
+            self._send_slack_report(event)
             self.interesting_events += 1
 
         # Done!
         self.processed_events += 1
+
+    def _send_slack_report(self, event):
+        """Send a report to Slack detailing the interesting event."""
+        title = ['*Sentinel processed {} event {}*'.format(event.source, event.id)]
+
+        details = ['IVORN: {}'.format(event.ivorn),
+                   'Notice type: {}'.format(event.notice),
+                   'Type: {}'.format(event.type),
+                   'Event time: {}'.format(event.time),
+                   'Applied to grid: {}'.format(event.grid.name),
+                   'Tile table:']
+
+        table = ['```',
+                 'tilename  ra        dec       prob    ',
+                 '[str]     [deg]     [deg]     [%]     ',
+                 '--------  --------  --------  ------- ',
+                 ]
+        line = '{}     {:8.4f}  {:+8.4f}  {:6.2f}% '
+        table += [line.format(row['tilename'], row['ra'].value, row['dec'].value, row['prob'] * 100)
+                  for row in event.tile_table]
+        table.append('```')
+
+        msg = '\n'.join(title + details + table)
+
+        send_slack_msg(msg)
 
     # Control functions
     def pause_listener(self):
