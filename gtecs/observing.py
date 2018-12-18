@@ -3,6 +3,7 @@
 import glob
 import os
 import time
+import warnings
 
 from astropy.io import fits
 from astropy.time import Time
@@ -12,7 +13,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate
+from .astronomy import check_alt_limit
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -414,16 +415,13 @@ def get_latest_image_data(glance=False):
     data = {}
     for tel in fnames.keys():
         try:
-            data[tel] = fits.getdata(fnames[tel]).astype('float')
-        except TypeError:
-            # "buffer is too small for requested array"
-            # We must be reading before the file has been fully written, I think.
-            # Wait a little while, then try again.
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                data[tel] = fits.getdata(fnames[tel]).astype('float')
+        except (TypeError, OSError):
+            # Image was still being written, wait a sec and try again
             time.sleep(1)
-            try:
-                data[tel] == fits.getdata(fnames[tel]).astype('float')
-            except TypeError:
-                raise
+            data[tel] = fits.getdata(fnames[tel]).astype('float')
 
     return data
 
