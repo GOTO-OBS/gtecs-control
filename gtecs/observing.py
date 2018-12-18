@@ -369,7 +369,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     # wait for the camera daemon to finish saving the images
     wait_for_images(img_num + 1, exptime + 30)
-    time.sleep(1)  # just in case
+    time.sleep(2)  # just in case
 
     if not glance:
         fnames = get_latest_images()
