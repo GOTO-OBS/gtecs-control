@@ -134,14 +134,19 @@ class ExqDaemon(BaseDaemon):
         else:
             temp_info['exposing'] = False
 
-        # Print a debug log line
-        now_str = '{} ({:.0f} in queue)'.format(temp_info['status'], temp_info['queue_length'])
-        if not self.info:
-            self.log.debug('Exposure queue is {}'.format(now_str))
-        else:
-            old_str = '{} ({:.0f} in queue)'.format(self.info['status'], self.info['queue_length'])
-            if now_str != old_str:
+        # Write debug log line
+        try:
+            now_str = '{} ({:.0f} in queue)'.format(temp_info['status'],
+                                                    temp_info['queue_length'])
+            if not self.info:
                 self.log.debug('Exposure queue is {}'.format(now_str))
+            else:
+                old_str = '{} ({:.0f} in queue)'.format(self.info['status'],
+                                                        self.info['queue_length'])
+                if now_str != old_str:
+                    self.log.debug('Exposure queue is {}'.format(now_str))
+        except Exception:
+            self.log.error('Could not write current status')
 
         # Update the master info dict
         self.info = temp_info

@@ -69,20 +69,24 @@ class SchedulerDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['next_pointing'] = None
 
-        # Print a debug log line
-        now_pointing = temp_info['next_pointing']
-        if not self.info:
-            if now_pointing is not None:
-                self.log.debug('Scheduler returns pointing {}'.format(now_pointing.pointing_id))
-            else:
-                self.log.debug('Scheduler returns None')
-        else:
-            old_pointing = self.info['next_pointing']
-            if now_pointing != old_pointing:
+        # Write debug log line
+        try:
+            now_pointing = temp_info['next_pointing']
+            if not self.info:
                 if now_pointing is not None:
                     self.log.debug('Scheduler returns pointing {}'.format(now_pointing.pointing_id))
                 else:
                     self.log.debug('Scheduler returns None')
+            else:
+                old_pointing = self.info['next_pointing']
+                if now_pointing != old_pointing:
+                    if now_pointing is not None:
+                        self.log.debug('Scheduler returns pointing {}'.format(
+                            now_pointing.pointing_id))
+                    else:
+                        self.log.debug('Scheduler returns None')
+        except Exception:
+            self.log.error('Could not write current status')
 
         # Update the master info dict
         self.info = temp_info
