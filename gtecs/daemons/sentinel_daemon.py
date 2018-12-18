@@ -202,6 +202,7 @@ class SentinelDaemon(BaseDaemon):
         if event:
             # If the event was returned it was classed as "interesting"
             # If event is None then we don't care
+            self.log.info('Interesting event {} processed'.format(event.name))
             self._send_slack_report(event)
             self.interesting_events += 1
 
