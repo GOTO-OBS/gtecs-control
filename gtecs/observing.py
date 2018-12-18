@@ -353,8 +353,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     Returns
     -------
-    files : dict
-        a dictionary of the image files, with the UT numbers as keys
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
 
     """
     # Fund the current image count, so we know what to wait for
@@ -371,6 +371,25 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     wait_for_images(img_num + 1, exptime + 30)
     time.sleep(2)  # just in case
 
+    data = get_image_data(glance)
+
+    return data
+
+
+def get_image_data(glance=False):
+    """Open the most recent images and return the image data.
+
+    Parameters
+    ----------
+    glance : bool, default `False`
+        read the glance images instead of the latest "normal" images
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
     if not glance:
         fnames = get_latest_images()
     else:
