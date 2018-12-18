@@ -186,10 +186,12 @@ SATCLOUDS_BADDELAY = config['SATCLOUDS_BADDELAY']
 SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 
 ############################################################
-# Alert sentinel parameters
+# Sentinel parameters
 LOCAL_IVO = config['LOCAL_IVO']
 VOSERVER_HOST = config['VOSERVER_HOST']
 VOSERVER_PORT = config['VOSERVER_PORT']
+SENTINEL_WRITE_HTML = config['SENTINEL_WRITE_HTML']
+SENTINEL_SEND_MESSAGES = config['SENTINEL_SEND_MESSAGES']
 
 ############################################################
 # Mount parameters
