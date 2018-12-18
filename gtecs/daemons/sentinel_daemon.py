@@ -198,7 +198,7 @@ class SentinelDaemon(BaseDaemon):
         event.archive(params.CONFIG_PATH + 'voevents/', self.log)
 
         # Run GOTO-alert's event handler
-        event = event_handler(event, self.log, write_html=True, send_messages=False)
+        event = event_handler(event, self.log, write_html=False, send_messages=False)
         if event:
             # If the event was returned it was classed as "interesting"
             # If event is None then we don't care
