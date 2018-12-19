@@ -3,6 +3,7 @@
 import glob
 import os
 import time
+import warnings
 
 from astropy.io import fits
 from astropy.time import Time
@@ -12,7 +13,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate
+from .astronomy import check_alt_limit
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -353,8 +354,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     Returns
     -------
-    files : dict
-        a dictionary of the image files, with the UT numbers as keys
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
 
     """
     # Fund the current image count, so we know what to wait for
@@ -369,14 +370,58 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     # wait for the camera daemon to finish saving the images
     wait_for_images(img_num + 1, exptime + 30)
-    time.sleep(1)  # just in case
+    time.sleep(2)  # just in case
 
+    data = get_latest_image_data(glance)
+
+    return data
+
+
+def get_latest_image_data(glance=False):
+    """Open the most recent images and return the data.
+
+    Parameters
+    ----------
+    glance : bool, default `False`
+        read the glance images instead of the latest "normal" images
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
     if not glance:
-        fnames = get_latest_images()
-    else:
-        fnames = get_glances()
+        dirs = [d for d in list(glob.iglob(params.IMAGE_PATH + '*')) if os.path.isdir(d)]
+        path = max(dirs, key=os.path.getctime)
+        newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
+        root = newest.split('_UT')[0]
 
-    data = {tel: fits.getdata(fnames[tel]).astype('float') for tel in fnames}
+        print('Loading run {}:'.format(root.split('/')[-1]), end=' ')
+    else:
+        path = os.path.join(params.IMAGE_PATH)
+        root = 'glance'
+
+        print('Loading glances:', end=' ')
+
+    fnames = {tel: os.path.join(path, root + '_UT{:d}.fits'.format(tel))
+              for tel in params.TEL_DICT}
+
+    # limit it to only existing files
+    fnames = {tel: fnames[tel] for tel in fnames if os.path.exists(fnames[tel])}
+
+    print('{} images'.format(len(fnames)))
+
+    data = {}
+    for tel in fnames.keys():
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                data[tel] = fits.getdata(fnames[tel]).astype('float')
+        except (TypeError, OSError):
+            # Image was still being written, wait a sec and try again
+            time.sleep(1)
+            data[tel] = fits.getdata(fnames[tel]).astype('float')
 
     return data
 
@@ -415,43 +460,6 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
     total_exp = sum(exp_list) * len(filt_list)
     total_time = 1.5 * (readout + total_exp)
     wait_for_exposure_queue(total_time)
-
-
-def get_latest_images():
-    """Return the last written image files.
-
-    Returns
-    -------
-    files : dict
-        a dictionary of the image files, with the UT numbers as keys
-
-    """
-    path = os.path.join(params.IMAGE_PATH + night_startdate())
-    newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
-    root = newest.split('_UT')[0]
-
-    fnames = {key: root + '_UT{}.fits'.format(key) for key in params.TEL_DICT}
-
-    print('Loading run {}: {} images'.format(root.split('/')[-1], len(fnames)))
-    return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT}
-
-
-def get_glances():
-    """Return the last written glance files.
-
-    Returns
-    -------
-    files : dict
-        a dictionary of the image files, with the UT numbers as keys
-
-    """
-    path = os.path.join(params.IMAGE_PATH)
-    root = 'glance'
-
-    fnames = {key: root + '_UT{}.fits'.format(key) for key in params.TEL_DICT}
-
-    print('Loading glances: {} images'.format(len(fnames)))
-    return {key: os.path.join(path, fnames[key]) for key in params.TEL_DICT}
 
 
 def exposure_queue_is_empty():
