@@ -239,7 +239,7 @@ def run():
     RestoreFocus(orig_focus)
     hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
     print('Initial focus:\n{!r}'.format(orig_focus))
-    print('Initial half-flux-diameters:\n{!r}'.format(hfd_values))
+    print('HFDs at initial focus:\n{!r}'.format(hfd_values))
 
     ##########
     # STEP 2
@@ -269,8 +269,9 @@ def run():
     # If they haven't focus measurement is not reliable, so we can't continue.
     ratio = hfd_values / old_hfd
     if np.any(ratio < 1.2):
-        print('Current HFDs:\n{!r}'.format(hfd_values))
+        print('~~~~~~')
         print('Original HFDs:\n{!r}'.format(old_hfd))
+        print('Current HFDs:\n{!r}'.format(hfd_values))
         set_new_focus(orig_focus)
         raise Exception('HFD not changing with focus position')
 
@@ -301,8 +302,9 @@ def run():
     # The HDFs should have all decreased.
     # If they haven't we can't continue, because we might not be on the positive side.
     if np.any(old_hfd < hfd_values):
-        print('Far out HFDs:\n{!r}'.format(hfd_values))
-        print('Back in HFDs:\n{!r}'.format(old_hfd))
+        print('~~~~~~')
+        print('Far out HFDs:\n{!r}'.format(old_hfd))
+        print('Back in HFDs:\n{!r}'.format(hfd_values))
         set_new_focus(orig_focus)
         raise Exception('Cannot be sure we are on the correct side of best focus')
 
@@ -353,7 +355,7 @@ def run():
     nf_hfd = nf_hfd_measurements.min()
     nf_hfd_std = nf_hfd_measurements.std()
     nf_hfd_df = pd.DataFrame({'min': nf_hfd, 'std_dev': nf_hfd_std})
-    print('HFD at near-focus position =\n{!r}'.format(nf_hfd_df))
+    print('HFDs at near-focus position:\n{!r}'.format(nf_hfd_df))
 
     ##########
     # STEP 6
@@ -361,7 +363,7 @@ def run():
     print('~~~~~~')
     print('Finding best focus...')
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, nf_hfd)
-    print("Best focus at\n{!r}".format(best_focus))
+    print("Best focus at:\n{!r}".format(best_focus))
     set_focus_carefully(best_focus, orig_focus)
 
     ##########
@@ -381,7 +383,7 @@ def run():
     best_hfd = best_hfd_measurements.min()
     best_hfd_std = best_hfd_measurements.std()
     best_hfd_df = pd.DataFrame({'min': best_hfd, 'std_dev': best_hfd_std})
-    print('HFD at best focus =\n{!r}'.format(best_hfd_df))
+    print('HFDs at best focus:\n{!r}'.format(best_hfd_df))
 
     print('Done')
 
