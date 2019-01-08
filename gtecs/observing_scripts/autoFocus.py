@@ -45,6 +45,11 @@ class RestoreFocus(NeatCloser):
         set_new_focus(self.focus_vals)
 
 
+def get_focus():
+    """Find the current focus positions, and return as a Pandas dataframe."""
+    return pd.Series(get_current_focus())
+
+
 def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
     """Move to focus, but restore old values if we fail."""
     try:
@@ -72,7 +77,7 @@ def estimate_focus(target_hfd, current_hfd, current_focus, slope):
     return current_focus + (target_hfd - current_hfd) / slope
 
 
-def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
+def measure_image_hfd(data, filter_width=3, threshold=5, **kwargs):
     """Crude measure of half-flux-diameter.
 
     Parameters
@@ -133,13 +138,13 @@ def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
         return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
-def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
+def get_hfds(image_data, filter_width=3, threshold=5, **kwargs):
     """Measure the HFD diameter from multiple files.
 
     Returns a Pandas dataframe with an index of telescope ID
     and columns of HFD and std dev
 
-    Parameters are passed straight to `measure_hfd`
+    Parameters are passed straight to `measure_image_hfd`
     """
     median_dict = {}
     std_dict = {}
@@ -147,37 +152,45 @@ def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
     stdf_dict = {}
     for tel in image_data:
         try:
-            median, std, fwhm, f_std = measure_hfd(image_data[tel],
-                                                   filter_width, threshold, **kwargs)
+            median, std, fwhm, f_std = measure_image_hfd(image_data[tel],
+                                                         filter_width,
+                                                         threshold,
+                                                         **kwargs)
+
+            # Check for invalid values
+            if std <= 0.0 or f_std <= 0.0:
+                raise ValueError
+
         except Exception as error:
             print('HFD measurement for UT{} errored: {}'.format(tel, str(error)))
-            std = -1.0
-            median = -1.0
-            f_std = -1
-            fwhm = -1
+            std = np.nan
+            median = np.nan
+            f_std = np.nan
+            fwhm = np.nan
 
-        if std > 0.0:
-            median_dict[tel] = median
-            std_dict[tel] = std
-        else:
-            median_dict[tel] = np.nan
-            std_dict[tel] = np.nan
-        if f_std > 0.0:
-            fwhm_dict[tel] = fwhm
-            stdf_dict[tel] = f_std
-        else:
-            fwhm_dict[tel] = np.nan
-            stdf_dict[tel] = np.nan
-    return pd.DataFrame({'median': median_dict, 'std': std_dict,
-                         'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
+        median_dict[tel] = median
+        std_dict[tel] = std
+        fwhm_dict[tel] = fwhm
+        stdf_dict[tel] = f_std
+
+    # Return a combined data frame
+    data = {'median': median_dict, 'std': std_dict, 'fwhm': fwhm_dict, 'fwhm_std': stdf_dict}
+    return pd.DataFrame(data)
 
 
-def measure_focus_carefully(target_name, orig_focus, **kwargs):
+def measure_hfd_carefully(target_name, orig_focus, **kwargs):
     """Take an image, measure the HFDs and return them."""
     try:
-        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
-                                        target_name, 'FOCUS', glance=False)
-        return get_hfd(image_data, **kwargs)['median']
+        # Take a set of images
+        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME,
+                                        params.AUTOFOCUS_FILTER,
+                                        target_name,
+                                        'FOCUS',
+                                        glance=False)
+
+        # Get the median HFD in each image
+        hfds = get_hfds(image_data, **kwargs)['median']
+        return hfds
     except Exception:
         set_new_focus(orig_focus)
         raise
@@ -222,11 +235,11 @@ def run():
     # With focus where it is now, take an image to get a baseline HFD.
     # Also store the current focus, so we can revert if there's any errors.
     print('Taking initial focus measurement')
-    orig_focus = pd.Series(get_current_focus())
+    orig_focus = get_focus()
     RestoreFocus(orig_focus)
-    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
-    print('Previous focus:\n{!r}'.format(orig_focus))
-    print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
+    print('Initial focus:\n{!r}'.format(orig_focus))
+    print('HFDs at initial focus:\n{!r}'.format(hfd_values))
 
     ##########
     # STEP 2
@@ -235,19 +248,19 @@ def run():
     print('~~~~~~')
     print('Moving focus OUT by {:.0f}'.format(params.AUTOFOCUS_BIGSTEP))
     set_focus_carefully(orig_focus + params.AUTOFOCUS_BIGSTEP, orig_focus)
-    print('New focus:\n{!r}'.format(get_current_focus()))
+    print('New focus:\n{!r}'.format(get_focus()))
 
     # Measure the final value 3 times, then take the smallest as the HFD value.
     print('Taking 3 measurements at new position')
     old_hfd = hfd_values
     hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
             hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.min()
     print('Best measurement:\n Half-flux-diameters:\n{!r}'.format(hfd_values))
@@ -256,8 +269,9 @@ def run():
     # If they haven't focus measurement is not reliable, so we can't continue.
     ratio = hfd_values / old_hfd
     if np.any(ratio < 1.2):
-        print('Current HFDs:\n{!r}'.format(hfd_values))
+        print('~~~~~~')
         print('Original HFDs:\n{!r}'.format(old_hfd))
+        print('Current HFDs:\n{!r}'.format(hfd_values))
         set_new_focus(orig_focus)
         raise Exception('HFD not changing with focus position')
 
@@ -267,20 +281,20 @@ def run():
     # This should confirm we're actually on the positive side of the V-curve.
     print('~~~~~~')
     print('Moving focus back in by {:.0f}'.format(params.AUTOFOCUS_SMALLSTEP))
-    set_focus_carefully(pd.Series(get_current_focus()) - params.AUTOFOCUS_SMALLSTEP, orig_focus)
-    print('New focus:\n{!r}'.format(get_current_focus()))
+    set_focus_carefully(get_focus() - params.AUTOFOCUS_SMALLSTEP, orig_focus)
+    print('New focus:\n{!r}'.format(get_focus()))
 
     # Measure the final value 3 times, then take the smallest as the HFD value.
     print('Taking 3 measurements at new position')
     old_hfd = hfd_values
     hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
             hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.min()
     print('Best measurement:\n Half-flux-diameters:\n{!r}'.format(hfd_values))
@@ -288,8 +302,9 @@ def run():
     # The HDFs should have all decreased.
     # If they haven't we can't continue, because we might not be on the positive side.
     if np.any(old_hfd < hfd_values):
-        print('Far out HFDs:\n{!r}'.format(hfd_values))
-        print('Back in HFDs:\n{!r}'.format(old_hfd))
+        print('~~~~~~')
+        print('Far out HFDs:\n{!r}'.format(old_hfd))
+        print('Back in HFDs:\n{!r}'.format(hfd_values))
         set_new_focus(orig_focus)
         raise Exception('Cannot be sure we are on the correct side of best focus')
 
@@ -304,12 +319,11 @@ def run():
         print('Stepping towards near focus')
         mask = hfd_values > nfv
         target_hfds = (0.5 * hfd_values).where(mask, hfd_values)
-        new_focus_values = estimate_focus(target_hfds, hfd_values,
-                                          pd.Series(get_current_focus()), m2)
+        new_focus_values = estimate_focus(target_hfds, hfd_values, get_focus(), m2)
 
         set_focus_carefully(new_focus_values, orig_focus)
-        hfd_values = pd.Series(measure_focus_carefully(target_name, orig_focus, **kwargs))
-        print('Focus: {!r}'.format(get_current_focus()))
+        hfd_values = pd.Series(measure_hfd_carefully(target_name, orig_focus, **kwargs))
+        print('Focus: {!r}'.format(get_focus()))
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     ##########
@@ -318,7 +332,7 @@ def run():
     # Estimate the distance to the NFV and move to that position.
     print('~~~~~~')
     print('Moving to near focus position')
-    near_focus_pos = estimate_focus(nfv, hfd_values, pd.Series(get_current_focus()), m2)
+    near_focus_pos = estimate_focus(nfv, hfd_values, get_focus(), m2)
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus:\n{!r}'.format(near_focus_pos))
 
@@ -326,12 +340,12 @@ def run():
     # Measure the HFD at the near-focus position three times.
     nf_hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if nf_hfd_measurements is not None:
             nf_hfd_measurements = nf_hfd_measurements.append(hfd_values)
         else:
             nf_hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
 
     # Take the smallest value of the 5 as the best estimate for the HFD at the near-focus position.
     # The reasoning is that we already average the HFD over many stars in each frame,
@@ -341,7 +355,7 @@ def run():
     nf_hfd = nf_hfd_measurements.min()
     nf_hfd_std = nf_hfd_measurements.std()
     nf_hfd_df = pd.DataFrame({'min': nf_hfd, 'std_dev': nf_hfd_std})
-    print('HFD at near-focus position =\n{!r}'.format(nf_hfd_df))
+    print('HFDs at near-focus position:\n{!r}'.format(nf_hfd_df))
 
     ##########
     # STEP 6
@@ -349,7 +363,7 @@ def run():
     print('~~~~~~')
     print('Finding best focus...')
     best_focus = find_best_focus(m1, m2, delta, near_focus_pos, nf_hfd)
-    print("Best focus at\n{!r}".format(best_focus))
+    print("Best focus at:\n{!r}".format(best_focus))
     set_focus_carefully(best_focus, orig_focus)
 
     ##########
@@ -359,17 +373,17 @@ def run():
     print('Taking best focus measurements')
     best_hfd_measurements = None
     for i in range(3):
-        best_hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        best_hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if best_hfd_measurements is not None:
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
         else:
             best_hfd_measurements = best_hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, best_hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, best_hfd_values))
     best_hfd_measurements = best_hfd_measurements.groupby(level=0)
     best_hfd = best_hfd_measurements.min()
     best_hfd_std = best_hfd_measurements.std()
     best_hfd_df = pd.DataFrame({'min': best_hfd, 'std_dev': best_hfd_std})
-    print('HFD at best focus =\n{!r}'.format(best_hfd_df))
+    print('HFDs at best focus:\n{!r}'.format(best_hfd_df))
 
     print('Done')
 

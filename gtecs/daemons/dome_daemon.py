@@ -535,9 +535,9 @@ class DomeDaemon(BaseDaemon):
             if (self.info['humidity'] < self.info['humidity_lower'] and
                     self.info['temperature'] > self.info['temperature_upper']):
                 self.log.info('Dome humidity {}% < {}%'.format(self.info['humidity'],
-                                                               self.info['humidity_upper']))
+                                                               self.info['humidity_lower']))
                 self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
-                                                                  self.info['temperature_lower']))
+                                                                  self.info['temperature_upper']))
                 self.dehumidifier_off_flag = 1
 
     def _button_pressed(self, port='/dev/ttyS3'):

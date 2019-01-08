@@ -77,11 +77,10 @@ class SlackBot(object):
 
     def send_message(self, msg, attachments=None):
         """Send a message to the channel for this bot."""
-        text = "@channel " + msg
         if not attachments:
             attachments = {}
         api_call = self.client.api_call("chat.postMessage",
                                         channel=self.channel, username=self.name,
-                                        text=text, attachments=attachments)
+                                        text=msg, attachments=attachments)
         if not api_call.get('ok'):
             raise Exception('unable to post message')
