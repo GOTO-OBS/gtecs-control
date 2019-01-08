@@ -935,7 +935,7 @@ class CamMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None:
+        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
@@ -1036,7 +1036,7 @@ class FiltMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None:
+        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
@@ -1137,7 +1137,7 @@ class FocMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None:
+        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
