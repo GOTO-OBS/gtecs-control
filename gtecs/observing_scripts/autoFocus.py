@@ -45,6 +45,11 @@ class RestoreFocus(NeatCloser):
         set_new_focus(self.focus_vals)
 
 
+def get_focus():
+    """Find the current focus positions, and return as a Pandas dataframe."""
+    return pd.Series(get_current_focus())
+
+
 def set_focus_carefully(new_focus_values, orig_focus, timeout=30):
     """Move to focus, but restore old values if we fail."""
     try:
@@ -222,11 +227,11 @@ def run():
     # With focus where it is now, take an image to get a baseline HFD.
     # Also store the current focus, so we can revert if there's any errors.
     print('Taking initial focus measurement')
-    orig_focus = pd.Series(get_current_focus())
+    orig_focus = get_focus()
     RestoreFocus(orig_focus)
     hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
-    print('Previous focus:\n{!r}'.format(orig_focus))
-    print('Half-flux-diameters:\n{!r}'.format(hfd_values))
+    print('Initial focus:\n{!r}'.format(orig_focus))
+    print('Initial half-flux-diameters:\n{!r}'.format(hfd_values))
 
     ##########
     # STEP 2
@@ -235,7 +240,7 @@ def run():
     print('~~~~~~')
     print('Moving focus OUT by {:.0f}'.format(params.AUTOFOCUS_BIGSTEP))
     set_focus_carefully(orig_focus + params.AUTOFOCUS_BIGSTEP, orig_focus)
-    print('New focus:\n{!r}'.format(get_current_focus()))
+    print('New focus:\n{!r}'.format(get_focus()))
 
     # Measure the final value 3 times, then take the smallest as the HFD value.
     print('Taking 3 measurements at new position')
@@ -267,8 +272,8 @@ def run():
     # This should confirm we're actually on the positive side of the V-curve.
     print('~~~~~~')
     print('Moving focus back in by {:.0f}'.format(params.AUTOFOCUS_SMALLSTEP))
-    set_focus_carefully(pd.Series(get_current_focus()) - params.AUTOFOCUS_SMALLSTEP, orig_focus)
-    print('New focus:\n{!r}'.format(get_current_focus()))
+    set_focus_carefully(get_focus() - params.AUTOFOCUS_SMALLSTEP, orig_focus)
+    print('New focus:\n{!r}'.format(get_focus()))
 
     # Measure the final value 3 times, then take the smallest as the HFD value.
     print('Taking 3 measurements at new position')
@@ -304,12 +309,11 @@ def run():
         print('Stepping towards near focus')
         mask = hfd_values > nfv
         target_hfds = (0.5 * hfd_values).where(mask, hfd_values)
-        new_focus_values = estimate_focus(target_hfds, hfd_values,
-                                          pd.Series(get_current_focus()), m2)
+        new_focus_values = estimate_focus(target_hfds, hfd_values, get_focus(), m2)
 
         set_focus_carefully(new_focus_values, orig_focus)
         hfd_values = pd.Series(measure_focus_carefully(target_name, orig_focus, **kwargs))
-        print('Focus: {!r}'.format(get_current_focus()))
+        print('Focus: {!r}'.format(get_focus()))
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
     ##########
@@ -318,7 +322,7 @@ def run():
     # Estimate the distance to the NFV and move to that position.
     print('~~~~~~')
     print('Moving to near focus position')
-    near_focus_pos = estimate_focus(nfv, hfd_values, pd.Series(get_current_focus()), m2)
+    near_focus_pos = estimate_focus(nfv, hfd_values, get_focus(), m2)
     set_focus_carefully(near_focus_pos, orig_focus)
     print('Focus:\n{!r}'.format(near_focus_pos))
 
