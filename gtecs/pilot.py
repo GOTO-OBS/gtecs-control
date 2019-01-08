@@ -364,7 +364,7 @@ class Pilot(object):
             await self.observe(until_sunalt=90)
         else:
             # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
-            await self.observe(until_sunalt=-12, last_obs_sunalt=-12.4)
+            await self.observe(until_sunalt=-12, last_obs_sunalt=-14)
 
         # Morning jobs
         await self.run_through_jobs(self.morning_jobs, rising=True,
