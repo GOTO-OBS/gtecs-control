@@ -247,7 +247,7 @@ def run():
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
             hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.min()
     print('Best measurement:\n Half-flux-diameters:\n{!r}'.format(hfd_values))
@@ -280,7 +280,7 @@ def run():
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
             hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
     hfd_measurements = hfd_measurements.groupby(level=0)
     hfd_values = hfd_measurements.min()
     print('Best measurement:\n Half-flux-diameters:\n{!r}'.format(hfd_values))
@@ -331,7 +331,7 @@ def run():
             nf_hfd_measurements = nf_hfd_measurements.append(hfd_values)
         else:
             nf_hfd_measurements = hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, hfd_values))
 
     # Take the smallest value of the 5 as the best estimate for the HFD at the near-focus position.
     # The reasoning is that we already average the HFD over many stars in each frame,
@@ -364,7 +364,7 @@ def run():
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
         else:
             best_hfd_measurements = best_hfd_values
-        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i, best_hfd_values))
+        print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, best_hfd_values))
     best_hfd_measurements = best_hfd_measurements.groupby(level=0)
     best_hfd = best_hfd_measurements.min()
     best_hfd_std = best_hfd_measurements.std()
