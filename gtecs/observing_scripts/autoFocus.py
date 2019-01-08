@@ -177,7 +177,7 @@ def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
                          'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
 
 
-def measure_focus_carefully(target_name, orig_focus, **kwargs):
+def measure_hfd_carefully(target_name, orig_focus, **kwargs):
     """Take an image, measure the HFDs and return them."""
     try:
         image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
@@ -229,7 +229,7 @@ def run():
     print('Taking initial focus measurement')
     orig_focus = get_focus()
     RestoreFocus(orig_focus)
-    hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+    hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
     print('Initial focus:\n{!r}'.format(orig_focus))
     print('Initial half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -247,7 +247,7 @@ def run():
     old_hfd = hfd_values
     hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
@@ -280,7 +280,7 @@ def run():
     old_hfd = hfd_values
     hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if hfd_measurements is not None:
             hfd_measurements = hfd_measurements.append(hfd_values)
         else:
@@ -312,7 +312,7 @@ def run():
         new_focus_values = estimate_focus(target_hfds, hfd_values, get_focus(), m2)
 
         set_focus_carefully(new_focus_values, orig_focus)
-        hfd_values = pd.Series(measure_focus_carefully(target_name, orig_focus, **kwargs))
+        hfd_values = pd.Series(measure_hfd_carefully(target_name, orig_focus, **kwargs))
         print('Focus: {!r}'.format(get_focus()))
         print('Half-flux-diameters:\n{!r}'.format(hfd_values))
 
@@ -330,7 +330,7 @@ def run():
     # Measure the HFD at the near-focus position three times.
     nf_hfd_measurements = None
     for i in range(3):
-        hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if nf_hfd_measurements is not None:
             nf_hfd_measurements = nf_hfd_measurements.append(hfd_values)
         else:
@@ -363,7 +363,7 @@ def run():
     print('Taking best focus measurements')
     best_hfd_measurements = None
     for i in range(3):
-        best_hfd_values = measure_focus_carefully(target_name, orig_focus, **kwargs)
+        best_hfd_values = measure_hfd_carefully(target_name, orig_focus, **kwargs)
         if best_hfd_measurements is not None:
             best_hfd_measurements = best_hfd_measurements.append(best_hfd_values)
         else:
