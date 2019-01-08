@@ -151,7 +151,7 @@ class Pilot(object):
                     if self.new_id != self.current_id:
                         self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
                     else:
-                        self.log.info('scheduler check: continue {}'.format(self.current_id))
+                        self.log.debug('scheduler check: continue {}'.format(self.current_id))
 
                     self.initial_scheduler_check_complete = True
 
@@ -179,7 +179,7 @@ class Pilot(object):
                 continue
 
             error_count = 0
-            self.log.info('running hardware checks:')
+            self.log.debug('running hardware checks')
             for monitor in self.hardware.values():
                 num_errs, errors = monitor.check()
                 for error in [e for e in errors if e not in self.current_errors[monitor.daemon_id]]:
@@ -208,7 +208,7 @@ class Pilot(object):
                 sleep_time = bad_sleep_time
                 bad_timestamp = time.time()
             else:
-                self.log.info('no hardware errors reported - AOK')
+                self.log.debug('hardware checks report hardware AOK')
                 await self.handle_pause('hw', False)
 
                 # only allow the night marshal to open after a
@@ -448,7 +448,7 @@ class Pilot(object):
                     self.running_script_transport.terminate()
                     await self.running_script_result
                 except Exception:
-                    self.log.info('{} already exited?'.format(name))
+                    self.log.debug('{} already exited?'.format(name))
 
                 self.log.info("killed {}".format(name))
 
@@ -658,8 +658,8 @@ class Pilot(object):
                 if self.current_id is not None:
                     now = time.time()
                     elapsed = now - self.current_start_time
-                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
-                                   self.current_id, elapsed, self.current_mintime))
+                    self.log.info('still observing {} ({:.0f}/{:.0f})'.format(
+                                  self.current_id, elapsed, self.current_mintime))
                 else:
                     self.log.warning('nothing to observe!')
                     if not self.testing:
@@ -671,7 +671,7 @@ class Pilot(object):
 
                     # Get current job status
                     currentStatus = get_pointing_status(self.current_id)
-                    self.log.info('current job status = {}'.format(currentStatus))
+                    self.log.debug('current job status = {}'.format(currentStatus))
 
                     # Check if we're interupting a still ongoing job and need
                     # to mark it as interupted. The alternative is that the
@@ -689,14 +689,14 @@ class Pilot(object):
                         now = time.time()
                         elapsed = now - self.current_start_time - self.time_paused
 
-                        self.log.info('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                                      self.current_mintime, elapsed))
+                        self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
+                                       self.current_mintime, elapsed))
                         if elapsed > self.current_mintime:
                             mark_completed(self.current_id)
-                            self.log.info('job completed: {}'.format(self.current_id))
+                            self.log.debug('job completed: {}'.format(self.current_id))
                         else:
                             mark_interrupted(self.current_id)
-                            self.log.info('job interrupted: {}'.format(self.current_id))
+                            self.log.debug('job interrupted: {}'.format(self.current_id))
 
                 else:
                     self.log.info('got job from scheduler {}'.format(self.new_id))
@@ -704,7 +704,7 @@ class Pilot(object):
                     await self.unpark_mount()
 
                 # start the new job
-                self.log.info('starting Job {}'.format(self.new_id))
+                self.log.debug('starting Job {}'.format(self.new_id))
 
                 script = os.path.join(SCRIPT_PATH, 'observe.py')
                 args = [str(self.new_id), str(int(self.new_mintime))]
@@ -720,7 +720,7 @@ class Pilot(object):
                 self.time_paused = 0
 
             else:
-                self.log.info('nothing to do, parking mount')
+                self.log.warning('nothing to do, parking mount')
                 self.park_mount()
                 execute_command('exq clear')
                 execute_command('cam abort')
@@ -871,7 +871,10 @@ class Pilot(object):
             delta = stop_time - now
             delta_min = delta.to('min').value
             status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta_min)
-            self.log.info(status_str)
+            if delta_min < 60:
+                self.log.info(status_str)
+            else:
+                self.log.debug(status_str)
 
             await asyncio.sleep(sleep_time)
 
@@ -986,7 +989,7 @@ class Pilot(object):
         sleep_time = 5
         while True:
             dome_status = self.hardware['dome'].get_hardware_status()
-            self.log.info('dome is {}'.format(dome_status))
+            self.log.debug('dome is {}'.format(dome_status))
             if dome_status in ['closed', 'in_lockdown']:
                 break
 
@@ -1021,7 +1024,7 @@ class Pilot(object):
             sleep_time = 5
             while True:
                 mount_status = self.hardware['mnt'].get_hardware_status()
-                self.log.info('mount is {}'.format(mount_status))
+                self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
                     break
                 await asyncio.sleep(sleep_time)
