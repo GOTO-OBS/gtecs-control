@@ -77,7 +77,7 @@ def estimate_focus(target_hfd, current_hfd, current_focus, slope):
     return current_focus + (target_hfd - current_hfd) / slope
 
 
-def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
+def measure_image_hfd(data, filter_width=3, threshold=5, **kwargs):
     """Crude measure of half-flux-diameter.
 
     Parameters
@@ -138,13 +138,13 @@ def measure_hfd(data, filter_width=3, threshold=5, **kwargs):
         return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
-def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
+def get_hfds(image_data, filter_width=3, threshold=5, **kwargs):
     """Measure the HFD diameter from multiple files.
 
     Returns a Pandas dataframe with an index of telescope ID
     and columns of HFD and std dev
 
-    Parameters are passed straight to `measure_hfd`
+    Parameters are passed straight to `measure_image_hfd`
     """
     median_dict = {}
     std_dict = {}
@@ -152,37 +152,45 @@ def get_hfd(image_data, filter_width=3, threshold=5, **kwargs):
     stdf_dict = {}
     for tel in image_data:
         try:
-            median, std, fwhm, f_std = measure_hfd(image_data[tel],
-                                                   filter_width, threshold, **kwargs)
+            median, std, fwhm, f_std = measure_image_hfd(image_data[tel],
+                                                         filter_width,
+                                                         threshold,
+                                                         **kwargs)
+
+            # Check for invalid values
+            if std <= 0.0 or f_std <= 0.0:
+                raise ValueError
+
         except Exception as error:
             print('HFD measurement for UT{} errored: {}'.format(tel, str(error)))
-            std = -1.0
-            median = -1.0
-            f_std = -1
-            fwhm = -1
+            std = np.nan
+            median = np.nan
+            f_std = np.nan
+            fwhm = np.nan
 
-        if std > 0.0:
-            median_dict[tel] = median
-            std_dict[tel] = std
-        else:
-            median_dict[tel] = np.nan
-            std_dict[tel] = np.nan
-        if f_std > 0.0:
-            fwhm_dict[tel] = fwhm
-            stdf_dict[tel] = f_std
-        else:
-            fwhm_dict[tel] = np.nan
-            stdf_dict[tel] = np.nan
-    return pd.DataFrame({'median': median_dict, 'std': std_dict,
-                         'fwhm': fwhm_dict, 'fwhm_std': stdf_dict})
+        median_dict[tel] = median
+        std_dict[tel] = std
+        fwhm_dict[tel] = fwhm
+        stdf_dict[tel] = f_std
+
+    # Return a combined data frame
+    data = {'median': median_dict, 'std': std_dict, 'fwhm': fwhm_dict, 'fwhm_std': stdf_dict}
+    return pd.DataFrame(data)
 
 
 def measure_hfd_carefully(target_name, orig_focus, **kwargs):
     """Take an image, measure the HFDs and return them."""
     try:
-        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME, params.AUTOFOCUS_FILTER,
-                                        target_name, 'FOCUS', glance=False)
-        return get_hfd(image_data, **kwargs)['median']
+        # Take a set of images
+        image_data = get_analysis_image(params.AUTOFOCUS_EXPTIME,
+                                        params.AUTOFOCUS_FILTER,
+                                        target_name,
+                                        'FOCUS',
+                                        glance=False)
+
+        # Get the median HFD in each image
+        hfds = get_hfds(image_data, **kwargs)['median']
+        return hfds
     except Exception:
         set_new_focus(orig_focus)
         raise
