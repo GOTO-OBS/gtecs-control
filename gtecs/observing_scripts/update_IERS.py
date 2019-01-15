@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""A simple script to make sure astropy IERS tables are up-to-date."""
+"""Script to make sure astropy IERS tables are up-to-date.
+
+update_IERS
+"""
 
 import traceback
 
