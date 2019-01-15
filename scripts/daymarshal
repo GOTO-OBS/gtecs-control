@@ -16,6 +16,8 @@ from gtecs.misc import execute_command, get_pid, make_pid_file
 from gtecs.observing import wait_for_dome
 from gtecs.slack import send_slack_msg
 
+import numpy as np
+
 
 def send_dome_report(msg, confirmed_closed):
     """Send Slack message with webcams attached."""
@@ -43,7 +45,7 @@ def send_dome_report(msg, confirmed_closed):
 def run(test=False):
     """Run morning safety checks."""
     # Log output
-    log = logger.get_logger('daymarshal', log_to_file=False, log_to_stdout=True)
+    log = logger.get_logger('daymarshal', log_to_file=False, log_to_stdout=True, log_stdout=True)
 
     # Get the current night starting date and time of sunrise
     date = night_startdate()
@@ -112,6 +114,17 @@ def run(test=False):
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)
+
+    # Update IRES tables on all control machines
+    hosts = np.unique([params.DAEMONS[daemon]['HOST'] for daemon in params.DAEMONS])
+    for host in hosts:
+        log.info('Updating IERS tables on {}'.format(host))
+        # Run the command through Python, so we can do it on the remote machines
+        command = '{} -m gtecs.observing_scripts.update_IERS'.format(sys.executable)
+        if host == params.LOCAL_HOST:
+            execute_command("{}".format(command), timeout=120)
+        else:
+            execute_command("ssh {} '{}'".format(host, command), timeout=120)
 
     log.info('Done')
 
