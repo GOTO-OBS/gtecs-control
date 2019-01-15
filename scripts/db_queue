@@ -5,6 +5,7 @@ import argparse
 
 from astroplan import Observer
 
+from astropy import units as u
 from astropy.time import Time
 
 from gtecs import astronomy
@@ -88,13 +89,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-t', '--time', nargs='?', default=None)
+    parser.add_argument('-s', '--sunalt', nargs='?', default=None)
     parser.add_argument('-a', '--all', action="store_true", default=False)
     args = parser.parse_args()
 
-    if not args.time:
-        time = Time.now()
-    else:
+    if args.time:
         time = Time(args.time)
+    elif args.sunalt:
+        sunalt = float(args.sunalt) * u.deg
+        today = astronomy.night_startdate()
+        time = astronomy.sunalt_time(today, sunalt,
+                                     Time.now() < astronomy.local_midnight(today))
+    else:
+        time = Time.now()
 
     if args.all:
         limit = -1

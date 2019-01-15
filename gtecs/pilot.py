@@ -179,7 +179,7 @@ class Pilot(object):
                 continue
 
             error_count = 0
-            self.log.debug('running hardware checks')
+            self.log.debug('checking hardware')
             for monitor in self.hardware.values():
                 num_errs, errors = monitor.check()
                 for error in [e for e in errors if e not in self.current_errors[monitor.daemon_id]]:
@@ -208,7 +208,7 @@ class Pilot(object):
                 sleep_time = bad_sleep_time
                 bad_timestamp = time.time()
             else:
-                self.log.debug('hardware checks report hardware AOK')
+                self.log.debug('hardware status AOK')
                 await self.handle_pause('hw', False)
 
                 # only allow the night marshal to open after a
@@ -587,7 +587,13 @@ class Pilot(object):
         while True:
             now = Time.now()
             sunalt_now = get_sunalt(now)
-            self.log.info('sunalt={:.1f}, waiting for {:.1f} ({})'.format(sunalt_now, sunalt, why))
+
+            # Log to debug if there's a script running, info if not
+            msg = 'sunalt={:.1f}, waiting for {:.1f} ({})'.format(sunalt_now, sunalt, why)
+            if self.running_script_transport is None:
+                self.log.info(msg)
+            else:
+                self.log.debug(msg)
 
             # has our watch ended?
             if rising and sunalt_now > sunalt:
@@ -634,7 +640,7 @@ class Pilot(object):
             sunalt_now = get_sunalt(now)
             if now > midnight:
                 if sunalt_now > last_obs_sunalt and self.observing:
-                    self.log.info('stopping scheduler checks, current observation will continue')
+                    self.log.debug('stopping scheduler checks, current observation will continue')
                     self.observing = False
                 if sunalt_now > until_sunalt:
                     # end observing
@@ -658,8 +664,8 @@ class Pilot(object):
                 if self.current_id is not None:
                     now = time.time()
                     elapsed = now - self.current_start_time
-                    self.log.info('still observing {} ({:.0f}/{:.0f})'.format(
-                                  self.current_id, elapsed, self.current_mintime))
+                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
+                                   self.current_id, elapsed, self.current_mintime))
                 else:
                     self.log.warning('nothing to observe!')
                     if not self.testing:
@@ -871,7 +877,7 @@ class Pilot(object):
             delta = stop_time - now
             delta_min = delta.to('min').value
             status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta_min)
-            if delta_min < 60:
+            if delta_min < 30:
                 self.log.info(status_str)
             else:
                 self.log.debug(status_str)
@@ -887,13 +893,13 @@ class Pilot(object):
         Runs the startup script, and sets the startup_complete flag
         """
         # start startup script
-        self.log.info('running startup script')
+        self.log.debug('running startup script')
         cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
         retcode, result = await self.start_script('STARTUP', SimpleProtocol, cmd)
         if retcode != 0:
             self.log.warning('STARTUP ended abnormally')
 
-        self.log.info('startup process complete')
+        self.log.debug('startup script complete')
 
     async def shutdown(self):
         """Shut down the system.
@@ -955,7 +961,7 @@ class Pilot(object):
         sleep_time = 5
         while True:
             dome_status = self.hardware['dome'].get_hardware_status()
-            self.log.info('dome is {}'.format(dome_status))
+            self.log.debug('dome is {}'.format(dome_status))
             if dome_status == 'full_open':
                 break
             await asyncio.sleep(sleep_time)
