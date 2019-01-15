@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+"""Very simple script to make sure astropy IERS tables are up-to-date."""
+
+from astroplan import download_IERS_A
+
+download_IERS_A()
