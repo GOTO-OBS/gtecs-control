@@ -127,8 +127,8 @@ class Pilot(object):
         # flag for daytime testing
         self.testing = testing
 
-        # flag to shutdown early (in emergencies)
-        self.shutdown_now = 0
+        # flag to shutdown early
+        self.shutdown_now = False
 
     # Check routines
     async def check_scheduler(self):
@@ -380,6 +380,9 @@ class Pilot(object):
         # Finished.
         self.log.info('finished night operations')
         self.night_operations = False
+
+        # Shut down the system, nothing else to do
+        self.shutdown_now = True
 
     # External scripts
     async def start_script(self, name, protocol, cmd):
@@ -853,45 +856,51 @@ class Pilot(object):
 
     # Night countdown
     async def night_countdown(self, stop_time):
-        """Return when night is done.
+        """Shut down the system if triggered or at the stop time as a backup.
 
-        This function simply keeps running until the stop_time is reached.
-        The use of such a function is that it can be added to the list
-        of tasks supplied to `~asyncio.BaseEventLoop.run_until_complete`
-        and the loop will keep going until the stop_time is reached.
+        The pilot loop will run until this function exits.
 
-        Parameters
-        -----------
-        stop_time : `~astropy.time.Time`
-            the time to stop the Pilot
+        If the system triggers a shutdown "normally" (either through the night marshal finishing or
+        an emergency shutdown) then this function will pick it up, run the shutdown command and
+        exit, stopping the pilot.
 
+        If something fails then this function will indepndently ensure the system shuts down once
+        the stop time is reached.
         """
         self.log.info('night countdown initialised')
 
-        sleep_time = 60
+        last_log = Time.now()
+        sleep_time = 10
         while True:
             now = Time.now()
-            # check if we have reached stop time
-            if now > stop_time:
-                self.log.info('stop time reached, night is over')
-                await self.shutdown()
-                break
 
-            # check if we need to stop early
+            # check if the shutdown command has been sent
             if self.shutdown_now:
-                self.log.warning('stopping early due to emergency shutdown')
+                self.log.info('shutdown triggered, exiting night countdown')
                 break
 
-            stop_time.precision = 0
-            delta = stop_time - now
-            delta_min = delta.to('min').value
-            status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta_min)
-            if delta_min < 30:
-                self.log.info(status_str)
-            else:
-                self.log.debug(status_str)
+            # as an independent backup, check if we have reached the stop time
+            if now > stop_time:
+                self.log.info('end of night reached, forcing shutdown')
+                break
+
+            # log line
+            if now - last_log > 60 * u.second:
+                last_log = now
+                stop_time.precision = 0
+                delta = stop_time - now
+                delta_min = delta.to('min').value
+                status_str = 'end of night at {} ({:.0f} mins)'.format(stop_time.iso, delta_min)
+                if delta_min < 30:
+                    self.log.info(status_str)
+                else:
+                    self.log.debug(status_str)
 
             await asyncio.sleep(sleep_time)
+
+        # Run the shutdown command
+        self.log.info('starting shutdown')
+        await self.shutdown()
 
         self.log.info('finished for tonight')
 
@@ -951,11 +960,8 @@ class Pilot(object):
         self.log.warning('closing dome immediately')
         self.close_dome()
 
-        self.log.warning('running shutdown')
-        await self.shutdown()
-
-        # end the night countdown early to close the pilot
-        self.shutdown_now = 1
+        # trigger night countdown to shutdown
+        self.shutdown_now = True
 
     # Hardware commands
     async def open_dome(self):
@@ -1154,13 +1160,13 @@ def run(test=False, restart=False, late=False):
         asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled jobs
     ])
 
-    # keep the pilot runing until the end of the night
+    # Calculate the stop time (sunrise, unless testing)
     if pilot.testing:
-        sunrise = Time.now() + 15 * u.minute
+        stop_time = Time.now() + 15 * u.minute
     else:
         date = night_startdate()
-        sunrise = sunalt_time(date, 0 * u.deg, eve=False)
-    stop_signal = pilot.night_countdown(stop_time=sunrise)
+        stop_time = sunalt_time(date, 0 * u.deg, eve=False)
+    stop_signal = pilot.night_countdown(stop_time)
 
     try:
         # actually start the event loop - nothing happens until this line is reached!
