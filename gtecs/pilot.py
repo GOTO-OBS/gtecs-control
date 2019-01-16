@@ -425,6 +425,10 @@ class Pilot(object):
         # process started, await completion
         retcode, result = await self.running_script_result
 
+        # flag if the retcode isn't 0
+        if retcode != 0:
+            self.log.warning('{}} ended abnormally'.format(name))
+
         # done
         self.log.info("finished {}".format(name))
         self.running_script = None
@@ -913,9 +917,7 @@ class Pilot(object):
         # start startup script
         self.log.debug('running startup script')
         cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
-        retcode, result = await self.start_script('STARTUP', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warning('STARTUP ended abnormally')
+        await self.start_script('STARTUP', SimpleProtocol, cmd)
 
         self.log.debug('startup script complete')
 
@@ -939,9 +941,7 @@ class Pilot(object):
         # start shutdown script
         self.log.warning('running shutdown script')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
-        retcode, result = await self.start_script('SHUTDOWN', SimpleProtocol, cmd)
-        if retcode != 0:
-            self.log.warning('SHUTDOWN ended abnormally')
+        await self.start_script('SHUTDOWN', SimpleProtocol, cmd)
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
