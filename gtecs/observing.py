@@ -574,7 +574,7 @@ def get_pointing_status(pointing_id):
     Parameters
     ----------
     pointing_id : int
-        database ID of the pointing (aka job ID in the pilot)
+        database ID of the pointing
 
     """
     with open_session() as session:

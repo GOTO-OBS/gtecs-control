@@ -34,8 +34,8 @@ class Pilot(object):
     """Run the scheduler and telescope.
 
     The Pilot uses asyncio to run several tasks concurrently,
-    including checking the Scheduler for the best job to
-    execute at the moment and then starting an observing job.
+    including checking the Scheduler for the best pointing to
+    observe at the moment and then starting an observing task.
 
     Other tasks include, but are not limited to, logging the status,
     checking for midday (when the pilot shuts down), and checking
@@ -60,7 +60,7 @@ class Pilot(object):
         self.log.info('Pilot started')
         send_slack_msg('{} pilot started'.format(params.TELESCOP))
 
-        # current and next job from scheduler
+        # current and next pointing from scheduler
         self.current_id = None
         self.current_mintime = None
         self.current_priority = None
@@ -81,13 +81,13 @@ class Pilot(object):
         # also used to pause and resume operations?
         self.running_tasks = []
 
-        # lists of routine jobs. Each job a dict of name, protocol, cmd and sunalt
-        self.daytime_jobs = []  # before dome opens
-        self.evening_jobs = []  # after dome opens
-        self.morning_jobs = []  # after observing
+        # lists of routine tasks. Each task a dict of name, protocol, cmd and sunalt
+        self.daytime_tasks = []  # before dome opens
+        self.evening_tasks = []  # after dome opens
+        self.morning_tasks = []  # after observing
         self.startup_complete = False
         self.night_operations = False
-        self.jobs_pending = False
+        self.tasks_pending = False
         self.observing = False
         self.mount_is_tracking = False   # should the mount be tracking?
         self.dome_is_open = False        # should the dome be open?
@@ -132,7 +132,7 @@ class Pilot(object):
 
     # Check routines
     async def check_scheduler(self):
-        """Check scheduler and update current job every 10 seconds."""
+        """Check scheduler and update current pointing every 10 seconds."""
         self.log.info('scheduler check routine initialised')
 
         sleep_time = 10
@@ -152,9 +152,9 @@ class Pilot(object):
                     # NOTE we don't actually use the priority anywhere in the pilot!
 
                     if self.new_id != self.current_id:
-                        self.log.info('scheduler check: NEW JOB {}'.format(self.new_id))
+                        self.log.info('scheduler returns {} (NEW)'.format(self.new_id))
                     else:
-                        self.log.debug('scheduler check: continue {}'.format(self.current_id))
+                        self.log.debug('scheduler returns {}'.format(self.current_id))
 
                     self.initial_scheduler_check_complete = True
 
@@ -300,10 +300,10 @@ class Pilot(object):
         Parameters
         ----------
         restart : bool
-            If true, we will skip startup jobs and get straight to observing
+            If true, we will skip startup tasks and get straight to observing
 
         late : bool
-            If true, we will try to do evening jobs even if it's too late
+            If true, we will try to do evening tasks even if it's too late
             (note FLATS will fail anyway)
 
         """
@@ -334,11 +334,11 @@ class Pilot(object):
         # make sure filters are homed and cams are cool, in case of restart
         await self.prepare_for_images_async()
 
-        # Daytime jobs: do these even in bad weather
+        # Daytime tasks: do these even in bad weather
         if not restart:
-            await self.run_through_jobs(self.daytime_jobs, rising=False,
-                                        ignore_conditions=True,
-                                        ignore_late=late)
+            await self.run_through_tasks(self.daytime_tasks, rising=False,
+                                         ignore_conditions=True,
+                                         ignore_late=late)
 
         # wait for the right sunalt to open dome
         await self.wait_for_sunalt(0, 'OPEN')
@@ -354,10 +354,10 @@ class Pilot(object):
         await self.open_dome()
         await self.unpark_mount()
 
-        # Evening jobs
+        # Evening tasks
         if not restart:
-            await self.run_through_jobs(self.evening_jobs, rising=False,
-                                        ignore_late=late)
+            await self.run_through_tasks(self.evening_tasks, rising=False,
+                                         ignore_late=late)
 
         # Wait for darkness
         await self.wait_for_sunalt(-15, 'OBS')
@@ -369,12 +369,12 @@ class Pilot(object):
             # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
             await self.observe(until_sunalt=-12, last_obs_sunalt=-14)
 
-        # Morning jobs
-        await self.run_through_jobs(self.morning_jobs, rising=True,
-                                    ignore_late=False)
+        # Morning tasks
+        await self.run_through_tasks(self.morning_tasks, rising=True,
+                                     ignore_late=False)
 
-        # Wait for morning jobs to finish
-        while self.jobs_pending or self.running_script:
+        # Wait for morning tasks to finish
+        while self.tasks_pending or self.running_script:
             await asyncio.sleep(10)
 
         # Finished.
@@ -392,7 +392,7 @@ class Pilot(object):
         ----------
         name : str
             A name for this process. Prepended to output from process.
-        protocol : `pilot_protocols.PilotJobProtocol`
+        protocol : `pilot_protocols.PilotTaskProtocol`
             Protocol used to process output from Process
         cmd : list
             A list of the command to be executed with Python.
@@ -446,11 +446,11 @@ class Pilot(object):
         This does nothing if the script is already done.
         """
         if self.running_script is not None:
-            # check job is still running
+            # check script is still running
             if self.running_script_transport.get_returncode() is None:
                 self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
 
-                # check job is still running again, just in case
+                # check script is still running again, just in case
                 try:
                     self.running_script_transport.terminate()
                     await self.running_script_result
@@ -471,19 +471,19 @@ class Pilot(object):
                 self.log.info("killed {}".format(self.running_script))
                 self.running_script = None
 
-    # Daily jobs
-    def assign_jobs(self):
-        """Assign the daily jobs for the pilot."""
-        # daytime jobs: done before opening the dome
+    # Daily tasks
+    def assign_tasks(self):
+        """Assign the daily tasks for the pilot."""
+        # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
                  'sunalt': 8,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': SimpleProtocol}
 
-        self.daytime_jobs = [darks]
+        self.daytime_tasks = [darks]
 
-        # evening jobs: done after opening the dome, before observing starts
+        # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
                    'sunalt': -2,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
@@ -495,9 +495,9 @@ class Pilot(object):
                    'args': [],
                    'protocol': SimpleProtocol}
 
-        self.evening_jobs = [flats_e, autofoc]
+        self.evening_tasks = [flats_e, autofoc]
 
-        # morning jobs: done after observing, before closing the dome
+        # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
         #           'sunalt': -14.5,
         #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
@@ -509,22 +509,22 @@ class Pilot(object):
                    'args': ['MORN'],
                    'protocol': SimpleProtocol}
 
-        # self.morning_jobs = [foc_run, flats_m]
-        self.morning_jobs = [flats_m]
+        # self.morning_tasks = [foc_run, flats_m]
+        self.morning_tasks = [flats_m]
 
-    async def run_through_jobs(self, job_list, rising=False,
-                               ignore_conditions=False,
-                               ignore_late=False):
-        """Just pop jobs off a list and run them at correct sunalt."""
-        while job_list:
-            self.jobs_pending = True
-            job = job_list.pop(0)
-            name = job['name']
-            sunalt = job['sunalt']
-            cmd = [job['script'], *job['args']]
-            protocol = job['protocol']
+    async def run_through_tasks(self, task_list, rising=False,
+                                ignore_conditions=False,
+                                ignore_late=False):
+        """Just pop tasks off a list and run them at correct sunalt."""
+        while task_list:
+            self.tasks_pending = True
+            task = task_list.pop(0)
+            name = task['name']
+            sunalt = task['sunalt']
+            cmd = [task['script'], *task['args']]
+            protocol = task['protocol']
 
-            self.log.info('next job: {}'.format(name))
+            self.log.info('next task: {}'.format(name))
 
             # wait for the right sun altitude
             OK = await self.wait_for_sunalt(sunalt, name, rising, ignore_late)
@@ -538,7 +538,7 @@ class Pilot(object):
                   (self.whypause['manual']) or
                   (self.whypause['cond'] and not ignore_conditions)):
                 # need to check if we're paused
-                # if ignore_conditions (daytime jobs) we can start even if
+                # if ignore_conditions (daytime tasks) we can start even if
                 # paused for conditions, but not for other reasons
                 self.log.info('currently paused, will not start {}'.format(name))
                 await asyncio.sleep(15)
@@ -555,7 +555,7 @@ class Pilot(object):
 
             await asyncio.sleep(1)
 
-        self.jobs_pending = False
+        self.tasks_pending = False
 
     async def wait_for_sunalt(self, sunalt, why,
                               rising=False, ignore_late=False):
@@ -668,7 +668,7 @@ class Pilot(object):
                     # end observing
                     break
 
-            # See if a new target has arrived and mark job appropriately
+            # See if a new target has arrived and mark the pointing appropriately
             # There are 6 options (technically 5, bottom left & bottom right
             # are the same...):
             #               | | new_id is  |    new_id is    |   new_id   |
@@ -695,13 +695,13 @@ class Pilot(object):
 
             elif self.new_id is not None:
                 if self.current_id is not None:
-                    self.log.info('got new job from scheduler {}'.format(self.new_id))
+                    self.log.info('got new pointing from scheduler {}'.format(self.new_id))
 
-                    # Get current job status
+                    # Get current pointing status
                     current_status = get_pointing_status(self.current_id)
-                    self.log.debug('current job status = {}'.format(current_status))
+                    self.log.debug('current pointing status = {}'.format(current_status))
 
-                    # Check if we're interupting a still ongoing job and need
+                    # Check if we're interupting a still ongoing pointing and need
                     # to mark it as interupted. The alternative is that the
                     # OBS script has finished which means it will have already
                     # been marked as completed.
@@ -710,7 +710,7 @@ class Pilot(object):
                             current_status != 'completed'):
 
                         # cancel the script first (will mark as aborted)
-                        await self.cancel_running_script(why='new job')
+                        await self.cancel_running_script(why='new pointing')
 
                         # now correctly mark it as completed or interupted
                         now = time.time()
@@ -720,18 +720,18 @@ class Pilot(object):
                                        self.current_mintime, elapsed))
                         if elapsed > self.current_mintime:
                             mark_completed(self.current_id)
-                            self.log.debug('job completed: {}'.format(self.current_id))
+                            self.log.debug('pointing completed: {}'.format(self.current_id))
                         else:
                             mark_interrupted(self.current_id)
-                            self.log.debug('job interrupted: {}'.format(self.current_id))
+                            self.log.debug('pointing interrupted: {}'.format(self.current_id))
 
                 else:
-                    self.log.info('got job from scheduler {}'.format(self.new_id))
+                    self.log.info('got pointing from scheduler {}'.format(self.new_id))
                     # we weren't doing anything, which implies we were parked
                     await self.unpark_mount()
 
-                # start the new job
-                self.log.debug('starting Job {}'.format(self.new_id))
+                # start the new pointing
+                self.log.debug('starting pointing {}'.format(self.new_id))
 
                 script = os.path.join(SCRIPT_PATH, 'observe.py')
                 args = [str(self.new_id), str(int(self.new_mintime))]
@@ -754,7 +754,7 @@ class Pilot(object):
                 self.current_id = None
                 self.current_priority = None
                 self.current_mintime = None
-                # If we've interrupted a job it needs to be cancelled,
+                # If we've interrupted a pointing it needs to be cancelled,
                 # this will mark it as aborted
                 await self.cancel_running_script('obs parking')
 
@@ -767,7 +767,7 @@ class Pilot(object):
         execute_command('exq clear')
         execute_command('cam abort')
 
-        # If we've interrupted a job it needs to be cancelled,
+        # If we've interrupted a pointing it needs to be cancelled,
         # this will mark it as aborted
         await self.cancel_running_script('obs finished')
         self.current_id = None
@@ -837,7 +837,7 @@ class Pilot(object):
 
                 # don't actually kill anything, coroutines will pause themselves
                 self.log.info('pausing for pilot for manual override')
-                self.log.info('current job will continue')
+                self.log.info('current task will continue')
 
         # does this change suggest a global unpause?
         unpause = (not any([self.whypause[key] for key in self.whypause if key != reason]) and
@@ -928,7 +928,7 @@ class Pilot(object):
     async def shutdown(self):
         """Shut down the system.
 
-        Close any running scripts and jobs, run the shutdown script, ensure the
+        Close any running scripts and tasks, run the shutdown script, ensure the
         dome is closed and finish.
         """
         # first shut down all running tasks
@@ -1152,7 +1152,7 @@ def run(test=False, restart=False, late=False):
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
     pilot = Pilot(testing=test)
-    pilot.assign_jobs()
+    pilot.assign_tasks()
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
@@ -1161,7 +1161,7 @@ def run(test=False, restart=False, late=False):
         asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
         asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
         asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
-        asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled jobs
+        asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled tasks
     ])
 
     # Calculate the stop time (sunrise, unless testing)
