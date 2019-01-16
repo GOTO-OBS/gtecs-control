@@ -457,13 +457,19 @@ class MntDaemon(BaseDaemon):
         """Unpark the mount."""
         # Check current status
         self.wait_for_info()
-        if self.info['status'] != 'Parked':
+        if self.info['status'] not in ['Parked', 'Parking']:
             return 'Mount is not parked'
 
-        # First turn off blinky mode
-        self.set_blinky = False
-        self.set_blinky_mode_flag = 1
-        time.sleep(0.2)
+        # If we're already parking then stop it
+        if self.info['status'] == 'Parking':
+            self.full_stop_flag = 1
+            time.sleep(0.2)
+
+        # If we are parked then we need to turn off blinky mode
+        if self.info['status'] == 'Parked':
+            self.set_blinky = False
+            self.set_blinky_mode_flag = 1
+            time.sleep(0.2)
 
         # Set flag
         self.force_check_flag = True
