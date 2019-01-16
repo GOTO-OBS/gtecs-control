@@ -438,17 +438,10 @@ class Pilot(object):
 
         This does nothing if the script is already done.
         """
-        if self.running_script_transport is not None:
+        if self.running_script is not None:
             # check job is still running
             if self.running_script_transport.get_returncode() is None:
                 self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
-
-                execute_command('exq clear')
-                execute_command('cam abort')
-
-                # if we were observing, mark as aborted
-                if self.running_script == 'OBS' and self.current_id is not None:
-                    mark_aborted(self.current_id)
 
                 # check job is still running again, just in case
                 try:
@@ -456,6 +449,13 @@ class Pilot(object):
                     await self.running_script_result
                 except Exception:
                     self.log.debug('{} already exited?'.format(self.running_script))
+
+                execute_command('exq clear')
+                execute_command('cam abort')
+
+                # if we were observing, mark as aborted
+                if self.running_script == 'OBS' and self.current_id is not None:
+                    mark_aborted(self.current_id)
 
                 self.log.info("killed {}".format(self.running_script))
                 self.running_script = None
