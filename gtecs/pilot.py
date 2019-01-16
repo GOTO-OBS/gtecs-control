@@ -87,6 +87,7 @@ class Pilot(object):
         self.morning_jobs = []  # after observing
         self.startup_complete = False
         self.ready_to_observe = False
+        self.jobs_pending = False
         self.observing = False
         self.mount_is_tracking = False   # should the mount be tracking?
         self.dome_is_open = False        # should the dome be open?
@@ -372,8 +373,11 @@ class Pilot(object):
         await self.run_through_jobs(self.morning_jobs, rising=True,
                                     ignore_late=False)
 
+        # Wait for morning jobs to finish
+        while self.jobs_pending or self.running_script:
+            await asyncio.sleep(10)
+
         # Finished. Set flag so dome does not reopen
-        # Note the final morning job will still be running, so we can't just shutdown here
         self.ready_to_observe = False
         self.log.info('night marshal completed')
 
@@ -502,6 +506,7 @@ class Pilot(object):
                                ignore_late=False):
         """Just pop jobs off a list and run them at correct sunalt."""
         while job_list:
+            self.jobs_pending = True
             job = job_list.pop(0)
             name = job['name']
             sunalt = job['sunalt']
@@ -538,6 +543,8 @@ class Pilot(object):
                 asyncio.ensure_future(self.start_script(name, protocol, cmd))
 
             await asyncio.sleep(1)
+
+        self.jobs_pending = False
 
     async def wait_for_sunalt(self, sunalt, why,
                               rising=False, ignore_late=False):
