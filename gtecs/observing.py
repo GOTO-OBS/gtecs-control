@@ -208,9 +208,17 @@ def slew_to_radec(ra, dec):
         J2000 dec in decimal degrees
 
     """
+    # Check alt limit
     if check_alt_limit(ra, dec, Time.now()):
         raise ValueError('target too low, cannot set target')
-    execute_command("mnt slew {} {}".format(ra, dec))
+
+    # Stop any current slews
+    mnt_info = daemon_info('mnt')
+    if mnt_info['status'] == 'Slewing':
+        execute_command('mnt stop')
+
+    # Slew
+    execute_command('mnt slew {} {}'.format(ra, dec))
 
 
 def slew_to_altaz(alt, az):
@@ -224,8 +232,16 @@ def slew_to_altaz(alt, az):
         azimuth in decimal degrees
 
     """
+    # Check alt limit
     if alt < params.MIN_ELEVATION:
         raise ValueError('target too low, cannot set target')
+
+    # Stop any current slews
+    mnt_info = daemon_info('mnt')
+    if mnt_info['status'] == 'Slewing':
+        execute_command('mnt stop')
+
+    # Slew
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 

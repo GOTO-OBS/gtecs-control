@@ -457,8 +457,12 @@ class Pilot(object):
                 except Exception:
                     self.log.debug('{} already exited?'.format(self.running_script))
 
+                # Mke sure everything is stopped
                 execute_command('exq clear')
                 execute_command('cam abort')
+                execute_command('mnt stop')
+                execute_command('mnt clear')
+                execute_command('mnt track')
 
                 # if we were observing, mark as aborted
                 if self.running_script == 'OBS' and self.current_id is not None:
