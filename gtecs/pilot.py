@@ -69,7 +69,9 @@ class Pilot(object):
         self.new_mintime = None
         self.new_priority = None
 
-        # for communicating with external processes
+        # store the name of the running script (if any)
+        self.running_script = None
+        # for communicating with the external process
         self.running_script_transport = None
         self.running_script_protocol = None
         # future to store result of running script when it's done
@@ -410,6 +412,7 @@ class Pilot(object):
 
         # start the process and get transport and protocol for control of it
         self.log.info("starting {}".format(name))
+        self.running_script = name
         self.running_script_transport, self.running_script_protocol = await proc
 
         # process started, await completion
@@ -417,6 +420,7 @@ class Pilot(object):
 
         # done
         self.log.info("finished {}".format(name))
+        self.running_script = None
 
         # if it was an observation that just finished, force a scheduler check
         if name == 'OBS':
@@ -433,14 +437,13 @@ class Pilot(object):
         if self.running_script_transport is not None:
             # check job is still running
             if self.running_script_transport.get_returncode() is None:
-                name = self.running_script_protocol.job_name
-                self.log.info('killing {}, reason: "{}"'.format(name, why))
+                self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
 
                 execute_command('exq clear')
                 execute_command('cam abort')
 
                 # if we were observing, mark as aborted
-                if name == 'OBS' and self.current_id is not None:
+                if self.running_script == 'OBS' and self.current_id is not None:
                     mark_aborted(self.current_id)
 
                 # check job is still running again, just in case
@@ -448,9 +451,10 @@ class Pilot(object):
                     self.running_script_transport.terminate()
                     await self.running_script_result
                 except Exception:
-                    self.log.debug('{} already exited?'.format(name))
+                    self.log.debug('{} already exited?'.format(self.running_script))
 
-                self.log.info("killed {}".format(name))
+                self.log.info("killed {}".format(self.running_script))
+                self.running_script = None
 
     # Daily jobs
     def assign_jobs(self):
@@ -590,7 +594,7 @@ class Pilot(object):
 
             # Log to debug if there's a script running, info if not
             msg = 'sunalt={:.1f}, waiting for {:.1f} ({})'.format(sunalt_now, sunalt, why)
-            if self.running_script_transport is None:
+            if self.running_script is None:
                 self.log.info(msg)
             else:
                 self.log.debug(msg)
@@ -676,17 +680,16 @@ class Pilot(object):
                     self.log.info('got new job from scheduler {}'.format(self.new_id))
 
                     # Get current job status
-                    currentStatus = get_pointing_status(self.current_id)
-                    self.log.debug('current job status = {}'.format(currentStatus))
+                    current_status = get_pointing_status(self.current_id)
+                    self.log.debug('current job status = {}'.format(current_status))
 
                     # Check if we're interupting a still ongoing job and need
                     # to mark it as interupted. The alternative is that the
                     # OBS script has finished which means it will have already
                     # been marked as completed.
-                    if (self.running_script_transport is not None and
+                    if (self.running_script == 'OBS' and
                             self.running_script_transport.get_returncode() is None and
-                            self.running_script_protocol.job_name == 'OBS' and
-                            currentStatus != 'completed'):
+                            current_status != 'completed'):
 
                         # cancel the script first (will mark as aborted)
                         await self.cancel_running_script(why='new job')
@@ -797,19 +800,18 @@ class Pilot(object):
                 msg = 'Pausing operations due to hardware fault'
                 self.log.warning(msg)
 
-                if self.running_script_protocol is not None:
-                    if self.running_script_protocol.job_name == 'STARTUP':
-                        # don't cancel startup due to hardware issue
-                        pass
-                    elif self.running_script_protocol.job_name == 'OBS':
-                        # just pause the queue until fixed
-                        execute_command('exq pause')
-                        execute_command('cam abort')
-                    else:
-                        # other scripts cannot handle losing frames
-                        execute_command('exq clear')
-                        execute_command('cam abort')
-                        await self.cancel_running_script('hardware fault')
+                if self.running_script == 'STARTUP':
+                    # don't cancel startup due to hardware issue
+                    pass
+                elif self.running_script == 'OBS':
+                    # just pause the queue until fixed
+                    execute_command('exq pause')
+                    execute_command('cam abort')
+                elif self.running_script is not None:
+                    # other scripts cannot handle losing frames
+                    execute_command('exq clear')
+                    execute_command('cam abort')
+                    await self.cancel_running_script('hardware fault')
 
             elif reason == 'manual':
                 msg = 'Pausing operations due to manual override'
