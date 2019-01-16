@@ -86,7 +86,7 @@ class Pilot(object):
         self.evening_jobs = []  # after dome opens
         self.morning_jobs = []  # after observing
         self.startup_complete = False
-        self.ready_to_observe = False
+        self.night_operations = False
         self.jobs_pending = False
         self.observing = False
         self.mount_is_tracking = False   # should the mount be tracking?
@@ -348,9 +348,9 @@ class Pilot(object):
             self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
-        # OK - open the dome and get ready to observe
-        self.log.info('ready to observe')
-        self.ready_to_observe = True
+        # OK - open the dome and start nightly operations
+        self.log.info('starting night operations')
+        self.night_operations = True
         await self.open_dome()
         await self.unpark_mount()
 
@@ -377,9 +377,9 @@ class Pilot(object):
         while self.jobs_pending or self.running_script:
             await asyncio.sleep(10)
 
-        # Finished. Set flag so dome does not reopen
-        self.ready_to_observe = False
-        self.log.info('night marshal completed')
+        # Finished.
+        self.log.info('finished night operations')
+        self.night_operations = False
 
     # External scripts
     async def start_script(self, name, protocol, cmd):
@@ -792,7 +792,7 @@ class Pilot(object):
                 msg = 'Pausing due to bad conditions ({})'.format(self.conditions.bad_flags)
                 self.log.warning(msg)
 
-                if self.ready_to_observe:
+                if self.night_operations:
                     # only need to stop scripts if the dome is open
                     # (this way we don't kill darks if the weather goes bad)
                     execute_command('exq pause')
@@ -834,7 +834,7 @@ class Pilot(object):
         if unpause and self.paused:
             # OK, we can resume
             self.log.warning('resuming operations')
-            if self.ready_to_observe:
+            if self.night_operations:
                 if not self.dome_is_open:
                     # open the dome if it's closed
                     # this way wait and don't resume until the dome is open
