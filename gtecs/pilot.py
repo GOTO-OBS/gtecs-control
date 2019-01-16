@@ -527,7 +527,7 @@ class Pilot(object):
 
             if not OK:
                 # too late
-                self.log.warning('too late to start {}'.format(name))
+                self.log.info('too late to start {}'.format(name))
                 continue
 
             elif ((self.whypause['hw']) or
@@ -536,7 +536,7 @@ class Pilot(object):
                 # need to check if we're paused
                 # if ignore_conditions (daytime jobs) we can start even if
                 # paused for conditions, but not for other reasons
-                self.log.warning('currently paused, will not start {}'.format(name))
+                self.log.info('currently paused, will not start {}'.format(name))
                 await asyncio.sleep(15)
                 continue
 
@@ -743,7 +743,7 @@ class Pilot(object):
                 self.time_paused = 0
 
             else:
-                self.log.warning('nothing to do, parking mount')
+                self.log.info('nothing to do, parking mount')
                 self.park_mount()
                 execute_command('exq clear')
                 execute_command('cam abort')
@@ -840,7 +840,7 @@ class Pilot(object):
                    not pause)
         if unpause and self.paused:
             # OK, we can resume
-            self.log.warning('resuming operations')
+            self.log.info('resuming operations')
             if self.night_operations:
                 if not self.dome_is_open:
                     # open the dome if it's closed
@@ -931,7 +931,7 @@ class Pilot(object):
         # this is so check_flags doesn't initiate two shutdowns,
         # or we don't end up trying to restart if conditions clear
         # or an "unfixible" hardware error gets fixed
-        self.log.warning('cancelling running tasks')
+        self.log.info('cancelling running tasks')
         for task in self.running_tasks:
             task.cancel()
 
@@ -939,25 +939,25 @@ class Pilot(object):
         await self.cancel_running_script(why='shutdown')
 
         # start shutdown script
-        self.log.warning('running shutdown script')
+        self.log.info('running shutdown script')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
         await self.start_script('SHUTDOWN', SimpleProtocol, cmd)
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
         # EMAIL IF DOME WON'T CLOSE
-        self.log.warning('making sure dome is closed')
+        self.log.info('making sure dome is closed')
         await self.close_dome_confirm()
 
-        self.log.warning('shutdown process complete')
+        self.log.info('shutdown process complete')
 
     async def emergency_shutdown(self, why):
         """Send a warning and then shut down."""
-        self.log.warning('performing emergency shutdown: {}'.format(why))
+        self.log.info('performing emergency shutdown: {}'.format(why))
         send_slack_msg('{} pilot is performing an emergency shutdown: {}'.format(
                        params.TELESCOP, why))
 
-        self.log.warning('closing dome immediately')
+        self.log.info('closing dome immediately')
         self.close_dome()
 
         # trigger night countdown to shutdown
@@ -966,7 +966,7 @@ class Pilot(object):
     # Hardware commands
     async def open_dome(self):
         """Open the dome and await until it is finished."""
-        self.log.warning('opening dome')
+        self.log.info('opening dome')
         send_slack_msg('{} pilot is opening the dome'.format(params.TELESCOP))
         execute_command('dome open')
         self.dome_is_open = True
@@ -984,7 +984,7 @@ class Pilot(object):
 
     def close_dome(self):
         """Send the dome close command and return immediately."""
-        self.log.warning('closing dome')
+        self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
         if dome_status not in ['closed', 'in_lockdown']:
             send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
@@ -1032,7 +1032,7 @@ class Pilot(object):
 
     async def unpark_mount(self):
         """Unpark the mount and await until it is finished."""
-        self.log.warning('unparking mount')
+        self.log.info('unparking mount')
         execute_command('mnt unpark')
         self.mount_is_tracking = True
         self.hardware['mnt'].mode = 'tracking'
@@ -1053,7 +1053,7 @@ class Pilot(object):
 
     def park_mount(self):
         """Send the mount park command and return immediately."""
-        self.log.warning('parking mount')
+        self.log.info('parking mount')
         execute_command('mnt park')
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
