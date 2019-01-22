@@ -804,6 +804,7 @@ class Pilot(object):
             if reason == 'cond':
                 msg = 'Pausing due to bad conditions ({})'.format(self.conditions.bad_flags)
                 self.log.warning(msg)
+                send_slack_msg('Pilot is pausing due to bad conditions')
 
                 if self.night_operations:
                     # only need to stop scripts if the dome is open
@@ -819,6 +820,7 @@ class Pilot(object):
             elif reason == 'hw':
                 msg = 'Pausing operations due to hardware fault'
                 self.log.warning(msg)
+                send_slack_msg('Pilot is pausing due to hardware fault')
 
                 if self.running_script == 'STARTUP':
                     # don't cancel startup due to hardware issue
@@ -836,6 +838,7 @@ class Pilot(object):
             elif reason == 'manual':
                 msg = 'Pausing operations due to manual override'
                 self.log.warning(msg)
+                send_slack_msg('Pilot is pausing due to manual override')
 
                 # don't actually kill anything, coroutines will pause themselves
                 self.log.info('pausing for pilot for manual override')
@@ -847,6 +850,7 @@ class Pilot(object):
         if unpause and self.paused:
             # OK, we can resume
             self.log.info('resuming operations')
+            send_slack_msg('Pilot is resuming operations')
             if self.night_operations:
                 if not self.dome_is_open:
                     # open the dome if it's closed
