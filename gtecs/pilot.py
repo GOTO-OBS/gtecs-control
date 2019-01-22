@@ -58,7 +58,7 @@ class Pilot(object):
                                      log_to_file=params.FILE_LOGGING,
                                      log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Pilot started')
-        send_slack_msg('{} pilot started'.format(params.TELESCOP))
+        send_slack_msg('Pilot started')
 
         # current and next pointing from scheduler
         self.current_id = None
@@ -429,7 +429,7 @@ class Pilot(object):
         if retcode != 0:
             self.log.warning('{} ended abnormally'.format(name))
             if name != 'OBS':
-                send_slack_msg('{} pilot {} task ended abnormally'.format(params.TELESCOP, name))
+                send_slack_msg('Pilot {} task ended abnormally'.format(name))
 
         # done
         self.log.info("finished {}".format(name))
@@ -693,7 +693,7 @@ class Pilot(object):
                 else:
                     self.log.warning('nothing to observe!')
                     if not self.testing:
-                        send_slack_msg('{} pilot has nothing to observe!'.format(params.TELESCOP))
+                        send_slack_msg('Pilot has nothing to observe!')
 
             elif self.new_id is not None:
                 if self.current_id is not None:
@@ -960,8 +960,7 @@ class Pilot(object):
     async def emergency_shutdown(self, why):
         """Send a warning and then shut down."""
         self.log.info('performing emergency shutdown: {}'.format(why))
-        send_slack_msg('{} pilot is performing an emergency shutdown: {}'.format(
-                       params.TELESCOP, why))
+        send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
 
         self.log.info('closing dome immediately')
         self.close_dome()
@@ -973,7 +972,7 @@ class Pilot(object):
     async def open_dome(self):
         """Open the dome and await until it is finished."""
         self.log.info('opening dome')
-        send_slack_msg('{} pilot is opening the dome'.format(params.TELESCOP))
+        send_slack_msg('Pilot is opening the dome')
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
@@ -993,7 +992,7 @@ class Pilot(object):
         self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
         if dome_status not in ['closed', 'in_lockdown']:
-            send_slack_msg('{} pilot is closing the dome'.format(params.TELESCOP))
+            send_slack_msg('Pilot is closing the dome')
         execute_command('dome close')
         self.dome_is_open = False
         self.hardware['dome'].mode = 'closed'
@@ -1023,7 +1022,7 @@ class Pilot(object):
             # panic time
             elapsed_time = time.time() - start_time
             if elapsed_time / 60. > mins_until_panic:
-                msg = "IMPORTANT: {} pilot cannot close dome!".format(params.TELESCOP)
+                msg = "IMPORTANT: Pilot cannot close dome!"
                 send_slack_msg(msg)
                 try:
                     send_email(message=msg)
@@ -1033,7 +1032,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
         self.dome_confirmed_closed = True
-        send_slack_msg('{} pilot confirmed dome is closed'.format(params.TELESCOP))
+        send_slack_msg('Pilot confirmed dome is closed')
         self.log.info('dome confirmed closed')
 
     async def unpark_mount(self):
@@ -1082,7 +1081,7 @@ class Pilot(object):
 
     def send_startup_report(self):
         """Format and send a Slack message with a summery of the current conditions."""
-        msg = '{} pilot reports startup complete'.format(params.TELESCOP)
+        msg = 'Pilot reports startup complete'
         conditions = Conditions()
         conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
                                                              bad=':exclamation:')
@@ -1181,5 +1180,5 @@ def run(test=False, restart=False, late=False):
         print('Tasks cancelled')
     finally:
         print('Pilot done')
-        send_slack_msg('{} pilot done'.format(params.TELESCOP))
+        send_slack_msg('Pilot done')
         loop.close()
