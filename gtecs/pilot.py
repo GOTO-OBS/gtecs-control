@@ -427,7 +427,7 @@ class Pilot(object):
 
         # flag if the retcode isn't 0
         if retcode != 0:
-            self.log.warning('{}} ended abnormally'.format(name))
+            self.log.warning('{} ended abnormally'.format(name))
 
         # done
         self.log.info("finished {}".format(name))
