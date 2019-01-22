@@ -428,6 +428,8 @@ class Pilot(object):
         # flag if the retcode isn't 0
         if retcode != 0:
             self.log.warning('{} ended abnormally'.format(name))
+            if name != 'OBS':
+                send_slack_msg('{} pilot {} task ended abnormally'.format(params.TELESCOP, name))
 
         # done
         self.log.info("finished {}".format(name))
