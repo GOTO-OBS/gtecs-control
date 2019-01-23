@@ -268,8 +268,7 @@ class Status(object):
             reasons = ['no reason given']
         for reason in reasons:
             if reason not in self.emergency_shutdown_reasons:
-                send_slack_msg('{} has triggered emergency shutdown: {}'.format(
-                               params.TELESCOP, reason))
+                send_slack_msg('Emergency shutdown: {}'.format(reason))
                 with open(self.emergency_file, 'a') as f:
                     f.write(reason + '\n')
             self._load()

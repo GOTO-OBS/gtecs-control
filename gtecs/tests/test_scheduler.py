@@ -1,6 +1,6 @@
-"""Test code: goes through a night and returns the current best job.
+"""Test code: goes through a night and returns the current best pointing.
 
-NOTE jobs are never completed so are never removed from the queue folder.
+NOTE pointings are never completed so are never removed from the queue folder.
 """
 
 import sys
@@ -23,6 +23,6 @@ while True:
     if new_pointing is not None:
         new_id = new_pointing.pointing_id
         new_priority = new_pointing.priority_now
-        print('   job is', new_id, 'with', new_priority)
+        print('   pointing is', new_id, 'with', new_priority)
     else:
         print('   nothing to do, parking')

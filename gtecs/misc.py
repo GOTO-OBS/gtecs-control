@@ -96,9 +96,9 @@ class NeatCloser(object, metaclass=abc.ABCMeta):
 
     This is an abstract class.
 
-    Implement the tidy_up method to set the jobs which
-    get run before the task shuts down after receiving
-    an instruction to stop.
+    Implement the tidy_up method to set the commands which
+    get run after receiving an instruction to stop
+    before the task shuts down.
 
     Once you have a concrete class based on this abstract class,
     simply create an instance of it and the tidy_up function will

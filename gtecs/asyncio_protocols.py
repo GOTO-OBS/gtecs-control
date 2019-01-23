@@ -19,7 +19,7 @@ import asyncio
 from . import logger
 
 
-class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
+class PilotTaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
     """A protocol class to handle communication between the external process and the pilot itself.
 
     Make concrete versions of this abstract class
@@ -30,13 +30,13 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
 
     FD_NAMES = ['stdin', 'stdout', 'stderr']
 
-    def __init__(self, job_name, done, log_name=None, debug=False):
+    def __init__(self, name, done, log_name=None, debug=False):
         """Create the protocol.
 
         Parameters
         -----------
-        job_name : str
-            A name for this job. Will be prepended to output.
+        name : str
+            A name for this task. Will be prepended to output.
         done : `~asyncio.Future`
             A Future object to store the result.
         log_name : str
@@ -45,7 +45,7 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
             Default: False. Enable debug output.
 
         """
-        self.job_name = job_name
+        self.name = name
         self.done = done
         self.debug = debug
         self.buffer = bytearray()
@@ -59,7 +59,7 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         the process.
         """
         logstr = 'process {} started'.format(transport.get_pid())
-        self.log.debug('{}: {}'.format(self.job_name, logstr))
+        self.log.debug('{}: {}'.format(self.name, logstr))
         self.transport = transport
 
     def pipe_data_received(self, fd, data, log_bytes=False):
@@ -70,32 +70,32 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         """
         logstr = 'read {} bytes from {}'.format(len(data), self.FD_NAMES[fd])
         if log_bytes:
-            self.log.debug('{}: {}'.format(self.job_name, logstr))
+            self.log.debug('{}: {}'.format(self.name, logstr))
 
         if fd == 1:
             # data written to stdout
             # we should really write to the appropriate log here
             lines_of_output = data.decode().strip().split('\n')
             for line in lines_of_output:
-                self.log.info('{}: {}'.format(self.job_name, line.strip()))
+                self.log.info('{}: {}'.format(self.name, line.strip()))
             # store in buffer for processing when we finish
             self.buffer.extend(data)
         elif fd == 2:
             # data written to stderr
             lines_of_output = data.decode().strip().split('\n')
             for line in lines_of_output:
-                self.log.error('{}: {}'.format(self.job_name, line.strip()))
+                self.log.error('{}: {}'.format(self.name, line.strip()))
             # store in buffer for processing when we finish
             self.buffer.extend(data)
 
     def process_exited(self):
         """Run when a process exits."""
         logstr = 'process {} exited'.format(self.transport.get_pid())
-        self.log.debug('{}: {}'.format(self.job_name, logstr))
+        self.log.debug('{}: {}'.format(self.name, logstr))
 
         return_code = self.transport.get_returncode()
         logstr = 'return code {}'.format(return_code)
-        self.log.debug('{}: {}'.format(self.job_name, logstr))
+        self.log.debug('{}: {}'.format(self.name, logstr))
         if not return_code:
             cmd_output = bytes(self.buffer).decode()
             results = self._parse_results(cmd_output)
@@ -109,7 +109,7 @@ class GTECSJobProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         return
 
 
-class SimpleProtocol(GTECSJobProtocol):
+class SimpleProtocol(PilotTaskProtocol):
     """A simple protocol which does no parsing of the output.
 
     This protocol can be used to run any process where we just

@@ -21,8 +21,8 @@ class Closer(NeatCloser):
         self.pointing_id = pointing_id
 
     def tidy_up(self):
-        """Cancel the job."""
-        print('Received cancellation order for job {}'.format(self.pointing_id))
+        """Cancel the pointing."""
+        print('Received cancellation order for pointing {}'.format(self.pointing_id))
 
 
 def get_position(pointing_id):

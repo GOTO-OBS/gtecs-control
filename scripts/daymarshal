@@ -68,15 +68,15 @@ def run(test=False):
         dome_info = daemon_info('dome')
         dome_status = dome_info['dome']
         if dome_status == 'closed':
-            msg = '{} dome confirmed closed'.format(params.TELESCOP)
+            msg = 'Day marshal confirmed dome is closed'
             log.info('Dome confirmed closed')
             confirmed_closed = True
         else:
             # Uh-oh
-            msg = 'WARNING: could not confirm {} dome is closed'.format(params.TELESCOP)
+            msg = 'WARNING: Day marshal could not confirm dome is closed'
             log.warning('The dome is not closed!')
     except Exception:
-        msg = 'WARNING: {} dome status check failed'.format(params.TELESCOP)
+        msg = 'WARNING: Day marshal dome status check failed'
         log.error('Error checking the dome', exc_info=True)
 
     # Send the report to Slack
@@ -100,17 +100,17 @@ def run(test=False):
             dome_info = daemon_info('dome')
             dome_status = dome_info['dome']
             if dome_status == 'closed':
-                msg = 'Daymarshal has closed the {} dome'.format(params.TELESCOP)
+                msg = 'Day marshal has closed the dome'
                 log.info('Dome confirmed closed')
                 confirmed_closed = True
             else:
                 # UH-OH
-                msg = 'CRITICAL: {} dome could not be closed!'.format(params.TELESCOP)
+                msg = 'CRITICAL: Day marshal could not close the dome!'
                 log.warning('The dome is still not closed!')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
-            msg = 'CRITICAL: {} dome could not be closed!'.format(params.TELESCOP)
+            msg = 'CRITICAL: Day marshal could not close the dome!'
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)

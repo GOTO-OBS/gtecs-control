@@ -104,13 +104,13 @@ class Weather(object):
 class DummyScheduler(object):
     """A fake scheduler for testing.
 
-    Initialised with a list of job IDs and their durations,
-    the Scheduler class can be called to get the next job.
+    Initialised with a list of pointing IDs and their durations,
+    the Scheduler class can be called to get the next pointing.
 
-    If the current job has elapsed, a new job ID is returned.
+    If the current pointing has elapsed, a new pointing ID is returned.
 
     With each call, there is a finite chance a ToO occurs,
-    and a new job ID is returned, even if the current job has
+    and a new pointing ID is returned, even if the current pointing has
     not elapsed.
     """
 
