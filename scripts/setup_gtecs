@@ -3,6 +3,8 @@
 
 import os
 import shutil
+import sys
+import traceback
 
 from gtecs import params
 
@@ -13,42 +15,61 @@ import pkg_resources
 gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
 gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'data/html')
 
-# create CONFIG_DIR if necessary and put files there
+print('~~~~~~~~~~~~~~~~~~~~~~')
+print('Setting up G-TeCS')
+print('~~~~~~~~~~~~~~~~~~~~~~')
+
+# Check config file path
+if params.CONFIG_FILE_PATH is None:
+    print('ERROR: No config file found, using default config')
+    print('       You need to create a .gtecs.conf file')
+    sys.exit(1)
+print('Using config file {}/.gtecs.conf'.format(params.CONFIG_FILE_PATH))
+print('')
+
+# Check config path
+config_path = params.CONFIG_PATH
+if config_path in ['/config/path/goes/here/', 'config_path_not_set']:
+    print('ERROR: CONFIG_PATH not set')
+    print('       You need to edit .gtecs.conf')
+    sys.exit(1)
+print('CONFIG_PATH is set to: "{}"'.format(params.CONFIG_PATH))
+print('')
+
+# Create directories
+direcs = [params.CONFIG_PATH,
+          params.LOG_PATH,
+          params.PID_PATH,
+          params.IMAGE_PATH,
+          ]
 try:
-    if not os.path.exists(params.CONFIG_PATH):
-        os.mkdir(params.CONFIG_PATH)
+    for direc in direcs:
+        if not os.path.exists(direc):
+            os.mkdir(direc)
+        print('Created ', direc)
+except Exception:
+    print('ERROR: Failed to create config directories')
+    print('       Try creating {} yourself then re-running this script'.format(params.CONFIG_PATH))
+    traceback.print_exc()
+    sys.exit(1)
+print('')
 
-    if not os.path.exists(params.IMAGE_PATH):
-        os.mkdir(params.IMAGE_PATH)
-
-    if not os.path.exists(params.LOG_PATH):
-        os.mkdir(params.LOG_PATH)
-
-    if not os.path.exists(params.QUEUE_PATH):
-        os.mkdir(params.QUEUE_PATH)
-    for folder in ['todo', 'aborted', 'completed', 'interrupted']:
-        folderpath = os.path.join(params.QUEUE_PATH, folder)
-        if not os.path.exists(folderpath):
-            os.mkdir(folderpath)
-
-    if not os.path.exists(params.PID_PATH):
-        os.mkdir(params.PID_PATH)
-
-    htmlpath = os.path.join(params.CONFIG_PATH, 'html')
-    if not os.path.exists(htmlpath):
-        os.mkdir(htmlpath)
-
-    # now copy data there
-    for data_file in ['conditions_flags', 'status_flags',
-                      'run_number', 'horizon', 'exposure_queue']:
+# Now copy data there
+files = ['conditions_flags',
+         'status_flags',
+         'run_number',
+         'horizon',
+         'exposure_queue',
+         ]
+try:
+    for data_file in files:
         shutil.copy(os.path.join(gtecs_data_dir, data_file),
                     os.path.join(params.CONFIG_PATH, data_file))
-    for f in os.listdir(gtecs_html_dir):
-        shutil.copy(os.path.join(gtecs_html_dir, f),
-                    os.path.join(htmlpath, f))
-
-    print('Setup complete!')
-    print('CONFIG_PATH is at ', params.CONFIG_PATH)
+        print('Created ', data_file)
 except Exception:
-    print('Failed to set up the CONFIG_PATH ', params.CONFIG_PATH,
-          'You should create this directory yourself manually')
+    print('ERROR: Failed to copy data files to config directory')
+    traceback.print_exc()
+    sys.exit(1)
+print('')
+
+print('Setup complete!')
