@@ -28,17 +28,24 @@ else:
     configspec_file = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
 
 # try and load config file
-# look in current dir, home directory and anywhere specified by GTECS_CONF environment variable
-paths = [os.curdir, os.path.expanduser("~")]
+# look in the home directory and anywhere specified by GTECS_CONF environment variable
+HOME_PATH = os.path.expanduser("~")
+paths = [HOME_PATH]
 if "GTECS_CONF" in os.environ:
-    paths.append(os.environ["GTECS_CONF"])
+    GTECS_CONF_PATH = os.environ["GTECS_CONF"]
+    paths.append(GTECS_CONF_PATH)
+else:
+    GTECS_CONF_PATH = None
 
-# now load config file
 config = configobj.ConfigObj({}, configspec=configspec_file)
+CONFIG_FILE_PATH = None
+DEFAULT_CONFIG = True
 for loc in paths:
     try:
         with open(os.path.join(loc, ".gtecs.conf")) as source:
             config = configobj.ConfigObj(source, configspec=configspec_file)
+            CONFIG_FILE_PATH = loc
+            DEFAULT_CONFIG = False
     except IOError as e:
         pass
 
