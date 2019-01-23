@@ -5,17 +5,31 @@ from gtecs import __version__
 
 from setuptools import setup
 
+PACKAGES = ['gtecs',
+            'gtecs.daemons',
+            'gtecs.hardware',
+            'gtecs.catalogs',
+            'gtecs.observing_scripts',
+            ]
+
+REQUIRES = ['Pyro4',
+            'astropy',
+            'astroplan',
+            'configobj',
+            'sep',
+            'pid',
+            ]
+
 setup(name='gtecs',
       version=__version__,
       description='G-TeCS control system for GOTO',
       url='http://github.com/GOTO/g-tecs',
       author='Martin Dyer',
       author_email='martin.dyer@sheffield.ac.uk',
-      packages=['gtecs', 'gtecs.daemons', 'gtecs.hardware', 'gtecs.catalogs',
-                'gtecs.observing_scripts'],
+      install_requires=REQUIRES,
+      packages=PACKAGES,
       package_data={'': ['data/*']},
-      install_requires=['Pyro4', 'astropy', 'astroplan', 'configobj', 'sep',
-                        'pid'],
-      scripts=glob.glob('scripts/*'),
       include_package_data=True,
-      zip_safe=False)
+      scripts=glob.glob('scripts/*'),
+      zip_safe=False,
+      )
