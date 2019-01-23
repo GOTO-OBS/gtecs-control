@@ -18,6 +18,11 @@ REQUIRES = ['Pyro4',
             'configobj',
             'sep',
             'pid',
+            'slackclient',
+            'pyudev',
+            'ephem',
+            'pyserial',
+            'opencv-python',
             ]
 
 setup(name='gtecs',
