@@ -277,7 +277,7 @@ class ConditionsDaemon(BaseDaemon):
         good['ice'] = np.all(temp > 0)
         valid['ice'] = len(temp) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
-        bad_delay['ice'] = params.HUMIDITY_BADDELAY
+        bad_delay['ice'] = params.ICE_BADDELAY
 
         # humidity flag
         good['humidity'] = (np.all(humidity < params.MAX_HUMIDITY) and
