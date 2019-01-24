@@ -24,6 +24,7 @@ REQUIRES = ['Pyro4',
             ]
 
 # Get the version string
+__version__ = None
 with open('gtecs/version.py') as f:
     version = exec(f.read())
 
