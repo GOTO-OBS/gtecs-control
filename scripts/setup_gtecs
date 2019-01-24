@@ -59,8 +59,7 @@ print('')
 files = glob.glob(os.path.join(gtecs_data_dir, '/*[!.fit]'))
 try:
     for data_file in files:
-        shutil.copy(os.path.join(gtecs_data_dir, data_file),
-                    os.path.join(params.CONFIG_PATH, data_file))
+        shutil.copy(data_file, os.path.join(params.CONFIG_PATH, data_file))
         print('Created ', data_file)
 except Exception:
     print('ERROR: Failed to copy data files to config directory')
