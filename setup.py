@@ -1,8 +1,6 @@
 """Setup script for the gtecs package."""
 import glob
 
-from gtecs import __version__
-
 from setuptools import setup
 
 PACKAGES = ['gtecs',
@@ -24,6 +22,10 @@ REQUIRES = ['Pyro4',
             'pyserial',
             'opencv-python',
             ]
+
+# Get the version string
+with open('gtecs/version.py') as f:
+    version = exec(f.read())
 
 setup(name='gtecs',
       version=__version__,
