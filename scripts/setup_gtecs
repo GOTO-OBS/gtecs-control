@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """A script to setup directory structure for G-TeCS config files."""
 
+import glob
 import os
 import shutil
 import sys
@@ -54,13 +55,8 @@ except Exception:
     sys.exit(1)
 print('')
 
-# Now copy data there
-files = ['conditions_flags',
-         'status_flags',
-         'run_number',
-         'horizon',
-         'exposure_queue',
-         ]
+# Now copy files there
+files = glob.glob(os.path.join(gtecs_data_dir, '/*[!.fit]'))
 try:
     for data_file in files:
         shutil.copy(os.path.join(gtecs_data_dir, data_file),
