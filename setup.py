@@ -21,6 +21,7 @@ REQUIRES = ['Pyro4',
             'ephem',
             'pyserial',
             'opencv-python',
+            'pygcn',
             ]
 
 # Get the version string
