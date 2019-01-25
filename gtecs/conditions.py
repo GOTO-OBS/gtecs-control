@@ -79,7 +79,7 @@ def get_ups():
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
     url = params.ARDUINO_LOCATION
-    outfile = params.CONFIG_PATH + 'arduino.json'
+    outfile = params.FILE_PATH + 'arduino.json'
 
     try:
         indata = curl_data_from_url(url, outfile)
@@ -110,7 +110,7 @@ def get_roomalert(source):
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
     url = '10.2.6.5/getData.json'
-    outfile = params.CONFIG_PATH + 'roomalert.json'
+    outfile = params.FILE_PATH + 'roomalert.json'
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
@@ -177,7 +177,7 @@ def get_local_weather(source):
         vaisala = False
 
     url = base_url + json_file
-    outfile = params.CONFIG_PATH + json_file + '.json'
+    outfile = params.FILE_PATH + json_file + '.json'
 
     try:
         indata = curl_data_from_url(url, outfile)
@@ -288,7 +288,7 @@ def get_local_weather(source):
 def get_ing_weather():
     """Get the current weather from the ING weather page (JKT mast)."""
     url = 'http://catserver.ing.iac.es/weather/'
-    outfile = params.CONFIG_PATH + 'weather.html'
+    outfile = params.FILE_PATH + 'weather.html'
     indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
 
     weather_dict = {'update_time': -999,
@@ -380,7 +380,7 @@ def get_ing_internal_weather(weather_source):
     elif weather_source == 'jkt':
         url = "http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
 
-    outfile = params.CONFIG_PATH + 'weather.xml'
+    outfile = params.FILE_PATH + 'weather.xml'
     indata = curl_data_from_url(url, outfile)
 
     weather_dict = {'update_time': -999,

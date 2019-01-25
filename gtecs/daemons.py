@@ -12,7 +12,7 @@ from . import misc
 from . import params
 
 
-# Pyro config
+# Pyro configuration
 Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False

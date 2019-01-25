@@ -31,7 +31,7 @@ warnings.simplefilter("ignore", ErfaWarning)
 # define paths to directories
 queue_folder = params.QUEUE_PATH + 'todo/'
 queue_file = params.QUEUE_PATH + 'queue_info'
-horizon_file = params.CONFIG_PATH + 'horizon'
+horizon_file = params.FILE_PATH + 'horizon'
 
 # priority settings
 PROB_WEIGHT = 10

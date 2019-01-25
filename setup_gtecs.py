@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""A script to setup directory structure for G-TeCS config files."""
+"""A script to setup directory structure for G-TeCS files."""
 
 import glob
 import os
@@ -16,25 +16,23 @@ print('~~~~~~~~~~~~~~~~~~~~~~')
 print('Setting up G-TeCS')
 print('~~~~~~~~~~~~~~~~~~~~~~')
 
-# Check config file path
+# Check for configuration file
 if params.CONFIG_FILE_PATH is None:
-    print('ERROR: No config file found, using default config')
-    print('       You need to create a .gtecs.conf file')
+    print('ERROR: No .gtecs.conf file found')
     sys.exit(1)
 print('Using config file {}/.gtecs.conf'.format(params.CONFIG_FILE_PATH))
 print('')
 
-# Check config path
-config_path = params.CONFIG_PATH
-if config_path in ['/config/path/goes/here/', 'config_path_not_set']:
-    print('ERROR: CONFIG_PATH not set')
+# Check file path is set
+if params.FILE_PATH in ['/path/goes/here/', 'path_not_set', None]:
+    print('ERROR: FILE_PATH not set')
     print('       You need to edit .gtecs.conf')
     sys.exit(1)
-print('CONFIG_PATH is set to: "{}"'.format(params.CONFIG_PATH))
+print('FILE_PATH is set to: "{}"'.format(params.FILE_PATH))
 print('')
 
 # Create directories
-direcs = [params.CONFIG_PATH,
+direcs = [params.FILE_PATH,
           params.LOG_PATH,
           params.PID_PATH,
           params.IMAGE_PATH,
@@ -45,8 +43,8 @@ try:
             os.mkdir(direc)
         print('Created ', direc)
 except Exception:
-    print('ERROR: Failed to create config directories')
-    print('       Try creating {} yourself then re-running this script'.format(params.CONFIG_PATH))
+    print('ERROR: Failed to create directories')
+    print('       Try creating {} yourself then re-running this script'.format(params.FILE_PATH))
     traceback.print_exc()
     sys.exit(1)
 print('')
@@ -58,10 +56,10 @@ files = glob.glob(os.path.join(data_dir, '*[!.fit]'))
 # Copy files to the new directory
 try:
     for data_file in files:
-        shutil.copy(data_file, os.path.join(params.CONFIG_PATH, data_file.split('/')[-1]))
+        shutil.copy(data_file, os.path.join(params.FILE_PATH, data_file.split('/')[-1]))
         print('Created ', data_file)
 except Exception:
-    print('ERROR: Failed to copy data files to config directory')
+    print('ERROR: Failed to copy data files')
     traceback.print_exc()
     sys.exit(1)
 print('')

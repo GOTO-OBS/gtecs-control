@@ -30,7 +30,7 @@ if "GTECS_CONF" in os.environ:
 else:
     GTECS_CONF_PATH = None
 
-# Load the config file as a ConfigObj
+# Load the .gtecs.conf file as a ConfigObj
 config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
 CONFIG_FILE_PATH = None
 for loc in paths:
@@ -61,11 +61,11 @@ TELESCOP = config['TELESCOP']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # File locations (need to alter depending on system)
-CONFIG_PATH = config['CONFIG_PATH']
+FILE_PATH = config['FILE_PATH']
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-LOG_PATH = CONFIG_PATH + 'logs/'
-QUEUE_PATH = CONFIG_PATH + 'queue/'
-PID_PATH = CONFIG_PATH + '.pid/'
+LOG_PATH = FILE_PATH + 'logs/'
+QUEUE_PATH = FILE_PATH + 'queue/'
+PID_PATH = FILE_PATH + '.pid/'
 IMAGE_PATH = config['IMAGE_PATH']
 
 # Site location (predicted location of GOTO dome on La Palma)
@@ -209,7 +209,7 @@ CCD_TEMP = config['CCD_TEMP']
 
 ############################################################
 # Exposure Queue parameters
-QUEUE_PATH = CONFIG_PATH
+QUEUE_PATH = FILE_PATH
 
 ############################################################
 # Power parameters
@@ -229,7 +229,7 @@ DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
 FAKE_DOME = config['FAKE_DOME']
 QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
 QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
-EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
+EMERGENCY_FILE = FILE_PATH + 'EMERGENCY-SHUTDOWN'
 DOME_ALARM_DURATION = config['DOME_ALARM_DURATION']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']

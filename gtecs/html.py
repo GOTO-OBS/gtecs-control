@@ -28,7 +28,7 @@ observer = Observer(astronomy.observatory_location())
 debug = 1
 
 # define paths
-html_folder = params.CONFIG_PATH + 'html/'
+html_folder = params.FILE_PATH + 'html/'
 queue_file = params.QUEUE_PATH + 'queue_info'
 
 # interval between automatic refreshes

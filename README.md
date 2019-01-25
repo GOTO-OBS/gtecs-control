@@ -46,9 +46,9 @@ An example *.gtecs.conf* file is included in the base directory of this reposito
 If no such file is found, G-TeCS will use the default config, as shown in the *data* directory.
 Users can override any of these default settings using the *.gtecs.conf* file.
 
-Particular attention should be paid to the `CONFIG_PATH` parameter. This is where G-TeCS will save persistent files, images and log files.
+Particular attention should be paid to the `FILE_PATH` parameter. This is where G-TeCS will save persistent files, images and log files.
 A script `setup_gtecs` is provided to create this directory structure, and populate with the necessary files.
-It should be run after installation, and after an appropriate value for the `CONFIG_PATH` is set in the *.gtecs.conf* file.
+It should be run after installation, and after an appropriate value for the `FILE_PATH` is set in the *.gtecs.conf* file.
 
 
 Martin Dyer
