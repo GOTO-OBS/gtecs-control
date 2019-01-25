@@ -10,7 +10,7 @@ import pkg_resources
 
 import validate
 
-from . import __version__
+from .version import __version__
 
 
 # Load configspec file for default configuration
