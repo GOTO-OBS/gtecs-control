@@ -12,10 +12,6 @@ from gtecs import params
 import pkg_resources
 
 
-# find package resources
-gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
-gtecs_html_dir = pkg_resources.resource_filename('gtecs', 'data/html')
-
 print('~~~~~~~~~~~~~~~~~~~~~~')
 print('Setting up G-TeCS')
 print('~~~~~~~~~~~~~~~~~~~~~~')
@@ -55,8 +51,11 @@ except Exception:
     sys.exit(1)
 print('')
 
-# Now copy files there
-files = glob.glob(os.path.join(gtecs_data_dir, '*[!.fit]'))
+# Find package data files
+data_dir = pkg_resources.resource_filename('gtecs', 'data')
+files = glob.glob(os.path.join(data_dir, '*[!.fit]'))
+
+# Copy files to the new directory
 try:
     for data_file in files:
         shutil.copy(data_file, os.path.join(params.CONFIG_PATH, data_file.split('/')[-1]))
