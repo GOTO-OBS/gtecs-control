@@ -62,11 +62,14 @@ if FILE_PATH in ['path_not_set', '/path/goes/here/']:
     else:
         raise ValueError('G-TeCS FILE_PATH not set, check your .gtecs.conf file')
 
-DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
+if config['IMAGE_PATH'] != 'path_not_set':
+    IMAGE_PATH = config['IMAGE_PATH']
+else:
+    IMAGE_PATH = FILE_PATH + 'images/'
 LOG_PATH = FILE_PATH + 'logs/'
 QUEUE_PATH = FILE_PATH + 'queue/'
 PID_PATH = FILE_PATH + '.pid/'
-IMAGE_PATH = config['IMAGE_PATH']
+DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
