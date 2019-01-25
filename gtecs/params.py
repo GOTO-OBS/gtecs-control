@@ -55,7 +55,7 @@ VERSION = __version__
 
 # File locations
 FILE_PATH = config['FILE_PATH']
-if FILE_PATH == 'path_not_set':
+if FILE_PATH in ['path_not_set', '/path/goes/here/']:
     if config['CONFIG_PATH'] != 'path_not_set':
         # backwads compatability with old name
         FILE_PATH = config['CONFIG_PATH']
