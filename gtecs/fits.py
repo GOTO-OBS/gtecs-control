@@ -165,7 +165,7 @@ def update_header(header, tel, all_info, log):
     header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
     header["INTERFAC"] = (intf + '-' + str(hw), "System interface code")
 
-    header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
+    header["SWVN    "] = (params.VERSION, "Software version number")
 
     status = Status()
     header["SYS-MODE"] = (status.mode, "Current telescope system mode")

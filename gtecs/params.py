@@ -2,7 +2,6 @@
 """G-TeCS core control system parameters."""
 
 import os
-import socket
 import sys
 
 import Pyro4
@@ -17,7 +16,7 @@ from . import __version__
 
 
 # Module parameters
-GTECS_VERSION = __version__
+VERSION = __version__
 
 # get a default spec for config file, either from local path, or installed path
 if os.path.exists('gtecs/data/configspec.ini'):
@@ -60,7 +59,6 @@ if result is not True:
 ############################################################
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
-LOCAL_HOSTNAME = socket.gethostname()
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP']
