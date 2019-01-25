@@ -1,12 +1,6 @@
-#Ignore compiled python files
+# Compiled python files
 *.pyc
 
-#Ignore Visual Studio Code files
+# Visual Studio Code files
 *.browse*
 *.vscode*
-
-#Ignore status files
-queue
-conditions_flags
-status_flags
-run_number
