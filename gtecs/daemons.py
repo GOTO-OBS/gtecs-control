@@ -12,6 +12,12 @@ from . import misc
 from . import params
 
 
+# Pyro config
+Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.REQUIRE_EXPOSE = False
+
+
 class BaseDaemon(ABC):
     """Base class for hardware daemons.
 

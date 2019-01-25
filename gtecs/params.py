@@ -4,8 +4,6 @@
 import os
 import sys
 
-import Pyro4
-
 import configobj
 
 import pkg_resources
@@ -86,10 +84,6 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 
 ############################################################
 # Daemon parameters
-Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
-Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
-Pyro4.config.REQUIRE_EXPOSE = False
-
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
