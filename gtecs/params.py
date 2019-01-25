@@ -53,20 +53,28 @@ if result is not True:
 # Module parameters
 VERSION = __version__
 
-# General parameters
-LOCAL_HOST = config['LOCAL_HOST']
-# Common file strings
-ORIGIN = config['ORIGIN']
-TELESCOP = config['TELESCOP']
-ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
-
-# File locations (need to alter depending on system)
+# File locations
 FILE_PATH = config['FILE_PATH']
+if FILE_PATH == 'path_not_set':
+    if config['CONFIG_PATH'] != 'path_not_set':
+        # backwads compatability with old name
+        FILE_PATH = config['CONFIG_PATH']
+    else:
+        raise ValueError('G-TeCS FILE_PATH not set, check your .gtecs.conf file')
+
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOG_PATH = FILE_PATH + 'logs/'
 QUEUE_PATH = FILE_PATH + 'queue/'
 PID_PATH = FILE_PATH + '.pid/'
 IMAGE_PATH = config['IMAGE_PATH']
+
+# General parameters
+LOCAL_HOST = config['LOCAL_HOST']
+
+# Common file strings
+ORIGIN = config['ORIGIN']
+TELESCOP = config['TELESCOP']
+ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = config['SITE_LATITUDE']
