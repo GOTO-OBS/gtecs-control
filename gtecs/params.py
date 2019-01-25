@@ -15,40 +15,35 @@ import validate
 from . import __version__
 
 
-# Module parameters
-VERSION = __version__
-
-# get a default spec for config file, either from local path, or installed path
+# Load configspec file for default configuration
 if os.path.exists('gtecs/data/configspec.ini'):
-    # we are running in install dir, during installation
-    configspec_file = 'gtecs/data/configspec.ini'
+    # We are running in install dir, during installation
+    CONFIGSPEC_FILE = 'gtecs/data/configspec.ini'
 else:
-    # we are being imported, find pkg_resources
-    configspec_file = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
+    # We are being imported, find pkg_resources
+    CONFIGSPEC_FILE = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
 
-# try and load config file
-# look in the home directory and anywhere specified by GTECS_CONF environment variable
-HOME_PATH = os.path.expanduser("~")
-paths = [HOME_PATH]
+# Try to find .gtecs.conf file, look in the home directory and
+# anywhere specified by GTECS_CONF environment variable
+paths = [os.path.expanduser("~")]
 if "GTECS_CONF" in os.environ:
     GTECS_CONF_PATH = os.environ["GTECS_CONF"]
     paths.append(GTECS_CONF_PATH)
 else:
     GTECS_CONF_PATH = None
 
-config = configobj.ConfigObj({}, configspec=configspec_file)
+# Load the config file as a ConfigObj
+config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
 CONFIG_FILE_PATH = None
-DEFAULT_CONFIG = True
 for loc in paths:
     try:
         with open(os.path.join(loc, ".gtecs.conf")) as source:
-            config = configobj.ConfigObj(source, configspec=configspec_file)
+            config = configobj.ConfigObj(source, configspec=CONFIGSPEC_FILE)
             CONFIG_FILE_PATH = loc
-            DEFAULT_CONFIG = False
-    except IOError as e:
+    except IOError:
         pass
 
-# validate ConfigObj, filling defaults from configspec if missing from config file
+# Validate ConfigObj, filling defaults from configspec if missing from config file
 validator = validate.Validator()
 result = config.validate(validator)
 if result is not True:
@@ -57,6 +52,9 @@ if result is not True:
     sys.exit(1)
 
 ############################################################
+# Module parameters
+VERSION = __version__
+
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
 # Common file strings
