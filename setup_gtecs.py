@@ -51,7 +51,7 @@ print('')
 
 # Find package data files
 data_dir = pkg_resources.resource_filename('gtecs', 'data')
-files = glob.glob(os.path.join(data_dir, '*[!.fit]'))
+files = glob.glob(os.path.join(data_dir, '*[!.fit][!html]'))
 
 # Copy files to the new directory
 try:
