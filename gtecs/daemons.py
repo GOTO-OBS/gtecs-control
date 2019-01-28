@@ -319,6 +319,7 @@ def start_daemon(daemon_id):
 
     misc.python_command(process_path, '', **process_options)
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         pid = misc.get_pid(daemon_id, host)
@@ -349,6 +350,7 @@ def shutdown_daemon(daemon_id):
     except Exception:
         pass
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         if not daemon_is_running(daemon_id):
@@ -371,6 +373,7 @@ def kill_daemon(daemon_id):
     except Exception:
         pass
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         if not daemon_is_running(daemon_id):
@@ -382,7 +385,7 @@ def kill_daemon(daemon_id):
         time.sleep(0.5)
 
 
-def restart_daemon(daemon_id, wait_time=2):
+def restart_daemon(daemon_id, wait_time=1):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     reply = shutdown_daemon(daemon_id)
     print(reply)
