@@ -65,10 +65,10 @@ if FILE_PATH in ['path_not_set', '/path/goes/here/']:
 if config['IMAGE_PATH'] != 'path_not_set':
     IMAGE_PATH = config['IMAGE_PATH']
 else:
-    IMAGE_PATH = FILE_PATH + 'images/'
-LOG_PATH = FILE_PATH + 'logs/'
-QUEUE_PATH = FILE_PATH + 'queue/'
-PID_PATH = FILE_PATH + '.pid/'
+    IMAGE_PATH = os.path.join(FILE_PATH, 'images')
+LOG_PATH = os.path.join(FILE_PATH, 'logs')
+QUEUE_PATH = os.path.join(FILE_PATH, 'queue')
+PID_PATH = os.path.join(FILE_PATH, '.pid')
 DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 
 # General parameters
@@ -240,7 +240,7 @@ DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
 FAKE_DOME = config['FAKE_DOME']
 QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
 QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
-EMERGENCY_FILE = FILE_PATH + 'EMERGENCY-SHUTDOWN'
+EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 DOME_ALARM_DURATION = config['DOME_ALARM_DURATION']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']

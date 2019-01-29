@@ -420,24 +420,27 @@ def get_latest_image_data(glance=False):
 
         print('Loading glances:', end=' ')
 
-    fnames = {tel: os.path.join(path, root + '_UT{:d}.fits'.format(tel))
-              for tel in params.TEL_DICT}
+    # get possible file names
+    filenames = {tel: '{}_UT{:d}.fits'.format(root, tel) for tel in params.TEL_DICT}
+
+    # get full path
+    images = {tel: os.path.join(path, filenames[tel]) for tel in filenames}
 
     # limit it to only existing files
-    fnames = {tel: fnames[tel] for tel in fnames if os.path.exists(fnames[tel])}
+    images = {tel: images[tel] for tel in images if os.path.exists(images[tel])}
 
-    print('{} images'.format(len(fnames)))
+    print('{} images'.format(len(images)))
 
     data = {}
-    for tel in fnames.keys():
+    for tel in images.keys():
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                data[tel] = fits.getdata(fnames[tel]).astype('float')
+                data[tel] = fits.getdata(images[tel]).astype('float')
         except (TypeError, OSError):
             # Image was still being written, wait a sec and try again
             time.sleep(1)
-            data[tel] = fits.getdata(fnames[tel]).astype('float')
+            data[tel] = fits.getdata(images[tel]).astype('float')
 
     return data
 

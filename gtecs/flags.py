@@ -59,7 +59,7 @@ class Conditions(object):
     """A class to give easy access to the conditions flags."""
 
     def __init__(self):
-        conditions_dict = load_json(params.FILE_PATH + 'conditions_flags')
+        conditions_dict = load_json(os.path.join(params.FILE_PATH, 'conditions_flags'))
 
         # store update time and remove from dictionary
         update_time = int(Time(conditions_dict['update_time']).unix)
@@ -147,7 +147,7 @@ class Status(object):
     """A class to give easy access to the status flags."""
 
     def __init__(self):
-        self.flags_file = params.FILE_PATH + 'status_flags'
+        self.flags_file = os.path.join(params.FILE_PATH, 'status_flags')
         self.emergency_file = params.EMERGENCY_FILE
         self.valid_modes = ['robotic', 'manual']
         self._load()

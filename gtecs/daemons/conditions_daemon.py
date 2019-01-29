@@ -2,6 +2,7 @@
 """Daemon to monitor environmental conditions."""
 
 import json
+import os
 import threading
 import time
 
@@ -389,7 +390,7 @@ class ConditionsDaemon(BaseDaemon):
         # Write data to the conditions flags file
         data = self.flags.copy()
         data['update_time'] = Time(update_time, format='unix').iso
-        flags_file = params.FILE_PATH + 'conditions_flags'
+        flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
         with open(flags_file, 'w') as f:
             json.dump(data, f)
 

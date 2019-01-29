@@ -28,11 +28,6 @@ from . import params
 # Setup
 warnings.simplefilter("ignore", ErfaWarning)
 
-# define paths to directories
-queue_folder = params.QUEUE_PATH + 'todo/'
-queue_file = params.QUEUE_PATH + 'queue_info'
-horizon_file = params.FILE_PATH + 'horizon'
-
 # priority settings
 PROB_WEIGHT = 10
 AIRMASS_WEIGHT = 1
@@ -93,6 +88,7 @@ class ArtificialHorizonConstraint(Constraint):
     """Ensure altitude is above artificial horizon."""
 
     def __init__(self):
+        horizon_file = os.path.join(params.FILE_PATH, 'horizon')
         az, alt = np.loadtxt(horizon_file, usecols=(0, 1)).T
         self.alt = interpolate.interp1d(az, alt, bounds_error=False,
                                         fill_value=12.0)
@@ -705,6 +701,7 @@ def check_queue(time=None, write_html=False):
     else:
         print('HP: None', end='\t')
 
+    queue_file = os.path.join(params.QUEUE_PATH, 'queue_info')
     queue.write_to_file(time, observer, queue_file)
 
     if write_html:

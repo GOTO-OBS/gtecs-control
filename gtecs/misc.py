@@ -143,7 +143,8 @@ def get_pid(pidname, host=None):
     elif not host:
         host = '127.0.0.1'
 
-    pidpath = os.path.join(params.PID_PATH, pidname + '.pid')
+    pidfile = pidname + '.pid'
+    pidpath = os.path.join(params.PID_PATH, pidfile)
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'cat {}'.format(pidpath)
     else:
@@ -158,7 +159,8 @@ def get_pid(pidname, host=None):
 
 def clear_pid(pidname, host='127.0.0.1'):
     """Clear a pid in case we've killed the process."""
-    pidpath = os.path.join(params.PID_PATH, pidname + '.pid')
+    pidfile = pidname + '.pid'
+    pidpath = os.path.join(params.PID_PATH, pidfile)
     if host in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = 'rm {}'.format(pidpath)
     else:

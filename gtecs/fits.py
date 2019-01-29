@@ -23,7 +23,7 @@ def image_location(run_number, tel):
     """Construct the image file location based on the run and tel number."""
     # Find the directory, using the date the observing night began
     night = astronomy.night_startdate()
-    direc = params.IMAGE_PATH + night + '/'
+    direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
         os.mkdir(direc)
 

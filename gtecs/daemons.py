@@ -314,7 +314,8 @@ def start_daemon(daemon_id):
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
-        fpipe = open(params.LOG_PATH + daemon_id + '-stdout.log', 'a')
+        logfile = daemon_id + '-stdout.log'
+        fpipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
     misc.python_command(process_path, '', **process_options)

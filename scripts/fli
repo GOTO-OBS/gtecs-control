@@ -79,9 +79,10 @@ def query(command, args, daemon_ids):
         for daemon_id in daemon_ids:
             # parse arguments
             if stdout:
-                log_path = params.LOG_PATH + daemon_id + '-stdout.log'
+                log_file = daemon_id + '-stdout.log'
             else:
-                log_path = params.LOG_PATH + daemon_id + '.log'
+                log_file = daemon_id + '.log'
+            log_path = os.path.join(params.LOG_PATH, log_file)
             tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
             # send command
             misc.execute_long_command(tail_command)

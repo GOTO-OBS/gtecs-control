@@ -28,8 +28,7 @@ observer = Observer(astronomy.observatory_location())
 debug = 1
 
 # define paths
-html_folder = params.FILE_PATH + 'html/'
-queue_file = params.QUEUE_PATH + 'queue_info'
+HTML_PATH = os.path.join(params.FILE_PATH, 'html')
 
 # interval between automatic refreshes
 html_refresh = 15
@@ -41,7 +40,7 @@ def import_queue_file():
     """Import the queue file."""
     import json
     lines = []
-    with open(queue_file) as f:
+    with open(os.path.join(params.QUEUE_PATH, 'queue_info')) as f:
         for line in f.readlines():
             lines.append(line)
 
@@ -65,7 +64,7 @@ def import_queue_file():
 def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     """Write flag file for a given pointing."""
     pointing_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
-    flag_filename = html_folder + 'ID_{}_flags.html'.format(pointing_id)
+    flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(pointing_id))
 
     with open(flag_filename, 'w') as f:
         f.write('<html><body>\n')
@@ -131,7 +130,7 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
 
 def write_exp_file(pointing_id, exposure_sets):
     """Write exposure files for a pointing."""
-    exp_filename = html_folder + 'ID_{}_exp.html'.format(pointing_id)
+    exp_filename = os.path.join(HTML_PATH, 'ID_{}_exp.html'.format(pointing_id))
 
     # unlike the flags, exposure info dosn't change
     # so don't re-write the files if they're already there!
@@ -171,7 +170,7 @@ def write_queue_page():
     # load any needed infomation saved by the scheduler
     time, all_constraint_names, pointing_list = import_queue_file()
 
-    queue_filename = html_folder + 'queue.html'
+    queue_filename = os.path.join(HTML_PATH, 'queue.html')
     with open(queue_filename, 'w') as f:
         f.write('<html><head>\n')
         f.write('<script src=\"jquery.tools.min.js\"></script>' +
