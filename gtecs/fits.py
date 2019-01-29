@@ -30,7 +30,7 @@ def image_location(run_number, tel):
     # Find the file name, using the run number and UT number
     filename = 'r{:07d}_UT{:d}.fits'.format(run_number, tel)
 
-    return direc + filename
+    return os.path.join(direc, filename)
 
 
 def glance_location(tel):
@@ -43,7 +43,7 @@ def glance_location(tel):
     # Find the file name, using the run number and UT number
     filename = 'glance_UT{:d}.fits'.format(tel)
 
-    return direc + filename
+    return os.path.join(direc, filename)
 
 
 def write_fits(image, filename, tel, all_info, log=None):
