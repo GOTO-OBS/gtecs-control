@@ -116,7 +116,7 @@ class ExposureQueue(MutableSequence):
 
     def __init__(self):
         self.data = []
-        self.queue_file = os.path.join(params.CONFIG_PATH, 'exposure_queue')
+        self.queue_file = os.path.join(params.FILE_PATH, 'exposure_queue')
 
         if not os.path.exists(self.queue_file):
             f = open(self.queue_file, 'w')

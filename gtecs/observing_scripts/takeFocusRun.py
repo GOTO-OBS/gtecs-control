@@ -113,7 +113,7 @@ def run(width, step, make_plots):
     # write out data
     print('############')
     print('Writing out data to file')
-    path = os.path.join(params.CONFIG_PATH, 'focus_data')
+    path = os.path.join(params.FILE_PATH, 'focus_data')
     df = pd.concat(series_list)
     ofname = 'focusdata_{}.csv'.format(Time.now().isot)
     df.to_csv(os.path.join(path, ofname))

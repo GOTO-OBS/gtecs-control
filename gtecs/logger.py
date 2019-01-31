@@ -11,15 +11,13 @@ from . import params
 
 def get_file_handler(name=None):
     """Get the file handler."""
-    log_dir = params.LOG_PATH
     if name is not None:
-        fname = os.path.join(log_dir, name + '.log')
+        logfile = name + '.log'
     else:
-        fname = os.path.join(log_dir, 'master.log')
-    file_handler = handlers.WatchedFileHandler(
-        fname,
-        delay=True  # don't create file until first write
-    )
+        logfile = 'master.log'
+    fname = os.path.join(params.LOG_PATH, logfile)
+    file_handler = handlers.WatchedFileHandler(fname, delay=True)
+
     # formatter for stdout logging; does not include name of log
     formatter = logging.Formatter(
         '%(asctime)s:%(levelname)s - %(message)s',

@@ -311,7 +311,7 @@ class DummyPilot(object):
                 self.current_priority,)
         else:
             state = 'idle'
-        fname = os.path.join(params.CONFIG_PATH, 'state_log.txt')
+        fname = os.path.join(params.FILE_PATH, 'state_log.txt')
         with open(fname, 'a') as f:
             f.write('%s %s\n' % (now. iso, state))
 

@@ -2,10 +2,7 @@
 """G-TeCS core control system parameters."""
 
 import os
-import socket
 import sys
-
-import Pyro4
 
 import configobj
 
@@ -13,36 +10,38 @@ import pkg_resources
 
 import validate
 
-from . import __version__
+from .version import __version__
 
 
-# Module parameters
-GTECS_VERSION = __version__
-
-# get a default spec for config file, either from local path, or installed path
+# Load configspec file for default configuration
 if os.path.exists('gtecs/data/configspec.ini'):
-    # we are running in install dir, during installation
-    configspec_file = 'gtecs/data/configspec.ini'
+    # We are running in install dir, during installation
+    CONFIGSPEC_FILE = 'gtecs/data/configspec.ini'
 else:
-    # we are being imported, find pkg_resources
-    configspec_file = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
+    # We are being imported, find pkg_resources
+    CONFIGSPEC_FILE = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
 
-# try and load config file
-# look in current dir, home directory and anywhere specified by GTECS_CONF environment variable
-paths = [os.curdir, os.path.expanduser("~")]
+# Try to find .gtecs.conf file, look in the home directory and
+# anywhere specified by GTECS_CONF environment variable
+paths = [os.path.expanduser("~")]
 if "GTECS_CONF" in os.environ:
-    paths.append(os.environ["GTECS_CONF"])
+    GTECS_CONF_PATH = os.environ["GTECS_CONF"]
+    paths.append(GTECS_CONF_PATH)
+else:
+    GTECS_CONF_PATH = None
 
-# now load config file
-config = configobj.ConfigObj({}, configspec=configspec_file)
+# Load the .gtecs.conf file as a ConfigObj
+config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
+CONFIG_FILE_PATH = None
 for loc in paths:
     try:
         with open(os.path.join(loc, ".gtecs.conf")) as source:
-            config = configobj.ConfigObj(source, configspec=configspec_file)
-    except IOError as e:
+            config = configobj.ConfigObj(source, configspec=CONFIGSPEC_FILE)
+            CONFIG_FILE_PATH = loc
+    except IOError:
         pass
 
-# validate ConfigObj, filling defaults from configspec if missing from config file
+# Validate ConfigObj, filling defaults from configspec if missing from config file
 validator = validate.Validator()
 result = config.validate(validator)
 if result is not True:
@@ -51,21 +50,34 @@ if result is not True:
     sys.exit(1)
 
 ############################################################
+# Module parameters
+VERSION = __version__
+
+# File locations
+FILE_PATH = config['FILE_PATH']
+if FILE_PATH in ['path_not_set', '/path/goes/here/']:
+    if config['CONFIG_PATH'] != 'path_not_set':
+        # backwads compatability with old name
+        FILE_PATH = config['CONFIG_PATH']
+    else:
+        raise ValueError('G-TeCS FILE_PATH not set, check your .gtecs.conf file')
+
+if config['IMAGE_PATH'] != 'path_not_set':
+    IMAGE_PATH = config['IMAGE_PATH']
+else:
+    IMAGE_PATH = os.path.join(FILE_PATH, 'images')
+LOG_PATH = os.path.join(FILE_PATH, 'logs')
+QUEUE_PATH = os.path.join(FILE_PATH, 'queue')
+PID_PATH = os.path.join(FILE_PATH, '.pid')
+DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
+
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
-LOCAL_HOSTNAME = socket.gethostname()
+
 # Common file strings
 ORIGIN = config['ORIGIN']
 TELESCOP = config['TELESCOP']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
-
-# File locations (need to alter depending on system)
-CONFIG_PATH = config['CONFIG_PATH']
-DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
-LOG_PATH = CONFIG_PATH + 'logs/'
-QUEUE_PATH = CONFIG_PATH + 'queue/'
-PID_PATH = CONFIG_PATH + '.pid/'
-IMAGE_PATH = config['IMAGE_PATH']
 
 # Site location (predicted location of GOTO dome on La Palma)
 SITE_LATITUDE = config['SITE_LATITUDE']
@@ -83,10 +95,6 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 
 ############################################################
 # Daemon parameters
-Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
-Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
-Pyro4.config.REQUIRE_EXPOSE = False
-
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
@@ -212,7 +220,7 @@ CCD_TEMP = config['CCD_TEMP']
 
 ############################################################
 # Exposure Queue parameters
-QUEUE_PATH = CONFIG_PATH
+QUEUE_PATH = FILE_PATH
 
 ############################################################
 # Power parameters
@@ -232,7 +240,7 @@ DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
 FAKE_DOME = config['FAKE_DOME']
 QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
 QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
-EMERGENCY_FILE = CONFIG_PATH + 'EMERGENCY-SHUTDOWN'
+EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 DOME_ALARM_DURATION = config['DOME_ALARM_DURATION']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']

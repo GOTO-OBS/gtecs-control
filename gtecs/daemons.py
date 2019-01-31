@@ -12,6 +12,12 @@ from . import misc
 from . import params
 
 
+# Pyro configuration
+Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.REQUIRE_EXPOSE = False
+
+
 class BaseDaemon(ABC):
     """Base class for hardware daemons.
 
@@ -308,11 +314,13 @@ def start_daemon(daemon_id):
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
-        fpipe = open(params.LOG_PATH + daemon_id + '-stdout.log', 'a')
+        logfile = daemon_id + '-stdout.log'
+        fpipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
     misc.python_command(process_path, '', **process_options)
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         pid = misc.get_pid(daemon_id, host)
@@ -343,6 +351,7 @@ def shutdown_daemon(daemon_id):
     except Exception:
         pass
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         if not daemon_is_running(daemon_id):
@@ -365,6 +374,7 @@ def kill_daemon(daemon_id):
     except Exception:
         pass
 
+    time.sleep(1)
     start_time = time.time()
     while True:
         if not daemon_is_running(daemon_id):
@@ -376,7 +386,7 @@ def kill_daemon(daemon_id):
         time.sleep(0.5)
 
 
-def restart_daemon(daemon_id, wait_time=2):
+def restart_daemon(daemon_id, wait_time=1):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     reply = shutdown_daemon(daemon_id)
     print(reply)

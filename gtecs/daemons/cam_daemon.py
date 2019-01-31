@@ -35,7 +35,7 @@ class CamDaemon(BaseDaemon):
         self.active_tel = []
         self.abort_tel = []
 
-        self.run_number_file = os.path.join(params.CONFIG_PATH, 'run_number')
+        self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
         self.run_number = 0
         self.num_taken = 0
 

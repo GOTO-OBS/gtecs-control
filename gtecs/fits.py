@@ -23,14 +23,14 @@ def image_location(run_number, tel):
     """Construct the image file location based on the run and tel number."""
     # Find the directory, using the date the observing night began
     night = astronomy.night_startdate()
-    direc = params.IMAGE_PATH + night + '/'
+    direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
     filename = 'r{:07d}_UT{:d}.fits'.format(run_number, tel)
 
-    return direc + filename
+    return os.path.join(direc, filename)
 
 
 def glance_location(tel):
@@ -43,7 +43,7 @@ def glance_location(tel):
     # Find the file name, using the run number and UT number
     filename = 'glance_UT{:d}.fits'.format(tel)
 
-    return direc + filename
+    return os.path.join(direc, filename)
 
 
 def write_fits(image, filename, tel, all_info, log=None):
@@ -165,7 +165,7 @@ def update_header(header, tel, all_info, log):
     header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
     header["INTERFAC"] = (intf + '-' + str(hw), "System interface code")
 
-    header["SWVN    "] = (params.GTECS_VERSION, "Software version number")
+    header["SWVN    "] = (params.VERSION, "Software version number")
 
     status = Status()
     header["SYS-MODE"] = (status.mode, "Current telescope system mode")

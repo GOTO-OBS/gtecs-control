@@ -2,6 +2,7 @@
 """A script to provide control over the pilot."""
 
 import argparse
+import os
 import sys
 
 from gtecs import errors
@@ -47,7 +48,7 @@ def query(command, args):
         misc.kill_process('pilot')
 
     elif command in ['log', 'tail']:
-        log_path = params.LOG_PATH + 'pilot.log'
+        log_path = os.path.join(params.LOG_PATH, 'pilot.log')
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
 
         misc.execute_long_command(tail_command)
