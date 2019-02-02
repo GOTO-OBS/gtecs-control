@@ -425,17 +425,21 @@ class Pilot(object):
         # process started, await completion
         retcode, result = await self.running_script_result
 
-        # flag if the retcode isn't 0
+        # done
         if retcode != 0:
+            # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
             if name != 'OBS':
                 send_slack_msg('Pilot {} task ended abnormally'.format(name))
 
-        # done
+            # if we were observing, mark as aborted
+            if name == 'OBS' and self.current_id is not None:
+                mark_aborted(self.current_id)
+
         self.log.info("finished {}".format(name))
         self.running_script = None
 
-        # if it was an observation that just finished, force a scheduler check
+        # if it was an observation that just finished (aborted or not) force a scheduler check
         if name == 'OBS':
             self.log.debug("forcing scheduler check".format(name))
             self.force_scheduler_check = True
@@ -459,19 +463,12 @@ class Pilot(object):
                 except Exception:
                     self.log.debug('{} already exited?'.format(self.running_script))
 
-                # Mke sure everything is stopped
+                # Make sure everything is stopped
                 execute_command('exq clear')
                 execute_command('cam abort')
                 execute_command('mnt stop')
                 execute_command('mnt clear')
                 execute_command('mnt track')
-
-                # if we were observing, mark as aborted
-                if self.running_script == 'OBS' and self.current_id is not None:
-                    mark_aborted(self.current_id)
-
-                self.log.info("killed {}".format(self.running_script))
-                self.running_script = None
 
     # Daily tasks
     def assign_tasks(self):
