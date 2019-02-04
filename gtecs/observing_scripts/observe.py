@@ -23,6 +23,7 @@ class Closer(NeatCloser):
     def tidy_up(self):
         """Cancel the pointing."""
         print('Received cancellation order for pointing {}'.format(self.pointing_id))
+        mark_aborted(self.pointing_id)
 
 
 def get_position(pointing_id):
