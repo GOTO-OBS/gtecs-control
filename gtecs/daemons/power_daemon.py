@@ -254,10 +254,11 @@ class PowerDaemon(BaseDaemon):
             unit_list = self._units_from_names(outlet_list)
             units = []
             outlets = []
-            for unit in unit_list:
+            for unit in sorted(unit_list):
                 valid_outlets = self._get_valid_outlets(unit, outlet_list)
-                outlets += valid_outlets
+                outlets += sorted(valid_outlets)
                 units += [unit] * len(valid_outlets)
+
         return outlets, units
 
     def _units_from_names(self, name_list):
@@ -275,7 +276,7 @@ class PowerDaemon(BaseDaemon):
             for unit in found_units:
                 if unit not in unit_list:
                     unit_list.append(unit)
-        return unit_list
+        return sorted(unit_list)
 
     def _get_valid_outlets(self, unit, outlet_list):
         """Check outlets are valid and convert any names to numbers."""
@@ -339,6 +340,7 @@ class PowerDaemon(BaseDaemon):
 
         # Set flag
         self.reboot_flag = 1
+
         return 'Rebooting power'
 
 
