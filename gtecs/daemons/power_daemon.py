@@ -73,6 +73,8 @@ class PowerDaemon(BaseDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
+                        if outlet == 0:
+                            name = 'ALL'
                         self.log.info('Power on {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.on(outlet)
@@ -91,6 +93,8 @@ class PowerDaemon(BaseDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
+                        if outlet == 0:
+                            name = 'ALL'
                         self.log.info('Power off {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.off(outlet)
@@ -109,6 +113,8 @@ class PowerDaemon(BaseDaemon):
                 try:
                     for unit, outlet in zip(self.current_units, self.current_outlets):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
+                        if outlet == 0:
+                            name = 'ALL'
                         self.log.info('Reboot {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.reboot(outlet)
