@@ -236,22 +236,59 @@ class PowerDaemon(BaseDaemon):
         self._check_errors()
 
     def _parse_input(self, outlet_list, unit=''):
+        """Parse an input list from the power control script.
+
+        Two options:
+        - If `unit` is given then all the outlets should be from that unit, so they might just
+          be numbers (e.g. "power on PDU1 1,2,3"). This is rarely used.
+        - More commonly, unit won't be given and outlet_list will be a list of outlet names,
+          which might be from various different units (e.g. "power on foc1,filt1,leds").
+          This might also include outlet groups, which will be expanded (e.g. leds->led1,led2).
+
+        The power daemon expects two equal-length lists of `current_units` and `current_outlets`,
+        with the latter being only unit numbers not names.
+        This function will parse the input names and return those lists.
+
+        Example
+        -------
+        "power on foc1,filt1,leds"
+        - First 'leds' is a group, which is expanded to 'led1' and 'led2'
+        - Now we have four outlets: 'foc1' and 'filt1' are on unit 'EAST', 'led1' is on 'PDU1' and
+          'led2' is on 'PDU2'.
+        - So this function will return two lists:
+          outlets = ['EAST','EAST','PDU1','PDU2']
+          units = ['filt1','foc1','led1','led2']
+          Note they will be sorted in the order of outlet then unit.
+        """
         if unit in params.POWER_UNITS:
-            # specific unit given, all outlets should be from that unit
+            # A specific unit was given, all the outlets should be numbers from that unit.
             outlets = self._get_valid_outlets(unit, outlet_list)
             units = [unit] * len(outlets)
         else:
-            # first check for group names
+            # A list of outlet names was given, which might contain groups and/or be from multiple
+            # different units.
+
+            # First expand any group names.
             for outlet in outlet_list.copy():
                 if outlet in params.POWER_GROUPS:
                     outlet_list.remove(outlet)
                     outlet_list += params.POWER_GROUPS[outlet]
 
-            # remove duplicate outlets
+            # Now remove duplicate outlets.
+            # This could happen either from user input "power on foc1,foc1,foc1" or from expanding
+            # groups that contain an outlet name already added.
+            # TODO: Really this whole daemon should be rewritten to use sets...
             outlet_list = list(set(outlet_list))
 
-            # a list of outlet names, we need to find their matching units
+            # We have a list of unique outlet names, now we need to find their matching units.
+            # This funcion will return the UNIQUE list of units, so not a direct map between
+            # outlet and unit.
             unit_list = self._units_from_names(outlet_list)
+
+            # Finally for each unit go through and get which of the outlets from the intial list
+            # are on that unit.
+            # The final lists of `units` and `outlets` will be of the same length and a direct
+            # mapping between the two, so order matters once they're created.
             units = []
             outlets = []
             for unit in sorted(unit_list):
@@ -262,6 +299,11 @@ class PowerDaemon(BaseDaemon):
         return outlets, units
 
     def _units_from_names(self, name_list):
+        """Given a list of outlet names, return the units they are on.
+
+        If multiple outlets are given that are on the same unit this function will only return the
+        unit name once.
+        """
         unit_list = []
         for name in name_list:
             found_units = []
@@ -279,7 +321,7 @@ class PowerDaemon(BaseDaemon):
         return sorted(unit_list)
 
     def _get_valid_outlets(self, unit, outlet_list):
-        """Check outlets are valid and convert any names to numbers."""
+        """Check outlets are valid for the given unit, and convert any names to numbers."""
         names = params.POWER_UNITS[unit]['NAMES']
         n_outlets = len(names)
         valid_list = []
