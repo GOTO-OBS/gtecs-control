@@ -206,6 +206,7 @@ class PowerDaemon(BaseDaemon):
                     outlet_statuses = power.status()
                 elif power.unit_type == 'UPS':
                     outlet_statuses = power.outlet_status()
+                temp_status['outlet_statuses'] = outlet_statuses
                 outlet_names = params.POWER_UNITS[unit_name]['NAMES']
                 for name, status in zip(outlet_names, outlet_statuses):
                     if status == str(power.on_value):
@@ -230,7 +231,20 @@ class PowerDaemon(BaseDaemon):
                     self.bad_hardware.add(unit_name)
 
         # Write debug log line
-        # NONE, no quick status
+        try:
+            now_strs = ['{}:{}'.format(unit, temp_info['status_' + unit]['outlet_statuses'])
+                        for unit in sorted(params.POWER_UNITS)]
+            now_str = ' '.join(now_strs)
+            if not self.info:
+                self.log.debug('Power units are {}'.format(now_str))
+            else:
+                old_strs = ['{}:{}'.format(unit, self.info['status_' + unit]['outlet_statuses'])
+                            for unit in sorted(params.POWER_UNITS)]
+                old_str = ' '.join(old_strs)
+                if now_str != old_str:
+                    self.log.debug('Power units are {}'.format(now_str))
+        except Exception:
+            self.log.error('Could not write current status')
 
         # Update the master info dict
         self.info = temp_info
