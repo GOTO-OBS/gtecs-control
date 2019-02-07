@@ -75,7 +75,7 @@ class PowerDaemon(BaseDaemon):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
                         if outlet == 0:
                             name = 'ALL'
-                        self.log.info('Power on {} outlet {} ({})'.format(unit, outlet, name))
+                        self.log.info('Powering on {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.on(outlet)
                         if c:
@@ -95,7 +95,7 @@ class PowerDaemon(BaseDaemon):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
                         if outlet == 0:
                             name = 'ALL'
-                        self.log.info('Power off {} outlet {} ({})'.format(unit, outlet, name))
+                        self.log.info('Powering off {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.off(outlet)
                         if c:
@@ -115,7 +115,7 @@ class PowerDaemon(BaseDaemon):
                         name = params.POWER_UNITS[unit]['NAMES'][outlet - 1]
                         if outlet == 0:
                             name = 'ALL'
-                        self.log.info('Reboot {} outlet {} ({})'.format(unit, outlet, name))
+                        self.log.info('Rebooting {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
                         c = power.reboot(outlet)
                         if c:
