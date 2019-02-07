@@ -291,7 +291,7 @@ class PowerDaemon(BaseDaemon):
                     valid_list.append(x)
             elif outlet in names:
                 valid_list.append(names.index(outlet) + 1)
-        return valid_list
+        return sorted(valid_list)
 
     # Control functions
     def on(self, outlet_list, unit=''):
