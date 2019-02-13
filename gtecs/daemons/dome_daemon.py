@@ -493,11 +493,9 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoclose disabled while no connection to dome')
             return
 
-        # Return instantly in engineering mode
-        # Note this should be unneeded, because self.lockdown should never be True
-        # But better to be sure
-        if self.info['mode'] == 'engineering':
-            self.log.warning('Autoclose disabled in engineering mode')
+        # Return if autoclose disabled
+        if not self.info['autoclose']:
+            self.log.debug('Autoclose disabled (mode={})'.format(self.info['mode']))
             return
 
         # Decide if we need to auto close
