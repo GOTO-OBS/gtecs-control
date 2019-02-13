@@ -1,6 +1,5 @@
 """Classes to read external flag files."""
 
-import copy
 import json
 import os
 import time
@@ -8,7 +7,6 @@ import time
 from astropy.time import Time
 
 from . import params
-from .hardware.power import APCUPS
 from .slack import send_slack_msg
 
 
@@ -29,30 +27,6 @@ def load_json(fname):
         return data_dict
     else:
         raise IOError('cannot read {}'.format(fname))
-
-
-class Power(object):
-    """A class to monitor the UPS status."""
-
-    def __init__(self):
-        self.ups_units = {}
-        for unit_name in params.POWER_UNITS:
-            unit_class = params.POWER_UNITS[unit_name]['CLASS']
-            unit_ip = params.POWER_UNITS[unit_name]['IP']
-            if unit_class == 'APCUPS':
-                self.ups_units[unit_name] = APCUPS(unit_ip)
-
-    @property
-    def failed(self):
-        """Return True if any power supplies have failed and UPS has kicked in."""
-        acceptable_status_vals = ['Normal', 'onBatteryTest']
-        return any([self.ups_units[ukey].status() not in acceptable_status_vals
-                    for ukey in self.ups_units])
-
-    def __repr__(self):
-        class_name = type(self).__name__
-        repr_str = ', '.join(['='.join((x, self.ups_units[x].status())) for x in self.ups_units])
-        return '{}({})'.format(class_name, repr_str)
 
 
 class Conditions(object):

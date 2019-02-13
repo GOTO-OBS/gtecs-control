@@ -10,7 +10,7 @@ from gtecs import errors
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
-from gtecs.flags import Conditions, Power, Status
+from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
 from gtecs.slack import send_slack_msg
