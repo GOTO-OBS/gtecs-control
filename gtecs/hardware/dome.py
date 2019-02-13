@@ -173,24 +173,25 @@ class FakeDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1):
+    def open_side(self, side, frac=1, sound_alarm=True):
         """Open one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1):
+    def close_side(self, side, frac=1, sound_alarm=True):
         """Close one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
         """Sound the dome alarm."""
-        status = flags.Status()
-        if status.alarm:
-            bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
-            subprocess.getoutput(bell)
+        # Note this is always blocking
+        bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
+        subprocess.getoutput(bell)
         return
 
 
@@ -604,15 +605,17 @@ class AstroHavenDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1):
+    def open_side(self, side, frac=1, sound_alarm=True):
         """Open one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1):
+    def close_side(self, side, frac=1, sound_alarm=True):
         """Close one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
@@ -629,11 +632,9 @@ class AstroHavenDome(object):
             default = True
         """
         loc = params.ARDUINO_LOCATION
-        status = flags.Status()
-        if status.alarm:
-            subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
-            if sleep:
-                time.sleep(duration)
+        subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
+        if sleep:
+            time.sleep(duration)
         return
 
 

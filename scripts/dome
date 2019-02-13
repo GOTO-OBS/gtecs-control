@@ -137,38 +137,19 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'override_dehumidifier', [command])
         print(reply)
 
-    # Other functions
     elif command == 'alarm':
-        status = flags.Status()
         # parse arguments
-        if len(args) == 0:
-            if status.alarm:
-                print('Alarm is currently enabled')
-                return
-            else:
-                print('Alarm is currently disabled')
-                return
-        elif args[0] not in ['on', 'off']:
-            raise errors.InputError('Invalid arguments')
-        # command
-        if args[0] == 'on':
-            if status.alarm:
-                print('Alarm is already enabled')
-            elif status.mode == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            else:
-                status.alarm = True
-                print('Dome alarm emabled')
+        if len(args) == 1:
+            command = args[0]
         else:
-            if not status.alarm:
-                print('Alarm is already disabled')
-            elif status.mode == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            else:
-                status.alarm = False
-                print('Alarm disabled: The alarm will not sound when using the dome commands')
-                print('                This will reset if the dome autocloses')
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_alarm', [command])
+        print(reply)
 
+    # Other functions
     elif command == 'autoclose':
         status = flags.Status()
         # parse arguments

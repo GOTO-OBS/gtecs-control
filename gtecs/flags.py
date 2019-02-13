@@ -86,7 +86,6 @@ class Status(object):
         repr_str = "mode='{}', ".format(self._mode)
         repr_str += "observer='{}', ".format(self._observer)
         repr_str += "autoclose={}, ".format(self._autoclose)
-        repr_str += "alarm={}, ".format(self._alarm)
         repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
         return "Status({})".format(repr_str)
 
@@ -100,13 +99,11 @@ class Status(object):
             self._mode = data['mode'].lower()
             self._observer = str(data['observer'])
             self._autoclose = bool(data['autoclose'])
-            self._alarm = bool(data['alarm'])
         except Exception:
             # Rewrite the file ourselves with defaults
             self._mode = 'robotic'
             self._observer = params.ROBOTIC_OBSERVER
             self._autoclose = True
-            self._alarm = True
             with open(self.status_file, 'w') as f:
                 json.dump(self._status_dict, f)
 
@@ -144,8 +141,7 @@ class Status(object):
         """Get the current system status values."""
         status_dict = {"mode": self._mode,
                        "observer": self._observer,
-                       "autoclose": self._autoclose,
-                       "alarm": self._alarm}
+                       "autoclose": self._autoclose}
         return status_dict
 
     @property
@@ -163,15 +159,13 @@ class Status(object):
         self._update_flags('mode', mode)
         # Set enforced flags in robotic and engineering mode
         if mode == 'robotic':
-            # Force autoclose and alarm to enabled
+            # Force autoclose  to enabled
             self._update_flags('autoclose', 1)
-            self._update_flags('alarm', 1)
             # Set pilot as the observer
             self._update_flags('observer', params.ROBOTIC_OBSERVER)
         elif mode == 'engineering':
-            # Force autoclose and alarm to disabled
+            # Force autoclose  to disabled
             self._update_flags('autoclose', 0)
-            self._update_flags('alarm', 0)
 
     @property
     def observer(self):
@@ -208,30 +202,6 @@ class Status(object):
             # Can't enable autoclose in engineering mode
             raise ValueError('Cannot enable dome autoclose in engineering mode')
         self._update_flags('autoclose', enable)
-
-    @property
-    def alarm(self):
-        """Get if the dome alarm is currently enabled or not."""
-        if self._mode == 'robotic':
-            return True
-        elif self._mode == 'engineering':
-            return False
-        else:
-            self._load()
-            return self._alarm
-
-    @alarm.setter
-    def alarm(self, value):
-        """Set if the dome alarm is currently enabled or not."""
-        enable = int(bool(value))
-        # Check mode restrictions
-        if self._mode == 'robotic' and enable == 0:
-            # Can't disable alarm in robotic mode
-            raise ValueError('Cannot disable dome alarm in robotic mode')
-        elif self._mode == 'engineering' and enable == 1:
-            # Can't enable alarm in engineering mode
-            raise ValueError('Cannot enable dome alarm in engineering mode')
-        self._update_flags('alarm', enable)
 
     def create_shutdown_file(self, reasons=None):
         """Create the emergency shutdown file."""

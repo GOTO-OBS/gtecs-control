@@ -37,12 +37,14 @@ class DomeDaemon(BaseDaemon):
 
         # dome variables
         self.dome_timeout = 40.
-        self.lockdown = False
 
         self.move_side = 'none'
         self.move_frac = 1
         self.move_started = 0
         self.move_start_time = 0
+
+        self.lockdown = False
+        self.alarm = True
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -77,6 +79,9 @@ class DomeDaemon(BaseDaemon):
                 # Restart the loop to try reconnecting above.
                 if self.hardware_error:
                     continue
+
+                # Check the system mode
+                self._mode_check()
 
                 # Check if we need to trigger a lockdown due to conditions
                 self._lockdown_check()
@@ -116,7 +121,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac)
+                                c = self.dome.open_side(side, self.move_frac, self.alarm)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -185,7 +190,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac)
+                                c = self.dome.close_side(side, self.move_frac, self.alarm)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -421,7 +426,6 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_reasons'] = ', '.join(status.emergency_shutdown_reasons)
             temp_info['mode'] = status.mode
             temp_info['autoclose'] = status.autoclose
-            temp_info['alarm'] = status.alarm
         except Exception:
             self.log.error('Failed to get status info')
             self.log.debug('', exc_info=True)
@@ -430,10 +434,10 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_reasons'] = None
             temp_info['mode'] = None
             temp_info['autoclose'] = None
-            temp_info['alarm'] = None
 
         # Get other internal info
         temp_info['lockdown'] = self.lockdown
+        temp_info['alarm'] = self.alarm
 
         # Write debug log line
         try:
@@ -449,6 +453,18 @@ class DomeDaemon(BaseDaemon):
 
         # Finally check if we need to report an error
         self._check_errors()
+
+    def _mode_check(self):
+        """Check the current system mode and make sure the alarm is on/off."""
+        # The alarm should always be on in robotic mode
+        if self.info['mode'] == 'robotic' and not self.alarm:
+            self.log.warning('System is in robotic mode, enabling alarm')
+            self.alarm = True
+
+        # The alarm should always be off in engineering mode
+        if self.info['mode'] == 'engineering' and self.alarm:
+            self.log.warning('System is in engineering mode, disabling alarm')
+            self.alarm = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
@@ -507,8 +523,7 @@ class DomeDaemon(BaseDaemon):
                 self.halt_flag = 1
                 time.sleep(2)
             # Make sure the alarm sounds
-            status = Status()
-            status.alarm = True
+            self.alarm = True
             # Close the dome
             self.close_flag = 1
             self.move_side = 'both'
@@ -652,6 +667,38 @@ class DomeDaemon(BaseDaemon):
         self.halt_flag = 1
 
         return 'Halting dome'
+
+    def set_alarm(self, command):
+        """Turn the dome alarm on or off."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
+            elif self.info['alarm']:
+                return 'Alarm is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
+            elif not self.info['alarm']:
+                return 'Alarm is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling alarm')
+            self.alarm = True
+        elif command == 'off':
+            self.log.info('Disabling alarm')
+            self.alarm = False
+
+        if command == 'on':
+            return 'Enabling dome alarm'
+        elif command == 'off':
+            return 'Disabling dome alarm'
 
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off before the automatic command."""
