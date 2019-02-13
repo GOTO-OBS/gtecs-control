@@ -152,7 +152,7 @@ class Status(object):
                     self.emergency_shutdown_reasons = ['unknown']
         else:
             self.emergency_shutdown_time = None
-            self.emergency_shutdown_reasons = [None]
+            self.emergency_shutdown_reasons = []
 
     def _update_flags(self, key, value):
         """Update the given status value."""
