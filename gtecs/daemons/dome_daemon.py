@@ -542,6 +542,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
             return
 
+        # Return if in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Check if the dehumidifier should be on or off
         if self.info['dome'] != 'closed' and self.info['dehumidifier_on']:
             self.log.info('Dome is open, turning off dehumidifier')
