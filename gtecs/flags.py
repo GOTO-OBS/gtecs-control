@@ -147,50 +147,9 @@ class Status(object):
     """A class to give easy access to the status flags."""
 
     def __init__(self):
-        self.flags_file = os.path.join(params.FILE_PATH, 'status_flags')
+        self.status_file = os.path.join(params.FILE_PATH, 'status_flags')
         self.emergency_file = params.EMERGENCY_FILE
-        self.valid_modes = ['robotic', 'manual']
-        self._load()
-
-    def _load(self):
-        try:
-            data = load_json(self.flags_file)
-            if data['mode'].lower() not in self.valid_modes:
-                raise ValueError('Invalid mode: "{}"'.format(data['mode']))
-            self._mode = data['mode'].lower()
-            self._observer = str(data['observer'])
-            self._autoclose = bool(data['autoclose'])
-            self._alarm = bool(data['alarm'])
-        except Exception:
-            self._mode = 'robotic'
-            self._observer = params.ROBOTIC_OBSERVER
-            self._autoclose = True
-            self._alarm = True
-            with open(self.flags_file, 'w') as f:
-                json.dump(self._status_dict, f)
-
-        self.emergency_shutdown = os.path.isfile(self.emergency_file)
-        if self.emergency_shutdown:
-            mod_time = os.path.getmtime(self.emergency_file)
-            self.emergency_shutdown_time = Time(mod_time, format='unix', precision=0).iso
-            with open(self.emergency_file, 'r') as f:
-                reasons = f.readlines()
-                if len(reasons):
-                    self.emergency_shutdown_reasons = [r.strip() for r in reasons]
-                else:
-                    self.emergency_shutdown_reasons = ['unknown']
-        else:
-            self.emergency_shutdown_time = None
-            self.emergency_shutdown_reasons = [None]
-
-    def _update_flags(self, key, value):
-        with open(self.flags_file, 'r') as f:
-            data = json.load(f)
-        if key not in data:
-            raise KeyError(key)
-        data[key] = value
-        with open(self.flags_file, 'w') as f:
-            json.dump(data, f)
+        self.valid_modes = ['robotic', 'manual', 'engineering']
         self._load()
 
     def __repr__(self):
@@ -202,8 +161,58 @@ class Status(object):
         repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
         return "Status({})".format(repr_str)
 
+    def _load(self):
+        """Load the status flags file and emergency shutdown file."""
+        try:
+            # Read the status file
+            data = load_json(self.status_file)
+            if data['mode'].lower() not in self.valid_modes:
+                raise ValueError('Invalid mode: "{}"'.format(data['mode']))
+            self._mode = data['mode'].lower()
+            self._observer = str(data['observer'])
+            self._autoclose = bool(data['autoclose'])
+            self._alarm = bool(data['alarm'])
+        except Exception:
+            # Rewrite the file ourselves with defaults
+            self._mode = 'robotic'
+            self._observer = params.ROBOTIC_OBSERVER
+            self._autoclose = True
+            self._alarm = True
+            with open(self.status_file, 'w') as f:
+                json.dump(self._status_dict, f)
+
+        # Check for the emergency shutdown file
+        self.emergency_shutdown = os.path.isfile(self.emergency_file)
+        if self.emergency_shutdown:
+            # Get the modification time
+            mod_time = os.path.getmtime(self.emergency_file)
+            self.emergency_shutdown_time = Time(mod_time, format='unix', precision=0).iso
+
+            # Read the emergency shutdown reasons
+            with open(self.emergency_file, 'r') as f:
+                reasons = f.readlines()
+                if len(reasons):
+                    self.emergency_shutdown_reasons = [r.strip() for r in reasons]
+                else:
+                    self.emergency_shutdown_reasons = ['unknown']
+        else:
+            self.emergency_shutdown_time = None
+            self.emergency_shutdown_reasons = [None]
+
+    def _update_flags(self, key, value):
+        """Update the given status value."""
+        with open(self.status_file, 'r') as f:
+            data = json.load(f)
+        if key not in data:
+            raise KeyError(key)
+        data[key] = value
+        with open(self.status_file, 'w') as f:
+            json.dump(data, f)
+        self._load()
+
     @property
     def _status_dict(self):
+        """Get the current system status values."""
         status_dict = {"mode": self._mode,
                        "observer": self._observer,
                        "autoclose": self._autoclose,
@@ -218,6 +227,7 @@ class Status(object):
 
     @mode.setter
     def mode(self, value):
+        """Set the current system mode."""
         if value.lower() not in self.valid_modes:
             raise ValueError('Invalid mode: "{}"'.format(value))
         self._update_flags('mode', value)
@@ -228,12 +238,13 @@ class Status(object):
 
     @property
     def observer(self):
-        """Get the current observer."""
+        """Get the current observer name."""
         self._load()
         return self._observer
 
     @observer.setter
     def observer(self, value):
+        """Set the current observer name."""
         self._update_flags('observer', value)
 
     @property
@@ -244,6 +255,7 @@ class Status(object):
 
     @autoclose.setter
     def autoclose(self, value):
+        """Set dome autoclose to enabled or not."""
         self._update_flags('autoclose', int(bool(value)))
 
     @property
@@ -254,6 +266,7 @@ class Status(object):
 
     @alarm.setter
     def alarm(self, value):
+        """Set if the dome alarm is currently enabled or not."""
         if self._mode == 'robotic' and int(bool(value)) == 0:
             raise ValueError('Cannot disable dome alarm in robotic mode')
         self._update_flags('alarm', int(bool(value)))
