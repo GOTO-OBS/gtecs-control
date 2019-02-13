@@ -12,6 +12,7 @@ from gtecs import logger
 from gtecs import params
 from gtecs.astronomy import night_startdate, sunalt_time
 from gtecs.daemons import daemon_info
+from gtecs.flags import Status
 from gtecs.misc import execute_command, get_pid, make_pid_file
 from gtecs.observing import wait_for_dome
 from gtecs.slack import send_slack_msg
@@ -130,15 +131,22 @@ def run(test=False):
 
 
 if __name__ == "__main__":
+    # Disable day marshal in engineering mode
+    status = Status()
+    if status.mode == 'engineering':
+        print('Day marshal is disabled in engineering mode')
+        sys.exit(0)
+
+    # Check it it's already running
+    pid = get_pid('daymarshal')
+    if pid:
+        print('Day marshal is already running (PID {})'.format(pid))
+        sys.exit(0)
+
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-t', '--test', action="store_true", default=False)
     args = parser.parse_args()
 
-    pid = get_pid('daymarshal')
-    if pid:
-        print('Day marshal is already running (PID {})'.format(pid))
-        sys.exit(0)
-    else:
-        with make_pid_file('daymarshal'):
-            run(args.test)
+    with make_pid_file('daymarshal'):
+        run(args.test)

@@ -8,6 +8,7 @@ import sys
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
+from gtecs.flags import Status
 from gtecs.pilot import run
 
 
@@ -19,6 +20,13 @@ def query(command, args):
 
     # Primary control
     elif command == 'start':
+        # Disable pilot in engineering mode
+        status = Status()
+        if status.mode == 'engineering':
+            print('Pilot is disabled in engineering mode')
+            return
+
+        # Check it it's already running
         pid = misc.get_pid('pilot')
         if pid:
             print('Pilot already running (PID {})'.format(pid))
