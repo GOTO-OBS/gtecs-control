@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
         status.mode = 'manual'
         print('System now in Manual mode')
-        print('You are in control, but dome will still close in emergencies')
+        print('You are in control')
         sys.exit()
 
     # ENGINEERING mode

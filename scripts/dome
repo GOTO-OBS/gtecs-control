@@ -190,7 +190,7 @@ def query(command, args, daemon_id):
                 raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
             else:
                 status.autoclose = True
-                print('Dome will autoclose in manual mode if conditions are bad')
+                print('Dome will autoclose if conditions are bad')
         else:
             if not status.autoclose:
                 print('Autoclose is already disabled')
