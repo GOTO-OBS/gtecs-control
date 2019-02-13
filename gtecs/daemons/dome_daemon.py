@@ -409,7 +409,7 @@ class DomeDaemon(BaseDaemon):
         try:
             conditions = Conditions()
             temp_info['conditions_bad'] = bool(conditions.bad)
-            temp_info['conditions_bad_reasons'] = conditions.bad_flags
+            temp_info['conditions_bad_reasons'] = ', '.join(conditions.bad_flags)
         except Exception:
             self.log.error('Failed to get conditions info')
             self.log.debug('', exc_info=True)

@@ -59,51 +59,34 @@ class Conditions(object):
     """A class to give easy access to the conditions flags."""
 
     def __init__(self):
-        conditions_dict = load_json(os.path.join(params.FILE_PATH, 'conditions_flags'))
-
-        # store update time and remove from dictionary
-        update_time = int(Time(conditions_dict['update_time']).unix)
-        del conditions_dict['update_time']
-
-        # set conditions properties (which are stored in __dict__)
-        # to the values in the dictionary
-        self.__dict__ = copy.copy(conditions_dict)
-        # and store the dict itself for easy access
-        self.conditions_dict = conditions_dict
-
-        # add the update time
-        self.update_time = update_time
-
-        # store a summary of all flags, excluding clouds and dark
-        self._summary = 0
-        self._bad_flags = []
-        for key, value in conditions_dict.items():
-            if key not in ['clouds', 'dark']:
-                self._summary += value
-                if value:
-                    self._bad_flags += [key]
-        self.bad_flags = ', '.join(self._bad_flags)
-
-    def age(self):
-        """Get the age of the conditions."""
-        return int(Time.now().unix - self.update_time)
+        self.conditions_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        self._load()
 
     def __repr__(self):
-        class_name = type(self).__name__
-        repr_str = ', '.join(['='.join((k, str(v))) for k, v in self.__dict__.items()])
-        return '{}({})'.format(class_name, repr_str)
+        repr_str = ', '.join(['{}={}'.format(flag, self.conditions_dict[flag])
+                              for flag in sorted(self.conditions_dict)])
+        return 'Conditions({})'.format(repr_str)
 
-    @property
-    def bad(self):
-        """Check if these conditions are bad.
+    def _load(self):
+        """Load the conditions file."""
+        # Read the conditions file
+        self.conditions_dict = load_json(self.conditions_file)
 
-        Uses summary of conditions and age check
-        """
-        if self.age() > params.MAX_CONDITIONS_AGE:
-            tooold = 1
-        else:
-            tooold = 0
-        return self._summary + tooold
+        # Get update time and caclulate age flag
+        self.update_time = int(Time(self.conditions_dict['update_time']).unix)
+        del self.conditions_dict['update_time']
+        self.age = int(Time.now().unix - self.update_time)
+        self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
+
+        # Store the total of all flags, excluding clouds and dark
+        self.total = 0
+        self.bad_flags = []
+        for key, value in self.conditions_dict.items():
+            if key not in ['clouds', 'dark']:
+                self.total += value
+                if value:
+                    self.bad_flags += [key]
+        self.bad = bool(self.total)
 
     def get_formatted_string(self, good='1', bad='0'):
         """Get a formatted string of the conditions flags."""
