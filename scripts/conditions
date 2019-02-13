@@ -236,9 +236,7 @@ def print_info(info):
         ups_percents = info['ups_percent']
         ups_strings = []
         for ups_percent in ups_percents:
-            if params.CRITICAL_UPSBATTERY < ups_percent < params.MIN_UPSBATTERY:
-                ups_strings.append(style.ytxt('{:>5.1f}'.format(ups_percent)))
-            elif ups_percent < params.CRITICAL_UPSBATTERY:
+            if ups_percent < params.MIN_UPSBATTERY:
                 ups_strings.append(style.rtxt('{:>5.1f}'.format(ups_percent)))
             else:
                 ups_strings.append(style.gtxt('{:>5.1f}'.format(ups_percent)))

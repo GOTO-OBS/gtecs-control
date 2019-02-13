@@ -37,7 +37,6 @@ class ConditionsDaemon(BaseDaemon):
                            'link',
                            'hatch',
                            'diskspace',
-                           'low_battery',
                            'internal',
                            'ice',
                            ]
@@ -319,12 +318,6 @@ class ConditionsDaemon(BaseDaemon):
         valid['ups'] = len(ups_percent) >= 1 and len(ups_status) >= 1
         good_delay['ups'] = params.UPS_GOODDELAY
         bad_delay['ups'] = params.UPS_BADDELAY
-
-        # low_battery flag
-        good['low_battery'] = np.all(ups_percent > params.CRITICAL_UPSBATTERY)
-        valid['low_battery'] = len(ups_percent) >= 1
-        good_delay['low_battery'] = 0
-        bad_delay['low_battery'] = 0
 
         # hatch flag
         good['hatch'] = np.all(hatch_closed == 1)

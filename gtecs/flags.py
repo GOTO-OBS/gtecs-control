@@ -84,21 +84,6 @@ class Conditions(object):
                     self._bad_flags += [key]
         self.bad_flags = ', '.join(self._bad_flags)
 
-        # and store a separate summary of critical flags
-        self._crit_sum = 0
-        self._crit_flags = []
-        for key, value in conditions_dict.items():
-            if key in ['diskspace', 'low_battery', 'internal', 'ice']:
-                self._crit_sum += value
-                if value:
-                    self._crit_flags += [key]
-            status = Status()
-            if key == 'hatch' and status.mode == 'robotic':
-                self._crit_sum += value
-                if value:
-                    self._crit_flags += [key]
-        self.critical_flags = ', '.join(self._crit_flags)
-
     def age(self):
         """Get the age of the conditions."""
         return int(Time.now().unix - self.update_time)
@@ -119,19 +104,6 @@ class Conditions(object):
         else:
             tooold = 0
         return self._summary + tooold
-
-    @property
-    def critical(self):
-        """Check if any of the critical flags are bad.
-
-        Critical flags are ones that won't just change themselves (like weather)
-            and will need human intervention to fix.
-        These are currently:
-            - low diskspace remaining on image path
-            - dome hatch is open (only in robotic mode)
-            - UPSs are below critical charge
-        """
-        return self._crit_sum
 
     def get_formatted_string(self, good='1', bad='0'):
         """Get a formatted string of the conditions flags."""

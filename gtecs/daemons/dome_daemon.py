@@ -37,6 +37,7 @@ class DomeDaemon(BaseDaemon):
 
         # dome variables
         self.dome_timeout = 40.
+        self.button_pressed = False
         self.lockdown = False
 
         self.move_side = 'none'
@@ -78,7 +79,9 @@ class DomeDaemon(BaseDaemon):
                 if self.hardware_error:
                     continue
 
-                # Dome automation: close or turn on dehumidifier if nessesary
+                # Check the quick-close button, and create the emergency file if it's been pressed
+                self._check_button()
+
                 self._auto_close()
                 self._auto_dehum()
 
@@ -395,8 +398,8 @@ class DomeDaemon(BaseDaemon):
 
         # Get button info
         try:
-            button_pressed = self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT)
-            temp_info['button_pressed'] = button_pressed
+            button_pressed = self.button_pressed
+            temp_info['button_pressed'] = bool(button_pressed)
         except Exception:
             self.log.error('Failed to get quick close button info')
             self.log.debug('', exc_info=True)
@@ -407,29 +410,11 @@ class DomeDaemon(BaseDaemon):
             conditions = Conditions()
             temp_info['conditions_bad'] = bool(conditions.bad)
             temp_info['conditions_bad_reasons'] = conditions.bad_flags
-            temp_info['conditions_critical'] = bool(conditions.critical)
-            temp_info['conditions_critical_reasons'] = conditions.critical_flags
         except Exception:
             self.log.error('Failed to get conditions info')
             self.log.debug('', exc_info=True)
             temp_info['conditions_bad'] = None
             temp_info['conditions_bad_reasons'] = None
-            temp_info['conditions_critical'] = None
-            temp_info['conditions_critical_reasons'] = None
-
-        # Dome automation - create emergency file if needed
-        # TODO: Status() is awkward
-        try:
-            if temp_info['button_pressed']:
-                self.log.warning('Quick close button pressed!')
-                Status().create_shutdown_file(['quick close button pressed'])
-            if temp_info['conditions_critical']:
-                reasons = temp_info['conditions_critical_reasons']
-                self.log.warning('Conditions critical ({})'.format(reasons))
-                Status().create_shutdown_file(reasons.split(', '))
-        except Exception:
-            self.log.error('Failed to create emergency shutdown file')
-            self.log.debug('', exc_info=True)
 
         # Get status info
         try:
@@ -467,6 +452,19 @@ class DomeDaemon(BaseDaemon):
 
         # Finally check if we need to report an error
         self._check_errors()
+
+    def _check_button(self):
+        """Check if the quick-close button has been pressed.
+
+        If so, create the emergency file.
+
+        """
+        button_pressed = self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT)
+
+        if button_pressed:
+            status = Status()
+            status.create_shutdown_file(['quick-close button pressed'])
+            self.log.warning('Quick-close button pressed!')
 
     def _auto_close(self):
         """Check the current conditions and set warning flags, then close if bad."""

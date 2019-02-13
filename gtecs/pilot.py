@@ -251,7 +251,7 @@ class Pilot(object):
             # emergency file
             if self.status.emergency_shutdown:
                 reasons = ', '.join(self.status.emergency_shutdown_reasons)
-                self.log.warning('Conditions critical: ({})'.format(reasons))
+                self.log.warning('Emergency shutdown file detected: ({})'.format(reasons))
                 asyncio.ensure_future(self.emergency_shutdown(reasons))
 
             # print if we're paused
