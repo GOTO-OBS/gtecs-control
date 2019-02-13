@@ -6,7 +6,6 @@ import sys
 
 from gtecs import daemons
 from gtecs import errors
-from gtecs import flags
 from gtecs import misc
 from gtecs import params
 from gtecs import style
@@ -137,6 +136,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'override_dehumidifier', [command])
         print(reply)
 
+    elif command == 'autoclose':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_autoclose', [command])
+        print(reply)
+
     elif command == 'alarm':
         # parse arguments
         if len(args) == 1:
@@ -148,39 +159,6 @@ def query(command, args, daemon_id):
             raise errors.InputError("Command must be 'on' or 'off'")
         reply = daemons.daemon_function(daemon_id, 'set_alarm', [command])
         print(reply)
-
-    # Other functions
-    elif command == 'autoclose':
-        status = flags.Status()
-        # parse arguments
-        if len(args) == 0:
-            if status.autoclose:
-                print('Autoclose is currently enabled')
-                return
-            else:
-                print('Autoclose is currently DISABLED')
-                print('It will re-enable when the dome is next fully closed')
-                return
-        elif args[0] not in ['on', 'off']:
-            raise errors.InputError('Invalid arguments')
-        # command
-        if args[0] == 'on':
-            if status.autoclose:
-                print('Autoclose is already enabled')
-            elif status.mode == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
-            else:
-                status.autoclose = True
-                print('Dome will autoclose if conditions are bad')
-        else:
-            if not status.autoclose:
-                print('Autoclose is already disabled')
-            elif status.mode == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            else:
-                status.autoclose = False
-                print('Override set: Dome will NOT close if conditions are bad')
-                print('              This will reset the next time the dome is fully closed')
 
     # Unrecognized function
     else:
@@ -236,7 +214,7 @@ def print_instructions():
           '  halt/stop                      stop the dome moving',
           '  dehumidifier [on|off]          force dehumidifier on/off',
           '  alarm [on|off]                 sound the alarm when moving?',
-          '  autoclose [on|off]             auto close in bad weather?',
+          '  autoclose [on|off]             automatically close in bad weather?',
           '  info [v]                       report current status',
           '  log/status [stdout]            print daemon log (tail alias)',
           'Control commands:',

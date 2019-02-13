@@ -44,6 +44,7 @@ class DomeDaemon(BaseDaemon):
         self.move_start_time = 0
 
         self.lockdown = False
+        self.autoclose = True
         self.alarm = True
 
         # start control thread
@@ -80,7 +81,7 @@ class DomeDaemon(BaseDaemon):
                 if self.hardware_error:
                     continue
 
-                # Check the system mode
+                # Check if the system mode has changed
                 self._mode_check()
 
                 # Check if we need to trigger a lockdown due to conditions
@@ -425,7 +426,6 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = status.emergency_shutdown_time
             temp_info['emergency_reasons'] = ', '.join(status.emergency_shutdown_reasons)
             temp_info['mode'] = status.mode
-            temp_info['autoclose'] = status.autoclose
         except Exception:
             self.log.error('Failed to get status info')
             self.log.debug('', exc_info=True)
@@ -433,10 +433,10 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = None
             temp_info['emergency_reasons'] = None
             temp_info['mode'] = None
-            temp_info['autoclose'] = None
 
         # Get other internal info
         temp_info['lockdown'] = self.lockdown
+        temp_info['autoclose'] = self.autoclose
         temp_info['alarm'] = self.alarm
 
         # Write debug log line
@@ -456,15 +456,23 @@ class DomeDaemon(BaseDaemon):
 
     def _mode_check(self):
         """Check the current system mode and make sure the alarm is on/off."""
-        # The alarm should always be on in robotic mode
-        if self.info['mode'] == 'robotic' and not self.alarm:
-            self.log.warning('System is in robotic mode, enabling alarm')
-            self.alarm = True
+        if self.info['mode'] == 'robotic':
+            # In robotic mode autoclose and the alarm should always be enabled
+            if not self.autoclose:
+                self.log.info('System is in robotic mode, enabling autoclose')
+                self.autoclose = True
+            if not self.alarm:
+                self.log.info('System is in robotic mode, enabling alarm')
+                self.alarm = True
 
-        # The alarm should always be off in engineering mode
-        if self.info['mode'] == 'engineering' and self.alarm:
-            self.log.warning('System is in engineering mode, disabling alarm')
-            self.alarm = False
+        elif self.info['mode'] == 'engineering':
+            # In engineering mode autoclose and the alarm should always be disabled
+            if self.autoclose:
+                self.log.info('System is in engineering mode, disabling autoclose')
+                self.autoclose = False
+            if self.alarm:
+                self.log.info('System is in engineering mode, disabling alarm')
+                self.alarm = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
@@ -493,11 +501,11 @@ class DomeDaemon(BaseDaemon):
             lockdown = False
 
         # Check if the system mode means disabling lockdowns
-        if lockdown and self.info['mode'] == 'manual' and not self.info['autoclose']:
-            self.log.warning('Lockdown triggered, but in manual mode with autoclose disabled')
+        if lockdown and self.info['mode'] == 'manual' and not self.autoclose:
+            self.log.warning('Lockdown ignored (in manual mode and autoclose disabled)')
             lockdown = False
         if lockdown and self.info['mode'] == 'engineering':
-            self.log.warning('Lockdown triggered, but in engineering mode')
+            self.log.warning('Lockdown ignored (in engineering mode)')
             lockdown = False
 
         # Set the flag
@@ -510,11 +518,10 @@ class DomeDaemon(BaseDaemon):
             return
 
         # Return if autoclose disabled
-        if not self.info['autoclose']:
-            self.log.debug('Autoclose disabled (mode={})'.format(self.info['mode']))
+        if not self.autoclose:
             return
 
-        # Decide if we need to auto close
+        # Decide if we need to autoclose
         if self.lockdown and self.info['dome'] != 'closed' and not self.close_flag:
             self.log.warning('Autoclosing dome due to lockdown')
             send_slack_msg('Dome is autoclosing')
@@ -668,8 +675,40 @@ class DomeDaemon(BaseDaemon):
 
         return 'Halting dome'
 
+    def set_autoclose(self, command):
+        """Enable or disable the dome autoclosing in bad conditions."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
+            elif self.autoclose:
+                return 'Autoclose is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
+            elif not self.autoclose:
+                return 'Autoclose is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling autoclose')
+            self.autoclose = True
+        elif command == 'off':
+            self.log.info('Disabling autoclose')
+            self.autoclose = False
+
+        if command == 'on':
+            return 'Enabling autoclose, dome will close in bad conditions'
+        elif command == 'off':
+            return 'Disabling autoclose, dome will NOT close in bad conditions'
+
     def set_alarm(self, command):
-        """Turn the dome alarm on or off."""
+        """Enable or disable the dome alarm when moving."""
         # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
@@ -679,12 +718,12 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            elif self.info['alarm']:
+            elif self.alarm:
                 return 'Alarm is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            elif not self.info['alarm']:
+            elif not self.alarm:
                 return 'Alarm is already disabled'
 
         # Set flag
