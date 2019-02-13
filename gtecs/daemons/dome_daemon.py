@@ -37,7 +37,6 @@ class DomeDaemon(BaseDaemon):
 
         # dome variables
         self.dome_timeout = 40.
-        self.button_pressed = False
         self.lockdown = False
 
         self.move_side = 'none'
@@ -79,11 +78,11 @@ class DomeDaemon(BaseDaemon):
                 if self.hardware_error:
                     continue
 
-                # Check the quick-close button, and create the emergency file if it's been pressed
-                self._check_button()
+                # Check if we need to close due to conditions
+                self._autoclose_check()
 
-                self._auto_close()
-                self._auto_dehum()
+                # Check if we need to turn on/off the dehumidifier
+                self._autodehum_check()
 
             # control functions
             # open dome
@@ -398,7 +397,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get button info
         try:
-            button_pressed = self.button_pressed
+            button_pressed = self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT)
             temp_info['button_pressed'] = bool(button_pressed)
         except Exception:
             self.log.error('Failed to get quick close button info')
@@ -421,7 +420,7 @@ class DomeDaemon(BaseDaemon):
             status = Status()
             temp_info['emergency'] = status.emergency_shutdown
             temp_info['emergency_time'] = status.emergency_shutdown_time
-            temp_info['emergency_reasons'] = status.emergency_shutdown_reasons
+            temp_info['emergency_reasons'] = ', '.join(status.emergency_shutdown_reasons)
             temp_info['mode'] = status.mode
             temp_info['autoclose'] = status.autoclose
             temp_info['alarm'] = status.alarm
@@ -453,61 +452,67 @@ class DomeDaemon(BaseDaemon):
         # Finally check if we need to report an error
         self._check_errors()
 
-    def _check_button(self):
-        """Check if the quick-close button has been pressed.
-
-        If so, create the emergency file.
-
-        """
-        button_pressed = self._button_pressed(params.QUICK_CLOSE_BUTTON_PORT)
-
-        if button_pressed:
-            status = Status()
-            status.create_shutdown_file(['quick-close button pressed'])
-            self.log.warning('Quick-close button pressed!')
-
-    def _auto_close(self):
-        """Check the current conditions and set warning flags, then close if bad."""
+    def _autoclose_check(self):
+        """Check the current conditions and set or clear the lockdown flag."""
         if not self.dome:
             self.log.warning('Auto close disabled while no connection to dome')
             return
 
-        # Check if we need to set or clear the lockdown
-        if self.info['emergency']:
-            reasons = ', '.join(self.info['emergency_reasons'])
-            self.log.warning('Lockdown: emergency shutdown ({})!'.format(reasons))
+        # Check if the quick-close button has been pressed
+        if self.info['button_pressed']:
+            self.log.warning('Lockdown: quick-close button pressed')
             self.lockdown = True
-        elif self.info['conditions_bad']:
+
+        # Check if the emergency shutdown file has been created
+        if self.info['emergency']:
+            reasons = self.info['emergency_reasons']
+            self.log.warning('Lockdown: emergency shutdown ({})'.format(reasons))
+            self.lockdown = True
+
+        # Check if the conditions are bad
+        if self.info['conditions_bad']:
             reasons = self.info['conditions_bad_reasons']
-            if self.info['mode'] == 'manual' and not self.info['autoclose']:
-                self.log.warning('Conditions bad ({}), but autoclose is disabled!'.format(reasons))
-                self.lockdown = False
-            else:
-                self.log.warning('Lockdown: conditions bad ({})!'.format(reasons))
-                self.lockdown = True
-        elif self.lockdown and not self.info['emergency'] and not self.info['conditions_bad']:
+            self.log.warning('Lockdown: conditions bad ({})'.format(reasons))
+            self.lockdown = True
+
+        # Check if the lockdown can be cleared
+        if self.lockdown and not self.info['emergency'] and not self.info['conditions_bad']:
             self.log.info('Conditions are clear, lockdown lifted')
             self.lockdown = False
 
-        # React to a lockdown order
-        if self.lockdown and self.info['dome'] != 'closed' and self.info['autoclose']:
-            self.log.warning('Autoclosing dome due to lockdown')
-            if not self.close_flag:
-                reasons = ''
-                if self.info['emergency'] and self.info['emergency_reasons'][0]:
-                    reasons += ', '.join(self.info['emergency_reasons'])
-                if self.info['conditions_bad'] and self.info['conditions_bad_reasons']:
-                    reasons += ' ' + self.info['conditions_bad_reasons']
-                send_slack_msg('Dome is autoclosing: {}'.format(reasons))
-                if self.open_flag:  # stop opening!
-                    self.halt_flag = 1
-                    time.sleep(2)
-                Status().alarm = True  # make sure the alarm sounds TODO: Status() is awkward
-                self.close_flag = 1
-                self.move_side = 'both'
-                self.move_frac = 1
+        # Now decide if we need to auto close
+        if self.lockdown and self.info['dome'] != 'closed':
+            # We should close, depending on the mode:
+            #   - Always close in robotic mode
+            #   - Only close in manual mode if autoclose is enabled
+            #   - Never close in engineering mode
+            if (self.info['mode'] == 'robotic' or
+                    (self.info['mode'] == 'manual' and self.info['autoclose'])):
+                # Close now!
+                self.log.warning('Autoclosing dome due to lockdown')
+                if not self.close_flag:
+                    send_slack_msg('Dome is autoclosing')
+                    # Stop any opening
+                    if self.open_flag:
+                        self.halt_flag = 1
+                        time.sleep(2)
+                    # Make sure the alarm sounds
+                    status = Status()
+                    status.alarm = True
+                    # Close the dome
+                    self.close_flag = 1
+                    self.move_side = 'both'
+                    self.move_frac = 1
 
-    def _auto_dehum(self):
+            elif self.info['mode'] == 'manual' and not self.info['autoclose']:
+                self.log.warning('Lockdown triggered, but in manual mode with autoclose disabled')
+                self.lockdown = False
+
+            elif self.info['mode']  == 'engineering':
+                self.log.warning('Lockdown triggered, but in engineering mode')
+                self.lockdown = False
+
+    def _autodehum_check(self):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
         if not self.dehumidifier:
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
