@@ -135,12 +135,14 @@ if __name__ == "__main__":
     status = Status()
     if status.mode == 'engineering':
         print('Day marshal is disabled in engineering mode')
+        send_slack_msg('Day marshal tried to run, but system is in engineering mode')
         sys.exit(0)
 
     # Check it it's already running
     pid = get_pid('daymarshal')
     if pid:
         print('Day marshal is already running (PID {})'.format(pid))
+        send_slack_msg('Day marshal tried to run, but is already running')
         sys.exit(0)
 
     parser = argparse.ArgumentParser(description=__doc__,

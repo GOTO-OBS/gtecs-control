@@ -10,6 +10,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.flags import Status
 from gtecs.pilot import run
+from gtecs.slack import send_slack_msg
 
 
 def query(command, args):
@@ -24,12 +25,14 @@ def query(command, args):
         status = Status()
         if status.mode == 'engineering':
             print('Pilot is disabled in engineering mode')
+            send_slack_msg('Pilot tried to start, but system is in engineering mode')
             return
 
         # Check it it's already running
         pid = misc.get_pid('pilot')
         if pid:
             print('Pilot already running (PID {})'.format(pid))
+            send_slack_msg('Pilot tried to start, but is already running')
             return
 
         parser = argparse.ArgumentParser()
