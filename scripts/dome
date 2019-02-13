@@ -146,16 +146,23 @@ def query(command, args, daemon_id):
                 print('Alarm is currently enabled')
                 return
             else:
-                print('Alarm is currently DISABLED for manual movements')
+                print('Alarm is currently disabled')
                 return
         elif args[0] not in ['on', 'off']:
             raise errors.InputError('Invalid arguments')
         # command
         if args[0] == 'on':
-            status.alarm = True
-            print('Dome alarm emabled')
+            if status.alarm:
+                print('Alarm is already enabled')
+            elif status.mode == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
+            else:
+                status.alarm = True
+                print('Dome alarm emabled')
         else:
-            if status.mode == 'robotic':
+            if not status.alarm:
+                print('Alarm is already disabled')
+            elif status.mode == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
             else:
                 status.alarm = False
@@ -177,14 +184,21 @@ def query(command, args, daemon_id):
             raise errors.InputError('Invalid arguments')
         # command
         if args[0] == 'on':
-            status.autoclose = True
-            print('Dome will autoclose in manual mode if conditions are bad')
+            if status.autoclose:
+                print('Autoclose is already enabled')
+            elif status.mode == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
+            else:
+                status.autoclose = True
+                print('Dome will autoclose in manual mode if conditions are bad')
         else:
-            if status.mode == 'robotic':
+            if not status.autoclose:
+                print('Autoclose is already disabled')
+            elif status.mode == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
             else:
                 status.autoclose = False
-                print('Override set: Dome will NOT close in manual mode if conditions are bad')
+                print('Override set: Dome will NOT close if conditions are bad')
                 print('              This will reset the next time the dome is fully closed')
 
     # Unrecognized function

@@ -183,13 +183,21 @@ class Status(object):
     @mode.setter
     def mode(self, value):
         """Set the current system mode."""
-        if value.lower() not in self.valid_modes:
-            raise ValueError('Invalid mode: "{}"'.format(value))
-        self._update_flags('mode', value)
-        if value.lower() == 'robotic':
+        mode = value.lower()
+        if mode not in self.valid_modes:
+            raise ValueError('Invalid mode: "{}"'.format(mode))
+        self._update_flags('mode', mode)
+        # Set enforced flags in robotic and engineering mode
+        if mode == 'robotic':
+            # Force autoclose and alarm to enabled
             self._update_flags('autoclose', 1)
             self._update_flags('alarm', 1)
+            # Set pilot as the observer
             self._update_flags('observer', params.ROBOTIC_OBSERVER)
+        elif mode == 'engineering':
+            # Force autoclose and alarm to disabled
+            self._update_flags('autoclose', 0)
+            self._update_flags('alarm', 0)
 
     @property
     def observer(self):
@@ -200,31 +208,56 @@ class Status(object):
     @observer.setter
     def observer(self, value):
         """Set the current observer name."""
-        self._update_flags('observer', value)
+        name = str(value)
+        self._update_flags('observer', name)
 
     @property
     def autoclose(self):
         """Get if dome autoclose is currently enabled or not."""
-        self._load()
-        return self._autoclose
+        if self._mode == 'robotic':
+            return True
+        elif self._mode == 'engineering':
+            return False
+        else:
+            self._load()
+            return self._autoclose
 
     @autoclose.setter
     def autoclose(self, value):
         """Set dome autoclose to enabled or not."""
-        self._update_flags('autoclose', int(bool(value)))
+        enable = int(bool(value))
+        # Check mode restrictions
+        if self._mode == 'robotic' and enable == 0:
+            # Can't disable autoclose in robotic mode
+            raise ValueError('Cannot disable dome autoclose in robotic mode')
+        elif self._mode == 'engineering' and enable == 1:
+            # Can't enable autoclose in engineering mode
+            raise ValueError('Cannot enable dome autoclose in engineering mode')
+        self._update_flags('autoclose', enable)
 
     @property
     def alarm(self):
         """Get if the dome alarm is currently enabled or not."""
-        self._load()
-        return self._alarm
+        if self._mode == 'robotic':
+            return True
+        elif self._mode == 'engineering':
+            return False
+        else:
+            self._load()
+            return self._alarm
 
     @alarm.setter
     def alarm(self, value):
         """Set if the dome alarm is currently enabled or not."""
-        if self._mode == 'robotic' and int(bool(value)) == 0:
+        enable = int(bool(value))
+        # Check mode restrictions
+        if self._mode == 'robotic' and enable == 0:
+            # Can't disable alarm in robotic mode
             raise ValueError('Cannot disable dome alarm in robotic mode')
-        self._update_flags('alarm', int(bool(value)))
+        elif self._mode == 'engineering' and enable == 1:
+            # Can't enable alarm in engineering mode
+            raise ValueError('Cannot enable dome alarm in engineering mode')
+        self._update_flags('alarm', enable)
 
     def create_shutdown_file(self, reasons=None):
         """Create the emergency shutdown file."""
