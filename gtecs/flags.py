@@ -153,7 +153,6 @@ class Status(object):
         if mode not in self.valid_modes:
             raise ValueError('Invalid mode: "{}"'.format(mode))
         self._update_flags('mode', mode)
-        # Set enforced flags in robotic and engineering mode
         if mode == 'robotic':
             # Set pilot as the observer
             self._update_flags('observer', params.ROBOTIC_OBSERVER)
