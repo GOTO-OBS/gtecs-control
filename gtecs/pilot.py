@@ -238,6 +238,7 @@ class Pilot(object):
 
             # make sure pilot isn't running in engineering mode
             if self.system_mode == 'engineering':
+                self.log.warning('System is in engineering mode, exiting abnormally')
                 send_slack_msg('Pilot should not be running when system is in engineering mode')
                 send_slack_msg('Pilot exiting abnormally')
                 sys.exit(1)
