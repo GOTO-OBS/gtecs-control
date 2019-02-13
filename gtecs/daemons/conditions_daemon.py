@@ -401,6 +401,15 @@ class ConditionsDaemon(BaseDaemon):
         self.log.debug(logline)
 
 
+    # Control functions
+    def update(self):
+        """Force a conditions update."""
+        # Set flag
+        self.force_check_flag = 1
+
+        return 'Updating conditions'
+
+
 if __name__ == "__main__":
     daemon_id = 'conditions'
     with misc.make_pid_file(daemon_id):

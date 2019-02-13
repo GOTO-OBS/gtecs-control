@@ -64,6 +64,12 @@ def query(command, args, daemon_id):
         # send command
         misc.execute_long_command(tail_command)
 
+    # Daemon functions
+    elif command == 'update':
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'update')
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -258,6 +264,7 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
+          '  update                         force update the conditions',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
