@@ -190,7 +190,7 @@ def print_info(info):
     print('Lockdown:     %s' % (style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
-        print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
+        print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))
     print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
     print('Timestamp: %s' % info['timestamp'])
@@ -208,7 +208,7 @@ def print_info_s(info):
     print('   Autoclose:       [%s]' % ('On' if info['autoclose'] else style.rtxt('Off')))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
-        print(style.rtxt('REASON(S): {}'.format(', '.join(info['emergency_reasons']))))
+        print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))
 
 
 def print_instructions():
