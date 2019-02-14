@@ -18,6 +18,7 @@ import numpy as np
 
 from . import misc
 from . import params
+from .flags import Status
 from .hardware.power import APCUPS, FakeUPS
 
 
@@ -78,6 +79,7 @@ def get_ups():
 
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
+    status = Status()
     url = params.ARDUINO_LOCATION
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
@@ -95,6 +97,9 @@ def hatch_closed():
         else:
             if params.IGNORE_HATCH:
                 print('Hatch is open but IGNORE_HATCH is true')
+                return True
+            elif status.mode != 'robotic':
+                print('Hatch is open but not in robotic mode')
                 return True
             else:
                 return False
