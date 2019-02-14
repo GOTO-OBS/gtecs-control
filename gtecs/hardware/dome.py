@@ -24,7 +24,8 @@ class FakeDome(object):
         self.frac = 1
         self.command = ''
         self.timeout = 0
-        self.heartbeat_status = 'disabled'
+        self.heartbeat_status = 'enabled'
+        self.heartbeat_enabled = True
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
@@ -96,6 +97,23 @@ class FakeDome(object):
     def halt(self):
         """Stop the dome moving."""
         self.output_thread_running = False
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                self.heartbeat_status = 'enabled'
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                self.heartbeat_status = 'disabled'
+                return 'Heartbeat disabled'
 
     def _output_thread(self):
         if self.side == 'north':
@@ -222,7 +240,7 @@ class AstroHavenDome(object):
         self.plc_error = 0
         self.arduino_error = 0
 
-        self.heartbeat_enabled = params.DOME_HEARTBEAT_ENABLED
+        self.heartbeat_enabled = True
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
         self.heartbeat_status = 'ERROR'
         self.heartbeat_error = 0
@@ -244,7 +262,7 @@ class AstroHavenDome(object):
         self._check_status()
 
         # serial connection to the dome monitor box
-        if self.heartbeat_enabled and self.heartbeat_serial_port:
+        if self.heartbeat_serial_port:
             try:
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
                                                       baudrate=self.heartbeat_serial_baudrate,
@@ -533,6 +551,21 @@ class AstroHavenDome(object):
                     # print('sent byte to heartbeat')
 
             time.sleep(0.5)
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                return 'Heartbeat disabled'
 
     def _output_thread(self):
         side = self.side

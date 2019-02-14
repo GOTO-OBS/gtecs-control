@@ -160,6 +160,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'set_alarm', [command])
         print(reply)
 
+    elif command == 'heartbeat':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_heartbeat', [command])
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -215,6 +227,7 @@ def print_instructions():
           '  dehumidifier [on|off]          force dehumidifier on/off',
           '  alarm [on|off]                 sound the alarm when moving?',
           '  autoclose [on|off]             automatically close in bad weather?',
+          '  heartbeat [on|off]             automatically close if the daemon fails?',
           '  info [v]                       report current status',
           '  log/status [stdout]            print daemon log (tail alias)',
           'Control commands:',
