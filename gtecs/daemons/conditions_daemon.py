@@ -35,11 +35,11 @@ class ConditionsDaemon(BaseDaemon):
                                   'humidity',
                                   'temperature',
                                   'dew_point',
-                                  'hatch',
                                   ]
         self.critical_flag_names = ['ups',
                                     'link',
                                     'diskspace',
+                                    'hatch',
                                     'internal',
                                     'ice',
                                     ]
