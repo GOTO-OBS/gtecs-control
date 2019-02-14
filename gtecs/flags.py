@@ -52,7 +52,7 @@ class Conditions(object):
         self.age = int(Time.now().unix - self.update_time)
         self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
 
-        # Store the total of all flags, excluding clouds and dark
+        # Store the total of all flags, excluding clouds and dark ('info flags')
         self.total = 0
         self.bad_flags = []
         for key, value in self.conditions_dict.items():

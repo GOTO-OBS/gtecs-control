@@ -13,6 +13,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import get_sunalt
 from gtecs.daemons import BaseDaemon
+from gtecs.slack import send_slack_msg
 
 import numpy as np
 
@@ -26,20 +27,23 @@ class ConditionsDaemon(BaseDaemon):
         # conditions variables
         self.check_period = params.WEATHER_INTERVAL
 
-        self.flag_names = ['clouds',
-                           'dark',
-                           'rain',
-                           'windspeed',
-                           'humidity',
-                           'temperature',
-                           'dew_point',
-                           'ups',
-                           'link',
-                           'hatch',
-                           'diskspace',
-                           'internal',
-                           'ice',
-                           ]
+        self.info_flag_names = ['clouds',
+                                'dark',
+                                ]
+        self.normal_flag_names = ['rain',
+                                  'windspeed',
+                                  'humidity',
+                                  'temperature',
+                                  'dew_point',
+                                  'hatch',
+                                  ]
+        self.critical_flag_names = ['ups',
+                                    'link',
+                                    'diskspace',
+                                    'internal',
+                                    'ice',
+                                    ]
+        self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
         self.flags = {flag: 2 for flag in self.flag_names}
         self.update_time = {flag: 0 for flag in self.flag_names}
@@ -351,6 +355,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # ~~~~~~~~~~~~~~
         # Set each flag
+        old_flags = self.flags.copy()
         update_time = self.info['time']
         for flag in self.flag_names:
             # check if invalid
@@ -399,6 +404,18 @@ class ConditionsDaemon(BaseDaemon):
         flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
         with open(flags_file, 'w') as f:
             json.dump(data, f)
+
+        # ~~~~~~~~~~~~~~
+        # Trigger Slack alerts for critical flags
+        for flag in self.critical_flag_names:
+            if old_flags[flag] == 0 and self.flags[flag] == 1:
+                # The flag has been set to bad
+                self.log.warning('Critical flag {} set to bad'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
+            elif old_flags[flag] == 1 and self.flags[flag] == 0:
+                # The flag has been set to good
+                self.log.warning('Critical flag {} set to good'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
 
     # Control functions
     def update(self):

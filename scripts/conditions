@@ -86,7 +86,7 @@ def print_info(info):
         weather = info['weather']
         for flag in sorted(flags):
             if flag in ['clouds', 'dark']:
-                # skip non-important flags
+                # skip "info" flags
                 continue
             if flags[flag] == 0:
                 status = style.gtxt('Good')
