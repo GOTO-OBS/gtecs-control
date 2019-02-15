@@ -45,6 +45,9 @@ class DomeDaemon(BaseDaemon):
         self.move_start_time = 0
 
         self.lockdown = False
+        self.lockdown_reasons = []
+        self.ignoring_lockdown = False
+
         self.autoclose = True
         self.alarm = True
         self.heartbeat = True
@@ -455,8 +458,11 @@ class DomeDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['lockdown'] = self.lockdown
+        temp_info['lockdown_reasons'] = self.lockdown_reasons
+        temp_info['ignoring_lockdown'] = self.ignoring_lockdown
         temp_info['autoclose'] = self.autoclose
         temp_info['alarm'] = self.alarm
+        temp_info['heartbeat'] = self.heartbeat
 
         # Write debug log line
         try:
@@ -504,39 +510,46 @@ class DomeDaemon(BaseDaemon):
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
         lockdown = False
+        reasons = []
 
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
-            self.log.warning('Lockdown: quick-close button pressed')
             lockdown = True
+            reasons.append('quick-close button pressed')
 
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:
-            reasons = self.info['emergency_reasons']
-            self.log.warning('Lockdown: emergency shutdown ({})'.format(reasons))
             lockdown = True
+            reasons.append('emergency shutdown ({})'.format(self.info['emergency_reasons']))
 
         # Check if the conditions are bad
         if self.info['conditions_bad']:
-            reasons = self.info['conditions_bad_reasons']
-            self.log.warning('Lockdown: conditions bad ({})'.format(reasons))
             lockdown = True
-
-        # Check if the lockdown can be cleared
-        if self.lockdown and not lockdown:
-            self.log.info('Lockdown lifted')
-            lockdown = False
-
-        # Check if the system mode means disabling lockdowns
-        if lockdown and self.info['mode'] == 'manual' and not self.autoclose:
-            self.log.warning('Lockdown ignored (in manual mode and autoclose disabled)')
-            lockdown = False
-        if lockdown and self.info['mode'] == 'engineering':
-            self.log.warning('Lockdown ignored (in engineering mode)')
-            lockdown = False
+            reasons.append('conditions bad ({})'.format(self.info['conditions_bad_reasons']))
 
         # Set the flag
-        self.lockdown = lockdown
+        if lockdown:
+            if self.autoclose:
+                # Activate lockdown
+                self.lockdown = True
+                if reasons != self.lockdown_reasons or self.ignoring_lockdown:
+                    self.log.warning('Lockdown: {}'.format(', '.join(reasons)))
+                    self.lockdown_reasons = reasons
+                    self.ignoring_lockdown = False
+            else:
+                # Autoclose disabled, ignore lockdown
+                self.lockdown = False
+                if reasons != self.lockdown_reasons or not self.ignoring_lockdown:
+                    self.log.warning('IGNORING Lockdown: {}'.format(', '.join(reasons)))
+                    self.lockdown_reasons = reasons
+                    self.ignoring_lockdown = True
+        else:
+            if self.lockdown or self.lockdown_reasons:
+                # Clear lockdown
+                self.lockdown = False
+                self.log.info('Lockdown lifted')
+                self.lockdown_reasons = []
+                self.ignoring_lockdown = False
 
     def _autoclose_check(self):
         """Check if the dome is in lockdown and needs to autoclose."""
