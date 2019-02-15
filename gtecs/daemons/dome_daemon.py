@@ -497,7 +497,7 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('System is in engineering mode, disabling alarm')
                 self.alarm = False
             if self.heartbeat:
-                self.log.info('System is in robotic mode, disabling heartbeat')
+                self.log.info('System is in engineering mode, disabling heartbeat')
                 self.heartbeat = False
                 self.heartbeat_set_flag = 1
 
