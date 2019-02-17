@@ -99,6 +99,11 @@ class Status(object):
             self._observer = str(data['observer'])
         except Exception:
             # Rewrite the file ourselves with defaults
+            print('Status file corrupted')
+            try:
+                print(data)
+            except Exception:
+                pass
             self._mode = 'robotic'
             self._observer = params.ROBOTIC_OBSERVER
             with open(self.status_file, 'w') as f:
