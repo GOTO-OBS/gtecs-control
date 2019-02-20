@@ -13,6 +13,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import get_sunalt
 from gtecs.daemons import BaseDaemon
+from gtecs.slack import send_slack_msg
 
 import numpy as np
 
@@ -26,21 +27,23 @@ class ConditionsDaemon(BaseDaemon):
         # conditions variables
         self.check_period = params.WEATHER_INTERVAL
 
-        self.flag_names = ['clouds',
-                           'dark',
-                           'rain',
-                           'windspeed',
-                           'humidity',
-                           'temperature',
-                           'dew_point',
-                           'ups',
-                           'link',
-                           'hatch',
-                           'diskspace',
-                           'low_battery',
-                           'internal',
-                           'ice',
-                           ]
+        self.info_flag_names = ['clouds',
+                                'dark',
+                                ]
+        self.normal_flag_names = ['rain',
+                                  'windspeed',
+                                  'humidity',
+                                  'temperature',
+                                  'dew_point',
+                                  ]
+        self.critical_flag_names = ['ups',
+                                    'link',
+                                    'diskspace',
+                                    'hatch',
+                                    'internal',
+                                    'ice',
+                                    ]
+        self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
         self.flags = {flag: 2 for flag in self.flag_names}
         self.update_time = {flag: 0 for flag in self.flag_names}
@@ -65,6 +68,14 @@ class ConditionsDaemon(BaseDaemon):
 
                 # Nothing to connect to, just get the info
                 self._get_info()
+
+                # Update the conditions flags
+                try:
+                    self._set_flags()
+                except Exception:
+                    self.log.error('Failed to set conditions flags')
+                    self.log.debug('', exc_info=True)
+                    self.flags = {flag: 2 for flag in self.flag_names}
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -166,19 +177,24 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['sunalt'] = -999
 
-        # Set the conditions flags
-        try:
-            self._set_flags(temp_info)
-        except Exception:
-            self.log.error('Failed to set conditions flags')
-            self.log.debug('', exc_info=True)
-            self.flags = {flag: 2 for flag in self.flag_names}
-
         # Get internal info
-        temp_info['flags'] = self.flags
+        temp_info['flags'] = self.flags.copy()
 
         # Write debug log line
-        # NONE, we do it already
+        try:
+            now_strs = ['{}:{}'.format(key, temp_info['flags'][key])
+                        for key in sorted(self.flag_names)]
+            now_str = ' '.join(now_strs)
+            if not self.info:
+                self.log.debug('Conditions flags: {}'.format(now_str))
+            else:
+                old_strs = ['{}:{}'.format(key, self.info['flags'][key])
+                            for key in sorted(self.flag_names)]
+                old_str = ' '.join(old_strs)
+                if now_str != old_str:
+                    self.log.debug('Conditions flags: {}'.format(now_str))
+        except Exception:
+            self.log.error('Could not write current status')
 
         # Update the master info dict
         self.info = temp_info
@@ -186,12 +202,12 @@ class ConditionsDaemon(BaseDaemon):
         # Finally check if we need to report an error
         self._check_errors()
 
-    def _set_flags(self, info):
+    def _set_flags(self):
         """Set the conditions flags based on the conditions info."""
         # Get the conditions values and filter by validity if needed
 
         # Weather
-        weather = info['weather']
+        weather = self.info['weather']
         rain = np.array([weather[source]['rain'] for source in weather
                          if 'rain' in weather[source]])
         windspeed = np.array([weather[source]['windspeed'] for source in weather
@@ -216,30 +232,30 @@ class ConditionsDaemon(BaseDaemon):
         int_humidity = int_humidity[int_humidity != -999]
 
         # UPSs
-        ups_percent = np.array(info['ups_percent'])
-        ups_status = np.array(info['ups_status'])
+        ups_percent = np.array(self.info['ups_percent'])
+        ups_status = np.array(self.info['ups_status'])
 
         ups_percent = ups_percent[ups_percent != -999]
         ups_status = ups_status[ups_status != -999]
 
         # Hatch
-        hatch_closed = np.array(info['hatch_closed'])
+        hatch_closed = np.array(self.info['hatch_closed'])
         hatch_closed = hatch_closed[hatch_closed != -999]
 
         # Link
-        pings = np.array(info['pings'])
+        pings = np.array(self.info['pings'])
         pings = pings[pings != -999]
 
         # Diskspace
-        free_diskspace = np.array(info['free_diskspace'])
+        free_diskspace = np.array(self.info['free_diskspace'])
         free_diskspace = free_diskspace[free_diskspace != -999]
 
         # Clouds
-        clouds = np.array(info['clouds'])
+        clouds = np.array(self.info['clouds'])
         clouds = clouds[clouds != -999]
 
         # Sunalt
-        sunalt = np.array(info['sunalt'])
+        sunalt = np.array(self.info['sunalt'])
         sunalt = sunalt[sunalt != -999]
 
         # ~~~~~~~~~~~~~~
@@ -307,12 +323,6 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['ups'] = params.UPS_GOODDELAY
         bad_delay['ups'] = params.UPS_BADDELAY
 
-        # low_battery flag
-        good['low_battery'] = np.all(ups_percent > params.CRITICAL_UPSBATTERY)
-        valid['low_battery'] = len(ups_percent) >= 1
-        good_delay['low_battery'] = 0
-        bad_delay['low_battery'] = 0
-
         # hatch flag
         good['hatch'] = np.all(hatch_closed == 1)
         valid['hatch'] = len(hatch_closed) >= 1
@@ -345,7 +355,8 @@ class ConditionsDaemon(BaseDaemon):
 
         # ~~~~~~~~~~~~~~
         # Set each flag
-        update_time = info['time']
+        old_flags = self.flags.copy()
+        update_time = self.info['time']
         for flag in self.flag_names:
             # check if invalid
             if not valid[flag] and self.flags[flag] != 2:
@@ -394,11 +405,25 @@ class ConditionsDaemon(BaseDaemon):
         with open(flags_file, 'w') as f:
             json.dump(data, f)
 
-        # log current flags
-        logline = ''
-        for key in sorted(self.flags):
-            logline += '{}: {} '.format(key, self.flags[key])
-        self.log.debug(logline)
+        # ~~~~~~~~~~~~~~
+        # Trigger Slack alerts for critical flags
+        for flag in self.critical_flag_names:
+            if old_flags[flag] == 0 and self.flags[flag] == 1:
+                # The flag has been set to bad
+                self.log.warning('Critical flag {} set to bad'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
+            elif old_flags[flag] == 1 and self.flags[flag] == 0:
+                # The flag has been set to good
+                self.log.warning('Critical flag {} set to good'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
+
+    # Control functions
+    def update(self):
+        """Force a conditions update."""
+        # Set flag
+        self.force_check_flag = 1
+
+        return 'Updating conditions'
 
 
 if __name__ == "__main__":

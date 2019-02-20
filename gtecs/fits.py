@@ -170,6 +170,7 @@ def update_header(header, tel, all_info, log):
     status = Status()
     header["SYS-MODE"] = (status.mode, "Current telescope system mode")
     header["OBSERVER"] = (status.observer, "Who started the exposure")
+
     header["OBJECT  "] = (current_exposure.target, "Observed object name")
 
     header["SET-POS "] = (current_exposure.set_pos, "Position of this exposure in this set")

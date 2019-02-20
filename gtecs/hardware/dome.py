@@ -9,7 +9,6 @@ import time
 import serial
 
 from .power import ETH002
-from .. import flags
 from .. import params
 from ..conditions import get_roomalert
 
@@ -24,7 +23,8 @@ class FakeDome(object):
         self.frac = 1
         self.command = ''
         self.timeout = 0
-        self.heartbeat_status = 'disabled'
+        self.heartbeat_status = 'enabled'
+        self.heartbeat_enabled = True
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
@@ -96,6 +96,23 @@ class FakeDome(object):
     def halt(self):
         """Stop the dome moving."""
         self.output_thread_running = False
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                self.heartbeat_status = 'enabled'
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                self.heartbeat_status = 'disabled'
+                return 'Heartbeat disabled'
 
     def _output_thread(self):
         if self.side == 'north':
@@ -173,24 +190,25 @@ class FakeDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1):
+    def open_side(self, side, frac=1, sound_alarm=True):
         """Open one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1):
+    def close_side(self, side, frac=1, sound_alarm=True):
         """Close one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
+    def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
         """Sound the dome alarm."""
-        status = flags.Status()
-        if status.alarm:
-            bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
-            subprocess.getoutput(bell)
+        # Note this is always blocking
+        bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
+        subprocess.getoutput(bell)
         return
 
 
@@ -221,7 +239,7 @@ class AstroHavenDome(object):
         self.plc_error = 0
         self.arduino_error = 0
 
-        self.heartbeat_enabled = params.DOME_HEARTBEAT_ENABLED
+        self.heartbeat_enabled = True
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
         self.heartbeat_status = 'ERROR'
         self.heartbeat_error = 0
@@ -243,7 +261,7 @@ class AstroHavenDome(object):
         self._check_status()
 
         # serial connection to the dome monitor box
-        if self.heartbeat_enabled and self.heartbeat_serial_port:
+        if self.heartbeat_serial_port:
             try:
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
                                                       baudrate=self.heartbeat_serial_baudrate,
@@ -517,11 +535,6 @@ class AstroHavenDome(object):
                     self.heartbeat_serial.write(0)
             else:
                 if self.heartbeat_status == 'closed':
-                    # reenable autoclose if it's not already
-                    status = flags.Status()
-                    if not status.autoclose:
-                        print('closed due to heartbeat, reenable autoclose')
-                        status.autoclose = True
                     # send a 0 to reset it
                     # print('sending reset value')
                     self.heartbeat_serial.write(chr(0).encode('ascii'))
@@ -532,6 +545,21 @@ class AstroHavenDome(object):
                     # print('sent byte to heartbeat')
 
             time.sleep(0.5)
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                return 'Heartbeat disabled'
 
     def _output_thread(self):
         side = self.side
@@ -604,15 +632,17 @@ class AstroHavenDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1):
+    def open_side(self, side, frac=1, sound_alarm=True):
         """Open one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1):
+    def close_side(self, side, frac=1, sound_alarm=True):
         """Close one side of the dome."""
-        self.sound_alarm()
+        if sound_alarm:
+            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
@@ -629,11 +659,9 @@ class AstroHavenDome(object):
             default = True
         """
         loc = params.ARDUINO_LOCATION
-        status = flags.Status()
-        if status.alarm:
-            subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
-            if sleep:
-                time.sleep(duration)
+        subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
+        if sleep:
+            time.sleep(duration)
         return
 
 

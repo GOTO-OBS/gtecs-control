@@ -106,9 +106,8 @@ class Pilot(object):
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
-        # override and conditions flags
-        self.status = Status()
-        self.conditions = Conditions()
+        # store system mode
+        self.system_mode = 'robotic'
 
         # dictionary of reasons to pause
         self.whypause = {'hw': False, 'cond': False, 'manual': False}
@@ -171,7 +170,7 @@ class Pilot(object):
 
         sleep_time = good_sleep_time
         while True:
-            if self.status.mode == 'manual':
+            if self.system_mode == 'manual':
                 self.log.debug('hardware checks suspended in manual mode')
                 await asyncio.sleep(sleep_time)
                 continue
@@ -233,25 +232,35 @@ class Pilot(object):
 
         sleep_time = 10
         while True:
-            # handle overrides first
-            self.status = Status()
-            if self.status.mode == 'manual':
+            # get system mode
+            status = Status()
+            self.system_mode = status.mode
+
+            # make sure pilot isn't running in engineering mode
+            if self.system_mode == 'engineering':
+                self.log.warning('System is in engineering mode, exiting abnormally')
+                send_slack_msg('Pilot should not be running when system is in engineering mode')
+                send_slack_msg('Pilot exiting abnormally')
+                sys.exit(1)
+
+            # handle manual override
+            if self.system_mode == 'manual':
                 await self.handle_pause('manual', True)
             else:
                 await self.handle_pause('manual', False)
 
-            # now handle conditions
-            self.conditions = Conditions()
-            if self.conditions.bad:
-                self.log.warning('Conditions bad: ({})'.format(self.conditions.bad_flags))
+            # handle conditions
+            conditions = Conditions()
+            if conditions.bad:
+                self.log.warning('Conditions bad: ({})'.format(conditions.bad_flags))
                 await self.handle_pause('cond', True)
             else:
                 await self.handle_pause('cond', False)
 
             # emergency file
-            if self.status.emergency_shutdown:
-                reasons = ', '.join(self.status.emergency_shutdown_reasons)
-                self.log.warning('Conditions critical: ({})'.format(reasons))
+            if status.emergency_shutdown:
+                reasons = ', '.join(status.emergency_shutdown_reasons)
+                self.log.warning('Emergency shutdown file detected: ({})'.format(reasons))
                 asyncio.ensure_future(self.emergency_shutdown(reasons))
 
             # print if we're paused
@@ -267,7 +276,7 @@ class Pilot(object):
 
         sleep_time = 10
         while True:
-            if self.status.mode == 'manual':
+            if self.system_mode == 'manual':
                 self.log.debug('dome checks suspended in manual mode')
                 await asyncio.sleep(10)
                 continue
@@ -799,7 +808,7 @@ class Pilot(object):
             self.whypause[reason] = True
 
             if reason == 'cond':
-                msg = 'Pausing due to bad conditions ({})'.format(self.conditions.bad_flags)
+                msg = 'Pausing due to bad conditions'
                 self.log.warning(msg)
                 send_slack_msg('Pilot is pausing due to bad conditions')
 

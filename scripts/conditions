@@ -64,6 +64,12 @@ def query(command, args, daemon_id):
         # send command
         misc.execute_long_command(tail_command)
 
+    # Daemon functions
+    elif command == 'update':
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'update')
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -80,7 +86,7 @@ def print_info(info):
         weather = info['weather']
         for flag in sorted(flags):
             if flag in ['clouds', 'dark']:
-                # skip non-important flags
+                # skip "info" flags
                 continue
             if flags[flag] == 0:
                 status = style.gtxt('Good')
@@ -230,9 +236,7 @@ def print_info(info):
         ups_percents = info['ups_percent']
         ups_strings = []
         for ups_percent in ups_percents:
-            if params.CRITICAL_UPSBATTERY < ups_percent < params.MIN_UPSBATTERY:
-                ups_strings.append(style.ytxt('{:>5.1f}'.format(ups_percent)))
-            elif ups_percent < params.CRITICAL_UPSBATTERY:
+            if ups_percent < params.MIN_UPSBATTERY:
                 ups_strings.append(style.rtxt('{:>5.1f}'.format(ups_percent)))
             else:
                 ups_strings.append(style.gtxt('{:>5.1f}'.format(ups_percent)))
@@ -258,6 +262,7 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
+          '  update                         force update the conditions',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
