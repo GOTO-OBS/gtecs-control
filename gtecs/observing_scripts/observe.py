@@ -31,8 +31,8 @@ def get_position(pointing_id):
     with open_session() as session:
         pointing = get_pointing_by_id(session, pointing_id)
         ra = pointing.ra
-        decl = pointing.decl
-    return ra, decl
+        dec = pointing.dec
+    return ra, dec
 
 
 def get_exq_commands(pointing_id):

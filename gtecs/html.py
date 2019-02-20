@@ -106,7 +106,7 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
                 stop = 'None'
             f.write('stop_time = ' + str(stop) + '<br>\n')
 
-            target = coord.ICRS(pointing.ra * u.deg, pointing.decl * u.deg)
+            target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
@@ -277,7 +277,7 @@ def write_queue_page():
                 priority_str = "<font color=red>%.11f</font>" % priority_now
 
             # find ra/dec
-            target = coord.ICRS(pointing.ra * u.deg, pointing.decl * u.deg)
+            target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
 

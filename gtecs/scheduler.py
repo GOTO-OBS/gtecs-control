@@ -184,7 +184,7 @@ class Pointing(object):
         # create pointing object
         pointing = cls(pointing_id=db_pointing.pointingID,
                        ra=db_pointing.ra,
-                       dec=db_pointing.decl,
+                       dec=db_pointing.dec,
                        priority=db_pointing.rank,
                        tileprob=tileprob,
                        too=db_pointing.ToO,

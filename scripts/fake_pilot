@@ -220,10 +220,10 @@ def estimate_completion_time(new_id, current_id, session):
     if current_id is not None:
         current_pointing = db.get_pointing_by_id(session, current_id)
         current_position = SkyCoord(current_pointing.ra,
-                                    current_pointing.decl,
+                                    current_pointing.dec,
                                     unit=u.deg, frame='icrs')
         new_position = SkyCoord(new_pointing.ra,
-                                new_pointing.decl,
+                                new_pointing.dec,
                                 unit=u.deg, frame='icrs')
         slew_distance = current_position.separation(new_position)
         slew_time = slew_distance / slewrate
@@ -293,7 +293,7 @@ class DummyPilot(object):
             current_pointing = db.get_pointing_by_id(session, self.current_id)
             self.current_name = current_pointing.objectName
             self.current_ra = current_pointing.ra
-            self.current_dec = current_pointing.decl
+            self.current_dec = current_pointing.dec
             current_tile = current_pointing.eventTile
             if current_tile:
                 self.current_probability = current_tile.unobserved_probability
