@@ -44,13 +44,14 @@ def print_instructions():
         script_path = os.path.join(SCRIPT_PATH, script_file)
         with open(script_path) as f:
             lines = f.readlines()
-            script_docs[script_path] = (lines[3].strip(), lines[1][3:].strip())
+            print(lines[0:5])
+            script_docs[script] = (lines[3].strip(), lines[1][3:].strip())
 
     print('Usage: obs_script <script name> [args]')
     print('Valid observing scripts:')
-    for s in sorted(SCRIPT_NAMES):
-        print('  {}'.format(script_docs[s][0]))
-        print('      - {}'.format(script_docs[s][1]))
+    for script in sorted(SCRIPT_NAMES):
+        print('  {}'.format(script_docs[script][0]))
+        print('      - {}'.format(script_docs[script][1]))
 
 
 if __name__ == "__main__":
