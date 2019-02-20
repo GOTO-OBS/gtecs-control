@@ -482,7 +482,7 @@ class DomeDaemon(BaseDaemon):
     def _mode_check(self):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
-            # In robotic mode autoclose and the alarm should always be enabled
+            # In robotic everything should always be enabled
             if not self.autoclose:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose = True
@@ -494,8 +494,15 @@ class DomeDaemon(BaseDaemon):
                 self.heartbeat = True
                 self.heartbeat_set_flag = 1
 
+        elif self.info['mode'] == 'manual':
+            # In manual mode the heartbeat should be enabled, everything else can be set
+            if not self.heartbeat:
+                self.log.info('System is in manual mode, enabling heartbeat')
+                self.heartbeat = True
+                self.heartbeat_set_flag = 1
+
         elif self.info['mode'] == 'engineering':
-            # In engineering mode autoclose and the alarm should always be disabled
+            # In engineering mode everything should always be disabled
             if self.autoclose:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose = False
