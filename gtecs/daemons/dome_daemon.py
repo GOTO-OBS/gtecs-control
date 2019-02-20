@@ -381,7 +381,7 @@ class DomeDaemon(BaseDaemon):
                 temp_info['dome'] = 'ERROR'
 
             heartbeat_status = self.dome.heartbeat_status
-            temp_info['heartbeat'] = heartbeat_status
+            temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')
             self.log.debug('', exc_info=True)
@@ -389,7 +389,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['south'] = None
             temp_info['hatch'] = None
             temp_info['dome'] = None
-            temp_info['heartbeat'] = None
+            temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome = None
             if 'dome' not in self.bad_hardware:
@@ -460,9 +460,9 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
-        temp_info['autoclose'] = self.autoclose
-        temp_info['alarm'] = self.alarm
-        temp_info['heartbeat'] = self.heartbeat
+        temp_info['autoclose_enabled'] = self.autoclose
+        temp_info['alarm_enabled'] = self.alarm
+        temp_info['heartbeat_enabled'] = self.heartbeat
 
         # Write debug log line
         try:
