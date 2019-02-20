@@ -44,7 +44,6 @@ def print_instructions():
         script_path = os.path.join(SCRIPT_PATH, script_file)
         with open(script_path) as f:
             lines = f.readlines()
-            print(lines[0:5])
             script_docs[script] = (lines[3].strip(), lines[1][3:].strip())
 
     print('Usage: obs_script <script name> [args]')
