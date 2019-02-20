@@ -143,7 +143,7 @@ def update_skymap_probabilities(session, event):
     print('    Updating skymap probabilities: ', end='\t')
     try:
         completed_pointings = session.query(db.Pointing).filter(
-            db.Pointing.eventID == event.eventID).filter(
+            db.Pointing.event == event).filter(
             db.Pointing.status == 'completed').all()
 
         completed_tilenames = [p.surveyTile.name for p in completed_pointings]
@@ -294,9 +294,7 @@ class DummyPilot(object):
             self.current_name = current_pointing.objectName
             self.current_ra = current_pointing.ra
             self.current_dec = current_pointing.decl
-            current_tile_id = current_pointing.eventTileID
-            tiles = session.query(db.EventTile)
-            current_tile = tiles.filter(db.EventTile.tileID == current_tile_id).one_or_none()
+            current_tile = current_pointing.eventTile
             if current_tile:
                 self.current_probability = current_tile.unobserved_probability
             else:

@@ -264,7 +264,7 @@ def update_header(header, tel, all_info, log):
                 expset = db.get_exposure_set_by_id(session, expset_id)
             except Exception:
                 expset = None
-            if expset and expset.pointingID:
+            if expset and expset.pointing:
                 pointing = expset.pointing
                 pointing_id = pointing.pointingID
                 pointing_rank = pointing.rank
@@ -279,38 +279,38 @@ def update_header(header, tel, all_info, log):
                     pointing_stoptime = pointing.stopUTC.strftime("%Y-%m-%dT%H:%M:%S")
                 else:
                     pointing_stoptime = 'None'
-                user_id = pointing.userKey
+                user_id = pointing.user.userKey
                 user_name = pointing.user.userName
                 user_fullname = pointing.user.fullName
 
-                if pointing.mpointingID:
-                    mpointing_id = pointing.mpointingID
+                if pointing.mpointing:
+                    mpointing_id = pointing.mpointing.mpointingID
                     mpointing_baserank = pointing.mpointing.start_rank
                     mpointing_obsnum = pointing.mpointing.num_completed
                     mpointing_target = pointing.mpointing.num_todo
                     mpointing_infinite = bool(pointing.mpointing.infinite)
 
-                if pointing.blockID:
-                    obs_block_id = pointing.blockID
+                if pointing.observing_block:
+                    obs_block_id = pointing.observing_block.blockID
                     obs_block_num = pointing.observing_block.blockNum
 
-                if pointing.eventID:
-                    event_id = pointing.eventID
+                if pointing.event:
+                    event_id = pointing.event.eventID
                     event_name = pointing.event.name
                     event_ivo = pointing.event.ivo
                     event_source = pointing.event.source
 
-                if pointing.eventTileID:
-                    event_tile_id = pointing.eventTileID
+                if pointing.eventTile:
+                    event_tile_id = pointing.eventTile.eventTileID
                     event_tile_obsprob = pointing.eventTile.probability
                     event_tile_baseprob = pointing.eventTile.unobserved_probability
 
-                if pointing.surveyID:
-                    survey_id = pointing.surveyID
+                if pointing.survey:
+                    survey_id = pointing.survey.surveyID
                     survey_name = pointing.survey.name
 
-                if pointing.surveyTileID:
-                    survey_tile_id = pointing.surveyTileID
+                if pointing.surveyTile:
+                    survey_tile_id = pointing.surveyTile.surveyTileID
                     survey_tile_name = pointing.surveyTile.name
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")

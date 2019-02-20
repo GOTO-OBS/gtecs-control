@@ -253,7 +253,7 @@ def write_queue_page():
             pointing = db.get_pointing_by_id(session, pointing_id)
             if pointing.exposure_sets is not None:
                 exposure_sets = pointing.exposure_sets
-            username = db.get_username(session, pointing.userKey)
+            username = pointing.user.username
             session.close()
 
             # create the small pointing files

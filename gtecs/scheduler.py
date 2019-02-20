@@ -177,7 +177,7 @@ class Pointing(object):
         else:
             tileprob = 1
         # survey tiles can be told apart by being linked to a Survey
-        survey = bool(db_pointing.surveyID is not None)
+        survey = bool(db_pointing.survey is not None)
         # the current pointing has running status
         current = bool(db_pointing.status == 'running')
 
