@@ -381,7 +381,7 @@ class DomeDaemon(BaseDaemon):
                 temp_info['dome'] = 'ERROR'
 
             heartbeat_status = self.dome.heartbeat_status
-            temp_info['heartbeat'] = heartbeat_status
+            temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')
             self.log.debug('', exc_info=True)
@@ -389,7 +389,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['south'] = None
             temp_info['hatch'] = None
             temp_info['dome'] = None
-            temp_info['heartbeat'] = None
+            temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome = None
             if 'dome' not in self.bad_hardware:
@@ -460,9 +460,9 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
-        temp_info['autoclose'] = self.autoclose
-        temp_info['alarm'] = self.alarm
-        temp_info['heartbeat'] = self.heartbeat
+        temp_info['autoclose_enabled'] = self.autoclose
+        temp_info['alarm_enabled'] = self.alarm
+        temp_info['heartbeat_enabled'] = self.heartbeat
 
         # Write debug log line
         try:
@@ -482,7 +482,7 @@ class DomeDaemon(BaseDaemon):
     def _mode_check(self):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
-            # In robotic mode autoclose and the alarm should always be enabled
+            # In robotic everything should always be enabled
             if not self.autoclose:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose = True
@@ -494,8 +494,15 @@ class DomeDaemon(BaseDaemon):
                 self.heartbeat = True
                 self.heartbeat_set_flag = 1
 
+        elif self.info['mode'] == 'manual':
+            # In manual mode the heartbeat should be enabled, everything else can be set
+            if not self.heartbeat:
+                self.log.info('System is in manual mode, enabling heartbeat')
+                self.heartbeat = True
+                self.heartbeat_set_flag = 1
+
         elif self.info['mode'] == 'engineering':
-            # In engineering mode autoclose and the alarm should always be disabled
+            # In engineering mode everything should always be disabled
             if self.autoclose:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose = False
