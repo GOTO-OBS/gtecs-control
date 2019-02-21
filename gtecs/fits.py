@@ -307,10 +307,10 @@ def update_header(header, tel, all_info, log):
 
                 if pointing.survey_tile:
                     survey_id = pointing.survey_tile.survey.db_id
-                    survey_name = pointing.survey_tile.survey.db_id
+                    survey_name = pointing.survey_tile.survey.name
                     survey_tile_id = pointing.survey_tile.db_id
                     survey_tile_weight = pointing.survey_tile.current_weight
-                    survey_tile_initialweight = pointing.survey_tile.start_weight
+                    survey_tile_initialweight = pointing.survey_tile.initial_weight
 
                 if pointing.event:
                     event_id = pointing.event.db_id
