@@ -57,7 +57,7 @@ def get_exq_commands(pointing_id):
                 tels = ''
 
             # Format command
-            command = 'exq multimage {} {}{:.1f} {} {} "{}" SCIENCE {}'.fromat(
+            command = 'exq multimage {} {}{:.1f} {} {} "{}" SCIENCE {}'.format(
                 exposure_set.num_exp,
                 tels,
                 exposure_set.exptime,
