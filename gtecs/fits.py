@@ -266,7 +266,7 @@ def update_header(header, tel, all_info, log):
                 expset = None
             if expset and expset.pointing:
                 pointing = expset.pointing
-                pointing_id = pointing.pointingID
+                pointing_id = pointing.db_id
                 pointing_rank = pointing.rank
                 pointing_too = bool(pointing.ToO)
                 pointing_minalt = pointing.minAlt
@@ -279,38 +279,38 @@ def update_header(header, tel, all_info, log):
                     pointing_stoptime = pointing.stopUTC.strftime("%Y-%m-%dT%H:%M:%S")
                 else:
                     pointing_stoptime = 'None'
-                user_id = pointing.user.userKey
+                user_id = pointing.user.db_id
                 user_name = pointing.user.userName
                 user_fullname = pointing.user.fullName
 
                 if pointing.mpointing:
-                    mpointing_id = pointing.mpointing.mpointingID
+                    mpointing_id = pointing.mpointing.db_id
                     mpointing_baserank = pointing.mpointing.start_rank
                     mpointing_obsnum = pointing.mpointing.num_completed
                     mpointing_target = pointing.mpointing.num_todo
                     mpointing_infinite = bool(pointing.mpointing.infinite)
 
                 if pointing.observing_block:
-                    obs_block_id = pointing.observing_block.blockID
+                    obs_block_id = pointing.observing_block.db_id
                     obs_block_num = pointing.observing_block.blockNum
 
                 if pointing.event:
-                    event_id = pointing.event.eventID
+                    event_id = pointing.event.db_id
                     event_name = pointing.event.name
                     event_ivo = pointing.event.ivo
                     event_source = pointing.event.source
 
                 if pointing.eventTile:
-                    event_tile_id = pointing.eventTile.eventTileID
+                    event_tile_id = pointing.eventTile.db_id
                     event_tile_obsprob = pointing.eventTile.probability
                     event_tile_baseprob = pointing.eventTile.unobserved_probability
 
                 if pointing.survey:
-                    survey_id = pointing.survey.surveyID
+                    survey_id = pointing.survey.db_id
                     survey_name = pointing.survey.name
 
                 if pointing.surveyTile:
-                    survey_tile_id = pointing.surveyTile.surveyTileID
+                    survey_tile_id = pointing.surveyTile.db_id
                     survey_tile_name = pointing.surveyTile.name
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
@@ -651,7 +651,7 @@ def write_image_log(filename, header):
     log = db.ImageLog(filename=filename, runNumber=run_number, ut=ut,
                       utMask=ut_mask, startUTC=start_time, writeUTC=write_time,
                       set_position=set_position, set_total=set_total,
-                      expID=expset_id, pointingID=pointing_id, mpointingID=mpointing_id)
+                      exposure_set_id=expset_id, pointing_id=pointing_id, mpointing_id=mpointing_id)
 
     with db.open_session() as session:
         session.add(log)

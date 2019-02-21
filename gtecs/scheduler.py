@@ -182,7 +182,7 @@ class Pointing(object):
         current = bool(db_pointing.status == 'running')
 
         # create pointing object
-        pointing = cls(pointing_id=db_pointing.pointingID,
+        pointing = cls(pointing_id=db_pointing.db_id,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
                        priority=db_pointing.rank,
