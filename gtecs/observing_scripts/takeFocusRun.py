@@ -96,13 +96,36 @@ def run(width, step, make_plots):
         print('## RUN {} of {}'.format(runno + 1, len(pos_master_list)))
         set_focus_carefully(row, orig_focus, 100)
         print('Focus: {!r}'.format(get_current_focus()))
-        print('Taking frames')
-        data = get_analysis_image(params.FOCUSRUN_EXPTIME, params.FOCUSRUN_FILTER,
-                                  'Focus run', 'FOCUS', glance=False)
-        hfd_values = get_hfds(data, **kwargs)
-        print('Focus Data:\n{!r}'.format(hfd_values))
-        hfd_values['pos'] = pd.Series(get_current_focus())
-        series_list.append(hfd_values)
+        print('Taking 3 frames')
+        hfds = None
+        fwhms = None
+        for i in range(3):
+            image = get_analysis_image(params.FOCUSRUN_EXPTIME, params.FOCUSRUN_FILTER,
+                                       'Focus run', 'FOCUS', glance=False)
+            data = get_hfds(image, **kwargs)
+            if hfds is not None:
+                hfds = hfds.append(data['median'])
+                fwhms = fwhms.append(data['fwhm'])
+            else:
+                hfds = data['median']
+                fwhms = data['fwhm']
+            print('Measurement {:.0f}/3\n Half-flux-diameters:\n{!r}'.format(i + 1, data['median']))
+
+        # Take the smallest value of the 3
+        hfds = hfds.groupby(level=0)
+        hfd_dict = hfds.min()
+        print('Best measurement:\n Half-flux-diameters:\n{!r}'.format(hfd_dict))
+        fwhms = fwhms.groupby(level=0)
+        fwhm_dict = fwhms.min()
+
+        data = {'median': hfd_dict,
+                'std': hfd_dict.std(),
+                'fwhm': fwhm_dict,
+                'fwhm_std': fwhm_dict.std(),
+                'pos': pd.Series(get_current_focus()),
+                }
+
+        series_list.append(pd.DataFrame(data))
     print('Exposures finished')
 
     # restore the origional focus
