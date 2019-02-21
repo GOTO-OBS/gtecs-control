@@ -130,7 +130,7 @@ class DummyScheduler(object):
                 curr, pointings = db.get_queue(s)
                 new = np.random.choice(pointings)
                 self.current_id = new.pointing_id
-                self.current_mintime = new.minTime
+                self.current_mintime = new.min_time
                 self.current_priority = new.rank
         return self.current_id, self.current_mintime, self.current_priority
 
@@ -146,7 +146,7 @@ def update_skymap_probabilities(session, event):
             db.Pointing.event == event).filter(
             db.Pointing.status == 'completed').all()
 
-        completed_tilenames = [p.surveyTile.name for p in completed_pointings]
+        completed_tilenames = [p.survey_tile.name for p in completed_pointings]
 
         filepath = event.skymap
         skymap = SkyMap(filepath)
@@ -155,9 +155,9 @@ def update_skymap_probabilities(session, event):
                                 observed=[completed_tilenames])
 
         i = 0
-        for tile in event.eventTiles:
+        for tile in event.event_tiles:
             old_prob = float(tile.unobserved_probability)
-            index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
+            index = np.where(pointings['fieldname'] == tile.survey_tile.name)[0][0]
             new_prob = float(pointings['prob'][index])
 
             if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
@@ -215,7 +215,7 @@ def estimate_completion_time(new_id, current_id, session):
     total_exptime = 0 * u.s
     new_pointing = db.get_pointing_by_id(session, new_id)
     for exp in new_pointing.exposure_sets:
-        total_exptime += ((exp.expTime * u.s + readouttime) * exp.numexp)
+        total_exptime += ((exp.exptime * u.s + readouttime) * exp.num_exp)
 
     if current_id is not None:
         current_pointing = db.get_pointing_by_id(session, current_id)
@@ -291,10 +291,10 @@ class DummyPilot(object):
             state = 'closed'
         elif self.current_id is not None:
             current_pointing = db.get_pointing_by_id(session, self.current_id)
-            self.current_name = current_pointing.objectName
+            self.current_name = current_pointing.object_name
             self.current_ra = current_pointing.ra
             self.current_dec = current_pointing.dec
-            current_tile = current_pointing.eventTile
+            current_tile = current_pointing.event_tile
             if current_tile:
                 self.current_probability = current_tile.unobserved_probability
             else:

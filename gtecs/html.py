@@ -94,12 +94,12 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
         if debug == 1:
             f.write('Debug info:<br>\n')
             f.write('now = ' + str(time) + '<br>\n')
-            start = Time(pointing.startUTC)
+            start = Time(pointing.start_time)
             start.format = 'iso'
             start.precision = 0
             f.write('start_time = ' + str(start) + '<br>\n')
-            if pointing.stopUTC:
-                stop = Time(pointing.stopUTC)
+            if pointing.stop_time:
+                stop = Time(pointing.stop_time)
                 stop.format = 'iso'
                 stop.precision = 0
             else:
@@ -152,14 +152,14 @@ def write_exp_file(pointing_id, exposure_sets):
             for exposure_set in exposure_sets:
                 f.write('<tr>' +
                         '<td align=right><b>' + str(i) + '</b></td>' +
-                        '<td> ' + str(exposure_set.utMask) + ' </td>' +
-                        '<td> ' + str(exposure_set.numexp) + ' </td>' +
-                        '<td> ' + str(exposure_set.expTime) + ' </td>' +
+                        '<td> ' + str(exposure_set.ut_mask) + ' </td>' +
+                        '<td> ' + str(exposure_set.num_exp) + ' </td>' +
+                        '<td> ' + str(exposure_set.exptime) + ' </td>' +
                         '<td> ' + str(exposure_set.filt) + ' </td>' +
                         '<td> ' + str(exposure_set.binning) + ' </td>' +
-                        '<td> ' + str(exposure_set.typeFlag) + ' </td>' +
-                        '<td> ' + str(exposure_set.raoff) + ' </td>' +
-                        '<td> ' + str(exposure_set.decoff) + ' </td>' +
+                        '<td> ' + str(exposure_set.imgtype) + ' </td>' +
+                        '<td> ' + str(exposure_set.ra_offset) + ' </td>' +
+                        '<td> ' + str(exposure_set.dec_offset) + ' </td>' +
                         '</tr>\n')
                 i += 1
             f.write("</table></body></html>")
@@ -265,7 +265,7 @@ def write_queue_page():
             write_exp_file(pointing_id, exposure_sets)
             exp_link = 'ID_{}_exp.html'.format(pointing_id)
             exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
-                       str(pointing.objectName) + '</a>' + popup_str)
+                       str(pointing.object_name) + '</a>' + popup_str)
 
             # find priority
             priority_now = pointing_info[1]
@@ -287,14 +287,14 @@ def write_queue_page():
                     '<td>' + ra + '</td>' +
                     '<td>' + dec + '</td>' +
                     '<td>' + priority_str + '</td>' +
-                    '<td>' + str(pointing.minTime) + '</td>' +
-                    '<td>' + str(pointing.minAlt) + '</td>' +
-                    '<td>' + str(pointing.maxSunAlt) + '</td>' +
-                    '<td>' + str(pointing.maxMoon) + '</td>' +
-                    '<td>' + str(pointing.minMoonSep) + '</td>' +
+                    '<td>' + str(pointing.min_time) + '</td>' +
+                    '<td>' + str(pointing.min_alt) + '</td>' +
+                    '<td>' + str(pointing.max_sunalt) + '</td>' +
+                    '<td>' + str(pointing.max_moon) + '</td>' +
+                    '<td>' + str(pointing.min_moonsep) + '</td>' +
                     '<td>' + str(username) + '</td>' +
-                    '<td>' + str(pointing.startUTC) + '</td>' +
-                    '<td>' + str(pointing.stopUTC) + '</td>' +
+                    '<td>' + str(pointing.start_time) + '</td>' +
+                    '<td>' + str(pointing.stop_time) + '</td>' +
                     '<td>' + flag_str + '</td>' +
                     '</tr>\n')
             f.write("</tr>\n")

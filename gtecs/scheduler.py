@@ -172,8 +172,8 @@ class Pointing(object):
         """Import a pointing from the database."""
         # not every pointing has an associated tile probability
         # if it doesn't, it effectively contains 100% of the target so prob=1
-        if db_pointing.eventTile:
-            tileprob = db_pointing.eventTile.unobserved_probability
+        if db_pointing.event_tile:
+            tileprob = db_pointing.event_tile.unobserved_probability
         else:
             tileprob = 1
         # survey tiles can be told apart by being linked to a Survey
@@ -187,14 +187,14 @@ class Pointing(object):
                        dec=db_pointing.dec,
                        priority=db_pointing.rank,
                        tileprob=tileprob,
-                       too=db_pointing.ToO,
-                       maxsunalt=db_pointing.maxSunAlt,
-                       minalt=db_pointing.minAlt,
-                       mintime=db_pointing.minTime,
-                       maxmoon=db_pointing.maxMoon,
-                       minmoonsep=db_pointing.minMoonSep,
-                       start=db_pointing.startUTC,
-                       stop=db_pointing.stopUTC,
+                       too=db_pointing.too,
+                       maxsunalt=db_pointing.max_sunalt,
+                       minalt=db_pointing.min_alt,
+                       mintime=db_pointing.min_time,
+                       maxmoon=db_pointing.max_moon,
+                       minmoonsep=db_pointing.min_moonsep,
+                       start=db_pointing.start_time,
+                       stop=db_pointing.stop_time,
                        current=current,
                        survey=survey)
         return pointing

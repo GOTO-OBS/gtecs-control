@@ -140,7 +140,7 @@ def exposure_sequence(date, binning, start_exptime, nflats=5, eve=True):
 
     Returns
     -------
-    exp_times : list of float
+    exptimes : list of float
         suggested exposure times
 
     """

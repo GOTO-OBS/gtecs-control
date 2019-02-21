@@ -49,7 +49,7 @@ def run(time, limit):
 
         with db.open_session() as session:
             db_pointing = db.get_pointing_by_id(session, pointing.pointing_id)
-            print('{: >30}'.format(db_pointing.objectName), end=' | ')
+            print('{: >30}'.format(db_pointing.object_name), end=' | ')
 
         if pointing.current:
             print(ytxt('{: >11.6f}'.format(pointing.priority_now)), end=' | ')

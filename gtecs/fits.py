@@ -268,20 +268,20 @@ def update_header(header, tel, all_info, log):
                 pointing = expset.pointing
                 pointing_id = pointing.db_id
                 pointing_rank = pointing.rank
-                pointing_too = bool(pointing.ToO)
-                pointing_minalt = pointing.minAlt
-                pointing_maxsunalt = pointing.maxSunAlt
-                pointing_mintime = pointing.minTime
-                pointing_maxmoon = pointing.maxMoon
-                pointing_minmoonsep = pointing.minMoonSep
-                pointing_starttime = pointing.startUTC.strftime("%Y-%m-%dT%H:%M:%S")
-                if pointing.stopUTC:
-                    pointing_stoptime = pointing.stopUTC.strftime("%Y-%m-%dT%H:%M:%S")
+                pointing_too = bool(pointing.too)
+                pointing_minalt = pointing.min_alt
+                pointing_maxsunalt = pointing.max_sunalt
+                pointing_mintime = pointing.min_time
+                pointing_maxmoon = pointing.max_moon
+                pointing_minmoonsep = pointing.min_moonsep
+                pointing_starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                if pointing.stop_time:
+                    pointing_stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
                 else:
                     pointing_stoptime = 'None'
                 user_id = pointing.user.db_id
-                user_name = pointing.user.userName
-                user_fullname = pointing.user.fullName
+                user_name = pointing.user.username
+                user_fullname = pointing.user.full_name
 
                 if pointing.mpointing:
                     mpointing_id = pointing.mpointing.db_id
@@ -292,7 +292,7 @@ def update_header(header, tel, all_info, log):
 
                 if pointing.observing_block:
                     obs_block_id = pointing.observing_block.db_id
-                    obs_block_num = pointing.observing_block.blockNum
+                    obs_block_num = pointing.observing_block.block_num
 
                 if pointing.event:
                     event_id = pointing.event.db_id
@@ -300,18 +300,18 @@ def update_header(header, tel, all_info, log):
                     event_ivo = pointing.event.ivo
                     event_source = pointing.event.source
 
-                if pointing.eventTile:
-                    event_tile_id = pointing.eventTile.db_id
-                    event_tile_obsprob = pointing.eventTile.probability
-                    event_tile_baseprob = pointing.eventTile.unobserved_probability
+                if pointing.event_tile:
+                    event_tile_id = pointing.event_tile.db_id
+                    event_tile_obsprob = pointing.event_tile.probability
+                    event_tile_baseprob = pointing.event_tile.unobserved_probability
 
                 if pointing.survey:
                     survey_id = pointing.survey.db_id
                     survey_name = pointing.survey.name
 
-                if pointing.surveyTile:
-                    survey_tile_id = pointing.surveyTile.db_id
-                    survey_tile_name = pointing.surveyTile.name
+                if pointing.survey_tile:
+                    survey_tile_id = pointing.survey_tile.db_id
+                    survey_tile_name = pointing.survey_tile.name
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
     header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
@@ -648,8 +648,8 @@ def write_image_log(filename, header):
     if header["DB-MPNT "] != 'NA':
         mpointing_id = header["DB-MPNT "]
 
-    log = db.ImageLog(filename=filename, runNumber=run_number, ut=ut,
-                      utMask=ut_mask, startUTC=start_time, writeUTC=write_time,
+    log = db.ImageLog(filename=filename, run_number=run_number, ut=ut,
+                      ut_mask=ut_mask, start_time=start_time, write_time=write_time,
                       set_position=set_position, set_total=set_total,
                       exposure_set_id=expset_id, pointing_id=pointing_id, mpointing_id=mpointing_id)
 
