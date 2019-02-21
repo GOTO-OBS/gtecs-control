@@ -37,26 +37,39 @@ def get_position(pointing_id):
 
 def get_exq_commands(pointing_id):
     """Get the exposure queue command for a given pointing."""
-    command_template = 'exq multimage {num_exp} {tels}{exptime:.1f} '\
-                       '{filt} {binning} "{object_name}" SCIENCE {exposure_set_id}'
     total_time = 0
     commands = []
     with open_session() as session:
+        # Load pointing
         pointing = get_pointing_by_id(session, pointing_id)
+
+        # Loop over all exposure sets
         for exposure_set in pointing.exposure_sets:
-            # store total time
+            # Store total time
             total_time += (exposure_set.num_exp * exposure_set.exptime)
 
-            # format command
-            keywords = pointing.__dict__.copy()
-            keywords.update(exposure_set.__dict__)
+            # Format UT mask
             if exposure_set.ut_mask is not None:
                 ut_string = ut_mask_to_string(exposure_set.ut_mask)
                 ut_list = ut_string_to_list(ut_string)
-                keywords['tels'] = ','.join([str(i) for i in ut_list]) + ' '
+                tels = ','.join([str(i) for i in ut_list]) + ' '
             else:
-                keywords['tels'] = ''
-            commands.append(command_template.format(**keywords))
+                tels = ''
+
+            # Format command
+            command = 'exq multimage {} {}{:.1f} {} {} "{}" SCIENCE {}'.fromat(
+                exposure_set.num_exp,
+                tels,
+                exposure_set.exptime,
+                exposure_set.filt,
+                exposure_set.binning,
+                pointing.object_name,
+                exposure_set.db_id,
+            )
+
+            # Add command to list
+            commands.append(command)
+
     return commands, total_time
 
 
