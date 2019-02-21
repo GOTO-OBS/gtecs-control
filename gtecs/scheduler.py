@@ -29,13 +29,13 @@ from . import params
 warnings.simplefilter("ignore", ErfaWarning)
 
 # priority settings
-PROB_WEIGHT = 10
+WEIGHTING_WEIGHT = 10
 AIRMASS_WEIGHT = 1
 TTS_WEIGHT = 0.1
 
-PROB_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-AIRMASS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-TTS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+WEIGHTING_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+AIRMASS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+TTS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
 # set debug level
 debug = 1
@@ -111,14 +111,14 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, pointing_id, ra, dec, priority, tileprob, too, maxsunalt,
+    def __init__(self, pointing_id, ra, dec, priority, weight, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
                  current):
         self.pointing_id = int(pointing_id)
         self.ra = float(ra)
         self.dec = float(dec)
         self.priority = float(priority)
-        self.tileprob = float(tileprob)
+        self.weight = float(weight)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
         self.minalt = float(minalt)
@@ -139,12 +139,12 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(pointing_id={}, ra={}, dec={}, priority={}, tileprob={}, " +
+        template = ("Pointing(pointing_id={}, ra={}, dec={}, priority={}, weight={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
-            self.pointing_id, self.ra, self.dec, self.priority, self.tileprob,
+            self.pointing_id, self.ra, self.dec, self.priority, self.weight,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
@@ -158,9 +158,9 @@ class Pointing(object):
                 if not line.startswith('#'):
                     lines.append(line)
         # first line is the pointing
-        (pointing_id, ra, dec, priority, tileprob, too, sunalt, minalt,
+        (pointing_id, ra, dec, priority, weight, too, sunalt, minalt,
          mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
-        pointing = cls(pointing_id, ra, dec, priority, tileprob, too, sunalt,
+        pointing = cls(pointing_id, ra, dec, priority, weight, too, sunalt,
                        minalt, mintime, maxmoon, minmoonsep, start, stop,
                        False, False)
         return pointing
@@ -168,12 +168,12 @@ class Pointing(object):
     @classmethod
     def from_database(cls, db_pointing):
         """Import a pointing from the database."""
-        # not every pointing has an associated tile probability
-        # if it doesn't, it effectively contains 100% of the target so prob=1
+        # not every pointing has an associated survey tile weighting
+        # if it doesn't, it effectively contains 100% of the target so weight=1
         if db_pointing.survey_tile:
-            tileprob = db_pointing.survey_tile.current_weight
+            weight = db_pointing.survey_tile.current_weight
         else:
-            tileprob = 1
+            weight = 1
         # the current pointing has running status
         current = bool(db_pointing.status == 'running')
 
@@ -182,7 +182,7 @@ class Pointing(object):
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
                        priority=db_pointing.rank,
-                       tileprob=tileprob,
+                       weight=weight,
                        too=db_pointing.too,
                        maxsunalt=db_pointing.max_sunalt,
                        minalt=db_pointing.min_alt,
@@ -213,7 +213,7 @@ class PointingQueue(object):
         self.maxmoon_arr = []
         self.minmoonsep_arr = []
         self.priority_arr = []
-        self.tileprob_arr = []
+        self.weight_arr = []
         if len(self.pointings) > 0:
             self.initialise()
 
@@ -247,7 +247,7 @@ class PointingQueue(object):
             self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
             self.minmoonsep_arr.append(pointing.minmoonsep)
             self.priority_arr.append(pointing.priority)
-            self.tileprob_arr.append(pointing.tileprob)
+            self.weight_arr.append(pointing.weight)
 
         # convert to numpy arrays so we can mask them
         self.ra_arr = np.array(self.ra_arr)
@@ -261,7 +261,7 @@ class PointingQueue(object):
         self.maxmoon_arr = np.array(self.maxmoon_arr)
         self.minmoonsep_arr = np.array(self.minmoonsep_arr)
         self.priority_arr = np.array(self.priority_arr)
-        self.tileprob_arr = np.array(self.tileprob_arr)
+        self.weight_arr = np.array(self.weight_arr)
 
         # Create normal constraints
         # Apply to every pointing
@@ -397,10 +397,10 @@ class PointingQueue(object):
         too_mask = np.array([p.too for p in self.pointings])
         too_arr = np.array(np.invert(too_mask), dtype=float)
 
-        # Find probability values (0 to 1)
-        prob_arr = 1 - self.tileprob_arr
-        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr > 1)
-        prob_arr[bad_prob_mask] = 1
+        # Find weight values (0 to 1)
+        weight_arr = 1 - self.weight_arr
+        bad_weight_mask = np.logical_or(weight_arr < 0, weight_arr > 1)
+        weight_arr[bad_weight_mask] = 1
 
         # Find airmass values (0 to 1)
         # airmass at start
@@ -424,11 +424,11 @@ class PointingQueue(object):
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
 
-        # Construct the probability based on weightings
+        # Construct the priority based on weightings
         priorities_now = priorities.copy()
 
         priorities_now += 0.1 * too_arr
-        priorities_now += 0.01 * (prob_arr * PROB_WEIGHT +
+        priorities_now += 0.01 * (weight_arr * WEIGHTING_WEIGHT +
                                   airmass_arr * AIRMASS_WEIGHT +
                                   tts_arr * TTS_WEIGHT)
 
