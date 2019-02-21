@@ -240,8 +240,8 @@ def update_header(header, tel, all_info, log):
     mpointing_obsnum = 'NA'
     mpointing_target = 'NA'
     mpointing_infinite = 'NA'
-    obs_block_id = 'NA'
-    obs_block_num = 'NA'
+    time_block_id = 'NA'
+    time_block_num = 'NA'
 
     event_id = 'NA'
     event_name = 'NA'
@@ -290,9 +290,9 @@ def update_header(header, tel, all_info, log):
                     mpointing_target = pointing.mpointing.num_todo
                     mpointing_infinite = bool(pointing.mpointing.infinite)
 
-                if pointing.observing_block:
-                    obs_block_id = pointing.observing_block.db_id
-                    obs_block_num = pointing.observing_block.block_num
+                if pointing.time_block:
+                    time_block_id = pointing.time_block.db_id
+                    time_block_num = pointing.time_block.block_num
 
                 if pointing.event:
                     event_id = pointing.event.db_id
@@ -335,8 +335,8 @@ def update_header(header, tel, all_info, log):
     header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
     header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
     header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
-    header["DB-OBSBK"] = (obs_block_id, "Database ObservingBlock ID")
-    header["OBSBKNUM"] = (obs_block_num, "Number of this observing block")
+    header["DB-TIMBK"] = (time_block_id, "Database TimeBlock ID")
+    header["TIMBKNUM"] = (time_block_num, "Number of this time block")
 
     header["DB-EVENT"] = (event_id, "Database Event ID")
     header["EVENT   "] = (event_name, "Event name for this pointing")
