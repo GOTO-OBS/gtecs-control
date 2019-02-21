@@ -245,7 +245,7 @@ def update_header(header, tel, all_info, log):
 
     event_id = 'NA'
     event_name = 'NA'
-    event_ivo = 'NA'
+    event_ivorn = 'NA'
     event_source = 'NA'
     event_tile_id = 'NA'
     event_tile_obsprob = 'NA'
@@ -297,7 +297,7 @@ def update_header(header, tel, all_info, log):
                 if pointing.event:
                     event_id = pointing.event.db_id
                     event_name = pointing.event.name
-                    event_ivo = pointing.event.ivo
+                    event_ivorn = pointing.event.ivorn
                     event_source = pointing.event.source
 
                 if pointing.event_tile:
@@ -340,7 +340,7 @@ def update_header(header, tel, all_info, log):
 
     header["DB-EVENT"] = (event_id, "Database Event ID")
     header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["IVO     "] = (event_ivo, "IVOA identifier for this event")
+    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
     header["SOURCE  "] = (event_source, "Source of this event")
     header["DB-ETILE"] = (event_tile_id, "Database EventTile ID")
     header["TILEPROB"] = (event_tile_obsprob, "Event tile observed probability")
