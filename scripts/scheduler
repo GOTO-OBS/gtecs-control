@@ -97,7 +97,6 @@ def print_info(info):
         new_start = info['next_pointing'].start
         new_stop = info['next_pointing'].stop
         new_current = info['next_pointing'].current
-        new_survey = info['next_pointing'].survey
 
         print('ID:         {}'.format(new_id))
         print('RA:         {}'.format(new_ra))
@@ -113,7 +112,6 @@ def print_info(info):
         print('Start:      {}'.format(new_start))
         print('Stop:       {}'.format(new_stop))
         print('Current:    {}'.format(new_current))
-        print('Survey :    {}'.format(new_survey))
     else:
         print('ID:        None')
 

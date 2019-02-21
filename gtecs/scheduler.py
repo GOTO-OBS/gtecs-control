@@ -40,8 +40,7 @@ TTS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 # set debug level
 debug = 1
 
-# survey tile pointing rank (should be in params)
-SURVEY_RANK = 999
+# invalid rank
 INVALID_PRIORITY = 1000
 
 HARD_ALT_LIM = 10
@@ -114,7 +113,7 @@ class Pointing(object):
 
     def __init__(self, pointing_id, ra, dec, priority, tileprob, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
-                 current, survey):
+                 current):
         self.pointing_id = int(pointing_id)
         self.ra = float(ra)
         self.dec = float(dec)
@@ -129,7 +128,6 @@ class Pointing(object):
         self.start = start
         self.stop = stop
         self.current = bool(current)
-        self.survey = bool(survey)
 
     def __eq__(self, other):
         try:
@@ -144,12 +142,12 @@ class Pointing(object):
         template = ("Pointing(pointing_id={}, ra={}, dec={}, priority={}, tileprob={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
-                    "current={}, survey={})")
+                    "current={})")
         return template.format(
             self.pointing_id, self.ra, self.dec, self.priority, self.tileprob,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
-            self.current, self.survey)
+            self.current)
 
     @classmethod
     def from_file(cls, fname):
@@ -176,9 +174,6 @@ class Pointing(object):
             tileprob = db_pointing.survey_tile.current_weight
         else:
             tileprob = 1
-        # survey tiles can be told apart by being linked to a Survey
-        # TODO: Not true, get rid of this
-        survey = bool(db_pointing.survey is not None)
         # the current pointing has running status
         current = bool(db_pointing.status == 'running')
 
@@ -196,8 +191,7 @@ class Pointing(object):
                        minmoonsep=db_pointing.min_moonsep,
                        start=db_pointing.start_time,
                        stop=db_pointing.stop_time,
-                       current=current,
-                       survey=survey)
+                       current=current)
         return pointing
 
 
@@ -314,12 +308,11 @@ class PointingQueue(object):
         self.time_constraint_name = ['Time']
 
         # Create mintime constraints
-        # Apply to non-survey, non-current pointings
-        self.mintime_mask = np.array([not(p.current or p.survey)
-                                      for p in self.pointings])
+        # Apply to all non-current pointings
+        self.mintime_mask = np.array([not p.current for p in self.pointings])
 
         if np.all(self.mintime_mask):
-            # no current pointing, no survey tiles => use existing objects
+            # no current pointing => use existing objects
             self.targets_m = self.targets
             self.mintimes_m = self.mintimes
             self.maxsunalts_m = self.maxsunalts
@@ -496,19 +489,12 @@ class PointingQueue(object):
             f.write('\n')
             json.dump(self.all_constraint_names, f)
             f.write('\n')
-            found_highest_survey = False
             for pointing, altaz_now, altaz_later in combined:
-                highest_survey = False
-                if pointing.survey and not found_highest_survey:  # already sorted
-                    highest_survey = True
-                    found_highest_survey = True
-                if (not pointing.survey) or highest_survey:
-                    # don't write out all survey tiles, only the highest priority
-                    valid_nonbool = [int(b) for b in pointing.valid_arr]
-                    con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                    json.dump([pointing.pointing_id, pointing.priority_now,
-                               altaz_now, altaz_later, con_list], f)
-                    f.write('\n')
+                valid_nonbool = [int(b) for b in pointing.valid_arr]
+                con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                json.dump([pointing.pointing_id, pointing.priority_now,
+                           altaz_now, altaz_later, con_list], f)
+                f.write('\n')
 
 
 def import_pointings_from_folder(queue_folder):
@@ -631,14 +617,7 @@ def what_to_do_next(current_pointing, highest_pointing):
             print('CP valid; HP invalid => Do nothing', end='\t')
             return None
         else:  # both are legal
-            if current_pointing.survey:  # a survey tile (filler)
-                if not highest_pointing.survey:  # interupt unless the new pointing is also a tile
-                    print('CP < HP; CP is survey and HP is not => Do HP', end='\t')
-                    return highest_pointing
-                else:
-                    print('CP < HP; CP is survey and HP is survey => Do CP', end='\t')
-                    return current_pointing
-            elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
+            if highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if not current_pointing.too:
                     print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
                     return highest_pointing
@@ -646,7 +625,7 @@ def what_to_do_next(current_pointing, highest_pointing):
                     print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
                     return current_pointing
             else:  # stay for normal pointings
-                print('CP < HP; but not enough to intterupt (survey, ToO) => Do CP', end='\t')
+                print('CP < HP; but not a ToO => Do CP', end='\t')
                 return current_pointing
 
 
