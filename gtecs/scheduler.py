@@ -172,11 +172,12 @@ class Pointing(object):
         """Import a pointing from the database."""
         # not every pointing has an associated tile probability
         # if it doesn't, it effectively contains 100% of the target so prob=1
-        if db_pointing.event_tile:
-            tileprob = db_pointing.event_tile.unobserved_probability
+        if db_pointing.survey_tile:
+            tileprob = db_pointing.survey_tile.current_weight
         else:
             tileprob = 1
         # survey tiles can be told apart by being linked to a Survey
+        # TODO: Not true, get rid of this
         survey = bool(db_pointing.survey is not None)
         # the current pointing has running status
         current = bool(db_pointing.status == 'running')

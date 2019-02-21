@@ -135,28 +135,28 @@ class DummyScheduler(object):
         return self.current_id, self.current_mintime, self.current_priority
 
 
-def update_skymap_probabilities(session, event):
-    """When a GW tile is observed, update all the Event tile probabilities.
+def update_skymap_probabilities(session, survey):
+    """When a GW tile is observed, update all the Survey tile probabilities.
 
     THIS SHOUD BE MOVED SOMEWHERE BETTER!
     """
     print('    Updating skymap probabilities: ', end='\t')
     try:
         completed_pointings = session.query(db.Pointing).filter(
-            db.Pointing.event == event).filter(
+            db.Pointing.survey == survey).filter(
             db.Pointing.status == 'completed').all()
 
-        completed_tilenames = [p.survey_tile.name for p in completed_pointings]
+        completed_tilenames = [p.grid_tile.name for p in completed_pointings]
 
-        filepath = event.skymap
+        filepath = survey.event.skymap
         skymap = SkyMap(filepath)
 
         pointings = tile_skymap(skymap, [GOTON4()],
                                 observed=[completed_tilenames])
 
         i = 0
-        for tile in event.event_tiles:
-            old_prob = float(tile.unobserved_probability)
+        for tile in survey.survey_tiles:
+            old_prob = float(tile.current_weight)
             index = np.where(pointings['fieldname'] == tile.survey_tile.name)[0][0]
             new_prob = float(pointings['prob'][index])
 
@@ -164,7 +164,7 @@ def update_skymap_probabilities(session, event):
                 i += 1
                 if new_prob < 0.001:
                     new_prob = 0
-                tile.unobserved_probability = new_prob
+                tile.current_weight = new_prob
         print(' updated {:.0f} tiles'.format(i))
 
         session.commit()
@@ -294,9 +294,9 @@ class DummyPilot(object):
             self.current_name = current_pointing.object_name
             self.current_ra = current_pointing.ra
             self.current_dec = current_pointing.dec
-            current_tile = current_pointing.event_tile
-            if current_tile:
-                self.current_probability = current_tile.unobserved_probability
+            survey_tile = current_pointing.survey_tile
+            if survey_tile:
+                self.current_probability = survey_tile.current_weight
             else:
                 self.current_probability = 0
 
@@ -323,9 +323,9 @@ class DummyPilot(object):
                 set_pointing_status(self.current_id, 'completed', session)
 
                 current_pointing = db.get_pointing_by_id(session, self.current_id)
-                event = current_pointing.event
-                if event is not None and event.skymap is not None:
-                    update_skymap_probabilities(session, event)
+                survey = current_pointing.survey
+                if survey is not None and survey.event.skymap is not None:
+                    update_skymap_probabilities(session, survey)
                 self.completed_pointings.append(self.current_id)
                 self.completed_times.append(now)
             print('  current : ID', self.current_id)  # , self.current_priority)

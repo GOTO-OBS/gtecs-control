@@ -236,25 +236,30 @@ def update_header(header, tel, all_info, log):
     user_fullname = 'NA'
 
     mpointing_id = 'NA'
-    mpointing_baserank = 'NA'
+    mpointing_initialrank = 'NA'
     mpointing_obsnum = 'NA'
     mpointing_target = 'NA'
     mpointing_infinite = 'NA'
     time_block_id = 'NA'
     time_block_num = 'NA'
 
-    event_id = 'NA'
-    event_name = 'NA'
-    event_ivorn = 'NA'
-    event_source = 'NA'
-    event_tile_id = 'NA'
-    event_tile_obsprob = 'NA'
-    event_tile_baseprob = 'NA'
+    grid_id = 'NA'
+    grid_name = 'NA'
+    grid_tile_id = 'NA'
+    grid_tile_name = 'NA'
 
     survey_id = 'NA'
     survey_name = 'NA'
     survey_tile_id = 'NA'
-    survey_tile_name = 'NA'
+    survey_tile_weight = 'NA'
+    survey_tile_initialweight = 'NA'
+
+    event_id = 'NA'
+    event_name = 'NA'
+    event_ivorn = 'NA'
+    event_source = 'NA'
+    event_type = 'NA'
+    event_time = 'NA'
 
     if current_exposure.db_id != 0:
         from_db = True
@@ -285,7 +290,7 @@ def update_header(header, tel, all_info, log):
 
                 if pointing.mpointing:
                     mpointing_id = pointing.mpointing.db_id
-                    mpointing_baserank = pointing.mpointing.start_rank
+                    mpointing_initialrank = pointing.mpointing.initial_rank
                     mpointing_obsnum = pointing.mpointing.num_completed
                     mpointing_target = pointing.mpointing.num_todo
                     mpointing_infinite = bool(pointing.mpointing.infinite)
@@ -294,24 +299,26 @@ def update_header(header, tel, all_info, log):
                     time_block_id = pointing.time_block.db_id
                     time_block_num = pointing.time_block.block_num
 
+                if pointing.grid_tile:
+                    grid_id = pointing.grid_tile.grid.db_id
+                    grid_name = pointing.grid_tile.grid.name
+                    grid_tile_id = pointing.grid_tile.db_id
+                    grid_tile_name = pointing.grid_tile.name
+
+                if pointing.survey_tile:
+                    survey_id = pointing.survey_tile.survey.db_id
+                    survey_name = pointing.survey_tile.survey.db_id
+                    survey_tile_id = pointing.survey_tile.db_id
+                    survey_tile_weight = pointing.survey_tile.current_weight
+                    survey_tile_initialweight = pointing.survey_tile.start_weight
+
                 if pointing.event:
                     event_id = pointing.event.db_id
                     event_name = pointing.event.name
                     event_ivorn = pointing.event.ivorn
                     event_source = pointing.event.source
-
-                if pointing.event_tile:
-                    event_tile_id = pointing.event_tile.db_id
-                    event_tile_obsprob = pointing.event_tile.probability
-                    event_tile_baseprob = pointing.event_tile.unobserved_probability
-
-                if pointing.survey:
-                    survey_id = pointing.survey.db_id
-                    survey_name = pointing.survey.name
-
-                if pointing.survey_tile:
-                    survey_tile_id = pointing.survey_tile.db_id
-                    survey_tile_name = pointing.survey_tile.name
+                    event_type = pointing.event.event_type
+                    event_time = pointing.event.time
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
     header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
@@ -331,25 +338,30 @@ def update_header(header, tel, all_info, log):
     header["USERFULL"] = (user_fullname, "User who submitted this pointing")
 
     header["DB-MPNT "] = (mpointing_id, "Database Mpointing ID")
-    header["BASERANK"] = (mpointing_baserank, "Initial rank of this Mpointing")
+    header["BASERANK"] = (mpointing_initialrank, "Initial rank of this Mpointing")
     header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
     header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
     header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
     header["DB-TIMBK"] = (time_block_id, "Database TimeBlock ID")
     header["TIMBKNUM"] = (time_block_num, "Number of this time block")
 
-    header["DB-EVENT"] = (event_id, "Database Event ID")
-    header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
-    header["SOURCE  "] = (event_source, "Source of this event")
-    header["DB-ETILE"] = (event_tile_id, "Database EventTile ID")
-    header["TILEPROB"] = (event_tile_obsprob, "Event tile observed probability")
-    header["BASEPROB"] = (event_tile_baseprob, "Event tile contained probability")
+    header["DB-GRID "] = (grid_id, "Database Grid ID")
+    header["GRID    "] = (grid_name, "Sky grid name")
+    header["DB-GTILE"] = (grid_tile_id, "Database GridTile ID")
+    header["TILENAME"] = (grid_tile_name, "Name of this grid tile")
 
     header["DB-SURVY"] = (survey_id, "Database Survey ID")
     header["SURVEY  "] = (survey_name, "Name of this survey")
     header["DB-STILE"] = (survey_tile_id, "Database SurveyTile ID")
-    header["TILENAME"] = (survey_tile_name, "Name of this survey tile")
+    header["WEIGHT  "] = (survey_tile_weight, "Survey tile current weighting")
+    header["INWEIGHT"] = (survey_tile_initialweight, "Survey tile initial weighting")
+
+    header["DB-EVENT"] = (event_id, "Database Event ID")
+    header["EVENT   "] = (event_name, "Event name for this pointing")
+    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
+    header["SOURCE  "] = (event_source, "Source of this event")
+    header["EVNTTYPE"] = (event_type, "Type of event")
+    header["EVNTTIME"] = (event_time, "Recorded time of the event")
 
     # Camera info
     cam_info = cam_info[tel]
