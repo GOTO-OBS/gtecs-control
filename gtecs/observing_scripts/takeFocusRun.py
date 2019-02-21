@@ -14,7 +14,7 @@ from astropy.time import Time
 
 from gtecs import params
 from gtecs.observing import get_analysis_image, get_current_focus, prepare_for_images, set_new_focus
-from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfd, set_focus_carefully
+from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfds, set_focus_carefully
 
 from matplotlib import pyplot as plt
 
@@ -99,7 +99,7 @@ def run(width, step, make_plots):
         print('Taking frames')
         data = get_analysis_image(params.FOCUSRUN_EXPTIME, params.FOCUSRUN_FILTER,
                                   'Focus run', 'FOCUS', glance=False)
-        hfd_values = get_hfd(data, **kwargs)
+        hfd_values = get_hfds(data, **kwargs)
         print('Focus Data:\n{!r}'.format(hfd_values))
         hfd_values['pos'] = pd.Series(get_current_focus())
         series_list.append(hfd_values)
