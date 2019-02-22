@@ -265,60 +265,93 @@ def update_header(header, tel, all_info, log):
         from_db = True
         with db.open_session() as session:
             expset_id = current_exposure.db_id
+
             try:
                 expset = db.get_exposure_set_by_id(session, expset_id)
             except Exception:
                 expset = None
+                log.error('Failed to fetch database pointing')
+                log.debug('', exc_info=True)
+
             if expset and expset.pointing:
-                pointing = expset.pointing
-                pointing_id = pointing.db_id
-                pointing_rank = pointing.rank
-                pointing_too = bool(pointing.too)
-                pointing_minalt = pointing.min_alt
-                pointing_maxsunalt = pointing.max_sunalt
-                pointing_mintime = pointing.min_time
-                pointing_maxmoon = pointing.max_moon
-                pointing_minmoonsep = pointing.min_moonsep
-                pointing_starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
-                if pointing.stop_time:
-                    pointing_stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
-                else:
-                    pointing_stoptime = 'None'
-                user_id = pointing.user.db_id
-                user_name = pointing.user.username
-                user_fullname = pointing.user.full_name
+                try:
+                    pointing = expset.pointing
+                    pointing_id = pointing.db_id
+                    pointing_rank = pointing.rank
+                    pointing_too = bool(pointing.too)
+                    pointing_minalt = pointing.min_alt
+                    pointing_maxsunalt = pointing.max_sunalt
+                    pointing_mintime = pointing.min_time
+                    pointing_maxmoon = pointing.max_moon
+                    pointing_minmoonsep = pointing.min_moonsep
+                    pointing_starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    if pointing.stop_time:
+                        pointing_stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    else:
+                        pointing_stoptime = 'None'
+                except Exception:
+                    log.error('Failed to fetch pointing info')
+                    log.debug('', exc_info=True)
+
+                try:
+                    user_id = pointing.user.db_id
+                    user_name = pointing.user.username
+                    user_fullname = pointing.user.full_name
+                except Exception:
+                    log.error('Failed to fetch user info')
+                    log.debug('', exc_info=True)
 
                 if pointing.mpointing:
-                    mpointing_id = pointing.mpointing.db_id
-                    mpointing_initialrank = pointing.mpointing.initial_rank
-                    mpointing_obsnum = pointing.mpointing.num_completed
-                    mpointing_target = pointing.mpointing.num_todo
-                    mpointing_infinite = bool(pointing.mpointing.infinite)
+                    try:
+                        mpointing_id = pointing.mpointing.db_id
+                        mpointing_initialrank = pointing.mpointing.initial_rank
+                        mpointing_obsnum = pointing.mpointing.num_completed
+                        mpointing_target = pointing.mpointing.num_todo
+                        mpointing_infinite = bool(pointing.mpointing.infinite)
+                    except Exception:
+                        log.error('Failed to fetch mpointing info')
+                        log.debug('', exc_info=True)
 
                 if pointing.time_block:
-                    time_block_id = pointing.time_block.db_id
-                    time_block_num = pointing.time_block.block_num
+                    try:
+                        time_block_id = pointing.time_block.db_id
+                        time_block_num = pointing.time_block.block_num
+                    except Exception:
+                        log.error('Failed to fetch time block info')
+                        log.debug('', exc_info=True)
 
                 if pointing.grid_tile:
-                    grid_id = pointing.grid_tile.grid.db_id
-                    grid_name = pointing.grid_tile.grid.name
-                    grid_tile_id = pointing.grid_tile.db_id
-                    grid_tile_name = pointing.grid_tile.name
+                    try:
+                        grid_id = pointing.grid_tile.grid.db_id
+                        grid_name = pointing.grid_tile.grid.name
+                        grid_tile_id = pointing.grid_tile.db_id
+                        grid_tile_name = pointing.grid_tile.name
+                    except Exception:
+                        log.error('Failed to fetch grid tile info')
+                        log.debug('', exc_info=True)
 
                 if pointing.survey_tile:
-                    survey_id = pointing.survey_tile.survey.db_id
-                    survey_name = pointing.survey_tile.survey.name
-                    survey_tile_id = pointing.survey_tile.db_id
-                    survey_tile_weight = pointing.survey_tile.current_weight
-                    survey_tile_initialweight = pointing.survey_tile.initial_weight
+                    try:
+                        survey_id = pointing.survey_tile.survey.db_id
+                        survey_name = pointing.survey_tile.survey.name
+                        survey_tile_id = pointing.survey_tile.db_id
+                        survey_tile_weight = pointing.survey_tile.current_weight
+                        survey_tile_initialweight = pointing.survey_tile.initial_weight
+                    except Exception:
+                        log.error('Failed to fetch survey tile info')
+                        log.debug('', exc_info=True)
 
                 if pointing.event:
-                    event_id = pointing.event.db_id
-                    event_name = pointing.event.name
-                    event_ivorn = pointing.event.ivorn
-                    event_source = pointing.event.source
-                    event_type = pointing.event.event_type
-                    event_time = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                    try:
+                        event_id = pointing.event.db_id
+                        event_name = pointing.event.name
+                        event_ivorn = pointing.event.ivorn
+                        event_source = pointing.event.source
+                        event_type = pointing.event.event_type
+                        event_time = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                    except Exception:
+                        log.error('Failed to fetch event info')
+                        log.debug('', exc_info=True)
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
     header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
