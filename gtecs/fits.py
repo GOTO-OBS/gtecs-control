@@ -318,7 +318,7 @@ def update_header(header, tel, all_info, log):
                     event_ivorn = pointing.event.ivorn
                     event_source = pointing.event.source
                     event_type = pointing.event.event_type
-                    event_time = pointing.event.time
+                    event_time = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
     header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
