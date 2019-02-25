@@ -49,12 +49,12 @@ def import_queue_file():
     # remaining lines are pointings
     pointing_list = []
     for line in lines[2:]:
-        pointing_id, priority, altaznow, altazlater, constraints = json.loads(line)
-        pointing_id = int(pointing_id)
+        db_id, priority, altaznow, altazlater, constraints = json.loads(line)
+        db_id = int(db_id)
         priority = float(priority)
         constraint_names, valid_arr = list(zip(*constraints))
         valid_bools = [bool(x) for x in valid_arr]
-        pointing_info = [pointing_id, priority,
+        pointing_info = [db_id, priority,
                          altaznow, altazlater,
                          list(constraint_names), valid_bools]
         pointing_list.append(pointing_info)
@@ -63,13 +63,13 @@ def import_queue_file():
 
 def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     """Write flag file for a given pointing."""
-    pointing_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
-    flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(pointing_id))
+    db_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
+    flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(db_id))
 
     with open(flag_filename, 'w') as f:
         f.write('<html><body>\n')
         f.write(html_size2)
-        f.write('ID_%i<br>\n' % pointing_id)
+        f.write('ID_%i<br>\n' % db_id)
 
         time.format = 'iso'
         time.precision = 0
@@ -128,9 +128,9 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
         f.write("</body></html>")
 
 
-def write_exp_file(pointing_id, exposure_sets):
+def write_exp_file(db_id, exposure_sets):
     """Write exposure files for a pointing."""
-    exp_filename = os.path.join(HTML_PATH, 'ID_{}_exp.html'.format(pointing_id))
+    exp_filename = os.path.join(HTML_PATH, 'ID_{}_exp.html'.format(db_id))
 
     # unlike the flags, exposure info dosn't change
     # so don't re-write the files if they're already there!
@@ -246,11 +246,11 @@ def write_queue_page():
                 '</tr>\n')
 
         for pointing_info in pointing_list:
-            pointing_id = pointing_info[0]
+            db_id = pointing_info[0]
 
             # find database info
             session = db.load_session()
-            pointing = db.get_pointing_by_id(session, pointing_id)
+            pointing = db.get_pointing_by_id(session, db_id)
             if pointing.exposure_sets is not None:
                 exposure_sets = pointing.exposure_sets
             username = pointing.user.username
@@ -258,12 +258,12 @@ def write_queue_page():
 
             # create the small pointing files
             write_flag_file(pointing, time, all_constraint_names, pointing_info)
-            flag_link = 'ID_{}_flags.html'.format(pointing_id)
+            flag_link = 'ID_{}_flags.html'.format(db_id)
             flag_str = ('<a href=' + flag_link + ' rel=\"#overlay\">' +
-                        'ID_' + str(pointing_id) + '</a>' + popup_str)
+                        'ID_' + str(db_id) + '</a>' + popup_str)
 
-            write_exp_file(pointing_id, exposure_sets)
-            exp_link = 'ID_{}_exp.html'.format(pointing_id)
+            write_exp_file(db_id, exposure_sets)
+            exp_link = 'ID_{}_exp.html'.format(db_id)
             exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
                        str(pointing.object_name) + '</a>' + popup_str)
 

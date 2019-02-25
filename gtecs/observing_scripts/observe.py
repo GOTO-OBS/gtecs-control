@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Script to control observing a single pointing.
 
-observe [pointing_id]
+observe [db_id]
 """
 
 import sys
@@ -16,32 +16,32 @@ from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running
 class Closer(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
-    def __init__(self, taskname, pointing_id):
+    def __init__(self, taskname, db_id):
         super().__init__(taskname)
-        self.pointing_id = pointing_id
+        self.db_id = db_id
 
     def tidy_up(self):
         """Cancel the pointing."""
-        print('Received cancellation order for pointing {}'.format(self.pointing_id))
-        mark_aborted(self.pointing_id)
+        print('Received cancellation order for pointing {}'.format(self.db_id))
+        mark_aborted(self.db_id)
 
 
-def get_position(pointing_id):
+def get_position(db_id):
     """Get the RA and Dec of a pointing from its database ID."""
     with open_session() as session:
-        pointing = get_pointing_by_id(session, pointing_id)
+        pointing = get_pointing_by_id(session, db_id)
         ra = pointing.ra
         dec = pointing.dec
     return ra, dec
 
 
-def get_exq_commands(pointing_id):
+def get_exq_commands(db_id):
     """Get the exposure queue command for a given pointing."""
     total_time = 0
     commands = []
     with open_session() as session:
         # Load pointing
-        pointing = get_pointing_by_id(session, pointing_id)
+        pointing = get_pointing_by_id(session, db_id)
 
         # Loop over all exposure sets
         for exposure_set in pointing.exposure_sets:
@@ -73,16 +73,16 @@ def get_exq_commands(pointing_id):
     return commands, total_time
 
 
-def run(pointing_id):
+def run(db_id):
     """Run the observe routine."""
-    Closer(pointing_id, pointing_id)
+    Closer(db_id, db_id)
 
     try:
         # make sure hardware is ready
         prepare_for_images()
 
-        print('Observing pointing ID: ', pointing_id)
-        mark_running(pointing_id)
+        print('Observing pointing ID: ', db_id)
+        mark_running(db_id)
 
         # clear & pause queue to make sure
         execute_command('exq clear')
@@ -91,11 +91,11 @@ def run(pointing_id):
 
         # start slew
         print('Moving to target')
-        ra, dec = get_position(pointing_id)
+        ra, dec = get_position(db_id)
         slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
-        exq_command_list, total_time = get_exq_commands(pointing_id)
+        exq_command_list, total_time = get_exq_commands(db_id)
         for exq_command in exq_command_list:
             execute_command(exq_command)
 
@@ -111,15 +111,15 @@ def run(pointing_id):
 
     except Exception:
         # something went wrong
-        mark_aborted(pointing_id)
+        mark_aborted(db_id)
         raise
 
     # hey, if we got here no-one else will mark as completed
-    mark_completed(pointing_id)
-    print('Pointing {} completed'.format(pointing_id))
+    mark_completed(db_id)
+    print('Pointing {} completed'.format(db_id))
     sys.exit(0)
 
 
 if __name__ == "__main__":
-    pointing_id = int(sys.argv[1])
-    run(pointing_id)
+    db_id = int(sys.argv[1])
+    run(db_id)

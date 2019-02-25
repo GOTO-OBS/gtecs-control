@@ -83,7 +83,7 @@ def print_info(info):
     print('####### SCHEDULER INFO ########')
     print('NEXT POINTING:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].pointing_id
+        new_id = info['next_pointing'].db_id
         new_ra = info['next_pointing'].ra
         new_dec = info['next_pointing'].dec
         new_priority = info['next_pointing'].priority
@@ -124,7 +124,7 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].pointing_id
+        new_id = info['next_pointing'].db_id
         new_priority = info['next_pointing'].priority_now
         new_mintime = info['next_pointing'].mintime
         print('  ID: %i (Priority %.3f, MinTime %.1fs)' % (new_id, new_priority, new_mintime))

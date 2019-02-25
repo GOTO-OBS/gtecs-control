@@ -111,10 +111,10 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, pointing_id, ra, dec, priority, weight, too, maxsunalt,
+    def __init__(self, db_id, ra, dec, priority, weight, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
                  current):
-        self.pointing_id = int(pointing_id)
+        self.db_id = int(db_id)
         self.ra = float(ra)
         self.dec = float(dec)
         self.priority = float(priority)
@@ -131,7 +131,7 @@ class Pointing(object):
 
     def __eq__(self, other):
         try:
-            return self.pointing_id == other.pointing_id
+            return self.db_id == other.db_id
         except AttributeError:
             return False
 
@@ -139,12 +139,12 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(pointing_id={}, ra={}, dec={}, priority={}, weight={}, " +
+        template = ("Pointing(db_id={}, ra={}, dec={}, priority={}, weight={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
-            self.pointing_id, self.ra, self.dec, self.priority, self.weight,
+            self.db_id, self.ra, self.dec, self.priority, self.weight,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
@@ -158,9 +158,9 @@ class Pointing(object):
                 if not line.startswith('#'):
                     lines.append(line)
         # first line is the pointing
-        (pointing_id, ra, dec, priority, weight, too, sunalt, minalt,
+        (db_id, ra, dec, priority, weight, too, sunalt, minalt,
          mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
-        pointing = cls(pointing_id, ra, dec, priority, weight, too, sunalt,
+        pointing = cls(db_id, ra, dec, priority, weight, too, sunalt,
                        minalt, mintime, maxmoon, minmoonsep, start, stop,
                        False, False)
         return pointing
@@ -178,7 +178,7 @@ class Pointing(object):
         current = bool(db_pointing.status == 'running')
 
         # create pointing object
-        pointing = cls(pointing_id=db_pointing.db_id,
+        pointing = cls(db_id=db_pointing.db_id,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
                        priority=db_pointing.rank,
@@ -492,7 +492,7 @@ class PointingQueue(object):
             for pointing, altaz_now, altaz_later in combined:
                 valid_nonbool = [int(b) for b in pointing.valid_arr]
                 con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                json.dump([pointing.pointing_id, pointing.priority_now,
+                json.dump([pointing.db_id, pointing.priority_now,
                            altaz_now, altaz_later, con_list], f)
                 f.write('\n')
 
@@ -673,11 +673,11 @@ def check_queue(time=None, write_html=False):
     current_pointing = queue.get_current_pointing()
 
     if current_pointing is not None:
-        print('CP: {}'.format(current_pointing.pointing_id), end='\t')
+        print('CP: {}'.format(current_pointing.db_id), end='\t')
     else:
         print('CP: None', end='\t')
     if highest_pointing is not None:
-        print('HP: {}'.format(highest_pointing.pointing_id), end='\t')
+        print('HP: {}'.format(highest_pointing.db_id), end='\t')
     else:
         print('HP: None', end='\t')
 
@@ -691,7 +691,7 @@ def check_queue(time=None, write_html=False):
 
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
     if new_pointing is not None:
-        print('NP: {}'.format(new_pointing.pointing_id))
+        print('NP: {}'.format(new_pointing.db_id))
     else:
         print('NP: None')
 
