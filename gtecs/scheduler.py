@@ -110,15 +110,16 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, db_id, name, ra, dec, rank, weight, too, maxsunalt,
-                 minalt, mintime, maxmoon, minmoonsep, start, stop,
-                 current):
+    def __init__(self, db_id, name, ra, dec, rank, weight, num_obs, too,
+                 maxsunalt, minalt, mintime, maxmoon, minmoonsep,
+                 start, stop, current):
         self.db_id = int(db_id)
         self.name = name
         self.ra = float(ra)
         self.dec = float(dec)
         self.rank = int(rank)
         self.weight = float(weight)
+        self.num_obs = int(num_obs)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
         self.minalt = float(minalt)
@@ -140,34 +141,43 @@ class Pointing(object):
 
     def __repr__(self):
         template = ("Pointing(db_id={}, name={}, ra={}, dec={}, rank={}, weight={}, " +
-                    "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
+                    "num_obs={}, too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
             self.db_id, self.name, self.ra, self.dec, self.rank, self.weight,
-            self.too, self.maxsunalt, self.minalt, self.mintime,
+            self.num_obs, self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
 
     @classmethod
     def from_database(cls, db_pointing):
         """Import a pointing from the database."""
-        # not every pointing has an associated survey tile weighting
-        # if it doesn't, it effectively contains 100% of the target so weight=1
+        # num_obs will be stored on the Mpointing, if it has one
+        # If not then it's a one-off, so num_obs=0
+        if db_pointing.mpointing:
+            num_obs = db_pointing.mpointing.num_completed
+        else:
+            num_obs = 0
+
+        # weight is stored on the Survey Tile, if it has one
+        # If not it effectively contains 100% of the target, so weight=1
         if db_pointing.survey_tile:
             weight = db_pointing.survey_tile.current_weight
         else:
             weight = 1
-        # the current pointing has running status
+
+        # The current pointing has running status
         current = bool(db_pointing.status == 'running')
 
-        # create pointing object
+        # Create pointing object
         pointing = cls(db_id=db_pointing.db_id,
                        name=db_pointing.object_name,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
                        rank=db_pointing.rank,
                        weight=weight,
+                       num_obs=num_obs,
                        too=db_pointing.too,
                        maxsunalt=db_pointing.max_sunalt,
                        minalt=db_pointing.min_alt,
@@ -397,6 +407,17 @@ class PointingQueue(object):
             return selected_pointings[0]
 
         # ~~~
+        # Next priority by number of times observed already
+        # For non-infinite pointings this is part of the rank
+        least_obs = np.min([p.num_obs for p in selected_pointings])
+        numobs_mask = np.array([p.num_obs == least_obs for p in selected_pointings])
+        selected_pointings = list(np.array(selected_pointings)[numobs_mask])
+
+        # If there's only one done the fewest times, return that
+        if len(selected_pointings) == 1:
+            return selected_pointings[0]
+
+        # ~~~
         # Finally, looks like we need the tiebreaker
         selected_pointings.sort(key=lambda p: p.tiebreaker)
 
@@ -411,9 +432,9 @@ class PointingQueue(object):
         # split valid and invalid
         valid_mask = np.array([p.valid for p in self.pointings])
         valid_pointings = list(self.pointings[valid_mask])
-        valid_pointings.sort(key=lambda p: (p.rank, not p.too, p.tiebreaker))
+        valid_pointings.sort(key=lambda p: (p.rank, not p.too, p.num_obs, p.tiebreaker))
         invalid_pointings = list(self.pointings[np.invert(valid_mask)])
-        invalid_pointings.sort(key=lambda p: (p.rank, not p.too, p.tiebreaker))
+        invalid_pointings.sort(key=lambda p: (p.rank, not p.too, p.num_obs, p.tiebreaker))
 
         # now save as json file
         with open(filename, 'w') as f:
@@ -423,13 +444,29 @@ class PointingQueue(object):
             f.write('\n')
             for p in valid_pointings:
                 valid_nonbool = [int(b) for b in p.valid_arr]
-                con_list = list(zip(p.constraint_names, valid_nonbool))
-                json.dump([p.db_id, p.name, True, p.rank, p.too, p.tiebreaker, con_list], f)
+                json.dump([p.db_id,
+                           p.name,
+                           1,
+                           p.rank,
+                           int(p.too),
+                           p.num_obs,
+                           p.tiebreaker,
+                           list(zip(p.constraint_names, valid_nonbool)),
+                           ],
+                          f)
                 f.write('\n')
             for p in invalid_pointings:
                 valid_nonbool = [int(b) for b in p.valid_arr]
-                con_list = list(zip(p.constraint_names, valid_nonbool))
-                json.dump([p.db_id, p.name, False, p.rank, p.too, p.tiebreaker, con_list], f)
+                json.dump([p.db_id,
+                           p.name,
+                           0,
+                           p.rank,
+                           int(p.too),
+                           p.num_obs,
+                           p.tiebreaker,
+                           list(zip(p.constraint_names, valid_nonbool)),
+                           ],
+                          f)
                 f.write('\n')
 
 
