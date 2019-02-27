@@ -150,22 +150,6 @@ class Pointing(object):
             self.current)
 
     @classmethod
-    def from_file(cls, fname):
-        """Import a pointing from an old-style file."""
-        lines = []
-        with open(fname) as f:
-            for line in f.readlines():
-                if not line.startswith('#'):
-                    lines.append(line)
-        # first line is the pointing
-        (db_id, ra, dec, priority, weight, too, sunalt, minalt,
-         mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
-        pointing = cls(db_id, ra, dec, priority, weight, too, sunalt,
-                       minalt, mintime, maxmoon, minmoonsep, start, stop,
-                       False, False)
-        return pointing
-
-    @classmethod
     def from_database(cls, db_pointing):
         """Import a pointing from the database."""
         # not every pointing has an associated survey tile weighting
@@ -495,31 +479,6 @@ class PointingQueue(object):
                 json.dump([pointing.db_id, pointing.priority_now,
                            altaz_now, altaz_later, con_list], f)
                 f.write('\n')
-
-
-def import_pointings_from_folder(queue_folder):
-    """Create a list of `Pointing` objects from a folder containing pointing files.
-
-    Parameters
-    ----------
-    queue_folder : str
-        The location of the pointing files.
-
-    Returns
-    -------
-    pointings : list of `Pointing`
-        An list containing Pointings from the queue_folder.
-
-    """
-    files = os.listdir(queue_folder)
-    pointings = []
-
-    if files is not None:
-        for pointing_file in files:
-            path = os.path.join(queue_folder, pointing_file)
-            pointings.append(Pointing.from_file(path))
-
-    return pointings
 
 
 def import_pointings_from_database(time, observer):
