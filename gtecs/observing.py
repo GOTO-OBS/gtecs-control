@@ -23,7 +23,7 @@ def check_schedule():
     try:
         new_pointing = daemon_function('scheduler', 'check_queue')
         if new_pointing is not None:
-            return new_pointing.pointing_id, new_pointing.priority_now, new_pointing.mintime
+            return new_pointing.db_id, new_pointing.priority_now, new_pointing.mintime
         else:
             return None, None, None
     except Exception as error:
@@ -571,16 +571,16 @@ def wait_for_images(target_image_number, timeout=None):
         raise TimeoutError('Cameras timed out')
 
 
-def get_pointing_status(pointing_id):
+def get_pointing_status(db_id):
     """Get the status of a paticular pointing.
 
     Parameters
     ----------
-    pointing_id : int
+    db_id : int
         database ID of the pointing
 
     """
     with open_session() as session:
-        pointing = get_pointing_by_id(session, pointing_id)
+        pointing = get_pointing_by_id(session, db_id)
         status = pointing.status
     return status

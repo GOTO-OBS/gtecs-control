@@ -49,12 +49,12 @@ def import_queue_file():
     # remaining lines are pointings
     pointing_list = []
     for line in lines[2:]:
-        pointing_id, priority, altaznow, altazlater, constraints = json.loads(line)
-        pointing_id = int(pointing_id)
+        db_id, priority, altaznow, altazlater, constraints = json.loads(line)
+        db_id = int(db_id)
         priority = float(priority)
         constraint_names, valid_arr = list(zip(*constraints))
         valid_bools = [bool(x) for x in valid_arr]
-        pointing_info = [pointing_id, priority,
+        pointing_info = [db_id, priority,
                          altaznow, altazlater,
                          list(constraint_names), valid_bools]
         pointing_list.append(pointing_info)
@@ -63,13 +63,13 @@ def import_queue_file():
 
 def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     """Write flag file for a given pointing."""
-    pointing_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
-    flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(pointing_id))
+    db_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
+    flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(db_id))
 
     with open(flag_filename, 'w') as f:
         f.write('<html><body>\n')
         f.write(html_size2)
-        f.write('ID_%i<br>\n' % pointing_id)
+        f.write('ID_%i<br>\n' % db_id)
 
         time.format = 'iso'
         time.precision = 0
@@ -94,19 +94,19 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
         if debug == 1:
             f.write('Debug info:<br>\n')
             f.write('now = ' + str(time) + '<br>\n')
-            start = Time(pointing.startUTC)
+            start = Time(pointing.start_time)
             start.format = 'iso'
             start.precision = 0
             f.write('start_time = ' + str(start) + '<br>\n')
-            if pointing.stopUTC:
-                stop = Time(pointing.stopUTC)
+            if pointing.stop_time:
+                stop = Time(pointing.stop_time)
                 stop.format = 'iso'
                 stop.precision = 0
             else:
                 stop = 'None'
             f.write('stop_time = ' + str(stop) + '<br>\n')
 
-            target = coord.ICRS(pointing.ra * u.deg, pointing.decl * u.deg)
+            target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
             f.write('ra = ' + ra + '<br>\n')
@@ -128,9 +128,9 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
         f.write("</body></html>")
 
 
-def write_exp_file(pointing_id, exposure_sets):
+def write_exp_file(db_id, exposure_sets):
     """Write exposure files for a pointing."""
-    exp_filename = os.path.join(HTML_PATH, 'ID_{}_exp.html'.format(pointing_id))
+    exp_filename = os.path.join(HTML_PATH, 'ID_{}_exp.html'.format(db_id))
 
     # unlike the flags, exposure info dosn't change
     # so don't re-write the files if they're already there!
@@ -152,14 +152,14 @@ def write_exp_file(pointing_id, exposure_sets):
             for exposure_set in exposure_sets:
                 f.write('<tr>' +
                         '<td align=right><b>' + str(i) + '</b></td>' +
-                        '<td> ' + str(exposure_set.utMask) + ' </td>' +
-                        '<td> ' + str(exposure_set.numexp) + ' </td>' +
-                        '<td> ' + str(exposure_set.expTime) + ' </td>' +
+                        '<td> ' + str(exposure_set.ut_mask) + ' </td>' +
+                        '<td> ' + str(exposure_set.num_exp) + ' </td>' +
+                        '<td> ' + str(exposure_set.exptime) + ' </td>' +
                         '<td> ' + str(exposure_set.filt) + ' </td>' +
                         '<td> ' + str(exposure_set.binning) + ' </td>' +
-                        '<td> ' + str(exposure_set.typeFlag) + ' </td>' +
-                        '<td> ' + str(exposure_set.raoff) + ' </td>' +
-                        '<td> ' + str(exposure_set.decoff) + ' </td>' +
+                        '<td> ' + str(exposure_set.imgtype) + ' </td>' +
+                        '<td> ' + str(exposure_set.ra_offset) + ' </td>' +
+                        '<td> ' + str(exposure_set.dec_offset) + ' </td>' +
                         '</tr>\n')
                 i += 1
             f.write("</table></body></html>")
@@ -246,26 +246,26 @@ def write_queue_page():
                 '</tr>\n')
 
         for pointing_info in pointing_list:
-            pointing_id = pointing_info[0]
+            db_id = pointing_info[0]
 
             # find database info
             session = db.load_session()
-            pointing = db.get_pointing_by_id(session, pointing_id)
+            pointing = db.get_pointing_by_id(session, db_id)
             if pointing.exposure_sets is not None:
                 exposure_sets = pointing.exposure_sets
-            username = db.get_username(session, pointing.userKey)
+            username = pointing.user.username
             session.close()
 
             # create the small pointing files
             write_flag_file(pointing, time, all_constraint_names, pointing_info)
-            flag_link = 'ID_{}_flags.html'.format(pointing_id)
+            flag_link = 'ID_{}_flags.html'.format(db_id)
             flag_str = ('<a href=' + flag_link + ' rel=\"#overlay\">' +
-                        'ID_' + str(pointing_id) + '</a>' + popup_str)
+                        'ID_' + str(db_id) + '</a>' + popup_str)
 
-            write_exp_file(pointing_id, exposure_sets)
-            exp_link = 'ID_{}_exp.html'.format(pointing_id)
+            write_exp_file(db_id, exposure_sets)
+            exp_link = 'ID_{}_exp.html'.format(db_id)
             exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
-                       str(pointing.objectName) + '</a>' + popup_str)
+                       str(pointing.object_name) + '</a>' + popup_str)
 
             # find priority
             priority_now = pointing_info[1]
@@ -277,7 +277,7 @@ def write_queue_page():
                 priority_str = "<font color=red>%.11f</font>" % priority_now
 
             # find ra/dec
-            target = coord.ICRS(pointing.ra * u.deg, pointing.decl * u.deg)
+            target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
             dec = target.dec.to_string(sep=':', precision=2)
 
@@ -287,14 +287,14 @@ def write_queue_page():
                     '<td>' + ra + '</td>' +
                     '<td>' + dec + '</td>' +
                     '<td>' + priority_str + '</td>' +
-                    '<td>' + str(pointing.minTime) + '</td>' +
-                    '<td>' + str(pointing.minAlt) + '</td>' +
-                    '<td>' + str(pointing.maxSunAlt) + '</td>' +
-                    '<td>' + str(pointing.maxMoon) + '</td>' +
-                    '<td>' + str(pointing.minMoonSep) + '</td>' +
+                    '<td>' + str(pointing.min_time) + '</td>' +
+                    '<td>' + str(pointing.min_alt) + '</td>' +
+                    '<td>' + str(pointing.max_sunalt) + '</td>' +
+                    '<td>' + str(pointing.max_moon) + '</td>' +
+                    '<td>' + str(pointing.min_moonsep) + '</td>' +
                     '<td>' + str(username) + '</td>' +
-                    '<td>' + str(pointing.startUTC) + '</td>' +
-                    '<td>' + str(pointing.stopUTC) + '</td>' +
+                    '<td>' + str(pointing.start_time) + '</td>' +
+                    '<td>' + str(pointing.stop_time) + '</td>' +
                     '<td>' + flag_str + '</td>' +
                     '</tr>\n')
             f.write("</tr>\n")

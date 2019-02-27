@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Script to control observing a single pointing.
 
-observe [pointing_id]
+observe [db_id]
 """
 
 import sys
@@ -16,60 +16,73 @@ from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running
 class Closer(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
-    def __init__(self, taskname, pointing_id):
+    def __init__(self, taskname, db_id):
         super().__init__(taskname)
-        self.pointing_id = pointing_id
+        self.db_id = db_id
 
     def tidy_up(self):
         """Cancel the pointing."""
-        print('Received cancellation order for pointing {}'.format(self.pointing_id))
-        mark_aborted(self.pointing_id)
+        print('Received cancellation order for pointing {}'.format(self.db_id))
+        mark_aborted(self.db_id)
 
 
-def get_position(pointing_id):
+def get_position(db_id):
     """Get the RA and Dec of a pointing from its database ID."""
     with open_session() as session:
-        pointing = get_pointing_by_id(session, pointing_id)
+        pointing = get_pointing_by_id(session, db_id)
         ra = pointing.ra
-        decl = pointing.decl
-    return ra, decl
+        dec = pointing.dec
+    return ra, dec
 
 
-def get_exq_commands(pointing_id):
+def get_exq_commands(db_id):
     """Get the exposure queue command for a given pointing."""
-    command_template = 'exq multimage {numexp} {tels}{expTime:.1f} '\
-                       '{filt} {binning} "{objectName}" SCIENCE {expID}'
     total_time = 0
     commands = []
     with open_session() as session:
-        pointing = get_pointing_by_id(session, pointing_id)
-        for exposure_set in pointing.exposure_sets:
-            # store total time
-            total_time += (exposure_set.numexp * exposure_set.expTime)
+        # Load pointing
+        pointing = get_pointing_by_id(session, db_id)
 
-            # format command
-            keywords = pointing.__dict__.copy()
-            keywords.update(exposure_set.__dict__)
-            if exposure_set.utMask is not None:
-                ut_string = ut_mask_to_string(exposure_set.utMask)
+        # Loop over all exposure sets
+        for exposure_set in pointing.exposure_sets:
+            # Store total time
+            total_time += (exposure_set.num_exp * exposure_set.exptime)
+
+            # Format UT mask
+            if exposure_set.ut_mask is not None:
+                ut_string = ut_mask_to_string(exposure_set.ut_mask)
                 ut_list = ut_string_to_list(ut_string)
-                keywords['tels'] = ','.join([str(i) for i in ut_list]) + ' '
+                tels = ','.join([str(i) for i in ut_list]) + ' '
             else:
-                keywords['tels'] = ''
-            commands.append(command_template.format(**keywords))
+                tels = ''
+
+            # Format command
+            command = 'exq multimage {} {}{:.1f} {} {} "{}" SCIENCE {}'.format(
+                exposure_set.num_exp,
+                tels,
+                exposure_set.exptime,
+                exposure_set.filt,
+                exposure_set.binning,
+                pointing.object_name,
+                exposure_set.db_id,
+            )
+
+            # Add command to list
+            commands.append(command)
+
     return commands, total_time
 
 
-def run(pointing_id):
+def run(db_id):
     """Run the observe routine."""
-    Closer(pointing_id, pointing_id)
+    Closer(db_id, db_id)
 
     try:
         # make sure hardware is ready
         prepare_for_images()
 
-        print('Observing pointing ID: ', pointing_id)
-        mark_running(pointing_id)
+        print('Observing pointing ID: ', db_id)
+        mark_running(db_id)
 
         # clear & pause queue to make sure
         execute_command('exq clear')
@@ -78,11 +91,11 @@ def run(pointing_id):
 
         # start slew
         print('Moving to target')
-        ra, dec = get_position(pointing_id)
+        ra, dec = get_position(db_id)
         slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
-        exq_command_list, total_time = get_exq_commands(pointing_id)
+        exq_command_list, total_time = get_exq_commands(db_id)
         for exq_command in exq_command_list:
             execute_command(exq_command)
 
@@ -98,15 +111,15 @@ def run(pointing_id):
 
     except Exception:
         # something went wrong
-        mark_aborted(pointing_id)
+        mark_aborted(db_id)
         raise
 
     # hey, if we got here no-one else will mark as completed
-    mark_completed(pointing_id)
-    print('Pointing {} completed'.format(pointing_id))
+    mark_completed(db_id)
+    print('Pointing {} completed'.format(db_id))
     sys.exit(0)
 
 
 if __name__ == "__main__":
-    pointing_id = int(sys.argv[1])
-    run(pointing_id)
+    db_id = int(sys.argv[1])
+    run(db_id)

@@ -29,19 +29,18 @@ from . import params
 warnings.simplefilter("ignore", ErfaWarning)
 
 # priority settings
-PROB_WEIGHT = 10
+WEIGHTING_WEIGHT = 10
 AIRMASS_WEIGHT = 1
 TTS_WEIGHT = 0.1
 
-PROB_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-AIRMASS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-TTS_WEIGHT /= (PROB_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+WEIGHTING_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+AIRMASS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
+TTS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
 # set debug level
 debug = 1
 
-# survey tile pointing rank (should be in params)
-SURVEY_RANK = 999
+# invalid rank
 INVALID_PRIORITY = 1000
 
 HARD_ALT_LIM = 10
@@ -112,14 +111,14 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, pointing_id, ra, dec, priority, tileprob, too, maxsunalt,
+    def __init__(self, db_id, ra, dec, priority, weight, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
-                 current, survey):
-        self.pointing_id = int(pointing_id)
+                 current):
+        self.db_id = int(db_id)
         self.ra = float(ra)
         self.dec = float(dec)
         self.priority = float(priority)
-        self.tileprob = float(tileprob)
+        self.weight = float(weight)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
         self.minalt = float(minalt)
@@ -129,11 +128,10 @@ class Pointing(object):
         self.start = start
         self.stop = stop
         self.current = bool(current)
-        self.survey = bool(survey)
 
     def __eq__(self, other):
         try:
-            return self.pointing_id == other.pointing_id
+            return self.db_id == other.db_id
         except AttributeError:
             return False
 
@@ -141,15 +139,15 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(pointing_id={}, ra={}, dec={}, priority={}, tileprob={}, " +
+        template = ("Pointing(db_id={}, ra={}, dec={}, priority={}, weight={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
-                    "current={}, survey={})")
+                    "current={})")
         return template.format(
-            self.pointing_id, self.ra, self.dec, self.priority, self.tileprob,
+            self.db_id, self.ra, self.dec, self.priority, self.weight,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
-            self.current, self.survey)
+            self.current)
 
     @classmethod
     def from_file(cls, fname):
@@ -160,9 +158,9 @@ class Pointing(object):
                 if not line.startswith('#'):
                     lines.append(line)
         # first line is the pointing
-        (pointing_id, ra, dec, priority, tileprob, too, sunalt, minalt,
+        (db_id, ra, dec, priority, weight, too, sunalt, minalt,
          mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
-        pointing = cls(pointing_id, ra, dec, priority, tileprob, too, sunalt,
+        pointing = cls(db_id, ra, dec, priority, weight, too, sunalt,
                        minalt, mintime, maxmoon, minmoonsep, start, stop,
                        False, False)
         return pointing
@@ -170,33 +168,30 @@ class Pointing(object):
     @classmethod
     def from_database(cls, db_pointing):
         """Import a pointing from the database."""
-        # not every pointing has an associated tile probability
-        # if it doesn't, it effectively contains 100% of the target so prob=1
-        if db_pointing.eventTile:
-            tileprob = db_pointing.eventTile.unobserved_probability
+        # not every pointing has an associated survey tile weighting
+        # if it doesn't, it effectively contains 100% of the target so weight=1
+        if db_pointing.survey_tile:
+            weight = db_pointing.survey_tile.current_weight
         else:
-            tileprob = 1
-        # survey tiles can be told apart by being linked to a Survey
-        survey = bool(db_pointing.surveyID is not None)
+            weight = 1
         # the current pointing has running status
         current = bool(db_pointing.status == 'running')
 
         # create pointing object
-        pointing = cls(pointing_id=db_pointing.pointingID,
+        pointing = cls(db_id=db_pointing.db_id,
                        ra=db_pointing.ra,
-                       dec=db_pointing.decl,
+                       dec=db_pointing.dec,
                        priority=db_pointing.rank,
-                       tileprob=tileprob,
-                       too=db_pointing.ToO,
-                       maxsunalt=db_pointing.maxSunAlt,
-                       minalt=db_pointing.minAlt,
-                       mintime=db_pointing.minTime,
-                       maxmoon=db_pointing.maxMoon,
-                       minmoonsep=db_pointing.minMoonSep,
-                       start=db_pointing.startUTC,
-                       stop=db_pointing.stopUTC,
-                       current=current,
-                       survey=survey)
+                       weight=weight,
+                       too=db_pointing.too,
+                       maxsunalt=db_pointing.max_sunalt,
+                       minalt=db_pointing.min_alt,
+                       mintime=db_pointing.min_time,
+                       maxmoon=db_pointing.max_moon,
+                       minmoonsep=db_pointing.min_moonsep,
+                       start=db_pointing.start_time,
+                       stop=db_pointing.stop_time,
+                       current=current)
         return pointing
 
 
@@ -218,7 +213,7 @@ class PointingQueue(object):
         self.maxmoon_arr = []
         self.minmoonsep_arr = []
         self.priority_arr = []
-        self.tileprob_arr = []
+        self.weight_arr = []
         if len(self.pointings) > 0:
             self.initialise()
 
@@ -252,7 +247,7 @@ class PointingQueue(object):
             self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
             self.minmoonsep_arr.append(pointing.minmoonsep)
             self.priority_arr.append(pointing.priority)
-            self.tileprob_arr.append(pointing.tileprob)
+            self.weight_arr.append(pointing.weight)
 
         # convert to numpy arrays so we can mask them
         self.ra_arr = np.array(self.ra_arr)
@@ -266,7 +261,7 @@ class PointingQueue(object):
         self.maxmoon_arr = np.array(self.maxmoon_arr)
         self.minmoonsep_arr = np.array(self.minmoonsep_arr)
         self.priority_arr = np.array(self.priority_arr)
-        self.tileprob_arr = np.array(self.tileprob_arr)
+        self.weight_arr = np.array(self.weight_arr)
 
         # Create normal constraints
         # Apply to every pointing
@@ -313,12 +308,11 @@ class PointingQueue(object):
         self.time_constraint_name = ['Time']
 
         # Create mintime constraints
-        # Apply to non-survey, non-current pointings
-        self.mintime_mask = np.array([not(p.current or p.survey)
-                                      for p in self.pointings])
+        # Apply to all non-current pointings
+        self.mintime_mask = np.array([not p.current for p in self.pointings])
 
         if np.all(self.mintime_mask):
-            # no current pointing, no survey tiles => use existing objects
+            # no current pointing => use existing objects
             self.targets_m = self.targets
             self.mintimes_m = self.mintimes
             self.maxsunalts_m = self.maxsunalts
@@ -403,10 +397,10 @@ class PointingQueue(object):
         too_mask = np.array([p.too for p in self.pointings])
         too_arr = np.array(np.invert(too_mask), dtype=float)
 
-        # Find probability values (0 to 1)
-        prob_arr = 1 - self.tileprob_arr
-        bad_prob_mask = np.logical_or(prob_arr < 0, prob_arr > 1)
-        prob_arr[bad_prob_mask] = 1
+        # Find weight values (0 to 1)
+        weight_arr = 1 - self.weight_arr
+        bad_weight_mask = np.logical_or(weight_arr < 0, weight_arr > 1)
+        weight_arr[bad_weight_mask] = 1
 
         # Find airmass values (0 to 1)
         # airmass at start
@@ -430,11 +424,11 @@ class PointingQueue(object):
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
 
-        # Construct the probability based on weightings
+        # Construct the priority based on weightings
         priorities_now = priorities.copy()
 
         priorities_now += 0.1 * too_arr
-        priorities_now += 0.01 * (prob_arr * PROB_WEIGHT +
+        priorities_now += 0.01 * (weight_arr * WEIGHTING_WEIGHT +
                                   airmass_arr * AIRMASS_WEIGHT +
                                   tts_arr * TTS_WEIGHT)
 
@@ -495,19 +489,12 @@ class PointingQueue(object):
             f.write('\n')
             json.dump(self.all_constraint_names, f)
             f.write('\n')
-            found_highest_survey = False
             for pointing, altaz_now, altaz_later in combined:
-                highest_survey = False
-                if pointing.survey and not found_highest_survey:  # already sorted
-                    highest_survey = True
-                    found_highest_survey = True
-                if (not pointing.survey) or highest_survey:
-                    # don't write out all survey tiles, only the highest priority
-                    valid_nonbool = [int(b) for b in pointing.valid_arr]
-                    con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                    json.dump([pointing.pointing_id, pointing.priority_now,
-                               altaz_now, altaz_later, con_list], f)
-                    f.write('\n')
+                valid_nonbool = [int(b) for b in pointing.valid_arr]
+                con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                json.dump([pointing.db_id, pointing.priority_now,
+                           altaz_now, altaz_later, con_list], f)
+                f.write('\n')
 
 
 def import_pointings_from_folder(queue_folder):
@@ -630,14 +617,7 @@ def what_to_do_next(current_pointing, highest_pointing):
             print('CP valid; HP invalid => Do nothing', end='\t')
             return None
         else:  # both are legal
-            if current_pointing.survey:  # a survey tile (filler)
-                if not highest_pointing.survey:  # interupt unless the new pointing is also a tile
-                    print('CP < HP; CP is survey and HP is not => Do HP', end='\t')
-                    return highest_pointing
-                else:
-                    print('CP < HP; CP is survey and HP is survey => Do CP', end='\t')
-                    return current_pointing
-            elif highest_pointing.too:  # slew to a ToO, unless now is also a ToO
+            if highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if not current_pointing.too:
                     print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
                     return highest_pointing
@@ -645,7 +625,7 @@ def what_to_do_next(current_pointing, highest_pointing):
                     print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
                     return current_pointing
             else:  # stay for normal pointings
-                print('CP < HP; but not enough to intterupt (survey, ToO) => Do CP', end='\t')
+                print('CP < HP; but not a ToO => Do CP', end='\t')
                 return current_pointing
 
 
@@ -693,11 +673,11 @@ def check_queue(time=None, write_html=False):
     current_pointing = queue.get_current_pointing()
 
     if current_pointing is not None:
-        print('CP: {}'.format(current_pointing.pointing_id), end='\t')
+        print('CP: {}'.format(current_pointing.db_id), end='\t')
     else:
         print('CP: None', end='\t')
     if highest_pointing is not None:
-        print('HP: {}'.format(highest_pointing.pointing_id), end='\t')
+        print('HP: {}'.format(highest_pointing.db_id), end='\t')
     else:
         print('HP: None', end='\t')
 
@@ -711,7 +691,7 @@ def check_queue(time=None, write_html=False):
 
     new_pointing = what_to_do_next(current_pointing, highest_pointing)
     if new_pointing is not None:
-        print('NP: {}'.format(new_pointing.pointing_id))
+        print('NP: {}'.format(new_pointing.db_id))
     else:
         print('NP: None')
 

@@ -129,42 +129,42 @@ class DummyScheduler(object):
             with db.open_session() as s:
                 curr, pointings = db.get_queue(s)
                 new = np.random.choice(pointings)
-                self.current_id = new.pointing_id
-                self.current_mintime = new.minTime
+                self.current_id = new.db_id
+                self.current_mintime = new.min_time
                 self.current_priority = new.rank
         return self.current_id, self.current_mintime, self.current_priority
 
 
-def update_skymap_probabilities(session, event):
-    """When a GW tile is observed, update all the Event tile probabilities.
+def update_skymap_probabilities(session, survey):
+    """When a GW tile is observed, update all the Survey tile probabilities.
 
     THIS SHOUD BE MOVED SOMEWHERE BETTER!
     """
     print('    Updating skymap probabilities: ', end='\t')
     try:
         completed_pointings = session.query(db.Pointing).filter(
-            db.Pointing.eventID == event.eventID).filter(
+            db.Pointing.survey == survey).filter(
             db.Pointing.status == 'completed').all()
 
-        completed_tilenames = [p.surveyTile.name for p in completed_pointings]
+        completed_tilenames = [p.grid_tile.name for p in completed_pointings]
 
-        filepath = event.skymap
+        filepath = survey.event.skymap
         skymap = SkyMap(filepath)
 
         pointings = tile_skymap(skymap, [GOTON4()],
                                 observed=[completed_tilenames])
 
         i = 0
-        for tile in event.eventTiles:
-            old_prob = float(tile.unobserved_probability)
-            index = np.where(pointings['fieldname'] == tile.surveyTile.name)[0][0]
+        for tile in survey.survey_tiles:
+            old_prob = float(tile.current_weight)
+            index = np.where(pointings['fieldname'] == tile.survey_tile.name)[0][0]
             new_prob = float(pointings['prob'][index])
 
             if not math.isclose(old_prob, new_prob, abs_tol=0.0000001):
                 i += 1
                 if new_prob < 0.001:
                     new_prob = 0
-                tile.unobserved_probability = new_prob
+                tile.current_weight = new_prob
         print(' updated {:.0f} tiles'.format(i))
 
         session.commit()
@@ -175,15 +175,15 @@ def update_skymap_probabilities(session, event):
         return 1
 
 
-def set_pointing_status(pointing_id, status, session):
+def set_pointing_status(db_id, status, session):
     """Mark a pointing as completed, aborted etc."""
     if status not in ['aborted', 'completed', 'interrupted', 'running']:
         print('Illegal status:', status)
         return 1
     else:
-        print('    Marking pointing', pointing_id, 'as', status)
+        print('    Marking pointing', db_id, 'as', status)
         try:
-            pointing = db.get_pointing_by_id(session, pointing_id)
+            pointing = db.get_pointing_by_id(session, db_id)
             pointing.status = status
             session.commit()
             return 0
@@ -215,15 +215,15 @@ def estimate_completion_time(new_id, current_id, session):
     total_exptime = 0 * u.s
     new_pointing = db.get_pointing_by_id(session, new_id)
     for exp in new_pointing.exposure_sets:
-        total_exptime += ((exp.expTime * u.s + readouttime) * exp.numexp)
+        total_exptime += ((exp.exptime * u.s + readouttime) * exp.num_exp)
 
     if current_id is not None:
         current_pointing = db.get_pointing_by_id(session, current_id)
         current_position = SkyCoord(current_pointing.ra,
-                                    current_pointing.decl,
+                                    current_pointing.dec,
                                     unit=u.deg, frame='icrs')
         new_position = SkyCoord(new_pointing.ra,
-                                new_pointing.decl,
+                                new_pointing.dec,
                                 unit=u.deg, frame='icrs')
         slew_distance = current_position.separation(new_position)
         slew_time = slew_distance / slewrate
@@ -291,14 +291,12 @@ class DummyPilot(object):
             state = 'closed'
         elif self.current_id is not None:
             current_pointing = db.get_pointing_by_id(session, self.current_id)
-            self.current_name = current_pointing.objectName
+            self.current_name = current_pointing.object_name
             self.current_ra = current_pointing.ra
-            self.current_dec = current_pointing.decl
-            current_tile_id = current_pointing.eventTileID
-            tiles = session.query(db.EventTile)
-            current_tile = tiles.filter(db.EventTile.tileID == current_tile_id).one_or_none()
-            if current_tile:
-                self.current_probability = current_tile.unobserved_probability
+            self.current_dec = current_pointing.dec
+            survey_tile = current_pointing.survey_tile
+            if survey_tile:
+                self.current_probability = survey_tile.current_weight
             else:
                 self.current_probability = 0
 
@@ -325,9 +323,9 @@ class DummyPilot(object):
                 set_pointing_status(self.current_id, 'completed', session)
 
                 current_pointing = db.get_pointing_by_id(session, self.current_id)
-                event = current_pointing.event
-                if event is not None and event.skymap is not None:
-                    update_skymap_probabilities(session, event)
+                survey = current_pointing.survey
+                if survey is not None and survey.event.skymap is not None:
+                    update_skymap_probabilities(session, survey)
                 self.completed_pointings.append(self.current_id)
                 self.completed_times.append(now)
             print('  current : ID', self.current_id)  # , self.current_priority)
@@ -337,7 +335,7 @@ class DummyPilot(object):
         # find new highest priority from the scheduler
         new_pointing = scheduler.check_queue(now, write_html)
         if new_pointing is not None:
-            new_id = new_pointing.pointing_id
+            new_id = new_pointing.db_id
             new_priority = new_pointing.priority_now
             new_mintime = new_pointing.mintime
             print('  queue   : ID', new_id)  # , new_priority)
@@ -418,18 +416,18 @@ def run(date, sleep_time, write_html):
 
     n_completed = len(pilot.completed_pointings)
     print('Listing completed pointings ({}) and time done'.format(n_completed))
-    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
-        print(pointing_id, timedone)
+    for db_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+        print(db_id, timedone)
 
     n_aborted = len(pilot.aborted_pointings)
     print('Listing pointings aborted due to bad weather ({})'.format(n_aborted))
-    for pointing_id in pilot.aborted_pointings:
-        print(pointing_id)
+    for db_id in pilot.aborted_pointings:
+        print(db_id)
 
     n_interrupted = len(pilot.interrupted_pointings)
     print('Listing pointings interrupted by other pointings ({})'.format(n_interrupted))
-    for pointing_id in pilot.interrupted_pointings:
-        print(pointing_id)
+    for db_id in pilot.interrupted_pointings:
+        print(db_id)
 
 
 if __name__ == "__main__":

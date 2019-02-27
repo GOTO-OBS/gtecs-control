@@ -45,11 +45,11 @@ def run(time, limit):
             print('----------------')
             reached_invalid = True
 
-        print('{: >6.0f}'.format(pointing.pointing_id), end=' | ')
+        print('{: >6.0f}'.format(pointing.db_id), end=' | ')
 
         with db.open_session() as session:
-            db_pointing = db.get_pointing_by_id(session, pointing.pointing_id)
-            print('{: >30}'.format(db_pointing.objectName), end=' | ')
+            db_pointing = db.get_pointing_by_id(session, pointing.db_id)
+            print('{: >30}'.format(db_pointing.object_name), end=' | ')
 
         if pointing.current:
             print(ytxt('{: >11.6f}'.format(pointing.priority_now)), end=' | ')

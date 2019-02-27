@@ -53,7 +53,7 @@ data = [
 ]
 ldata = [(datum['Name'], datum['RA2000'], datum['DE2000'], datum['bmag'], datum['rmag'])
          for datum in data]
-flats_table = Table(rows=ldata, names=('name', 'ra', 'decl', 'bmag', 'rmag'))
+flats_table = Table(rows=ldata, names=('name', 'ra', 'dec', 'bmag', 'rmag'))
 
 
 class FlatField(object):
@@ -89,10 +89,10 @@ def best_flat(time):
         the best FlatField
 
     """
-    coords = SkyCoord(flats_table['ra'], flats_table['decl'], unit=(u.hour, u.deg))
+    coords = SkyCoord(flats_table['ra'], flats_table['dec'], unit=(u.hour, u.deg))
     alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     row = flats_table[np.argmax(alt)]
-    flat_field = FlatField(row['name'], row['ra'], row['decl'], row['bmag'], row['rmag'])
+    flat_field = FlatField(row['name'], row['ra'], row['dec'], row['bmag'], row['rmag'])
     return flat_field
 
 
@@ -140,7 +140,7 @@ def exposure_sequence(date, binning, start_exptime, nflats=5, eve=True):
 
     Returns
     -------
-    exp_times : list of float
+    exptimes : list of float
         suggested exposure times
 
     """

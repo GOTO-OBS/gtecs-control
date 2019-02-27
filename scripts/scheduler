@@ -83,11 +83,11 @@ def print_info(info):
     print('####### SCHEDULER INFO ########')
     print('NEXT POINTING:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].pointing_id
+        new_id = info['next_pointing'].db_id
         new_ra = info['next_pointing'].ra
         new_dec = info['next_pointing'].dec
         new_priority = info['next_pointing'].priority
-        new_tileprob = info['next_pointing'].tileprob
+        new_weight = info['next_pointing'].weight
         new_too = info['next_pointing'].too
         new_maxsunalt = info['next_pointing'].maxsunalt
         new_minalt = info['next_pointing'].minalt
@@ -97,13 +97,12 @@ def print_info(info):
         new_start = info['next_pointing'].start
         new_stop = info['next_pointing'].stop
         new_current = info['next_pointing'].current
-        new_survey = info['next_pointing'].survey
 
         print('ID:         {}'.format(new_id))
         print('RA:         {}'.format(new_ra))
         print('Dec:        {}'.format(new_dec))
         print('Priority:   {:.4f}'.format(new_priority))
-        print('TileProb:   {}'.format(new_tileprob))
+        print('Weighting:  {}'.format(new_weight))
         print('ToO         {}'.format(new_too))
         print('MaxSunAlt:  {}'.format(new_maxsunalt))
         print('MinAlt:     {}'.format(new_minalt))
@@ -113,7 +112,6 @@ def print_info(info):
         print('Start:      {}'.format(new_start))
         print('Stop:       {}'.format(new_stop))
         print('Current:    {}'.format(new_current))
-        print('Survey :    {}'.format(new_survey))
     else:
         print('ID:        None')
 
@@ -126,7 +124,7 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].pointing_id
+        new_id = info['next_pointing'].db_id
         new_priority = info['next_pointing'].priority_now
         new_mintime = info['next_pointing'].mintime
         print('  ID: %i (Priority %.3f, MinTime %.1fs)' % (new_id, new_priority, new_mintime))
