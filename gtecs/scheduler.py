@@ -197,8 +197,6 @@ class PointingQueue(object):
         self.minalt_arr = []
         self.maxmoon_arr = []
         self.minmoonsep_arr = []
-        self.rank_arr = []
-        self.weight_arr = []
         if len(self.pointings) > 0:
             self.initialise()
 
@@ -259,8 +257,6 @@ class PointingQueue(object):
             self.minalt_arr.append(pointing.minalt)
             self.maxmoon_arr.append(MOON_PHASES[pointing.maxmoon])
             self.minmoonsep_arr.append(pointing.minmoonsep)
-            self.rank_arr.append(pointing.rank)
-            self.weight_arr.append(pointing.weight)
 
         # convert to numpy arrays so we can mask them
         self.ra_arr = np.array(self.ra_arr)
@@ -273,8 +269,6 @@ class PointingQueue(object):
         self.minalt_arr = np.array(self.minalt_arr)
         self.maxmoon_arr = np.array(self.maxmoon_arr)
         self.minmoonsep_arr = np.array(self.minmoonsep_arr)
-        self.rank_arr = np.array(self.rank_arr)
-        self.weight_arr = np.array(self.weight_arr)
 
         # Create normal constraints
         # Apply to every pointing
@@ -403,15 +397,13 @@ class PointingQueue(object):
 
     def calculate_priorities(self, time, observer):
         """Calculate priorities at a given time for each pointing."""
-        # Find base priority based on rank
-        priorities = np.array([float(p.rank) for p in self.pointings])
-
         # Find ToO values (0 or 1)
         too_mask = np.array([p.too for p in self.pointings])
         too_arr = np.array(np.invert(too_mask), dtype=float)
 
         # Find weight values (0 to 1)
-        weight_arr = 1 - self.weight_arr
+        weights = np.array([float(p.weight) for p in self.pointings])
+        weight_arr = 1 - weights
         bad_weight_mask = np.logical_or(weight_arr < 0, weight_arr > 1)
         weight_arr[bad_weight_mask] = 1
 
@@ -436,6 +428,9 @@ class PointingQueue(object):
         tts_arr = tts_arr / 24.
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
+
+        # Find base priority based on rank
+        priorities = np.array([float(p.rank) for p in self.pointings])
 
         # Construct the current priority based on weightings
         priorities += 0.1 * too_arr
