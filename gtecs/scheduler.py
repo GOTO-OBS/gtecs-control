@@ -111,13 +111,13 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, db_id, ra, dec, priority, weight, too, maxsunalt,
+    def __init__(self, db_id, ra, dec, rank, weight, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
                  current):
         self.db_id = int(db_id)
         self.ra = float(ra)
         self.dec = float(dec)
-        self.priority = float(priority)
+        self.rank = int(rank)
         self.weight = float(weight)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
@@ -139,12 +139,12 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(db_id={}, ra={}, dec={}, priority={}, weight={}, " +
+        template = ("Pointing(db_id={}, ra={}, dec={}, rank={}, weight={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
-            self.db_id, self.ra, self.dec, self.priority, self.weight,
+            self.db_id, self.ra, self.dec, self.rank, self.weight,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
@@ -165,7 +165,7 @@ class Pointing(object):
         pointing = cls(db_id=db_pointing.db_id,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
-                       priority=db_pointing.rank,
+                       rank=db_pointing.rank,
                        weight=weight,
                        too=db_pointing.too,
                        maxsunalt=db_pointing.max_sunalt,
@@ -196,7 +196,7 @@ class PointingQueue(object):
         self.minalt_arr = []
         self.maxmoon_arr = []
         self.minmoonsep_arr = []
-        self.priority_arr = []
+        self.rank_arr = []
         self.weight_arr = []
         if len(self.pointings) > 0:
             self.initialise()
@@ -260,7 +260,7 @@ class PointingQueue(object):
             self.minalt_arr.append(pointing.minalt)
             self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
             self.minmoonsep_arr.append(pointing.minmoonsep)
-            self.priority_arr.append(pointing.priority)
+            self.rank_arr.append(pointing.rank)
             self.weight_arr.append(pointing.weight)
 
         # convert to numpy arrays so we can mask them
@@ -274,7 +274,7 @@ class PointingQueue(object):
         self.minalt_arr = np.array(self.minalt_arr)
         self.maxmoon_arr = np.array(self.maxmoon_arr)
         self.minmoonsep_arr = np.array(self.minmoonsep_arr)
-        self.priority_arr = np.array(self.priority_arr)
+        self.rank_arr = np.array(self.rank_arr)
         self.weight_arr = np.array(self.weight_arr)
 
         # Create normal constraints
@@ -405,7 +405,7 @@ class PointingQueue(object):
     def calculate_priorities(self, time, observer):
         """Calculate priorities at a given time for each pointing."""
         # Find base priority based on rank
-        priorities = np.array([p.priority for p in self.pointings])
+        priorities = np.array([float(p.rank) for p in self.pointings])
 
         # Find ToO values (0 or 1)
         too_mask = np.array([p.too for p in self.pointings])
@@ -438,29 +438,27 @@ class PointingQueue(object):
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
 
-        # Construct the priority based on weightings
-        priorities_now = priorities.copy()
-
-        priorities_now += 0.1 * too_arr
-        priorities_now += 0.01 * (weight_arr * WEIGHTING_WEIGHT +
-                                  airmass_arr * AIRMASS_WEIGHT +
-                                  tts_arr * TTS_WEIGHT)
+        # Construct the current priority based on weightings
+        priorities += 0.1 * too_arr
+        priorities += 0.01 * (weight_arr * WEIGHTING_WEIGHT +
+                              airmass_arr * AIRMASS_WEIGHT +
+                              tts_arr * TTS_WEIGHT)
 
         # check validities, add INVALID_PRIORITY to invalid pointings
         self.check_validities(time, observer)
         valid_mask = np.array([p.valid for p in self.pointings])
         invalid_mask = np.invert(valid_mask)
-        priorities_now[invalid_mask] += INVALID_PRIORITY
+        priorities[invalid_mask] += INVALID_PRIORITY
 
         # if the current pointing is invalid it must be complete
         # therefore add INVALID_PRIORITY to prevent it coming up again
         current_mask = np.array([p.current for p in self.pointings])
         current_complete_mask = np.logical_and(current_mask, invalid_mask)
-        priorities_now[current_complete_mask] += INVALID_PRIORITY
+        priorities[current_complete_mask] += INVALID_PRIORITY
 
-        # save priority_now to pointing
-        for pointing, priority_now in zip(self.pointings, priorities_now):
-            pointing.priority_now = priority_now
+        # save current priority to pointing
+        for pointing, priority in zip(self.pointings, priorities):
+            pointing.priority = priority
 
     def get_highest_priority_pointing(self, time, observer):
         """Return the pointing with the highest priority."""
@@ -470,14 +468,14 @@ class PointingQueue(object):
         self.calculate_priorities(time, observer)
 
         pointing_list = list(self.pointings)  # a copy
-        pointing_list.sort(key=lambda p: p.priority_now)
+        pointing_list.sort(key=lambda p: p.priority)
         return pointing_list[0]
 
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
         # The queue should already have priorities calculated
         try:
-            self.pointings[0].priority_now
+            self.pointings[0].priority
         except AttributeError:
             message = "Queue has not yet had priorities calculated"
             raise ValueError(message)
@@ -495,7 +493,7 @@ class PointingQueue(object):
 
         # combine pointings and altaz
         combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
-        combined.sort(key=lambda x: x[0].priority_now)
+        combined.sort(key=lambda x: x[0].priority)
 
         # now save as json file
         with open(filename, 'w') as f:
@@ -506,7 +504,7 @@ class PointingQueue(object):
             for pointing, altaz_now, altaz_later in combined:
                 valid_nonbool = [int(b) for b in pointing.valid_arr]
                 con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                json.dump([pointing.db_id, pointing.priority_now,
+                json.dump([pointing.db_id, pointing.priority,
                            altaz_now, altaz_later, con_list], f)
                 f.write('\n')
 
@@ -541,14 +539,14 @@ def what_to_do_next(current_pointing, highest_pointing):
         print('Not doing anything; Nothing to do => Do nothing', end='\t')
         return None
     elif current_pointing is None:
-        if highest_pointing.priority_now < INVALID_PRIORITY:
+        if highest_pointing.priority < INVALID_PRIORITY:
             print('Not doing anything; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
             print('Not doing anything; HP invalid => Do nothing', end='\t')
             return None
     elif highest_pointing is None:
-        if current_pointing.priority_now > INVALID_PRIORITY:
+        if current_pointing.priority > INVALID_PRIORITY:
             print('CP invalid; Nothing to do => Do nothing', end='\t')
             return None
         else:
@@ -556,23 +554,23 @@ def what_to_do_next(current_pointing, highest_pointing):
             return current_pointing
 
     if current_pointing == highest_pointing:
-        if (current_pointing.priority_now >= INVALID_PRIORITY or
-                highest_pointing.priority_now >= INVALID_PRIORITY):
+        if (current_pointing.priority >= INVALID_PRIORITY or
+                highest_pointing.priority >= INVALID_PRIORITY):
             print('CP==HP and invalid => Do nothing', end='\t')
             return None  # it's either finished or is now illegal
         else:
             print('CP==HP and valid => Do HP', end='\t')
             return highest_pointing
 
-    if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
-        if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
+    if current_pointing.priority >= INVALID_PRIORITY:  # current pointing is illegal (finished)
+        if highest_pointing.priority < INVALID_PRIORITY:  # new pointing is legal
             print('CP invalid; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
             print('CP invalid; HP invalid => Do nothing', end='\t')
             return None
     else:  # telescope is observing legally
-        if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
+        if highest_pointing.priority >= INVALID_PRIORITY:  # no legal pointings
             print('CP valid; HP invalid => Do nothing', end='\t')
             return None
         else:  # both are legal

@@ -23,7 +23,7 @@ def check_schedule():
     try:
         new_pointing = daemon_function('scheduler', 'check_queue')
         if new_pointing is not None:
-            return new_pointing.db_id, new_pointing.priority_now, new_pointing.mintime
+            return new_pointing.db_id, new_pointing.priority, new_pointing.mintime
         else:
             return None, None, None
     except Exception as error:

@@ -63,7 +63,7 @@ def import_queue_file():
 
 def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     """Write flag file for a given pointing."""
-    db_id, priority_now, altaznow, altazlater, constraint_names, valid_arr = pointing_info
+    db_id, priority, altaznow, altazlater, constraint_names, valid_arr = pointing_info
     flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(db_id))
 
     with open(flag_filename, 'w') as f:
@@ -268,13 +268,13 @@ def write_queue_page():
                        str(pointing.object_name) + '</a>' + popup_str)
 
             # find priority
-            priority_now = pointing_info[1]
+            priority = pointing_info[1]
             if pointing.status == 'running':
-                priority_str = "<font color=limegreen>%.11f</font>" % priority_now
-            elif priority_now < 100:
-                priority_str = "<font color=black>%.11f</font>" % priority_now
+                priority_str = "<font color=limegreen>%.11f</font>" % priority
+            elif priority < 100:
+                priority_str = "<font color=black>%.11f</font>" % priority
             else:
-                priority_str = "<font color=red>%.11f</font>" % priority_now
+                priority_str = "<font color=red>%.11f</font>" % priority
 
             # find ra/dec
             target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)

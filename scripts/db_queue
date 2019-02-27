@@ -34,14 +34,14 @@ def run(time, limit):
 
     # Get the pointings, now with extra infomation
     pointing_list = list(queue.pointings)
-    pointing_list.sort(key=lambda p: p.priority_now)
+    pointing_list.sort(key=lambda p: p.priority)
 
     # Print the pointings
     all_cons = {}
     print('Pointings queue at {} UTC:'.format(time.iso))
     reached_invalid = False
     for pointing in pointing_list[:limit]:
-        if pointing.priority_now > 1000 and not reached_invalid:
+        if pointing.priority > 1000 and not reached_invalid:
             print('----------------')
             reached_invalid = True
 
@@ -52,11 +52,11 @@ def run(time, limit):
             print('{: >30}'.format(db_pointing.object_name), end=' | ')
 
         if pointing.current:
-            print(ytxt('{: >11.6f}'.format(pointing.priority_now)), end=' | ')
-        elif pointing.priority_now < 1000:
-            print(gtxt('{: >11.6f}'.format(pointing.priority_now)), end=' | ')
+            print(ytxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
+        elif pointing.priority < 1000:
+            print(gtxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
         else:
-            print(rtxt('{: >11.6f}'.format(pointing.priority_now)), end=' | ')
+            print(rtxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
 
         print('{: >6.2f}'.format(pointing.ra), end=' | ')
         print('{: >6.2f}'.format(pointing.dec), end=' | ')

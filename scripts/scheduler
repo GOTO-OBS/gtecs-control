@@ -125,7 +125,7 @@ def print_info_s(info):
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
         new_id = info['next_pointing'].db_id
-        new_priority = info['next_pointing'].priority_now
+        new_priority = info['next_pointing'].priority
         new_mintime = info['next_pointing'].mintime
         print('  ID: %i (Priority %.3f, MinTime %.1fs)' % (new_id, new_priority, new_mintime))
     else:
