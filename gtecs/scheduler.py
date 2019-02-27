@@ -366,62 +366,20 @@ class PointingQueue(object):
         if len(self.pointings) == 0:
             return None
 
-        # ~~~
         # Apply constraints and calculate tiebreakers for all pointings
         self.apply_constraints(time, observer)
         self.calculate_tiebreakers(time, observer)
 
-        # ~~~
-        # Start with valid pointings only
-        valid_mask = np.array([p.valid for p in self.pointings])
-        selected_pointings = list(self.pointings[valid_mask])
+        # Sort the pointings
+        #   - First is by validity
+        #   - Then by rank
+        #   - Then by ToO flag
+        #   - Then by number ot fimes already observed
+        #   - Finally use the tiebreaker
+        pointings = list(self.pointings)  # make a copy
+        pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
 
-        # If none are valid, return None
-        if len(selected_pointings) == 0:
-            return None
-
-        # If only one is valid, return that
-        if len(selected_pointings) == 1:
-            return selected_pointings[0]
-
-        # ~~~
-        # First priority is by rank
-        # For decaying pointings this includes num_obs, sort-of
-        high_rank = np.min([p.rank for p in selected_pointings])
-        rank_mask = np.array([p.rank == high_rank for p in selected_pointings])
-        selected_pointings = list(np.array(selected_pointings)[rank_mask])
-
-        # If only one has the highest rank, return that
-        if len(selected_pointings) == 1:
-            return selected_pointings[0]
-
-        # ~~~
-        # Next priority is by ToO flag
-        # There might not be any ToOs, if there are only select them
-        too_mask = np.array([p.too for p in selected_pointings])
-        if np.any(too_mask):
-            selected_pointings = list(np.array(selected_pointings)[too_mask])
-
-        # If there's only one ToO, return that
-        if len(selected_pointings) == 1:
-            return selected_pointings[0]
-
-        # ~~~
-        # Next priority by number of times observed already
-        # For non-infinite pointings this is part of the rank
-        least_obs = np.min([p.num_obs for p in selected_pointings])
-        numobs_mask = np.array([p.num_obs == least_obs for p in selected_pointings])
-        selected_pointings = list(np.array(selected_pointings)[numobs_mask])
-
-        # If there's only one done the fewest times, return that
-        if len(selected_pointings) == 1:
-            return selected_pointings[0]
-
-        # ~~~
-        # Finally, looks like we need the tiebreaker
-        selected_pointings.sort(key=lambda p: p.tiebreaker)
-
-        return selected_pointings[0]
+        return pointings[0]
 
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
