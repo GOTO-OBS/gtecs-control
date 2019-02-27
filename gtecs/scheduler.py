@@ -421,9 +421,9 @@ class PointingQueue(object):
         # split valid and invalid
         valid_mask = np.array([p.valid for p in self.pointings])
         valid_pointings = list(self.pointings[valid_mask])
-        valid_pointings.sort(key=lambda p: (p.rank, p.too, p.tiebreaker))
+        valid_pointings.sort(key=lambda p: (p.rank, not p.too, p.tiebreaker))
         invalid_pointings = list(self.pointings[np.invert(valid_mask)])
-        invalid_pointings.sort(key=lambda p: (p.rank, p.too, p.tiebreaker))
+        invalid_pointings.sort(key=lambda p: (p.rank, not p.too, p.tiebreaker))
 
         # now save as json file
         with open(filename, 'w') as f:
