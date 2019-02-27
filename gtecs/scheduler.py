@@ -28,7 +28,10 @@ from . import params
 # Setup
 warnings.simplefilter("ignore", ErfaWarning)
 
-# priority settings
+# set debug level
+debug = 1
+
+# tiebreaker params
 WEIGHTING_WEIGHT = 10
 AIRMASS_WEIGHT = 1
 TTS_WEIGHT = 0.1
@@ -37,11 +40,6 @@ WEIGHTING_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 AIRMASS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 TTS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
-# set debug level
-debug = 1
-
-# invalid rank
-INVALID_PRIORITY = 1000
 
 HARD_ALT_LIM = 10
 HARD_HA_LIM = 8
@@ -130,9 +128,6 @@ class Pointing(object):
         self.start = start
         self.stop = stop
         self.current = bool(current)
-
-        # Priority is calculated later within the Queue
-        self.priority = None
 
     def __eq__(self, other):
         try:
@@ -351,7 +346,7 @@ class PointingQueue(object):
                         airmass_arr * AIRMASS_WEIGHT +
                         tts_arr * TTS_WEIGHT)
 
-        # Save current priority to pointing
+        # Save values on the pointings
         for pointing, tiebreaker in zip(self.pointings, tiebreak_arr):
             pointing.tiebreaker = tiebreaker
 
@@ -410,11 +405,8 @@ class PointingQueue(object):
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
         # The queue should already have priorities calculated
-        try:
-            self.pointings[0].priority
-        except AttributeError:
-            message = "Queue has not yet had priorities calculated"
-            raise ValueError(message)
+        if not hasattr(self.pointings[0], 'valid') or not hasattr(self.pointings[0], 'tiebreaker'):
+            raise ValueError("Queue has not yet had priorities calculated")
 
         # split valid and invalid
         valid_mask = np.array([p.valid for p in self.pointings])
