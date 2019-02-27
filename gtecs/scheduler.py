@@ -187,56 +187,12 @@ class PointingQueue(object):
         if pointings is None:
             pointings = []
         self.pointings = pointings
-        if len(self.pointings) > 0:
-            self.initialise()
 
-    def __len__(self):
-        return len(self.pointings)
+        # Can't do much with no Pointings
+        if len(self.pointings) == 0:
+            return
 
-    def __repr__(self):
-        template = ("PointingQueue(length={})")
-        return template.format(len(self.pointings))
-
-    @classmethod
-    def from_database(cls, time, observer):
-        """Create a Pointing Queue from current Pointings in the database.
-
-        Parameters
-        ----------
-        time : `~astropy.time.Time`
-            The time to fetch the queue for.
-        observer : `astroplan.Observer`
-            The observer of the pointings
-
-        Returns
-        -------
-        pointings : list of `Pointing`
-            An list containing Pointings from the database.
-
-        """
-        with db.open_session() as session:
-            current, pending = db.get_filtered_queue(session,
-                                                     time=time,
-                                                     location=observer.location,
-                                                     altitude_limit=HARD_ALT_LIM,
-                                                     hourangle_limit=HARD_HA_LIM)
-
-            pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
-            if current:
-                pointings.append(Pointing.from_database(current))
-            queue = cls(np.array(pointings))
-        return queue
-
-    def get_current_pointing(self):
-        """Return the current pointing from the queue."""
-        for p in self.pointings:
-            if p.current:
-                return p
-        return None
-
-    def initialise(self):
-        """Set up the queue and constraints when initialised."""
-        # create pointing data arrays
+        # Create pointing data arrays
         self.ra_arr = np.array([float(p.ra) for p in self.pointings])
         self.dec_arr = np.array([float(p.dec) for p in self.pointings])
         self.mintime_arr = np.array([float(p.mintime) for p in self.pointings])
@@ -323,6 +279,50 @@ class PointingQueue(object):
         self.all_constraint_names = (self.constraint_names +
                                      self.time_constraint_name +
                                      self.mintime_constraint_names)
+
+    def __len__(self):
+        return len(self.pointings)
+
+    def __repr__(self):
+        template = ("PointingQueue(length={})")
+        return template.format(len(self.pointings))
+
+    @classmethod
+    def from_database(cls, time, observer):
+        """Create a Pointing Queue from current Pointings in the database.
+
+        Parameters
+        ----------
+        time : `~astropy.time.Time`
+            The time to fetch the queue for.
+        observer : `astroplan.Observer`
+            The observer of the pointings
+
+        Returns
+        -------
+        pointings : list of `Pointing`
+            An list containing Pointings from the database.
+
+        """
+        with db.open_session() as session:
+            current, pending = db.get_filtered_queue(session,
+                                                     time=time,
+                                                     location=observer.location,
+                                                     altitude_limit=HARD_ALT_LIM,
+                                                     hourangle_limit=HARD_HA_LIM)
+
+            pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
+            if current:
+                pointings.append(Pointing.from_database(current))
+            queue = cls(np.array(pointings))
+        return queue
+
+    def get_current_pointing(self):
+        """Return the current pointing from the queue."""
+        for p in self.pointings:
+            if p.current:
+                return p
+        return None
 
     def check_validities(self, now, observer):
         """Check if the pointings are valid, both now and after mintimes."""
