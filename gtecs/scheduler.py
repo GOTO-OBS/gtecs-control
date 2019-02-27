@@ -187,15 +187,6 @@ class PointingQueue(object):
         if pointings is None:
             pointings = []
         self.pointings = pointings
-        self.ra_arr = []
-        self.dec_arr = []
-        self.mintime_arr = []
-        self.start_arr = []
-        self.stop_arr = []
-        self.maxsunalt_arr = []
-        self.minalt_arr = []
-        self.maxmoon_arr = []
-        self.minmoonsep_arr = []
         if len(self.pointings) > 0:
             self.initialise()
 
@@ -246,27 +237,15 @@ class PointingQueue(object):
     def initialise(self):
         """Set up the queue and constraints when initialised."""
         # create pointing data arrays
-        for pointing in self.pointings:
-            self.ra_arr.append(pointing.ra)
-            self.dec_arr.append(pointing.dec)
-            self.mintime_arr.append(pointing.mintime)
-            self.start_arr.append(pointing.start)
-            self.stop_arr.append(pointing.stop)
-            self.maxsunalt_arr.append(pointing.maxsunalt)
-            self.minalt_arr.append(pointing.minalt)
-            self.maxmoon_arr.append(MOON_PHASES[pointing.maxmoon])
-            self.minmoonsep_arr.append(pointing.minmoonsep)
-
-        # convert to numpy arrays so we can mask them
-        self.ra_arr = np.array(self.ra_arr)
-        self.dec_arr = np.array(self.dec_arr)
-        self.mintime_arr = np.array(self.mintime_arr)
-        self.start_arr = np.array(self.start_arr)
-        self.stop_arr = np.array(self.stop_arr)
-        self.maxsunalt_arr = np.array(self.maxsunalt_arr)
-        self.minalt_arr = np.array(self.minalt_arr)
-        self.maxmoon_arr = np.array(self.maxmoon_arr)
-        self.minmoonsep_arr = np.array(self.minmoonsep_arr)
+        self.ra_arr = np.array([float(p.ra) for p in self.pointings])
+        self.dec_arr = np.array([float(p.dec) for p in self.pointings])
+        self.mintime_arr = np.array([float(p.mintime) for p in self.pointings])
+        self.start_arr = np.array([p.start for p in self.pointings])
+        self.stop_arr = np.array([p.stop for p in self.pointings])
+        self.maxsunalt_arr = np.array([float(p.maxsunalt) for p in self.pointings])
+        self.minalt_arr = np.array([float(p.minalt) for p in self.pointings])
+        self.maxmoon_arr = np.array([float(MOON_PHASES[p.maxmoon]) for p in self.pointings])
+        self.minmoonsep_arr = np.array([float(p.minmoonsep) for p in self.pointings])
 
         # Create normal constraints
         # Apply to every pointing
