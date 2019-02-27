@@ -9,10 +9,8 @@ from astropy import units as u
 from astropy.time import Time
 
 from gtecs import astronomy
-from gtecs.scheduler import PointingQueue, import_pointings_from_database
+from gtecs.scheduler import PointingQueue
 from gtecs.style import boldtxt, gtxt, rtxt, ytxt
-
-import obsdb as db
 
 
 def run(time, limit):
@@ -20,46 +18,45 @@ def run(time, limit):
     time.precision = 0
     observer = Observer(astronomy.observatory_location())
 
-    # Get pointings from DB
-    pointings = import_pointings_from_database(time, observer)
-    if len(pointings) == 0:
+    # Create Queue from DB
+    queue = PointingQueue.from_database(time, observer)
+    if len(queue) == 0:
         print('No pointings in queue')
         return
 
-    # Create Queue
-    queue = PointingQueue(pointings)
-
-    # Calculate prorities
-    queue.calculate_priorities(time, observer)
+    #  Apply constraints and calculate tiebreakers for all pointings
+    queue.apply_constraints(time, observer)
+    queue.calculate_tiebreakers(time, observer)
 
     # Get the pointings, now with extra infomation
     pointing_list = list(queue.pointings)
-    pointing_list.sort(key=lambda p: p.priority)
+    pointing_list.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
 
     # Print the pointings
     all_cons = {}
     print('Pointings queue at {} UTC:'.format(time.iso))
     reached_invalid = False
     for pointing in pointing_list[:limit]:
-        if pointing.priority > 1000 and not reached_invalid:
+        if not pointing.valid and not reached_invalid:
             print('----------------')
             reached_invalid = True
 
         print('{: >6.0f}'.format(pointing.db_id), end=' | ')
 
-        with db.open_session() as session:
-            db_pointing = db.get_pointing_by_id(session, pointing.db_id)
-            print('{: >30}'.format(db_pointing.object_name), end=' | ')
-
         if pointing.current:
-            print(ytxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
-        elif pointing.priority < 1000:
-            print(gtxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
+            print(ytxt('{: >35}'.format(pointing.name)), end=' | ')
         else:
-            print(rtxt('{: >11.6f}'.format(pointing.priority)), end=' | ')
+            print('{: >35}'.format(pointing.name), end=' | ')
 
-        print('{: >6.2f}'.format(pointing.ra), end=' | ')
-        print('{: >6.2f}'.format(pointing.dec), end=' | ')
+        if not pointing.valid:
+            print(rtxt('{: >1}'.format(pointing.valid)), end=' | ')
+        else:
+            print(gtxt('{: >1}'.format(pointing.valid)), end=' | ')
+
+        print('{: >3.0f}'.format(pointing.rank), end=' | ')
+        print('{: >1}'.format(pointing.too), end=' | ')
+        print('{: >3.0f}'.format(pointing.num_obs), end=' | ')
+        print('{: >6.4f}'.format(pointing.tiebreaker), end=' | ')
 
         cons = [(name, valid) for name, valid in zip(pointing.constraint_names, pointing.valid_arr)]
         cons.sort(key=lambda i: i[0])
