@@ -384,7 +384,7 @@ class PointingQueue(object):
         # ~~~
         # First priority is by rank
         # For decaying pointings this includes num_obs, sort-of
-        high_rank = np.max([p.rank for p in selected_pointings])
+        high_rank = np.min([p.rank for p in selected_pointings])
         rank_mask = np.array([p.rank == high_rank for p in selected_pointings])
         selected_pointings = list(np.array(selected_pointings)[rank_mask])
 
