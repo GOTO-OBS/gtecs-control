@@ -397,7 +397,7 @@ class PointingQueue(object):
         # There might not be any ToOs, if there are only select them
         too_mask = np.array([p.too for p in selected_pointings])
         if np.any(too_mask):
-            selected_pointings = list(np.array(selected_pointings[too_mask]))
+            selected_pointings = list(np.array(selected_pointings)[too_mask])
 
         # If there's only one ToO, return that
         if len(selected_pointings) == 1:
