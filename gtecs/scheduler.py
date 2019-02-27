@@ -193,19 +193,10 @@ class PointingQueue(object):
             return
 
         # Create pointing data arrays
-        self.ra_arr = np.array([float(p.ra) for p in self.pointings])
-        self.dec_arr = np.array([float(p.dec) for p in self.pointings])
-        self.mintime_arr = np.array([float(p.mintime) for p in self.pointings])
-        self.start_arr = np.array([p.start for p in self.pointings])
-        self.stop_arr = np.array([p.stop for p in self.pointings])
-        self.maxsunalt_arr = np.array([float(p.maxsunalt) for p in self.pointings])
-        self.minalt_arr = np.array([float(p.minalt) for p in self.pointings])
-        self.maxmoon_arr = np.array([float(MOON_PHASES[p.maxmoon]) for p in self.pointings])
-        self.minmoonsep_arr = np.array([float(p.minmoonsep) for p in self.pointings])
-
-        # Create targets
-        self.targets = coord.SkyCoord(self.ra_arr, self.dec_arr, unit=u.deg, frame='icrs')
-        self.mintimes = u.Quantity(self.mintime_arr, unit=u.s)
+        self.targets = coord.SkyCoord([float(p.ra) for p in self.pointings],
+                                      [float(p.dec) for p in self.pointings],
+                                      unit=u.deg, frame='icrs')
+        self.mintimes = u.Quantity([float(p.mintime) for p in self.pointings], unit=u.s)
 
     def __len__(self):
         return len(self.pointings)
@@ -257,33 +248,32 @@ class PointingQueue(object):
         self.constraints = {}
 
         # SunAlt
-        self.maxsunalts = u.Quantity(self.maxsunalt_arr, unit=u.deg)
-        self.constraints['SunAlt'] = AtNightConstraint(self.maxsunalts)
+        maxsunalts = u.Quantity([float(p.maxsunalt) for p in self.pointings], unit=u.deg)
+        self.constraints['SunAlt'] = AtNightConstraint(maxsunalts)
 
         # MinAlt
-        self.minalts = u.Quantity(self.minalt_arr, unit=u.deg)
-        self.constraints['MinAlt'] = AltitudeConstraint(self.minalts, None)
+        minalts = u.Quantity([float(p.minalt) for p in self.pointings], unit=u.deg)
+        self.constraints['MinAlt'] = AltitudeConstraint(minalts, None)
 
         # ArtHoriz
         self.constraints['ArtHoriz'] = ArtificialHorizonConstraint()
 
         # Moon
-        self.constraints['Moon'] = MoonIlluminationConstraint(None, self.maxmoon_arr)
+        moonphases = [float(MOON_PHASES[p.maxmoon]) for p in self.pointings]
+        self.constraints['Moon'] = MoonIlluminationConstraint(None, moonphases)
 
         # MoonSep
-        self.minmoonseps = u.Quantity(self.minmoonsep_arr, unit=u.deg)
-        self.constraints['MoonSep'] = MoonSeparationConstraint(self.minmoonseps, None)
+        minmoonseps = u.Quantity([float(p.minmoonsep) for p in self.pointings], unit=u.deg)
+        self.constraints['MoonSep'] = MoonSeparationConstraint(minmoonseps, None)
 
         # Time
-        self.starts_t = Time(self.start_arr,
-                             scale='utc', format='datetime')
+        starts = Time([p.start for p in self.pointings], scale='utc', format='datetime')
         # NB the stop time can be None for non-expiring pointings,
         #    but the constraint needs a Time so just say a long time from now.
         longtime = Time.now() + 10 * u.year
-        self.stops_t = Time([stoptime if stoptime else longtime.datetime
-                            for stoptime in self.stop_arr],
-                            scale='utc', format='datetime')
-        self.constraints['Time'] = TimeConstraint(self.starts_t, self.stops_t)
+        stops = Time([p.stop if p.stop else longtime.datetime for p in self.pointings],
+                     scale='utc', format='datetime')
+        self.constraints['Time'] = TimeConstraint(starts, stops)
 
         # Apply constraints
         normal_cons = ['SunAlt', 'MinAlt', 'ArtHoriz', 'Moon', 'MoonSep']
