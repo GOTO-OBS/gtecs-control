@@ -500,7 +500,7 @@ def what_to_do_next(current_pointing, highest_pointing):
         print('Not doing anything; Nothing to do => Do nothing', end='\t')
         return None
     elif current_pointing is None:
-        if not highest_pointing.valid:
+        if highest_pointing.valid:
             print('Not doing anything; HP valid => Do HP', end='\t')
             return highest_pointing
         else:
