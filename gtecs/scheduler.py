@@ -45,6 +45,7 @@ INVALID_PRIORITY = 1000
 
 HARD_ALT_LIM = 10
 HARD_HA_LIM = 8
+MOON_PHASES = {'B': 1.0, 'G': 0.65, 'D': 0.25}
 
 
 def apply_constraints(constraints, observer, targets, times):
@@ -247,8 +248,6 @@ class PointingQueue(object):
 
     def initialise(self):
         """Set up the queue and constraints when initialised."""
-        moon_phases = {'B': 1.0, 'G': 0.65, 'D': 0.25}
-
         # create pointing data arrays
         for pointing in self.pointings:
             self.ra_arr.append(pointing.ra)
@@ -258,7 +257,7 @@ class PointingQueue(object):
             self.stop_arr.append(pointing.stop)
             self.maxsunalt_arr.append(pointing.maxsunalt)
             self.minalt_arr.append(pointing.minalt)
-            self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
+            self.maxmoon_arr.append(MOON_PHASES[pointing.maxmoon])
             self.minmoonsep_arr.append(pointing.minmoonsep)
             self.rank_arr.append(pointing.rank)
             self.weight_arr.append(pointing.weight)
