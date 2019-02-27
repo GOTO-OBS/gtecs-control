@@ -247,7 +247,7 @@ class PointingQueue(object):
                 return p
         return None
 
-    def check_validities(self, now, observer):
+    def apply_constraints(self, now, observer):
         """Check if the pointings are valid, both now and after mintimes."""
         # Create Constraints
         self.constraints = {}
@@ -362,10 +362,8 @@ class PointingQueue(object):
             return None
 
         # ~~~
-        # Check validities of all pointings
-        self.check_validities(time, observer)
-
-        # Also calculate the tiebreakers
+        # Apply constraints and calculate tiebreakers for all pointings
+        self.apply_constraints(time, observer)
         self.calculate_tiebreakers(time, observer)
 
         # ~~~
