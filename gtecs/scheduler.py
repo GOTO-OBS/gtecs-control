@@ -208,6 +208,36 @@ class PointingQueue(object):
         template = ("PointingQueue(length={})")
         return template.format(len(self.pointings))
 
+    @classmethod
+    def from_database(cls, time, observer):
+        """Create a Pointing Queue from current Pointings in the database.
+
+        Parameters
+        ----------
+        time : `~astropy.time.Time`
+            The time to fetch the queue for.
+        observer : `astroplan.Observer`
+            The observer of the pointings
+
+        Returns
+        -------
+        pointings : list of `Pointing`
+            An list containing Pointings from the database.
+
+        """
+        with db.open_session() as session:
+            current, pending = db.get_filtered_queue(session,
+                                                     time=time,
+                                                     location=observer.location,
+                                                     altitude_limit=HARD_ALT_LIM,
+                                                     hourangle_limit=HARD_HA_LIM)
+
+            pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
+            if current:
+                pointings.append(Pointing.from_database(current))
+            queue = cls(np.array(pointings))
+        return queue
+
     def get_current_pointing(self):
         """Return the current pointing from the queue."""
         for p in self.pointings:
@@ -481,36 +511,6 @@ class PointingQueue(object):
                 f.write('\n')
 
 
-def import_pointings_from_database(time, observer):
-    """Create a list of `Pointing` objects from the GOTO database.
-
-    Parameters
-    ----------
-    time : `~astropy.time.Time`
-        The time to fetch the queue for.
-
-    Returns
-    -------
-    pointings : list of `Pointing`
-        An list containing Pointings from the database.
-
-    """
-    pointings = []
-
-    with db.open_session() as session:
-        current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
-                                                                        time=time,
-                                                                        location=observer.location,
-                                                                        altitude_limit=HARD_ALT_LIM,
-                                                                        hourangle_limit=HARD_HA_LIM)
-        for dbpointing in pending_dbpointings:
-            pointings.append(Pointing.from_database(dbpointing))
-        if current_dbpointing is not None:
-            pointings.append(Pointing.from_database(current_dbpointing))
-
-    return np.array(pointings)
-
-
 def what_to_do_next(current_pointing, highest_pointing):
     """Decide whether to slew to a new target, remain on the current target or park the telescope.
 
@@ -621,12 +621,10 @@ def check_queue(time=None, write_html=False):
 
     observer = Observer(astronomy.observatory_location())
 
-    pointings = import_pointings_from_database(time, observer)
+    queue = PointingQueue.from_database(time, observer)
 
-    if len(pointings) == 0:
+    if len(queue) == 0:
         return None
-
-    queue = PointingQueue(pointings)
 
     highest_pointing = queue.get_highest_priority_pointing(time, observer)
     current_pointing = queue.get_current_pointing()
