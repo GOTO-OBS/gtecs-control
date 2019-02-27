@@ -189,7 +189,6 @@ class PointingQueue(object):
         self.pointings = pointings
         self.ra_arr = []
         self.dec_arr = []
-        self.target_arr = []
         self.mintime_arr = []
         self.start_arr = []
         self.stop_arr = []
@@ -261,7 +260,6 @@ class PointingQueue(object):
         # convert to numpy arrays so we can mask them
         self.ra_arr = np.array(self.ra_arr)
         self.dec_arr = np.array(self.dec_arr)
-        self.target_arr = np.array(self.target_arr)
         self.mintime_arr = np.array(self.mintime_arr)
         self.start_arr = np.array(self.start_arr)
         self.stop_arr = np.array(self.stop_arr)
