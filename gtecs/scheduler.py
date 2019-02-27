@@ -429,12 +429,9 @@ class PointingQueue(object):
         if not hasattr(self.pointings[0], 'valid') or not hasattr(self.pointings[0], 'tiebreaker'):
             raise ValueError("Queue has not yet had priorities calculated")
 
-        # split valid and invalid
-        valid_mask = np.array([p.valid for p in self.pointings])
-        valid_pointings = list(self.pointings[valid_mask])
-        valid_pointings.sort(key=lambda p: (p.rank, not p.too, p.num_obs, p.tiebreaker))
-        invalid_pointings = list(self.pointings[np.invert(valid_mask)])
-        invalid_pointings.sort(key=lambda p: (p.rank, not p.too, p.num_obs, p.tiebreaker))
+        # get and sort pointings
+        pointings = list(self.pointings)  # make a copy
+        pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
 
         # now save as json file
         with open(filename, 'w') as f:
@@ -442,24 +439,11 @@ class PointingQueue(object):
             f.write('\n')
             json.dump(self.all_constraint_names, f)
             f.write('\n')
-            for p in valid_pointings:
+            for p in pointings:
                 valid_nonbool = [int(b) for b in p.valid_arr]
                 json.dump([p.db_id,
                            p.name,
                            1,
-                           p.rank,
-                           int(p.too),
-                           p.num_obs,
-                           p.tiebreaker,
-                           list(zip(p.constraint_names, valid_nonbool)),
-                           ],
-                          f)
-                f.write('\n')
-            for p in invalid_pointings:
-                valid_nonbool = [int(b) for b in p.valid_arr]
-                json.dump([p.db_id,
-                           p.name,
-                           0,
                            p.rank,
                            int(p.too),
                            p.num_obs,
