@@ -130,6 +130,9 @@ class Pointing(object):
         self.stop = stop
         self.current = bool(current)
 
+        # Priority is calculated later within the Queue
+        self.priority = None
+
     def __eq__(self, other):
         try:
             return self.db_id == other.db_id
@@ -283,7 +286,7 @@ class PointingQueue(object):
         time_cons_valid_arr = apply_constraints([self.constraints[name] for name in time_cons],
                                                 observer, self.targets, now)
         mintime_cons = ['SunAlt', 'MinAlt', 'ArtHoriz']
-        later_arr = now + self.mintimes
+        later_arr = now + u.Quantity([float(p.mintime) for p in self.pointings], unit=u.s)
         min_cons_valid_arr = apply_constraints([self.constraints[name] for name in mintime_cons],
                                                observer, self.targets, later_arr)
         mintime_names = [name + '_mintime' for name in mintime_cons]
@@ -313,24 +316,32 @@ class PointingQueue(object):
 
     def calculate_priorities(self, time, observer):
         """Calculate priorities at a given time for each pointing."""
+        # check validities of all pointings
+        self.check_validities(time, observer)
+
+        # Only calculate priorities for valid pointings
+        valid_mask = np.array([p.valid for p in self.pointings])
+        valid_pointings = np.array(self.pointings[valid_mask])
+        valid_targets = self.targets[valid_mask]
+
         # Find ToO values (0 or 1)
-        too_mask = np.array([p.too for p in self.pointings])
+        too_mask = np.array([p.too for p in valid_pointings])
         too_arr = np.array(np.invert(too_mask), dtype=float)
 
         # Find weight values (0 to 1)
-        weights = np.array([float(p.weight) for p in self.pointings])
+        weights = np.array([float(p.weight) for p in valid_pointings])
         weight_arr = 1 - weights
         bad_weight_mask = np.logical_or(weight_arr < 0, weight_arr > 1)
         weight_arr[bad_weight_mask] = 1
 
         # Find airmass values (0 to 1)
         # airmass at start
-        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
+        altaz_now = _get_altaz(time, observer, valid_targets)['altaz']
         secz_now = altaz_now.secz
 
         # airmass at mintime (NB all targets)
-        later_arr = time + self.mintimes
-        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
+        later_arr = time + u.Quantity([float(p.mintime) for p in valid_pointings], unit=u.s)
+        altaz_later = _get_altaz(later_arr, observer, valid_targets)['altaz']
         secz_later = altaz_later.secz
 
         # take average
@@ -340,13 +351,13 @@ class PointingQueue(object):
         airmass_arr[bad_airmass_mask] = 1
 
         # Find time to set values (0 to 1)
-        tts_arr = time_to_set(observer, self.targets, time).to(u.hour).value
+        tts_arr = time_to_set(observer, valid_targets, time).to(u.hour).value
         tts_arr = tts_arr / 24.
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
 
         # Find base priority based on rank
-        priorities = np.array([float(p.rank) for p in self.pointings])
+        priorities = np.array([float(p.rank) for p in valid_pointings])
 
         # Construct the current priority based on weightings
         priorities += 0.1 * too_arr
@@ -354,32 +365,24 @@ class PointingQueue(object):
                               airmass_arr * AIRMASS_WEIGHT +
                               tts_arr * TTS_WEIGHT)
 
-        # check validities, add INVALID_PRIORITY to invalid pointings
-        self.check_validities(time, observer)
-        valid_mask = np.array([p.valid for p in self.pointings])
-        invalid_mask = np.invert(valid_mask)
-        priorities[invalid_mask] += INVALID_PRIORITY
-
-        # if the current pointing is invalid it must be complete
-        # therefore add INVALID_PRIORITY to prevent it coming up again
-        current_mask = np.array([p.current for p in self.pointings])
-        current_complete_mask = np.logical_and(current_mask, invalid_mask)
-        priorities[current_complete_mask] += INVALID_PRIORITY
-
-        # save current priority to pointing
-        for pointing, priority in zip(self.pointings, priorities):
+        # Save current priority to pointing
+        for pointing, priority in zip(valid_pointings, priorities):
             pointing.priority = priority
+
+        return valid_pointings
 
     def get_highest_priority_pointing(self, time, observer):
         """Return the pointing with the highest priority."""
         if len(self.pointings) == 0:
             return None
 
-        self.calculate_priorities(time, observer)
+        valid_pointings = self.calculate_priorities(time, observer)
+        if len(valid_pointings) == 0:
+            return None
 
-        pointing_list = list(self.pointings)  # a copy
-        pointing_list.sort(key=lambda p: p.priority)
-        return pointing_list[0]
+        valid_pointings = list(valid_pointings)
+        valid_pointings.sort(key=lambda p: p.priority)
+        return valid_pointings[0]
 
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
@@ -390,20 +393,11 @@ class PointingQueue(object):
             message = "Queue has not yet had priorities calculated"
             raise ValueError(message)
 
-        # make copy of pointings
-        pointing_list = list(self.pointings)
-
-        # find altaz (should be cached)
-        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
-        altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
-
-        later_arr = time + self.mintimes
-        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
-        altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
-
-        # combine pointings and altaz
-        combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
-        combined.sort(key=lambda x: x[0].priority)
+        # split valid and invalid
+        valid_mask = np.array([p.valid for p in self.pointings])
+        valid_pointings = list(self.pointings[valid_mask])
+        valid_pointings.sort(key=lambda p: p.priority)
+        invalid_pointings = list(self.pointings[np.invert(valid_mask)])
 
         # now save as json file
         with open(filename, 'w') as f:
@@ -411,11 +405,15 @@ class PointingQueue(object):
             f.write('\n')
             json.dump(self.all_constraint_names, f)
             f.write('\n')
-            for pointing, altaz_now, altaz_later in combined:
+            for pointing in valid_pointings:
                 valid_nonbool = [int(b) for b in pointing.valid_arr]
                 con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                json.dump([pointing.db_id, pointing.priority,
-                           altaz_now, altaz_later, con_list], f)
+                json.dump([pointing.db_id, pointing.priority, con_list], f)
+                f.write('\n')
+            for pointing in invalid_pointings:
+                valid_nonbool = [int(b) for b in pointing.valid_arr]
+                con_list = list(zip(pointing.constraint_names, valid_nonbool))
+                json.dump([pointing.db_id, pointing.priority, con_list], f)
                 f.write('\n')
 
 
