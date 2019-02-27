@@ -283,8 +283,9 @@ class PointingQueue(object):
         time_cons_valid_arr = apply_constraints([self.constraints[name] for name in time_cons],
                                                 observer, self.targets, now)
         mintime_cons = ['SunAlt', 'MinAlt', 'ArtHoriz']
+        later_arr = now + self.mintimes
         min_cons_valid_arr = apply_constraints([self.constraints[name] for name in mintime_cons],
-                                               observer, self.targets, now)
+                                               observer, self.targets, later_arr)
         mintime_names = ['SunAlt_mintime', 'MinAlt_mintime', 'ArtHoriz_mintime']
         self.all_constraint_names = normal_cons + time_cons + mintime_names
 
