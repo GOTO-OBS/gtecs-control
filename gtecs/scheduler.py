@@ -112,10 +112,11 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, db_id, ra, dec, rank, weight, too, maxsunalt,
+    def __init__(self, db_id, name, ra, dec, rank, weight, too, maxsunalt,
                  minalt, mintime, maxmoon, minmoonsep, start, stop,
                  current):
         self.db_id = int(db_id)
+        self.name = name
         self.ra = float(ra)
         self.dec = float(dec)
         self.rank = int(rank)
@@ -143,12 +144,12 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(db_id={}, ra={}, dec={}, rank={}, weight={}, " +
+        template = ("Pointing(db_id={}, name={}, ra={}, dec={}, rank={}, weight={}, " +
                     "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
-            self.db_id, self.ra, self.dec, self.rank, self.weight,
+            self.db_id, self.name, self.ra, self.dec, self.rank, self.weight,
             self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
@@ -167,6 +168,7 @@ class Pointing(object):
 
         # create pointing object
         pointing = cls(db_id=db_pointing.db_id,
+                       name=db_pointing.object_name,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
                        rank=db_pointing.rank,
@@ -432,12 +434,12 @@ class PointingQueue(object):
             for p in valid_pointings:
                 valid_nonbool = [int(b) for b in p.valid_arr]
                 con_list = list(zip(p.constraint_names, valid_nonbool))
-                json.dump([p.db_id, True, p.rank, p.too, p.tiebreaker, con_list], f)
+                json.dump([p.db_id, p.name, True, p.rank, p.too, p.tiebreaker, con_list], f)
                 f.write('\n')
             for p in invalid_pointings:
                 valid_nonbool = [int(b) for b in p.valid_arr]
                 con_list = list(zip(p.constraint_names, valid_nonbool))
-                json.dump([p.db_id, False, p.rank, p.too, p.tiebreaker, con_list], f)
+                json.dump([p.db_id, p.name, False, p.rank, p.too, p.tiebreaker, con_list], f)
                 f.write('\n')
 
 
