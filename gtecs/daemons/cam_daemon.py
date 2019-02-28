@@ -298,27 +298,20 @@ class CamDaemon(BaseDaemon):
         # Get other internal info
         temp_info['exposing'] = self.exposing
         temp_info['exposure_start_time'] = self.exposure_start_time
-        temp_info['current_exposure'] = self.current_exposure
         if self.current_exposure is not None:
-            temp_info['current_tel_list'] = self.current_exposure.tel_list
-            temp_info['current_exptime'] = self.current_exposure.exptime
-            temp_info['current_binning'] = self.current_exposure.binning
-            temp_info['current_frametype'] = self.current_exposure.frametype
-            temp_info['current_target'] = self.current_exposure.target
-            temp_info['current_imgtype'] = self.current_exposure.imgtype
-            temp_info['current_set_pos'] = self.current_exposure.set_pos
-            temp_info['current_set_total'] = self.current_exposure.set_total
-            temp_info['current_db_id'] = self.current_exposure.db_id
+            current_info = {}
+            current_info['tel_list'] = self.current_exposure.tel_list
+            current_info['exptime'] = self.current_exposure.exptime
+            current_info['binning'] = self.current_exposure.binning
+            current_info['frametype'] = self.current_exposure.frametype
+            current_info['target'] = self.current_exposure.target
+            current_info['imgtype'] = self.current_exposure.imgtype
+            current_info['set_pos'] = self.current_exposure.set_pos
+            current_info['set_total'] = self.current_exposure.set_total
+            current_info['db_id'] = self.current_exposure.db_id
+            temp_info['current_exposure'] = current_info
         else:
-            temp_info['current_tel_list'] = None
-            temp_info['current_exptime'] = None
-            temp_info['current_binning'] = None
-            temp_info['current_frametype'] = None
-            temp_info['current_target'] = None
-            temp_info['current_imgtype'] = None
-            temp_info['current_set_pos'] = None
-            temp_info['current_set_total'] = None
-            temp_info['current_db_id'] = None
+            temp_info['current_exposure'] = None
         temp_info['run_number'] = self.run_number
         temp_info['num_taken'] = self.num_taken
         temp_info['glance'] = self.run_number < 0

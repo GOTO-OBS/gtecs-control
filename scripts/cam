@@ -196,10 +196,10 @@ def print_info(info):
             else:
                 print('Status: %s glance (%.2fs)' % (info[tel]['status'],
                                                      info[tel]['remaining']))
-            if info['current_exposure'] and tel in info['current_exposure'].tel_list:
-                print('Exposure time:      %.2fs' % info['current_exposure'].exptime)
-                print('Binning:            %i' % info['current_exposure'].binning)
-                print('Frame type:         %s' % info['current_exposure'].frametype)
+            if info['current_exposure'] and tel in info['current_exposure']['tel_list']:
+                print('Exposure time:      %.2fs' % info['current_exposure']['exptime'])
+                print('Binning:            %i' % info['current_exposure']['binning'])
+                print('Frame type:         %s' % info['current_exposure']['frametype'])
         print('CCD Temperature:    %.2fC' % info[tel]['ccd_temp'])
         print('Target Temperature: %.2fC' % info[tel]['target_temp'])
         print('Base Temperature:   %.2fC' % info[tel]['base_temp'])
