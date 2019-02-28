@@ -261,10 +261,10 @@ def update_header(header, tel, all_info, log):
     event_type = 'NA'
     event_time = 'NA'
 
-    if current_exposure.db_id != 0:
+    if current_exposure['db_id'] != 0:
         from_db = True
         with db.open_session() as session:
-            expset_id = current_exposure.db_id
+            expset_id = current_exposure['db_id']
 
             try:
                 expset = db.get_exposure_set_by_id(session, expset_id)
@@ -401,11 +401,11 @@ def update_header(header, tel, all_info, log):
     cam_serial = cam_info['serial_number']
     header["CAMERA  "] = (cam_serial, "Camera serial number")
 
-    header["XBINNING"] = (current_exposure.binning, "CCD x binning factor")
-    header["YBINNING"] = (current_exposure.binning, "CCD y binning factor")
+    header["XBINNING"] = (current_exposure['binning'], "CCD x binning factor")
+    header["YBINNING"] = (current_exposure['binning'], "CCD y binning factor")
 
-    x_pixel_size = cam_info['x_pixel_size'] * current_exposure.binning
-    y_pixel_size = cam_info['y_pixel_size'] * current_exposure.binning
+    x_pixel_size = cam_info['x_pixel_size'] * current_exposure['binning']
+    y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
     header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
     header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
