@@ -309,6 +309,16 @@ class CamDaemon(BaseDaemon):
             temp_info['current_set_pos'] = self.current_exposure.set_pos
             temp_info['current_set_total'] = self.current_exposure.set_total
             temp_info['current_db_id'] = self.current_exposure.db_id
+        else:
+            temp_info['current_tel_list'] = None
+            temp_info['current_exptime'] = None
+            temp_info['current_binning'] = None
+            temp_info['current_frametype'] = None
+            temp_info['current_target'] = None
+            temp_info['current_imgtype'] = None
+            temp_info['current_set_pos'] = None
+            temp_info['current_set_total'] = None
+            temp_info['current_db_id'] = None
         temp_info['run_number'] = self.run_number
         temp_info['num_taken'] = self.num_taken
         temp_info['glance'] = self.run_number < 0
