@@ -1,6 +1,7 @@
 """Robotic queue scheduler functions."""
 
 import json
+import logging
 import os
 import warnings
 
@@ -412,20 +413,20 @@ class PointingQueue(object):
                 f.write('\n')
 
 
-def what_to_do_next(current_pointing, highest_pointing):
+def what_to_do_next(current_pointing, highest_pointing, log=None):
     """Decide whether to slew to a new target, remain on the current target or park the telescope.
-
-    NOTE currently based on pt5m logic, will need revision for GOTO.
 
     Parameters
     ----------
     current_pointing : `Pointing`
         The current pointing.
         `None` if the telescope is idle.
-
     highest_pointing : `Pointing`
         The current highest priority pointing from the queue.
         `None` if the queue is empty.
+
+    log: `logging.Logger`, optional
+        log object to direct output to
 
     Returns
     -------
@@ -437,58 +438,72 @@ def what_to_do_next(current_pointing, highest_pointing):
           `None`           (nothing to do, park).
 
     """
+    # Create a logger if one isn't given
+    if log is None:
+        logging.basicConfig(level=logging.DEBUG)
+        log = logging.getLogger('scheduler')
+
     # Deal with either being missing (telescope is idle or queue is empty)
     if current_pointing is None and highest_pointing is None:
-        print('Not doing anything; Nothing to do => Do nothing', end='\t')
-        return None
+        reason = 'Not doing anything; Nothing to do => Do nothing'
+        new_pointing = None
     elif current_pointing is None:
         if highest_pointing.valid:
-            print('Not doing anything; HP valid => Do HP', end='\t')
-            return highest_pointing
+            reason = 'Not doing anything; HP valid => Do HP'
+            new_pointing = highest_pointing
         else:
-            print('Not doing anything; HP invalid => Do nothing', end='\t')
-            return None
+            reason = 'Not doing anything; HP invalid => Do nothing'
+            new_pointing = None
     elif highest_pointing is None:
         if not current_pointing.valid:
-            print('CP invalid; Nothing to do => Do nothing', end='\t')
-            return None
+            reason = 'CP invalid; Nothing to do => Do nothing'
+            new_pointing = None
         else:
-            print('CP valid; Nothing to do => Do CP', end='\t')  # TODO - is that right?
-            return current_pointing
+            reason = 'CP valid; Nothing to do => Do CP'  # TODO - is that right?
+            new_pointing = current_pointing
 
-    if current_pointing == highest_pointing:
+    elif current_pointing == highest_pointing:
         if not current_pointing.valid or not highest_pointing.valid:
-            print('CP==HP and invalid => Do nothing', end='\t')
-            return None  # it's either finished or is now illegal
+            reason = 'CP==HP and invalid => Do nothing'
+            new_pointing = None  # it's either finished or is now illegal
         else:
-            print('CP==HP and valid => Do HP', end='\t')
-            return highest_pointing
+            reason = 'CP==HP and valid => Do HP'
+            new_pointing = highest_pointing
 
-    if not current_pointing.valid:  # current pointing is illegal (finished)
+    elif not current_pointing.valid:  # current pointing is illegal (finished)
         if not highest_pointing.valid:  # new pointing is legal
-            print('CP invalid; HP valid => Do HP', end='\t')
-            return highest_pointing
+            reason = 'CP invalid; HP valid => Do HP'
+            new_pointing = highest_pointing
         else:
-            print('CP invalid; HP invalid => Do nothing', end='\t')
-            return None
+            reason = 'CP invalid; HP invalid => Do nothing'
+            new_pointing = None
     else:  # telescope is observing legally
         if not highest_pointing.valid:  # no legal pointings
-            print('CP valid; HP invalid => Do nothing', end='\t')
-            return None
+            reason = 'CP valid; HP invalid => Do nothing'
+            new_pointing = None
         else:  # both are legal
             if highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if not current_pointing.too:
-                    print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
-                    return highest_pointing
+                    reason = 'CP < HP; CP is not ToO and HP is => Do HP'
+                    new_pointing = highest_pointing
                 else:
-                    print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
-                    return current_pointing
+                    reason = 'CP < HP; CP is is ToO and HP is ToO => Do CP'
+                    new_pointing = current_pointing
             else:  # stay for normal pointings
-                print('CP < HP; but not a ToO => Do CP', end='\t')
-                return current_pointing
+                reason = 'CP < HP; but not a ToO => Do CP'
+                new_pointing = current_pointing
+
+    log.debug('current={} highest={}: new={} ({})'.format(
+              current_pointing.db_id if current_pointing else 'None',
+              highest_pointing.db_id if highest_pointing else 'None',
+              new_pointing.db_id if new_pointing else 'None',
+              reason,
+              ))
+
+    return new_pointing
 
 
-def check_queue(time=None, write_html=False):
+def check_queue(time=None, write_html=False, log=None):
     """Check the queue and decide what to do.
 
     Check the current pointings in the queue, find the highest priority at
@@ -497,17 +512,15 @@ def check_queue(time=None, write_html=False):
 
     Parameters
     ----------
-    current_pointing : `Pointing`
-        The current pointing.
-        `None` if the telescope is idle.
-
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
         Default is `astropy.time.Time.now()`.
-
     write_html : Bool
         Should the scheduler write the HTML queue webpage?
         Default is False.
+
+    log: `logging.Logger`, optional
+        log object to direct output to
 
     Returns
     -------
@@ -516,43 +529,29 @@ def check_queue(time=None, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
 
     """
+    # Use current time if not given
     if time is None:
         time = Time.now()
 
+    # Create an observer
     observer = Observer(astronomy.observatory_location())
 
+    # Import the queue from the database
     queue = PointingQueue.from_database(time, observer)
-
     if len(queue) == 0:
         return None
 
-    highest_pointing = queue.get_highest_priority_pointing(time, observer)
+    # Get the current pointing and the highest priority pointing
     current_pointing = queue.get_current_pointing()
+    highest_pointing = queue.get_highest_priority_pointing(time, observer)
 
-    if current_pointing is not None:
-        print('CP: {}'.format(current_pointing.db_id), end='\t')
-    else:
-        print('CP: None', end='\t')
-    if highest_pointing is not None:
-        print('HP: {}'.format(highest_pointing.db_id), end='\t')
-    else:
-        print('HP: None', end='\t')
-
+    # Write out the queue file and web pages
     queue_file = os.path.join(params.QUEUE_PATH, 'queue_info')
     queue.write_to_file(time, observer, queue_file)
-
     if write_html:
-        # since it's now independent, this could be run from elsewhere
-        # that would save the scheduler doing it
+        # TODO this could be run from elsewhere
         html.write_queue_page()
 
-    new_pointing = what_to_do_next(current_pointing, highest_pointing)
-    if new_pointing is not None:
-        print('NP: {}'.format(new_pointing.db_id))
-    else:
-        print('NP: None')
-
-    if new_pointing is not None:
-        return new_pointing
-    else:
-        return None
+    # Work out what to do next
+    new_pointing = what_to_do_next(current_pointing, highest_pointing, log)
+    return new_pointing

@@ -63,7 +63,8 @@ class SchedulerDaemon(BaseDaemon):
         # Get info from the database
         try:
             temp_info['next_pointing'] = check_queue(Time(self.loop_time, format='unix'),
-                                                     write_html=self.write_html)
+                                                     write_html=self.write_html,
+                                                     log=self.log)
         except Exception:
             self.log.error('Failed to get next pointing from database')
             self.log.debug('', exc_info=True)
