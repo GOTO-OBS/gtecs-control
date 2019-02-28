@@ -157,7 +157,7 @@ def update_header(header, tel, all_info, log):
 
     intf, hw = params.TEL_DICT[tel]
     current_exposure = cam_info['current_exposure']
-    ut_mask = misc.ut_list_to_mask(current_exposure.tel_list)
+    ut_mask = misc.ut_list_to_mask(current_exposure['tel_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
     header["INSTRUME"] = ('UT' + str(tel), "Origin unit telescope")
     header["UT      "] = (tel, "Integer UT number")
@@ -171,10 +171,10 @@ def update_header(header, tel, all_info, log):
     header["SYS-MODE"] = (status.mode, "Current telescope system mode")
     header["OBSERVER"] = (status.observer, "Who started the exposure")
 
-    header["OBJECT  "] = (current_exposure.target, "Observed object name")
+    header["OBJECT  "] = (current_exposure['target'], "Observed object name")
 
-    header["SET-POS "] = (current_exposure.set_pos, "Position of this exposure in this set")
-    header["SET-TOT "] = (current_exposure.set_total, "Total number of exposures in this set")
+    header["SET-POS "] = (current_exposure['set_pos'], "Position of this exposure in this set")
+    header["SET-TOT "] = (current_exposure['set_total'], "Total number of exposures in this set")
 
     header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
     header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
@@ -182,11 +182,11 @@ def update_header(header, tel, all_info, log):
     header["SITE-LOC"] = (params.SITE_LOCATION, "Site location")
 
     # Exposure data
-    header["EXPTIME "] = (current_exposure.exptime, "Exposure time, seconds")
+    header["EXPTIME "] = (current_exposure['exptime'], "Exposure time, seconds")
 
     start_time = Time(cam_info['exposure_start_time'], format='unix')
     start_time.precision = 0
-    mid_time = start_time + (current_exposure.exptime * u.second) / 2.
+    mid_time = start_time + (current_exposure['exptime'] * u.second) / 2.
     header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
     header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
 
@@ -202,8 +202,8 @@ def update_header(header, tel, all_info, log):
     header["LST     "] = (mid_lst, "Exposure midpoint, Local Sidereal Time")
 
     # Frame info
-    header["FRMTYPE "] = (current_exposure.frametype, "Frame type (shutter open/closed)")
-    header["IMGTYPE "] = (current_exposure.imgtype, "Image type")
+    header["FRMTYPE "] = (current_exposure['frametype'], "Frame type (shutter open/closed)")
+    header["IMGTYPE "] = (current_exposure['imgtype'], "Image type")
 
     header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
     header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
@@ -261,10 +261,10 @@ def update_header(header, tel, all_info, log):
     event_type = 'NA'
     event_time = 'NA'
 
-    if current_exposure.db_id != 0:
+    if current_exposure['db_id'] != 0:
         from_db = True
         with db.open_session() as session:
-            expset_id = current_exposure.db_id
+            expset_id = current_exposure['db_id']
 
             try:
                 expset = db.get_exposure_set_by_id(session, expset_id)
@@ -401,11 +401,11 @@ def update_header(header, tel, all_info, log):
     cam_serial = cam_info['serial_number']
     header["CAMERA  "] = (cam_serial, "Camera serial number")
 
-    header["XBINNING"] = (current_exposure.binning, "CCD x binning factor")
-    header["YBINNING"] = (current_exposure.binning, "CCD y binning factor")
+    header["XBINNING"] = (current_exposure['binning'], "CCD x binning factor")
+    header["YBINNING"] = (current_exposure['binning'], "CCD y binning factor")
 
-    x_pixel_size = cam_info['x_pixel_size'] * current_exposure.binning
-    y_pixel_size = cam_info['y_pixel_size'] * current_exposure.binning
+    x_pixel_size = cam_info['x_pixel_size'] * current_exposure['binning']
+    y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
     header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
     header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
 
