@@ -86,7 +86,6 @@ def print_info(info):
         new_id = info['next_pointing'].db_id
         new_ra = info['next_pointing'].ra
         new_dec = info['next_pointing'].dec
-        new_priority = info['next_pointing'].priority
         new_weight = info['next_pointing'].weight
         new_too = info['next_pointing'].too
         new_maxsunalt = info['next_pointing'].maxsunalt
@@ -101,7 +100,6 @@ def print_info(info):
         print('ID:         {}'.format(new_id))
         print('RA:         {}'.format(new_ra))
         print('Dec:        {}'.format(new_dec))
-        print('Priority:   {:.4f}'.format(new_priority))
         print('Weighting:  {}'.format(new_weight))
         print('ToO         {}'.format(new_too))
         print('MaxSunAlt:  {}'.format(new_maxsunalt))
@@ -125,9 +123,8 @@ def print_info_s(info):
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
         new_id = info['next_pointing'].db_id
-        new_priority = info['next_pointing'].priority
         new_mintime = info['next_pointing'].mintime
-        print('  ID: %i (Priority %.3f, MinTime %.1fs)' % (new_id, new_priority, new_mintime))
+        print('  ID: %i' %new_id)
     else:
         print('  ID: None (Priority: None, MinTime: None)')
 

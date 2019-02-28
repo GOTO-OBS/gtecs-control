@@ -23,12 +23,12 @@ def check_schedule():
     try:
         new_pointing = daemon_function('scheduler', 'check_queue')
         if new_pointing is not None:
-            return new_pointing.db_id, new_pointing.priority, new_pointing.mintime
+            return new_pointing.db_id, new_pointing.mintime
         else:
-            return None, None, None
+            return None, None
     except Exception as error:
         print('{} checking scheduler: {}'.format(type(error).__name__, error))
-        return None, None, None
+        return None, None
 
 
 def check_dome_closed():

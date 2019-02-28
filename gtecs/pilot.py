@@ -63,11 +63,9 @@ class Pilot(object):
         # current and next pointing from scheduler
         self.current_id = None
         self.current_mintime = None
-        self.current_priority = None
         self.current_start_time = None
         self.new_id = None
         self.new_mintime = None
-        self.new_priority = None
 
         # store the name of the running script (if any)
         self.running_script = None
@@ -147,8 +145,7 @@ class Pilot(object):
                     self.log.debug('checking scheduler')
 
                     check_results = check_schedule()
-                    self.new_id, self.new_priority, self.new_mintime = check_results
-                    # NOTE we don't actually use the priority anywhere in the pilot!
+                    self.new_id, self.new_mintime = check_results
 
                     if self.new_id != self.current_id:
                         self.log.info('scheduler returns {} (NEW)'.format(self.new_id))
@@ -750,7 +747,6 @@ class Pilot(object):
 
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
-                self.current_priority = self.new_priority
                 self.current_mintime = self.new_mintime
                 self.time_paused = 0
 
@@ -760,7 +756,6 @@ class Pilot(object):
                 execute_command('exq clear')
                 execute_command('cam abort')
                 self.current_id = None
-                self.current_priority = None
                 self.current_mintime = None
                 # If we've interrupted a pointing it needs to be cancelled,
                 # this will mark it as aborted
@@ -779,7 +774,6 @@ class Pilot(object):
         # this will mark it as aborted
         await self.cancel_running_script('obs finished')
         self.current_id = None
-        self.current_priority = None
         self.current_mintime = None
 
     # Pausing

@@ -49,13 +49,11 @@ def import_queue_file():
     # remaining lines are pointings
     pointing_list = []
     for line in lines[2:]:
-        db_id, priority, altaznow, altazlater, constraints = json.loads(line)
+        db_id, altaznow, altazlater, constraints = json.loads(line)
         db_id = int(db_id)
-        priority = float(priority)
         constraint_names, valid_arr = list(zip(*constraints))
         valid_bools = [bool(x) for x in valid_arr]
-        pointing_info = [db_id, priority,
-                         altaznow, altazlater,
+        pointing_info = [db_id, altaznow, altazlater,
                          list(constraint_names), valid_bools]
         pointing_list.append(pointing_info)
     return time, all_constraint_names, pointing_list
@@ -63,7 +61,7 @@ def import_queue_file():
 
 def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     """Write flag file for a given pointing."""
-    db_id, priority, altaznow, altazlater, constraint_names, valid_arr = pointing_info
+    db_id, altaznow, altazlater, constraint_names, valid_arr = pointing_info
     flag_filename = os.path.join(HTML_PATH, 'ID_{}_flags.html'.format(db_id))
 
     with open(flag_filename, 'w') as f:
@@ -267,15 +265,6 @@ def write_queue_page():
             exp_str = ('<a href=' + exp_link + ' rel=\"#overlay\">' +
                        str(pointing.object_name) + '</a>' + popup_str)
 
-            # find priority
-            priority = pointing_info[1]
-            if pointing.status == 'running':
-                priority_str = "<font color=limegreen>%.11f</font>" % priority
-            elif priority < 100:
-                priority_str = "<font color=black>%.11f</font>" % priority
-            else:
-                priority_str = "<font color=red>%.11f</font>" % priority
-
             # find ra/dec
             target = coord.ICRS(pointing.ra * u.deg, pointing.dec * u.deg)
             ra = target.ra.to_string(sep=':', precision=2, unit=u.hour)
@@ -286,7 +275,6 @@ def write_queue_page():
             f.write('<td>' + exp_str + '</td>' +
                     '<td>' + ra + '</td>' +
                     '<td>' + dec + '</td>' +
-                    '<td>' + priority_str + '</td>' +
                     '<td>' + str(pointing.min_time) + '</td>' +
                     '<td>' + str(pointing.min_alt) + '</td>' +
                     '<td>' + str(pointing.max_sunalt) + '</td>' +
