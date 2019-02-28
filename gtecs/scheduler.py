@@ -495,30 +495,33 @@ def what_to_do_next(current_pointing, highest_pointing, log=None):
 
     # Log decision
     if current_pointing:
-        if current_pointing.valid:
-            current_str = 'CP={}'.format(current_pointing.db_id)
-        else:
-            current_str = 'CP=!{}'.format(current_pointing.db_id)
+        current_str = '{}'.format(current_pointing.db_id)
+        if not current_pointing.valid:
+            current_str = '*' + current_str
+        if current_pointing.too:
+            current_str = current_str + '!'
     else:
-        current_str = 'CP=None'
+        current_str = 'None'
 
     if highest_pointing:
-        if highest_pointing.valid:
-            highest_str = 'HP={}'.format(highest_pointing.db_id)
-        else:
-            highest_str = 'HP=!{}'.format(highest_pointing.db_id)
+        highest_str = '{}'.format(highest_pointing.db_id)
+        if not highest_pointing.valid:
+            highest_str = '*' + highest_str
+        if highest_pointing.too:
+            highest_str = highest_str + '!'
     else:
-        highest_str = 'HP=None'
+        highest_str = 'None'
 
     if new_pointing:
-        if new_pointing.valid:
-            new_str = 'NP={}'.format(new_pointing.db_id)
-        else:
-            new_str = 'NP=!{}'.format(new_pointing.db_id)
+        new_str = '{}'.format(new_pointing.db_id)
+        if not new_pointing.valid:
+            new_str = '*' + new_str
+        if new_pointing.too:
+            new_str = new_str + '!'
     else:
-        new_str = 'NP=None'
+        new_str = 'None'
 
-    log.debug('{} {}: {} ({})'.format(current_str, highest_str, new_str, reason))
+    log.debug('CP={} HP={}: NP={} ({})'.format(current_str, highest_str, new_str, reason))
 
     return new_pointing
 
