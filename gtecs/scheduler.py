@@ -493,12 +493,32 @@ def what_to_do_next(current_pointing, highest_pointing, log=None):
                 reason = 'CP < HP; but not a ToO => Do CP'
                 new_pointing = current_pointing
 
-    log.debug('current={} highest={}: new={} ({})'.format(
-              current_pointing.db_id if current_pointing else 'None',
-              highest_pointing.db_id if highest_pointing else 'None',
-              new_pointing.db_id if new_pointing else 'None',
-              reason,
-              ))
+    # Log decision
+    if current_pointing:
+        if current_pointing.valid:
+            current_str = 'CP={}'.format(current_pointing.db_id)
+        else:
+            current_str = 'CP=!{}'.format(current_pointing.db_id)
+    else:
+        current_str = 'CP=None'
+
+    if highest_pointing:
+        if highest_pointing.valid:
+            highest_str = 'HP={}'.format(highest_pointing.db_id)
+        else:
+            highest_str = 'HP=!{}'.format(highest_pointing.db_id)
+    else:
+        highest_str = 'HP=None'
+
+    if new_pointing:
+        if new_pointing.valid:
+            new_str = 'NP={}'.format(new_pointing.db_id)
+        else:
+            new_str = 'NP=!{}'.format(new_pointing.db_id)
+    else:
+        new_str = 'NP=None'
+
+    log.debug('{} {}: {} ({})'.format(current_str, highest_str, new_str, reason))
 
     return new_pointing
 
