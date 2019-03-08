@@ -203,7 +203,8 @@ class SentinelDaemon(BaseDaemon):
         event.archive(os.path.join(params.FILE_PATH, 'voevents'), self.log)
 
         # Run GOTO-alert's event handler
-        event = event_handler(event, self.log,
+        event = event_handler(event, log=self.log,
+                              force_process=event._force if hasattr(event, '_force') else False,
                               write_html=params.SENTINEL_WRITE_HTML,
                               send_messages=params.SENTINEL_SEND_MESSAGES)
         if event:
@@ -242,6 +243,30 @@ class SentinelDaemon(BaseDaemon):
         send_slack_msg(msg)
 
     # Control functions
+    def ingest_from_payload(self, payload, force=False):
+        """Ingest an event payload.
+
+        If force=True, will force the event_handler to ignore the usual checks for event types.
+        NB this can lead to unpredictable behaviour.
+        """
+        event = Event(payload)
+        event._force = force  # Store on the Event object
+        self.events_queue.append(event)
+        return 'Event added to queue'
+
+    def ingest_from_ivorn(self, ivorn, force=False):
+        """Ingest an event from its IVORN.
+
+        Will attempt to download the event payload from the 4pisky VOEvent DB.
+
+        If force=True, will force the event_handler to ignore the usual checks for event types.
+        NB this can lead to unpredictable behaviour.
+        """
+        event = Event.from_ivorn(ivorn)
+        event._force = force  # Store on the Event object
+        self.events_queue.append(event)
+        return 'Event added to queue'
+
     def pause_listener(self):
         """Pause the alert listener."""
         if not self.listening:
