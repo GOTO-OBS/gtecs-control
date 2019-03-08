@@ -22,7 +22,6 @@ while True:
     new_pointing = scheduler.check_queue(now, write_html)
     if new_pointing is not None:
         new_id = new_pointing.db_id
-        new_priority = new_pointing.priority_now
-        print('   pointing is', new_id, 'with', new_priority)
+        print('   pointing is', new_id)
     else:
         print('   nothing to do, parking')

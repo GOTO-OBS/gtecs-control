@@ -1,6 +1,7 @@
 """Robotic queue scheduler functions."""
 
 import json
+import logging
 import os
 import warnings
 
@@ -28,7 +29,10 @@ from . import params
 # Setup
 warnings.simplefilter("ignore", ErfaWarning)
 
-# priority settings
+# set debug level
+debug = 1
+
+# tiebreaker params
 WEIGHTING_WEIGHT = 10
 AIRMASS_WEIGHT = 1
 TTS_WEIGHT = 0.1
@@ -37,14 +41,10 @@ WEIGHTING_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 AIRMASS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 TTS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
 
-# set debug level
-debug = 1
-
-# invalid rank
-INVALID_PRIORITY = 1000
 
 HARD_ALT_LIM = 10
 HARD_HA_LIM = 8
+MOON_PHASES = {'B': 1.0, 'G': 0.65, 'D': 0.25}
 
 
 def apply_constraints(constraints, observer, targets, times):
@@ -111,14 +111,16 @@ def time_to_set(observer, targets, now):
 class Pointing(object):
     """A class to contain infomation on each pointing."""
 
-    def __init__(self, db_id, ra, dec, priority, weight, too, maxsunalt,
-                 minalt, mintime, maxmoon, minmoonsep, start, stop,
-                 current):
+    def __init__(self, db_id, name, ra, dec, rank, weight, num_obs, too,
+                 maxsunalt, minalt, mintime, maxmoon, minmoonsep,
+                 start, stop, current):
         self.db_id = int(db_id)
+        self.name = name
         self.ra = float(ra)
         self.dec = float(dec)
-        self.priority = float(priority)
+        self.rank = int(rank)
         self.weight = float(weight)
+        self.num_obs = int(num_obs)
         self.too = bool(int(too))
         self.maxsunalt = float(maxsunalt)
         self.minalt = float(minalt)
@@ -139,50 +141,44 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(db_id={}, ra={}, dec={}, priority={}, weight={}, " +
-                    "too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
+        template = ("Pointing(db_id={}, name={}, ra={}, dec={}, rank={}, weight={}, " +
+                    "num_obs={}, too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
                     "minmoonsep={}, start={}, stop={}, " +
                     "current={})")
         return template.format(
-            self.db_id, self.ra, self.dec, self.priority, self.weight,
-            self.too, self.maxsunalt, self.minalt, self.mintime,
+            self.db_id, self.name, self.ra, self.dec, self.rank, self.weight,
+            self.num_obs, self.too, self.maxsunalt, self.minalt, self.mintime,
             self.maxmoon, self.minmoonsep, self.start, self.stop,
             self.current)
 
     @classmethod
-    def from_file(cls, fname):
-        """Import a pointing from an old-style file."""
-        lines = []
-        with open(fname) as f:
-            for line in f.readlines():
-                if not line.startswith('#'):
-                    lines.append(line)
-        # first line is the pointing
-        (db_id, ra, dec, priority, weight, too, sunalt, minalt,
-         mintime, maxmoon, minmoonsep, start, stop) = lines[0].split()
-        pointing = cls(db_id, ra, dec, priority, weight, too, sunalt,
-                       minalt, mintime, maxmoon, minmoonsep, start, stop,
-                       False, False)
-        return pointing
-
-    @classmethod
     def from_database(cls, db_pointing):
         """Import a pointing from the database."""
-        # not every pointing has an associated survey tile weighting
-        # if it doesn't, it effectively contains 100% of the target so weight=1
+        # num_obs will be stored on the Mpointing, if it has one
+        # If not then it's a one-off, so num_obs=0
+        if db_pointing.mpointing:
+            num_obs = db_pointing.mpointing.num_completed
+        else:
+            num_obs = 0
+
+        # weight is stored on the Survey Tile, if it has one
+        # If not it effectively contains 100% of the target, so weight=1
         if db_pointing.survey_tile:
             weight = db_pointing.survey_tile.current_weight
         else:
             weight = 1
-        # the current pointing has running status
+
+        # The current pointing has running status
         current = bool(db_pointing.status == 'running')
 
-        # create pointing object
+        # Create pointing object
         pointing = cls(db_id=db_pointing.db_id,
+                       name=db_pointing.object_name,
                        ra=db_pointing.ra,
                        dec=db_pointing.dec,
-                       priority=db_pointing.rank,
+                       rank=db_pointing.rank,
                        weight=weight,
+                       num_obs=num_obs,
                        too=db_pointing.too,
                        maxsunalt=db_pointing.max_sunalt,
                        minalt=db_pointing.min_alt,
@@ -202,20 +198,16 @@ class PointingQueue(object):
         if pointings is None:
             pointings = []
         self.pointings = pointings
-        self.ra_arr = []
-        self.dec_arr = []
-        self.target_arr = []
-        self.mintime_arr = []
-        self.start_arr = []
-        self.stop_arr = []
-        self.maxsunalt_arr = []
-        self.minalt_arr = []
-        self.maxmoon_arr = []
-        self.minmoonsep_arr = []
-        self.priority_arr = []
-        self.weight_arr = []
-        if len(self.pointings) > 0:
-            self.initialise()
+
+        # Can't do much with no Pointings
+        if len(self.pointings) == 0:
+            return
+
+        # Create pointing data arrays
+        self.targets = coord.SkyCoord([float(p.ra) for p in self.pointings],
+                                      [float(p.dec) for p in self.pointings],
+                                      unit=u.deg, frame='icrs')
+        self.mintimes = u.Quantity([float(p.mintime) for p in self.pointings], unit=u.s)
 
     def __len__(self):
         return len(self.pointings)
@@ -224,6 +216,36 @@ class PointingQueue(object):
         template = ("PointingQueue(length={})")
         return template.format(len(self.pointings))
 
+    @classmethod
+    def from_database(cls, time, observer):
+        """Create a Pointing Queue from current Pointings in the database.
+
+        Parameters
+        ----------
+        time : `~astropy.time.Time`
+            The time to fetch the queue for.
+        observer : `astroplan.Observer`
+            The observer of the pointings
+
+        Returns
+        -------
+        pointings : list of `Pointing`
+            An list containing Pointings from the database.
+
+        """
+        with db.open_session() as session:
+            current, pending = db.get_filtered_queue(session,
+                                                     time=time,
+                                                     location=observer.location,
+                                                     altitude_limit=HARD_ALT_LIM,
+                                                     hourangle_limit=HARD_HA_LIM)
+
+            pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
+            if current:
+                pointings.append(Pointing.from_database(current))
+            queue = cls(np.array(pointings))
+        return queue
+
     def get_current_pointing(self):
         """Return the current pointing from the queue."""
         for p in self.pointings:
@@ -231,174 +253,80 @@ class PointingQueue(object):
                 return p
         return None
 
-    def initialise(self):
-        """Set up the queue and constraints when initialised."""
-        moon_phases = {'B': 1.0, 'G': 0.65, 'D': 0.25}
-
-        # create pointing data arrays
-        for pointing in self.pointings:
-            self.ra_arr.append(pointing.ra)
-            self.dec_arr.append(pointing.dec)
-            self.mintime_arr.append(pointing.mintime)
-            self.start_arr.append(pointing.start)
-            self.stop_arr.append(pointing.stop)
-            self.maxsunalt_arr.append(pointing.maxsunalt)
-            self.minalt_arr.append(pointing.minalt)
-            self.maxmoon_arr.append(moon_phases[pointing.maxmoon])
-            self.minmoonsep_arr.append(pointing.minmoonsep)
-            self.priority_arr.append(pointing.priority)
-            self.weight_arr.append(pointing.weight)
-
-        # convert to numpy arrays so we can mask them
-        self.ra_arr = np.array(self.ra_arr)
-        self.dec_arr = np.array(self.dec_arr)
-        self.target_arr = np.array(self.target_arr)
-        self.mintime_arr = np.array(self.mintime_arr)
-        self.start_arr = np.array(self.start_arr)
-        self.stop_arr = np.array(self.stop_arr)
-        self.maxsunalt_arr = np.array(self.maxsunalt_arr)
-        self.minalt_arr = np.array(self.minalt_arr)
-        self.maxmoon_arr = np.array(self.maxmoon_arr)
-        self.minmoonsep_arr = np.array(self.minmoonsep_arr)
-        self.priority_arr = np.array(self.priority_arr)
-        self.weight_arr = np.array(self.weight_arr)
-
-        # Create normal constraints
-        # Apply to every pointing
-        self.targets = coord.SkyCoord(self.ra_arr, self.dec_arr,
-                                      unit=u.deg, frame='icrs')
-        self.mintimes = u.Quantity(self.mintime_arr, unit=u.s)
-        self.maxsunalts = u.Quantity(self.maxsunalt_arr, unit=u.deg)
-        self.minalts = u.Quantity(self.minalt_arr, unit=u.deg)
-        self.minmoonseps = u.Quantity(self.minmoonsep_arr, unit=u.deg)
-
-        self.constraints = [AtNightConstraint(self.maxsunalts),
-                            AltitudeConstraint(self.minalts, None),
-                            ArtificialHorizonConstraint(),
-                            MoonIlluminationConstraint(None, self.maxmoon_arr),
-                            MoonSeparationConstraint(self.minmoonseps, None)]
-        self.constraint_names = ['SunAlt',
-                                 'MinAlt',
-                                 'ArtHoriz',
-                                 'Moon',
-                                 'MoonSep']
-
-        # Create time constraints
-        # Apply to every pointing EXCEPT the current pointing
-        self.time_mask = np.array([not p.current for p in self.pointings])
-
-        if np.all(self.time_mask):
-            # no current pointing, don't bother making a new SkyCoord
-            self.targets_t = self.targets
-        else:
-            self.targets_t = coord.SkyCoord(self.ra_arr[self.time_mask],
-                                            self.dec_arr[self.time_mask],
-                                            unit=u.deg, frame='icrs')
-
-        self.starts_t = Time(self.start_arr[self.time_mask],
-                             scale='utc', format='datetime')
-        # The stop time can be None for non-expiring pointings,
-        # but the constraint needs a Time so just say a long time from now.
-        longtime = Time.now() + 10 * u.year
-        self.stops_t = Time([stoptime if stoptime else longtime.datetime
-                            for stoptime in self.stop_arr[self.time_mask]],
-                            scale='utc', format='datetime')
-
-        self.time_constraint = [TimeConstraint(self.starts_t, self.stops_t)]
-        self.time_constraint_name = ['Time']
-
-        # Create mintime constraints
-        # Apply to all non-current pointings
-        self.mintime_mask = np.array([not p.current for p in self.pointings])
-
-        if np.all(self.mintime_mask):
-            # no current pointing => use existing objects
-            self.targets_m = self.targets
-            self.mintimes_m = self.mintimes
-            self.maxsunalts_m = self.maxsunalts
-            self.minalts_m = self.minalts
-        else:
-            self.targets_m = coord.SkyCoord(self.ra_arr[self.mintime_mask],
-                                            self.dec_arr[self.mintime_mask],
-                                            unit=u.deg, frame='icrs')
-            self.mintimes_m = u.Quantity(self.mintime_arr[self.mintime_mask],
-                                         unit=u.s)
-            self.maxsunalts_m = u.Quantity(self.maxsunalt_arr[self.mintime_mask],
-                                           unit=u.deg)
-            self.minalts_m = u.Quantity(self.minalt_arr[self.mintime_mask],
-                                        unit=u.deg)
-
-        self.mintime_constraints = [AtNightConstraint(self.maxsunalts_m),
-                                    AltitudeConstraint(self.minalts_m, None),
-                                    ArtificialHorizonConstraint()]
-        self.mintime_constraint_names = ['SunAlt_mintime',
-                                         'MinAlt_mintime',
-                                         'ArtHoriz_mintime']
-
-        # Save all names
-        self.all_constraint_names = (self.constraint_names +
-                                     self.time_constraint_name +
-                                     self.mintime_constraint_names)
-
-    def check_validities(self, now, observer):
+    def apply_constraints(self, now, observer):
         """Check if the pointings are valid, both now and after mintimes."""
-        # apply normal constraints
-        cons_valid_arr = apply_constraints(self.constraints,
-                                           observer,
-                                           self.targets,
-                                           now)
+        # Create Constraints
+        self.constraints = {}
 
-        # apply time constraint to filtered targets
-        if np.any(self.time_mask):
-            time_cons_valid_arr = apply_constraints(self.time_constraint,
-                                                    observer,
-                                                    self.targets_t,
-                                                    now)
-        else:
-            time_cons_valid_arr = np.array([])
+        # SunAlt
+        maxsunalts = u.Quantity([float(p.maxsunalt) for p in self.pointings], unit=u.deg)
+        self.constraints['SunAlt'] = AtNightConstraint(maxsunalts)
 
-        # apply mintime constraints to filtered targets
-        if any(self.mintime_mask):
-            later_arr = now + self.mintimes_m
-            min_cons_valid_arr = apply_constraints(self.mintime_constraints,
-                                                   observer,
-                                                   self.targets_m,
-                                                   later_arr)
-        else:
-            min_cons_valid_arr = np.array([])
+        # MinAlt
+        minalts = u.Quantity([float(p.minalt) for p in self.pointings], unit=u.deg)
+        self.constraints['MinAlt'] = AltitudeConstraint(minalts, None)
 
-        # save the results on the pointings
+        # ArtHoriz
+        self.constraints['ArtHoriz'] = ArtificialHorizonConstraint()
+
+        # Moon
+        moonphases = [float(MOON_PHASES[p.maxmoon]) for p in self.pointings]
+        self.constraints['Moon'] = MoonIlluminationConstraint(None, moonphases)
+
+        # MoonSep
+        minmoonseps = u.Quantity([float(p.minmoonsep) for p in self.pointings], unit=u.deg)
+        self.constraints['MoonSep'] = MoonSeparationConstraint(minmoonseps, None)
+
+        # Time
+        starts = Time([p.start for p in self.pointings], scale='utc', format='datetime')
+        # NB the stop time can be None for non-expiring pointings,
+        #    but the constraint needs a Time so just say a long time from now.
+        longtime = Time.now() + 10 * u.year
+        stops = Time([p.stop if p.stop else longtime.datetime for p in self.pointings],
+                     scale='utc', format='datetime')
+        self.constraints['Time'] = TimeConstraint(starts, stops)
+
+        # Apply constraints
+        normal_cons = ['SunAlt', 'MinAlt', 'ArtHoriz', 'Moon', 'MoonSep']
+        cons_valid_arr = apply_constraints([self.constraints[name] for name in normal_cons],
+                                           observer, self.targets, now)
+        time_cons = ['Time']
+        time_cons_valid_arr = apply_constraints([self.constraints[name] for name in time_cons],
+                                                observer, self.targets, now)
+        mintime_cons = ['SunAlt', 'MinAlt', 'ArtHoriz']
+        later_arr = now + u.Quantity([float(p.mintime) for p in self.pointings], unit=u.s)
+        min_cons_valid_arr = apply_constraints([self.constraints[name] for name in mintime_cons],
+                                               observer, self.targets, later_arr)
+        mintime_names = [name + '_mintime' for name in mintime_cons]
+        self.all_constraint_names = normal_cons + time_cons + mintime_names
+
+        # Save constraint results on Pointings and calculate if they are valid
         for i, pointing in enumerate(self.pointings):
-            pointing.constraint_names = list(self.constraint_names)
+            # normal constraints
+            pointing.constraint_names = list(normal_cons)
             pointing.valid_arr = cons_valid_arr[i]
 
-        for i, pointing in enumerate(self.pointings[self.time_mask]):
-            pointing.constraint_names += self.time_constraint_name
-            pointing.valid_arr = np.concatenate((pointing.valid_arr,
-                                                 time_cons_valid_arr[i]))
+            # extra constraints
+            if not pointing.current:
+                pointing.constraint_names += time_cons
+                pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                     time_cons_valid_arr[i]))
+                pointing.constraint_names += mintime_names
+                pointing.valid_arr = np.concatenate((pointing.valid_arr,
+                                                    min_cons_valid_arr[i]))
 
-        for i, pointing in enumerate(self.pointings[self.mintime_mask]):
-            pointing.constraint_names += self.mintime_constraint_names
-            pointing.valid_arr = np.concatenate((pointing.valid_arr,
-                                                 min_cons_valid_arr[i]))
-
-        # finally find out if each pointing is valid or not
-        for pointing in self.pointings:
+            # save all constraint names on all
             pointing.all_constraint_names = self.all_constraint_names
+
+            # finally find out if each pointing is valid or not
             pointing.valid = np.all(pointing.valid_arr)
             pointing.valid_time = now
 
-    def calculate_priorities(self, time, observer):
-        """Calculate priorities at a given time for each pointing."""
-        # Find base priority based on rank
-        priorities = np.array([p.priority for p in self.pointings])
-
-        # Find ToO values (0 or 1)
-        too_mask = np.array([p.too for p in self.pointings])
-        too_arr = np.array(np.invert(too_mask), dtype=float)
-
+    def calculate_tiebreakers(self, time, observer):
+        """Calculate the tiebreaker values for every pointing."""
         # Find weight values (0 to 1)
-        weight_arr = 1 - self.weight_arr
+        weights = np.array([float(p.weight) for p in self.pointings])
+        weight_arr = 1 - weights
         bad_weight_mask = np.logical_or(weight_arr < 0, weight_arr > 1)
         weight_arr[bad_weight_mask] = 1
 
@@ -408,7 +336,7 @@ class PointingQueue(object):
         secz_now = altaz_now.secz
 
         # airmass at mintime (NB all targets)
-        later_arr = time + self.mintimes
+        later_arr = time + u.Quantity([float(p.mintime) for p in self.pointings], unit=u.s)
         altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
         secz_later = altaz_later.secz
 
@@ -424,64 +352,45 @@ class PointingQueue(object):
         bad_tts_mask = np.logical_or(tts_arr < 0, tts_arr > 1)
         tts_arr[bad_tts_mask] = 1
 
-        # Construct the priority based on weightings
-        priorities_now = priorities.copy()
+        # Construct the tiebreaker value
+        tiebreak_arr = (weight_arr * WEIGHTING_WEIGHT +
+                        airmass_arr * AIRMASS_WEIGHT +
+                        tts_arr * TTS_WEIGHT)
 
-        priorities_now += 0.1 * too_arr
-        priorities_now += 0.01 * (weight_arr * WEIGHTING_WEIGHT +
-                                  airmass_arr * AIRMASS_WEIGHT +
-                                  tts_arr * TTS_WEIGHT)
-
-        # check validities, add INVALID_PRIORITY to invalid pointings
-        self.check_validities(time, observer)
-        valid_mask = np.array([p.valid for p in self.pointings])
-        invalid_mask = np.invert(valid_mask)
-        priorities_now[invalid_mask] += INVALID_PRIORITY
-
-        # if the current pointing is invalid it must be complete
-        # therefore add INVALID_PRIORITY to prevent it coming up again
-        current_mask = np.array([p.current for p in self.pointings])
-        current_complete_mask = np.logical_and(current_mask, invalid_mask)
-        priorities_now[current_complete_mask] += INVALID_PRIORITY
-
-        # save priority_now to pointing
-        for pointing, priority_now in zip(self.pointings, priorities_now):
-            pointing.priority_now = priority_now
+        # Save values on the pointings
+        for pointing, tiebreaker in zip(self.pointings, tiebreak_arr):
+            pointing.tiebreaker = tiebreaker
 
     def get_highest_priority_pointing(self, time, observer):
         """Return the pointing with the highest priority."""
+        # If there are no pointings, return None
         if len(self.pointings) == 0:
             return None
 
-        self.calculate_priorities(time, observer)
+        # Apply constraints and calculate tiebreakers for all pointings
+        self.apply_constraints(time, observer)
+        self.calculate_tiebreakers(time, observer)
 
-        pointing_list = list(self.pointings)  # a copy
-        pointing_list.sort(key=lambda p: p.priority_now)
-        return pointing_list[0]
+        # Sort the pointings
+        #   - First is by validity
+        #   - Then by rank
+        #   - Then by ToO flag
+        #   - Then by number ot fimes already observed
+        #   - Finally use the tiebreaker
+        pointings = list(self.pointings)  # make a copy
+        pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
+
+        return pointings[0]
 
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
         # The queue should already have priorities calculated
-        try:
-            self.pointings[0].priority_now
-        except AttributeError:
-            message = "Queue has not yet had priorities calculated"
-            raise ValueError(message)
+        if not hasattr(self.pointings[0], 'valid') or not hasattr(self.pointings[0], 'tiebreaker'):
+            raise ValueError("Queue has not yet had priorities calculated")
 
-        # make copy of pointings
-        pointing_list = list(self.pointings)
-
-        # find altaz (should be cached)
-        altaz_now = _get_altaz(time, observer, self.targets)['altaz']
-        altaz_now_list = list(zip(altaz_now.alt.value, altaz_now.az.value))
-
-        later_arr = time + self.mintimes
-        altaz_later = _get_altaz(later_arr, observer, self.targets)['altaz']
-        altaz_later_list = list(zip(altaz_later.alt.value, altaz_later.az.value))
-
-        # combine pointings and altaz
-        combined = list(zip(pointing_list, altaz_now_list, altaz_later_list))
-        combined.sort(key=lambda x: x[0].priority_now)
+        # get and sort pointings
+        pointings = list(self.pointings)  # make a copy
+        pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
 
         # now save as json file
         with open(filename, 'w') as f:
@@ -489,83 +398,35 @@ class PointingQueue(object):
             f.write('\n')
             json.dump(self.all_constraint_names, f)
             f.write('\n')
-            for pointing, altaz_now, altaz_later in combined:
-                valid_nonbool = [int(b) for b in pointing.valid_arr]
-                con_list = list(zip(pointing.constraint_names, valid_nonbool))
-                json.dump([pointing.db_id, pointing.priority_now,
-                           altaz_now, altaz_later, con_list], f)
+            for p in pointings:
+                valid_nonbool = [int(b) for b in p.valid_arr]
+                json.dump([p.db_id,
+                           p.name,
+                           1,
+                           p.rank,
+                           int(p.too),
+                           p.num_obs,
+                           p.tiebreaker,
+                           list(zip(p.constraint_names, valid_nonbool)),
+                           ],
+                          f)
                 f.write('\n')
 
 
-def import_pointings_from_folder(queue_folder):
-    """Create a list of `Pointing` objects from a folder containing pointing files.
-
-    Parameters
-    ----------
-    queue_folder : str
-        The location of the pointing files.
-
-    Returns
-    -------
-    pointings : list of `Pointing`
-        An list containing Pointings from the queue_folder.
-
-    """
-    files = os.listdir(queue_folder)
-    pointings = []
-
-    if files is not None:
-        for pointing_file in files:
-            path = os.path.join(queue_folder, pointing_file)
-            pointings.append(Pointing.from_file(path))
-
-    return pointings
-
-
-def import_pointings_from_database(time, observer):
-    """Create a list of `Pointing` objects from the GOTO database.
-
-    Parameters
-    ----------
-    time : `~astropy.time.Time`
-        The time to fetch the queue for.
-
-    Returns
-    -------
-    pointings : list of `Pointing`
-        An list containing Pointings from the database.
-
-    """
-    pointings = []
-
-    with db.open_session() as session:
-        current_dbpointing, pending_dbpointings = db.get_filtered_queue(session,
-                                                                        time=time,
-                                                                        location=observer.location,
-                                                                        altitude_limit=HARD_ALT_LIM,
-                                                                        hourangle_limit=HARD_HA_LIM)
-        for dbpointing in pending_dbpointings:
-            pointings.append(Pointing.from_database(dbpointing))
-        if current_dbpointing is not None:
-            pointings.append(Pointing.from_database(current_dbpointing))
-
-    return np.array(pointings)
-
-
-def what_to_do_next(current_pointing, highest_pointing):
+def what_to_do_next(current_pointing, highest_pointing, log=None):
     """Decide whether to slew to a new target, remain on the current target or park the telescope.
-
-    NOTE currently based on pt5m logic, will need revision for GOTO.
 
     Parameters
     ----------
     current_pointing : `Pointing`
         The current pointing.
         `None` if the telescope is idle.
-
     highest_pointing : `Pointing`
         The current highest priority pointing from the queue.
         `None` if the queue is empty.
+
+    log: `logging.Logger`, optional
+        log object to direct output to
 
     Returns
     -------
@@ -577,59 +438,95 @@ def what_to_do_next(current_pointing, highest_pointing):
           `None`           (nothing to do, park).
 
     """
+    # Create a logger if one isn't given
+    if log is None:
+        logging.basicConfig(level=logging.DEBUG)
+        log = logging.getLogger('scheduler')
+
     # Deal with either being missing (telescope is idle or queue is empty)
     if current_pointing is None and highest_pointing is None:
-        print('Not doing anything; Nothing to do => Do nothing', end='\t')
-        return None
+        reason = 'Not doing anything; Nothing to do => Do nothing'
+        new_pointing = None
     elif current_pointing is None:
-        if highest_pointing.priority_now < INVALID_PRIORITY:
-            print('Not doing anything; HP valid => Do HP', end='\t')
-            return highest_pointing
+        if highest_pointing.valid:
+            reason = 'Not doing anything; HP valid => Do HP'
+            new_pointing = highest_pointing
         else:
-            print('Not doing anything; HP invalid => Do nothing', end='\t')
-            return None
+            reason = 'Not doing anything; HP invalid => Do nothing'
+            new_pointing = None
     elif highest_pointing is None:
-        if current_pointing.priority_now > INVALID_PRIORITY:
-            print('CP invalid; Nothing to do => Do nothing', end='\t')
-            return None
+        if not current_pointing.valid:
+            reason = 'CP invalid; Nothing to do => Do nothing'
+            new_pointing = None
         else:
-            print('CP valid; Nothing to do => Do CP', end='\t')  # TODO - is that right?
-            return current_pointing
+            reason = 'CP valid; Nothing to do => Do CP'  # TODO - is that right?
+            new_pointing = current_pointing
 
-    if current_pointing == highest_pointing:
-        if (current_pointing.priority_now >= INVALID_PRIORITY or
-                highest_pointing.priority_now >= INVALID_PRIORITY):
-            print('CP==HP and invalid => Do nothing', end='\t')
-            return None  # it's either finished or is now illegal
+    elif current_pointing == highest_pointing:
+        if not current_pointing.valid or not highest_pointing.valid:
+            reason = 'CP==HP and invalid => Do nothing'
+            new_pointing = None  # it's either finished or is now illegal
         else:
-            print('CP==HP and valid => Do HP', end='\t')
-            return highest_pointing
+            reason = 'CP==HP and valid => Do HP'
+            new_pointing = highest_pointing
 
-    if current_pointing.priority_now >= INVALID_PRIORITY:  # current pointing is illegal (finished)
-        if highest_pointing.priority_now < INVALID_PRIORITY:  # new pointing is legal
-            print('CP invalid; HP valid => Do HP', end='\t')
-            return highest_pointing
+    elif not current_pointing.valid:  # current pointing is illegal (finished)
+        if not highest_pointing.valid:  # new pointing is legal
+            reason = 'CP invalid; HP valid => Do HP'
+            new_pointing = highest_pointing
         else:
-            print('CP invalid; HP invalid => Do nothing', end='\t')
-            return None
+            reason = 'CP invalid; HP invalid => Do nothing'
+            new_pointing = None
     else:  # telescope is observing legally
-        if highest_pointing.priority_now >= INVALID_PRIORITY:  # no legal pointings
-            print('CP valid; HP invalid => Do nothing', end='\t')
-            return None
+        if not highest_pointing.valid:  # no legal pointings
+            reason = 'CP valid; HP invalid => Do nothing'
+            new_pointing = None
         else:  # both are legal
             if highest_pointing.too:  # slew to a ToO, unless now is also a ToO
                 if not current_pointing.too:
-                    print('CP < HP; CP is not ToO and HP is => Do HP', end='\t')
-                    return highest_pointing
+                    reason = 'CP < HP; CP is not ToO and HP is => Do HP'
+                    new_pointing = highest_pointing
                 else:
-                    print('CP < HP; CP is is ToO and HP is ToO => Do CP', end='\t')
-                    return current_pointing
+                    reason = 'CP < HP; CP is is ToO and HP is ToO => Do CP'
+                    new_pointing = current_pointing
             else:  # stay for normal pointings
-                print('CP < HP; but not a ToO => Do CP', end='\t')
-                return current_pointing
+                reason = 'CP < HP; but not a ToO => Do CP'
+                new_pointing = current_pointing
+
+    # Log decision
+    if current_pointing:
+        current_str = '{}'.format(current_pointing.db_id)
+        if not current_pointing.valid:
+            current_str = '*' + current_str
+        if current_pointing.too:
+            current_str = current_str + '!'
+    else:
+        current_str = 'None'
+
+    if highest_pointing:
+        highest_str = '{}'.format(highest_pointing.db_id)
+        if not highest_pointing.valid:
+            highest_str = '*' + highest_str
+        if highest_pointing.too:
+            highest_str = highest_str + '!'
+    else:
+        highest_str = 'None'
+
+    if new_pointing:
+        new_str = '{}'.format(new_pointing.db_id)
+        if not new_pointing.valid:
+            new_str = '*' + new_str
+        if new_pointing.too:
+            new_str = new_str + '!'
+    else:
+        new_str = 'None'
+
+    log.debug('CP={} HP={}: NP={} ({})'.format(current_str, highest_str, new_str, reason))
+
+    return new_pointing
 
 
-def check_queue(time=None, write_html=False):
+def check_queue(time=None, write_html=False, log=None):
     """Check the queue and decide what to do.
 
     Check the current pointings in the queue, find the highest priority at
@@ -638,17 +535,15 @@ def check_queue(time=None, write_html=False):
 
     Parameters
     ----------
-    current_pointing : `Pointing`
-        The current pointing.
-        `None` if the telescope is idle.
-
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
         Default is `astropy.time.Time.now()`.
-
     write_html : Bool
         Should the scheduler write the HTML queue webpage?
         Default is False.
+
+    log: `logging.Logger`, optional
+        log object to direct output to
 
     Returns
     -------
@@ -657,45 +552,29 @@ def check_queue(time=None, write_html=False):
         Could be a new pointing, the current pointing or 'None' (park).
 
     """
+    # Use current time if not given
     if time is None:
         time = Time.now()
 
+    # Create an observer
     observer = Observer(astronomy.observatory_location())
 
-    pointings = import_pointings_from_database(time, observer)
-
-    if len(pointings) == 0:
+    # Import the queue from the database
+    queue = PointingQueue.from_database(time, observer)
+    if len(queue) == 0:
         return None
 
-    queue = PointingQueue(pointings)
-
-    highest_pointing = queue.get_highest_priority_pointing(time, observer)
+    # Get the current pointing and the highest priority pointing
     current_pointing = queue.get_current_pointing()
+    highest_pointing = queue.get_highest_priority_pointing(time, observer)
 
-    if current_pointing is not None:
-        print('CP: {}'.format(current_pointing.db_id), end='\t')
-    else:
-        print('CP: None', end='\t')
-    if highest_pointing is not None:
-        print('HP: {}'.format(highest_pointing.db_id), end='\t')
-    else:
-        print('HP: None', end='\t')
-
+    # Write out the queue file and web pages
     queue_file = os.path.join(params.QUEUE_PATH, 'queue_info')
     queue.write_to_file(time, observer, queue_file)
-
     if write_html:
-        # since it's now independent, this could be run from elsewhere
-        # that would save the scheduler doing it
+        # TODO this could be run from elsewhere
         html.write_queue_page()
 
-    new_pointing = what_to_do_next(current_pointing, highest_pointing)
-    if new_pointing is not None:
-        print('NP: {}'.format(new_pointing.db_id))
-    else:
-        print('NP: None')
-
-    if new_pointing is not None:
-        return new_pointing
-    else:
-        return None
+    # Work out what to do next
+    new_pointing = what_to_do_next(current_pointing, highest_pointing, log)
+    return new_pointing
