@@ -202,11 +202,18 @@ class SentinelDaemon(BaseDaemon):
         # Archive the event
         event.archive(os.path.join(params.FILE_PATH, 'voevents'), self.log)
 
-        # Run GOTO-alert's event handler
-        event = event_handler(event, log=self.log,
-                              force_process=event._force if hasattr(event, '_force') else False,
-                              write_html=params.SENTINEL_WRITE_HTML,
-                              send_messages=params.SENTINEL_SEND_MESSAGES)
+        # Call GOTO-alert's event handler
+        try:
+            event = event_handler(event, log=self.log,
+                                  force_process=event._force if hasattr(event, '_force') else False,
+                                  write_html=params.SENTINEL_WRITE_HTML,
+                                  send_messages=params.SENTINEL_SEND_MESSAGES)
+        except Exception as err:
+            self.log.error('Exception in event handler')
+            self.log.exception(err)
+            return
+
+        # Check if it was an interesting event
         if event:
             # If the event was returned it was classed as "interesting"
             # If event is None then we don't care
