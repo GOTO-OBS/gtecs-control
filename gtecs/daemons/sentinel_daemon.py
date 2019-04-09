@@ -200,7 +200,9 @@ class SentinelDaemon(BaseDaemon):
         event = self.latest_event
 
         # Archive the event
-        event.archive(os.path.join(params.FILE_PATH, 'voevents'), self.log)
+        path = os.path.join(params.FILE_PATH, 'voevents')
+        event.archive(path)
+        self.log.info('Archived to {}'.format(path))
 
         # Call GOTO-alert's event handler
         try:
