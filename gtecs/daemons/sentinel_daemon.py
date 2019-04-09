@@ -213,7 +213,7 @@ class SentinelDaemon(BaseDaemon):
         except Exception as err:
             self.log.error('Exception in event handler')
             self.log.exception(err)
-            send_slack_msg('Sentinel failed to process Event {}'.format(event.ivorn))
+            send_slack_msg('Sentinel failed to process event {}'.format(event.ivorn))
             return
 
         # Check if it was an interesting event
