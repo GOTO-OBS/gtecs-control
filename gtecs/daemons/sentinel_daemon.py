@@ -250,6 +250,11 @@ class SentinelDaemon(BaseDaemon):
 
         msg = '\n'.join(title + details + table)
 
+        # Extra for events with no tiles that passed mask
+        if len(event.tile_table) == 0:
+            high_prob = event.full_table[0]['prob']
+            msg += '\nNo tiles passed filter (highest prob is {:.2f}%)'.format(high_prob * 100)
+
         send_slack_msg(msg)
 
     # Control functions
