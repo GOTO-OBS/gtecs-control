@@ -200,13 +200,23 @@ class SentinelDaemon(BaseDaemon):
         event = self.latest_event
 
         # Archive the event
-        event.archive(os.path.join(params.FILE_PATH, 'voevents'), self.log)
+        path = os.path.join(params.FILE_PATH, 'voevents')
+        event.archive(path)
+        self.log.info('Archived to {}'.format(path))
 
-        # Run GOTO-alert's event handler
-        event = event_handler(event, log=self.log,
-                              force_process=event._force if hasattr(event, '_force') else False,
-                              write_html=params.SENTINEL_WRITE_HTML,
-                              send_messages=params.SENTINEL_SEND_MESSAGES)
+        # Call GOTO-alert's event handler
+        try:
+            event = event_handler(event, log=self.log,
+                                  force_process=event._force if hasattr(event, '_force') else False,
+                                  write_html=params.SENTINEL_WRITE_HTML,
+                                  send_messages=params.SENTINEL_SEND_MESSAGES)
+        except Exception as err:
+            self.log.error('Exception in event handler')
+            self.log.exception(err)
+            send_slack_msg('Sentinel failed to process event {}'.format(event.ivorn))
+            return
+
+        # Check if it was an interesting event
         if event:
             # If the event was returned it was classed as "interesting"
             # If event is None then we don't care
@@ -239,6 +249,11 @@ class SentinelDaemon(BaseDaemon):
         table.append('```')
 
         msg = '\n'.join(title + details + table)
+
+        # Extra for events with no tiles that passed mask
+        if len(event.tile_table) == 0:
+            high_prob = event.full_table[0]['prob']
+            msg += '\nNo tiles passed filter (highest prob is {:.2f}%)'.format(high_prob * 100)
 
         send_slack_msg(msg)
 
