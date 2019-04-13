@@ -236,7 +236,11 @@ class SentinelDaemon(BaseDaemon):
                    'Type: {}'.format(event.type),
                    'Event time: {}'.format(event.time),
                    'Applied to grid: {}'.format(event.grid.name),
-                   'Tile table:']
+                   ]
+
+        total_prob = event.grid.get_probability(list(event.tile_table['tilename']))
+        details.append('Tile table ({:.0f} tiles covering {:.1f}%):'.format(len(event.tile_table),
+                                                                            total_prob * 100))
 
         table = ['```',
                  'tilename  ra        dec       prob    ',
