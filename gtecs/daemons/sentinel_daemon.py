@@ -221,8 +221,13 @@ class SentinelDaemon(BaseDaemon):
             # If the event was returned it was classed as "interesting"
             # If event is None then we don't care
             self.log.info('Interesting event {} processed'.format(event.name))
-            self._send_slack_report(event)
             self.interesting_events += 1
+            try:
+                self._send_slack_report(event)
+                self.log.info('Slack alert sent')
+            except Exception as err:
+                self.log.error('Slack alert failed')
+                self.log.exception(err)
 
         # Done!
         self.processed_events += 1
@@ -236,7 +241,11 @@ class SentinelDaemon(BaseDaemon):
                    'Type: {}'.format(event.type),
                    'Event time: {}'.format(event.time),
                    'Applied to grid: {}'.format(event.grid.name),
-                   'Tile table:']
+                   ]
+
+        total_prob = event.grid.get_probability(list(event.tile_table['tilename']))
+        details.append('Tile table ({:.0f} tiles covering {:.1f}%):'.format(len(event.tile_table),
+                                                                            total_prob * 100))
 
         table = ['```',
                  'tilename  ra        dec       prob    ',
