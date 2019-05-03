@@ -201,10 +201,11 @@ def get_all_info(cam_info, log):
                         db['event'] = {}
                         db['event']['id'] = pointing.event.db_id
                         db['event']['name'] = pointing.event.name
-                        db['event']['ivorn'] = pointing.event.ivorn
-                        db['event']['source'] = pointing.event.source
                         db['event']['type'] = pointing.event.event_type
                         db['event']['time'] = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                        db['event']['ivorn'] = pointing.event.ivorn
+                        db['event']['source'] = pointing.event.source
+                        db['event']['skymap'] = pointing.event.skymap
 
                 except Exception:
                     log.error('Failed to fetch database info')
@@ -476,10 +477,11 @@ def update_header(header, tel, all_info, log):
         info = all_info['db']['event']
         event_id = info['id']
         event_name = info['name']
-        event_ivorn = info['ivorn']
-        event_source = info['source']
         event_type = info['type']
         event_time = info['time']
+        event_ivorn = info['ivorn']
+        event_source = info['source']
+        event_skymap = info['skymap']
     except Exception:
         if from_db and 'survey' in all_info['db']:
             # It's not necessarily an error if the info isn't there
@@ -487,17 +489,19 @@ def update_header(header, tel, all_info, log):
             log.debug('', exc_info=True)
         event_id = 'NA'
         event_name = 'NA'
-        event_ivorn = 'NA'
-        event_source = 'NA'
         event_type = 'NA'
         event_time = 'NA'
+        event_ivorn = 'NA'
+        event_source = 'NA'
+        event_skymap = 'NA'
 
     header["DB-EVENT"] = (event_id, "Database Event ID")
     header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
-    header["SOURCE  "] = (event_source, "Source of this event")
     header["EVNTTYPE"] = (event_type, "Type of event")
     header["EVNTTIME"] = (event_time, "Recorded time of the event")
+    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
+    header["SOURCE  "] = (event_source, "Source of this event")
+    header["SKYMAP  "] = (event_skymap, "Skymap URL for this event")
 
     # Camera info
     cam_info = cam_info[tel]
