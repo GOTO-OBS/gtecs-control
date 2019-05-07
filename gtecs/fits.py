@@ -372,7 +372,7 @@ def update_header(header, tel, all_info, log):
         info = all_info['db']['user']
         user_id = info['id']
         user_name = info['name']
-        user_fullname = info['full_name']
+        user_fullname = info['fullname']
     except Exception:
         if from_db:
             # Every Pointing should have a User
