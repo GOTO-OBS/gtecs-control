@@ -128,17 +128,17 @@ def get_all_info(cam_info, log):
 
     # Database
     expset_id = cam_info['current_exposure']['db_id']
-    db = {}
+    db_info = {}
     if expset_id == 0:
-        db['from_db'] = False
+        db_info['from_db'] = False
     else:
-        db['from_db'] = True
+        db_info['from_db'] = True
 
         with db.open_session() as session:
             try:
                 expset = db.get_exposure_set_by_id(session, expset_id)
-                db['expset'] = {}
-                db['expset']['id'] = expset_id
+                db_info['expset'] = {}
+                db_info['expset']['id'] = expset_id
             except Exception:
                 pointing = None
                 log.error('Failed to fetch database expset')
@@ -147,71 +147,72 @@ def get_all_info(cam_info, log):
             if expset and expset.pointing:
                 try:
                     pointing = expset.pointing
-                    db['pointing'] = {}
-                    db['pointing']['id'] = pointing.db_id
-                    db['pointing']['rank'] = pointing.rank
-                    db['pointing']['too'] = bool(pointing.too)
-                    db['pointing']['minalt'] = pointing.min_alt
-                    db['pointing']['maxsunalt'] = pointing.max_sunalt
-                    db['pointing']['mintime'] = pointing.min_time
-                    db['pointing']['maxmoon'] = pointing.max_moon
-                    db['pointing']['minmoonsep'] = pointing.min_moonsep
-                    db['pointing']['starttime'] = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    db_info['pointing'] = {}
+                    db_info['pointing']['id'] = pointing.db_id
+                    db_info['pointing']['rank'] = pointing.rank
+                    db_info['pointing']['too'] = bool(pointing.too)
+                    db_info['pointing']['minalt'] = pointing.min_alt
+                    db_info['pointing']['maxsunalt'] = pointing.max_sunalt
+                    db_info['pointing']['mintime'] = pointing.min_time
+                    db_info['pointing']['maxmoon'] = pointing.max_moon
+                    db_info['pointing']['minmoonsep'] = pointing.min_moonsep
+                    starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    db_info['pointing']['starttime'] = starttime
                     if pointing.stop_time:
                         stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
-                        db['pointing']['stoptime'] = stoptime
+                        db_info['pointing']['stoptime'] = stoptime
                     else:
-                        db['pointing']['stoptime'] = 'None'
+                        db_info['pointing']['stoptime'] = 'None'
 
                     if pointing.user:
-                        db['user'] = {}
-                        db['user']['id'] = pointing.user.db_id
-                        db['user']['name'] = pointing.user.username
-                        db['user']['fullname'] = pointing.user.full_name
+                        db_info['user'] = {}
+                        db_info['user']['id'] = pointing.user.db_id
+                        db_info['user']['name'] = pointing.user.username
+                        db_info['user']['fullname'] = pointing.user.full_name
 
                     if pointing.mpointing:
-                        db['mpointing'] = {}
-                        db['mpointing']['id'] = pointing.mpointing.db_id
-                        db['mpointing']['initialrank'] = pointing.mpointing.initial_rank
-                        db['mpointing']['obsnum'] = pointing.mpointing.num_completed
-                        db['mpointing']['target'] = pointing.mpointing.num_todo
-                        db['mpointing']['infinite'] = bool(pointing.mpointing.infinite)
+                        db_info['mpointing'] = {}
+                        db_info['mpointing']['id'] = pointing.mpointing.db_id
+                        db_info['mpointing']['initialrank'] = pointing.mpointing.initial_rank
+                        db_info['mpointing']['obsnum'] = pointing.mpointing.num_completed
+                        db_info['mpointing']['target'] = pointing.mpointing.num_todo
+                        db_info['mpointing']['infinite'] = bool(pointing.mpointing.infinite)
 
                     if pointing.time_block:
-                        db['time_block'] = {}
-                        db['time_block']['id'] = pointing.time_block.db_id
-                        db['time_block']['num'] = pointing.time_block.block_num
+                        db_info['time_block'] = {}
+                        db_info['time_block']['id'] = pointing.time_block.db_id
+                        db_info['time_block']['num'] = pointing.time_block.block_num
 
                     if pointing.grid_tile:
-                        db['grid'] = {}
-                        db['grid']['id'] = pointing.grid_tile.grid.db_id
-                        db['grid']['name'] = pointing.grid_tile.grid.name
-                        db['grid']['tile_id'] = pointing.grid_tile.db_id
-                        db['grid']['tile_name'] = pointing.grid_tile.name
+                        db_info['grid'] = {}
+                        db_info['grid']['id'] = pointing.grid_tile.grid.db_id
+                        db_info['grid']['name'] = pointing.grid_tile.grid.name
+                        db_info['grid']['tile_id'] = pointing.grid_tile.db_id
+                        db_info['grid']['tile_name'] = pointing.grid_tile.name
 
                     if pointing.survey_tile:
-                        db['survey'] = {}
-                        db['survey']['id'] = pointing.survey_tile.survey.db_id
-                        db['survey']['name'] = pointing.survey_tile.survey.name
-                        db['survey']['tile_id'] = pointing.survey_tile.db_id
-                        db['survey']['tile_weight'] = pointing.survey_tile.current_weight
-                        db['survey']['tile_initialweight'] = pointing.survey_tile.initial_weight
+                        db_info['survey'] = {}
+                        db_info['survey']['id'] = pointing.survey_tile.survey.db_id
+                        db_info['survey']['name'] = pointing.survey_tile.survey.name
+                        db_info['survey']['tile_id'] = pointing.survey_tile.db_id
+                        db_info['survey']['tile_weight'] = pointing.survey_tile.current_weight
+                        db_info['survey']['tile_initial'] = pointing.survey_tile.initial_weight
 
                     if pointing.event:
-                        db['event'] = {}
-                        db['event']['id'] = pointing.event.db_id
-                        db['event']['name'] = pointing.event.name
-                        db['event']['type'] = pointing.event.event_type
-                        db['event']['time'] = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
-                        db['event']['ivorn'] = pointing.event.ivorn
-                        db['event']['source'] = pointing.event.source
-                        db['event']['skymap'] = pointing.event.skymap
+                        db_info['event'] = {}
+                        db_info['event']['id'] = pointing.event.db_id
+                        db_info['event']['name'] = pointing.event.name
+                        db_info['event']['type'] = pointing.event.event_type
+                        db_info['event']['time'] = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                        db_info['event']['ivorn'] = pointing.event.ivorn
+                        db_info['event']['source'] = pointing.event.source
+                        db_info['event']['skymap'] = pointing.event.skymap
 
                 except Exception:
                     log.error('Failed to fetch database info')
                     log.debug('', exc_info=True)
 
-    all_info['db'] = db
+    all_info['db'] = db_info
 
     return all_info
 
@@ -454,7 +455,7 @@ def update_header(header, tel, all_info, log):
         survey_name = info['name']
         survey_tile_id = info['tile_id']
         survey_tile_weight = info['tile_weight']
-        survey_tile_initialweight = info['tile_initialweight']
+        survey_tile_initial = info['tile_initial']
     except Exception:
         if from_db and 'survey' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
@@ -465,13 +466,13 @@ def update_header(header, tel, all_info, log):
         survey_name = 'NA'
         survey_tile_id = 'NA'
         survey_tile_weight = 'NA'
-        survey_tile_initialweight = 'NA'
+        survey_tile_initial = 'NA'
 
     header["DB-SURVY"] = (survey_id, "Database Survey ID")
     header["SURVEY  "] = (survey_name, "Name of this survey")
     header["DB-STILE"] = (survey_tile_id, "Database SurveyTile ID")
     header["WEIGHT  "] = (survey_tile_weight, "Survey tile current weighting")
-    header["INWEIGHT"] = (survey_tile_initialweight, "Survey tile initial weighting")
+    header["INWEIGHT"] = (survey_tile_initial, "Survey tile initial weighting")
 
     try:
         info = all_info['db']['event']
