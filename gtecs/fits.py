@@ -126,6 +126,94 @@ def get_all_info(cam_info, log):
     astro['sun_alt'] = astronomy.get_sunalt(Time.now())
     all_info['astro'] = astro
 
+    # Database
+    expset_id = cam_info['current_exposure']['db_id']
+    db_info = {}
+    if expset_id == 0:
+        db_info['from_db'] = False
+    else:
+        db_info['from_db'] = True
+
+        with db.open_session() as session:
+            try:
+                expset = db.get_exposure_set_by_id(session, expset_id)
+                db_info['expset'] = {}
+                db_info['expset']['id'] = expset_id
+            except Exception:
+                pointing = None
+                log.error('Failed to fetch database expset')
+                log.debug('', exc_info=True)
+
+            if expset and expset.pointing:
+                try:
+                    pointing = expset.pointing
+                    db_info['pointing'] = {}
+                    db_info['pointing']['id'] = pointing.db_id
+                    db_info['pointing']['rank'] = pointing.rank
+                    db_info['pointing']['too'] = bool(pointing.too)
+                    db_info['pointing']['minalt'] = pointing.min_alt
+                    db_info['pointing']['maxsunalt'] = pointing.max_sunalt
+                    db_info['pointing']['mintime'] = pointing.min_time
+                    db_info['pointing']['maxmoon'] = pointing.max_moon
+                    db_info['pointing']['minmoonsep'] = pointing.min_moonsep
+                    starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    db_info['pointing']['starttime'] = starttime
+                    if pointing.stop_time:
+                        stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
+                        db_info['pointing']['stoptime'] = stoptime
+                    else:
+                        db_info['pointing']['stoptime'] = 'None'
+
+                    if pointing.user:
+                        db_info['user'] = {}
+                        db_info['user']['id'] = pointing.user.db_id
+                        db_info['user']['name'] = pointing.user.username
+                        db_info['user']['fullname'] = pointing.user.full_name
+
+                    if pointing.mpointing:
+                        db_info['mpointing'] = {}
+                        db_info['mpointing']['id'] = pointing.mpointing.db_id
+                        db_info['mpointing']['initialrank'] = pointing.mpointing.initial_rank
+                        db_info['mpointing']['obsnum'] = pointing.mpointing.num_completed
+                        db_info['mpointing']['target'] = pointing.mpointing.num_todo
+                        db_info['mpointing']['infinite'] = bool(pointing.mpointing.infinite)
+
+                    if pointing.time_block:
+                        db_info['time_block'] = {}
+                        db_info['time_block']['id'] = pointing.time_block.db_id
+                        db_info['time_block']['num'] = pointing.time_block.block_num
+
+                    if pointing.grid_tile:
+                        db_info['grid'] = {}
+                        db_info['grid']['id'] = pointing.grid_tile.grid.db_id
+                        db_info['grid']['name'] = pointing.grid_tile.grid.name
+                        db_info['grid']['tile_id'] = pointing.grid_tile.db_id
+                        db_info['grid']['tile_name'] = pointing.grid_tile.name
+
+                    if pointing.survey_tile:
+                        db_info['survey'] = {}
+                        db_info['survey']['id'] = pointing.survey_tile.survey.db_id
+                        db_info['survey']['name'] = pointing.survey_tile.survey.name
+                        db_info['survey']['tile_id'] = pointing.survey_tile.db_id
+                        db_info['survey']['tile_weight'] = pointing.survey_tile.current_weight
+                        db_info['survey']['tile_initial'] = pointing.survey_tile.initial_weight
+
+                    if pointing.event:
+                        db_info['event'] = {}
+                        db_info['event']['id'] = pointing.event.db_id
+                        db_info['event']['name'] = pointing.event.name
+                        db_info['event']['type'] = pointing.event.event_type
+                        db_info['event']['time'] = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                        db_info['event']['ivorn'] = pointing.event.ivorn
+                        db_info['event']['source'] = pointing.event.source
+                        db_info['event']['skymap'] = pointing.event.skymap
+
+                except Exception:
+                    log.error('Failed to fetch database info')
+                    log.debug('', exc_info=True)
+
+    all_info['db'] = db_info
+
     return all_info
 
 
@@ -218,143 +306,56 @@ def update_header(header, tel, all_info, log):
     header["DARKSEC2"] = ('[8264:8279,500:5721]', "Recommended dark section for right channel")
 
     # Database info
-    from_db = False
-    expset_id = 'NA'
-
-    pointing_id = 'NA'
-    pointing_rank = 'NA'
-    pointing_too = 'NA'
-    pointing_minalt = 'NA'
-    pointing_maxsunalt = 'NA'
-    pointing_mintime = 'NA'
-    pointing_maxmoon = 'NA'
-    pointing_minmoonsep = 'NA'
-    pointing_starttime = 'NA'
-    pointing_stoptime = 'NA'
-    user_id = 'NA'
-    user_name = 'NA'
-    user_fullname = 'NA'
-
-    mpointing_id = 'NA'
-    mpointing_initialrank = 'NA'
-    mpointing_obsnum = 'NA'
-    mpointing_target = 'NA'
-    mpointing_infinite = 'NA'
-    time_block_id = 'NA'
-    time_block_num = 'NA'
-
-    grid_id = 'NA'
-    grid_name = 'NA'
-    grid_tile_id = 'NA'
-    grid_tile_name = 'NA'
-
-    survey_id = 'NA'
-    survey_name = 'NA'
-    survey_tile_id = 'NA'
-    survey_tile_weight = 'NA'
-    survey_tile_initialweight = 'NA'
-
-    event_id = 'NA'
-    event_name = 'NA'
-    event_ivorn = 'NA'
-    event_source = 'NA'
-    event_type = 'NA'
-    event_time = 'NA'
-
-    if current_exposure['db_id'] != 0:
-        from_db = True
-        with db.open_session() as session:
-            expset_id = current_exposure['db_id']
-
-            try:
-                expset = db.get_exposure_set_by_id(session, expset_id)
-            except Exception:
-                expset = None
-                log.error('Failed to fetch database pointing')
-                log.debug('', exc_info=True)
-
-            if expset and expset.pointing:
-                try:
-                    pointing = expset.pointing
-                    pointing_id = pointing.db_id
-                    pointing_rank = pointing.rank
-                    pointing_too = bool(pointing.too)
-                    pointing_minalt = pointing.min_alt
-                    pointing_maxsunalt = pointing.max_sunalt
-                    pointing_mintime = pointing.min_time
-                    pointing_maxmoon = pointing.max_moon
-                    pointing_minmoonsep = pointing.min_moonsep
-                    pointing_starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
-                    if pointing.stop_time:
-                        pointing_stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
-                    else:
-                        pointing_stoptime = 'None'
-                except Exception:
-                    log.error('Failed to fetch pointing info')
-                    log.debug('', exc_info=True)
-
-                try:
-                    user_id = pointing.user.db_id
-                    user_name = pointing.user.username
-                    user_fullname = pointing.user.full_name
-                except Exception:
-                    log.error('Failed to fetch user info')
-                    log.debug('', exc_info=True)
-
-                if pointing.mpointing:
-                    try:
-                        mpointing_id = pointing.mpointing.db_id
-                        mpointing_initialrank = pointing.mpointing.initial_rank
-                        mpointing_obsnum = pointing.mpointing.num_completed
-                        mpointing_target = pointing.mpointing.num_todo
-                        mpointing_infinite = bool(pointing.mpointing.infinite)
-                    except Exception:
-                        log.error('Failed to fetch mpointing info')
-                        log.debug('', exc_info=True)
-
-                if pointing.time_block:
-                    try:
-                        time_block_id = pointing.time_block.db_id
-                        time_block_num = pointing.time_block.block_num
-                    except Exception:
-                        log.error('Failed to fetch time block info')
-                        log.debug('', exc_info=True)
-
-                if pointing.grid_tile:
-                    try:
-                        grid_id = pointing.grid_tile.grid.db_id
-                        grid_name = pointing.grid_tile.grid.name
-                        grid_tile_id = pointing.grid_tile.db_id
-                        grid_tile_name = pointing.grid_tile.name
-                    except Exception:
-                        log.error('Failed to fetch grid tile info')
-                        log.debug('', exc_info=True)
-
-                if pointing.survey_tile:
-                    try:
-                        survey_id = pointing.survey_tile.survey.db_id
-                        survey_name = pointing.survey_tile.survey.name
-                        survey_tile_id = pointing.survey_tile.db_id
-                        survey_tile_weight = pointing.survey_tile.current_weight
-                        survey_tile_initialweight = pointing.survey_tile.initial_weight
-                    except Exception:
-                        log.error('Failed to fetch survey tile info')
-                        log.debug('', exc_info=True)
-
-                if pointing.event:
-                    try:
-                        event_id = pointing.event.db_id
-                        event_name = pointing.event.name
-                        event_ivorn = pointing.event.ivorn
-                        event_source = pointing.event.source
-                        event_type = pointing.event.event_type
-                        event_time = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
-                    except Exception:
-                        log.error('Failed to fetch event info')
-                        log.debug('', exc_info=True)
+    try:
+        if all_info['db'] is None:
+            raise ValueError('No database info provided')
+        info = all_info['db']
+        from_db = info['from_db']
+    except Exception:
+        log.error('Failed to write database info to header')
+        log.debug('', exc_info=True)
+        from_db = False
 
     header["FROMDB  "] = (from_db, "Exposure linked to database set?")
+
+    try:
+        info = all_info['db']['expset']
+        expset_id = info['id']
+    except Exception:
+        if from_db:
+            log.error('Failed to write exposure set info to header')
+            log.debug('', exc_info=True)
+        expset_id = 'NA'
+
     header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
+
+    try:
+        info = all_info['db']['pointing']
+        pointing_id = info['id']
+        pointing_rank = info['rank']
+        pointing_too = info['too']
+        pointing_minalt = info['minalt']
+        pointing_maxsunalt = info['maxsunalt']
+        pointing_mintime = info['mintime']
+        pointing_maxmoon = info['maxmoon']
+        pointing_minmoonsep = info['minmoonsep']
+        pointing_starttime = info['starttime']
+        pointing_stoptime = info['stoptime']
+    except Exception:
+        if from_db:
+            # Every ExposureSet should have a Pointing (or how else did we observe it?)
+            log.error('Failed to write pointing info to header')
+            log.debug('', exc_info=True)
+        pointing_id = 'NA'
+        pointing_rank = 'NA'
+        pointing_too = 'NA'
+        pointing_minalt = 'NA'
+        pointing_maxsunalt = 'NA'
+        pointing_mintime = 'NA'
+        pointing_maxmoon = 'NA'
+        pointing_minmoonsep = 'NA'
+        pointing_starttime = 'NA'
+        pointing_stoptime = 'NA'
 
     header["DB-PNT  "] = (pointing_id, "Database Pointing ID")
     header["RANK    "] = (pointing_rank, "Rank of this pointing when observed")
@@ -366,35 +367,142 @@ def update_header(header, tel, all_info, log):
     header["LIM-TIME"] = (pointing_mintime, "Minimum valid time limit for this pointing")
     header["LIM-STRT"] = (pointing_starttime, "Valid start time limit for this pointing")
     header["LIM-STOP"] = (pointing_stoptime, "Valid stop time limit for this pointing")
+
+    try:
+        info = all_info['db']['user']
+        user_id = info['id']
+        user_name = info['name']
+        user_fullname = info['fullname']
+    except Exception:
+        if from_db:
+            # Every Pointing should have a User
+            log.error('Failed to fetch user info')
+            log.debug('', exc_info=True)
+        user_id = 'NA'
+        user_name = 'NA'
+        user_fullname = 'NA'
+
     header["DB-USER "] = (user_id, "Database User ID who submitted this pointing")
     header["USERNAME"] = (user_name, "Username that submitted this pointing")
     header["USERFULL"] = (user_fullname, "User who submitted this pointing")
+
+    try:
+        info = all_info['db']['mpointing']
+        mpointing_id = info['id']
+        mpointing_initialrank = info['initialrank']
+        mpointing_obsnum = info['obsnum']
+        mpointing_target = info['target']
+        mpointing_infinite = info['infinite']
+    except Exception:
+        if from_db and 'mpointing' in all_info['db']:
+            # It's not necessarily an error if the info isn't there,
+            # it might just not be connected to an mpointing
+            log.error('Failed to fetch mpointing info')
+            log.debug('', exc_info=True)
+        mpointing_id = 'NA'
+        mpointing_initialrank = 'NA'
+        mpointing_obsnum = 'NA'
+        mpointing_target = 'NA'
+        mpointing_infinite = 'NA'
 
     header["DB-MPNT "] = (mpointing_id, "Database Mpointing ID")
     header["BASERANK"] = (mpointing_initialrank, "Initial rank of this Mpointing")
     header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
     header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
     header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
+
+    try:
+        info = all_info['db']['time_block']
+        time_block_id = info['id']
+        time_block_num = info['num']
+    except Exception:
+        if from_db and 'mpointing' in all_info['db']:
+            # It's not necessarily an error if the info isn't there,
+            # it might just not be connected to a time block
+            log.error('Failed to fetch time block info')
+            log.debug('', exc_info=True)
+        time_block_id = 'NA'
+        time_block_num = 'NA'
+
     header["DB-TIMBK"] = (time_block_id, "Database TimeBlock ID")
     header["TIMBKNUM"] = (time_block_num, "Number of this time block")
+
+    try:
+        info = all_info['db']['grid']
+        grid_id = info['id']
+        grid_name = info['name']
+        grid_tile_id = info['tile_id']
+        grid_tile_name = info['tile_name']
+    except Exception:
+        if from_db and 'grid' in all_info['db']:
+            # It's not necessarily an error if the info isn't there,
+            # it might just not be connected to a grid
+            log.error('Failed to fetch grid tile info')
+            log.debug('', exc_info=True)
+        grid_id = 'NA'
+        grid_name = 'NA'
+        grid_tile_id = 'NA'
+        grid_tile_name = 'NA'
 
     header["DB-GRID "] = (grid_id, "Database Grid ID")
     header["GRID    "] = (grid_name, "Sky grid name")
     header["DB-GTILE"] = (grid_tile_id, "Database GridTile ID")
     header["TILENAME"] = (grid_tile_name, "Name of this grid tile")
 
+    try:
+        info = all_info['db']['survey']
+        survey_id = info['id']
+        survey_name = info['name']
+        survey_tile_id = info['tile_id']
+        survey_tile_weight = info['tile_weight']
+        survey_tile_initial = info['tile_initial']
+    except Exception:
+        if from_db and 'survey' in all_info['db']:
+            # It's not necessarily an error if the info isn't there,
+            # it might just not be connected to a survey
+            log.error('Failed to fetch survey tile info')
+            log.debug('', exc_info=True)
+        survey_id = 'NA'
+        survey_name = 'NA'
+        survey_tile_id = 'NA'
+        survey_tile_weight = 'NA'
+        survey_tile_initial = 'NA'
+
     header["DB-SURVY"] = (survey_id, "Database Survey ID")
     header["SURVEY  "] = (survey_name, "Name of this survey")
     header["DB-STILE"] = (survey_tile_id, "Database SurveyTile ID")
     header["WEIGHT  "] = (survey_tile_weight, "Survey tile current weighting")
-    header["INWEIGHT"] = (survey_tile_initialweight, "Survey tile initial weighting")
+    header["INWEIGHT"] = (survey_tile_initial, "Survey tile initial weighting")
+
+    try:
+        info = all_info['db']['event']
+        event_id = info['id']
+        event_name = info['name']
+        event_type = info['type']
+        event_time = info['time']
+        event_ivorn = info['ivorn']
+        event_source = info['source']
+        event_skymap = info['skymap']
+    except Exception:
+        if from_db and 'survey' in all_info['db']:
+            # It's not necessarily an error if the info isn't there
+            log.error('Failed to fetch event info')
+            log.debug('', exc_info=True)
+        event_id = 'NA'
+        event_name = 'NA'
+        event_type = 'NA'
+        event_time = 'NA'
+        event_ivorn = 'NA'
+        event_source = 'NA'
+        event_skymap = 'NA'
 
     header["DB-EVENT"] = (event_id, "Database Event ID")
     header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
-    header["SOURCE  "] = (event_source, "Source of this event")
     header["EVNTTYPE"] = (event_type, "Type of event")
     header["EVNTTIME"] = (event_time, "Recorded time of the event")
+    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
+    header["SOURCE  "] = (event_source, "Source of this event")
+    header["SKYMAP  "] = (event_skymap, "Skymap URL for this event")
 
     # Camera info
     cam_info = cam_info[tel]
