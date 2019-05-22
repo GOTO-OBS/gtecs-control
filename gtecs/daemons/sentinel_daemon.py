@@ -88,7 +88,7 @@ class SentinelDaemon(BaseDaemon):
         # Define a handler function
         # All we need this to do is create and Event and add it to the queue
         def _handler(payload, root):
-            event = Event(payload)
+            event = Event.from_payload(payload)
             self.events_queue.append(event)
 
         # This first while loop means the socket will be recreated if it closes.
@@ -273,7 +273,7 @@ class SentinelDaemon(BaseDaemon):
         If force=True, will force the event_handler to ignore the usual checks for event types.
         NB this can lead to unpredictable behaviour.
         """
-        event = Event(payload)
+        event = Event.from_payload(payload)
         event._force = force  # Store on the Event object
         self.events_queue.append(event)
         return 'Event added to queue'
