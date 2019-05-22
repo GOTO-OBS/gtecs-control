@@ -234,19 +234,41 @@ class SentinelDaemon(BaseDaemon):
 
     def _send_slack_report(self, event):
         """Send a report to Slack detailing the interesting event."""
-        title = ['*Sentinel processed {} event {}*'.format(event.source, event.id)]
+        title = ['*Sentinel processed {} {} event {}*'.format(event.source, event.type, event.id)]
 
+        # Basic details
         details = ['IVORN: {}'.format(event.ivorn),
-                   'Notice type: {}'.format(event.notice),
-                   'Type: {}'.format(event.type),
                    'Event time: {}'.format(event.time),
-                   'Applied to grid: {}'.format(event.grid.name),
                    ]
 
+        # Extra details, depending on source type
+        if event.type == 'GW':
+            sorted_class = sorted(event.classification.keys(),
+                                  key=lambda key: event.classification[key],
+                                  reverse=True)
+            class_str = ', '.join(['{}:{:.1f}%'.format(key, event.classification[key] * 100)
+                                   for key in sorted_class
+                                   if event.classification[key] > 0.0005])
+            extra_details = ['Distance: {:.0f}+/-{:.0f} Mpc'.format(event.distance,
+                                                                    event.distance_error),
+                             'FAR: ~1 per {:.1f} yrs'.format(1 / event.far / 3.154e+7),
+                             'Classification: {}'.format(class_str),
+                             'HasNS (if real): {:.0f}%'.format(event.properties['HasNS'] * 100),
+                             '90% probability area: {:.0f} sq deg'.format(event.contour_areas[0.9]),
+                             'GraceDB page: {}'.format(event.gracedb_url)
+                             ]
+        elif event.source == 'Fermi':
+            extra_details = ['Duration: {}'.format(event.duration.capitalize())]
+
+        details += extra_details
+
+        # Grid and tile details
+        details.append('Applied to grid: {}'.format(event.grid.name))
         total_prob = event.grid.get_probability(list(event.tile_table['tilename']))
         details.append('Tile table ({:.0f} tiles covering {:.1f}%):'.format(len(event.tile_table),
                                                                             total_prob * 100))
 
+        # Tile table
         table = ['```',
                  'tilename  ra        dec       prob    ',
                  '[str]     [deg]     [deg]     [%]     ',
@@ -254,7 +276,9 @@ class SentinelDaemon(BaseDaemon):
                  ]
         line = '{}     {:8.4f}  {:+8.4f}  {:6.2f}% '
         table += [line.format(row['tilename'], row['ra'].value, row['dec'].value, row['prob'] * 100)
-                  for row in event.tile_table]
+                  for row in event.tile_table[:10]]
+        if len(event.tile_table) > 10:
+            table.append('... and {:.0f} more'.format(len(event.tile_table) - 10))
         table.append('```')
 
         msg = '\n'.join(title + details + table)
