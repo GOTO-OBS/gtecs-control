@@ -102,7 +102,7 @@ def get_astrom(frame, tcode, precision=600):
             # all below are already in correct units because they are QuantityFrameAttribues
             frame.pressure.value,
             frame.temperature.value,
-            frame.relative_humidity,
+            frame.relative_humidity.value,
             frame.obswl.value
             )
 
