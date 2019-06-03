@@ -412,7 +412,11 @@ class ConditionsDaemon(BaseDaemon):
                 # The flag has been set to bad
                 self.log.warning('Critical flag {} set to bad'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
-            elif old_flags[flag] == 1 and self.flags[flag] == 0:
+            elif old_flags[flag] == 0 and self.flags[flag] == 2:
+                # The flag has been set to ERROR
+                self.log.warning('Critical flag {} set to ERROR'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to ERROR'.format(flag))
+            elif old_flags[flag] in [1, 2] and self.flags[flag] == 0:
                 # The flag has been set to good
                 self.log.warning('Critical flag {} set to good'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
