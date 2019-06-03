@@ -110,6 +110,7 @@ class Pilot(object):
         # dictionary of reasons to pause
         self.whypause = {'hw': False, 'cond': False, 'manual': False}
         self.time_paused = 0
+        self.bad_flags = None
 
         # dome check flags
         self.dome_confirmed_closed = False
@@ -249,9 +250,11 @@ class Pilot(object):
             # handle conditions
             conditions = Conditions()
             if conditions.bad:
-                self.log.warning('Conditions bad: ({})'.format(conditions.bad_flags))
+                self.bad_flags = ', '.join(conditions.bad_flags)
+                self.log.warning('Conditions bad: ({})'.format(self.bad_flags))
                 await self.handle_pause('cond', True)
             else:
+                self.bad_flags = None
                 await self.handle_pause('cond', False)
 
             # emergency file
@@ -804,7 +807,7 @@ class Pilot(object):
             if reason == 'cond':
                 msg = 'Pausing due to bad conditions'
                 self.log.warning(msg)
-                send_slack_msg('Pilot is pausing due to bad conditions')
+                send_slack_msg('Pilot is pausing due to bad conditions ({})'.format(self.bad_flags))
 
                 if self.night_operations:
                     # only need to stop scripts if the dome is open
