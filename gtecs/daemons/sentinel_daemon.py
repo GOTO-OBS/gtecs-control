@@ -206,9 +206,8 @@ class SentinelDaemon(BaseDaemon):
 
         # Call GOTO-alert's event handler
         try:
-            event = event_handler(event, log=self.log,
-                                  write_html=params.SENTINEL_WRITE_HTML,
-                                  send_messages=params.SENTINEL_SEND_MESSAGES)
+            event = event_handler(event, send_messages=params.SENTINEL_SEND_MESSAGES,
+                                  log=self.log)
         except Exception as err:
             self.log.error('Exception in event handler')
             self.log.exception(err)
