@@ -204,21 +204,18 @@ class SentinelDaemon(BaseDaemon):
         event.archive(path)
         self.log.info('Archived to {}'.format(path))
 
-        # Call GOTO-alert's event handler
-        try:
-            send_slack_msg('Sentinel is processing event {}'.format(event.ivorn))
-            event = event_handler(event, send_messages=params.SENTINEL_SEND_MESSAGES,
-                                  log=self.log)
-        except Exception as err:
-            self.log.error('Exception in event handler')
-            self.log.exception(err)
-            send_slack_msg('Sentinel reports exception in event handler, check logs')
-            return
+        # If the event's not interesting we don't care
+        if event.interesting:
+            # Call GOTO-alert's event handler
+            try:
+                send_slack_msg('Sentinel is processing event {}'.format(event.ivorn))
+                event_handler(event, send_messages=params.SENTINEL_SEND_MESSAGES, log=self.log)
+            except Exception as err:
+                self.log.error('Exception in event handler')
+                self.log.exception(err)
+                send_slack_msg('Sentinel reports exception in event handler, check logs')
+                return
 
-        # Check if it was an interesting event
-        if event:
-            # If the event was returned it was classed as "interesting"
-            # If event is None then we don't care
             self.log.info('Interesting event {} processed'.format(event.name))
             self.interesting_events += 1
 
