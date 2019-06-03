@@ -1,83 +1,68 @@
 """Slack messaging tools."""
 
-from astropy.utils.decorators import lazyproperty
+import os
 
 from slackclient import SlackClient
 
 from . import params
 
-
-READ_WEBSOCKET_DELAY = 1
 BOT_TOKEN = params.SLACK_BOT_TOKEN
 BOT_NAME = params.SLACK_BOT_NAME
 CHANNEL_NAME = params.SLACK_BOT_CHANNEL
 
 
-def send_slack_msg(msg, attachments=None):
-    """Send a Slack message to the GOTO channel."""
+def send_slack_msg(text, attachments=None, filepath=None):
+    """Send a message to Slack, using the settings defined in `gtecs.params`.
+
+    Parameters
+    ----------
+    text : string
+        The message text.
+
+    attachments : dict, optional
+        Attachments to the message.
+        NB a message can have attachments OR a file, not both.
+
+    filepath : string, optional
+        A local path to a file to be added to the message.
+        NB a message can have a file OR attachments, not both.
+
+    """
+    if attachments is not None and filepath is not None:
+        raise ValueError("A Slack message can't have both attachments and a file.")
+
     if params.ENABLE_SLACK:
-        bot = SlackBot()
+        client = SlackClient(BOT_TOKEN)
         try:
-            bot.send_message(msg, attachments)
+            if not filepath:
+                api_call = client.api_call('chat.postMessage',
+                                           channel=CHANNEL_NAME,
+                                           username=BOT_NAME,
+                                           as_user=True,
+                                           text=text,
+                                           attachments=attachments,
+                                           )
+            else:
+                filename = os.path.basename(filepath)
+                name = os.path.splitext(filename)[0]
+                with open(filepath, 'rb') as file:
+                    api_call = client.api_call('files.upload',
+                                               channels=CHANNEL_NAME,  # Note channel(s)
+                                               username=BOT_NAME,
+                                               as_user=True,
+                                               initial_comment=text,
+                                               filename=filename,
+                                               file=file,
+                                               title=name,
+                                               )
+            if not api_call.get('ok'):
+                raise Exception('Unable to send message')
         except Exception as err:
             print('Connection to Slack failed! - {}'.format(err))
-            if not attachments:
-                print('SLACK:', msg)
-            else:
-                print('SLACK:', msg, attachments)
+            print('Message:', text)
+            print('Attachments:', attachments)
+            print('Filepath:', filepath)
     else:
-        if not attachments:
-            print('SLACK:', msg)
-        else:
-            print('SLACK:', msg, attachments)
-
-
-class SlackBot(object):
-    """A Slack Bot to send messages."""
-
-    def __init__(self):
-        self.name = BOT_NAME
-        self.token = BOT_TOKEN
-        self.client = SlackClient(BOT_TOKEN)
-
-    def get_users(self):
-        """Get the Slack users."""
-        api_call = self.client.api_call("users.list")
-        if api_call.get('ok'):
-            users = api_call.get('members')
-            return ((user.get('name'), user.get('id')) for user in users)
-        else:
-            raise Exception('cannot obtain user list')
-
-    @lazyproperty
-    def slack_id(self):
-        """Get the ID of a user."""
-        for u, i in self.get_users():
-            if u == BOT_NAME:
-                return i
-
-    @lazyproperty
-    def atbot(self):
-        """Get a @ reference to this bot."""
-        return "<@" + self.slack_id + ">"
-
-    @lazyproperty
-    def channel(self):
-        """Get the channel to send messages to."""
-        api_call = self.client.api_call("channels.list")
-        if api_call.get('ok'):
-            channel = [channel for channel in api_call.get('channels')
-                       if channel.get('name') == "lapalma"][0]
-            return channel['id']
-        else:
-            raise Exception("cannot get channel")
-
-    def send_message(self, msg, attachments=None):
-        """Send a message to the channel for this bot."""
-        if not attachments:
-            attachments = {}
-        api_call = self.client.api_call("chat.postMessage",
-                                        channel=self.channel, username=self.name,
-                                        text=msg, attachments=attachments)
-        if not api_call.get('ok'):
-            raise Exception('unable to post message')
+        print('Slack Message:', text)
+        print('Attachments:', attachments)
+        print('Filepath:', filepath)
