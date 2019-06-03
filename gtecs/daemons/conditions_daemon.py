@@ -291,7 +291,7 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
-        good['ice'] = np.all(temp > 0)
+        good['ice'] = np.all(temp > params.MIN_TEMPERATURE)
         valid['ice'] = len(temp) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
