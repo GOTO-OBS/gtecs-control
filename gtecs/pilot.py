@@ -369,7 +369,7 @@ class Pilot(object):
                                          ignore_late=late)
 
         # Wait for darkness
-        await self.wait_for_sunalt(-15, 'OBS')
+        await self.wait_for_sunalt(-12, 'OBS')
 
         # Start observing: will automatically stop at the target sun alt
         if self.testing:
