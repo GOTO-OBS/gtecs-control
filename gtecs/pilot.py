@@ -369,14 +369,19 @@ class Pilot(object):
                                          ignore_late=late)
 
         # Wait for darkness
-        await self.wait_for_sunalt(-15, 'OBS')
+        await self.wait_for_sunalt(-12, 'OBS')
+
+        # Wait for evening tasks to finish
+        while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
+            await asyncio.sleep(10)
 
         # Start observing: will automatically stop at the target sun alt
         if self.testing:
             await self.observe(until_sunalt=90)
         else:
-            # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)
-            await self.observe(until_sunalt=-12, last_obs_sunalt=-14)
+            # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)  # WITH FOCRUN
+            await self.observe(until_sunalt=-12, last_obs_sunalt=-14)  # WITHOUT FOCRUN
 
         # Morning tasks
         await self.run_through_tasks(self.morning_tasks, rising=True,
@@ -384,6 +389,7 @@ class Pilot(object):
 
         # Wait for morning tasks to finish
         while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
             await asyncio.sleep(10)
 
         # Finished.
@@ -497,13 +503,14 @@ class Pilot(object):
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
-        autofoc = {'name': 'FOC',
-                   'sunalt': -11,
-                   'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
-                   'args': [],
-                   'protocol': SimpleProtocol}
+        # autofoc = {'name': 'FOC',
+        #            'sunalt': -11,
+        #            'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
+        #            'args': [],
+        #            'protocol': SimpleProtocol}
 
-        self.evening_tasks = [flats_e, autofoc]
+        # self.evening_tasks = [flats_e, autofoc]
+        self.evening_tasks = [flats_e]
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
