@@ -371,6 +371,11 @@ class Pilot(object):
         # Wait for darkness
         await self.wait_for_sunalt(-12, 'OBS')
 
+        # Wait for evening tasks to finish
+        while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
+            await asyncio.sleep(10)
+
         # Start observing: will automatically stop at the target sun alt
         if self.testing:
             await self.observe(until_sunalt=90)
@@ -384,6 +389,7 @@ class Pilot(object):
 
         # Wait for morning tasks to finish
         while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
             await asyncio.sleep(10)
 
         # Finished.
