@@ -44,12 +44,14 @@ class Conditions(object):
     def _load(self):
         """Load the conditions file."""
         # Read the conditions file
-        self.conditions_dict = load_json(self.conditions_file)
+        self.data = load_json(self.conditions_file)
+        self.update_times = {flag.replace('_update_time', ''): Time(self.data[flag])
+                             for flag in [k for k in self.data if k.endswith('_update_time')]}
+        self.conditions_dict = {flag: self.data[flag] for flag in self.update_times}
 
         # Get update time and caclulate age flag
-        self.update_time = int(Time(self.conditions_dict['update_time']).unix)
-        del self.conditions_dict['update_time']
-        self.age = int(Time.now().unix - self.update_time)
+        self.current_time = Time(self.data['current_time'])
+        self.age = float(Time.now().unix - self.current_time.unix)
         self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
 
         # Store the total of all flags, excluding clouds and dark ('info flags')

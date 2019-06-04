@@ -50,9 +50,11 @@ class ConditionsDaemon(BaseDaemon):
             with open(self.flags_file, 'r') as f:
                 data = json.load(f)
             self.flags = {flag: data[flag] for flag in self.flag_names}
+            self.update_times = {flag: float(Time(data[flag + '_update_time']).unix)
+                                 for flag in self.flag_names}
         except Exception:
             self.flags = {flag: 2 for flag in self.flag_names}
-        self.update_time = {flag: 0 for flag in self.flag_names}
+            self.update_times = {flag: 0 for flag in self.flag_names}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -362,15 +364,15 @@ class ConditionsDaemon(BaseDaemon):
         # ~~~~~~~~~~~~~~
         # Set each flag
         old_flags = self.flags.copy()
-        update_time = self.info['time']
+        current_time = self.info['time']
         for flag in self.flag_names:
             # check if invalid
             if not valid[flag] and self.flags[flag] != 2:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > error_delay:
                     self.log.info('Setting {} to ERROR (2)'.format(flag))
                     self.flags[flag] = 2
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, error_delay)
                     self.log.info('{} is ERROR but delay is {}'.format(flag, frac))
@@ -378,11 +380,11 @@ class ConditionsDaemon(BaseDaemon):
 
             # check if good
             if valid[flag] and good[flag] and self.flags[flag] != 0:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > good_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to good (0)'.format(flag))
                     self.flags[flag] = 0
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, good_delay[flag])
                     self.log.info('{} is good but delay is {}'.format(flag, frac))
@@ -390,23 +392,25 @@ class ConditionsDaemon(BaseDaemon):
 
             # check if bad
             if valid[flag] and not good[flag] and self.flags[flag] != 1:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > bad_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, bad_delay[flag])
                     self.log.info('{} is bad but delay is {}'.format(flag, frac))
                 continue
 
             # otherwise everything is normal
-            self.update_time[flag] = update_time
+            self.update_times[flag] = current_time
 
         # ~~~~~~~~~~~~~~
         # Write data to the conditions flags file
         data = self.flags.copy()
-        data['update_time'] = Time(update_time, format='unix').iso
+        for flag in self.update_times:
+            data[flag + '_update_time'] = Time(self.update_times[flag], format='unix').iso
+        data['current_time'] = Time(current_time, format='unix').iso
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 

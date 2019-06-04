@@ -1103,7 +1103,7 @@ class Pilot(object):
                         'title': msg2,
                         'text': conditions_summary,
                         'color': colour,
-                        'ts': conditions.update_time,
+                        'ts': conditions.current_time.unix,
                         }
 
         env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
@@ -1122,7 +1122,7 @@ class Pilot(object):
                         'color': colour,
                         }
 
-        ts = '{:.0f}'.format(conditions.update_time)
+        ts = '{:.0f}'.format(conditions.current_time.unix)
         webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
         attach_webcm = {'fallback': 'External webcam view',
                         'title': 'External webcam view',
