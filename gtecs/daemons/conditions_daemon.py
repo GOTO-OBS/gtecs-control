@@ -13,7 +13,6 @@ from gtecs import misc
 from gtecs import params
 from gtecs.astronomy import get_sunalt
 from gtecs.daemons import BaseDaemon
-from gtecs.flags import load_json
 from gtecs.slack import send_slack_msg
 
 import numpy as np
@@ -46,10 +45,11 @@ class ConditionsDaemon(BaseDaemon):
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
+        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
         try:
-            flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
-            old_dict = load_json(flags_file)
-            self.flags = {flag: old_dict[flag] for flag in self.flag_names}
+            with open(self.flags_file, 'r') as f:
+                data = json.load(f)
+            self.flags = {flag: data[flag] for flag in self.flag_names}
         except Exception:
             self.flags = {flag: 2 for flag in self.flag_names}
         self.update_time = {flag: 0 for flag in self.flag_names}
@@ -407,8 +407,7 @@ class ConditionsDaemon(BaseDaemon):
         # Write data to the conditions flags file
         data = self.flags.copy()
         data['update_time'] = Time(update_time, format='unix').iso
-        flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
-        with open(flags_file, 'w') as f:
+        with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
         # ~~~~~~~~~~~~~~
