@@ -45,8 +45,16 @@ class ConditionsDaemon(BaseDaemon):
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
-        self.flags = {flag: 2 for flag in self.flag_names}
-        self.update_time = {flag: 0 for flag in self.flag_names}
+        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        try:
+            with open(self.flags_file, 'r') as f:
+                data = json.load(f)
+            self.flags = {flag: data[flag] for flag in self.flag_names}
+            self.update_times = {flag: float(Time(data[flag + '_update_time']).unix)
+                                 for flag in self.flag_names}
+        except Exception:
+            self.flags = {flag: 2 for flag in self.flag_names}
+            self.update_times = {flag: 0 for flag in self.flag_names}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -267,7 +275,7 @@ class ConditionsDaemon(BaseDaemon):
         valid = {flag: False for flag in self.flag_names}
         good_delay = {flag: 0 for flag in self.flag_names}
         bad_delay = {flag: 0 for flag in self.flag_names}
-        error_delay = 30
+        error_delay = 60
 
         # rain flag
         good['rain'] = np.all(rain == 0)
@@ -291,7 +299,7 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
-        good['ice'] = np.all(temp > 0)
+        good['ice'] = np.all(temp > params.MIN_TEMPERATURE)
         valid['ice'] = len(temp) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
@@ -356,15 +364,15 @@ class ConditionsDaemon(BaseDaemon):
         # ~~~~~~~~~~~~~~
         # Set each flag
         old_flags = self.flags.copy()
-        update_time = self.info['time']
+        current_time = self.info['time']
         for flag in self.flag_names:
             # check if invalid
             if not valid[flag] and self.flags[flag] != 2:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > error_delay:
                     self.log.info('Setting {} to ERROR (2)'.format(flag))
                     self.flags[flag] = 2
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, error_delay)
                     self.log.info('{} is ERROR but delay is {}'.format(flag, frac))
@@ -372,11 +380,11 @@ class ConditionsDaemon(BaseDaemon):
 
             # check if good
             if valid[flag] and good[flag] and self.flags[flag] != 0:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > good_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to good (0)'.format(flag))
                     self.flags[flag] = 0
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, good_delay[flag])
                     self.log.info('{} is good but delay is {}'.format(flag, frac))
@@ -384,25 +392,26 @@ class ConditionsDaemon(BaseDaemon):
 
             # check if bad
             if valid[flag] and not good[flag] and self.flags[flag] != 1:
-                dt = update_time - self.update_time[flag]
+                dt = current_time - self.update_times[flag]
                 if dt > bad_delay[flag] or self.flags[flag] == 2:
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
-                    self.update_time[flag] = update_time
+                    self.update_times[flag] = current_time
                 else:
                     frac = '{:.0f}/{:.0f}'.format(dt, bad_delay[flag])
                     self.log.info('{} is bad but delay is {}'.format(flag, frac))
                 continue
 
             # otherwise everything is normal
-            self.update_time[flag] = update_time
+            self.update_times[flag] = current_time
 
         # ~~~~~~~~~~~~~~
         # Write data to the conditions flags file
         data = self.flags.copy()
-        data['update_time'] = Time(update_time, format='unix').iso
-        flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
-        with open(flags_file, 'w') as f:
+        for flag in self.update_times:
+            data[flag + '_update_time'] = Time(self.update_times[flag], format='unix').iso
+        data['current_time'] = Time(current_time, format='unix').iso
+        with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
         # ~~~~~~~~~~~~~~
@@ -412,7 +421,11 @@ class ConditionsDaemon(BaseDaemon):
                 # The flag has been set to bad
                 self.log.warning('Critical flag {} set to bad'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
-            elif old_flags[flag] == 1 and self.flags[flag] == 0:
+            elif old_flags[flag] == 0 and self.flags[flag] == 2:
+                # The flag has been set to ERROR
+                self.log.warning('Critical flag {} set to ERROR'.format(flag))
+                send_slack_msg('Conditions reports {} flag has been set to ERROR'.format(flag))
+            elif old_flags[flag] in [1, 2] and self.flags[flag] == 0:
                 # The flag has been set to good
                 self.log.warning('Critical flag {} set to good'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
