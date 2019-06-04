@@ -503,13 +503,14 @@ class Pilot(object):
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
-        autofoc = {'name': 'FOC',
-                   'sunalt': -11,
-                   'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
-                   'args': [],
-                   'protocol': SimpleProtocol}
+        # autofoc = {'name': 'FOC',
+        #            'sunalt': -11,
+        #            'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
+        #            'args': [],
+        #            'protocol': SimpleProtocol}
 
-        self.evening_tasks = [flats_e, autofoc]
+        # self.evening_tasks = [flats_e, autofoc]
+        self.evening_tasks = [flats_e]
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
