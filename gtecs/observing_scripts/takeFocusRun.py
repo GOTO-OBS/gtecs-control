@@ -13,7 +13,9 @@ import os
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.observing import get_analysis_image, get_current_focus, prepare_for_images, set_new_focus
+from gtecs.catalogs import focus_star
+from gtecs.observing import (get_analysis_image, get_current_focus, prepare_for_images,
+                             set_new_focus, slew_to_radec, wait_for_mount)
 from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfds, set_focus_carefully
 
 from matplotlib import pyplot as plt
@@ -63,6 +65,16 @@ def run(width, step, make_plots):
     """Run the focus run routine."""
     # make sure hardware is ready
     prepare_for_images()
+
+    # Slew to a focus star
+    print('~~~~~~')
+    print('Starting focus routine')
+    star = focus_star(Time.now())
+    print('Slewing to target', star)
+    coordinate = star.coord_now()
+    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
+    wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+    print('Reached target')
 
     xslice = slice(3300, 5100)
     yslice = slice(1400, 4100)
