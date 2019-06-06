@@ -2,11 +2,15 @@
 """Script to run in the morning to confirm the dome is closed."""
 
 import argparse
+import os
 import sys
 import time
+from collections import Counter
 
 import astropy.units as u
 from astropy.time import Time
+
+import gototile
 
 from gtecs import logger
 from gtecs import params
@@ -18,6 +22,8 @@ from gtecs.observing import wait_for_dome
 from gtecs.slack import send_slack_msg
 
 import numpy as np
+
+import obsdb as db
 
 
 def send_dome_report(msg, confirmed_closed):
@@ -42,6 +48,54 @@ def send_dome_report(msg, confirmed_closed):
 
     attachments = [attach_ext, attach_int]
     send_slack_msg(msg, attachments=attachments)
+
+
+def send_coverage_plot():
+    """Send Slack message with survey coverage plot."""
+    with db.open_session() as session:
+        # Get the base grid
+        db_grid = session.query(db.Grid).all()[-1]
+
+        # Create a query for all completed Pointings
+        query = session.query(db.Pointing).filter(db.Pointing.status == 'completed')
+
+        # Filter to the all-sky survey
+        db_survey = db_grid.surveys[0]
+        query = query.filter(db.Pointing.survey_tile_id.in_([i.db_id
+                                                             for i in db_survey.survey_tiles]))
+
+        # Get pointings
+        pointings = query.all()
+
+        # Get earliest and latest dates
+        start = min([p.stopped_time for p in pointings]).strftime('%Y-%m-%d')
+        stop = max([p.stopped_time for p in pointings]).strftime('%Y-%m-%d')
+
+        # Count tiles
+        counter = Counter([pointing.grid_tile.name for pointing in pointings])
+        count_dict = dict(counter)
+
+        # Create grid
+        grid = gototile.grid.SkyGrid((db_grid.ra_fov, db_grid.dec_fov),
+                                     (db_grid.ra_overlap, db_grid.dec_overlap),
+                                     kind=db_grid.algorithm)
+
+        # Create plot
+        direc = os.path.join(params.FILE_PATH, 'plots')
+        if not os.path.exists(direc):
+            os.mkdir(direc)
+        filename = 'allsky_survey_' + stop + '.png'
+        filepath = os.path.join(direc, filename)
+
+        title = 'GOTO all-sky survey coverage\nfrom {} to {}'.format(start, stop)
+        grid.plot(filename=filepath,
+                  color=count_dict,
+                  discrete_colorbar=True,
+                  alpha=0.5,
+                  title=title)
+
+        # Send the message, with the plot attached
+        send_slack_msg('All-sky survey coverage plot', filepath=filepath)
 
 
 def run(test=False):
@@ -133,6 +187,9 @@ def run(test=False):
     execute_command('power off poe')
     time.sleep(5)
     execute_command('power on poe')
+
+    # Send the all-sky survey coverage plot
+    send_coverage_plot()
 
     log.info('Done')
 
