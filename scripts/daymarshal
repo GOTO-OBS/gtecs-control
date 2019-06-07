@@ -2,6 +2,7 @@
 """Script to run in the morning to confirm the dome is closed."""
 
 import argparse
+import datetime
 import os
 import sys
 import time
@@ -75,7 +76,19 @@ def send_coverage_plot():
         counter = Counter([pointing.grid_tile.name for pointing in pointings])
         count_dict = dict(counter)
 
-        # Create grid
+        # Create another query for all Pointings completed last night
+        query = session.query(db.Pointing).filter(db.Pointing.status == 'completed')
+        query = query.filter(db.Pointing.survey_tile_id.in_([i.db_id
+                                                             for i in db_survey.survey_tiles]))
+        midday_today = datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        midday_yesterday = midday_today - datetime.timedelta(days=1)
+        query = query.filter(db.Pointing.stopped_time > midday_yesterday)
+        pointings = query.all()
+
+        # Get tilenames
+        tiles_today = [pointing.grid_tile.name for pointing in pointings]
+
+        # Get grid
         grid = gototile.grid.SkyGrid((db_grid.ra_fov, db_grid.dec_fov),
                                      (db_grid.ra_overlap, db_grid.dec_overlap),
                                      kind=db_grid.algorithm)
@@ -91,6 +104,9 @@ def send_coverage_plot():
         grid.plot(filename=filepath,
                   color=count_dict,
                   discrete_colorbar=True,
+                  highlight=tiles_today,
+                  highlight_color='red',
+                  highlight_label='observed last night',
                   alpha=0.5,
                   title=title)
 
