@@ -13,8 +13,6 @@ from astroplan import AltitudeConstraint, AtNightConstraint, Observer, is_observ
 import astropy.units as u
 from astropy.time import Time
 
-import gototile
-
 from gtecs import logger
 from gtecs import params
 from gtecs.astronomy import night_startdate, observatory_location, sunalt_time
@@ -57,10 +55,10 @@ def send_coverage_plots():
     """Send Slack messages with nightly coverage and updated survey coverage plots."""
     with db.open_session() as session:
         # Get the base grid
-        db_grid = session.query(db.Grid).all()[-1]
-        grid = gototile.grid.SkyGrid((db_grid.ra_fov, db_grid.dec_fov),
-                                     (db_grid.ra_overlap, db_grid.dec_overlap),
-                                     kind=db_grid.algorithm)
+        db_grid = db.get_current_grid(session)
+
+        # Create a SkyGrid from the database Grid
+        grid = db_grid.get_skygrid()
 
         # Get the dates for the start and end of the night just finished
         midday_today = datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
@@ -69,7 +67,7 @@ def send_coverage_plots():
         # Get all pointings observed last night on the grid
         query = session.query(db.Pointing).filter(
             db.Pointing.status == 'completed',
-            db.Pointing.grid_tile_id.in_([i.db_id for i in db_grid.grid_tiles]),
+            db.Pointing.grid == db_grid,
             db.Pointing.stopped_time > midday_yesterday,
             db.Pointing.stopped_time < midday_today,
         )
@@ -136,7 +134,7 @@ def send_coverage_plots():
         # Now get all completed all-sky survey pointings since it started
         query = session.query(db.Pointing).filter(
             db.Pointing.status == 'completed',
-            db.Pointing.survey_tile_id.in_([i.db_id for i in db_survey.survey_tiles]),
+            db.Pointing.survey == db_survey,
         )
         survey_pointings = query.all()
 
