@@ -1148,7 +1148,8 @@ class Pilot(object):
                         'color': colour,
                         }
 
-        send_slack_msg(msg, [attach_conds, attach_links, attach_webcm, attach_irsat])
+        attachments = [attach_conds, attach_links, attach_webcm, attach_irsat]
+        send_slack_msg(msg, attachments=attachments)
 
 
 def run(test=False, restart=False, late=False):

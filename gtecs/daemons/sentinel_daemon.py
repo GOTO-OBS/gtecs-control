@@ -204,114 +204,37 @@ class SentinelDaemon(BaseDaemon):
         event.archive(path)
         self.log.info('Archived to {}'.format(path))
 
-        # Call GOTO-alert's event handler
-        try:
-            event = event_handler(event, log=self.log,
-                                  force_process=event._force if hasattr(event, '_force') else False,
-                                  write_html=params.SENTINEL_WRITE_HTML,
-                                  send_messages=params.SENTINEL_SEND_MESSAGES)
-        except Exception as err:
-            self.log.error('Exception in event handler')
-            self.log.exception(err)
-            send_slack_msg('Sentinel failed to process event {}'.format(event.ivorn))
-            return
+        # If the event's not interesting we don't care
+        if event.interesting:
+            # Call GOTO-alert's event handler
+            try:
+                send_slack_msg('Sentinel is processing event {}'.format(event.ivorn))
+                event_handler(event, send_messages=params.SENTINEL_SEND_MESSAGES, log=self.log)
+            except Exception as err:
+                self.log.error('Exception in event handler')
+                self.log.exception(err)
+                send_slack_msg('Sentinel reports exception in event handler, check logs')
+                return
 
-        # Check if it was an interesting event
-        if event:
-            # If the event was returned it was classed as "interesting"
-            # If event is None then we don't care
             self.log.info('Interesting event {} processed'.format(event.name))
             self.interesting_events += 1
-            try:
-                self._send_slack_report(event)
-                self.log.info('Slack alert sent')
-            except Exception as err:
-                self.log.error('Slack alert failed')
-                self.log.exception(err)
 
         # Done!
         self.processed_events += 1
 
-    def _send_slack_report(self, event):
-        """Send a report to Slack detailing the interesting event."""
-        title = ['*Sentinel processed {} {} event {}*'.format(event.source, event.type, event.id)]
-
-        # Basic details
-        details = ['IVORN: {}'.format(event.ivorn),
-                   'Event time: {}'.format(event.time),
-                   ]
-
-        # Extra details, depending on source type
-        if event.type == 'GW':
-            sorted_class = sorted(event.classification.keys(),
-                                  key=lambda key: event.classification[key],
-                                  reverse=True)
-            class_str = ', '.join(['{}:{:.1f}%'.format(key, event.classification[key] * 100)
-                                   for key in sorted_class
-                                   if event.classification[key] > 0.0005])
-            extra_details = ['Distance: {:.0f}+/-{:.0f} Mpc'.format(event.distance,
-                                                                    event.distance_error),
-                             'FAR: ~1 per {:.1f} yrs'.format(1 / event.far / 3.154e+7),
-                             'Classification: {}'.format(class_str),
-                             'HasNS (if real): {:.0f}%'.format(event.properties['HasNS'] * 100),
-                             '90% probability area: {:.0f} sq deg'.format(event.contour_areas[0.9]),
-                             'GraceDB page: {}'.format(event.gracedb_url)
-                             ]
-        elif event.source == 'Fermi':
-            extra_details = ['Duration: {}'.format(event.duration.capitalize())]
-
-        details += extra_details
-
-        # Grid and tile details
-        details.append('Applied to grid: {}'.format(event.grid.name))
-        total_prob = event.grid.get_probability(list(event.tile_table['tilename']))
-        details.append('Tile table ({:.0f} tiles covering {:.1f}%):'.format(len(event.tile_table),
-                                                                            total_prob * 100))
-
-        # Tile table
-        table = ['```',
-                 'tilename  ra        dec       prob    ',
-                 '[str]     [deg]     [deg]     [%]     ',
-                 '--------  --------  --------  ------- ',
-                 ]
-        line = '{}     {:8.4f}  {:+8.4f}  {:6.2f}% '
-        table += [line.format(row['tilename'], row['ra'].value, row['dec'].value, row['prob'] * 100)
-                  for row in event.tile_table[:10]]
-        if len(event.tile_table) > 10:
-            table.append('... and {:.0f} more'.format(len(event.tile_table) - 10))
-        table.append('```')
-
-        msg = '\n'.join(title + details + table)
-
-        # Extra for events with no tiles that passed mask
-        if len(event.tile_table) == 0:
-            high_prob = event.full_table[0]['prob']
-            msg += '\nNo tiles passed filter (highest prob is {:.2f}%)'.format(high_prob * 100)
-
-        send_slack_msg(msg)
-
     # Control functions
-    def ingest_from_payload(self, payload, force=False):
-        """Ingest an event payload.
-
-        If force=True, will force the event_handler to ignore the usual checks for event types.
-        NB this can lead to unpredictable behaviour.
-        """
+    def ingest_from_payload(self, payload):
+        """Ingest an event payload."""
         event = Event.from_payload(payload)
-        event._force = force  # Store on the Event object
         self.events_queue.append(event)
         return 'Event added to queue'
 
-    def ingest_from_ivorn(self, ivorn, force=False):
+    def ingest_from_ivorn(self, ivorn):
         """Ingest an event from its IVORN.
 
         Will attempt to download the event payload from the 4pisky VOEvent DB.
-
-        If force=True, will force the event_handler to ignore the usual checks for event types.
-        NB this can lead to unpredictable behaviour.
         """
         event = Event.from_ivorn(ivorn)
-        event._force = force  # Store on the Event object
         self.events_queue.append(event)
         return 'Event added to queue'
 

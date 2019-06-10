@@ -71,15 +71,9 @@ def query(command, args, daemon_id):
         ivorn = args[0]
         if ivorn[:6] != 'ivo://':
             raise errors.InputError('{} does not look like a valid IVORN')
-        if len(args) > 1:
-            force = args[1]
-            if force != 'force':
-                raise errors.InputError('Invalid arguments')
-        else:
-            force = False
 
         # send command
-        reply = daemons.daemon_function(daemon_id, 'ingest_from_ivorn', [ivorn, force])
+        reply = daemons.daemon_function(daemon_id, 'ingest_from_ivorn', [ivorn])
         print(reply)
 
     elif command == 'pause':
@@ -126,7 +120,7 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Sentinel commands:',
-          '  ingest <ivorn> [force]         process an event from an IVORN',
+          '  ingest <ivorn>                 process an event from an IVORN',
           '  pause                          pause the alert listener',
           '  unpause/resume                 resumes the alert listener',
           '  info/status [v]                report current status',

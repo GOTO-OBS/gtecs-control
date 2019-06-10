@@ -40,7 +40,8 @@ def send_dome_report(msg, confirmed_closed):
                   'color': 'good' if confirmed_closed else 'danger',
                   }
 
-    send_slack_msg(msg, [attach_ext, attach_int])
+    attachments = [attach_ext, attach_int]
+    send_slack_msg(msg, attachments=attachments)
 
 
 def run(test=False):
