@@ -97,6 +97,7 @@ class BaseMonitor(ABC):
             self.log = logging.getLogger(self.monitor_id)
 
         self.info = None
+        self.info_timeout = params.PYRO_TIMEOUT
         self.hardware_status = STATUS_UNKNOWN
 
         self.successful_check_time = 0
@@ -140,7 +141,7 @@ class BaseMonitor(ABC):
         if self.daemon_id is None:
             return None
         try:
-            with daemon_proxy(self.daemon_id) as daemon:
+            with daemon_proxy(self.daemon_id, timeout=self.info_timeout) as daemon:
                 # Force an update if we're currently fixing an error,
                 # otherwise it's not as important so don't force to save time
                 if len(self.errors) > 0:
@@ -289,7 +290,6 @@ class BaseMonitor(ABC):
 
         # ERROR_INFO
         # Set the error if the daemon doesn't return any info dict
-        # TODO: maybe should be on a timer, for conditions/scheduler?
         if info is None or not isinstance(info, dict):
             self.add_error(ERROR_INFO, critical=True)
             return 1
@@ -1329,6 +1329,9 @@ class ConditionsMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
 
+        # Set a longer info timeout than default, as checks can take a while
+        self.info_timeout = 30
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
@@ -1412,6 +1415,9 @@ class SchedulerMonitor(BaseMonitor):
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = MODE_ACTIVE
+
+        # Set a longer info timeout than default, as checks can take a while
+        self.info_timeout = 30
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
