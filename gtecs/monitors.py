@@ -35,6 +35,7 @@ STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_CAM_COOL = 'cool'
 STATUS_CAM_WARM = 'warm'
 STATUS_FILT_UNHOMED = 'unhomed'
+STATUS_CONDITIONS_INTERNAL_ERROR = 'internal_error'
 
 # Hardware modes
 MODE_ACTIVE = 'active'
@@ -66,6 +67,7 @@ ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
 ERROR_FILT_UNHOMED = 'FLIT:NOT_HOMED'
+ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
 
 class BaseMonitor(ABC):
@@ -1334,16 +1336,24 @@ class ConditionsMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        # no custom statuses
-        hardware_status = STATUS_ACTIVE
+        internal_error = info['flags']['internal'] == 2
+        if internal_error:
+            hardware_status = STATUS_CONDITIONS_INTERNAL_ERROR
+        else:
+            hardware_status = STATUS_ACTIVE
 
         self.hardware_status = hardware_status
         return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # no custom errors
-        return
+        # ERROR_CONDITIONS_INTERNAL
+        # Set the error if the internal flag is reporting status 2 (ERROR)
+        if self.hardware_status == STATUS_CONDITIONS_INTERNAL_ERROR:
+            self.add_error(ERROR_CONDITIONS_INTERNAL)
+        # Clear the error if the flag is back to not ERROR (either good or bad)
+        if self.hardware_status != STATUS_CONDITIONS_INTERNAL_ERROR:
+            self.clear_error(ERROR_CONDITIONS_INTERNAL)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1376,6 +1386,17 @@ class ConditionsMonitor(BaseMonitor):
             # PROBLEM: Daemon is in an unknown state.
             # OUT OF SOLUTIONS: We don't know what to do.
             return ERROR_STATUS, {}
+
+        elif ERROR_CONDITIONS_INTERNAL in self.errors:
+            # PROBLEM: The internal flag has been set to ERROR.
+            recovery_procedure = {}
+            # SOLUTION 1: Try rebooting the RoomAlert, through the PoE switch.
+            recovery_procedure[1] = ['power reboot poe', 120]
+            # SOLUTION 2: Try powering off for longer.
+            recovery_procedure[2] = ['power off poe', 60]
+            recovery_procedure[3] = ['power on poe', 120]
+            # OUT OF SOLUTIONS: Maybe it's not the RoomAlert's fault.
+            return ERROR_FILT_UNHOMED, recovery_procedure
 
         else:
             # Some unexpected error.
