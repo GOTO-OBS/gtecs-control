@@ -27,6 +27,7 @@ import numpy as np
 
 import obsdb as db
 
+from . import params as simparams
 from .weather import Weather
 
 
@@ -35,13 +36,6 @@ with warnings.catch_warnings():
 
 # catch ctrl-c
 signal.signal(signal.SIGINT, misc.signal_handler)
-
-slewrate = 5 * u.degree / u.s
-readouttime = 10 * u.s
-
-weather_on = False
-
-fake_dt = TimeDelta(60 * u.s) * 7  # 15 * u.s)
 
 
 class DummyScheduler(object):
@@ -158,7 +152,7 @@ def estimate_completion_time(new_id, current_id, session):
     total_exptime = 0 * u.s
     new_pointing = db.get_pointing_by_id(session, new_id)
     for exp in new_pointing.exposure_sets:
-        total_exptime += ((exp.exptime * u.s + readouttime) * exp.num_exp)
+        total_exptime += ((exp.exptime * u.s + simparams.READOUT_TIME) * exp.num_exp)
 
     if current_id is not None:
         current_pointing = db.get_pointing_by_id(session, current_id)
@@ -169,7 +163,7 @@ def estimate_completion_time(new_id, current_id, session):
                                 new_pointing.dec,
                                 unit=u.deg, frame='icrs')
         slew_distance = current_position.separation(new_position)
-        slew_time = slew_distance / slewrate
+        slew_time = slew_distance / simparams.SLEWRATE
     else:
         slew_time = 0 * u.s
     return slew_time + total_exptime
@@ -325,7 +319,7 @@ def run(date, sleep_time, write_html):
 
     # weather has typical timescale = 1h and we lose 10% of time to bad weather
     sunset, sunrise = get_night_times(date)
-    if weather_on:
+    if simparams.ENABLE_WEATHER:
         weather = Weather(sunset, sunrise, 1.0, 0.1)
 
     # loop until night is over
@@ -342,7 +336,7 @@ def run(date, sleep_time, write_html):
             sunalt = astronomy.get_sunalt(now)
             print('Loop: {} ({:>5.2f}) ---  dt:{:.3f}s'.format(
                 now, sunalt, (ts - tprev)))
-            if weather_on:
+            if simparams.ENABLE_WEATHER:
                 pilot.check_weather(weather, now, session)
             if pilot.dome_status:  # open
                 pilot.review_target_situation(now, bool(write_html), session)
@@ -351,7 +345,7 @@ def run(date, sleep_time, write_html):
             pilot.log_state(now, session)
 
             # increment by scheduler loop timestep
-            now += fake_dt
+            now += simparams.DELTA_T
             time.sleep(float(sleep_time))
 
     except Exception:
