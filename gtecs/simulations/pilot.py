@@ -62,10 +62,16 @@ class FakePilot(object):
 
     def check_weather(self, weather, now, session):
         """Check if the weather is bad and pause if so."""
-        bad_weather = weather.is_bad(now)
-        if bad_weather and self.dome_open:
+        # Check if the weather is bad
+        if simparams.ENABLE_WEATHER:
+            bad = weather.is_bad(now)
+        else:
+            bad = False
+
+        # Decide to close or open
+        if bad and self.dome_open:
             self.pause_observing(session)
-        if not bad_weather and not self.dome_open:
+        if not bad and not self.dome_open:
             self.resume_observing()
 
     def log_state(self, now, session):
@@ -172,8 +178,7 @@ def run(date):
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
     # Create weather class
-    if simparams.ENABLE_WEATHER:
-        weather = Weather(sunset, sunrise)
+    weather = Weather(sunset, sunrise)
 
     # Open the database connection
     session = db.load_session()
@@ -187,8 +192,7 @@ def run(date):
                                             get_sunalt(now)))
 
         # Check the weather
-        if simparams.ENABLE_WEATHER:
-            pilot.check_weather(weather, now, session)
+        pilot.check_weather(weather, now, session)
 
         # Review target if the dome is open
         if pilot.dome_open:
