@@ -3,15 +3,13 @@
 
 import os
 import time
-import traceback
 
 from astropy import units as u
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
-from gtecs import astronomy
 from gtecs import params
 from gtecs import scheduler
-from gtecs.astronomy import get_night_times, night_startdate
+from gtecs.astronomy import get_night_times, get_sunalt, night_startdate
 from gtecs.simulations import params as simparams
 from gtecs.simulations.misc import estimate_completion_time, set_pointing_status
 from gtecs.simulations.skymap import update_skymap_probabilities
@@ -167,44 +165,51 @@ class FakePilot(object):
 
 def run(date):
     """Run the fake pilot."""
+    # Create the pilot
     pilot = FakePilot()
 
+    # Get sun rise and set times
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
+    # Create weather class
     if simparams.ENABLE_WEATHER:
         weather = Weather(sunset, sunrise)
 
-    # loop until night is over
-    print('Starting loop...')
+    # Open the database connection
     session = db.load_session()
-    try:
-        now = sunset
-        ts = time.time()
-        while now < sunrise:
-            tprev = ts
-            ts = time.time()
-            now.format = 'iso'
-            now.precision = 0
-            sunalt = astronomy.get_sunalt(now)
-            print('Loop: {} ({:>5.2f}) ---  dt:{:.3f}s'.format(
-                now, sunalt, (ts - tprev)))
-            if simparams.ENABLE_WEATHER:
-                pilot.check_weather(weather, now, session)
-            if pilot.dome_status:  # open
-                pilot.review_target_situation(now, session)
-            else:
-                print('  dome closed')
-            pilot.log_state(now, session)
 
-            # increment by scheduler loop timestep
-            now += simparams.DELTA_T
+    # Loop until the night is over
+    now = sunset
+    print('Starting loop...')
+    while now < sunrise:
+        # Print loop
+        print('{} (sunalt={:>5.1f})'.format(now.strftime('%H:%M:%S'),
+                                            get_sunalt(now)))
+
+        # Check the weather
+        if simparams.ENABLE_WEATHER:
+            pilot.check_weather(weather, now, session)
+
+        # Review target if the dome is open
+        if pilot.dome_status:  # open
+            pilot.review_target_situation(now, session)
+        else:
+            print('  dome closed')
+
+        # Log the pilot state
+        pilot.log_state(now, session)
+
+        # Increment by timestep
+        now += TimeDelta(simparams.TIMESTEP)
+
+        # Sleep, if asked
+        if simparams.SLEEP_TIME:
             time.sleep(float(simparams.SLEEP_TIME))
 
-    except Exception:
-        traceback.print_exc()
-
+    # Remember to close the DB session
     session.close()
 
+    # Print results
     n_completed = len(pilot.completed_pointings)
     print('Listing completed pointings ({}) and time done'.format(n_completed))
     for db_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):

@@ -1,10 +1,6 @@
 """Simulation parameters."""
 
 from astropy import units as u
-from astropy.time import TimeDelta
-
-# DeltaT
-DELTA_T = TimeDelta(60 * u.s) * 7  # 15 * u.s)
 
 # Telescope slew rate
 SLEWRATE = 5 * u.degree / u.s
@@ -13,6 +9,7 @@ SLEWRATE = 5 * u.degree / u.s
 READOUT_TIME = 10 * u.s
 
 # Pilot params
+TIMESTEP = 60 * 7 * u.s
 ENABLE_WEATHER = False
 SLEEP_TIME = 0
 WRITE_HTML = False
