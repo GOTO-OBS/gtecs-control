@@ -40,12 +40,12 @@ class FakePilot(object):
         self.interrupted_pointings = []
         self.aborted_pointings = []
 
-        self.dome_status = 0  # 1 = open, 0 = shut
+        self.dome_open = False
         self.pilot_status = None
 
     def pause_observing(self, session):
         """Pause the system."""
-        self.dome_status = 0
+        self.dome_open = False
         self.pilot_status = 'Dome Closed'
         if self.current_id is not None:
             print('Aborting ID= %i due to bad weather' % self.current_id)
@@ -57,15 +57,15 @@ class FakePilot(object):
 
     def resume_observing(self):
         """Unpause the system."""
-        self.dome_status = 1
+        self.dome_open = True
         self.pilot_status = 'Dome Open'
 
     def check_weather(self, weather, now, session):
         """Check if the weather is bad and pause if so."""
         bad_weather = weather.is_bad(now)
-        if bad_weather and self.dome_status:
+        if bad_weather and self.dome_open:
             self.pause_observing(session)
-        if not bad_weather and not self.dome_status:
+        if not bad_weather and not self.dome_open:
             self.resume_observing()
 
     def log_state(self, now, session):
@@ -73,7 +73,7 @@ class FakePilot(object):
         state = 'unknown'
         if self.pilot_status == 'Suspended':
             state = 'manual'
-        elif self.dome_status == 0:
+        elif not self.dome_open:
             state = 'closed'
         elif self.current_id is not None:
             current_pointing = db.get_pointing_by_id(session, self.current_id)
@@ -191,7 +191,7 @@ def run(date):
             pilot.check_weather(weather, now, session)
 
         # Review target if the dome is open
-        if pilot.dome_status:  # open
+        if pilot.dome_open:
             pilot.review_target_situation(now, session)
         else:
             print('  dome closed')
