@@ -100,7 +100,7 @@ class DummyPilot(object):
         with open(fname, 'a') as f:
             f.write('%s %s\n' % (now. iso, state))
 
-    def review_target_situation(self, now, write_html, session):
+    def review_target_situation(self, now, session):
         """Check queue for a new target and, if necessary, go to it."""
         # check if current pointing is finished
         if self.current_id is not None:
@@ -120,7 +120,8 @@ class DummyPilot(object):
             print('  current :', None)
 
         # find new highest priority from the scheduler
-        new_pointing = scheduler.check_queue(now, write_html)
+        new_pointing = scheduler.check_queue(now,
+                                             write_html=simparams.WRITE_HTML)
         if new_pointing is not None:
             new_id = new_pointing.db_id
             new_priority = new_pointing.priority
@@ -163,7 +164,7 @@ class DummyPilot(object):
                 self.current_id = None
 
 
-def run(date, sleep_time, write_html):
+def run(date):
     """Run the dummy pilot."""
     pilot = DummyPilot()
 
@@ -189,14 +190,14 @@ def run(date, sleep_time, write_html):
             if simparams.ENABLE_WEATHER:
                 pilot.check_weather(weather, now, session)
             if pilot.dome_status:  # open
-                pilot.review_target_situation(now, bool(write_html), session)
+                pilot.review_target_situation(now, session)
             else:
                 print('  dome closed')
             pilot.log_state(now, session)
 
             # increment by scheduler loop timestep
             now += simparams.DELTA_T
-            time.sleep(float(sleep_time))
+            time.sleep(float(simparams.SLEEP_TIME))
 
     except Exception:
         traceback.print_exc()
@@ -226,12 +227,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run the fake pilot for a night',
                                      usage=usage)
-    parser.add_argument('date', nargs='?', default=Time.now(),
+    parser.add_argument('date',
+                        nargs='?',
+                        default=Time.now(),
                         help='night starting date to simulate')
-    parser.add_argument('sleep_time', nargs='?', default=0,
-                        help='time to sleep each period')
-    parser.add_argument('write_html', nargs='?', default=False,
-                        help='write html webpages?')
     args = parser.parse_args()
 
-    run(args.date, args.sleep_time, args.write_html)
+    run(args.date)
