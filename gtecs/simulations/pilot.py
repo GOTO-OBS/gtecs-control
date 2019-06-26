@@ -222,13 +222,16 @@ def run(date, sleep_time, write_html):
 if __name__ == "__main__":
     import argparse
 
-    usage = """python fake_pilot.py date sleep_time write_html"""
+    usage = 'python fake_pilot.py date sleep_time write_html'
 
-    parser = argparse.ArgumentParser(description="run fake pilot for a night",
+    parser = argparse.ArgumentParser(description='Run the fake pilot for a night',
                                      usage=usage)
-    parser.add_argument('date', help="night starting date to simulate")
-    parser.add_argument('sleep_time', help="time to sleep each period")
-    parser.add_argument('write_html', help="write html webpages?", type=int)
+    parser.add_argument('date', nargs='?', default=Time.now(),
+                        help='night starting date to simulate')
+    parser.add_argument('sleep_time', nargs='?', default=0,
+                        help='time to sleep each period')
+    parser.add_argument('write_html', nargs='?', default=False,
+                        help='write html webpages?')
     args = parser.parse_args()
 
     run(args.date, args.sleep_time, args.write_html)
