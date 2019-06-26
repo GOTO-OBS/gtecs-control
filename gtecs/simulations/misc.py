@@ -1,10 +1,7 @@
 """Miscellaneous functions for simulations."""
 
-import astroplan
-
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.time import Time, TimeDelta
 
 import obsdb as db
 
