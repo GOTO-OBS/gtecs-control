@@ -20,15 +20,17 @@ class Weather(object):
     stop_time : astropy.time.Time
         end of night (sunset)
 
-    timescale : float
+    timescale : float, optional
         typical timescale of weather event (hours)
+        default is 1h
 
-    frac_bad : float
-        average fraction of night lost to bad weather
+    frac_bad : float, optional
+        average fraction of night lost to bad weather (0-1)
+        default is 0.1
 
     """
 
-    def __init__(self, start_time, stop_time, timescale, frac_bad):
+    def __init__(self, start_time, stop_time, timescale=1, frac_bad=0.1):
         self.start_time = start_time
         self.stop_time = stop_time
         self.kernel = george.kernels.Matern32Kernel(timescale)

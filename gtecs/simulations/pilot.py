@@ -172,8 +172,7 @@ def run(date):
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
     if simparams.ENABLE_WEATHER:
-        # weather has typical timescale = 1h and we lose 10% of time to bad weather
-        weather = Weather(sunset, sunrise, 1.0, 0.1)
+        weather = Weather(sunset, sunrise)
 
     # loop until night is over
     print('Starting loop...')
