@@ -20,10 +20,10 @@ from gtecs.simulations.weather import Weather
 import obsdb as db
 
 
-class DummyPilot(object):
+class FakePilot(object):
     """A fake, simplified pilot.
 
-    The dummy pilot simply checks to see if a more important pointing
+    The fake pilot simply checks to see if a more important pointing
     is available from the scheduler, or if it has finished the pointing
     it is supposed to be currently doing.
     """
@@ -166,8 +166,8 @@ class DummyPilot(object):
 
 
 def run(date):
-    """Run the dummy pilot."""
-    pilot = DummyPilot()
+    """Run the fake pilot."""
+    pilot = FakePilot()
 
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 

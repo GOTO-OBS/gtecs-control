@@ -8,7 +8,7 @@ import numpy as np
 import obsdb as db
 
 
-class DummyScheduler(object):
+class FakeScheduler(object):
     """A fake scheduler for testing.
 
     Initialised with a list of pointing IDs and their durations,
