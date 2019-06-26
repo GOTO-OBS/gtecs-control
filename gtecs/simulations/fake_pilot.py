@@ -3,10 +3,8 @@
 
 import math
 import os
-import signal
 import time
 import traceback
-import warnings
 
 import astroplan
 
@@ -19,7 +17,6 @@ from gototile.skymaptools import tile_skymap
 from gototile.telescope import GOTON4
 
 from gtecs import astronomy
-from gtecs import misc
 from gtecs import params
 from gtecs import scheduler
 
@@ -29,13 +26,6 @@ import obsdb as db
 
 from . import params as simparams
 from .weather import Weather
-
-
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
-
-# catch ctrl-c
-signal.signal(signal.SIGINT, misc.signal_handler)
 
 
 class DummyScheduler(object):
