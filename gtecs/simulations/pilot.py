@@ -12,7 +12,6 @@ from gtecs import scheduler
 from gtecs.astronomy import get_night_times, get_sunalt, night_startdate
 from gtecs.simulations import params as simparams
 from gtecs.simulations.misc import estimate_completion_time, set_pointing_status
-from gtecs.simulations.skymap import update_skymap_probabilities
 from gtecs.simulations.weather import Weather
 
 import obsdb as db
@@ -30,10 +29,12 @@ class FakePilot(object):
         self.start_time = Time.now()
 
         self.current_id = None
-        self.current_priority = None
         self.current_mintime = None
         self.current_start_time = None
         self.current_duration = None
+
+        self.new_id = None
+        self.new_mintime = None
 
         self.completed_pointings = []
         self.completed_times = []
@@ -92,81 +93,80 @@ class FakePilot(object):
             else:
                 self.current_probability = 0
 
-            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%; {:.9f})'.format(
+            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%)'.format(
                 self.current_id,
                 self.current_name,
                 self.current_ra,
                 self.current_dec,
                 self.current_probability * 100,
-                self.current_priority,)
+            )
         else:
             state = 'idle'
         fname = os.path.join(params.FILE_PATH, 'state_log.txt')
         with open(fname, 'a') as f:
             f.write('%s %s\n' % (now. iso, state))
 
+    def check_scheduler(self, now):
+        """Find current highest priority from the scheduler."""
+        new_pointing = scheduler.check_queue(now, write_html=simparams.WRITE_HTML)
+        if new_pointing is not None:
+            self.new_id = new_pointing.db_id
+            self.new_mintime = new_pointing.mintime
+        else:
+            self.new_id = None
+            self.new_mintime = None
+
     def review_target_situation(self, now, session):
         """Check queue for a new target and, if necessary, go to it."""
-        # check if current pointing is finished
-        if self.current_id is not None:
-            time_elapsed = (now - self.current_start_time).to(u.s)
-            if time_elapsed > self.current_duration:
-                self.current_priority += 100
-                set_pointing_status(self.current_id, 'completed', session)
-
-                current_pointing = db.get_pointing_by_id(session, self.current_id)
-                survey = current_pointing.survey
-                if survey is not None and survey.event.skymap is not None:
-                    update_skymap_probabilities(session, survey)
-                self.completed_pointings.append(self.current_id)
-                self.completed_times.append(now)
-            print('  current : ID', self.current_id)  # , self.current_priority)
+        if self.current_id:
+            print('  current : ID', self.current_id)
         else:
             print('  current :', None)
 
-        # find new highest priority from the scheduler
-        new_pointing = scheduler.check_queue(now,
-                                             write_html=simparams.WRITE_HTML)
-        if new_pointing is not None:
-            new_id = new_pointing.db_id
-            new_priority = new_pointing.priority
-            new_mintime = new_pointing.mintime
-            print('  queue   : ID', new_id)  # , new_priority)
+        # Check if the current pointing has finished
+        if self.current_id is not None:
+            elapsed = (now - self.current_start_time).to(u.s)
+            if elapsed > self.current_duration:
+                # Finished
+                set_pointing_status(self.current_id, 'completed', session)
+                self.completed_pointings.append(self.current_id)
+                self.completed_times.append(now)
+
+        # Find current highest priority from the scheduler
+        self.check_scheduler(now)
+        if self.new_id:
+            print('  queue   : ID', self.new_id)
         else:
-            new_id = None
-            new_priority = None
-            new_mintime = None
             print('  queue   :', None)
 
-        # what next
-        if new_id != self.current_id and new_id not in self.completed_pointings:
+        # Decide what to do
+        if self.new_id == self.current_id:
             if self.current_id is not None:
-                # we're already doing something,
-                # mark as finished or interrupted
-                try:
-                    time_elapsed = (now - self.current_start_time).to(u.s)
-                except Exception:
-                    time_elapsed = 0.
-                if self.current_id not in self.completed_pointings:
-                    if time_elapsed > self.current_mintime:
-                        set_pointing_status(self.current_id, 'completed', session)
-                        self.completed_pointings.append(self.current_id)
-                        self.completed_times.append(now)
-                    else:
-                        set_pointing_status(self.current_id, 'interrupted', session)
-                        self.interrupted_pointings.append(self.current_id)
-
-            if new_id is not None:
-                print('    -- STARTING NEW POINTING')
-                self.current_id = new_id
-                self.current_priority = new_priority
-                self.current_mintime = new_mintime
-                self.current_duration = estimate_completion_time(new_id, self.current_id, session)
-                self.current_start_time = now
-                set_pointing_status(self.current_id, 'running', session)
+                elapsed = (now - self.current_start_time).to(u.s)
+                print('  still observing {} ({:.0f}/{:.0f})'.format(
+                      self.current_id, elapsed.value, self.current_mintime))
             else:
-                print('    -- PARKING')
-                self.current_id = None
+                print('  nothing to observe!')
+
+        elif self.new_id is not None:
+            if self.current_id is not None:
+                print('  got new pointing from scheduler {}'.format(self.new_id))
+                if self.current_id not in self.completed_pointings:
+                    # The pointing didn't finish, mark as interrupted
+                    set_pointing_status(self.current_id, 'interrupted', session)
+                    self.interrupted_pointings.append(self.current_id)
+            else:
+                print('  unparking')
+
+            print('  starting pointing {}'.format(self.new_id))
+            self.current_id = self.new_id
+            self.current_mintime = self.new_mintime
+            self.current_duration = estimate_completion_time(self.new_id, self.current_id, session)
+            self.current_start_time = now
+            set_pointing_status(self.current_id, 'running', session)
+        else:
+            print('  parking')
+            self.current_id = None
 
 
 def run(date):
