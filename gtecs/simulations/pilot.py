@@ -11,8 +11,9 @@ from astropy.time import Time
 from gtecs import astronomy
 from gtecs import params
 from gtecs import scheduler
+from gtecs.astronomy import get_night_times, night_startdate
 from gtecs.simulations import params as simparams
-from gtecs.simulations.misc import estimate_completion_time, get_night_times, set_pointing_status
+from gtecs.simulations.misc import estimate_completion_time, set_pointing_status
 from gtecs.simulations.skymap import update_skymap_probabilities
 from gtecs.simulations.weather import Weather
 
@@ -168,9 +169,10 @@ def run(date):
     """Run the dummy pilot."""
     pilot = DummyPilot()
 
-    # weather has typical timescale = 1h and we lose 10% of time to bad weather
-    sunset, sunrise = get_night_times(date)
+    sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
+
     if simparams.ENABLE_WEATHER:
+        # weather has typical timescale = 1h and we lose 10% of time to bad weather
         weather = Weather(sunset, sunrise, 1.0, 0.1)
 
     # loop until night is over
@@ -229,7 +231,7 @@ if __name__ == "__main__":
                                      usage=usage)
     parser.add_argument('date',
                         nargs='?',
-                        default=Time.now(),
+                        default=night_startdate(),
                         help='night starting date to simulate')
     args = parser.parse_args()
 

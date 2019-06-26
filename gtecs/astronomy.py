@@ -252,6 +252,31 @@ def get_sunalt(now):
     return altaz_coo.alt.degree
 
 
+@u.quantity_input(horizon=u.deg)
+def get_night_times(date, horizon=-15 * u.deg):
+    """Calculate the start and stop times of a given date.
+
+    Parameters
+    ----------
+    date : string
+        night starting date (YYYY-MM-DD)
+    horizon : float, optional
+        horizon below which night is defined
+        default is -15 degrees
+
+    Returns
+    -------
+    sun_set_time, sun_rise_time : 2-tuple of `astropy.time.Time`
+        The time the Sun sets and rises for the given night
+
+    """
+    noon = Time(date + " 12:00:00")
+    observer = Observer(location=observatory_location())
+    sun_set_time = observer.sun_set_time(noon, which='next', horizon=horizon)
+    sun_rise_time = observer.sun_rise_time(noon, which='next', horizon=horizon)
+    return sun_set_time, sun_rise_time
+
+
 def twilight_length(date):
     """Twilight length for night starting on given date.
 

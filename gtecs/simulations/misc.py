@@ -29,19 +29,6 @@ def set_pointing_status(db_id, status, session):
             return 1
 
 
-def get_night_times(date):
-    """Calculate the start and stop times of a given date.
-
-    Defined as sunrise and sunset times for La Palma.
-    """
-    lapalma = astroplan.Observer.at_site('lapalma')
-    # Time(date) gives start of date, add one day to get midnight that night
-    midnight = Time(date) + TimeDelta(1 * u.day)
-    sunset = lapalma.sun_set_time(midnight, which="previous", horizon=-8 * u.deg)
-    sunrise = lapalma.sun_rise_time(midnight, which="next", horizon=-8 * u.deg)
-    return sunset, sunrise
-
-
 def estimate_completion_time(new_id, current_id, session):
     """Extimate the exposure time for a new pointing.
 
