@@ -11,13 +11,12 @@ from astropy.time import Time
 from gtecs import astronomy
 from gtecs import params
 from gtecs import scheduler
+from gtecs.simulations import params as simparams
+from gtecs.simulations.misc import estimate_completion_time, get_night_times, set_pointing_status
+from gtecs.simulations.skymap import update_skymap_probabilities
+from gtecs.simulations.weather import Weather
 
 import obsdb as db
-
-from . import params as simparams
-from .misc import estimate_completion_time, get_night_times, set_pointing_status
-from .skymap import update_skymap_probabilities
-from .weather import Weather
 
 
 class DummyPilot(object):
