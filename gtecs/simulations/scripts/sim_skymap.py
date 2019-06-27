@@ -11,14 +11,17 @@ daemons.
 import argparse
 import warnings
 
+from astropy import units as u
+
 from gotoalert.alert import event_handler
 
 from gototile.skymap import SkyMap
 
 from gtecs import logger
+from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.pilot import run as run_pilot
+from gtecs.simulations.pilot import FakePilot
 
 
 warnings.simplefilter("ignore", DeprecationWarning)
@@ -26,6 +29,9 @@ warnings.simplefilter("ignore", DeprecationWarning)
 
 def run(fits_path):
     """Run the simulation."""
+    # Create a log file
+    log = logger.get_logger('sim_skymap', log_stdout=False, log_to_file=True, log_to_stdout=True)
+
     # Prepare the ObsDB
     prepare_database()
 
@@ -35,9 +41,6 @@ def run(fits_path):
     # Create the Event
     event = FakeEvent(skymap)
 
-    # Create a log file
-    log = logger.get_logger('sim_skymap', log_stdout=False, log_to_file=True, log_to_stdout=True)
-
     # Handle the event
     # This should add tiles to the observation database, using the appropriate strategy
     event_handler(event, log=log)
@@ -45,8 +48,27 @@ def run(fits_path):
     # Get the night to simulate
     date = event.time.strftime('%Y-%m-%d')
 
-    # Run the fake pilot for that night
-    run_pilot(date, log=log)
+    # Get sun rise and set times
+    sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
+
+    # Create the pilot
+    pilot = FakePilot(start_time=sunset, stop_time=sunrise, log=log)
+
+    # Loop until the night is over
+    pilot.observe()
+
+    # Print results
+    print('{} pointings completed:'.format(len(pilot.completed_pointings)))
+    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+        print(pointing_id, timedone.iso)
+
+    print('{} pointings aborted:'.format(len(pilot.aborted_pointings)))
+    for pointing_id in pilot.aborted_pointings:
+        print(pointing_id)
+
+    print('{} pointings interrupted:'.format(len(pilot.interrupted_pointings)))
+    for pointing_id in pilot.interrupted_pointings:
+        print(pointing_id)
 
 
 if __name__ == "__main__":
