@@ -2,25 +2,21 @@
 """A fake pilot to test the scheduler."""
 
 import os
-import warnings
 from time import sleep
 
 from astropy import units as u
 from astropy.time import TimeDelta
 
-from gtecs import logger
-from gtecs import params
-from gtecs import scheduler
-from gtecs.astronomy import get_night_times, night_startdate
-from gtecs.simulations import params as simparams
-from gtecs.simulations.misc import estimate_completion_time
-from gtecs.simulations.weather import Weather
-
 import obsdb as db
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
-
-warnings.simplefilter("ignore", DeprecationWarning)
+from . import params as simparams
+from .misc import estimate_completion_time
+from .weather import Weather
+from .. import logger
+from .. import params
+from .. import scheduler
+from ..astronomy import get_night_times, night_startdate
 
 
 class FakePilot(object):
@@ -269,19 +265,3 @@ def run(date=None):
     print('{} pointings interrupted:'.format(len(pilot.interrupted_pointings)))
     for pointing_id in pilot.interrupted_pointings:
         print(pointing_id)
-
-
-if __name__ == "__main__":
-    import argparse
-
-    usage = 'python fake_pilot.py date'
-
-    parser = argparse.ArgumentParser(description='Run the fake pilot for a night',
-                                     usage=usage)
-    parser.add_argument('date',
-                        nargs='?',
-                        default=None,
-                        help='night starting date to simulate')
-    args = parser.parse_args()
-
-    run(args.date)
