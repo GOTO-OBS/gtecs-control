@@ -12,6 +12,7 @@ import argparse
 import warnings
 
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 
 from gotoalert.alert import event_handler
 
@@ -83,6 +84,13 @@ def run(fits_path):
         for tile in tiles:
             print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
+        # Get where the actual event was
+        source = SkyCoord(skymap.header['source_ra'], skymap.header['source_dec'], unit='deg')
+        source_tiles = grid.get_tile(source, overlap=True)
+        print('Source was in tiles:', source_tiles)
+        source_observed = any(tile in tiles for tile in source_tiles)
+        print('Source observed?:', source_observed)
+
         # Plot tiles on skymap
         grid.apply_skymap(event.skymap)
         notvisible_tiles = get_notvisible_tiles(event, start_time, stop_time)
@@ -90,6 +98,7 @@ def run(fits_path):
                   plot_skymap=True,
                   plot_contours=True,
                   color={tilename: '0.5' for tilename in notvisible_tiles},
+                  coordinates=source,
                   )
 
 
