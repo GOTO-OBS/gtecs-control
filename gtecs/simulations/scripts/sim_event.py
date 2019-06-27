@@ -43,8 +43,14 @@ def run(ivorn):
     # Get sun rise and set times
     sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
 
+    # If the event occurs after sunset there's no reason to simulate the start of the night
+    if event.time > sunset:
+        start_time = event.time
+    else:
+        start_time = sunset
+
     # Create the pilot
-    pilot = FakePilot(start_time=sunset, stop_time=sunrise, log=log)
+    pilot = FakePilot(start_time=start_time, stop_time=sunrise, log=log)
 
     # Loop until the night is over
     pilot.observe()
