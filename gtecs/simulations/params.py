@@ -9,7 +9,7 @@ SLEWRATE = 5 * u.degree / u.s
 READOUT_TIME = 10 * u.s
 
 # Pilot params
-TIMESTEP = 60 * 7 * u.s
+TIMESTEP = 60 * 3.75 * u.s
 ENABLE_WEATHER = False
 SLEEP_TIME = 0
 WRITE_QUEUE = False
