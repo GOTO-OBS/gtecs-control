@@ -69,20 +69,24 @@ def run(fits_path):
     # Print and plot results
     print('{} pointings completed'.format(len(pilot.completed_pointings)))
 
-    # Get grid and tiles
-    with db.open_session() as session:
-        db_pointings = db.get_pointings(session, pilot.completed_pointings)
-        all_tiles = [p.grid_tile.name for p in db_pointings]
+    if len(pilot.completed_pointings) > 0:
+        # Get grid and tiles
+        with db.open_session() as session:
+            db_pointings = db.get_pointings(session, pilot.completed_pointings)
+            all_tiles = [p.grid_tile.name for p in db_pointings]
 
-    # Account for multiple observations of the same tile
-    tiles = list(set(all_tiles))
-    print('{} tiles covered:'.format(len(tiles)))
-    for tile in tiles:
-        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+        # Account for multiple observations of the same tile
+        tiles = list(set(all_tiles))
+        print('{} tiles covered:'.format(len(tiles)))
+        for tile in tiles:
+            print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
-    # Plot tiles on skymap
-    grid.apply_skymap(skymap)
-    grid.plot(plot_skymap=True, plot_contours=True, highlight=tiles)
+        # Plot tiles on skymap
+        grid.apply_skymap(skymap)
+        if len(tiles) > 0:
+            grid.plot(plot_skymap=True, plot_contours=True, highlight=tiles)
+        else:
+            grid.plot(plot_skymap=True, plot_contours=True)
 
 
 if __name__ == "__main__":
