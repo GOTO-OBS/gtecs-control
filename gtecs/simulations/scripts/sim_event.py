@@ -15,6 +15,7 @@ from gotoalert.alert import event_handler
 from gotoalert.events import Event
 
 from gtecs import logger
+from gtecs.simulations.database import prepare_database
 from gtecs.simulations.pilot import run as run_pilot
 
 
@@ -23,6 +24,9 @@ warnings.simplefilter("ignore", DeprecationWarning)
 
 def run(ivorn):
     """Run the simulation."""
+    # Prepare the ObsDB
+    prepare_database()
+
     # Create the Event
     event = Event.from_ivorn(ivorn)
 
