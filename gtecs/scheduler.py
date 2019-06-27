@@ -526,7 +526,7 @@ def what_to_do_next(current_pointing, highest_pointing, log=None):
     return new_pointing
 
 
-def check_queue(time=None, write_html=False, log=None):
+def check_queue(time=None, write_file=True, write_html=False, log=None):
     """Check the queue and decide what to do.
 
     Check the current pointings in the queue, find the highest priority at
@@ -538,10 +538,13 @@ def check_queue(time=None, write_html=False, log=None):
     time : `~astropy.time.Time`
         The time to calculate the priorities at.
         Default is `astropy.time.Time.now()`.
-    write_html : Bool
+
+    write_file : bool, optional
+        Should the scheduler write out the queue to a file?
+        Default is True.
+    write_html : bool, optional
         Should the scheduler write the HTML queue webpage?
         Default is False.
-
     log: `logging.Logger`, optional
         log object to direct output to
 
@@ -569,8 +572,9 @@ def check_queue(time=None, write_html=False, log=None):
     highest_pointing = queue.get_highest_priority_pointing(time, observer)
 
     # Write out the queue file and web pages
-    queue_file = os.path.join(params.QUEUE_PATH, 'queue_info')
-    queue.write_to_file(time, observer, queue_file)
+    if write_file:
+        queue_file = os.path.join(params.QUEUE_PATH, 'queue_info')
+        queue.write_to_file(time, observer, queue_file)
     if write_html:
         # TODO this could be run from elsewhere
         html.write_queue_page()

@@ -129,6 +129,7 @@ class FakePilot(object):
         """Find current highest priority from the scheduler."""
         self.log.info('checking scheduler')
         new_pointing = scheduler.check_queue(self.now,
+                                             write_file=simparams.WRITE_QUEUE,
                                              write_html=simparams.WRITE_HTML,
                                              log=self.log)
         if new_pointing is not None:
