@@ -40,11 +40,8 @@ def run(ivorn):
     # This should add tiles to the observation database, using the appropriate strategy
     event_handler(event, log=log)
 
-    # Get the night to simulate
-    date = event.time.strftime('%Y-%m-%d')
-
     # Get sun rise and set times
-    sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
+    sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
 
     # Create the pilot
     pilot = FakePilot(start_time=sunset, stop_time=sunrise, log=log)

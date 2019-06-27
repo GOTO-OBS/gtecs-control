@@ -5,9 +5,10 @@ import argparse
 import warnings
 
 from astropy import units as u
+from astropy.time import Time
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times, night_startdate
+from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.pilot import FakePilot
 
@@ -25,7 +26,7 @@ def run(date):
 
     # If no date is given use tonight
     if date is None:
-        date = night_startdate()
+        date = Time.now()
 
     # Get sun rise and set times
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)

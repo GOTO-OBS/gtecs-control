@@ -253,13 +253,16 @@ def get_sunalt(now):
 
 
 @u.quantity_input(horizon=u.deg)
-def get_night_times(date, horizon=-15 * u.deg):
-    """Calculate the start and stop times of a given date.
+def get_night_times(time, horizon=-15 * u.deg):
+    """Calculate the night start and stop times for a given time.
+
+    If the time is during the night the times for that night are returned.
+    If not, the times for the following night are returned.
 
     Parameters
     ----------
-    date : string
-        night starting date (YYYY-MM-DD)
+    time : `astropy.time.Time`
+        night starting date
     horizon : float, optional
         horizon below which night is defined
         default is -15 degrees
@@ -267,13 +270,19 @@ def get_night_times(date, horizon=-15 * u.deg):
     Returns
     -------
     sun_set_time, sun_rise_time : 2-tuple of `astropy.time.Time`
-        The time the Sun sets and rises for the given night
+        The time the Sun sets and rises for the selected night
 
     """
-    noon = Time(date + " 12:00:00")
     observer = Observer(location=observatory_location())
-    sun_set_time = observer.sun_set_time(noon, which='next', horizon=horizon)
-    sun_rise_time = observer.sun_rise_time(noon, which='next', horizon=horizon)
+
+    if observer.is_night(time, horizon=horizon):
+        # The time is during the night
+        sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon)
+    else:
+        # The time is during the day
+        sun_set_time = observer.sun_set_time(time, which='next', horizon=horizon)
+    sun_rise_time = observer.sun_rise_time(sun_set_time, which='next', horizon=horizon)
+
     return sun_set_time, sun_rise_time
 
 
