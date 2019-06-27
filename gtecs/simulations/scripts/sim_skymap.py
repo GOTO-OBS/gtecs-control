@@ -15,6 +15,7 @@ from astropy import units as u
 
 from gotoalert.alert import event_handler
 
+from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
@@ -22,6 +23,8 @@ from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.pilot import FakePilot
+
+import obsdb as db
 
 
 warnings.simplefilter("ignore", DeprecationWarning)
@@ -32,8 +35,11 @@ def run(fits_path):
     # Create a log file
     log = logger.get_logger('sim_skymap', log_stdout=False, log_to_file=True, log_to_stdout=True)
 
+    # Hardcode the GOTO-4 grid, for now
+    grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+
     # Prepare the ObsDB
-    prepare_database()
+    prepare_database(grid)
 
     # Load the skymap
     skymap = SkyMap.from_fits(fits_path)
@@ -60,18 +66,23 @@ def run(fits_path):
     # Loop until the night is over
     pilot.observe()
 
-    # Print results
-    print('{} pointings completed:'.format(len(pilot.completed_pointings)))
-    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
-        print(pointing_id, timedone.iso)
+    # Print and plot results
+    print('{} pointings completed'.format(len(pilot.completed_pointings)))
 
-    print('{} pointings aborted:'.format(len(pilot.aborted_pointings)))
-    for pointing_id in pilot.aborted_pointings:
-        print(pointing_id)
+    # Get grid and tiles
+    with db.open_session() as session:
+        db_pointings = db.get_pointings(session, pilot.completed_pointings)
+        all_tiles = [p.grid_tile.name for p in db_pointings]
 
-    print('{} pointings interrupted:'.format(len(pilot.interrupted_pointings)))
-    for pointing_id in pilot.interrupted_pointings:
-        print(pointing_id)
+    # Account for multiple observations of the same tile
+    tiles = list(set(all_tiles))
+    print('{} tiles covered:'.format(len(tiles)))
+    for tile in tiles:
+        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+
+    # Plot tiles on skymap
+    grid.apply_skymap(skymap)
+    grid.plot(plot_skymap=True, plot_contours=True, highlight=tiles)
 
 
 if __name__ == "__main__":
