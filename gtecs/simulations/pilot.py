@@ -248,8 +248,12 @@ class FakePilot(object):
         self.session.close()
 
 
-def run(date):
+def run(date=None):
     """Run the fake pilot."""
+    # If no date is given use tonight
+    if date is None:
+        date = night_startdate()
+
     # Get sun rise and set times
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
@@ -260,32 +264,29 @@ def run(date):
     pilot.observe()
 
     # Print results
-    n_completed = len(pilot.completed_pointings)
-    print('Listing completed pointings ({}) and time done'.format(n_completed))
-    for db_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
-        print(db_id, timedone)
+    print('{} pointings completed:'.format(len(pilot.completed_pointings)))
+    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+        print(pointing_id, timedone.iso)
 
-    n_aborted = len(pilot.aborted_pointings)
-    print('Listing pointings aborted due to bad weather ({})'.format(n_aborted))
-    for db_id in pilot.aborted_pointings:
-        print(db_id)
+    print('{} pointings aborted:'.format(len(pilot.aborted_pointings)))
+    for pointing_id in pilot.aborted_pointings:
+        print(pointing_id)
 
-    n_interrupted = len(pilot.interrupted_pointings)
-    print('Listing pointings interrupted by other pointings ({})'.format(n_interrupted))
-    for db_id in pilot.interrupted_pointings:
-        print(db_id)
+    print('{} pointings interrupted:'.format(len(pilot.interrupted_pointings)))
+    for pointing_id in pilot.interrupted_pointings:
+        print(pointing_id)
 
 
 if __name__ == "__main__":
     import argparse
 
-    usage = 'python fake_pilot.py date sleep_time write_html'
+    usage = 'python fake_pilot.py date'
 
     parser = argparse.ArgumentParser(description='Run the fake pilot for a night',
                                      usage=usage)
     parser.add_argument('date',
                         nargs='?',
-                        default=night_startdate(),
+                        default=None,
                         help='night starting date to simulate')
     args = parser.parse_args()
 
