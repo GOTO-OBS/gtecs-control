@@ -8,24 +8,6 @@ import obsdb as db
 from . import params as simparams
 
 
-def set_pointing_status(db_id, status, session):
-    """Mark a pointing as completed, aborted etc."""
-    if status not in ['aborted', 'completed', 'interrupted', 'running']:
-        print('Illegal status:', status)
-        return 1
-    else:
-        print('    Marking pointing', db_id, 'as', status)
-        try:
-            pointing = db.get_pointing_by_id(session, db_id)
-            pointing.status = status
-            session.commit()
-            return 0
-        except Exception:
-            session.rollback()
-            print('Session error!!')
-            return 1
-
-
 def estimate_completion_time(new_id, current_id, session):
     """Extimate the exposure time for a new pointing.
 
