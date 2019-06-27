@@ -84,3 +84,23 @@ def clear_database(session):
     if ps:
         print('Deleting {} previous Pointings'.format(len(ps)))
         db.bulk_update_status(session, ps, 'deleted')
+
+
+def reschedule_pointing(pointing_id, time):
+    """Run the caretaker step to make new Pointings from Mpointings."""
+    with db.open_session() as session:
+        # Get the previous pointing, which should be marked as completed already
+        old_pointing = db.get_pointing_by_id(session, pointing_id)
+
+        # We need to fake the stopped_time, otherwise the new Pointing won't be created
+        # (it's due to the start_time >= stop_time in Mpointing.get_next_pointing)
+        old_pointing.stopped_time = time.to_datetime()
+        session.commit()
+
+        # Get the Mpointing
+        mpointing = old_pointing.mpointing
+
+        # Create the next pointing, and add it to the database
+        new_pointing = mpointing.get_next_pointing()
+        if new_pointing is not None:
+            session.add(new_pointing)

@@ -11,6 +11,7 @@ import obsdb as db
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from . import params as simparams
+from .database import reschedule_pointing
 from .misc import estimate_completion_time
 from .weather import Weather
 from .. import logger
@@ -70,6 +71,8 @@ class FakePilot(object):
             mark_completed(self.current_id)
             self.completed_pointings.append(self.current_id)
             self.completed_times.append(self.now)
+            # Schedule the next pointing, since we don't have a caretaker
+            reschedule_pointing(self.current_id, self.now)
 
         elif status == 'aborted':
             mark_aborted(self.current_id)
@@ -77,6 +80,8 @@ class FakePilot(object):
             self.current_id = None
             self.current_duration = None
             self.current_position = None
+            # Schedule the next pointing, since we don't have a caretaker
+            reschedule_pointing(self.current_id, self.now)
 
         elif status == 'interrupted':
             mark_interrupted(self.current_id)
@@ -84,6 +89,8 @@ class FakePilot(object):
             self.current_id = None
             self.current_duration = None
             self.current_position = None
+            # Schedule the next pointing, since we don't have a caretaker
+            reschedule_pointing(self.current_id, self.now)
 
     def pause_observing(self):
         """Pause the system."""
