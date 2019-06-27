@@ -27,12 +27,15 @@ class FakePilot(object):
     it is supposed to be currently doing.
     """
 
-    def __init__(self, start_time, stop_time):
-        # get a logger for the pilot
-        self.log = logger.get_logger('fake_pilot',
-                                     log_stdout=False,
-                                     log_to_file=True,
-                                     log_to_stdout=True)
+    def __init__(self, start_time, stop_time, log=None):
+        # get a logger for the pilot if none is given
+        if not log:
+            self.log = logger.get_logger('fake_pilot',
+                                         log_stdout=False,
+                                         log_to_file=True,
+                                         log_to_stdout=True)
+        else:
+            self.log = log
         self.log.info('Pilot started')
 
         self.start_time = start_time
@@ -238,7 +241,7 @@ class FakePilot(object):
         self.log_state()
 
 
-def run(date=None):
+def run(date=None, log=None):
     """Run the fake pilot."""
     # If no date is given use tonight
     if date is None:
@@ -248,7 +251,7 @@ def run(date=None):
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
     # Create the pilot
-    pilot = FakePilot(start_time=sunset, stop_time=sunrise)
+    pilot = FakePilot(start_time=sunset, stop_time=sunrise, log=log)
 
     # Loop until the night is over
     pilot.observe()

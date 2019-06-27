@@ -14,6 +14,7 @@ import warnings
 from gotoalert.alert import event_handler
 from gotoalert.events import Event
 
+from gtecs import logger
 from gtecs.simulations.pilot import run as run_pilot
 
 
@@ -25,15 +26,18 @@ def run(ivorn):
     # Create the Event
     event = Event.from_ivorn(ivorn)
 
+    # Create a log file
+    log = logger.get_logger('sim_event', log_stdout=False, log_to_file=True, log_to_stdout=True)
+
     # Handle the event
     # This should add tiles to the observation database, using the appropriate strategy
-    event_handler(event)
+    event_handler(event, log=log)
 
     # Get the night to simulate
     date = event.time.strftime('%Y-%m-%d')
 
     # Run the fake pilot for that night
-    run_pilot(date)
+    run_pilot(date, log=log)
 
 
 if __name__ == "__main__":
