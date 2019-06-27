@@ -1,7 +1,11 @@
 """Miscellaneous functions for simulations."""
 
+from astroplan import AltitudeConstraint, AtNightConstraint, Observer, is_observable
+
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+
+import numpy as np
 
 import obsdb as db
 
@@ -33,3 +37,22 @@ def estimate_completion_time(new_id, current_id):
         else:
             slew_time = 0 * u.s
     return slew_time + total_exptime
+
+
+def get_notvisible_tiles(event, start_time, stop_time):
+    """A simple function that should be somewhere better."""
+
+    observer = Observer.at_site('lapalma')
+
+    min_alt = float(event.strategy['constraints_dict']['min_alt']) * u.deg
+    max_sunalt = float(event.strategy['constraints_dict']['max_sunalt']) * u.deg
+    alt_constraint = AltitudeConstraint(min=min_alt)
+    night_constraint = AtNightConstraint(max_solar_altitude=max_sunalt)
+    constraints = [alt_constraint, night_constraint]
+
+    tiles_visible_mask = is_observable(constraints, observer, event.grid.coords,
+                                       time_range=[start_time, stop_time])
+    tiles_notvisible_mask = np.invert(tiles_visible_mask)
+    tiles_notvisible = np.array(event.grid.tilenames)[tiles_notvisible_mask]
+
+    return tiles_notvisible

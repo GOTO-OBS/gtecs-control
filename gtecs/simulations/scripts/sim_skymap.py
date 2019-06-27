@@ -22,6 +22,7 @@ from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
+from gtecs.simulations.misc import get_notvisible_tiles
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -59,9 +60,10 @@ def run(fits_path):
         start_time = event.time
     else:
         start_time = sunset
+    stop_time = sunrise
 
     # Create the pilot
-    pilot = FakePilot(start_time=start_time, stop_time=sunrise, log=log)
+    pilot = FakePilot(start_time, stop_time, log=log)
 
     # Loop until the night is over
     pilot.observe()
@@ -82,11 +84,13 @@ def run(fits_path):
             print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
         # Plot tiles on skymap
-        grid.apply_skymap(skymap)
-        if len(tiles) > 0:
-            grid.plot(plot_skymap=True, plot_contours=True, highlight=tiles)
-        else:
-            grid.plot(plot_skymap=True, plot_contours=True)
+        grid.apply_skymap(event.skymap)
+        notvisible_tiles = get_notvisible_tiles(event, start_time, stop_time)
+        grid.plot(highlight=tiles,
+                  plot_skymap=True,
+                  plot_contours=True,
+                  color={tilename: '0.5' for tilename in notvisible_tiles},
+                  )
 
 
 if __name__ == "__main__":
