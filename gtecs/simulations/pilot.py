@@ -145,40 +145,33 @@ class FakePilot(object):
     def log_state(self):
         """Write the current state of the pilot to a log file."""
         state = 'unknown'
-        if self.pilot_status == 'Suspended':
-            state = 'manual'
-        elif not self.dome_open:
+        if not self.dome_open:
             state = 'closed'
         elif self.current_id is not None:
-            current_pointing = db.get_pointing_by_id(self.session, self.current_id)
-            self.current_name = current_pointing.object_name
-            self.current_ra = current_pointing.ra
-            self.current_dec = current_pointing.dec
-            survey_tile = current_pointing.survey_tile
-            if survey_tile:
-                self.current_probability = survey_tile.current_weight
-            else:
-                self.current_probability = 0
-
-            state = 'OBS: {} ("{}"; {:.4f}; {:.4f}; prob: {:.7f}%)'.format(
-                self.current_id,
-                self.current_name,
-                self.current_ra,
-                self.current_dec,
-                self.current_probability * 100,
-            )
+            with db.open_session() as session:
+                current_pointing = db.get_pointing_by_id(session, self.current_id)
+                current_name = current_pointing.object_name
+                current_ra = current_pointing.ra
+                current_dec = current_pointing.dec
+                if current_pointing.survey_tile:
+                    current_probability = current_pointing.survey_tile.current_weight
+                else:
+                    current_probability = 0
+                state = 'obs;{};{};{:.4f};{:.4f};{:.7f}'.format(
+                    self.current_id, current_name, current_ra, current_dec, current_probability)
+        elif self.now == self.start_time:
+            state = 'starting observing'
+        elif self.now > self.stop_time:
+            state = 'finished observing'
         else:
             state = 'idle'
-        fname = os.path.join(params.FILE_PATH, 'state_log.txt')
+        fname = os.path.join(params.FILE_PATH, 'fake_pilot_log')
         with open(fname, 'a') as f:
-            f.write('%s %s\n' % (self.now.iso, state))
+            f.write('{};{}\n'.format(self.now.iso, state))
 
     def observe(self):
         """Run through the pilot tasks from the start time to the stop time."""
         self.log.info('observing')
-
-        # Create a single database session
-        self.session = db.load_session()
 
         # Run until stop time is reached
         self.now = self.start_time
@@ -220,8 +213,7 @@ class FakePilot(object):
                 self.log.info('starting pointing {}'.format(self.new_id))
                 self.current_id = self.new_id
                 self.current_mintime = self.new_mintime
-                self.current_duration = estimate_completion_time(self.new_id, self.current_id,
-                                                                 self.session)
+                self.current_duration = estimate_completion_time(self.new_id, self.current_id)
                 self.current_start_time = self.now
                 self.mark_current_pointing('running')
             else:
@@ -244,8 +236,8 @@ class FakePilot(object):
         if self.current_id is not None:
             self.mark_current_pointing('aborted')
 
-        # Remember to close the DB session
-        self.session.close()
+        # Final log entry
+        self.log_state()
 
 
 def run(date=None):
