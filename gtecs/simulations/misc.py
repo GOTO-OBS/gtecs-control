@@ -1,11 +1,7 @@
 """Miscellaneous functions for simulations."""
 
-from astroplan import AltitudeConstraint, AtNightConstraint, Observer, is_observable
-
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-
-import numpy as np
 
 import obsdb as db
 
@@ -92,34 +88,23 @@ def source_selected(event, grid):
     return source_selected
 
 
-def get_visible_tiles(event, grid, start_time, stop_time):
-    """Get the tiles that are visible from La Palma within the given time."""
-    if hasattr(event, '_visible_tiles'):
-        return event._visible_tiles
-
-    # Create the Observer
-    observer = Observer(observatory_location())
-
-    # Create the constraints
-    min_alt = float(event.strategy['constraints_dict']['min_alt']) * u.deg
-    max_sunalt = float(event.strategy['constraints_dict']['max_sunalt']) * u.deg
-    alt_constraint = AltitudeConstraint(min=min_alt)
-    night_constraint = AtNightConstraint(max_solar_altitude=max_sunalt)
-    constraints = [alt_constraint, night_constraint]
-
-    # Find which of the grid tiles will be visible
-    mask = is_observable(constraints, observer, grid.coords, time_range=(start_time, stop_time))
-
-    # Return the names of which tiles are visible
-    visible_tiles = np.array(grid.tilenames)[mask]
-    event._visible_tiles = visible_tiles
+def get_visible_tiles(event, grid, time_range=None):
+    """Get the tiles that are visible from La Palma within the given times."""
+    # Get the visible tiles from the grid for the given times
+    min_alt = float(event.strategy['constraints_dict']['min_alt'])
+    max_sunalt = float(event.strategy['constraints_dict']['max_sunalt'])
+    visible_tiles = grid.get_visible_tiles(observatory_location(),
+                                           time_range=time_range,
+                                           alt_limit=min_alt,
+                                           sun_limit=max_sunalt,
+                                           )
     return visible_tiles
 
 
 def source_visible(event, grid, start_time, stop_time):
-    """Return True if the source is visible on the given night."""
+    """Return True if the source is visible between the given times."""
     # Get the visble and source tiles
-    visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
     source_tiles = get_source_tiles(event, grid)
 
     # Is the source visible during the night?
