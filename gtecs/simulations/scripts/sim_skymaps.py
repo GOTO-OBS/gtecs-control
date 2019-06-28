@@ -139,6 +139,18 @@ def run(fits_direc):
     print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
                                                   len(observed_events) / len(fits_files)))
 
+    print('-----')
+    print('not_selected events:')
+    print(not_selected_events)
+    print('never_visible events:')
+    print(never_visible_events)
+    print('not_visible events:')
+    print(not_visible_events)
+    print('not_observed events:')
+    print(not_observed_events)
+    print('observed events:')
+    print(observed_events)
+
 
 if __name__ == "__main__":
     description = 'Process skymaps using the fake pilot to simulate a night of observations'
