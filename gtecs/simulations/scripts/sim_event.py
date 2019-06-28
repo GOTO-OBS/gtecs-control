@@ -16,7 +16,7 @@ from astropy import units as u
 from gotoalert.alert import event_handler
 from gotoalert.events import Event
 
-from gototile import SkyGrid
+from gototile.grid import SkyGrid
 
 from gtecs import logger
 from gtecs.astronomy import get_night_times
