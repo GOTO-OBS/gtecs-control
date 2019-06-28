@@ -12,7 +12,6 @@ import argparse
 import warnings
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
 
 from gotoalert.alert import event_handler
 

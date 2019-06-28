@@ -76,13 +76,13 @@ def clear_database(session):
     # Get all Mpointings and set them to deleted
     mps = session.query(db.Mpointing).filter(db.Mpointing.status != 'deleted').all()
     if mps:
-        print('Deleting {} previous Mpointings'.format(len(mps)))
+        # print('Deleting {} previous Mpointings'.format(len(mps)))
         db.bulk_update_status(session, mps, 'deleted')
 
     # Get all Pointings and set them to deleted
     ps = session.query(db.Pointing).filter(db.Pointing.status != 'deleted').all()
     if ps:
-        print('Deleting {} previous Pointings'.format(len(ps)))
+        # print('Deleting {} previous Pointings'.format(len(ps)))
         db.bulk_update_status(session, ps, 'deleted')
 
 
