@@ -8,8 +8,8 @@ The only major fake code is the pilot itself, and we don't bother using the real
 daemons.
 """
 
-import os
 import argparse
+import os
 import warnings
 
 from astropy import units as u
@@ -23,7 +23,8 @@ from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import get_source_tiles, source_selected, source_visible
+from gtecs.simulations.misc import (get_source_tiles, source_ever_visible, source_selected,
+                                    source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -48,6 +49,7 @@ def run(fits_direc):
     # Create output lists
     not_selected_events = []
     not_visible_events = []
+    never_visible_events = []
     not_observed_events = []
     observed_events = []
 
@@ -79,6 +81,13 @@ def run(fits_direc):
         if not source_selected(event, grid):
             print('not_selected')
             not_selected_events.append(event_id)
+            continue
+
+        # Check if the source will ever be visible from La Palma
+        # If not there's no point running through the simulation
+        if not source_ever_visible(event, grid):
+            print('never_visible')
+            never_visible_events.append(event_id)
             continue
 
         # Check if the source will be visible during the given time
@@ -119,14 +128,16 @@ def run(fits_direc):
             continue
 
     print('-----')
-    print('not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
-                                                 len(not_selected_events) / len(fits_files)))
-    print(' not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
-                                                 len(not_visible_events) / len(fits_files)))
-    print('not_observed: {}/{} ({:7.5f})'.format(len(not_observed_events), len(fits_files),
-                                                 len(not_observed_events) / len(fits_files)))
-    print('    observed: {}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
-                                                 len(observed_events) / len(fits_files)))
+    print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
+                                                  len(not_selected_events) / len(fits_files)))
+    print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
+                                                  len(never_visible_events) / len(fits_files)))
+    print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
+                                                  len(not_visible_events) / len(fits_files)))
+    print(' not_observed: {}/{} ({:7.5f})'.format(len(not_observed_events), len(fits_files),
+                                                  len(not_observed_events) / len(fits_files)))
+    print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
+                                                  len(observed_events) / len(fits_files)))
 
 
 if __name__ == "__main__":

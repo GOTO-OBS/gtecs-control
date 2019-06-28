@@ -111,3 +111,15 @@ def source_visible(event, grid, start_time, stop_time):
     # If not we're never going to observe it, so might as well end the simulation here
     source_visible = any(tile in visible_tiles for tile in source_tiles)
     return source_visible
+
+
+def source_ever_visible(event, grid):
+    """Return True if the source is ever visible from La Palma."""
+    # Get the visble and source tiles
+    ever_visible_tiles = get_visible_tiles(event, grid, None)
+    source_tiles = get_source_tiles(event, grid)
+
+    # Is the source visible during the night?
+    # If not we're never going to observe it, so might as well end the simulation here
+    source_visible = any(tile in ever_visible_tiles for tile in source_tiles)
+    return source_visible
