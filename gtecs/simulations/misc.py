@@ -70,11 +70,12 @@ def get_source_tiles(event, grid):
     event.get_skymap()
     event.get_strategy()
 
-    source = SkyCoord(event.skymap.header['source_ra'],
-                      event.skymap.header['source_dec'],
-                      unit='deg')
+    if not hasattr(event, 'source_coord'):
+        event.source_coord = SkyCoord(event.skymap.header['source_ra'],
+                                      event.skymap.header['source_dec'],
+                                      unit='deg')
 
-    source_tiles = grid.get_tile(source, overlap=True)
+    source_tiles = grid.get_tile(event.source_coord, overlap=True)
     event._source_tiles = source_tiles
     return source_tiles
 

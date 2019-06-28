@@ -23,7 +23,8 @@ from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import get_visible_tiles, source_selected, source_visible
+from gtecs.simulations.misc import (get_source_tiles, get_visible_tiles,
+                                    source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -93,36 +94,41 @@ def run(fits_path):
 
     # Print and plot results
     print('{} pointings completed'.format(len(pilot.completed_pointings)))
+    if len(pilot.completed_pointings) == 0:
+        print('Did not observe any pointings')
+        print('Exiting')
+        return
 
-    if len(pilot.completed_pointings) > 0:
-        # Get grid and tiles
-        with db.open_session() as session:
-            db_pointings = db.get_pointings(session, pilot.completed_pointings)
-            all_tiles = [p.grid_tile.name for p in db_pointings]
+    # Get grid and tiles
+    with db.open_session() as session:
+        db_pointings = db.get_pointings(session, pilot.completed_pointings)
+        all_tiles = [p.grid_tile.name for p in db_pointings]
 
-        # Account for multiple observations of the same tile
-        tiles = list(set(all_tiles))
-        print('{} tiles covered:'.format(len(tiles)))
-        for tile in tiles:
-            print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+    # Account for multiple observations of the same tile
+    observed_tiles = list(set(all_tiles))
+    print('{} tiles covered:'.format(len(observed_tiles)))
+    for tile in observed_tiles:
+        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
-        # Get where the actual event was
-        source = SkyCoord(skymap.header['source_ra'], skymap.header['source_dec'], unit='deg')
-        source_tiles = grid.get_tile(source, overlap=True)
-        print('Source was in tiles:', source_tiles)
-        source_observed = any(tile in tiles for tile in source_tiles)
-        print('Source observed?:', source_observed)
+    # Get where the actual event was
+    source_tiles = get_source_tiles(event, grid)
+    print('Source was in tiles:', source_tiles)
+    source_observed = any(tile in observed_tiles for tile in source_tiles)
+    print('Source observed?:', source_observed)
+    if source_observed:
+        print('Source was observed {} times'.format(sum([all_tiles.count(tile)
+                                                         for tile in source_tiles])))
 
-        # Plot tiles on skymap
-        grid.apply_skymap(event.skymap)
-        visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
-        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
-        grid.plot(highlight=tiles,
-                  plot_skymap=True,
-                  plot_contours=True,
-                  color={tilename: '0.5' for tilename in notvisible_tiles},
-                  coordinates=source,
-                  )
+    # Plot tiles on skymap
+    grid.apply_skymap(event.skymap)
+    visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+    notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
+    grid.plot(highlight=observed_tiles,
+              plot_skymap=True,
+              plot_contours=True,
+              color={tilename: '0.5' for tilename in notvisible_tiles},
+              coordinates=event.source_coord,
+              )
 
 
 if __name__ == "__main__":

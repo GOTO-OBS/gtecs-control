@@ -66,28 +66,31 @@ def run(ivorn):
 
     # Print and plot results
     print('{} pointings completed'.format(len(pilot.completed_pointings)))
+    if len(pilot.completed_pointings) == 0:
+        print('Did not observe any pointings')
+        print('Exiting')
+        return
 
-    if len(pilot.completed_pointings) > 0:
-        # Get grid and tiles
-        with db.open_session() as session:
-            db_pointings = db.get_pointings(session, pilot.completed_pointings)
-            all_tiles = [p.grid_tile.name for p in db_pointings]
+    # Get all observed tiles
+    with db.open_session() as session:
+        db_pointings = db.get_pointings(session, pilot.completed_pointings)
+        all_tiles = [p.grid_tile.name for p in db_pointings]
 
-        # Account for multiple observations of the same tile
-        tiles = list(set(all_tiles))
-        print('{} tiles covered:'.format(len(tiles)))
-        for tile in tiles:
-            print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+    # Account for multiple observations of the same tile
+    observed_tiles = list(set(all_tiles))
+    print('{} tiles covered:'.format(len(observed_tiles)))
+    for tile in observed_tiles:
+        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
-        # Plot tiles on skymap
-        grid.apply_skymap(event.skymap)
-        visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
-        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
-        grid.plot(highlight=tiles,
-                  plot_skymap=True,
-                  plot_contours=True,
-                  color={tilename: '0.5' for tilename in notvisible_tiles},
-                  )
+    # Plot tiles on skymap
+    grid.apply_skymap(event.skymap)
+    visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+    notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
+    grid.plot(highlight=observed_tiles,
+              plot_skymap=True,
+              plot_contours=True,
+              color={tilename: '0.5' for tilename in notvisible_tiles},
+              )
 
 
 if __name__ == "__main__":
