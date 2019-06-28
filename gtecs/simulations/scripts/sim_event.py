@@ -19,7 +19,7 @@ from gotoalert.events import Event
 from gototile.grid import SkyGrid
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times
+from gtecs.astronomy import get_night_times, observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.misc import get_visible_tiles
 from gtecs.simulations.pilot import FakePilot
@@ -59,21 +59,25 @@ def run(ivorn):
     stop_time = sunrise
 
     # Create the pilot
-    pilot = FakePilot(start_time, stop_time, log=log)
+    site = observatory_location()
+    pilot = FakePilot(site, start_time, stop_time, log=log)
 
     # Loop until the night is over
     pilot.observe()
 
+    # Get completed pointings
+    completed_pointings = pilot.completed_pointings[0]
+
     # Print and plot results
-    print('{} pointings completed'.format(len(pilot.completed_pointings)))
-    if len(pilot.completed_pointings) == 0:
+    print('{} pointings completed'.format(len(completed_pointings)))
+    if len(completed_pointings) == 0:
         print('Did not observe any pointings')
         print('Exiting')
         return
 
     # Get all observed tiles
     with db.open_session() as session:
-        db_pointings = db.get_pointings(session, pilot.completed_pointings)
+        db_pointings = db.get_pointings(session, completed_pointings)
         all_tiles = [p.grid_tile.name for p in db_pointings]
 
     # Account for multiple observations of the same tile
@@ -84,7 +88,7 @@ def run(ivorn):
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
-    visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
     notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
     grid.plot(highlight=observed_tiles,
               plot_skymap=True,

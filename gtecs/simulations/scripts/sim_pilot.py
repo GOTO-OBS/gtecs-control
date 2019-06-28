@@ -10,7 +10,7 @@ from astropy.time import Time
 from gototile.grid import SkyGrid
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times
+from gtecs.astronomy import get_night_times, observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.pilot import FakePilot
 
@@ -37,22 +37,29 @@ def run(date):
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
     # Create the pilot
-    pilot = FakePilot(start_time=sunset, stop_time=sunrise, log=log)
+    site = observatory_location()
+    pilot = FakePilot(site, sunset, sunrise, log=log)
 
     # Loop until the night is over
     pilot.observe()
 
+    # Get completed pointings
+    completed_pointings = pilot.completed_pointings[0]
+    completed_times = pilot.completed_times[0]
+    aborted_pointings = pilot.aborted_pointings[0]
+    interrupted_pointings = pilot.interrupted_pointings[0]
+
     # Print results
-    print('{} pointings completed:'.format(len(pilot.completed_pointings)))
-    for pointing_id, timedone in zip(pilot.completed_pointings, pilot.completed_times):
+    print('{} pointings completed:'.format(len(completed_pointings)))
+    for pointing_id, timedone in zip(completed_pointings, completed_times):
         print(pointing_id, timedone.iso)
 
-    print('{} pointings aborted:'.format(len(pilot.aborted_pointings)))
-    for pointing_id in pilot.aborted_pointings:
+    print('{} pointings aborted:'.format(len(aborted_pointings)))
+    for pointing_id in aborted_pointings:
         print(pointing_id)
 
-    print('{} pointings interrupted:'.format(len(pilot.interrupted_pointings)))
-    for pointing_id in pilot.interrupted_pointings:
+    print('{} pointings interrupted:'.format(len(interrupted_pointings)))
+    for pointing_id in interrupted_pointings:
         print(pointing_id)
 
 

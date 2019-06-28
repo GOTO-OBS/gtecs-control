@@ -4,7 +4,9 @@
 import os
 from time import sleep
 
+
 from astropy import units as u
+from astropy.coordinates import EarthLocation
 from astropy.time import TimeDelta
 
 import obsdb as db
@@ -27,7 +29,7 @@ class FakePilot(object):
     it is supposed to be currently doing.
     """
 
-    def __init__(self, start_time, stop_time, log=None):
+    def __init__(self, sites, start_time, stop_time, log=None):
         # get a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -38,143 +40,164 @@ class FakePilot(object):
             self.log = log
         self.log.info('Pilot started')
 
+        if isinstance(sites, EarthLocation):
+            self.sites = [sites]
+        else:
+            self.sites = sites
+        self.telescope_ids = range(len(self.sites))
+
         self.start_time = start_time
         self.stop_time = stop_time
 
         self.weather = Weather(self.start_time, self.stop_time)
 
-        self.current_id = None
-        self.current_mintime = None
-        self.current_start_time = None
-        self.current_duration = None
+        self.current_ids = [None] * len(self.telescope_ids)
+        self.current_mintimes = [None] * len(self.telescope_ids)
+        self.current_start_times = [None] * len(self.telescope_ids)
+        self.current_durations = [None] * len(self.telescope_ids)
 
-        self.new_id = None
-        self.new_mintime = None
+        self.new_ids = [None] * len(self.telescope_ids)
+        self.new_mintimes = [None] * len(self.telescope_ids)
 
-        self.completed_pointings = []
-        self.completed_times = []
-        self.interrupted_pointings = []
-        self.aborted_pointings = []
+        self.completed_pointings = [[]] * len(self.telescope_ids)
+        self.completed_times = [[]] * len(self.telescope_ids)
+        self.interrupted_pointings = [[]] * len(self.telescope_ids)
+        self.aborted_pointings = [[]] * len(self.telescope_ids)
 
-        self.dome_open = False
-        self.pilot_status = None
+        self.dome_open = [False] * len(self.telescope_ids)
+        self.pilot_status = [None] * len(self.telescope_ids)
 
-    def mark_current_pointing(self, status):
+    def mark_current_pointing(self, status, telescope_id=0):
         """Mark the current pointing as completed, aborted etc."""
-        self.log.info('marking pointing {} as {}'.format(self.current_id, status))
+        current_id = self.current_ids[telescope_id]
+        self.log.info('marking pointing {} as {}'.format(current_id, status))
 
         if status == 'running':
-            mark_running(self.current_id)
+            mark_running(current_id)
 
         elif status == 'completed':
-            mark_completed(self.current_id)
-            self.completed_pointings.append(self.current_id)
-            self.completed_times.append(self.now)
+            mark_completed(current_id)
+            self.completed_pointings[telescope_id].append(current_id)
+            self.completed_times[telescope_id].append(self.now)
             # Schedule the next pointing, since we don't have a caretaker
-            reschedule_pointing(self.current_id, self.now)
+            reschedule_pointing(current_id, self.now)
 
         elif status == 'aborted':
-            mark_aborted(self.current_id)
-            self.aborted_pointings.append(self.current_id)
-            self.current_id = None
-            self.current_duration = None
-            self.current_position = None
+            mark_aborted(current_id)
+            self.aborted_pointings[telescope_id].append(current_id)
+            self.current_ids[telescope_id] = None
             # Schedule the next pointing, since we don't have a caretaker
-            reschedule_pointing(self.current_id, self.now)
+            reschedule_pointing(current_id, self.now)
 
         elif status == 'interrupted':
-            mark_interrupted(self.current_id)
-            self.interrupted_pointings.append(self.current_id)
-            self.current_id = None
-            self.current_duration = None
-            self.current_position = None
+            mark_interrupted(current_id)
+            self.interrupted_pointings[telescope_id].append(current_id)
+            self.current_ids[telescope_id] = None
             # Schedule the next pointing, since we don't have a caretaker
-            reschedule_pointing(self.current_id, self.now)
+            reschedule_pointing(current_id, self.now)
 
-    def pause_observing(self):
+    def pause_observing(self, telescope_id):
         """Pause the system."""
         self.log.info('Pausing due to bad weather')
-        self.dome_open = False
-        self.pilot_status = 'Dome Closed'
-        if self.current_id is not None:
-            self.mark_current_pointing('aborted')
+        self.dome_open[telescope_id] = False
+        self.pilot_status[telescope_id] = 'Dome Closed'
+        if self.current_ids[telescope_id] is not None:
+            self.mark_current_pointing('aborted', telescope_id)
 
-    def resume_observing(self):
+    def resume_observing(self, telescope_id):
         """Unpause the system."""
-        self.dome_open = True
-        self.pilot_status = 'Dome Open'
+        self.dome_open[telescope_id] = True
+        self.pilot_status[telescope_id] = 'Dome Open'
 
-    def check_completion(self):
+    def check_completion(self, telescope_id):
         """Check if the current pointing has finished.
 
         In the real pilot this happens when all the exposures are complete,
         but since we're not doing that we fake it.
         """
-        if self.current_id is not None:
-            elapsed = (self.now - self.current_start_time).to(u.s)
-            if elapsed > self.current_duration:
+        if self.current_ids[telescope_id] is not None:
+            elapsed = (self.now - self.current_start_times[telescope_id]).to(u.s)
+            if elapsed > self.current_durations[telescope_id]:
                 # Finished
-                self.mark_current_pointing('completed')
+                self.mark_current_pointing('completed', telescope_id)
 
-    def check_weather(self):
+    def check_weather(self, telescope_id):
         """Check if the weather is bad and pause if so."""
         # Check if the weather is bad
         if simparams.ENABLE_WEATHER:
-            bad = self.weather.is_bad(self.now)
+            bad = self.weather[telescope_id].is_bad(self.now)
         else:
             bad = False
 
         # Decide to close or open
-        if bad and self.dome_open:
-            self.pause_observing()
-        if not bad and not self.dome_open:
-            self.resume_observing()
+        if bad and self.dome_open[telescope_id]:
+            self.pause_observing(telescope_id)
+        if not bad and not self.dome_open[telescope_id]:
+            self.resume_observing(telescope_id)
 
     def check_scheduler(self):
         """Find current highest priority from the scheduler."""
         self.log.info('checking scheduler')
-        new_pointing = scheduler.check_queue(self.now,
-                                             write_file=simparams.WRITE_QUEUE,
-                                             write_html=simparams.WRITE_HTML,
-                                             log=self.log)
-        if new_pointing is not None:
-            self.new_id = new_pointing.db_id
-            self.new_mintime = new_pointing.mintime
-        else:
-            self.new_id = None
-            self.new_mintime = None
+        # This is a hacked for now, WIP
+        new_pointings = scheduler.check_queue(self.now,
+                                              # self.sites,
+                                              write_file=simparams.WRITE_QUEUE,
+                                              write_html=simparams.WRITE_HTML,
+                                              log=self.log)
+        new_pointings = [new_pointings]  #
 
-        if self.new_id != self.current_id:
-            self.log.info('scheduler returns {} (NEW)'.format(self.new_id))
-        else:
-            self.log.info('scheduler returns {}'.format(self.current_id))
+        for telescope_id in self.telescope_ids:
+            new_pointing = new_pointings[telescope_id]
+            if new_pointing is not None:
+                new_id = new_pointing.db_id
+                new_mintime = new_pointing.mintime
+            else:
+                new_id = None
+                new_mintime = None
+
+            current_id = self.current_ids[telescope_id]
+            if new_id != current_id:
+                self.log.info('{}: scheduler returns {} (NEW)'.format(telescope_id, new_id))
+            else:
+                self.log.info('{}: scheduler returns {}'.format(telescope_id, current_id))
+
+            self.new_ids[telescope_id] = new_id
+            self.new_mintimes[telescope_id] = new_mintime
 
     def log_state(self):
         """Write the current state of the pilot to a log file."""
-        state = 'unknown'
-        if not self.dome_open:
-            state = 'closed'
-        elif self.current_id is not None:
-            with db.open_session() as session:
-                current_pointing = db.get_pointing_by_id(session, self.current_id)
-                current_name = current_pointing.object_name
-                current_ra = current_pointing.ra
-                current_dec = current_pointing.dec
-                if current_pointing.survey_tile:
-                    current_probability = current_pointing.survey_tile.current_weight
-                else:
-                    current_probability = 0
-                state = 'obs;{};{};{:.4f};{:.4f};{:.7f}'.format(
-                    self.current_id, current_name, current_ra, current_dec, current_probability)
-        elif self.now == self.start_time:
-            state = 'starting observing'
-        elif self.now > self.stop_time:
-            state = 'finished observing'
-        else:
-            state = 'idle'
+        states = ['unknown'] * len(self.telescope_ids)
+        for telescope_id in self.telescope_ids:
+            if not self.dome_open[telescope_id]:
+                state = 'closed'
+            elif self.current_ids[telescope_id] is not None:
+                with db.open_session() as session:
+                    current_id = self.current_ids[telescope_id]
+                    current_pointing = db.get_pointing_by_id(session, current_id)
+                    current_name = current_pointing.object_name
+                    current_ra = current_pointing.ra
+                    current_dec = current_pointing.dec
+                    if current_pointing.survey_tile:
+                        current_probability = current_pointing.survey_tile.current_weight
+                    else:
+                        current_probability = 0
+                    state = 'obs,{},{},{:.4f},{:.4f},{:.7f}'.format(
+                        current_id, current_name, current_ra, current_dec, current_probability)
+            elif self.now == self.start_time:
+                state = 'starting observing'
+            elif self.now > self.stop_time:
+                state = 'finished observing'
+            else:
+                state = 'idle'
+            states[telescope_id] = state
+
         fname = os.path.join(params.FILE_PATH, 'fake_pilot_log')
         with open(fname, 'a') as f:
-            f.write('{};{}\n'.format(self.now.iso, state))
+            line = '{};'.format(self.now.iso)
+            for telescope_id in self.telescope_ids:
+                line += '{}:{}'.format(telescope_id, states[telescope_id])
+            line += '\n'
+            f.write(line)
 
     def observe(self):
         """Run through the pilot tasks from the start time to the stop time."""
@@ -191,41 +214,50 @@ class FakePilot(object):
             self.log.info(self.now.iso)
 
             # Check if the current pointing is complete
-            self.check_completion()
+            for telescope_id in self.telescope_ids:
+                self.check_completion(telescope_id)
 
             # Check the weather
-            self.check_weather()
+            for telescope_id in self.telescope_ids:
+                self.check_weather(telescope_id)
 
             # Find current highest priority from the scheduler
-            self.check_scheduler()
+            self.check_scheduler()  # TODO
 
             # Decide what to do
-            if self.new_id == self.current_id:
-                if self.current_id is not None:
-                    elapsed = (self.now - self.current_start_time).to(u.s)
-                    self.log.info('still observing {} ({:.0f}/{:.0f})'.format(
-                        self.current_id, elapsed.value, self.current_mintime))
-                else:
-                    self.log.info('nothing to observe!')
+            for telescope_id in self.telescope_ids:
+                current_id = self.current_ids[telescope_id]
+                new_id = self.new_ids[telescope_id]
+                new_mintime = self.new_mintimes[telescope_id]
+                if new_id == current_id:
+                    if current_id is not None:
+                        elapsed = (self.now - self.current_start_times[telescope_id]).to(u.s)
+                        self.log.info('{}: still observing {} ({:.0f}/{:.0f})'.format(
+                            telescope_id, current_id, elapsed.value,
+                            self.current_mintimes[telescope_id]))
+                    else:
+                        self.log.info('{}: nothing to observe!'.format(telescope_id))
 
-            elif self.new_id is not None:
-                if self.current_id is not None:
-                    self.log.info('got new pointing from scheduler {}'.format(self.new_id))
-                    if self.current_id not in self.completed_pointings:
-                        # The pointing didn't finish, mark as interrupted
-                        self.mark_current_pointing('interrupted')
-                else:
-                    self.log.info('unparking')
+                elif new_id is not None:
+                    if current_id is not None:
+                        self.log.info('{}: got new pointing from scheduler {}'.format(
+                            telescope_id, new_id))
+                        if current_id not in self.completed_pointings[telescope_id]:
+                            # The pointing didn't finish, mark as interrupted
+                            self.mark_current_pointing('interrupted', telescope_id)
+                    else:
+                        self.log.info('{}: unparking'.format(telescope_id))
 
-                self.log.info('starting pointing {}'.format(self.new_id))
-                self.current_id = self.new_id
-                self.current_mintime = self.new_mintime
-                self.current_duration = estimate_completion_time(self.new_id, self.current_id)
-                self.current_start_time = self.now
-                self.mark_current_pointing('running')
-            else:
-                self.log.info('parking')
-                self.current_id = None
+                    self.log.info('{}: starting pointing {}'.format(telescope_id, new_id))
+                    self.current_ids[telescope_id] = new_id
+                    self.current_mintimes[telescope_id] = new_mintime
+                    duration = estimate_completion_time(new_id, current_id)
+                    self.current_durations[telescope_id] = duration
+                    self.current_start_times[telescope_id] = self.now
+                    self.mark_current_pointing('running', telescope_id)
+                else:
+                    self.log.info('{}: parking'.format(telescope_id))
+                    self.current_ids[telescope_id] = None
 
             # Log the pilot state
             self.log_state()
@@ -240,8 +272,9 @@ class FakePilot(object):
         self.log.info('observing completed!')
 
         # If we were running need to abort
-        if self.current_id is not None:
-            self.mark_current_pointing('aborted')
+        for telescope_id in self.telescope_ids:
+            if self.current_ids[telescope_id] is not None:
+                self.mark_current_pointing('aborted', telescope_id)
 
         # Final log entry
         self.log_state()

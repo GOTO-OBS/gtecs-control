@@ -20,7 +20,7 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times
+from gtecs.astronomy import get_night_times, observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_source_tiles, source_ever_visible, source_selected,
@@ -102,14 +102,18 @@ def run(fits_direc):
         event_handler(event, log=log)
 
         # Create the pilot
-        pilot = FakePilot(start_time, stop_time, log=log)
+        site = observatory_location()
+        pilot = FakePilot(site, start_time, stop_time, log=log)
 
         # Loop until the night is over
         pilot.observe()
 
+        # Get completed pointings
+        completed_pointings = pilot.completed_pointings[0]
+
         # Get observed tiles
         with db.open_session() as session:
-            db_pointings = db.get_pointings(session, pilot.completed_pointings)
+            db_pointings = db.get_pointings(session, completed_pointings)
             all_tiles = [p.grid_tile.name for p in db_pointings]
 
         # Account for multiple observations of the same tile
