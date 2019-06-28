@@ -54,7 +54,7 @@ def run(fits_direc):
     observed_events = []
 
     # Loop through all files
-    for i, fits_file in enumerate(fits_files[0:6]):
+    for i, fits_file in enumerate(fits_files):
         # Prepare the ObsDB
         prepare_database(grid)
 
