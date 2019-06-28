@@ -39,7 +39,7 @@ def run(ivorn):
     grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
 
     # Prepare the ObsDB
-    prepare_database(grid)
+    prepare_database(grid, clear=True)
 
     # Create the Event
     event = Event.from_ivorn(ivorn)

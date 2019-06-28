@@ -5,7 +5,7 @@ from gototile.grid import SkyGrid
 import obsdb as db
 
 
-def prepare_database(grid=None):
+def prepare_database(grid, clear=False):
     """Prepare a blank database for simulations.
 
     We need to define the default User, as well as the Grid and GridTiles.
@@ -16,9 +16,12 @@ def prepare_database(grid=None):
 
     Parameters
     ----------
-    grid : `gototile.grid.SkyGrid`, optional
+    grid : `gototile.grid.SkyGrid`
         the grid to base tiles on
-        default is GOTO-4 (fov=(3.7, 4.9), overlap=(0.1, 0.1))
+
+     : bool, optional
+        if True, clear out old pointings from the queue
+        default is False
 
     """
     with db.open_session() as session:
@@ -57,8 +60,9 @@ def prepare_database(grid=None):
                 db_grid_tiles.append(db_grid_tile)
             db.insert_items(session, db_grid_tiles)
 
-        # Set any existing Pointings or Mpointings to deleted so they don't interfere
-        clear_database(session)
+        if clear:
+            # Set any existing Pointings or Mpointings to deleted so they don't interfere
+            clear_database(session)
 
         # Commit
         session.commit()

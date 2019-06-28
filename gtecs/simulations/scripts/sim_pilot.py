@@ -7,6 +7,8 @@ import warnings
 from astropy import units as u
 from astropy.time import Time
 
+from gototile.grid import SkyGrid
+
 from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
@@ -21,8 +23,11 @@ def run(date):
     # Create a log file
     log = logger.get_logger('sim_pilot', log_stdout=False, log_to_file=True, log_to_stdout=True)
 
+    # Hardcode the GOTO-4 grid, for now
+    grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+
     # Prepare the ObsDB
-    prepare_database()
+    prepare_database(grid, clear=False)
 
     # If no date is given use tonight
     if date is None:

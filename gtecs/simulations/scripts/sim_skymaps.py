@@ -56,7 +56,7 @@ def run(fits_direc):
     # Loop through all files
     for i, fits_file in enumerate(fits_files):
         # Prepare the ObsDB
-        prepare_database(grid)
+        prepare_database(grid, clear=True)
 
         # Load the skymap
         skymap = SkyMap.from_fits(os.path.join(fits_direc, fits_file))
