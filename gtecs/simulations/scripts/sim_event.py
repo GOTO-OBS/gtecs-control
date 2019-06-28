@@ -21,7 +21,7 @@ from gototile import SkyGrid
 from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
-from gtecs.simulations.misc import get_notvisible_tiles
+from gtecs.simulations.misc import get_visible_tiles
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -81,7 +81,8 @@ def run(ivorn):
 
         # Plot tiles on skymap
         grid.apply_skymap(event.skymap)
-        notvisible_tiles = get_notvisible_tiles(event, start_time, stop_time)
+        visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
         grid.plot(highlight=tiles,
                   plot_skymap=True,
                   plot_contours=True,

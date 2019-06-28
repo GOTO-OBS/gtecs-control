@@ -23,7 +23,7 @@ from gtecs import logger
 from gtecs.astronomy import get_night_times
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import get_notvisible_tiles
+from gtecs.simulations.misc import get_visible_tiles, source_selected, source_visible
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -49,10 +49,6 @@ def run(fits_path):
     # Create the Event
     event = FakeEvent(skymap)
 
-    # Handle the event
-    # This should add tiles to the observation database, using the appropriate strategy
-    event_handler(event, log=log)
-
     # Get sun rise and set times
     sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
 
@@ -62,6 +58,32 @@ def run(fits_path):
     else:
         start_time = sunset
     stop_time = sunrise
+
+    print('Processing skymap for Event {} from {} to {}'.format(event.name,
+                                                                start_time.iso,
+                                                                stop_time.iso))
+
+    # Check if the source will be within the selected tiles
+    # If not there's no point running through the simulation
+    if not source_selected(event, grid):
+        print('Source is not in any selected tiles')
+        print('Exiting')
+        return
+    else:
+        print('Source is within selected tiles')
+
+    # Check if the source will be visible during the given time
+    # If not there's no point running through the simulation
+    if not source_visible(event, grid, start_time, stop_time):
+        print('Source is not visible during given period')
+        print('Exiting')
+        return
+    else:
+        print('Source is visible during given period')
+
+    # Handle the event
+    # This should add tiles to the observation database, using the appropriate strategy
+    event_handler(event, log=log)
 
     # Create the pilot
     pilot = FakePilot(start_time, stop_time, log=log)
@@ -93,7 +115,8 @@ def run(fits_path):
 
         # Plot tiles on skymap
         grid.apply_skymap(event.skymap)
-        notvisible_tiles = get_notvisible_tiles(event, start_time, stop_time)
+        visible_tiles = get_visible_tiles(event, grid, start_time, stop_time)
+        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
         grid.plot(highlight=tiles,
                   plot_skymap=True,
                   plot_contours=True,
