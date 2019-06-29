@@ -1,5 +1,6 @@
 """Fake Event class to use with raw skymap files."""
 
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
 from gotoalert.strategy import get_event_strategy
@@ -49,7 +50,10 @@ class FakeEvent(object):
         # Save the skymap here, since it's already created
         self.skymap = skymap
         self.skymap_url = skymap.filename
-        self.distance = skymap.header['distance']
+        self.source_coord = SkyCoord(skymap.header['s_ra'],
+                                     skymap.header['s_dec'],
+                                     unit='deg')
+        self.distance = skymap.header['s_dist']
         self.distance_error = 0
 
     def get_skymap(self, nside=128):
