@@ -179,6 +179,7 @@ class FakePilot(object):
             if not self.dome_open[telescope_id]:
                 state = 'closed'
             elif self.current_ids[telescope_id] is not None:
+                obs_num = len(self.completed_pointings[telescope_id]) + 1
                 with db.open_session() as session:
                     current_id = self.current_ids[telescope_id]
                     current_pointing = db.get_pointing_by_id(session, current_id)
@@ -189,8 +190,8 @@ class FakePilot(object):
                         current_probability = current_pointing.survey_tile.current_weight
                     else:
                         current_probability = 0
-                    state = 'obs,{},{},{:.4f},{:.4f},{:.7f}'.format(
-                        current_id, current_name, current_ra, current_dec, current_probability)
+                state = 'obs,{},{},{},{:.4f},{:.4f},{:.7f}'.format(
+                    obs_num, current_id, current_name, current_ra, current_dec, current_probability)
             elif self.now == self.start_time:
                 state = 'starting observing'
             elif self.now > self.stop_time:
