@@ -135,10 +135,17 @@ def run(fits_path):
                                        first_obs_db_pointing.dec,
                                        unit='deg')
         print('Source was first observed at {}, {:.4f} hours after the event'.format(
-            first_obs_time.iso, (first_obs_time - event.time).to(u.hour)))
+            first_obs_time.iso, (first_obs_time - event.time).to(u.hour).value))
+
+        # Get how long it had been visible for
+        observer = Observer(site)
+        first_obs_risetime = observer.target_rise_time(
+            first_obs_time, first_obs_coord, 'previous',
+            horizon=event.strategy['constraints_dict']['min_alt'] * u.deg)
+        print('Source was first observed {:.4f} hours after becoming visible'.format(
+            (first_obs_time - first_obs_risetime).to(u.hour).value))
 
         # Get the altaz and airmass at the time it was observed
-        observer = Observer(site)
         first_obs_altaz = observer.altaz(first_obs_time, first_obs_coord)
         print('Source was first observed at altitude {:.3f} deg'.format(first_obs_altaz.alt.value))
         print('Source was first observed at airmass {:.2f}'.format(first_obs_altaz.secz.value))
