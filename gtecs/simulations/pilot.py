@@ -10,7 +10,6 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation
 from astropy.time import TimeDelta
 
-import obsdb as db
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from . import params as simparams
@@ -180,22 +179,8 @@ class FakePilot(object):
                 state = 'closed'
             elif self.current_ids[telescope_id] is not None:
                 obs_num = len(self.completed_pointings[telescope_id]) + 1
-                with db.open_session() as session:
-                    current_id = self.current_ids[telescope_id]
-                    current_pointing = db.get_pointing_by_id(session, current_id)
-                    current_name = current_pointing.object_name
-                    current_ra = current_pointing.ra
-                    current_dec = current_pointing.dec
-                    if current_pointing.survey_tile:
-                        current_probability = current_pointing.survey_tile.current_weight
-                    else:
-                        current_probability = 0
-                state = 'obs,{},{},{},{:.4f},{:.4f},{:.7f}'.format(
-                    obs_num, current_id, current_name, current_ra, current_dec, current_probability)
-            elif self.now == self.start_time:
-                state = 'starting observing'
-            elif self.now > self.stop_time:
-                state = 'finished observing'
+                current_id = self.current_ids[telescope_id]
+                state = 'obs,{},{}'.format(obs_num, current_id)
             else:
                 state = 'idle'
             states[telescope_id] = state
