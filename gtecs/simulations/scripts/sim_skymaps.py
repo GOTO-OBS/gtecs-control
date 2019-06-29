@@ -21,6 +21,7 @@ from gototile.skymap import SkyMap
 
 from gtecs import logger
 from gtecs.astronomy import get_night_times, observatory_location
+from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_source_tiles, source_ever_visible, source_selected,
@@ -31,6 +32,43 @@ import obsdb as db
 
 
 warnings.simplefilter("ignore", DeprecationWarning)
+
+
+class Closer(NeatCloser):
+    """A class to neatly handle Ctrl-C requests before we've finished all the skymaps."""
+
+    def __init__(self, n_target):
+        super().__init__('')
+        self.n_target = n_target
+
+    def tidy_up(self):
+        """Cancel the pointing."""
+        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
+                         not_observed_events + observed_events)
+        print('-----')
+        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
+        print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
+                                                      len(not_selected_events) / n_complete))
+        print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
+                                                      len(never_visible_events) / n_complete))
+        print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
+                                                      len(not_visible_events) / n_complete))
+        print(' not_observed: {}/{} ({:7.5f})'.format(len(not_observed_events), n_complete,
+                                                      len(not_observed_events) / n_complete))
+        print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), n_complete,
+                                                      len(observed_events) / n_complete))
+
+        print('-----')
+        print('not_selected events:')
+        print(not_selected_events)
+        print('never_visible events:')
+        print(never_visible_events)
+        print('not_visible events:')
+        print(not_visible_events)
+        print('not_observed events:')
+        print(not_observed_events)
+        print('observed events:')
+        print(observed_events)
 
 
 def run(fits_direc):
@@ -47,6 +85,11 @@ def run(fits_direc):
     print('Processing {} skymaps'.format(len(fits_files)))
 
     # Create output lists
+    global not_selected_events
+    global not_visible_events
+    global never_visible_events
+    global not_observed_events
+    global observed_events
     not_selected_events = []
     not_visible_events = []
     never_visible_events = []
@@ -55,6 +98,9 @@ def run(fits_direc):
 
     # Loop through all files
     for i, fits_file in enumerate(fits_files):
+        # Print results if we exit early
+        Closer(len(fits_files))
+
         # Prepare the ObsDB
         prepare_database(grid, clear=True)
 
@@ -97,6 +143,9 @@ def run(fits_direc):
             not_visible_events.append(event_id)
             continue
 
+        # We're going to observe it
+        print('observing...', end=' ')
+
         # Handle the event
         # This should add tiles to the observation database, using the appropriate strategy
         event_handler(event, log=log)
@@ -132,6 +181,7 @@ def run(fits_direc):
             continue
 
     print('-----')
+    print('Simulations completed:')
     print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
                                                   len(not_selected_events) / len(fits_files)))
     print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
