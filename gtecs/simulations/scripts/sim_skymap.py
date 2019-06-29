@@ -118,7 +118,9 @@ def run(fits_path):
                                                          for tile in source_tiles])))
 
         # We care about the first time it was observed, which should be first in the list
-        first_obs = min([completed_tiles.index(tile) for tile in source_tiles])
+        first_obs = min([completed_tiles.index(tile)
+                         for tile in source_tiles
+                         if tile in completed_tiles])
         first_obs_pointing = completed_pointings[first_obs]
 
         first_obs_details = get_pointing_obs_details(event, site, first_obs_pointing)

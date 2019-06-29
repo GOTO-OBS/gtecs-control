@@ -224,7 +224,9 @@ def run(fits_direc):
             continue
         else:
             # Print details
-            first_index = min([completed_tiles.index(tile) for tile in source_tiles])
+            first_index = min([completed_tiles.index(tile)
+                               for tile in source_tiles
+                               if tile in completed_tiles])
             first_pointing = completed_pointings[first_index]
             _, obs_time, rise_time, airmass = get_pointing_obs_details(event, site, first_pointing)
             delta_event_time = (obs_time - event.time).to(u.hour).value
