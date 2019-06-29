@@ -49,6 +49,7 @@ class Closer(NeatCloser):
         """Print logs."""
         with open(fname, 'a') as f:
             f.write('\n')
+            f.write(Time.now().iso + '\n')
 
         n_complete = len(not_selected_events + not_visible_events + never_visible_events +
                          not_observed_events + observed_events)
