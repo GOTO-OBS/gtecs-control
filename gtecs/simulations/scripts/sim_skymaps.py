@@ -127,10 +127,12 @@ def run(fits_direc):
     observed_delta_visible_times = []
     observed_airmasses = []
 
+    # Print results if we exit early
+    Closer(len(fits_files))
+
     # Loop through all files
     for i, fits_file in enumerate(fits_files):
-        # Print results if we exit early
-        Closer(len(fits_files))
+        sim_start_time = Time.now()
 
         # Prepare the ObsDB
         prepare_database(grid, clear=True)
@@ -150,6 +152,8 @@ def run(fits_direc):
         # If not there's no point running through the simulation
         if not source_selected(event, grid):
             result = 'not_selected'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
@@ -164,6 +168,8 @@ def run(fits_direc):
         # If not there's no point running through the simulation
         if not source_ever_visible(event, grid):
             result = 'never_visible'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
@@ -174,6 +180,8 @@ def run(fits_direc):
         # If not there's no point running through the simulation
         if not source_visible(event, grid, start_time, stop_time):
             result = 'not_visible'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
@@ -207,6 +215,8 @@ def run(fits_direc):
         source_observed = any(tile in completed_tiles for tile in source_tiles)
         if not source_observed:
             result = 'not_observed'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
@@ -222,6 +232,8 @@ def run(fits_direc):
             delta_visible_time = (obs_time - visible_time).to(u.hour).value
             result = 'OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f})'.format(
                 delta_event_time, delta_visible_time, airmass)
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
