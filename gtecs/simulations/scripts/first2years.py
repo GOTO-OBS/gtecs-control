@@ -115,7 +115,7 @@ if __name__ == '__main__':
         nside = None
 
     print('Downloading files')
-    #download()
+    download()
 
     print('Reformating source data')
     reformat()
