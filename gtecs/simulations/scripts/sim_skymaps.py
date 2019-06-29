@@ -13,6 +13,7 @@ import os
 import warnings
 
 from astropy import units as u
+from astropy.time import Time
 
 from gotoalert.alert import event_handler
 
@@ -20,6 +21,7 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
+from gtecs import params
 from gtecs.astronomy import observatory_location
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
@@ -44,7 +46,10 @@ class Closer(NeatCloser):
         self.n_target = n_target
 
     def tidy_up(self):
-        """Cancel the pointing."""
+        """Print logs."""
+        with open(fname, 'a') as f:
+            f.write('\n')
+
         n_complete = len(not_selected_events + not_visible_events + never_visible_events +
                          not_observed_events + observed_events)
         print('-----')
@@ -89,6 +94,12 @@ def run(fits_direc):
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
 
+    # Oh, and another one, just in case
+    global fname
+    fname = os.path.join(params.FILE_PATH, 'sim_skymaps_output')
+    with open(fname, 'a') as f:
+        f.write(Time.now().iso + '\n')
+
     # Hardcode the GOTO-4 grid, for now
     grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
 
@@ -129,12 +140,18 @@ def run(fits_direc):
         # Create the Event
         event = FakeEvent(skymap)
         event_id = event.id
-        print('{: >4}/{} :: Event {}:'.format(i + 1, len(fits_files), event_id), end=' ')
+        line = '{: >4}/{} :: Event {}: '.format(i + 1, len(fits_files), event_id)
+        print(line, end='')
+        with open(fname, 'a') as f:
+            f.write(line)
 
         # Check if the source will be within the selected tiles
         # If not there's no point running through the simulation
         if not source_selected(event, grid):
-            print('not_selected')
+            result = 'not_selected'
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
             not_selected_events.append(event_id)
             continue
 
@@ -145,19 +162,22 @@ def run(fits_direc):
         # Check if the source will ever be visible from La Palma
         # If not there's no point running through the simulation
         if not source_ever_visible(event, grid):
-            print('never_visible')
+            result = 'never_visible'
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
             never_visible_events.append(event_id)
             continue
 
         # Check if the source will be visible during the given time
         # If not there's no point running through the simulation
         if not source_visible(event, grid, start_time, stop_time):
-            print('not_visible')
+            result = 'not_visible'
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
             not_visible_events.append(event_id)
             continue
-
-        # We're going to observe it
-        print('observing...', end=' ')
 
         # Handle the event
         # This should add tiles to the observation database, using the appropriate strategy
@@ -185,7 +205,10 @@ def run(fits_direc):
         source_tiles = get_source_tiles(event, grid)
         source_observed = any(tile in completed_tiles for tile in source_tiles)
         if not source_observed:
-            print('not_observed')
+            result = 'not_observed'
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
             not_observed_events.append(event_id)
             continue
         else:
@@ -196,8 +219,11 @@ def run(fits_direc):
             delta_event_time = (obs_time - event.time).to(u.hour).value
             visible_time = max(event.time, rise_time)
             delta_visible_time = (obs_time - visible_time).to(u.hour).value
-            print('OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f})'.format(
-                  delta_event_time, delta_visible_time, airmass))
+            result = 'OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f})'.format(
+                delta_event_time, delta_visible_time, airmass)
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
 
             # Store details
             observed_events.append(event_id)
@@ -206,6 +232,9 @@ def run(fits_direc):
             observed_airmasses.append(airmass)
 
             continue
+
+    with open(fname, 'a') as f:
+        f.write(Time.now().iso + '\n')
 
     print('-----')
     print('Simulations completed:')
