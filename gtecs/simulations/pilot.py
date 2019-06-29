@@ -66,7 +66,6 @@ class FakePilot(object):
         self.aborted_pointings = [[]] * len(self.telescope_ids)
 
         self.dome_open = [False] * len(self.telescope_ids)
-        self.pilot_status = [None] * len(self.telescope_ids)
 
     def mark_current_pointing(self, status, telescope_id=0):
         """Mark the current pointing as completed, aborted etc."""
@@ -99,16 +98,15 @@ class FakePilot(object):
 
     def pause_observing(self, telescope_id):
         """Pause the system."""
-        self.log.info('Pausing due to bad weather')
+        self.log.info('{}: closing the dome'.format(telescope_id))
         self.dome_open[telescope_id] = False
-        self.pilot_status[telescope_id] = 'Dome Closed'
         if self.current_ids[telescope_id] is not None:
             self.mark_current_pointing('aborted', telescope_id)
 
     def resume_observing(self, telescope_id):
         """Unpause the system."""
+        self.log.info('{}: opening the dome'.format(telescope_id))
         self.dome_open[telescope_id] = True
-        self.pilot_status[telescope_id] = 'Dome Open'
 
     def check_completion(self, telescope_id):
         """Check if the current pointing has finished.
