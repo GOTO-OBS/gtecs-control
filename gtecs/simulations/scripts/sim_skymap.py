@@ -11,7 +11,11 @@ daemons.
 import argparse
 import warnings
 
+from astroplan import Observer
+
 from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
 from gotoalert.alert import event_handler
 
@@ -99,28 +103,51 @@ def run(fits_path):
         # DB query will sort by id, need to resort into order of pointings
         db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
         # Get tile name from grid tile
-        all_tiles = [p.grid_tile.name for p in db_pointings]
+        completed_tiles = [p.grid_tile.name for p in db_pointings]
 
     # Account for multiple observations of the same tile
-    observed_tiles = list(set(all_tiles))
-    print('{} unique tiles covered:'.format(len(observed_tiles)))
-    for tile in observed_tiles:
-        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+    completed_tiles_unique = list(set(completed_tiles))
+    print('{} unique tiles covered:'.format(len(completed_tiles_unique)))
+    for tile in completed_tiles_unique:
+        print('{} observed {} time(s)'.format(tile, completed_tiles.count(tile)))
 
     # Get where the actual event was
     source_tiles = get_source_tiles(event, grid)
     print('Source was within {} tile(s):'.format(len(source_tiles)), ', '.join(source_tiles))
-    source_observed = any(tile in observed_tiles for tile in source_tiles)
+    source_observed = any(tile in completed_tiles for tile in source_tiles)
     print('Source observed?:', source_observed)
     if source_observed:
-        print('Source was observed {} times'.format(sum([all_tiles.count(tile)
+        print('Source was observed {} times'.format(sum([completed_tiles.count(tile)
                                                          for tile in source_tiles])))
+
+        # We care about the first time it was observed, which should be first in the list
+        first_obs = min([completed_tiles.index(tile) for tile in source_tiles])
+        first_obs_pointing = completed_pointings[first_obs]
+        first_obs_tile = completed_tiles[first_obs]
+        print('Source was first observed in tile {}, pointing {} ({}/{})'.format(
+            first_obs_tile, first_obs_pointing, first_obs + 1, len(completed_pointings)))
+
+        # Get time and position from the database
+        with db.open_session() as session:
+            first_obs_db_pointing = db.get_pointing_by_id(session, first_obs_pointing)
+            first_obs_time = Time(first_obs_db_pointing.stopped_time)
+            first_obs_coord = SkyCoord(first_obs_db_pointing.ra,
+                                       first_obs_db_pointing.dec,
+                                       unit='deg')
+        print('Source was first observed at {}, {:.4f} hours after the event'.format(
+            first_obs_time.iso, (first_obs_time - event.time).to(u.hour)))
+
+        # Get the altaz and airmass at the time it was observed
+        observer = Observer(site)
+        first_obs_altaz = observer.altaz(first_obs_time, first_obs_coord)
+        print('Source was first observed at altitude {:.3f} deg'.format(first_obs_altaz.alt.value))
+        print('Source was first observed at airmass {:.2f}'.format(first_obs_altaz.secz.value))
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
     visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
     notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
-    grid.plot(highlight=observed_tiles,
+    grid.plot(highlight=completed_tiles_unique,
               plot_skymap=True,
               plot_contours=True,
               color={tilename: '0.5' for tilename in notvisible_tiles},
