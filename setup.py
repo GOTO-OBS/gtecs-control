@@ -8,6 +8,7 @@ PACKAGES = ['gtecs',
             'gtecs.hardware',
             'gtecs.catalogs',
             'gtecs.observing_scripts',
+            'gtecs.simulations',
             ]
 
 REQUIRES = ['Pyro4',
