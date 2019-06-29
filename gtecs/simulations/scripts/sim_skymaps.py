@@ -24,9 +24,11 @@ from gtecs.astronomy import observatory_location
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import (get_source_tiles, source_ever_visible, source_selected,
-                                    source_visible)
+from gtecs.simulations.misc import (get_pointing_obs_details, get_source_tiles,
+                                    source_ever_visible, source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
+
+import numpy as np
 
 import obsdb as db
 
@@ -58,6 +60,11 @@ class Closer(NeatCloser):
         print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), n_complete,
                                                       len(observed_events) / n_complete))
 
+        if len(observed_events) > 0:
+            print('     mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
+            print('     mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
+            print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+
         print('-----')
         print('not_selected events:')
         print(not_selected_events)
@@ -69,6 +76,12 @@ class Closer(NeatCloser):
         print(not_observed_events)
         print('observed events:')
         print(observed_events)
+        print('observed Dtes:')
+        print(observed_delta_event_times)
+        print('observed Dtvs:')
+        print(observed_delta_visible_times)
+        print('observed Ams:')
+        print(observed_airmasses)
 
 
 def run(fits_direc):
@@ -90,11 +103,17 @@ def run(fits_direc):
     global never_visible_events
     global not_observed_events
     global observed_events
+    global observed_delta_event_times
+    global observed_delta_visible_times
+    global observed_airmasses
     not_selected_events = []
     not_visible_events = []
     never_visible_events = []
     not_observed_events = []
     observed_events = []
+    observed_delta_event_times = []
+    observed_delta_visible_times = []
+    observed_airmasses = []
 
     # Loop through all files
     for i, fits_file in enumerate(fits_files):
@@ -160,21 +179,32 @@ def run(fits_direc):
             # DB query will sort by id, need to resort into order of pointings
             db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
             # Get tile name from grid tile
-            all_tiles = [p.grid_tile.name for p in db_pointings]
-
-        # Account for multiple observations of the same tile
-        observed_tiles = list(set(all_tiles))
+            completed_tiles = [p.grid_tile.name for p in db_pointings]
 
         # Get where the actual event was
         source_tiles = get_source_tiles(event, grid)
-        source_observed = any(tile in observed_tiles for tile in source_tiles)
+        source_observed = any(tile in completed_tiles for tile in source_tiles)
         if not source_observed:
             print('not_observed')
             not_observed_events.append(event_id)
             continue
         else:
-            print('OBSERVED')
+            # Print details
+            first_index = min([completed_tiles.index(tile) for tile in source_tiles])
+            first_pointing = completed_pointings[first_index]
+            _, obs_time, rise_time, airmass = get_pointing_obs_details(event, site, first_pointing)
+            delta_event_time = (obs_time - event.time).to(u.hour).value
+            visible_time = max(event.time, rise_time)
+            delta_visible_time = (obs_time - visible_time).to(u.hour).value
+            print('OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f})'.format(
+                  delta_event_time, delta_visible_time, airmass))
+
+            # Store details
             observed_events.append(event_id)
+            observed_delta_event_times.append(delta_event_time)
+            observed_delta_visible_times.append(delta_visible_time)
+            observed_airmasses.append(airmass)
+
             continue
 
     print('-----')
@@ -190,6 +220,11 @@ def run(fits_direc):
     print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
                                                   len(observed_events) / len(fits_files)))
 
+    if len(observed_events) > 0:
+        print('     mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
+        print('     mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
+        print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+
     print('-----')
     print('not_selected events:')
     print(not_selected_events)
@@ -201,6 +236,12 @@ def run(fits_direc):
     print(not_observed_events)
     print('observed events:')
     print(observed_events)
+    print('observed Dtes:')
+    print(observed_delta_event_times)
+    print('observed Dtvs:')
+    print(observed_delta_visible_times)
+    print('observed Ams:')
+    print(observed_airmasses)
 
 
 if __name__ == "__main__":
