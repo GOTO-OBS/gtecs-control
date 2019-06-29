@@ -19,7 +19,7 @@ from gotoalert.events import Event
 from gototile.grid import SkyGrid
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times, observatory_location
+from gtecs.astronomy import observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.misc import get_visible_tiles
 from gtecs.simulations.pilot import FakePilot
@@ -43,20 +43,15 @@ def run(ivorn):
 
     # Create the Event
     event = Event.from_ivorn(ivorn)
+    print('Processing skymap for Event {}'.format(event.name))
 
     # Handle the event
     # This should add tiles to the observation database, using the appropriate strategy
     event_handler(event, log=log)
 
-    # Get sun rise and set times
-    sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
-
-    # If the event occurs after sunset there's no reason to simulate the start of the night
-    if event.time > sunset:
-        start_time = event.time
-    else:
-        start_time = sunset
-    stop_time = sunrise
+    # Set the simulation start and stop times
+    start_time = event.time
+    stop_time = start_time + 24 * u.hour
 
     # Create the pilot
     site = observatory_location()

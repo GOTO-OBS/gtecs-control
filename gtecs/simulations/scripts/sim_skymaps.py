@@ -20,7 +20,7 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times, observatory_location
+from gtecs.astronomy import observatory_location
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
@@ -112,22 +112,16 @@ def run(fits_direc):
         event_id = event.id
         print('{: >4}/{} :: Event {}:'.format(i + 1, len(fits_files), event_id), end=' ')
 
-        # Get sun rise and set times
-        sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
-
-        # If the event occurs after sunset there's no reason to simulate the start of the night
-        if event.time > sunset:
-            start_time = event.time
-        else:
-            start_time = sunset
-        stop_time = sunrise
-
         # Check if the source will be within the selected tiles
         # If not there's no point running through the simulation
         if not source_selected(event, grid):
             print('not_selected')
             not_selected_events.append(event_id)
             continue
+
+        # Set the simulation start and stop times
+        start_time = event.time
+        stop_time = start_time + 24 * u.hour
 
         # Check if the source will ever be visible from La Palma
         # If not there's no point running through the simulation

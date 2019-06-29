@@ -19,7 +19,7 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times, observatory_location
+from gtecs.astronomy import observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_source_tiles, get_visible_tiles,
@@ -48,20 +48,7 @@ def run(fits_path):
 
     # Create the Event
     event = FakeEvent(skymap)
-
-    # Get sun rise and set times
-    sunset, sunrise = get_night_times(event.time, horizon=-10 * u.deg)
-
-    # If the event occurs after sunset there's no reason to simulate the start of the night
-    if event.time > sunset:
-        start_time = event.time
-    else:
-        start_time = sunset
-    stop_time = sunrise
-
-    print('Processing skymap for Event {} from {} to {}'.format(event.name,
-                                                                start_time.iso,
-                                                                stop_time.iso))
+    print('Processing skymap for Event {}'.format(event.name))
 
     # Check if the source will be within the selected tiles
     # If not there's no point running through the simulation
@@ -71,6 +58,10 @@ def run(fits_path):
         return
     else:
         print('Source is within selected tiles')
+
+    # Set the simulation start and stop times
+    start_time = event.time
+    stop_time = start_time + 24 * u.hour
 
     # Check if the source will be visible during the given time
     # If not there's no point running through the simulation
