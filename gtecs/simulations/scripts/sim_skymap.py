@@ -127,14 +127,19 @@ def run(fits_path):
         first_obs_risetime = first_obs_details[2]
         first_obs_airmass = first_obs_details[3]
 
+        # Only care about visible time past event time
+        first_obs_visibletime = max(first_obs_risetime, event.time)
+
         print('Source was first observed in tile {}, pointing {} ({}/{})'.format(
             first_obs_tile, first_obs_pointing, first_obs + 1, len(completed_pointings)))
 
         print('Source was first observed at {}, {:.4f} hours after the event'.format(
             first_obs_time.iso, (first_obs_time - event.time).to(u.hour).value))
 
+        print('Source was rose above the horizon at {}'.format(first_obs_risetime.iso))
+
         print('Source was first observed {:.4f} hours after becoming visible'.format(
-            (first_obs_time - first_obs_risetime).to(u.hour).value))
+            (first_obs_time - first_obs_visibletime).to(u.hour).value))
 
         print('Source was first observed at airmass {:.2f}'.format(first_obs_airmass))
 
