@@ -93,20 +93,23 @@ def run(fits_path):
         print('Exiting')
         return
 
-    # Get grid and tiles
+    # Get observed tiles
     with db.open_session() as session:
         db_pointings = db.get_pointings(session, completed_pointings)
+        # DB query will sort by id, need to resort into order of pointings
+        db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
+        # Get tile name from grid tile
         all_tiles = [p.grid_tile.name for p in db_pointings]
 
     # Account for multiple observations of the same tile
     observed_tiles = list(set(all_tiles))
-    print('{} tiles covered:'.format(len(observed_tiles)))
+    print('{} unique tiles covered:'.format(len(observed_tiles)))
     for tile in observed_tiles:
         print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 
     # Get where the actual event was
     source_tiles = get_source_tiles(event, grid)
-    print('Source was in tiles:', source_tiles)
+    print('Source was within {} tile(s):'.format(len(source_tiles)), ', '.join(source_tiles))
     source_observed = any(tile in observed_tiles for tile in source_tiles)
     print('Source observed?:', source_observed)
     if source_observed:
@@ -122,6 +125,7 @@ def run(fits_path):
               plot_contours=True,
               color={tilename: '0.5' for tilename in notvisible_tiles},
               coordinates=event.source_coord,
+              tilenames=source_tiles,
               )
 
 

@@ -77,7 +77,7 @@ def run(ivorn):
 
     # Account for multiple observations of the same tile
     observed_tiles = list(set(all_tiles))
-    print('{} tiles covered:'.format(len(observed_tiles)))
+    print('{} unique tiles covered:'.format(len(observed_tiles)))
     for tile in observed_tiles:
         print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
 

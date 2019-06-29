@@ -157,6 +157,9 @@ def run(fits_direc):
         # Get observed tiles
         with db.open_session() as session:
             db_pointings = db.get_pointings(session, completed_pointings)
+            # DB query will sort by id, need to resort into order of pointings
+            db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
+            # Get tile name from grid tile
             all_tiles = [p.grid_tile.name for p in db_pointings]
 
         # Account for multiple observations of the same tile
