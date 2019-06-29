@@ -264,10 +264,11 @@ class FakePilot(object):
             if self.quick:
                 if self.current_ids[telescope_id] is not None:
                     # Skip the current duration, so we're quicker to run through
+                    # (plus 10 seconds to be sure)
                     self.now += self.current_durations[telescope_id] + 10 * u.s
                 else:
-                    # Just increase by one minute
-                    self.now += 60 * u.s
+                    # Skip forward 5 minutes
+                    self.now += 5 * 60 * u.s
             else:
                 self.now += simparams.TIMESTEP
 
