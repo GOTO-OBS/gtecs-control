@@ -1,7 +1,10 @@
 """Miscellaneous functions for simulations."""
 
+from astroplan import Observer
+
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
 import obsdb as db
 
@@ -123,3 +126,26 @@ def source_ever_visible(event, grid):
     # If not we're never going to observe it, so might as well end the simulation here
     source_visible = any(tile in ever_visible_tiles for tile in source_tiles)
     return source_visible
+
+
+def get_pointing_obs_details(event, site, pointing_id):
+    """Get details for a specific observed pointing."""
+    # Get position, tilename and obs time from the database
+    with db.open_session() as session:
+        db_pointing = db.get_pointing_by_id(session, pointing_id)
+        coord = SkyCoord(db_pointing.ra, db_pointing.dec, unit='deg')
+        tilename = db_pointing.grid_tile.name
+        if db_pointing.status != 'completed':
+            raise ValueError('Pointing {} is not yet completed'.format(pointing_id))
+        obs_time = Time(db_pointing.stopped_time)
+
+    # Get how long it had been visible for
+    observer = Observer(site)
+    min_alt = event.strategy['constraints_dict']['min_alt']
+    rise_time = observer.target_rise_time(obs_time, coord, 'previous', horizon=min_alt * u.deg)
+
+    # Get the airmass
+    altaz = observer.altaz(obs_time, coord)
+    airmass = altaz.secz.value
+
+    return tilename, obs_time, rise_time, airmass

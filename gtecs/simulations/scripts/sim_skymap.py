@@ -11,11 +11,8 @@ daemons.
 import argparse
 import warnings
 
-from astroplan import Observer
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.time import Time
 
 from gotoalert.alert import event_handler
 
@@ -26,7 +23,7 @@ from gtecs import logger
 from gtecs.astronomy import observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import (get_source_tiles, get_visible_tiles,
+from gtecs.simulations.misc import (get_pointing_obs_details, get_source_tiles, get_visible_tiles,
                                     source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
 
@@ -123,32 +120,23 @@ def run(fits_path):
         # We care about the first time it was observed, which should be first in the list
         first_obs = min([completed_tiles.index(tile) for tile in source_tiles])
         first_obs_pointing = completed_pointings[first_obs]
-        first_obs_tile = completed_tiles[first_obs]
+
+        first_obs_details = get_pointing_obs_details(event, site, first_obs_pointing)
+        first_obs_tile = first_obs_details[0]
+        first_obs_time = first_obs_details[1]
+        first_obs_risetime = first_obs_details[2]
+        first_obs_airmass = first_obs_details[3]
+
         print('Source was first observed in tile {}, pointing {} ({}/{})'.format(
             first_obs_tile, first_obs_pointing, first_obs + 1, len(completed_pointings)))
 
-        # Get time and position from the database
-        with db.open_session() as session:
-            first_obs_db_pointing = db.get_pointing_by_id(session, first_obs_pointing)
-            first_obs_time = Time(first_obs_db_pointing.stopped_time)
-            first_obs_coord = SkyCoord(first_obs_db_pointing.ra,
-                                       first_obs_db_pointing.dec,
-                                       unit='deg')
         print('Source was first observed at {}, {:.4f} hours after the event'.format(
             first_obs_time.iso, (first_obs_time - event.time).to(u.hour).value))
 
-        # Get how long it had been visible for
-        observer = Observer(site)
-        first_obs_risetime = observer.target_rise_time(
-            first_obs_time, first_obs_coord, 'previous',
-            horizon=event.strategy['constraints_dict']['min_alt'] * u.deg)
         print('Source was first observed {:.4f} hours after becoming visible'.format(
             (first_obs_time - first_obs_risetime).to(u.hour).value))
 
-        # Get the altaz and airmass at the time it was observed
-        first_obs_altaz = observer.altaz(first_obs_time, first_obs_coord)
-        print('Source was first observed at altitude {:.3f} deg'.format(first_obs_altaz.alt.value))
-        print('Source was first observed at airmass {:.2f}'.format(first_obs_altaz.secz.value))
+        print('Source was first observed at airmass {:.2f}'.format(first_obs_airmass))
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
