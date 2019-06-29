@@ -8,7 +8,6 @@ from astroplan import Observer
 
 from astropy import units as u
 from astropy.coordinates import EarthLocation
-from astropy.time import TimeDelta
 
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
@@ -29,7 +28,7 @@ class FakePilot(object):
     it is supposed to be currently doing.
     """
 
-    def __init__(self, sites, start_time, stop_time, log=None):
+    def __init__(self, sites, start_time, stop_time, quick=False, log=None):
         # get a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -49,6 +48,7 @@ class FakePilot(object):
 
         self.start_time = start_time
         self.stop_time = stop_time
+        self.quick = quick
 
         self.weather = Weather(self.start_time, self.stop_time)
 
@@ -263,7 +263,15 @@ class FakePilot(object):
             self.log_state()
 
             # Increase simulation time
-            self.now += TimeDelta(simparams.TIMESTEP)
+            if self.quick:
+                if self.current_ids[telescope_id] is not None:
+                    # Skip the current duration, so we're quicker to run through
+                    self.now += self.current_durations[telescope_id] + 10 * u.s
+                else:
+                    # Just increase by one minute
+                    self.now += 60 * u.s
+            else:
+                self.now += simparams.TIMESTEP
 
             # Sleep, if asked
             if simparams.SLEEP_TIME:

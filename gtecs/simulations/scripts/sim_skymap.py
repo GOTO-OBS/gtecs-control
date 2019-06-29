@@ -79,7 +79,7 @@ def run(fits_path):
 
     # Create the pilot
     site = observatory_location()
-    pilot = FakePilot(site, start_time, stop_time, log=log)
+    pilot = FakePilot(site, start_time, stop_time, quick=True, log=log)
 
     # Loop until the night is over
     pilot.observe()
