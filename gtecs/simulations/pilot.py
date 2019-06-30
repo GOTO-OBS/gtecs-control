@@ -7,7 +7,6 @@ from time import sleep
 from astroplan import Observer
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
 
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
@@ -18,6 +17,7 @@ from .weather import Weather
 from .. import logger
 from .. import params
 from .. import scheduler
+from ..astronomy import observatory_location
 
 
 class FakePilot(object):
@@ -26,9 +26,35 @@ class FakePilot(object):
     The fake pilot simply checks to see if a more important pointing
     is available from the scheduler, or if it has finished the pointing
     it is supposed to be currently doing.
+
+    Parameters
+    ----------
+    start_time : `astropy.time.Time`
+        Time to start running the simulation at.
+
+    stop_time : `astropy.time.Time`, optional
+        Time to stop the simulation.
+        Default is 24 hours after the start_time.
+
+    site : `astropy.coordinates.EarthLocation`, optional
+        The site of the telescope(s) to observe from.
+        Default uses `gtecs.astronomy.observatory_location()` (which defaults to La Palma).
+
+    telescopes : int, optional
+        The number of telescopes to simulate at the given site.
+        Default is 1.
+
+    quick : bool, optional
+        If True, run the pilot in quick mode.
+        This means when observing the pilot will skip forward exactly the right amount of time
+        to finish each observation.
+        For tecnical reasons, if `telescopes` is greater than 1 the pilot currently has to
+        run in quick mode.
+        Default is False if `telescopes` is 1, True otherwise.
+
     """
 
-    def __init__(self, sites, start_time, stop_time, quick=False, log=None):
+    def __init__(self, start_time, stop_time=None, site=None, telescopes=1, quick=None, log=None):
         # get a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -39,38 +65,80 @@ class FakePilot(object):
             self.log = log
         self.log.info('Pilot started')
 
-        if isinstance(sites, EarthLocation):
-            self.sites = [sites]
-        else:
-            self.sites = sites
-        self.telescope_ids = range(len(self.sites))
-        self.observers = [Observer(site) for site in self.sites]
-
         self.start_time = start_time
-        self.stop_time = stop_time
+        if stop_time is not None:
+            self.stop_time = stop_time
+        else:
+            self.stop_time = self.start_time + 24 * u.hours
+
+        if site is not None:
+            self.site = site
+        else:
+            self.site = observatory_location()
+        self.observer = Observer(self.site)
+
+        self.telescopes = telescopes
+        self.telescope_ids = range(self.telescopes)
+
+        if self.telescopes > 1 and quick is None:
+            quick = True
+        elif self.telescopes > 1 and quick is False:
+            raise ValueError('For telescopes > 1 quick must be True')
         self.quick = quick
 
         self.weather = Weather(self.start_time, self.stop_time)
 
-        self.current_ids = [None] * len(self.telescope_ids)
-        self.current_mintimes = [None] * len(self.telescope_ids)
-        self.current_start_times = [None] * len(self.telescope_ids)
-        self.current_durations = [None] * len(self.telescope_ids)
+        self.current_ids = {telescope_id: None for telescope_id in self.telescope_ids}
+        self.current_mintimes = {telescope_id: None for telescope_id in self.telescope_ids}
+        self.current_start_times = {telescope_id: None for telescope_id in self.telescope_ids}
+        self.current_durations = {telescope_id: None for telescope_id in self.telescope_ids}
 
-        self.new_ids = [None] * len(self.telescope_ids)
-        self.new_mintimes = [None] * len(self.telescope_ids)
+        self.new_ids = {telescope_id: None for telescope_id in self.telescope_ids}
+        self.new_mintimes = {telescope_id: None for telescope_id in self.telescope_ids}
 
-        self.completed_pointings = [[]] * len(self.telescope_ids)
-        self.completed_times = [[]] * len(self.telescope_ids)
-        self.interrupted_pointings = [[]] * len(self.telescope_ids)
-        self.aborted_pointings = [[]] * len(self.telescope_ids)
+        self.completed_pointings = {telescope_id: [] for telescope_id in self.telescope_ids}
+        self.completed_times = {telescope_id: [] for telescope_id in self.telescope_ids}
+        self.interrupted_pointings = {telescope_id: [] for telescope_id in self.telescope_ids}
+        self.aborted_pointings = {telescope_id: [] for telescope_id in self.telescope_ids}
 
-        self.dome_open = [False] * len(self.telescope_ids)
+        self.dome_open = {telescope_id: False for telescope_id in self.telescope_ids}
 
-    def mark_current_pointing(self, status, telescope_id=0):
+    @property
+    def all_completed_pointings(self):
+        """Get all pointings completed by all telescopes."""
+        all_completed_pointings = []
+        for telescope_id in self.telescope_ids:
+            all_completed_pointings += self.completed_pointings[telescope_id]
+        return all_completed_pointings
+
+    @property
+    def all_completed_times(self):
+        """Get all times pointings were completed by all telescopes."""
+        all_completed_times = []
+        for telescope_id in self.telescope_ids:
+            all_completed_times += self.completed_times[telescope_id]
+        return all_completed_times
+
+    @property
+    def all_interrupted_pointings(self):
+        """Get all interrupted pointings from all telescopes."""
+        all_interrupted_pointings = []
+        for telescope_id in self.telescope_ids:
+            all_interrupted_pointings += self.interrupted_pointings[telescope_id]
+        return all_interrupted_pointings
+
+    @property
+    def all_aborted_pointings(self):
+        """Get all aborted pointings from all telescopes."""
+        all_aborted_pointings = []
+        for telescope_id in self.telescope_ids:
+            all_aborted_pointings += self.aborted_pointings[telescope_id]
+        return all_aborted_pointings
+
+    def mark_current_pointing(self, status, telescope_id):
         """Mark the current pointing as completed, aborted etc."""
         current_id = self.current_ids[telescope_id]
-        self.log.info('marking pointing {} as {}'.format(current_id, status))
+        self.log.info('{}: marking pointing {} as {}'.format(telescope_id, current_id, status))
 
         if status == 'running':
             mark_running(current_id)
@@ -129,7 +197,7 @@ class FakePilot(object):
             weather_bad = False
 
         # Check if it is night time
-        dark_bad = not self.observers[telescope_id].is_night(self.now, horizon=-10 * u.deg)
+        dark_bad = not self.observer.is_night(self.now, horizon=-10 * u.deg)
 
         # Get overall conditions
         conditions_bad = weather_bad or dark_bad
@@ -141,16 +209,31 @@ class FakePilot(object):
             self.resume_observing(telescope_id)
 
     def check_scheduler(self):
-        """Find current highest priority from the scheduler."""
+        """Find highest priority pointing for each telescope from the scheduler."""
         self.log.info('checking scheduler')
-        # This is a hacked for now, WIP
-        new_pointings = scheduler.check_queue(self.now,
-                                              # self.sites,
-                                              write_file=simparams.WRITE_QUEUE,
-                                              write_html=simparams.WRITE_HTML,
-                                              log=self.log)
-        new_pointings = [new_pointings]  #
+        # This is based on scheduler.check_queue()
+        # Currently the scheduler won't like if multiple pointings are marked as 'running'.
+        # Which will happen if the pilot is simulating more than one telescope.
+        # However, if in quick mode pointings will always be marked as completed before this
+        # function is run, so the scheduler will never know. Smart!
 
+        # Import the queue from the database
+        queue = scheduler.PointingQueue.from_database(self.now, self.observer)
+        if len(queue) == 0:
+            return None
+
+        # Don't bother getting the current pointing, as it will always be None.
+        # Get the X highest priority pointings, where X is the number of telescopes at the site.
+        highest_pointings = queue.get_highest_priority_pointings(self.now, self.observer,
+                                                                 number=self.telescopes)
+
+        # Working out what to do next is also simple, becuase the current pointing is always None.
+        new_pointings = [scheduler.what_to_do_next(None, highest_pointing, log=self.log)
+                         for highest_pointing in highest_pointings]
+
+        # We now always assign the highest priority pointing to telescope 0, the second highest
+        # to telescope 1 and so on.
+        # TODO: What if we assigned them based on the distance from their current positions?
         for telescope_id in self.telescope_ids:
             new_pointing = new_pointings[telescope_id]
             if new_pointing is not None:
@@ -187,7 +270,7 @@ class FakePilot(object):
         with open(fname, 'a') as f:
             line = '{};'.format(self.now.iso)
             for telescope_id in self.telescope_ids:
-                line += '{}:{}'.format(telescope_id, states[telescope_id])
+                line += '{}:{};'.format(telescope_id, states[telescope_id])
             line += '\n'
             f.write(line)
 
@@ -262,10 +345,11 @@ class FakePilot(object):
 
             # Increase simulation time
             if self.quick:
-                if self.current_ids[telescope_id] is not None:
+                if any([self.current_ids[telescope_id] is not None
+                        for telescope_id in self.telescope_ids]):
                     # Skip the current duration, so we're quicker to run through
                     # (plus 10 seconds to be sure)
-                    self.now += self.current_durations[telescope_id] + 10 * u.s
+                    self.now += max(self.current_durations.values()) + 10 * u.s
                 else:
                     # Skip forward 5 minutes
                     self.now += 5 * 60 * u.s

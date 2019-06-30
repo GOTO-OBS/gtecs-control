@@ -209,13 +209,13 @@ def run(fits_direc, system='GOTO-8'):
 
         # Create the pilot
         site = observatory_location()
-        pilot = FakePilot(site, start_time, stop_time, quick=True, log=log)
+        pilot = FakePilot(start_time, stop_time, site, quick=True, log=log)
 
         # Loop until the night is over
         pilot.observe()
 
         # Get completed pointings
-        completed_pointings = pilot.completed_pointings[0]
+        completed_pointings = pilot.all_completed_pointings
 
         # Get observed tiles
         with db.open_session() as session:

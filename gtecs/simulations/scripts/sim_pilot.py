@@ -38,16 +38,16 @@ def run(date):
 
     # Create the pilot
     site = observatory_location()
-    pilot = FakePilot(site, sunset, sunrise, log=log)
+    pilot = FakePilot(sunset, sunrise, site, log=log)
 
     # Loop until the night is over
     pilot.observe()
 
     # Get completed pointings
-    completed_pointings = pilot.completed_pointings[0]
-    completed_times = pilot.completed_times[0]
-    aborted_pointings = pilot.aborted_pointings[0]
-    interrupted_pointings = pilot.interrupted_pointings[0]
+    completed_pointings = pilot.all_completed_pointings
+    completed_times = pilot.all_completed_times
+    aborted_pointings = pilot.all_aborted_pointings
+    interrupted_pointings = pilot.all_interrupted_pointings
 
     # Print results
     print('{} pointings completed:'.format(len(completed_pointings)))

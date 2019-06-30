@@ -382,6 +382,30 @@ class PointingQueue(object):
 
         return pointings[0]
 
+    def get_highest_priority_pointings(self, time, observer, number=1):
+        """Return the top X highest priority pointings."""
+        # If there are no pointings, return None
+        if len(self.pointings) == 0:
+            return [None] * number
+
+        # Apply constraints and calculate tiebreakers for all pointings
+        self.apply_constraints(time, observer)
+        self.calculate_tiebreakers(time, observer)
+
+        # Sort the pointings
+        #   - First is by validity
+        #   - Then by rank
+        #   - Then by ToO flag
+        #   - Then by number ot fimes already observed
+        #   - Finally use the tiebreaker
+        pointings = list(self.pointings)  # make a copy
+        pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
+
+        # Return the top X pointings as requested
+        if len(pointings) < number:
+            pointings += [None] * (number - len(pointings))
+        return pointings[0:number]
+
     def write_to_file(self, time, observer, filename):
         """Write any time-dependent pointing infomation to a file."""
         # The queue should already have priorities calculated

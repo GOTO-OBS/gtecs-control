@@ -1,7 +1,5 @@
 """Functions to help simulations with the ObsDB."""
 
-from gototile.grid import SkyGrid
-
 import obsdb as db
 
 
