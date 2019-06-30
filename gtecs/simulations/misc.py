@@ -50,8 +50,14 @@ def get_selected_tiles(event, grid):
     if not hasattr(grid, 'skymap') or grid.skymap.object != event.skymap.object:
         grid.apply_skymap(event.skymap)
 
-    # This matches what GOTO-alert will do
-    table = grid.select_tiles(contour=0.9,
+    # This matches what GOTO-alert will do - see `gotoalert.database.get_grid_tiles()`
+    if grid.tile_area < 20:
+        # GOTO-4
+        contour_level = 0.9
+    else:
+        # GOTO-8
+        contour_level = 0.95
+    table = grid.select_tiles(contour=contour_level,
                               max_tiles=event.strategy['tile_limit'],
                               min_tile_prob=event.strategy['prob_limit'],
                               )
