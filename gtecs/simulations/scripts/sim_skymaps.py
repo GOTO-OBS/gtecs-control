@@ -26,8 +26,9 @@ from gtecs.astronomy import observatory_location
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import (get_pointing_obs_details, get_source_tiles,
-                                    source_ever_visible, source_selected, source_visible)
+from gtecs.simulations.misc import (get_pointing_obs_details, get_source_pointings,
+                                    get_source_tiles, source_ever_visible, source_selected,
+                                    source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import numpy as np
@@ -207,11 +208,18 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
         # prepare_database() up above will insert it if that's not the grid we want.
         event_handler(event, log=log)
 
+        # Get the pointing IDs of the pointings for the source tiles.
+        # These are the targets, the pointings we want to observe.
+        # Note for this simulation we only care about the FIRST observation of the source.
+        # So once we've observed one of these pointings we can stop the simulation early.
+        source_pointings = get_source_pointings(event, grid)
+
         # Create the pilot
         site = observatory_location()
-        pilot = FakePilot(start_time, stop_time, site, telescopes, quick=True, log=log)
+        pilot = FakePilot(start_time, stop_time, site, telescopes,
+                          target_pointings=source_pointings, quick=True, log=log)
 
-        # Loop until the night is over
+        # Loop until we observe the targets, or the night is over
         pilot.observe()
 
         # Get completed pointings

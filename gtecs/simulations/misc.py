@@ -126,6 +126,25 @@ def source_ever_visible(event, grid):
     return source_visible
 
 
+def get_source_pointings(event, grid):
+    """Get the IDs of the pending pointings for the given tiles."""
+    # Get the source tiles
+    source_tiles = get_source_tiles(event, grid)
+
+    with db.open_session() as session:
+        # Format the object names based on what's added by GOTO-alert
+        object_names = [event.name + '_' + tile for tile in source_tiles]
+
+        # Find the pointings in the database
+        pointings = session.query(db.Pointing).filter(db.Pointing.object_name.in_(object_names),
+                                                      db.Pointing.status == 'pending',
+                                                      ).all()
+
+        # Get the pointing IDs
+        pointing_ids = [pointing.db_id for pointing in pointings]
+        return pointing_ids
+
+
 def get_pointing_obs_details(event, site, pointing_id):
     """Get details for a specific observed pointing."""
     # Get position, tilename and obs time from the database

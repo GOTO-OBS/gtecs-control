@@ -52,9 +52,14 @@ class FakePilot(object):
         run in quick mode.
         Default is False if `telescopes` is 1, True otherwise.
 
+    target_pointings : list of str, optional
+        If given a list of pointing IDs, the pilot will abort the simulation once any of those
+        pointings have been observed.
+
     """
 
-    def __init__(self, start_time, stop_time=None, site=None, telescopes=1, quick=None, log=None):
+    def __init__(self, start_time, stop_time=None, site=None, telescopes=1, quick=None,
+                 target_pointings=None, log=None):
         # get a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -85,6 +90,11 @@ class FakePilot(object):
         elif self.telescopes > 1 and quick is False:
             raise ValueError('For telescopes > 1 quick must be True')
         self.quick = quick
+
+        if target_pointings is not None:
+            self.target_pointings = target_pointings
+        else:
+            self.target_pointings = []
 
         self.weather = Weather(self.start_time, self.stop_time)
 
@@ -319,6 +329,12 @@ class FakePilot(object):
 
             # Log the pilot state
             self.log_state()
+
+            # Check if we've observed any of the target pointings
+            if any(target_id in self.all_completed_pointings
+                   for target_id in self.target_pointings):
+                # OK, we're done
+                break
 
             # Increase simulation time
             if self.quick:
