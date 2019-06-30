@@ -6,6 +6,7 @@ import os
 import warnings
 
 from astropy import units as u
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from gototile.grid import SkyGrid
@@ -61,7 +62,7 @@ class Closer(NeatCloser):
                                                            len(observable_events) / n_complete))
 
 
-def run(fits_direc, system='GOTO-8'):
+def run(fits_direc, system='GOTO-8', sites='N'):
     """Run the simulation."""
     # Create a log file
     global fname
@@ -76,6 +77,16 @@ def run(fits_direc, system='GOTO-8'):
         grid = SkyGrid(fov=(7.8, 5.1), overlap=(0.1, 0.1))
     else:
         raise ValueError('Invalid system: "{}"'.format(system))
+
+    # Define the observing sites
+    if sites.upper() == 'N':
+        sites = [EarthLocation.of_site('lapalma')]
+    elif sites.upper() == 'S':
+        sites = [EarthLocation.of_site('sso')]
+    elif sites.upper() == 'NS':
+        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
+    else:
+        raise ValueError('Invalid sites: "{}"'.format(sites))
 
     # Find the files
     fits_files = os.listdir(fits_direc)
@@ -128,7 +139,7 @@ def run(fits_direc, system='GOTO-8'):
 
         # Check if the source will ever be visible from La Palma
         # If not there's no point running through the simulation
-        if not source_ever_visible(event, grid):
+        if not source_ever_visible(event, grid, sites):
             result = 'never_visible'
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
@@ -140,7 +151,7 @@ def run(fits_direc, system='GOTO-8'):
 
         # Check if the source will be visible during the given time
         # If not there's no point running through the simulation
-        if not source_visible(event, grid, start_time, stop_time):
+        if not source_visible(event, grid, start_time, stop_time, sites):
             result = 'not_visible'
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
@@ -195,6 +206,9 @@ if __name__ == "__main__":
     parser.add_argument('path', help='path to the FITS skymap files')
     parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate')
+    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
+                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
+                              'NS=both, default=N)'))
     args = parser.parse_args()
 
-    run(args.path, args.system)
+    run(args.path, args.system, args.sites)
