@@ -101,39 +101,12 @@ class FakePilot(object):
         self.interrupted_pointings = {telescope_id: [] for telescope_id in self.telescope_ids}
         self.aborted_pointings = {telescope_id: [] for telescope_id in self.telescope_ids}
 
+        self.all_completed_pointings = []
+        self.all_completed_times = []
+        self.all_interrupted_pointings = []
+        self.all_aborted_pointings = []
+
         self.dome_open = {telescope_id: False for telescope_id in self.telescope_ids}
-
-    @property
-    def all_completed_pointings(self):
-        """Get all pointings completed by all telescopes."""
-        all_completed_pointings = []
-        for telescope_id in self.telescope_ids:
-            all_completed_pointings += self.completed_pointings[telescope_id]
-        return all_completed_pointings
-
-    @property
-    def all_completed_times(self):
-        """Get all times pointings were completed by all telescopes."""
-        all_completed_times = []
-        for telescope_id in self.telescope_ids:
-            all_completed_times += self.completed_times[telescope_id]
-        return all_completed_times
-
-    @property
-    def all_interrupted_pointings(self):
-        """Get all interrupted pointings from all telescopes."""
-        all_interrupted_pointings = []
-        for telescope_id in self.telescope_ids:
-            all_interrupted_pointings += self.interrupted_pointings[telescope_id]
-        return all_interrupted_pointings
-
-    @property
-    def all_aborted_pointings(self):
-        """Get all aborted pointings from all telescopes."""
-        all_aborted_pointings = []
-        for telescope_id in self.telescope_ids:
-            all_aborted_pointings += self.aborted_pointings[telescope_id]
-        return all_aborted_pointings
 
     def mark_current_pointing(self, status, telescope_id):
         """Mark the current pointing as completed, aborted etc."""
@@ -147,12 +120,15 @@ class FakePilot(object):
             mark_completed(current_id)
             self.completed_pointings[telescope_id].append(current_id)
             self.completed_times[telescope_id].append(self.now)
+            self.all_completed_pointings.append(current_id)
+            self.all_completed_times.append(self.now)
             # Schedule the next pointing, since we don't have a caretaker
             reschedule_pointing(current_id, self.now)
 
         elif status == 'aborted':
             mark_aborted(current_id)
             self.aborted_pointings[telescope_id].append(current_id)
+            self.all_aborted_pointings.append(current_id)
             self.current_ids[telescope_id] = None
             # Schedule the next pointing, since we don't have a caretaker
             reschedule_pointing(current_id, self.now)
@@ -160,6 +136,7 @@ class FakePilot(object):
         elif status == 'interrupted':
             mark_interrupted(current_id)
             self.interrupted_pointings[telescope_id].append(current_id)
+            self.all_interrupted_pointings.append(current_id)
             self.current_ids[telescope_id] = None
             # Schedule the next pointing, since we don't have a caretaker
             reschedule_pointing(current_id, self.now)
