@@ -33,13 +33,18 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(fits_path):
+def run(fits_path, system='GOTO-8'):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymap', log_stdout=False, log_to_file=True, log_to_stdout=True)
 
-    # Hardcode the GOTO-4 grid, for now
-    grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+    # Select the grid based on the system
+    if system == 'GOTO-4':
+        grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+    elif system == 'GOTO-8':
+        grid = SkyGrid(fov=(7.8, 5.1), overlap=(0.1, 0.1))
+    else:
+        raise ValueError('Invalid system: "{}"'.format(system))
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True)
@@ -162,8 +167,9 @@ if __name__ == "__main__":
     description = 'Process a skymap using the fake pilot to simulate a night of observations'
     parser = argparse.ArgumentParser(description=description,
                                      usage='python sim_skymap.py <path>')
-    parser.add_argument('path',
-                        help='path to the FITS skymap file')
+    parser.add_argument('path', help='path to the FITS skymap file')
+    parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
+                        help='which telescope system to simulate')
     args = parser.parse_args()
 
-    run(args.path)
+    run(args.path, args.system)

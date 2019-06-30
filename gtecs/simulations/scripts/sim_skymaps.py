@@ -98,7 +98,7 @@ class Closer(NeatCloser):
             print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
 
-def run(fits_direc):
+def run(fits_direc, system='GOTO-8'):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
@@ -109,8 +109,13 @@ def run(fits_direc):
     with open(fname, 'a') as f:
         f.write(Time.now().iso + '\n')
 
-    # Hardcode the GOTO-4 grid, for now
-    grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+    # Select the grid based on the system
+    if system == 'GOTO-4':
+        grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
+    elif system == 'GOTO-8':
+        grid = SkyGrid(fov=(7.8, 5.1), overlap=(0.1, 0.1))
+    else:
+        raise ValueError('Invalid system: "{}"'.format(system))
 
     # Find the files
     fits_files = os.listdir(fits_direc)
@@ -306,10 +311,10 @@ def run(fits_direc):
 
 if __name__ == "__main__":
     description = 'Process skymaps using the fake pilot to simulate a night of observations'
-    parser = argparse.ArgumentParser(description=description,
-                                     usage='python sim_skymap.py <path>')
-    parser.add_argument('path',
-                        help='path to the FITS skymap files')
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('path', help='path to the FITS skymap files')
+    parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
+                        help='which telescope system to simulate')
     args = parser.parse_args()
 
-    run(args.path)
+    run(args.path, args.system)
