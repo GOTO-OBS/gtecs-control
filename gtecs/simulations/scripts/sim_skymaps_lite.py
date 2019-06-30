@@ -32,20 +32,11 @@ class Closer(NeatCloser):
         """Print logs."""
         with open(fname, 'a') as f:
             f.write('\n')
+            f.write('not_selected_events=' + str(not_selected_events) + '\n')
+            f.write('never_visible_events=' + str(never_visible_events) + '\n')
+            f.write('not_visible_events=' + str(not_visible_events) + '\n')
+            f.write('observable_events=' + str(observable_events) + '\n')
             f.write(Time.now().iso + '\n')
-
-        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
-                         observable_events)
-        print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
-        print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
-                                                      len(not_selected_events) / n_complete))
-        print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
-                                                      len(never_visible_events) / n_complete))
-        print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
-                                                      len(not_visible_events) / n_complete))
-        print('   observable: {}/{} ({:7.5f})'.format(len(observable_events), n_complete,
-                                                      len(observable_events) / n_complete))
 
         print('-----')
         print('not_selected events:')
@@ -56,6 +47,19 @@ class Closer(NeatCloser):
         print(not_visible_events)
         print('observable events:')
         print(observable_events)
+
+        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
+                         observable_events)
+        print('-----')
+        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
+        print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
+                                                           len(not_selected_events) / n_complete))
+        print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
+                                                           len(never_visible_events) / n_complete))
+        print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
+                                                           len(not_visible_events) / n_complete))
+        print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), n_complete,
+                                                           len(observable_events) / n_complete))
 
 
 def run(fits_direc):
@@ -156,18 +160,11 @@ def run(fits_direc):
         continue
 
     with open(fname, 'a') as f:
+        f.write('not_selected_events=' + str(not_selected_events) + '\n')
+        f.write('never_visible_events=' + str(never_visible_events) + '\n')
+        f.write('not_visible_events=' + str(not_visible_events) + '\n')
+        f.write('observable_events=' + str(observable_events) + '\n')
         f.write(Time.now().iso + '\n')
-
-    print('-----')
-    print('Simulations completed:')
-    print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
-                                                  len(not_selected_events) / len(fits_files)))
-    print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
-                                                  len(never_visible_events) / len(fits_files)))
-    print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
-                                                  len(not_visible_events) / len(fits_files)))
-    print('   observable: {}/{} ({:7.5f})'.format(len(observable_events), len(fits_files),
-                                                  len(observable_events) / len(fits_files)))
 
     print('-----')
     print('not_selected events:')
@@ -178,6 +175,17 @@ def run(fits_direc):
     print(not_visible_events)
     print('observable events:')
     print(observable_events)
+
+    print('-----')
+    print('Simulations completed:')
+    print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
+                                                       len(not_selected_events) / len(fits_files)))
+    print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
+                                                       len(never_visible_events) / len(fits_files)))
+    print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
+                                                       len(not_visible_events) / len(fits_files)))
+    print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), len(fits_files),
+                                                       len(observable_events) / len(fits_files)))
 
 
 if __name__ == "__main__":

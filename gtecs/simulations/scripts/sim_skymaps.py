@@ -49,27 +49,15 @@ class Closer(NeatCloser):
         """Print logs."""
         with open(fname, 'a') as f:
             f.write('\n')
+            f.write('not_selected_events=' + str(not_selected_events) + '\n')
+            f.write('never_visible_events=' + str(never_visible_events) + '\n')
+            f.write('not_visible_events=' + str(not_visible_events) + '\n')
+            f.write('not_observed_events=' + str(not_observed_events) + '\n')
+            f.write('observed_events=' + str(observed_events) + '\n')
+            f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
+            f.write('observed_delta_visible_times=' + str(observed_delta_visible_times) + '\n')
+            f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
             f.write(Time.now().iso + '\n')
-
-        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
-                         not_observed_events + observed_events)
-        print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
-        print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
-                                                      len(not_selected_events) / n_complete))
-        print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
-                                                      len(never_visible_events) / n_complete))
-        print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
-                                                      len(not_visible_events) / n_complete))
-        print(' not_observed: {}/{} ({:7.5f})'.format(len(not_observed_events), n_complete,
-                                                      len(not_observed_events) / n_complete))
-        print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), n_complete,
-                                                      len(observed_events) / n_complete))
-
-        if len(observed_events) > 0:
-            print('     mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
-            print('     mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
-            print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
         print('-----')
         print('not_selected events:')
@@ -88,6 +76,26 @@ class Closer(NeatCloser):
         print(observed_delta_visible_times)
         print('observed Ams:')
         print(observed_airmasses)
+
+        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
+                         not_observed_events + observed_events)
+        print('-----')
+        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
+        print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
+                                                           len(not_selected_events) / n_complete))
+        print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
+                                                           len(never_visible_events) / n_complete))
+        print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
+                                                           len(not_visible_events) / n_complete))
+        print(' not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), n_complete,
+                                                           len(not_observed_events) / n_complete))
+        print('     observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), n_complete,
+                                                           len(observed_events) / n_complete))
+
+        if len(observed_events) > 0:
+            print('     mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
+            print('     mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
+            print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
 
 def run(fits_direc):
@@ -249,25 +257,15 @@ def run(fits_direc):
             continue
 
     with open(fname, 'a') as f:
+        f.write('not_selected_events=' + str(not_selected_events) + '\n')
+        f.write('never_visible_events=' + str(never_visible_events) + '\n')
+        f.write('not_visible_events=' + str(not_visible_events) + '\n')
+        f.write('not_observed_events=' + str(not_observed_events) + '\n')
+        f.write('observed_events=' + str(observed_events) + '\n')
+        f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
+        f.write('observed_delta_visible_times=' + str(observed_delta_visible_times) + '\n')
+        f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
         f.write(Time.now().iso + '\n')
-
-    print('-----')
-    print('Simulations completed:')
-    print(' not_selected: {}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
-                                                  len(not_selected_events) / len(fits_files)))
-    print('never_visible: {}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
-                                                  len(never_visible_events) / len(fits_files)))
-    print('  not_visible: {}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
-                                                  len(not_visible_events) / len(fits_files)))
-    print(' not_observed: {}/{} ({:7.5f})'.format(len(not_observed_events), len(fits_files),
-                                                  len(not_observed_events) / len(fits_files)))
-    print('     observed: {}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
-                                                  len(observed_events) / len(fits_files)))
-
-    if len(observed_events) > 0:
-        print('     mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
-        print('     mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
-        print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
     print('-----')
     print('not_selected events:')
@@ -286,6 +284,24 @@ def run(fits_direc):
     print(observed_delta_visible_times)
     print('observed Ams:')
     print(observed_airmasses)
+
+    print('-----')
+    print('Simulations completed:')
+    print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
+                                                       len(not_selected_events) / len(fits_files)))
+    print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
+                                                       len(never_visible_events) / len(fits_files)))
+    print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
+                                                       len(not_visible_events) / len(fits_files)))
+    print(' not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), len(fits_files),
+                                                       len(not_observed_events) / len(fits_files)))
+    print('     observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
+                                                       len(observed_events) / len(fits_files)))
+
+    if len(observed_events) > 0:
+        print('     mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
+        print('     mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
+        print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
 
 if __name__ == "__main__":
