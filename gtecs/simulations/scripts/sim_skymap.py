@@ -79,7 +79,9 @@ def run(fits_path, system='GOTO-8'):
         print('Source is visible during given period')
 
     # Handle the event
-    # This should add tiles to the observation database, using the appropriate strategy
+    # This should add tiles to the observation database, using the appropriate strategy.
+    # It will select the "current" grid as the last one in the Grid table, which is why
+    # prepare_database() up above will insert it if that's not the grid we want.
     event_handler(event, log=log)
 
     # Create the pilot

@@ -51,7 +51,9 @@ def run(ivorn, system='GOTO-8'):
     print('Processing skymap for Event {}'.format(event.name))
 
     # Handle the event
-    # This should add tiles to the observation database, using the appropriate strategy
+    # This should add tiles to the observation database, using the appropriate strategy.
+    # It will select the "current" grid as the last one in the Grid table, which is why
+    # prepare_database() up above will insert it if that's not the grid we want.
     event_handler(event, log=log)
 
     # Set the simulation start and stop times

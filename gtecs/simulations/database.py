@@ -32,13 +32,13 @@ def prepare_database(grid, clear=False):
             db_user = db.User('goto', 'gotoobs', 'GOTO Survey')
             session.add(db_user)
 
-        # Use the GOTO-4 grid unless another is given
-        if grid is None:
-            grid = SkyGrid(fov=(3.7, 4.9), overlap=(0.1, 0.1))
-
-        # Create the Grid and GridTiles if they don't exist
-        existing_grid = session.query(db.Grid).filter(db.Grid.name == grid.name).one_or_none()
-        if not existing_grid:
+        # Create the Grid and GridTiles if they're not the current grid
+        # The "current" grid is defined as the latest one added to the database, that's what
+        # GOTO-alert will use.
+        # We need to make sure the latest one is the grid that's given, even if that Grid already
+        # exists in the database but isn't the "current" one.
+        current_grid = db.get_current_grid(session)
+        if current_grid.name != grid.name:
             print('Creating database Grid')
             db_grid = db.Grid(name=grid.name,
                               ra_fov=grid.fov['ra'].value,
