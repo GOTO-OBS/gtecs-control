@@ -11,6 +11,3 @@ READOUT_TIME = 10 * u.s
 # Pilot params
 TIMESTEP = 60 * u.s
 ENABLE_WEATHER = False
-SLEEP_TIME = 0
-WRITE_QUEUE = False
-WRITE_HTML = False

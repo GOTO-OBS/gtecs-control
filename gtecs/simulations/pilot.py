@@ -2,7 +2,6 @@
 """A fake pilot to test the scheduler."""
 
 import os
-from time import sleep
 
 from astroplan import Observer
 
@@ -348,10 +347,6 @@ class FakePilot(object):
                     self.now += 5 * 60 * u.s
             else:
                 self.now += simparams.TIMESTEP
-
-            # Sleep, if asked
-            if simparams.SLEEP_TIME:
-                sleep(float(simparams.SLEEP_TIME))
 
         self.log.info('observing completed!')
 
