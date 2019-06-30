@@ -37,8 +37,11 @@ def prepare_database(grid, clear=False):
         # GOTO-alert will use.
         # We need to make sure the latest one is the grid that's given, even if that Grid already
         # exists in the database but isn't the "current" one.
-        current_grid = db.get_current_grid(session)
-        if current_grid.name != grid.name:
+        try:
+            current_grid = db.get_current_grid(session)
+        except ValueError:
+            current_grid = None
+        if current_grid is None or current_grid.name != grid.name:
             print('Creating database Grid')
             db_grid = db.Grid(name=grid.name,
                               ra_fov=grid.fov['ra'].value,
