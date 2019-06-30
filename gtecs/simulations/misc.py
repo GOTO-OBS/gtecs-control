@@ -89,12 +89,14 @@ def source_selected(event, grid):
     return source_selected
 
 
-def get_visible_tiles(event, grid, time_range=None):
+def get_visible_tiles(event, grid, time_range=None, sites=None):
     """Get the tiles that are visible from La Palma within the given times."""
+    if sites is None:
+        sites = observatory_location()
     # Get the visible tiles from the grid for the given times
     min_alt = float(event.strategy['constraints_dict']['min_alt'])
     max_sunalt = float(event.strategy['constraints_dict']['max_sunalt'])
-    visible_tiles = grid.get_visible_tiles(observatory_location(),
+    visible_tiles = grid.get_visible_tiles(sites,
                                            time_range=time_range,
                                            alt_limit=min_alt,
                                            sun_limit=max_sunalt,
@@ -102,10 +104,10 @@ def get_visible_tiles(event, grid, time_range=None):
     return visible_tiles
 
 
-def source_visible(event, grid, start_time, stop_time):
+def source_visible(event, grid, start_time, stop_time, sites):
     """Return True if the source is visible between the given times."""
     # Get the visble and source tiles
-    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
+    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time), sites)
     source_tiles = get_source_tiles(event, grid)
 
     # Is the source visible during the night?
@@ -114,10 +116,10 @@ def source_visible(event, grid, start_time, stop_time):
     return source_visible
 
 
-def source_ever_visible(event, grid):
+def source_ever_visible(event, grid, sites):
     """Return True if the source is ever visible from La Palma."""
     # Get the visble and source tiles
-    ever_visible_tiles = get_visible_tiles(event, grid, None)
+    ever_visible_tiles = get_visible_tiles(event, grid, None, sites)
     source_tiles = get_source_tiles(event, grid)
 
     # Is the source visible during the night?
