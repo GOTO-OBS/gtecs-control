@@ -13,7 +13,6 @@ from gototile.skymap import SkyMap
 
 from gtecs import params
 from gtecs.misc import NeatCloser
-from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import source_ever_visible, source_selected, source_visible
 
@@ -99,9 +98,6 @@ def run(fits_direc, system='GOTO-8'):
     # Loop through all files
     for i, fits_file in enumerate(fits_files):
         sim_start_time = Time.now()
-
-        # Prepare the ObsDB
-        prepare_database(grid, clear=True)
 
         # Load the skymap
         skymap = SkyMap.from_fits(os.path.join(fits_direc, fits_file))
