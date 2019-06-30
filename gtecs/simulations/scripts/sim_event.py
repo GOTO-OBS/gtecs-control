@@ -30,7 +30,7 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(ivorn, system='GOTO-8'):
+def run(ivorn, system='GOTO-8', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_event', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -62,7 +62,7 @@ def run(ivorn, system='GOTO-8'):
 
     # Create the pilot
     site = observatory_location()
-    pilot = FakePilot(start_time, stop_time, site, log=log)
+    pilot = FakePilot(start_time, stop_time, site, telescopes, log=log)
 
     # Loop until the night is over
     pilot.observe()
@@ -72,6 +72,10 @@ def run(ivorn, system='GOTO-8'):
 
     # Print and plot results
     print('{} pointings completed'.format(len(completed_pointings)))
+    if telescopes > 1:
+        for i in range(telescopes):
+            print('Telescope {} observed {} pointings'.format(
+                i + 1, len(pilot.completed_pointings[i])))
     if len(completed_pointings) == 0:
         print('Did not observe any pointings')
         print('Exiting')
@@ -101,11 +105,12 @@ def run(ivorn, system='GOTO-8'):
 
 if __name__ == "__main__":
     description = 'Process an event using the fake pilot to simulate a night of observations'
-    parser = argparse.ArgumentParser(description=description,
-                                     usage='python sim_event.py <ivorn>')
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('ivorn', help='ivorn of the event to fetch from the VOEvent database')
     parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate')
+    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
+                        help='number of telescopes to observe with (default=1)')
     args = parser.parse_args()
 
-    run(args.ivorn, args.system)
+    run(args.ivorn, args.system, args.telescopes)

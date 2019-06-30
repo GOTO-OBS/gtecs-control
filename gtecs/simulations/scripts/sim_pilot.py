@@ -15,7 +15,7 @@ from gtecs.simulations.pilot import FakePilot
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(date):
+def run(date, telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_pilot', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -29,7 +29,7 @@ def run(date):
 
     # Create the pilot
     site = observatory_location()
-    pilot = FakePilot(sunset, sunrise, site, log=log)
+    pilot = FakePilot(sunset, sunrise, site, telescopes, log=log)
 
     # Loop until the night is over
     pilot.observe()
@@ -55,15 +55,12 @@ def run(date):
 
 
 if __name__ == "__main__":
-
-    usage = 'python sim_pilot.py date'
-
-    parser = argparse.ArgumentParser(description='Run the fake pilot for a night',
-                                     usage=usage)
-    parser.add_argument('date',
-                        nargs='?',
-                        default=None,
+    description = 'Run the fake pilot for a night'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('date', nargs='?',
                         help='night starting date to simulate, default to tonight')
+    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
+                        help='number of telescopes to observe with (default=1)')
     args = parser.parse_args()
 
-    run(args.date)
+    run(args.date, args.telescopes)

@@ -98,7 +98,7 @@ class Closer(NeatCloser):
             print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
 
 
-def run(fits_direc, system='GOTO-8'):
+def run(fits_direc, system='GOTO-8', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
@@ -209,7 +209,7 @@ def run(fits_direc, system='GOTO-8'):
 
         # Create the pilot
         site = observatory_location()
-        pilot = FakePilot(start_time, stop_time, site, quick=True, log=log)
+        pilot = FakePilot(start_time, stop_time, site, telescopes, quick=True, log=log)
 
         # Loop until the night is over
         pilot.observe()
@@ -317,6 +317,8 @@ if __name__ == "__main__":
     parser.add_argument('path', help='path to the FITS skymap files')
     parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate')
+    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
+                        help='number of telescopes to observe with (default=1)')
     args = parser.parse_args()
 
-    run(args.path, args.system)
+    run(args.path, args.system, args.telescopes)
