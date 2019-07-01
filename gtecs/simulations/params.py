@@ -7,6 +7,3 @@ SLEWRATE = 5 * u.degree / u.s
 
 # Camera read-out time
 READOUT_TIME = 10 * u.s
-
-# Pilot params
-TIMESTEP = 60 * u.s

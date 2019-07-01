@@ -10,7 +10,6 @@ from astropy.coordinates import EarthLocation
 
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
-from . import params as simparams
 from .database import reschedule_pointing
 from .misc import estimate_completion_time
 from .weather import Weather
@@ -46,6 +45,11 @@ class FakePilot(object):
         are given then you can't have 2 telescopes at one and 1 at the other.
         Default is 1.
 
+    timestep : float, optional
+        Time to add on between simulation steps.
+        This is ignored if `quick=True` (see below)
+        Default is 60 seconds.
+
     quick : bool, optional
         If True, run the pilot in quick mode.
         This means when observing the pilot will skip forward exactly the right amount of time
@@ -61,10 +65,11 @@ class FakePilot(object):
     weather : bool, optional
         If True, simulate weather conditions by occasionally closing the domes during the day.
         Default is False.
+
     """
 
-    def __init__(self, start_time, stop_time=None, sites=None, telescopes=1, quick=None,
-                 target_pointings=None, weather=False, log=None):
+    def __init__(self, start_time, stop_time=None, sites=None, telescopes=1,
+                 timestep=60, quick=None, target_pointings=None, weather=False, log=None):
         # Make a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -112,6 +117,9 @@ class FakePilot(object):
         self.telescopes_at_site = [self.telescope_ids[i:i + self.telescopes_per_site]
                                    for i in range(0, len(self.telescope_ids),
                                                   self.telescopes_per_site)]
+
+        # Set timestep
+        self.timestep = timestep
 
         # Set quick mode, enforced if simulating more than one telescope
         if self.telescopes > 1 and quick is None:
@@ -416,7 +424,7 @@ class FakePilot(object):
                     # Skip forward 5 minutes
                     self.now += 5 * 60 * u.s
             else:
-                self.now += simparams.TIMESTEP
+                self.now += self.timestep * u.s
 
         self.log.info('observing completed!')
 
