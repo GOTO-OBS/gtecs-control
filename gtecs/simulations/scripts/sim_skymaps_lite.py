@@ -34,7 +34,7 @@ class Closer(NeatCloser):
             f.write('not_selected_events=' + str(not_selected_events) + '\n')
             f.write('never_visible_events=' + str(never_visible_events) + '\n')
             f.write('not_visible_events=' + str(not_visible_events) + '\n')
-            f.write('observable_events=' + str(observable_events) + '\n')
+            f.write('visible_events=' + str(visible_events) + '\n')
             f.write(Time.now().iso + '\n')
 
         print('-----')
@@ -44,13 +44,13 @@ class Closer(NeatCloser):
         print(never_visible_events)
         print('not_visible events:')
         print(not_visible_events)
-        print('observable events:')
-        print(observable_events)
-        print('observable sites:')
-        print(observable_sites)
+        print('visible events:')
+        print(visible_events)
+        print('visible sites:')
+        print(visible_sites)
 
         n_complete = len(not_selected_events + not_visible_events + never_visible_events +
-                         observable_events)
+                         visible_events)
         print('-----')
         print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
         print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
@@ -59,12 +59,12 @@ class Closer(NeatCloser):
                                                            len(never_visible_events) / n_complete))
         print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
                                                            len(not_visible_events) / n_complete))
-        print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), n_complete,
-                                                           len(observable_events) / n_complete))
-        if len(set(observable_sites)) > 1:
+        print('      visible: {:4.0f}/{} ({:7.5f})'.format(len(visible_events), n_complete,
+                                                           len(visible_events) / n_complete))
+        if len(set(visible_sites)) > 1:
             print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                        observable_sites.count(name))
-                                                        for name in set(observable_sites)])))
+                                                        visible_sites.count(name))
+                                                        for name in set(visible_sites)])))
 
 
 def run(fits_direc, system='GOTO-8', sites='N'):
@@ -96,13 +96,13 @@ def run(fits_direc, system='GOTO-8', sites='N'):
     global not_selected_events
     global not_visible_events
     global never_visible_events
-    global observable_events
-    global observable_sites
+    global visible_events
+    global visible_sites
     not_selected_events = []
     not_visible_events = []
     never_visible_events = []
-    observable_events = []
-    observable_sites = []
+    visible_events = []
+    visible_sites = []
 
     # Print results if we exit early
     Closer(len(fits_files))
@@ -162,31 +162,31 @@ def run(fits_direc, system='GOTO-8', sites='N'):
             not_visible_events.append(event_id)
             continue
 
-        # The event must be observable
-        # Check which site(s) it's observable from
-        observable_from = ''
+        # The event must be visible
+        # Check which site(s) it's visible from
+        visible_from = ''
         for site_id, site in enumerate(sites):
             if source_visible(event, grid, start_time, stop_time, site):
-                observable_from += site_names[site_id]
+                visible_from += site_names[site_id]
 
-        result = 'observable'
+        result = 'visible'
         if len(sites) > 1:
-            result += (' (St={})'.format(observable_from))
+            result += (' (St={})'.format(visible_from))
         dt = (Time.now() - sim_start_time).to(u.s).value
         result += ' :: t={:.1f}'.format(dt)
         print(result)
         with open(fname, 'a') as f:
             f.write(result + '\n')
-        observable_events.append(event_id)
-        observable_sites.append(observable_from)
+        visible_events.append(event_id)
+        visible_sites.append(visible_from)
         continue
 
     with open(fname, 'a') as f:
         f.write('not_selected_events=' + str(not_selected_events) + '\n')
         f.write('never_visible_events=' + str(never_visible_events) + '\n')
         f.write('not_visible_events=' + str(not_visible_events) + '\n')
-        f.write('observable_events=' + str(observable_events) + '\n')
-        f.write('observable_sites=' + str(observable_sites) + '\n')
+        f.write('visible_events=' + str(visible_events) + '\n')
+        f.write('visible_sites=' + str(visible_sites) + '\n')
         f.write(Time.now().iso + '\n')
 
     print('-----')
@@ -196,10 +196,10 @@ def run(fits_direc, system='GOTO-8', sites='N'):
     print(never_visible_events)
     print('not_visible events:')
     print(not_visible_events)
-    print('observable events:')
-    print(observable_events)
-    print('observable sites:')
-    print(observable_sites)
+    print('visible events:')
+    print(visible_events)
+    print('visible sites:')
+    print(visible_sites)
 
     print('-----')
     print('Simulations completed:')
@@ -209,12 +209,12 @@ def run(fits_direc, system='GOTO-8', sites='N'):
                                                        len(never_visible_events) / len(fits_files)))
     print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
                                                        len(not_visible_events) / len(fits_files)))
-    print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), len(fits_files),
-                                                       len(observable_events) / len(fits_files)))
-    if len(set(observable_sites)) > 1:
+    print('      visible: {:4.0f}/{} ({:7.5f})'.format(len(visible_events), len(fits_files),
+                                                       len(visible_events) / len(fits_files)))
+    if len(set(visible_sites)) > 1:
         print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                    observable_sites.count(name))
-                                                    for name in set(observable_sites)])))
+                                                    visible_sites.count(name))
+                                                    for name in set(visible_sites)])))
 
 
 if __name__ == "__main__":
