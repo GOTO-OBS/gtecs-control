@@ -12,6 +12,7 @@ import argparse
 import warnings
 
 from astropy import units as u
+from astropy.coordinates import EarthLocation
 
 from gotoalert.alert import event_handler
 from gotoalert.events import Event
@@ -19,7 +20,6 @@ from gotoalert.events import Event
 from gototile.grid import SkyGrid
 
 from gtecs import logger
-from gtecs.astronomy import observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.misc import get_visible_tiles
 from gtecs.simulations.pilot import FakePilot
@@ -30,7 +30,7 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(ivorn, system='GOTO-8', telescopes=1):
+def run(ivorn, system='GOTO-8', telescopes=1, sites='N'):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_event', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -42,6 +42,16 @@ def run(ivorn, system='GOTO-8', telescopes=1):
         grid = SkyGrid(fov=(7.8, 5.1), overlap=(0.1, 0.1))
     else:
         raise ValueError('Invalid system: "{}"'.format(system))
+
+    # Define the observing sites
+    if sites.upper() == 'N':
+        sites = [EarthLocation.of_site('lapalma')]
+    elif sites.upper() == 'S':
+        sites = [EarthLocation.of_site('sso')]
+    elif sites.upper() == 'NS':
+        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
+    else:
+        raise ValueError('Invalid sites: "{}"'.format(sites))
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True)
@@ -61,8 +71,7 @@ def run(ivorn, system='GOTO-8', telescopes=1):
     stop_time = start_time + 24 * u.hour
 
     # Create the pilot
-    site = observatory_location()
-    pilot = FakePilot(start_time, stop_time, site, telescopes, log=log)
+    pilot = FakePilot(start_time, stop_time, sites, telescopes, log=log)
 
     # Loop until the night is over
     pilot.observe()
@@ -72,8 +81,8 @@ def run(ivorn, system='GOTO-8', telescopes=1):
 
     # Print and plot results
     print('{} pointings completed'.format(len(completed_pointings)))
-    if telescopes > 1:
-        for i in range(telescopes):
+    if len(sites) > 1 or telescopes > 1:
+        for i in range(telescopes * len(sites)):
             print('Telescope {} observed {} pointings'.format(
                 i + 1, len(pilot.completed_pointings[i])))
     if len(completed_pointings) == 0:
@@ -94,7 +103,7 @@ def run(ivorn, system='GOTO-8', telescopes=1):
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
-    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
+    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time), sites)
     notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
     grid.plot(highlight=observed_tiles,
               plot_skymap=True,

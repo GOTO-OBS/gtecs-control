@@ -13,6 +13,7 @@ import warnings
 
 
 from astropy import units as u
+from astropy.coordinates import EarthLocation
 
 from gotoalert.alert import event_handler
 
@@ -20,7 +21,6 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import logger
-from gtecs.astronomy import observatory_location
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_pointing_obs_details, get_source_tiles, get_visible_tiles,
@@ -33,7 +33,7 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(fits_path, system='GOTO-8', telescopes=1):
+def run(fits_path, system='GOTO-8', telescopes=1, sites='N'):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymap', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -45,6 +45,19 @@ def run(fits_path, system='GOTO-8', telescopes=1):
         grid = SkyGrid(fov=(7.8, 5.1), overlap=(0.1, 0.1))
     else:
         raise ValueError('Invalid system: "{}"'.format(system))
+
+    # Define the observing sites
+    if sites.upper() == 'N':
+        sites = [EarthLocation.of_site('lapalma')]
+        site_names = ['N']
+    elif sites.upper() == 'S':
+        sites = [EarthLocation.of_site('sso')]
+        site_names = ['S']
+    elif sites.upper() == 'NS':
+        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
+        site_names = ['N', 'S']
+    else:
+        raise ValueError('Invalid sites: "{}"'.format(sites))
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True)
@@ -71,7 +84,7 @@ def run(fits_path, system='GOTO-8', telescopes=1):
 
     # Check if the source will be visible during the given time
     # If not there's no point running through the simulation
-    if not source_visible(event, grid, start_time, stop_time):
+    if not source_visible(event, grid, start_time, stop_time, sites):
         print('Source is not visible during given period')
         print('Exiting')
         return
@@ -85,19 +98,19 @@ def run(fits_path, system='GOTO-8', telescopes=1):
     event_handler(event, log=log)
 
     # Create the pilot
-    site = observatory_location()
-    pilot = FakePilot(start_time, stop_time, site, telescopes, quick=True, log=log)
+    pilot = FakePilot(start_time, stop_time, sites, telescopes, quick=True, log=log)
 
     # Loop until the night is over
     pilot.observe()
 
     # Get completed pointings
     completed_pointings = pilot.all_completed_pointings
+    completed_telescopes = pilot.all_completed_telescopes
 
     # Print and plot results
     print('{} pointings completed'.format(len(completed_pointings)))
-    if telescopes > 1:
-        for i in range(telescopes):
+    if len(sites) > 1 or telescopes > 1:
+        for i in range(telescopes * len(sites)):
             print('Telescope {} observed {} pointings'.format(
                 i + 1, len(pilot.completed_pointings[i])))
     if len(completed_pointings) == 0:
@@ -134,7 +147,16 @@ def run(fits_path, system='GOTO-8', telescopes=1):
                          if tile in completed_tiles])
         first_obs_pointing = completed_pointings[first_obs]
 
-        first_obs_details = get_pointing_obs_details(event, site, first_obs_pointing)
+        # For the details we need to know which site observed it!
+        # We know which telescope observed it from the pilot, and we can work out the site ID as
+        # we know the number of telescopes we gave it.
+        first_obs_telescope_id = completed_telescopes[first_obs]
+        first_obs_site_id = first_obs_telescope_id // telescopes
+        first_obs_site = sites[first_obs_site_id]
+        first_obs_site_name = site_names[first_obs_site_id]
+
+        # Get the observation details from the database
+        first_obs_details = get_pointing_obs_details(event, first_obs_site, first_obs_pointing)
         first_obs_tile = first_obs_details[0]
         first_obs_time = first_obs_details[1]
         first_obs_risetime = first_obs_details[2]
@@ -145,6 +167,10 @@ def run(fits_path, system='GOTO-8', telescopes=1):
 
         print('Source was first observed in tile {}, pointing {} ({}/{})'.format(
             first_obs_tile, first_obs_pointing, first_obs + 1, len(completed_pointings)))
+
+        if len(sites) > 1 or telescopes > 1:
+            print('Source was first observed by telescope {} at site {}'.format(
+                first_obs_telescope_id + 1, first_obs_site_name))
 
         print('Source was first observed at {}, {:.4f} hours after the event'.format(
             first_obs_time.iso, (first_obs_time - event.time).to(u.hour).value))
@@ -158,7 +184,7 @@ def run(fits_path, system='GOTO-8', telescopes=1):
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
-    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time))
+    visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time), sites)
     notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
     grid.plot(highlight=completed_tiles_unique,
               plot_skymap=True,
@@ -177,6 +203,9 @@ if __name__ == "__main__":
                         help='which telescope system to simulate')
     parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
                         help='number of telescopes to observe with (default=1)')
+    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
+                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
+                              'NS=both, default=N)'))
     args = parser.parse_args()
 
-    run(args.path, args.system, args.telescopes)
+    run(args.path, args.system, args.telescopes, args.sites)

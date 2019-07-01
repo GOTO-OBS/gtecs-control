@@ -13,6 +13,7 @@ import os
 import warnings
 
 from astropy import units as u
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from gotoalert.alert import event_handler
@@ -22,7 +23,6 @@ from gototile.skymap import SkyMap
 
 from gtecs import logger
 from gtecs import params
-from gtecs.astronomy import observatory_location
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
@@ -58,6 +58,7 @@ class Closer(NeatCloser):
             f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
             f.write('observed_delta_visible_times=' + str(observed_delta_visible_times) + '\n')
             f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
+            f.write('observed_sites=' + str(observed_sites) + '\n')
             f.write(Time.now().iso + '\n')
 
         print('-----')
@@ -77,6 +78,8 @@ class Closer(NeatCloser):
         print(observed_delta_visible_times)
         print('observed Ams:')
         print(observed_airmasses)
+        print('observed Sts:')
+        print(observed_sites)
 
         n_complete = len(not_selected_events + not_visible_events + never_visible_events +
                          not_observed_events + observed_events)
@@ -97,9 +100,13 @@ class Closer(NeatCloser):
             print('     mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
             print('     mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
             print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+            if len(set(observed_sites)) > 1:
+                print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                            observed_sites.count(name))
+                                                            for name in set(observed_sites)])))
 
 
-def run(fits_direc, system='GOTO-8', telescopes=1):
+def run(fits_direc, system='GOTO-8', telescopes=1, sites='N'):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
@@ -118,6 +125,19 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
     else:
         raise ValueError('Invalid system: "{}"'.format(system))
 
+    # Define the observing sites
+    if sites.upper() == 'N':
+        sites = [EarthLocation.of_site('lapalma')]
+        site_names = ['N']
+    elif sites.upper() == 'S':
+        sites = [EarthLocation.of_site('sso')]
+        site_names = ['S']
+    elif sites.upper() == 'NS':
+        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
+        site_names = ['N', 'S']
+    else:
+        raise ValueError('Invalid sites: "{}"'.format(sites))
+
     # Find the files
     fits_files = os.listdir(fits_direc)
     fits_files = list(sorted(fits_files, key=lambda x: int(x.split('_')[0])))
@@ -132,6 +152,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
     global observed_delta_event_times
     global observed_delta_visible_times
     global observed_airmasses
+    global observed_sites
     not_selected_events = []
     not_visible_events = []
     never_visible_events = []
@@ -140,6 +161,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
     observed_delta_event_times = []
     observed_delta_visible_times = []
     observed_airmasses = []
+    observed_sites = []
 
     # Print results if we exit early
     Closer(len(fits_files))
@@ -180,7 +202,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
 
         # Check if the source will ever be visible from La Palma
         # If not there's no point running through the simulation
-        if not source_ever_visible(event, grid):
+        if not source_ever_visible(event, grid, sites):
             result = 'never_visible'
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
@@ -192,7 +214,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
 
         # Check if the source will be visible during the given time
         # If not there's no point running through the simulation
-        if not source_visible(event, grid, start_time, stop_time):
+        if not source_visible(event, grid, start_time, stop_time, sites):
             result = 'not_visible'
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
@@ -215,8 +237,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
         source_pointings = get_source_pointings(event, grid)
 
         # Create the pilot
-        site = observatory_location()
-        pilot = FakePilot(start_time, stop_time, site, telescopes,
+        pilot = FakePilot(start_time, stop_time, sites, telescopes,
                           target_pointings=source_pointings, quick=True, log=log)
 
         # Loop until we observe the targets, or the night is over
@@ -224,6 +245,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
 
         # Get completed pointings
         completed_pointings = pilot.all_completed_pointings
+        completed_telescopes = pilot.all_completed_telescopes
 
         # Get observed tiles
         with db.open_session() as session:
@@ -251,12 +273,26 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
                                for tile in source_tiles
                                if tile in completed_tiles])
             first_pointing = completed_pointings[first_index]
-            _, obs_time, rise_time, airmass = get_pointing_obs_details(event, site, first_pointing)
+
+            # For the details we need to know which site observed it!
+            # We know which telescope observed it from the pilot, and we can work out the site ID as
+            # we know the number of telescopes we gave it.
+            first_obs_telescope_id = completed_telescopes[first_index]
+            first_obs_site_id = first_obs_telescope_id // telescopes
+            first_obs_site = sites[first_obs_site_id]
+            first_obs_site_name = site_names[first_obs_site_id]
+
+            # Get the observation details from the database
+            _, obs_time, rise_time, airmass = get_pointing_obs_details(event, first_obs_site,
+                                                                       first_pointing)
+
+            # Only care about visible time past event time
             delta_event_time = (obs_time - event.time).to(u.hour).value
             visible_time = max(event.time, rise_time)
             delta_visible_time = (obs_time - visible_time).to(u.hour).value
-            result = 'OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f})'.format(
-                delta_event_time, delta_visible_time, airmass)
+
+            result = 'OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f}, St={})'.format(
+                delta_event_time, delta_visible_time, airmass, first_obs_site_name)
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
             print(result)
@@ -268,6 +304,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
             observed_delta_event_times.append(delta_event_time)
             observed_delta_visible_times.append(delta_visible_time)
             observed_airmasses.append(airmass)
+            observed_sites.append(first_obs_site_name)
 
             continue
 
@@ -280,6 +317,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
         f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
         f.write('observed_delta_visible_times=' + str(observed_delta_visible_times) + '\n')
         f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
+        f.write('observed_sites=' + str(observed_sites) + '\n')
         f.write(Time.now().iso + '\n')
 
     print('-----')
@@ -299,6 +337,8 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
     print(observed_delta_visible_times)
     print('observed Ams:')
     print(observed_airmasses)
+    print('observed Sts:')
+    print(observed_sites)
 
     print('-----')
     print('Simulations completed:')
@@ -317,6 +357,10 @@ def run(fits_direc, system='GOTO-8', telescopes=1):
         print('     mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
         print('     mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
         print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+        if len(set(observed_sites)) > 1:
+            print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                        observed_sites.count(name))
+                                                        for name in set(observed_sites)])))
 
 
 if __name__ == "__main__":
@@ -327,6 +371,9 @@ if __name__ == "__main__":
                         help='which telescope system to simulate')
     parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
                         help='number of telescopes to observe with (default=1)')
+    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
+                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
+                              'NS=both, default=N)'))
     args = parser.parse_args()
 
-    run(args.path, args.system, args.telescopes)
+    run(args.path, args.system, args.telescopes, args.sites)
