@@ -341,7 +341,11 @@ class FakePilot(object):
                         for telescope_id in self.telescope_ids]):
                     # Skip the current duration, so we're quicker to run through
                     # (plus 10 seconds to be sure)
-                    self.now += max(self.current_durations.values()) + 10 * u.s
+                    longest_duration = max([self.current_durations[telescope_id]
+                                            for telescope_id in self.telescope_ids
+                                            if self.current_durations[telescope_id] is not None
+                                            ])
+                    self.now += longest_duration + 10 * u.s
                 else:
                     # Skip forward 5 minutes
                     self.now += 5 * 60 * u.s
