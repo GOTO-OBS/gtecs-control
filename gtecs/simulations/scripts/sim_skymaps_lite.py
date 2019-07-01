@@ -46,6 +46,8 @@ class Closer(NeatCloser):
         print(not_visible_events)
         print('observable events:')
         print(observable_events)
+        print('observable sites:')
+        print(observable_sites)
 
         n_complete = len(not_selected_events + not_visible_events + never_visible_events +
                          observable_events)
@@ -59,6 +61,10 @@ class Closer(NeatCloser):
                                                            len(not_visible_events) / n_complete))
         print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), n_complete,
                                                            len(observable_events) / n_complete))
+        if len(set(observable_sites)) > 1:
+            print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                        observable_sites.count(name))
+                                                        for name in set(observable_sites)])))
 
 
 def run(fits_direc, system='GOTO-8', sites='N'):
@@ -91,10 +97,12 @@ def run(fits_direc, system='GOTO-8', sites='N'):
     global not_visible_events
     global never_visible_events
     global observable_events
+    global observable_sites
     not_selected_events = []
     not_visible_events = []
     never_visible_events = []
     observable_events = []
+    observable_sites = []
 
     # Print results if we exit early
     Closer(len(fits_files))
@@ -155,13 +163,22 @@ def run(fits_direc, system='GOTO-8', sites='N'):
             continue
 
         # The event must be observable
+        # Check which site(s) it's observable from
+        observable_from = ''
+        for site_id, site in enumerate(sites):
+            if source_visible(event, grid, start_time, stop_time, site):
+                observable_from += site_names[site_id]
+
         result = 'observable'
+        if len(sites) > 1:
+            result += (' (St={})'.format(observable_from))
         dt = (Time.now() - sim_start_time).to(u.s).value
         result += ' :: t={:.1f}'.format(dt)
         print(result)
         with open(fname, 'a') as f:
             f.write(result + '\n')
         observable_events.append(event_id)
+        observable_sites.append(observable_from)
         continue
 
     with open(fname, 'a') as f:
@@ -169,6 +186,7 @@ def run(fits_direc, system='GOTO-8', sites='N'):
         f.write('never_visible_events=' + str(never_visible_events) + '\n')
         f.write('not_visible_events=' + str(not_visible_events) + '\n')
         f.write('observable_events=' + str(observable_events) + '\n')
+        f.write('observable_sites=' + str(observable_sites) + '\n')
         f.write(Time.now().iso + '\n')
 
     print('-----')
@@ -180,6 +198,8 @@ def run(fits_direc, system='GOTO-8', sites='N'):
     print(not_visible_events)
     print('observable events:')
     print(observable_events)
+    print('observable sites:')
+    print(observable_sites)
 
     print('-----')
     print('Simulations completed:')
@@ -191,6 +211,10 @@ def run(fits_direc, system='GOTO-8', sites='N'):
                                                        len(not_visible_events) / len(fits_files)))
     print('   observable: {:4.0f}/{} ({:7.5f})'.format(len(observable_events), len(fits_files),
                                                        len(observable_events) / len(fits_files)))
+    if len(set(observable_sites)) > 1:
+        print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                    observable_sites.count(name))
+                                                    for name in set(observable_sites)])))
 
 
 if __name__ == "__main__":
