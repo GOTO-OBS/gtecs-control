@@ -104,7 +104,7 @@ def get_visible_tiles(event, grid, time_range=None, sites=None):
     return visible_tiles
 
 
-def source_visible(event, grid, start_time, stop_time, sites):
+def source_visible(event, grid, start_time, stop_time, sites=None):
     """Return True if the source is visible between the given times."""
     # Get the visble and source tiles
     visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time), sites)
@@ -116,7 +116,7 @@ def source_visible(event, grid, start_time, stop_time, sites):
     return source_visible
 
 
-def source_ever_visible(event, grid, sites):
+def source_ever_visible(event, grid, sites=None):
     """Return True if the source is ever visible from La Palma."""
     # Get the visble and source tiles
     ever_visible_tiles = get_visible_tiles(event, grid, None, sites)
