@@ -11,7 +11,7 @@ from astropy.coordinates import EarthLocation
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from .database import reschedule_pointing
-from .misc import estimate_completion_time
+from .hardware import estimate_completion_time
 from .weather import Weather
 from .. import logger
 from .. import params
