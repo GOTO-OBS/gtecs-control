@@ -3,12 +3,25 @@
 from astroplan import Observer
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 
 import obsdb as db
 
 from ..astronomy import observatory_location
+
+
+def get_sites(site_codes):
+    """Get `astropy.coordinates.EarthLocations` for given site codes."""
+    sites = []
+    for code in site_codes:
+        if code.upper() == 'N':
+            sites.append(EarthLocation.of_site('lapalma'))
+        elif code.upper() == 'S':
+            sites.append(EarthLocation.of_site('sso'))
+        else:
+            raise ValueError('Invalid site code: "{}"'.format(sites))
+    return sites
 
 
 def get_selected_tiles(event, grid):

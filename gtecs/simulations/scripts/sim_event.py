@@ -12,7 +12,6 @@ import argparse
 import warnings
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
 
 from gotoalert.alert import event_handler
 from gotoalert.events import Event
@@ -21,7 +20,7 @@ from gototile.grid import SkyGrid
 
 from gtecs import logger
 from gtecs.simulations.database import prepare_database
-from gtecs.simulations.misc import get_visible_tiles
+from gtecs.simulations.misc import get_sites, get_visible_tiles
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -44,14 +43,8 @@ def run(ivorn, system='GOTO-8', telescopes=1, sites='N'):
         raise ValueError('Invalid system: "{}"'.format(system))
 
     # Define the observing sites
-    if sites.upper() == 'N':
-        sites = [EarthLocation.of_site('lapalma')]
-    elif sites.upper() == 'S':
-        sites = [EarthLocation.of_site('sso')]
-    elif sites.upper() == 'NS':
-        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
-    else:
-        raise ValueError('Invalid sites: "{}"'.format(sites))
+    site_names = [name for name in sites.upper()]
+    sites = get_sites(site_names)
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True)

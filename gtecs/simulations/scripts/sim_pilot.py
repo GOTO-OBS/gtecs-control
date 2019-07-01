@@ -5,11 +5,11 @@ import argparse
 import warnings
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from gtecs import logger
 from gtecs.astronomy import get_night_times
+from gtecs.simulations.misc import get_sites
 from gtecs.simulations.pilot import FakePilot
 
 
@@ -29,14 +29,8 @@ def run(date, telescopes=1, sites='N'):
     sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
 
     # Define the observing sites
-    if sites.upper() == 'N':
-        sites = [EarthLocation.of_site('lapalma')]
-    elif sites.upper() == 'S':
-        sites = [EarthLocation.of_site('sso')]
-    elif sites.upper() == 'NS':
-        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
-    else:
-        raise ValueError('Invalid sites: "{}"'.format(sites))
+    site_names = [name for name in sites.upper()]
+    sites = get_sites(site_names)
 
     # Create the pilot
     pilot = FakePilot(sunset, sunrise, sites, telescopes, log=log)

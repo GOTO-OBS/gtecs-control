@@ -13,7 +13,6 @@ import warnings
 
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
 
 from gotoalert.alert import event_handler
 
@@ -23,8 +22,8 @@ from gototile.skymap import SkyMap
 from gtecs import logger
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import (get_pointing_obs_details, get_source_tiles, get_visible_tiles,
-                                    source_selected, source_visible)
+from gtecs.simulations.misc import (get_pointing_obs_details, get_sites, get_source_tiles,
+                                    get_visible_tiles, source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -47,17 +46,8 @@ def run(fits_path, system='GOTO-8', telescopes=1, sites='N'):
         raise ValueError('Invalid system: "{}"'.format(system))
 
     # Define the observing sites
-    if sites.upper() == 'N':
-        sites = [EarthLocation.of_site('lapalma')]
-        site_names = ['N']
-    elif sites.upper() == 'S':
-        sites = [EarthLocation.of_site('sso')]
-        site_names = ['S']
-    elif sites.upper() == 'NS':
-        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
-        site_names = ['N', 'S']
-    else:
-        raise ValueError('Invalid sites: "{}"'.format(sites))
+    site_names = [name for name in sites.upper()]
+    sites = get_sites(site_names)
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True)

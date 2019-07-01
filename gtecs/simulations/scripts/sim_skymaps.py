@@ -13,7 +13,6 @@ import os
 import warnings
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from gotoalert.alert import event_handler
@@ -26,7 +25,7 @@ from gtecs import params
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import (get_pointing_obs_details, get_source_pointings,
+from gtecs.simulations.misc import (get_pointing_obs_details, get_sites, get_source_pointings,
                                     get_source_tiles, source_ever_visible, source_selected,
                                     source_visible)
 from gtecs.simulations.pilot import FakePilot
@@ -126,17 +125,8 @@ def run(fits_direc, system='GOTO-8', telescopes=1, sites='N'):
         raise ValueError('Invalid system: "{}"'.format(system))
 
     # Define the observing sites
-    if sites.upper() == 'N':
-        sites = [EarthLocation.of_site('lapalma')]
-        site_names = ['N']
-    elif sites.upper() == 'S':
-        sites = [EarthLocation.of_site('sso')]
-        site_names = ['S']
-    elif sites.upper() == 'NS':
-        sites = [EarthLocation.of_site('lapalma'), EarthLocation.of_site('sso')]
-        site_names = ['N', 'S']
-    else:
-        raise ValueError('Invalid sites: "{}"'.format(sites))
+    site_names = [name for name in sites.upper()]
+    sites = get_sites(site_names)
 
     # Find the files
     fits_files = os.listdir(fits_direc)
