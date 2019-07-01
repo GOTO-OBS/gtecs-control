@@ -10,4 +10,3 @@ READOUT_TIME = 10 * u.s
 
 # Pilot params
 TIMESTEP = 60 * u.s
-ENABLE_WEATHER = False

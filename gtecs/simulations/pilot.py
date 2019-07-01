@@ -58,10 +58,13 @@ class FakePilot(object):
         If given a list of pointing IDs, the pilot will abort the simulation once any of those
         pointings have been observed.
 
+    weather : bool, optional
+        If True, simulate weather conditions by occasionally closing the domes during the day.
+        Default is False.
     """
 
     def __init__(self, start_time, stop_time=None, sites=None, telescopes=1, quick=None,
-                 target_pointings=None, log=None):
+                 target_pointings=None, weather=False, log=None):
         # Make a logger for the pilot if none is given
         if not log:
             self.log = logger.get_logger('fake_pilot',
@@ -95,6 +98,7 @@ class FakePilot(object):
                           for site_id in self.site_ids}
         self.weather = {site_id: Weather(self.start_time, self.stop_time)
                         for site_id in self.site_ids}
+        self.enable_weather = weather
 
         # Set initial dome state to closed for all sites
         self.domes_open = {site_id: False for site_id in self.site_ids}
@@ -196,7 +200,7 @@ class FakePilot(object):
         """Check if the weather is bad at each site and close the dome(s) there if so."""
         for site_id in self.site_ids:
             # Check if the weather is bad
-            if simparams.ENABLE_WEATHER:
+            if self.enable_weather:
                 weather_bad = self.weather[site_id].is_bad(self.now)
             else:
                 weather_bad = False
