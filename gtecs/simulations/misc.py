@@ -105,7 +105,7 @@ def source_selected(event, grid):
 
 
 def get_visible_tiles(event, grid, time_range=None, sites=None):
-    """Get the tiles that are visible from La Palma within the given times."""
+    """Get all the tiles that are visible from the given sites within the given times."""
     if sites is None:
         sites = observatory_location()
     # Get the visible tiles from the grid for the given times
@@ -132,7 +132,7 @@ def source_visible(event, grid, start_time, stop_time, sites=None):
 
 
 def source_ever_visible(event, grid, sites=None):
-    """Return True if the source is ever visible from La Palma."""
+    """Return True if the source is ever visible from the given sites."""
     # Get the visble and source tiles
     ever_visible_tiles = get_visible_tiles(event, grid, None, sites)
     source_tiles = get_source_tiles(event, grid)

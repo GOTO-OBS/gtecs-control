@@ -137,7 +137,7 @@ def run(fits_direc, system='GOTO-8', sites='N'):
         start_time = event.time
         stop_time = start_time + 24 * u.hour
 
-        # Check if the source will ever be visible from La Palma
+        # Check if the source will ever be visible from the given sites
         # If not there's no point running through the simulation
         if not source_ever_visible(event, grid, sites):
             result = 'never_visible'
