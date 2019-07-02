@@ -8,9 +8,9 @@ The only major fake code is the pilot itself, and we don't bother using the real
 daemons.
 """
 
-import argparse
 import os
 import warnings
+from argparse import ArgumentParser
 
 from astropy import units as u
 from astropy.time import Time
@@ -105,7 +105,7 @@ class Closer(NeatCloser):
                                                             for name in set(observed_sites)])))
 
 
-def run(fits_direc, system='GOTO-8', telescopes=1, sites='N'):
+def run(fits_direc, system='GOTO-8', sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
@@ -268,7 +268,7 @@ def run(fits_direc, system='GOTO-8', telescopes=1, sites='N'):
             # We know which telescope observed it from the pilot, and we can work out the site ID as
             # we know the number of telescopes we gave it.
             first_obs_telescope_id = completed_telescopes[first_index]
-            first_obs_site_id = first_obs_telescope_id // telescopes
+            first_obs_site_id = pilot.sites_hosting_telescope[first_obs_telescope_id]
             first_obs_site = sites[first_obs_site_id]
             first_obs_site_name = site_names[first_obs_site_id]
 
@@ -354,16 +354,29 @@ def run(fits_direc, system='GOTO-8', telescopes=1, sites='N'):
 
 
 if __name__ == "__main__":
-    description = 'Process skymaps using the fake pilot to simulate a night of observations'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('path', help='path to the FITS skymap files')
-    parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
-                        help='which telescope system to simulate')
-    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
-                        help='number of telescopes to observe with (default=1)')
-    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
-                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
-                              'NS=both, default=N)'))
+    parser = ArgumentParser(description='Simulate observations of skymaps using the fake pilot')
+    parser.add_argument('path', type=str,
+                        help='path to the directory containing the FITS skymap files',
+                        )
+    parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
+                        help='which telescope system to simulate',
+                        )
+    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
+                        help=('which sites to simulate observing from '
+                              '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
+                        )
+    parser.add_argument('-t', '--telescopes', type=str, default='1',
+                        help=('number of telescopes to observe with at each site '
+                              '(e.g. "1", "2", "2,1", default=1)'),
+                        )
     args = parser.parse_args()
 
-    run(args.path, args.system, args.telescopes, args.sites)
+    path = args.path
+    system = args.system
+    sites = args.sites
+    if ',' in args.telescopes:
+        telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
+    else:
+        telescopes = int(args.telescopes)
+
+    run(path, system, sites, telescopes)

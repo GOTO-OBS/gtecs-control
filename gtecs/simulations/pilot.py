@@ -39,10 +39,15 @@ class FakePilot(object):
         The site(s) of the telescope(s) to observe from.
         Default uses one site, `gtecs.astronomy.observatory_location()` (defaults to La Palma).
 
-    telescopes : int, optional
-        The number of telescopes to simulate at the given sites.
-        TODO: Currently there must be the same number of telescopes at each site, so if two sites
-        are given then you can't have 2 telescopes at one and 1 at the other.
+    telescopes : int or list of same, optional
+        The number of telescopes to simulate across the given sites.
+        Must either be an integer or a list of integers the same length as `sites`.
+        e.g. len(sites)=1 & telescopes=1 will simulate 1 telescope at the given site.
+             len(sites)=1 & telescopes=2 will simulate 2 telescopes at the given site.
+             len(sites)=2 & telescopes=2 will simulate 4 telescopes, 2 at each site.
+             len(sites)=2 & telescopes=[2,1] will simulate 3 telescopes, 2 at site A & 1 at site B.
+             len(sites)=2 & telescopes=[1,2] will simulate 3 telescopes, 1 at site A & 2 at site B.
+             len(sites)=1 & telescopes=[2,1] will raise a ValueError.
         Default is 1.
 
     timestep : float, optional
@@ -109,14 +114,26 @@ class FakePilot(object):
         self.domes_open = {site_id: False for site_id in self.site_ids}
 
         # Set number of telescopes
-        self.telescopes_per_site = telescopes
-        self.telescopes = telescopes * len(self.sites)
+        if isinstance(telescopes, int):
+            telescopes = [telescopes] * len(self.sites)
+        if len(telescopes) != len(self.sites):
+            raise ValueError('List of telescopes must be same length as list of sites.')
+        self.telescopes_per_site = {site_id: telescopes[site_id] for site_id in self.site_ids}
+        self.telescopes = sum([self.telescopes_per_site[site_id] for site_id in self.site_ids])
         self.telescope_ids = list(range(self.telescopes))
-
-        # Define which site hosts each telescope
-        self.telescopes_at_site = [self.telescope_ids[i:i + self.telescopes_per_site]
-                                   for i in range(0, len(self.telescope_ids),
-                                                  self.telescopes_per_site)]
+        self.telescopes_at_site = {}
+        for site_id in self.site_ids:
+            if site_id == 0:
+                at_site = self.telescopes_per_site[site_id]
+                self.telescopes_at_site[site_id] = list(range(0, at_site))
+            else:
+                at_prev = self.telescopes_per_site[site_id - 1]
+                at_site = self.telescopes_per_site[site_id]
+                self.telescopes_at_site[site_id] = list(range(at_prev, at_prev + at_site))
+        self.sites_hosting_telescope = {}
+        for site_id in self.site_ids:
+            for telesope_id in self.telescopes_at_site[site_id]:
+                self.sites_hosting_telescope[telesope_id] = site_id
 
         # Set timestep
         self.timestep = timestep

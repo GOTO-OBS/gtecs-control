@@ -8,8 +8,8 @@ The only major fake code is the pilot itself, and we don't bother using the real
 daemons.
 """
 
-import argparse
 import warnings
+from argparse import ArgumentParser
 
 from astropy import units as u
 
@@ -29,7 +29,7 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(ivorn, system='GOTO-8', telescopes=1, sites='N'):
+def run(ivorn, system='GOTO-8', sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_event', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -75,9 +75,9 @@ def run(ivorn, system='GOTO-8', telescopes=1, sites='N'):
     # Print and plot results
     print('{} pointings completed'.format(len(completed_pointings)))
     if len(sites) > 1 or telescopes > 1:
-        for i in range(telescopes * len(sites)):
+        for telescope_id in pilot.telescope_ids:
             print('Telescope {} observed {} pointings'.format(
-                i + 1, len(pilot.completed_pointings[i])))
+                  telescope_id + 1, len(pilot.completed_pointings[telescope_id])))
     if len(completed_pointings) == 0:
         print('Did not observe any pointings')
         print('Exiting')
@@ -106,13 +106,29 @@ def run(ivorn, system='GOTO-8', telescopes=1, sites='N'):
 
 
 if __name__ == "__main__":
-    description = 'Process an event using the fake pilot to simulate a night of observations'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('ivorn', help='ivorn of the event to fetch from the VOEvent database')
-    parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
-                        help='which telescope system to simulate')
-    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
-                        help='number of telescopes to observe with (default=1)')
+    parser = ArgumentParser(description='Simulate observations of an event using the fake pilot')
+    parser.add_argument('ivorn', type=str,
+                        help='ivorn of the event to fetch from the VOEvent database',
+                        )
+    parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
+                        help='which telescope system to simulate',
+                        )
+    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
+                        help=('which sites to simulate observing from '
+                              '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
+                        )
+    parser.add_argument('-t', '--telescopes', type=str, default='1',
+                        help=('number of telescopes to observe with at each site '
+                              '(e.g. "1", "2", "2,1", default=1)'),
+                        )
     args = parser.parse_args()
 
-    run(args.ivorn, args.system, args.telescopes)
+    ivorn = args.ivorn
+    system = args.system
+    sites = args.sites
+    if ',' in args.telescopes:
+        telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
+    else:
+        telescopes = int(args.telescopes)
+
+    run(ivorn, system, sites, telescopes)

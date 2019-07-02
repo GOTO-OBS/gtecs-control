@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Find visability statistics for skymaps, without running through the whole simulation."""
 
-import argparse
 import os
 import warnings
+from argparse import ArgumentParser
 
 from astropy import units as u
 from astropy.time import Time
@@ -218,14 +218,21 @@ def run(fits_direc, system='GOTO-8', sites='N'):
 
 
 if __name__ == "__main__":
-    description = 'Process skymaps using the fake pilot to simulate a night of observations'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('path', help='path to the FITS skymap files')
-    parser.add_argument('system', choices=['GOTO-4', 'GOTO-8'],
-                        help='which telescope system to simulate')
-    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
-                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
-                              'NS=both, default=N)'))
+    parser = ArgumentParser(description='Simulate observations of skymaps using the fake pilot')
+    parser.add_argument('path', type=str,
+                        help='path to the directory containing the FITS skymap files',
+                        )
+    parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
+                        help='which telescope system to simulate',
+                        )
+    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
+                        help=('which sites to simulate observing from '
+                              '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
+                        )
     args = parser.parse_args()
 
-    run(args.path, args.system, args.sites)
+    path = args.path
+    system = args.system
+    sites = args.sites
+
+    run(path, system, sites)

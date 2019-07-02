@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """A script simulate a night's run with the pilot."""
 
-import argparse
 import warnings
+from argparse import ArgumentParser, ArgumentTypeError
 
 from astropy import units as u
 from astropy.time import Time
@@ -16,7 +16,7 @@ from gtecs.simulations.pilot import FakePilot
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(date, telescopes=1, sites='N'):
+def run(date, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_pilot', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -59,15 +59,34 @@ def run(date, telescopes=1, sites='N'):
 
 
 if __name__ == "__main__":
-    description = 'Run the fake pilot for a night'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('date', nargs='?',
-                        help='night starting date to simulate, default to tonight')
-    parser.add_argument('-t', '--telescopes', metavar='N', type=int, default=1,
-                        help='number of telescopes to observe with (default=1)')
-    parser.add_argument('-s', '--sites', choices=['N', 'S', 'NS'],
-                        help=('which sites to observe from (N=La Palma, S=Siding Spring, '
-                              'NS=both, default=N)'))
+    def date_validator(date):
+        """Validate dates."""
+        try:
+            date = Time(date)
+        except ValueError:
+            msg = "invalid date: '{}' not a recognised format".format(date)
+            raise ArgumentTypeError(msg)
+        return date
+
+    parser = ArgumentParser(description='Run the fake pilot for a night')
+    parser.add_argument('date', type=date_validator, nargs='?',
+                        help='simulation start date (default=now)',
+                        )
+    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
+                        help=('which sites to simulate observing from '
+                              '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
+                        )
+    parser.add_argument('-t', '--telescopes', type=str, default='1',
+                        help=('number of telescopes to observe with at each site '
+                              '(e.g. "1", "2", "2,1", default=1)'),
+                        )
     args = parser.parse_args()
 
-    run(args.date, args.telescopes, args.sites)
+    date = args.date
+    sites = args.sites
+    if ',' in args.telescopes:
+        telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
+    else:
+        telescopes = int(args.telescopes)
+
+    run(date, sites, telescopes)
