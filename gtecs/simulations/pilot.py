@@ -87,7 +87,7 @@ class FakePilot(object):
         if stop_time is not None:
             self.stop_time = stop_time
         else:
-            self.stop_time = self.start_time + 24 * u.hours
+            self.stop_time = self.start_time + 24 * u.hour
 
         # Set sites, just `observatory_location` if not given
         if sites is None:
