@@ -29,7 +29,7 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(ivorn, system='GOTO-8', sites='N', telescopes=1):
+def run(ivorn, system='GOTO-8', duration=24, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_event', log_stdout=False, log_to_file=True, log_to_stdout=True)
@@ -61,7 +61,7 @@ def run(ivorn, system='GOTO-8', sites='N', telescopes=1):
 
     # Set the simulation start and stop times
     start_time = event.time
-    stop_time = start_time + 24 * u.hour
+    stop_time = start_time + duration * u.hour
 
     # Create the pilot
     pilot = FakePilot(start_time, stop_time, sites, telescopes, log=log)
@@ -113,6 +113,9 @@ if __name__ == "__main__":
     parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate',
                         )
+    parser.add_argument('-d', '--duration', type=float, default=24,
+                        help='time to simulate, in hours (default=24)'
+                        )
     parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
                         help=('which sites to simulate observing from '
                               '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
@@ -125,10 +128,11 @@ if __name__ == "__main__":
 
     ivorn = args.ivorn
     system = args.system
+    duration = args.duration
     sites = args.sites
     if ',' in args.telescopes:
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
 
-    run(ivorn, system, sites, telescopes)
+    run(ivorn, system, duration, sites, telescopes)

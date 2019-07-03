@@ -67,7 +67,7 @@ class Closer(NeatCloser):
                                                         for name in set(visible_sites)])))
 
 
-def run(fits_direc, system='GOTO-8', sites='N'):
+def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
     """Run the simulation."""
     # Create a log file
     global fname
@@ -136,7 +136,7 @@ def run(fits_direc, system='GOTO-8', sites='N'):
 
         # Set the simulation start and stop times
         start_time = event.time
-        stop_time = start_time + 24 * u.hour
+        stop_time = start_time + duration * u.hour
 
         # Check if the source will ever be visible from the given sites
         # If not there's no point running through the simulation
@@ -225,6 +225,9 @@ if __name__ == "__main__":
     parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate',
                         )
+    parser.add_argument('-d', '--duration', type=float, default=24,
+                        help='time to simulate, in hours (default=24)'
+                        )
     parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
                         help=('which sites to simulate observing from '
                               '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
@@ -233,6 +236,7 @@ if __name__ == "__main__":
 
     path = args.path
     system = args.system
+    duration = args.duration
     sites = args.sites
 
-    run(path, system, sites)
+    run(path, system, duration, sites)

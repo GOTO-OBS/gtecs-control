@@ -8,7 +8,6 @@ from astropy import units as u
 from astropy.time import Time
 
 from gtecs import logger
-from gtecs.astronomy import get_night_times
 from gtecs.simulations.misc import get_sites
 from gtecs.simulations.pilot import FakePilot
 
@@ -16,24 +15,22 @@ from gtecs.simulations.pilot import FakePilot
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(date, sites='N', telescopes=1):
+def run(start_time, duration=24, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_pilot', log_stdout=False, log_to_file=True, log_to_stdout=True)
 
-    # If no date is given use tonight
-    if date is None:
-        date = Time.now()
-
-    # Get sun rise and set times
-    sunset, sunrise = get_night_times(date, horizon=-10 * u.deg)
+    # If no start_time is given use tonight
+    if start_time is None:
+        start_time = Time.now()
+    stop_time = start_time + duration * u.hour
 
     # Define the observing sites
     site_names = [name for name in sites.upper()]
     sites = get_sites(site_names)
 
     # Create the pilot
-    pilot = FakePilot(sunset, sunrise, sites, telescopes, log=log)
+    pilot = FakePilot(start_time, stop_time, sites, telescopes, log=log)
 
     # Loop until the night is over
     pilot.observe()
@@ -72,6 +69,9 @@ if __name__ == "__main__":
     parser.add_argument('date', type=date_validator, nargs='?',
                         help='simulation start date (default=now)',
                         )
+    parser.add_argument('-d', '--duration', type=float, nargs='?', default=24,
+                        help='time to simulate, in hours (default=24)'
+                        )
     parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
                         help=('which sites to simulate observing from '
                               '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
@@ -83,10 +83,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     date = args.date
+    duration = args.duration
     sites = args.sites
     if ',' in args.telescopes:
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
 
-    run(date, sites, telescopes)
+    run(date, duration, sites, telescopes)
