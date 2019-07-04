@@ -253,7 +253,7 @@ def get_sunalt(now):
 
 
 @u.quantity_input(horizon=u.deg)
-def get_night_times(time, horizon=-15 * u.deg):
+def get_night_times(time, site=None, horizon=-15 * u.deg):
     """Calculate the night start and stop times for a given time.
 
     If the time is during the night the times for that night are returned.
@@ -263,6 +263,9 @@ def get_night_times(time, horizon=-15 * u.deg):
     ----------
     time : `astropy.time.Time`
         night starting date
+    site : `astropy.coordinates.EarthLocation`
+        the site to consider
+        Default uses observatory_location() (defaults to La Palma)
     horizon : float, optional
         horizon below which night is defined
         default is -15 degrees
@@ -273,7 +276,10 @@ def get_night_times(time, horizon=-15 * u.deg):
         The time the Sun sets and rises for the selected night
 
     """
-    observer = Observer(location=observatory_location())
+    if site is None:
+        site = observatory_location()
+
+    observer = Observer(location=site)
 
     if observer.is_night(time, horizon=horizon):
         # The time is during the night
