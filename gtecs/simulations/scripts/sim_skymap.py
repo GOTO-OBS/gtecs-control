@@ -118,7 +118,7 @@ def run(fits_path, system='GOTO-8', duration=24, sites='N', telescopes=1):
     # Account for multiple observations of the same tile
     completed_tiles_unique = list(set(completed_tiles))
     print('{} unique tiles covered:'.format(len(completed_tiles_unique)))
-    for tile in completed_tiles_unique:
+    for tile in sorted(completed_tiles_unique):
         print('{} observed {} time(s)'.format(tile, completed_tiles.count(tile)))
 
     # Get where the actual event was

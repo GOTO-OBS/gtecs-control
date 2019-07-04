@@ -83,22 +83,25 @@ def run(ivorn, system='GOTO-8', duration=24, sites='N', telescopes=1):
         print('Exiting')
         return
 
-    # Get all observed tiles
+    # Get observed tiles
     with db.open_session() as session:
         db_pointings = db.get_pointings(session, completed_pointings)
-        all_tiles = [p.grid_tile.name for p in db_pointings]
+        # DB query will sort by id, need to resort into order of pointings
+        db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
+        # Get tile name from grid tile
+        completed_tiles = [p.grid_tile.name for p in db_pointings]
 
     # Account for multiple observations of the same tile
-    observed_tiles = list(set(all_tiles))
-    print('{} unique tiles covered:'.format(len(observed_tiles)))
-    for tile in observed_tiles:
-        print('{} observed {} time(s)'.format(tile, all_tiles.count(tile)))
+    completed_tiles_unique = list(set(completed_tiles))
+    print('{} unique tiles covered:'.format(len(completed_tiles_unique)))
+    for tile in sorted(completed_tiles_unique):
+        print('{} observed {} time(s)'.format(tile, completed_tiles.count(tile)))
 
     # Plot tiles on skymap
     grid.apply_skymap(event.skymap)
     visible_tiles = get_visible_tiles(event, grid, (start_time, stop_time), sites)
     notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
-    grid.plot(highlight=observed_tiles,
+    grid.plot(highlight=completed_tiles_unique,
               plot_skymap=True,
               plot_contours=True,
               color={tilename: '0.5' for tilename in notvisible_tiles},
