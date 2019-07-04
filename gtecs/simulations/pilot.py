@@ -263,6 +263,10 @@ class FakePilot(object):
         # function is run, so the scheduler will never know. Smart!
 
         # Get the highest pointings for each site.
+        # We get the highest for the TOTAL number of telescopes (self.telescopes),
+        # not the number at each site (self.telescopes_per_site[site_id]).
+        # This is to facilitate observing from multiple sites at the same time, which we can't do
+        # yet but might want to in the future.
         new_pointings = {site_id: [None] * self.telescopes for site_id in self.site_ids}
         for site_id in self.site_ids:
             # If the domes are closed at this site then don't bother
@@ -274,7 +278,7 @@ class FakePilot(object):
             queue = scheduler.PointingQueue.from_database(self.now, self.observers[site_id])
 
             # Don't bother getting the current pointing, as it will always be None.
-            # Get the X highest priority pointings, where X is the number of telescopes at the site.
+            # Get the X highest priority pointings, where X is the TOTAL number of telescopes.
             highest_pointings = queue.get_highest_priority_pointings(self.now,
                                                                      self.observers[site_id],
                                                                      number=self.telescopes)
@@ -303,11 +307,11 @@ class FakePilot(object):
 
         # Assign pointings to telescopes
         for site_id in self.site_ids:
-            for telescope_id in self.telescopes_at_site[site_id]:
+            for i, telescope_id in enumerate(self.telescopes_at_site[site_id]):
                 # Currently we always assign the highest priority pointing to telescope 0,
                 # the second highest (if there is one) to telescope 1, and so on.
                 # TODO: Assign them based on the distance from the telescope's current position.
-                new_pointing = new_pointings[site_id][telescope_id]
+                new_pointing = new_pointings[site_id][i]
 
                 # Get the pointing IDs and mintimes
                 if new_pointing is not None:
