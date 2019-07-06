@@ -16,9 +16,14 @@ def get_sites(site_codes):
     sites = []
     for code in site_codes:
         if code.upper() == 'N':
+            # Observatorio del Roque de los Muchachos, La Palma
             sites.append(EarthLocation.of_site('lapalma'))
         elif code.upper() == 'S':
+            # Siding Spring Observatory, NSW
             sites.append(EarthLocation.of_site('sso'))
+        elif code.upper() == 'K':
+            # Mt Kent Observatory, Queensland
+            sites.append(EarthLocation.from_geodetic(lat=-27.797989, lon=151.855476, height=682))
         else:
             raise ValueError('Invalid site code: "{}"'.format(sites))
     return sites

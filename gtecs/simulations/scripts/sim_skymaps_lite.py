@@ -228,9 +228,9 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--duration', type=float, default=24,
                         help='time to simulate, in hours (default=24)'
                         )
-    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'NS'], default='N',
+    parser.add_argument('-s', '--sites', type=str, choices=['N', 'S', 'K', 'NS', 'NK'], default='N',
                         help=('which sites to simulate observing from '
-                              '(N=La Palma, S=Siding Spring, NS=both, default=N)'),
+                              '(N=La Palma, S=Siding Spring, K=Mt Kent, default=N)'),
                         )
     args = parser.parse_args()
 
