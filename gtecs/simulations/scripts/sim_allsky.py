@@ -42,6 +42,7 @@ class Closer(NeatCloser):
     def tidy_up(self):
         """Print logs."""
         with open(fname, 'a') as f:
+            f.write('\n')
             f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
             f.write('tile_dict=' + str(tile_dict) + '\n')
 
