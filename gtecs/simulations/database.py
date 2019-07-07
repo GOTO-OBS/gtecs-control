@@ -3,29 +3,34 @@
 import obsdb as db
 
 
-def prepare_database(grid, clear=False):
+def prepare_database(grid, clear=False, add_allsky=False, allsky_start_time=None):
     """Prepare a blank database for simulations.
 
     We need to define the default User, as well as the Grid and GridTiles.
 
-    This function will also clear any existing Pointings or Mpointings.
-
-    Unlike the obsdb script `add_allsky_survey` this won't add the all-sky pointings.
-
     Parameters
     ----------
     grid : `gototile.grid.SkyGrid`
-        the grid to base tiles on
+        The grid to base tiles on.
 
-     : bool, optional
-        if True, clear out old pointings from the queue
-        default is False
+    clear : bool, optional
+        If True, clear out old pointings from the queue.
+        Default is False.
+
+    add_allsky : bool, optional
+        If True, add pointings for the all-sky survey database.
+        Default is False.
+
+    allsky_start_time : `astropy.time.Time`
+        Time for the all-sky survey pointings to be valid from.
+        Defualt is Time.now()
 
     """
     with db.open_session() as session:
         # Create the default User if it doesn't exist
-        existing_user = session.query(db.User).filter(db.User.username == 'goto').one_or_none()
-        if not existing_user:
+        try:
+            db_user = db.get_user(session, username='goto')
+        except ValueError:
             print('Creating database User')
             db_user = db.User('goto', 'gotoobs', 'GOTO Survey')
             session.add(db_user)
@@ -65,6 +70,10 @@ def prepare_database(grid, clear=False):
             # Set any existing Pointings or Mpointings to deleted so they don't interfere
             clear_database(session)
 
+        if add_allsky:
+            # Create pointings for the all-sky survey.
+            add_allsky_survey(session, db_user, allsky_start_time)
+
         # Commit
         session.commit()
 
@@ -89,6 +98,57 @@ def clear_database(session):
     if ps:
         # print('Deleting {} previous Pointings'.format(len(ps)))
         db.bulk_update_status(session, ps, 'deleted')
+
+
+def add_allsky_survey(session, db_user, start_time=None):
+    """Add Pointings for the all-sky survey to the database.
+
+    Pointings will be added for the 'current' grid, which might have just been created through the
+    prepare_database() function.
+    """
+    # Get the current grid
+    db_grid = db.get_current_grid(session)
+
+    # create a Survey
+    print('Creating all-sky Survey')
+    db_survey = db.Survey(name=db_grid.name)
+    db_survey.grid = db_grid
+    session.add(db_survey)
+
+    # create SurveyTiles, one for each GridTile
+    db_survey_tiles = []
+    for db_grid_tile in db_grid.grid_tiles:
+        db_survey_tile = db.SurveyTile(weight=1)  # Equal weights
+        db_survey_tile.survey = db_survey
+        db_survey_tile.grid_tile = db_grid_tile
+        db_survey_tiles.append(db_survey_tile)
+    db.insert_items(session, db_survey_tiles)
+
+    # create Mpointings
+    db_mpointings = []
+    print('Creating Mpointings')
+    for db_survey_tile in db_survey_tiles:
+        name = db_survey_tile.grid_tile.name
+        db_mpointing = db.Mpointing(object_name=db_survey.name + '_' + name,
+                                    start_rank=999,
+                                    num_todo=-1,
+                                    start_time=start_time,
+                                    wait_time=4320,
+                                    min_time=(60 + 30) * 3,
+                                    max_sunalt=-12,
+                                    user=db_user,
+                                    )
+        db_mpointing.grid_tile = db_survey_tile.grid_tile
+        db_mpointing.survey_tile = db_survey_tile
+        db_mpointing.exposure_sets.append(db.ExposureSet(num_exp=3, exptime=60, filt='L'))
+
+        # Create the first Pointing (i.e. preempt the caretaker)
+        db_pointing = db_mpointing.get_next_pointing()
+        db_mpointing.pointings.append(db_pointing)
+
+        db_mpointings.append(db_mpointing)
+
+    db.insert_items(session, db_mpointings)
 
 
 def reschedule_pointing(pointing_id, time):

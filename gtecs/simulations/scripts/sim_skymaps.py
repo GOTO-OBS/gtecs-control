@@ -169,6 +169,8 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
         # Create the Event
         event = FakeEvent(skymap)
         event_id = event.id
+
+        # Write log line
         line = '{: >4}/{} :: Event {}: '.format(i + 1, len(fits_files), event_id)
         print(line, end='')
         with open(fname, 'a') as f:
