@@ -42,9 +42,12 @@ class Closer(NeatCloser):
     def tidy_up(self):
         """Print logs."""
         with open(fname, 'a') as f:
+            f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
             f.write('tile_dict=' + str(tile_dict) + '\n')
 
         print('-----')
+        print('start_times:')
+        print([time.mjd for time in start_times])
         print('tile_dict:')
         print(tile_dict)
 
@@ -83,6 +86,7 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
     tile_dict = {}
 
     # Create night start times
+    global start_times
     start_times = [Time.now() + n * u.day for n in range(duration)]
     print('Simulating {} nights'.format(len(start_times)))
 
@@ -146,9 +150,12 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
                 tile_dict[tile] = [(obs_time, obs_site)]
 
     with open(fname, 'a') as f:
+        f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
         f.write('tile_dict=' + str(tile_dict) + '\n')
 
     print('-----')
+    print('start_times:')
+    print([time.mjd for time in start_times])
     print('tile_dict:')
     print(tile_dict)
 
