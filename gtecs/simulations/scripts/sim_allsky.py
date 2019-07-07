@@ -141,13 +141,13 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
             completed_tiles = [p.grid_tile.name for p in db_pointings]
 
         # Add to the master dictionary
-        for i, tile in enumerate(completed_tiles):
-            obs_time = completed_times[i].mjd
-            obs_site = site_names[pilot.sites_hosting_telescope[completed_telescopes[i]]]
+        for j, tile in enumerate(completed_tiles):
+            obs_time = completed_times[j].mjd
+            obs_site = site_names[pilot.sites_hosting_telescope[completed_telescopes[j]]]
             if tile in tile_dict:
-                tile_dict[tile].append((obs_time, obs_site))
+                tile_dict[tile].append((i, j, obs_time, obs_site))
             else:
-                tile_dict[tile] = [(obs_time, obs_site)]
+                tile_dict[tile] = [(i, j, obs_time, obs_site)]
 
     with open(fname, 'a') as f:
         f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
