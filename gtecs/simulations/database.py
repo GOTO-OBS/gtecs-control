@@ -100,7 +100,7 @@ def clear_database(session):
         db.bulk_update_status(session, ps, 'deleted')
 
 
-def add_allsky_survey(session, db_user, start_time=None):
+def add_allsky_survey(session, db_user, start_time=None, wait_time=0):
     """Add Pointings for the all-sky survey to the database.
 
     Pointings will be added for the 'current' grid, which might have just been created through the
@@ -133,7 +133,7 @@ def add_allsky_survey(session, db_user, start_time=None):
                                     start_rank=999,
                                     num_todo=-1,
                                     start_time=start_time,
-                                    wait_time=4320,
+                                    wait_time=wait_time,
                                     min_time=(60 + 30) * 3,
                                     max_sunalt=-12,
                                     user=db_user,
