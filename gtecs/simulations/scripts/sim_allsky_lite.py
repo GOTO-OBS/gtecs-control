@@ -20,7 +20,7 @@ import numpy as np
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
+def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbose=False):
     """Run the simulation."""
     # Create a log file
     fname = os.path.join(params.FILE_PATH, 'sim_allsky_lite_output')
@@ -78,7 +78,8 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
 
             # If no domes are currently observing then skip forward 5 minutes
             if current_site_id is None:
-                # print('  {}: dome closed'.format(now.iso))
+                if verbose:
+                    print('  {}: dome closed'.format(now.iso))
                 now += 5 * 60 * u.s
                 continue
 
@@ -138,10 +139,11 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
             day_count += sum(target_tiles_mask)
 
             # Print which tiles we observed
-            # print('  {}: observed {}'.format(now.iso,
-            #       ', '.join(['{} ({:.0f})'.format(i, j)
-            #                  for i, j in zip(np.array(grid.tilenames)[target_tiles_mask],
-            #                                  obs_count[target_tiles_mask])])))
+            if verbose:
+                print('  {}: observed {}'.format(now.iso,
+                      ', '.join(['{} ({:.0f})'.format(i, j)
+                                 for i, j in zip(np.array(grid.tilenames)[target_tiles_mask],
+                                                 obs_count[target_tiles_mask])])))
 
             # Add on the exposure duration, with a bit of readout time and slew time
             duration = 3 * (60 + 10) + 20
@@ -204,6 +206,9 @@ if __name__ == "__main__":
                         help=('number of telescopes to observe with at each site '
                               '(e.g. "1", "2", "2,1", default=1)'),
                         )
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help=('print out more infomation'),
+                        )
     args = parser.parse_args()
 
     date = args.date
@@ -214,5 +219,6 @@ if __name__ == "__main__":
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
+    verbose = args.verbose
 
-    run(date, system, duration, sites, telescopes)
+    run(date, system, duration, sites, telescopes, verbose)
