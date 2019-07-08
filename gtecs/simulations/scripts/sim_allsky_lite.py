@@ -59,6 +59,8 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
         # Write log line
         line = '{: >4}/{} :: {}: '.format(i + 1, len(start_times), start_time.strftime('%Y-%m-%d'))
         print(line, end='')
+        with open(fname, 'a') as f:
+            f.write(line)
 
         # Loop over the whole day
         now = start_time
@@ -150,6 +152,12 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
         dt = (Time.now() - sim_start_time).to(u.s).value
         result += ' :: t={:.1f}'.format(dt)
         print(result)
+        with open(fname, 'a') as f:
+            f.write(result + '\n')
+
+    with open(fname, 'a') as f:
+        f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
+        f.write('tile_dict=' + str(tile_dict) + '\n')
 
     print('-----')
     print('start_times:')
