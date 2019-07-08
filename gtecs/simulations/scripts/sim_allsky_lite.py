@@ -41,6 +41,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
 
     # Create output dict
     obs_count = np.zeros(grid.ntiles)
+    tile_dict = {}
 
     # If no start_time is given start tonight
     if start_date is None:
@@ -65,16 +66,16 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
         while now < start_time + 1 * u.day:
             # Find which site is observing, if any
             # TODO: This relies on there only being one site observing at once...
-            current_site = None
+            current_site_id = None
             sun = get_sun(now)
-            for site in sites:
+            for site_id, site in enumerate(sites):
                 altaz_frame = AltAz(obstime=now, location=site)
                 if sun.transform_to(altaz_frame).alt < -12 * u.deg:
-                    current_site = site
+                    current_site_id = site_id
                     break
 
             # If no domes are currently observing then skip forward 5 minutes
-            if current_site is None:
+            if current_site_id is None:
                 # print('  {}: dome closed'.format(now.iso))
                 now += 5 * 60 * u.s
                 continue
@@ -122,6 +123,15 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
             # Add one to these tiles obs count
             obs_count[target_tiles_mask] += 1
 
+            # Add tile details to dict
+            for tile in enumerate(np.array(grid.tilenames)[target_tiles_mask]):
+                obs_time = now.mjd
+                obs_site = site_names[current_site_id]
+                if tile in tile_dict:
+                    tile_dict[tile].append((i, obs_time, obs_site))
+                else:
+                    tile_dict[tile] = [(i, obs_time, obs_site)]
+
             # Increase the day count too
             day_count += sum(target_tiles_mask)
 
@@ -141,11 +151,18 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
         result += ' :: t={:.1f}'.format(dt)
         print(result)
 
-    print('Observed {:.0f} tiles'.format(sum(obs_count)))
-    print('Max times observed: {:.0f}'.format(max(obs_count)))
-    print('Min times observed (>0): {:.0f}'.format(min(obs_count[obs_count > 0])))
+    print('-----')
+    print('start_times:')
+    print([time.mjd for time in start_times])
+    print('tile_dict:')
+    print(tile_dict)
+
+    print('-----')
+    print('Simulations completed:')
+    print('  total observations: {}'.format(sum([len(x) for x in tile_dict.values()])))
+    print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
     for i in sorted(set(obs_count)):
-        print('  Observed {:.0f} tiles {:.0f} times'.format(sum(obs_count == i), i))
+        print('  observed {: >3.0f} tiles {:.0f} times'.format(sum(obs_count == i), i))
 
     grid.plot(color={grid.tilenames[i]: obs_count[i] for i in range(grid.ntiles)},
               discrete_colorbar=True)
