@@ -160,6 +160,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
     with open(fname, 'a') as f:
         f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
         f.write('tile_dict=' + str(tile_dict) + '\n')
+        f.write(Time.now().iso + '\n')
 
     print('-----')
     print('start_times:')
@@ -173,9 +174,6 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
     print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
     for i in sorted(set(obs_count)):
         print('  observed {: >3.0f} tiles {:.0f} times'.format(sum(obs_count == i), i))
-
-    grid.plot(color={grid.tilenames[i]: obs_count[i] for i in range(grid.ntiles)},
-              discrete_colorbar=True)
 
 
 if __name__ == "__main__":
