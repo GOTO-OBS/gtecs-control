@@ -10,7 +10,7 @@ daemons.
 
 import os
 import warnings
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 
 from astropy import units as u
 from astropy.time import Time
@@ -59,7 +59,7 @@ class Closer(NeatCloser):
         print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
 
 
-def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
+def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_allsky', log_stdout=False, log_to_file=True, log_to_stdout=False)
@@ -86,9 +86,14 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
     global tile_dict
     tile_dict = {}
 
+    # If no start_time is given start tonight
+    if start_date is None:
+        start_date = Time.now()
+    midnight = Time(start_date.strftime('%Y-%m-%d') + 'T00:00:00')
+
     # Create night start times
     global start_times
-    start_times = [Time.now() + n * u.day for n in range(duration)]
+    start_times = [midnight + n * u.day for n in range(duration)]
     print('Simulating {} nights'.format(len(start_times)))
 
     # Print results if we exit early
@@ -121,7 +126,7 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
         completed_times = pilot.all_completed_times
         completed_telescopes = pilot.all_completed_telescopes
 
-        # Print and plot results
+        # Print results
         result = '{} tiles observed'.format(len(completed_pointings))
         dt = (Time.now() - sim_start_time).to(u.s).value
         result += ' :: t={:.1f}'.format(dt)
@@ -167,7 +172,19 @@ def run(system='GOTO-8', duration=1, sites='N', telescopes=1):
 
 
 if __name__ == "__main__":
+    def date_validator(date):
+        """Validate dates."""
+        try:
+            date = Time(date)
+        except ValueError:
+            msg = "invalid date: '{}' not a recognised format".format(date)
+            raise ArgumentTypeError(msg)
+        return date
+
     parser = ArgumentParser(description='Simulate observations of the all-sky survey')
+    parser.add_argument('date', type=date_validator, nargs='?',
+                        help='simulation start date (default=now)',
+                        )
     parser.add_argument('system', type=str, choices=['GOTO-4', 'GOTO-8'],
                         help='which telescope system to simulate',
                         )
@@ -184,6 +201,7 @@ if __name__ == "__main__":
                         )
     args = parser.parse_args()
 
+    date = args.date
     system = args.system
     duration = args.duration
     sites = args.sites
@@ -192,4 +210,4 @@ if __name__ == "__main__":
     else:
         telescopes = int(args.telescopes)
 
-    run(system, duration, sites, telescopes)
+    run(date, system, duration, sites, telescopes)
