@@ -127,7 +127,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
             obs_count[target_tiles_mask] += 1
 
             # Add tile details to dict
-            for tile in enumerate(np.array(grid.tilenames)[target_tiles_mask]):
+            for tile in np.array(grid.tilenames)[target_tiles_mask]:
                 obs_time = now.mjd
                 obs_site = site_names[current_site_id]
                 if tile in tile_dict:
