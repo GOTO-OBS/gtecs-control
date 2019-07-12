@@ -26,8 +26,8 @@ from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_pointing_obs_details, get_sites, get_source_pointings,
-                                    get_source_tiles, source_ever_visible, source_selected,
-                                    source_visible)
+                                    get_source_tiles, source_dark, source_ever_visible,
+                                    source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import numpy as np
@@ -49,9 +49,10 @@ class Closer(NeatCloser):
         """Print logs."""
         with open(fname, 'a') as f:
             f.write('\n')
-            f.write('not_selected_events=' + str(not_selected_events) + '\n')
+            f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
             f.write('never_visible_events=' + str(never_visible_events) + '\n')
             f.write('not_visible_events=' + str(not_visible_events) + '\n')
+            f.write('not_selected_events=' + str(not_selected_events) + '\n')
             f.write('not_observed_events=' + str(not_observed_events) + '\n')
             f.write('observed_events=' + str(observed_events) + '\n')
             f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
@@ -61,12 +62,14 @@ class Closer(NeatCloser):
             f.write(Time.now().iso + '\n')
 
         print('-----')
-        print('not_selected events:')
-        print(not_selected_events)
+        print('not_visible_sun events:')
+        print(not_visible_sun_events)
         print('never_visible events:')
         print(never_visible_events)
         print('not_visible events:')
         print(not_visible_events)
+        print('not_selected events:')
+        print(not_selected_events)
         print('not_observed events:')
         print(not_observed_events)
         print('observed events:')
@@ -80,29 +83,35 @@ class Closer(NeatCloser):
         print('observed Sts:')
         print(observed_sites)
 
-        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
-                         not_observed_events + observed_events)
+        n_all = len(not_visible_sun_events +
+                    not_selected_events +
+                    not_visible_events +
+                    never_visible_events +
+                    not_observed_events +
+                    observed_events)
         print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
-        print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
-                                                           len(not_selected_events) / n_complete))
-        print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
-                                                           len(never_visible_events) / n_complete))
-        print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
-                                                           len(not_visible_events) / n_complete))
-        print(' not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), n_complete,
-                                                           len(not_observed_events) / n_complete))
-        print('     observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), n_complete,
-                                                           len(observed_events) / n_complete))
+        print('Simulations aborted early, {}/{} processed:'.format(n_all, self.n_target))
+        print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_sun_events), n_all,
+                                                             len(not_visible_sun_events) / n_all))
+        print('  never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_all,
+                                                             len(never_visible_events) / n_all))
+        print('    not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_all,
+                                                             len(not_visible_events) / n_all))
+        print('   not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_all,
+                                                             len(not_selected_events) / n_all))
+        print('   not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), n_all,
+                                                             len(not_observed_events) / n_all))
+        print('       observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), n_all,
+                                                             len(observed_events) / n_all))
 
         if len(observed_events) > 0:
-            print('     mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
-            print('     mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
-            print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+            print('       mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
+            print('       mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
+            print('        mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
             if len(set(observed_sites)) > 1:
-                print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                            observed_sites.count(name))
-                                                            for name in set(observed_sites)])))
+                print('    site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                              observed_sites.count(name))
+                                                              for name in set(observed_sites)])))
 
 
 def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
@@ -134,18 +143,20 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
     print('Processing {} skymaps'.format(len(fits_files)))
 
     # Create output lists
-    global not_selected_events
-    global not_visible_events
+    global not_visible_sun_events
     global never_visible_events
+    global not_visible_events
+    global not_selected_events
     global not_observed_events
     global observed_events
     global observed_delta_event_times
     global observed_delta_visible_times
     global observed_airmasses
     global observed_sites
-    not_selected_events = []
-    not_visible_events = []
+    not_visible_sun_events = []
     never_visible_events = []
+    not_visible_events = []
+    not_selected_events = []
     not_observed_events = []
     observed_events = []
     observed_delta_event_times = []
@@ -176,21 +187,21 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
         with open(fname, 'a') as f:
             f.write(line)
 
-        # Check if the source will be within the selected tiles
+        # Set the simulation start and stop times
+        start_time = event.time
+        stop_time = start_time + duration * u.hour
+
+        # Check if the source is too close to the Sun
         # If not there's no point running through the simulation
-        if not source_selected(event, grid):
-            result = 'not_selected'
+        if not source_dark(event, grid, start_time, stop_time):
+            result = 'not_visible_sun'
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
             print(result)
             with open(fname, 'a') as f:
                 f.write(result + '\n')
-            not_selected_events.append(event_id)
+            not_visible_sun_events.append(event_id)
             continue
-
-        # Set the simulation start and stop times
-        start_time = event.time
-        stop_time = start_time + duration * u.hour
 
         # Check if the source will ever be visible from the given sites
         # If not there's no point running through the simulation
@@ -214,6 +225,20 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
             with open(fname, 'a') as f:
                 f.write(result + '\n')
             not_visible_events.append(event_id)
+            continue
+
+        # The source must be visible
+
+        # Check if the source will be within the selected tiles
+        # If not there's no point running through the simulation
+        if not source_selected(event, grid):
+            result = 'not_selected'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
+            not_selected_events.append(event_id)
             continue
 
         # Handle the event
@@ -301,9 +326,10 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
             continue
 
     with open(fname, 'a') as f:
-        f.write('not_selected_events=' + str(not_selected_events) + '\n')
+        f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
         f.write('never_visible_events=' + str(never_visible_events) + '\n')
         f.write('not_visible_events=' + str(not_visible_events) + '\n')
+        f.write('not_selected_events=' + str(not_selected_events) + '\n')
         f.write('not_observed_events=' + str(not_observed_events) + '\n')
         f.write('observed_events=' + str(observed_events) + '\n')
         f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
@@ -313,12 +339,14 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
         f.write(Time.now().iso + '\n')
 
     print('-----')
-    print('not_selected events:')
-    print(not_selected_events)
+    print('not_visible_sun events:')
+    print(not_visible_sun_events)
     print('never_visible events:')
     print(never_visible_events)
     print('not_visible events:')
     print(not_visible_events)
+    print('not_selected events:')
+    print(not_selected_events)
     print('not_observed events:')
     print(not_observed_events)
     print('observed events:')
@@ -334,25 +362,28 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
 
     print('-----')
     print('Simulations completed:')
-    print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
-                                                       len(not_selected_events) / len(fits_files)))
-    print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
-                                                       len(never_visible_events) / len(fits_files)))
-    print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
-                                                       len(not_visible_events) / len(fits_files)))
-    print(' not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), len(fits_files),
-                                                       len(not_observed_events) / len(fits_files)))
-    print('     observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), len(fits_files),
-                                                       len(observed_events) / len(fits_files)))
+    n_all = len(fits_files)
+    print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_sun_events), n_all,
+                                                         len(not_visible_sun_events) / n_all))
+    print('  never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_all,
+                                                         len(never_visible_events) / n_all))
+    print('    not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_all,
+                                                         len(not_visible_events) / n_all))
+    print('   not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_all,
+                                                         len(not_selected_events) / n_all))
+    print('   not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), n_all,
+                                                         len(not_observed_events) / n_all))
+    print('       observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), n_all,
+                                                         len(observed_events) / n_all))
 
     if len(observed_events) > 0:
-        print('     mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
-        print('     mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
-        print('      mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
+        print('       mean Dte: {:.5f} hours'.format(np.mean(observed_delta_event_times)))
+        print('       mean Dtv: {:.5f} hours'.format(np.mean(observed_delta_visible_times)))
+        print('        mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
         if len(set(observed_sites)) > 1:
-            print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                        observed_sites.count(name))
-                                                        for name in set(observed_sites)])))
+            print('    site counts: {}'.format(', '.join(['{}:{}'.format(name,
+                                                          observed_sites.count(name))
+                                                          for name in set(observed_sites)])))
 
 
 if __name__ == "__main__":

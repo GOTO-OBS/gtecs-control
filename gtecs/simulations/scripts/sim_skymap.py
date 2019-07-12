@@ -22,7 +22,8 @@ from gtecs import logger
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_pointing_obs_details, get_sites, get_source_tiles,
-                                    get_visible_tiles, source_selected, source_visible)
+                                    get_visible_tiles, source_dark, source_ever_visible,
+                                    source_selected, source_visible)
 from gtecs.simulations.pilot import FakePilot
 
 import obsdb as db
@@ -58,6 +59,34 @@ def run(fits_path, system='GOTO-8', duration=24, sites='N', telescopes=1):
     event = FakeEvent(skymap)
     print('Processing skymap for Event {}'.format(event.name))
 
+    # Set the simulation start and stop times
+    start_time = event.time
+    stop_time = start_time + duration * u.hour
+
+    # Check if the source is too close to the Sun
+    # If not there's no point running through the simulation
+    if not source_dark(event, grid, start_time, stop_time):
+        print('Source is too close to the Sun to observe')
+        print('Exiting')
+        return
+
+    # Check if the source will ever be visible from the given sites
+    # If not there's no point running through the simulation
+    if not source_ever_visible(event, grid, sites):
+        print('Source is not visible from the given site(s)')
+        print('Exiting')
+        return
+
+    # Check if the source will be visible during the given time
+    # If not there's no point running through the simulation
+    if not source_visible(event, grid, start_time, stop_time, sites):
+        print('Source is not visible during given period')
+        print('Exiting')
+        return
+
+    # The source must be visible
+    print('Source is visible during given period')
+
     # Check if the source will be within the selected tiles
     # If not there's no point running through the simulation
     if not source_selected(event, grid):
@@ -66,19 +95,6 @@ def run(fits_path, system='GOTO-8', duration=24, sites='N', telescopes=1):
         return
     else:
         print('Source is within selected tiles')
-
-    # Set the simulation start and stop times
-    start_time = event.time
-    stop_time = start_time + duration * u.hour
-
-    # Check if the source will be visible during the given time
-    # If not there's no point running through the simulation
-    if not source_visible(event, grid, start_time, stop_time, sites):
-        print('Source is not visible during given period')
-        print('Exiting')
-        return
-    else:
-        print('Source is visible during given period')
 
     # Handle the event
     # This should add tiles to the observation database, using the appropriate strategy.
