@@ -3,8 +3,10 @@
 from astroplan import Observer
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation, SkyCoord
+from astropy.coordinates import EarthLocation, SkyCoord, get_sun
 from astropy.time import Time
+
+import numpy as np
 
 import obsdb as db
 
@@ -77,6 +79,41 @@ def source_selected(event, grid):
     # If not we're never going to observe it, so might as well end the simulation here
     source_selected = any(tile in selected_tiles for tile in source_tiles)
     return source_selected
+
+
+def get_dark_tiles(event, grid, time_range=None):
+    """Get all the tiles that are far enough from the Sun at the given times."""
+    # Get the location of the Sun at the given times
+    sun_start = get_sun(time_range[0])
+    sun_end = get_sun(time_range[1])
+
+    # Get tiles that are too close to the Sun to observe
+    # Are below the horizon when the Sun sets, or closer
+    min_alt = float(event.strategy['constraints_dict']['min_alt'])
+    max_sunalt = float(event.strategy['constraints_dict']['max_sunalt'])
+    sunny_start_mask = sun_start.separation(grid.coords) < (-1 * max_sunalt + min_alt) * u.deg
+    sunny_end_mask = sun_end.separation(grid.coords) < (-1 * max_sunalt + min_alt) * u.deg
+
+    # Assume the Sun doesn't move that much between the given times, i.e. there ~24 hours, not weeks
+    sunny_mask = sunny_start_mask & sunny_end_mask
+    dark_mask = np.invert(sunny_mask)
+
+    # Get the tile names
+    dark_tiles = np.array(grid.tilenames)[dark_mask]
+
+    return dark_tiles
+
+
+def source_dark(event, grid, start_time, stop_time):
+    """Return True if the source is not too close to the sun."""
+    # Get the dark and source tiles
+    dark_tiles = get_dark_tiles(event, grid, (start_time, stop_time))
+    source_tiles = get_source_tiles(event, grid)
+
+    # Is the source far enough from the Sun?
+    # If not we're never going to observe it, so might as well end the simulation here
+    source_visible = any(tile in dark_tiles for tile in source_tiles)
+    return source_visible
 
 
 def get_visible_tiles(event, grid, time_range=None, sites=None):

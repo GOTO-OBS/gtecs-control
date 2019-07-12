@@ -14,7 +14,8 @@ from gototile.skymap import SkyMap
 from gtecs import params
 from gtecs.misc import NeatCloser
 from gtecs.simulations.events import FakeEvent
-from gtecs.simulations.misc import get_sites, source_ever_visible, source_selected, source_visible
+from gtecs.simulations.misc import (get_sites, source_dark, source_ever_visible,
+                                    source_selected, source_visible)
 
 
 warnings.simplefilter("ignore", DeprecationWarning)
@@ -32,14 +33,18 @@ class Closer(NeatCloser):
         with open(fname, 'a') as f:
             f.write('\n')
             f.write('not_selected_events=' + str(not_selected_events) + '\n')
+            f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
             f.write('never_visible_events=' + str(never_visible_events) + '\n')
             f.write('not_visible_events=' + str(not_visible_events) + '\n')
             f.write('visible_events=' + str(visible_events) + '\n')
+            f.write('visible_sites=' + str(visible_sites) + '\n')
             f.write(Time.now().iso + '\n')
 
         print('-----')
         print('not_selected events:')
         print(not_selected_events)
+        print('not_visible_sun events:')
+        print(not_visible_sun_events)
         print('never_visible events:')
         print(never_visible_events)
         print('not_visible events:')
@@ -49,22 +54,25 @@ class Closer(NeatCloser):
         print('visible sites:')
         print(visible_sites)
 
-        n_complete = len(not_selected_events + not_visible_events + never_visible_events +
-                         visible_events)
+        n_all = len(not_selected_events +
+                    not_visible_sun_events +
+                    never_visible_events +
+                    not_visible_events +
+                    visible_events)
         print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
-        print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_complete,
-                                                           len(not_selected_events) / n_complete))
-        print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_complete,
-                                                           len(never_visible_events) / n_complete))
-        print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_complete,
-                                                           len(not_visible_events) / n_complete))
-        print('      visible: {:4.0f}/{} ({:7.5f})'.format(len(visible_events), n_complete,
-                                                           len(visible_events) / n_complete))
+        print('   not_selected: {:4.0f}/{} ({:7.5f})'.format(
+            len(not_selected_events), n_all, len(not_selected_events) / n_all))
+        print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(
+            len(not_visible_sun_events), n_all, len(not_visible_sun_events) / n_all))
+        print('never_visible: {:4.0f}/{} ({:7.5f})'.format(
+            len(never_visible_events), n_all, len(never_visible_events) / n_all))
+        print('not_visible: {:4.0f}/{} ({:7.5f})'.format(
+            len(not_visible_events), n_all, len(not_visible_events) / n_all))
+        print('        visible: {:4.0f}/{} ({:7.5f})'.format(
+            len(visible_events), n_all, len(visible_events) / n_all))
         if len(set(visible_sites)) > 1:
-            print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                        visible_sites.count(name))
-                                                        for name in set(visible_sites)])))
+            print('    site counts: {}'.format(', '.join(['{}:{}'.format(
+                name, visible_sites.count(name)) for name in set(visible_sites)])))
 
 
 def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
@@ -94,13 +102,15 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
 
     # Create output lists
     global not_selected_events
-    global not_visible_events
+    global not_visible_sun_events
     global never_visible_events
+    global not_visible_events
     global visible_events
     global visible_sites
     not_selected_events = []
-    not_visible_events = []
+    not_visible_sun_events = []
     never_visible_events = []
+    not_visible_events = []
     visible_events = []
     visible_sites = []
 
@@ -138,7 +148,19 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
         start_time = event.time
         stop_time = start_time + duration * u.hour
 
-        # Check if the source will ever be visible from the given sites
+        # Check if the source is too close to the Sun
+        # If not there's no point running through the simulation
+        if not source_dark(event, grid, start_time, stop_time):
+            result = 'not_visible_sun'
+            dt = (Time.now() - sim_start_time).to(u.s).value
+            result += ' :: t={:.1f}'.format(dt)
+            print(result)
+            with open(fname, 'a') as f:
+                f.write(result + '\n')
+            not_visible_sun_events.append(event_id)
+            continue
+
+        # Check if the source is out of the dec range of the site
         # If not there's no point running through the simulation
         if not source_ever_visible(event, grid, sites):
             result = 'never_visible'
@@ -183,6 +205,7 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
 
     with open(fname, 'a') as f:
         f.write('not_selected_events=' + str(not_selected_events) + '\n')
+        f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
         f.write('never_visible_events=' + str(never_visible_events) + '\n')
         f.write('not_visible_events=' + str(not_visible_events) + '\n')
         f.write('visible_events=' + str(visible_events) + '\n')
@@ -192,6 +215,8 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
     print('-----')
     print('not_selected events:')
     print(not_selected_events)
+    print('not_visible_sun events:')
+    print(not_visible_sun_events)
     print('never_visible events:')
     print(never_visible_events)
     print('not_visible events:')
@@ -203,18 +228,20 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
 
     print('-----')
     print('Simulations completed:')
-    print(' not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), len(fits_files),
-                                                       len(not_selected_events) / len(fits_files)))
-    print('never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), len(fits_files),
-                                                       len(never_visible_events) / len(fits_files)))
-    print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), len(fits_files),
-                                                       len(not_visible_events) / len(fits_files)))
-    print('      visible: {:4.0f}/{} ({:7.5f})'.format(len(visible_events), len(fits_files),
-                                                       len(visible_events) / len(fits_files)))
+    n_all = len(fits_files)
+    print('   not_selected: {:4.0f}/{} ({:7.5f})'.format(
+        len(not_selected_events), n_all, len(not_selected_events) / n_all))
+    print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(
+        len(not_visible_sun_events), n_all, len(not_visible_sun_events) / n_all))
+    print('never_visible: {:4.0f}/{} ({:7.5f})'.format(
+        len(never_visible_events), n_all, len(never_visible_events) / n_all))
+    print('not_visible: {:4.0f}/{} ({:7.5f})'.format(
+        len(not_visible_events), n_all, len(not_visible_events) / n_all))
+    print('        visible: {:4.0f}/{} ({:7.5f})'.format(
+        len(visible_events), n_all, len(visible_events) / n_all))
     if len(set(visible_sites)) > 1:
-        print('  site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                    visible_sites.count(name))
-                                                    for name in set(visible_sites)])))
+        print('    site counts: {}'.format(', '.join(['{}:{}'.format(
+            name, visible_sites.count(name)) for name in set(visible_sites)])))
 
 
 if __name__ == "__main__":
