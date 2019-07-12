@@ -31,16 +31,20 @@ def get_sites(site_codes):
     return sites
 
 
-def get_selected_tiles(event, grid):
-    """Get which tiles will be selected by GOTO-alert to add to the ObsDB."""
-    if hasattr(event, '_selected_tiles'):
-        return event._selected_tiles
-
+def prepare_event(event, grid):
+    """Make sure an event is prepared."""
     event.get_skymap()
     event.get_strategy()
 
     if not hasattr(grid, 'skymap') or grid.skymap.object != event.skymap.object:
         grid.apply_skymap(event.skymap)
+
+
+def get_selected_tiles(event, grid):
+    """Get which tiles will be selected by GOTO-alert to add to the ObsDB."""
+    if hasattr(event, '_selected_tiles'):
+        return event._selected_tiles
+    prepare_event(event, grid)
 
     # This matches what GOTO-alert will do - see `gotoalert.database.get_grid_tiles()`
     if grid.tile_area < 20:
@@ -63,6 +67,7 @@ def get_source_tiles(event, grid):
     """Get which tile(s) the source is contained within."""
     if hasattr(event, '_source_tiles'):
         return event._source_tiles
+    prepare_event(event, grid)
 
     source_tiles = grid.get_tile(event.source_coord, overlap=True)
     event._source_tiles = source_tiles
@@ -83,6 +88,8 @@ def source_selected(event, grid):
 
 def get_dark_tiles(event, grid, time_range=None):
     """Get all the tiles that are far enough from the Sun at the given times."""
+    prepare_event(event, grid)
+
     # Get the location of the Sun at the given times
     sun_start = get_sun(time_range[0])
     sun_end = get_sun(time_range[1])
@@ -118,6 +125,8 @@ def source_dark(event, grid, start_time, stop_time):
 
 def get_visible_tiles(event, grid, time_range=None, sites=None):
     """Get all the tiles that are visible from the given sites within the given times."""
+    prepare_event(event, grid)
+
     if sites is None:
         sites = observatory_location()
     # Get the visible tiles from the grid for the given times
