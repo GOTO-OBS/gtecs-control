@@ -27,10 +27,10 @@ from gtecs.simulations.pilot import FakePilot
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
+def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbose=False):
     """Run the simulation."""
     # Create a log file
-    log = logger.get_logger('sim_allsky', log_stdout=False, log_to_file=True, log_to_stdout=False)
+    log = logger.get_logger('sim_allsky', log_stdout=False, log_to_file=True, log_to_stdout=verbose)
 
     # Oh, and another one, just in case
     fname = os.path.join(params.FILE_PATH, 'sim_allsky_output')
@@ -168,6 +168,9 @@ if __name__ == "__main__":
                         help=('number of telescopes to observe with at each site '
                               '(e.g. "1", "2", "2,1", default=1)'),
                         )
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help=('print out more infomation'),
+                        )
     args = parser.parse_args()
 
     date = args.date
@@ -178,5 +181,6 @@ if __name__ == "__main__":
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
+    verbose = args.verbose
 
-    run(date, system, duration, sites, telescopes)
+    run(date, system, duration, sites, telescopes, verbose)
