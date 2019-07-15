@@ -103,8 +103,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
             return
 
         # Save details
-        for j, pointing in completed_pointings:
-            telescope_id = completed_telescopes[j]
+        for pointing, telescope_id in zip(completed_pointings, completed_telescopes):
             site_id = pilot.sites_hosting_telescope[telescope_id]
             site = sites[site_id]
             site_name = site_names[site_id]
