@@ -12,7 +12,6 @@ from gototile.grid import SkyGrid
 from gototile.skymap import SkyMap
 
 from gtecs import params
-from gtecs.misc import NeatCloser
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_sites, source_dark, source_ever_visible,
                                     source_selected, source_visible)
@@ -21,64 +20,9 @@ from gtecs.simulations.misc import (get_sites, source_dark, source_ever_visible,
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-class Closer(NeatCloser):
-    """A class to neatly handle Ctrl-C requests before we've finished all the skymaps."""
-
-    def __init__(self, n_target):
-        super().__init__('')
-        self.n_target = n_target
-
-    def tidy_up(self):
-        """Print logs."""
-        with open(fname, 'a') as f:
-            f.write('\n')
-            f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
-            f.write('never_visible_events=' + str(never_visible_events) + '\n')
-            f.write('not_visible_events=' + str(not_visible_events) + '\n')
-            f.write('not_selected_events=' + str(not_selected_events) + '\n')
-            f.write('visible_events=' + str(visible_events) + '\n')
-            f.write('visible_sites=' + str(visible_sites) + '\n')
-            f.write(Time.now().iso + '\n')
-
-        print('-----')
-        print('not_visible_sun events:')
-        print(not_visible_sun_events)
-        print('never_visible events:')
-        print(never_visible_events)
-        print('not_visible events:')
-        print(not_visible_events)
-        print('not_selected events:')
-        print(not_selected_events)
-        print('visible events:')
-        print(visible_events)
-        print('visible sites:')
-        print(visible_sites)
-
-        n_all = len(not_visible_sun_events +
-                    never_visible_events +
-                    not_visible_events +
-                    not_selected_events +
-                    visible_events)
-        print('-----')
-        print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_sun_events), n_all,
-                                                             len(not_visible_sun_events) / n_all))
-        print('  never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_all,
-                                                             len(never_visible_events) / n_all))
-        print('  not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_all,
-                                                           len(not_visible_events) / n_all))
-        print('     not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_all,
-                                                               len(not_selected_events) / n_all))
-        print('          visible: {:4.0f}/{} ({:7.5f})'.format(len(visible_events), n_all,
-                                                               len(visible_events) / n_all))
-        if len(set(visible_sites)) > 1:
-            print('    site counts: {}'.format(', '.join(['{}:{}'.format(
-                name, visible_sites.count(name)) for name in set(visible_sites)])))
-
-
 def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
     """Run the simulation."""
     # Create a log file
-    global fname
     fname = os.path.join(params.FILE_PATH, 'sim_skymaps_lite_output')
     with open(fname, 'a') as f:
         f.write(Time.now().iso + '\n')
@@ -101,21 +45,12 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
     print('Processing {} skymaps'.format(len(fits_files)))
 
     # Create output lists
-    global not_visible_sun_events
-    global never_visible_events
-    global not_visible_events
-    global not_selected_events
-    global visible_events
-    global visible_sites
     not_visible_sun_events = []
     never_visible_events = []
     not_visible_events = []
     not_selected_events = []
     visible_events = []
     visible_sites = []
-
-    # Print results if we exit early
-    Closer(len(fits_files))
 
     # Loop through all files
     for i, fits_file in enumerate(fits_files):

@@ -22,7 +22,6 @@ from gototile.skymap import SkyMap
 
 from gtecs import logger
 from gtecs import params
-from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.events import FakeEvent
 from gtecs.simulations.misc import (get_pointing_obs_details, get_sites, get_source_pointings,
@@ -38,89 +37,12 @@ import obsdb as db
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-class Closer(NeatCloser):
-    """A class to neatly handle Ctrl-C requests before we've finished all the skymaps."""
-
-    def __init__(self, n_target):
-        super().__init__('')
-        self.n_target = n_target
-
-    def tidy_up(self):
-        """Print logs."""
-        with open(fname, 'a') as f:
-            f.write('\n')
-            f.write('not_visible_sun_events=' + str(not_visible_sun_events) + '\n')
-            f.write('never_visible_events=' + str(never_visible_events) + '\n')
-            f.write('not_visible_events=' + str(not_visible_events) + '\n')
-            f.write('not_selected_events=' + str(not_selected_events) + '\n')
-            f.write('not_observed_events=' + str(not_observed_events) + '\n')
-            f.write('observed_events=' + str(observed_events) + '\n')
-            f.write('observed_delta_event_times=' + str(observed_delta_event_times) + '\n')
-            f.write('observed_delta_visible_times=' + str(observed_delta_visible_times) + '\n')
-            f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
-            f.write('observed_sites=' + str(observed_sites) + '\n')
-            f.write(Time.now().iso + '\n')
-
-        print('-----')
-        print('not_visible_sun events:')
-        print(not_visible_sun_events)
-        print('never_visible events:')
-        print(never_visible_events)
-        print('not_visible events:')
-        print(not_visible_events)
-        print('not_selected events:')
-        print(not_selected_events)
-        print('not_observed events:')
-        print(not_observed_events)
-        print('observed events:')
-        print(observed_events)
-        print('observed Dtes:')
-        print(observed_delta_event_times)
-        print('observed Dtvs:')
-        print(observed_delta_visible_times)
-        print('observed Ams:')
-        print(observed_airmasses)
-        print('observed Sts:')
-        print(observed_sites)
-
-        n_all = len(not_visible_sun_events +
-                    not_selected_events +
-                    not_visible_events +
-                    never_visible_events +
-                    not_observed_events +
-                    observed_events)
-        print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_all, self.n_target))
-        print('not_visible_sun: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_sun_events), n_all,
-                                                             len(not_visible_sun_events) / n_all))
-        print('  never_visible: {:4.0f}/{} ({:7.5f})'.format(len(never_visible_events), n_all,
-                                                             len(never_visible_events) / n_all))
-        print('    not_visible: {:4.0f}/{} ({:7.5f})'.format(len(not_visible_events), n_all,
-                                                             len(not_visible_events) / n_all))
-        print('   not_selected: {:4.0f}/{} ({:7.5f})'.format(len(not_selected_events), n_all,
-                                                             len(not_selected_events) / n_all))
-        print('   not_observed: {:4.0f}/{} ({:7.5f})'.format(len(not_observed_events), n_all,
-                                                             len(not_observed_events) / n_all))
-        print('       observed: {:4.0f}/{} ({:7.5f})'.format(len(observed_events), n_all,
-                                                             len(observed_events) / n_all))
-
-        if len(observed_events) > 0:
-            print('       mean Dte: {:8.5f} hours'.format(np.mean(observed_delta_event_times)))
-            print('       mean Dtv: {:8.5f} hours'.format(np.mean(observed_delta_visible_times)))
-            print('        mean Am: {:.3f} deg'.format(np.mean(observed_airmasses)))
-            if len(set(observed_sites)) > 1:
-                print('    site counts: {}'.format(', '.join(['{}:{}'.format(name,
-                                                              observed_sites.count(name))
-                                                              for name in set(observed_sites)])))
-
-
 def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_skymaps', log_stdout=False, log_to_file=True, log_to_stdout=False)
 
     # Oh, and another one, just in case
-    global fname
     fname = os.path.join(params.FILE_PATH, 'sim_skymaps_output')
     with open(fname, 'a') as f:
         f.write(Time.now().iso + '\n')
@@ -143,16 +65,6 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
     print('Processing {} skymaps'.format(len(fits_files)))
 
     # Create output lists
-    global not_visible_sun_events
-    global never_visible_events
-    global not_visible_events
-    global not_selected_events
-    global not_observed_events
-    global observed_events
-    global observed_delta_event_times
-    global observed_delta_visible_times
-    global observed_airmasses
-    global observed_sites
     not_visible_sun_events = []
     never_visible_events = []
     not_visible_events = []
@@ -163,9 +75,6 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
     observed_delta_visible_times = []
     observed_airmasses = []
     observed_sites = []
-
-    # Print results if we exit early
-    Closer(len(fits_files))
 
     # Loop through all files
     for i, fits_file in enumerate(fits_files):

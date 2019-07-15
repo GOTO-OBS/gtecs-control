@@ -19,7 +19,6 @@ from gototile.grid import SkyGrid
 
 from gtecs import logger
 from gtecs import params
-from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
 from gtecs.simulations.misc import get_pointing_obs_details, get_sites
 from gtecs.simulations.pilot import FakePilot
@@ -28,48 +27,12 @@ from gtecs.simulations.pilot import FakePilot
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-class Closer(NeatCloser):
-    """A class to neatly handle Ctrl-C requests before we've finished all the skymaps."""
-
-    def __init__(self, n_target):
-        super().__init__('')
-        self.n_target = n_target
-
-    def tidy_up(self):
-        """Print logs."""
-        with open(fname, 'a') as f:
-            f.write('\n')
-            f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
-            f.write('observed_tiles=' + str(observed_tiles) + '\n')
-            f.write('observed_times=' + str(observed_times) + '\n')
-            f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
-            f.write('observed_sites=' + str(observed_sites) + '\n')
-            f.write(Time.now().iso + '\n')
-
-        print('-----')
-        print('start_times:')
-        print([time.mjd for time in start_times])
-        print('observed_tiles:')
-        print(observed_tiles)
-        print('observed_times:')
-        print(observed_times)
-        print('observed_airmasses:')
-        print(observed_airmasses)
-        print('observed_sites:')
-        print(observed_sites)
-
-        print('-----')
-        print('Simulations completed:')
-        print('  total observations: {}'.format(len(observed_tiles)))
-
-
 def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     """Run the simulation."""
     # Create a log file
     log = logger.get_logger('sim_allsky', log_stdout=False, log_to_file=True, log_to_stdout=False)
 
     # Oh, and another one, just in case
-    global fname
     fname = os.path.join(params.FILE_PATH, 'sim_allsky_output')
     with open(fname, 'a') as f:
         f.write(Time.now().iso + '\n')
@@ -87,10 +50,6 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     sites = get_sites(site_names)
 
     # Create output lists
-    global observed_tiles
-    global observed_times
-    global observed_airmasses
-    global observed_sites
     observed_tiles = []
     observed_times = []
     observed_airmasses = []
@@ -102,12 +61,8 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     midnight = Time(start_date.strftime('%Y-%m-%d') + 'T00:00:00')
 
     # Create night start times
-    global start_times
     start_times = [midnight + n * u.day for n in range(duration)]
     print('Simulating {} nights'.format(len(start_times)))
-
-    # Print results if we exit early
-    Closer(len(start_times))
 
     # Prepare the ObsDB
     prepare_database(grid, clear=True, add_allsky=True)
