@@ -161,11 +161,12 @@ def run(fits_path, system='GOTO-8', duration=24, sites='N', telescopes=1):
         first_obs_site_name = site_names[first_obs_site_id]
 
         # Get the observation details from the database
-        first_obs_details = get_pointing_obs_details(event, first_obs_site, first_obs_pointing)
+        first_obs_details = get_pointing_obs_details(first_obs_site, first_obs_pointing,
+                                                     event.strategy['constraints_dict']['min_alt'])
         first_obs_tile = first_obs_details[0]
         first_obs_time = first_obs_details[1]
-        first_obs_risetime = first_obs_details[2]
-        first_obs_airmass = first_obs_details[3]
+        first_obs_airmass = first_obs_details[2]
+        first_obs_risetime = first_obs_details[3]
 
         # Only care about visible time past event time
         first_obs_visibletime = max(first_obs_risetime, event.time)

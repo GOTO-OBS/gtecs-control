@@ -300,16 +300,18 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
             first_obs_site_name = site_names[first_obs_site_id]
 
             # Get the observation details from the database
-            _, obs_time, rise_time, airmass = get_pointing_obs_details(event, first_obs_site,
-                                                                       first_pointing)
+            first_obs_details = get_pointing_obs_details(first_obs_site, first_pointing, event)
+            first_obs_time = first_obs_details[1]
+            first_obs_airmass = first_obs_details[2]
+            first_obs_risetime = first_obs_details[3]
 
             # Only care about visible time past event time
-            delta_event_time = (obs_time - event.time).to(u.hour).value
-            visible_time = max(event.time, rise_time)
-            delta_visible_time = (obs_time - visible_time).to(u.hour).value
+            delta_event_time = (first_obs_time - event.time).to(u.hour).value
+            visible_time = max(event.time, first_obs_risetime)
+            delta_visible_time = (first_obs_time - visible_time).to(u.hour).value
 
             result = 'OBSERVED (Dte={:.5f}, Dtv={:.5f}, Am={:.3f}, St={})'.format(
-                delta_event_time, delta_visible_time, airmass, first_obs_site_name)
+                delta_event_time, delta_visible_time, first_obs_airmass, first_obs_site_name)
             dt = (Time.now() - sim_start_time).to(u.s).value
             result += ' :: t={:.1f}'.format(dt)
             print(result)
@@ -320,7 +322,7 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N', telescopes=1):
             observed_events.append(event_id)
             observed_delta_event_times.append(delta_event_time)
             observed_delta_visible_times.append(delta_visible_time)
-            observed_airmasses.append(airmass)
+            observed_airmasses.append(first_obs_airmass)
             observed_sites.append(first_obs_site_name)
 
             continue

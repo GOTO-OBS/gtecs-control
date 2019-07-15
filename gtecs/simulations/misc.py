@@ -183,7 +183,7 @@ def get_source_pointings(event, grid):
         return pointing_ids
 
 
-def get_pointing_obs_details(event, site, pointing_id):
+def get_pointing_obs_details(site, pointing_id, event=None):
     """Get details for a specific observed pointing."""
     # Get position, tilename and obs time from the database
     with db.open_session() as session:
@@ -194,13 +194,15 @@ def get_pointing_obs_details(event, site, pointing_id):
             raise ValueError('Pointing {} is not yet completed'.format(pointing_id))
         obs_time = Time(db_pointing.stopped_time)
 
-    # Get how long it had been visible for
-    observer = Observer(site)
-    min_alt = event.strategy['constraints_dict']['min_alt']
-    rise_time = observer.target_rise_time(obs_time, coord, 'previous', horizon=min_alt * u.deg)
-
     # Get the airmass
+    observer = Observer(site)
     altaz = observer.altaz(obs_time, coord)
     airmass = altaz.secz.value
 
-    return tilename, obs_time, rise_time, airmass
+    if event is not None:
+        # Get how long it had been visible for
+        min_alt = event.strategy['constraints_dict']['min_alt']
+        rise_time = observer.target_rise_time(obs_time, coord, 'previous', horizon=min_alt * u.deg)
+        return tilename, obs_time, airmass, rise_time
+    else:
+        return tilename, obs_time, airmass

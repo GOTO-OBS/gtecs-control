@@ -21,12 +21,8 @@ from gtecs import logger
 from gtecs import params
 from gtecs.misc import NeatCloser
 from gtecs.simulations.database import prepare_database
-from gtecs.simulations.misc import get_sites
+from gtecs.simulations.misc import get_pointing_obs_details, get_sites
 from gtecs.simulations.pilot import FakePilot
-
-import numpy as np
-
-import obsdb as db
 
 
 warnings.simplefilter("ignore", DeprecationWarning)
@@ -44,19 +40,27 @@ class Closer(NeatCloser):
         with open(fname, 'a') as f:
             f.write('\n')
             f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
-            f.write('tile_dict=' + str(tile_dict) + '\n')
+            f.write('observed_tiles=' + str(observed_tiles) + '\n')
+            f.write('observed_times=' + str(observed_times) + '\n')
+            f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
+            f.write('observed_sites=' + str(observed_sites) + '\n')
+            f.write(Time.now().iso + '\n')
 
         print('-----')
         print('start_times:')
         print([time.mjd for time in start_times])
-        print('tile_dict:')
-        print(tile_dict)
+        print('observed_tiles:')
+        print(observed_tiles)
+        print('observed_times:')
+        print(observed_times)
+        print('observed_airmasses:')
+        print(observed_airmasses)
+        print('observed_sites:')
+        print(observed_sites)
 
-        n_complete = sum(sum([len(x) for x in tile_dict.values()]))
         print('-----')
-        print('Simulations aborted early, {}/{} processed:'.format(n_complete, self.n_target))
-        print('  total observations: {}'.format(sum([len(x) for x in tile_dict.values()])))
-        print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
+        print('Simulations completed:')
+        print('  total observations: {}'.format(len(observed_tiles)))
 
 
 def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
@@ -82,9 +86,15 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     site_names = [name for name in sites.upper()]
     sites = get_sites(site_names)
 
-    # Create output dict
-    global tile_dict
-    tile_dict = {}
+    # Create output lists
+    global observed_tiles
+    global observed_times
+    global observed_airmasses
+    global observed_sites
+    observed_tiles = []
+    observed_times = []
+    observed_airmasses = []
+    observed_sites = []
 
     # If no start_time is given start tonight
     if start_date is None:
@@ -123,7 +133,6 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
 
         # Get completed pointings
         completed_pointings = pilot.all_completed_pointings
-        completed_times = pilot.all_completed_times
         completed_telescopes = pilot.all_completed_telescopes
 
         # Print results
@@ -138,37 +147,43 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
         if len(completed_pointings) == 0:
             return
 
-        # Get observed tiles
-        with db.open_session() as session:
-            db_pointings = db.get_pointings(session, completed_pointings)
-            # DB query will sort by id, need to resort into order of pointings
-            db_pointings.sort(key=lambda db_pointing: completed_pointings.index(db_pointing.db_id))
-            # Get tile name from grid tile
-            completed_tiles = [p.grid_tile.name for p in db_pointings]
+        # Save details
+        for j, pointing in completed_pointings:
+            telescope_id = completed_telescopes[j]
+            site_id = pilot.sites_hosting_telescope[telescope_id]
+            site = sites[site_id]
+            site_name = site_names[site_id]
 
-        # Add to the master dictionary
-        for j, tile in enumerate(completed_tiles):
-            obs_time = completed_times[j].mjd
-            obs_site = site_names[pilot.sites_hosting_telescope[completed_telescopes[j]]]
-            if tile in tile_dict:
-                tile_dict[tile].append((i, j, obs_time, obs_site))
-            else:
-                tile_dict[tile] = [(i, j, obs_time, obs_site)]
+            tile, obs_time, airmass = get_pointing_obs_details(site, pointing)
+
+            observed_tiles.append(tile)
+            observed_times.append(obs_time.mjd)
+            observed_airmasses.append(airmass)
+            observed_sites.append(site_name)
 
     with open(fname, 'a') as f:
         f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
-        f.write('tile_dict=' + str(tile_dict) + '\n')
+        f.write('observed_tiles=' + str(observed_tiles) + '\n')
+        f.write('observed_times=' + str(observed_times) + '\n')
+        f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
+        f.write('observed_sites=' + str(observed_sites) + '\n')
+        f.write(Time.now().iso + '\n')
 
     print('-----')
     print('start_times:')
     print([time.mjd for time in start_times])
-    print('tile_dict:')
-    print(tile_dict)
+    print('observed_tiles:')
+    print(observed_tiles)
+    print('observed_times:')
+    print(observed_times)
+    print('observed_airmasses:')
+    print(observed_airmasses)
+    print('observed_sites:')
+    print(observed_sites)
 
     print('-----')
     print('Simulations completed:')
-    print('  total observations: {}'.format(sum([len(x) for x in tile_dict.values()])))
-    print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
+    print('  total observations: {}'.format(len(observed_tiles)))
 
 
 if __name__ == "__main__":

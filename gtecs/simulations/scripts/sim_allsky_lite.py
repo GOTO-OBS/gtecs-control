@@ -39,9 +39,14 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
     site_names = [name for name in sites.upper()]
     sites = get_sites(site_names)
 
-    # Create output dict
+    # Create output lists
+    observed_tiles = []
+    observed_times = []
+    observed_airmasses = []
+    observed_sites = []
+
+    # Create obs counter to simulate database ranks
     obs_count = np.zeros(grid.ntiles)
-    tile_dict = {}
 
     # If no start_time is given start tonight
     if start_date is None:
@@ -85,6 +90,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
 
             # Find which tiles are visible
             tiles_alt = grid.coords.transform_to(altaz_frame).alt
+            tiles_airmass = grid.coords.transform_to(altaz_frame).secz
             visible_tiles_mask = tiles_alt > 30 * u.deg
 
             # Find the minimum obs count of all the visible tiles
@@ -123,17 +129,13 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
                     # Increase the min_obs_count and loop again
                     min_obs_count += 1
 
-            # Add one to these tiles obs count
+            # Save details
             obs_count[target_tiles_mask] += 1
-
-            # Add tile details to dict
-            for tile in np.array(grid.tilenames)[target_tiles_mask]:
-                obs_time = now.mjd
-                obs_site = site_names[current_site_id]
-                if tile in tile_dict:
-                    tile_dict[tile].append((i, obs_time, obs_site))
-                else:
-                    tile_dict[tile] = [(i, obs_time, obs_site)]
+            for i, tile in enumerate(np.array(grid.tilenames)[target_tiles_mask]):
+                observed_tiles.append(tile)
+                observed_times.append(now.mjd)
+                observed_airmasses.append(tiles_airmass[target_tiles_mask][i].value)
+                observed_sites.append(site_names[current_site_id])
 
             # Increase the day count too
             day_count += sum(target_tiles_mask)
@@ -159,19 +161,28 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
 
     with open(fname, 'a') as f:
         f.write('start_times=' + str([time.mjd for time in start_times]) + '\n')
-        f.write('tile_dict=' + str(tile_dict) + '\n')
+        f.write('observed_tiles=' + str(observed_tiles) + '\n')
+        f.write('observed_times=' + str(observed_times) + '\n')
+        f.write('observed_airmasses=' + str(observed_airmasses) + '\n')
+        f.write('observed_sites=' + str(observed_sites) + '\n')
         f.write(Time.now().iso + '\n')
 
     print('-----')
     print('start_times:')
     print([time.mjd for time in start_times])
-    print('tile_dict:')
-    print(tile_dict)
+    print('observed_tiles:')
+    print(observed_tiles)
+    print('observed_times:')
+    print(observed_times)
+    print('observed_airmasses:')
+    print(observed_airmasses)
+    print('observed_sites:')
+    print(observed_sites)
 
     print('-----')
     print('Simulations completed:')
-    print('  total observations: {}'.format(sum([len(x) for x in tile_dict.values()])))
-    print('      average visits: {:.2f}'.format(np.mean([len(x) for x in tile_dict.values()])))
+    print('  total observations: {}'.format(len(observed_tiles)))
+    print('      average visits: {:.2f}'.format(np.mean([i for i in obs_count if i > 0])))
     for i in sorted(set(obs_count)):
         print('  observed {: >3.0f} tiles {:.0f} times'.format(sum(obs_count == i), i))
 
