@@ -65,7 +65,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1):
     print('Simulating {} nights'.format(len(start_times)))
 
     # Prepare the ObsDB
-    prepare_database(grid, clear=True, add_allsky=True)
+    prepare_database(grid, clear=True, add_allsky=True, allsky_start_time=midnight)
 
     # Loop for given number of days
     for i, start_time in enumerate(start_times):
