@@ -20,7 +20,8 @@ import numpy as np
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbose=False):
+def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridian=False,
+        verbose=False):
     """Run the simulation."""
     # Create a log file
     fname = os.path.join(params.FILE_PATH, 'sim_allsky_lite_output')
@@ -92,6 +93,12 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
             tiles_alt = grid.coords.transform_to(altaz_frame).alt
             tiles_airmass = grid.coords.transform_to(altaz_frame).secz
             visible_tiles_mask = tiles_alt > 30 * u.deg
+
+            if meridian:
+                # Restrict to tiles around the meridian
+                lst = now.sidereal_time('mean', site.lon)
+                meridian_mask = abs(grid.coords.ra - lst) < 10 * u.deg
+                visible_tiles_mask &= meridian_mask
 
             # Find the minimum obs count of all the visible tiles
             min_obs_count = min(obs_count[visible_tiles_mask])
@@ -215,6 +222,9 @@ if __name__ == "__main__":
                         help=('number of telescopes to observe with at each site '
                               '(e.g. "1", "2", "2,1", default=1)'),
                         )
+    parser.add_argument('-M', '--meridian', action='store_true',
+                        help=('use the meridian scanning method'),
+                        )
     parser.add_argument('-v', '--verbose', action='store_true',
                         help=('print out more infomation'),
                         )
@@ -228,6 +238,7 @@ if __name__ == "__main__":
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
+    meridian = args.meridian
     verbose = args.verbose
 
-    run(date, system, duration, sites, telescopes, verbose)
+    run(date, system, duration, sites, telescopes, meridian, verbose)
