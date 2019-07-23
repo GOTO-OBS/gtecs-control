@@ -40,6 +40,13 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridi
     site_names = [name for name in sites.upper()]
     sites = get_sites(site_names)
 
+    # Set the number of telescopes at each site
+    if isinstance(telescopes, int):
+        telescopes = [telescopes] * len(sites)
+    if len(telescopes) != len(sites):
+        raise ValueError('List of telescopes must be same length as list of sites.')
+    telescopes_per_site = {site_id: telescopes[site_id] for site_id in range(len(sites))}
+
     # Create output lists
     observed_tiles = []
     observed_times = []
@@ -104,6 +111,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridi
             min_obs_count = min(obs_count[visible_tiles_mask])
 
             # We need to select targets for all telescopes
+            telescopes = telescopes_per_site[current_site_id]
             unscheduled_telescopes = telescopes
             target_tiles_mask = np.full(grid.ntiles, False)
             while True:
