@@ -20,7 +20,7 @@ import numpy as np
 warnings.simplefilter("ignore", DeprecationWarning)
 
 
-def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridian=False,
+def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridian_limit=None,
         verbose=False):
     """Run the simulation."""
     # Create a log file
@@ -101,10 +101,10 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridi
             tiles_airmass = grid.coords.transform_to(altaz_frame).secz
             visible_tiles_mask = tiles_alt > 30 * u.deg
 
-            if meridian:
+            if meridian_limit is not None:
                 # Restrict to tiles around the meridian
                 lst = now.sidereal_time('mean', site.lon)
-                meridian_mask = abs(grid.coords.ra - lst) < 10 * u.deg
+                meridian_mask = abs(grid.coords.ra - lst) < meridian_limit * u.deg
                 visible_tiles_mask &= meridian_mask
 
             # Find the minimum obs count of all the visible tiles
@@ -230,8 +230,8 @@ if __name__ == "__main__":
                         help=('number of telescopes to observe with at each site '
                               '(e.g. "1", "2", "2,1", default=1)'),
                         )
-    parser.add_argument('-M', '--meridian', action='store_true',
-                        help=('use the meridian scanning method'),
+    parser.add_argument('-M', '--meridian_limit', type=float, default=10,
+                        help=('use the meridian scanning method with the given limits (default=10'),
                         )
     parser.add_argument('-v', '--verbose', action='store_true',
                         help=('print out more infomation'),
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         telescopes = [int(telescope) for telescope in args.telescopes.split(',')]
     else:
         telescopes = int(args.telescopes)
-    meridian = args.meridian
+    meridian_limit = args.meridian_limit
     verbose = args.verbose
 
-    run(date, system, duration, sites, telescopes, meridian, verbose)
+    run(date, system, duration, sites, telescopes, meridian_limit, verbose)
