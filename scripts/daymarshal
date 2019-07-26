@@ -8,8 +8,6 @@ import sys
 import time
 from collections import Counter
 
-from astroplan import AltitudeConstraint, AtNightConstraint, Observer, is_observable
-
 import astropy.units as u
 from astropy.time import Time
 
@@ -100,15 +98,13 @@ def send_coverage_plots():
         highlight_labels += [survey for survey in sorted(lastnight_otherdict)]
 
         # Use Astroplan to get all the tiles that would have been visible last night
-        observer = Observer(observatory_location())
-        alt_constraint = AltitudeConstraint(min=30 * u.deg)
-        night_constraint = AtNightConstraint(max_solar_altitude=-12 * u.deg)
-        constraints = [alt_constraint, night_constraint]
-        tiles_visible_mask = is_observable(constraints, observer, grid.coords,
-                                           time_range=[Time(midday_yesterday),
-                                                       Time(midday_today)])
-        tiles_notvisible_mask = np.invert(tiles_visible_mask)
-        tiles_notvisible = np.array(grid.tilenames)[tiles_notvisible_mask]
+        visible_tiles = grid.get_visible_tiles(observatory_location(),
+                                               time_range=(Time(midday_yesterday),
+                                                           Time(midday_today)),
+                                               alt_limit=30,
+                                               sun_limit=-12,
+                                               )
+        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
 
         # Create plot of tiles observed last night
         direc = os.path.join(params.FILE_PATH, 'plots')
@@ -120,7 +116,7 @@ def send_coverage_plots():
 
         title = 'GOTO observations for\nnight beginning {}'.format(date)
         grid.plot(filename=filepath,
-                  color={tilename: '0.5' for tilename in tiles_notvisible},
+                  color={tilename: '0.5' for tilename in notvisible_tiles},
                   highlight=highlight_tiles,
                   highlight_label=highlight_labels,
                   alpha=0.5,
