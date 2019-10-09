@@ -704,6 +704,7 @@ class Pilot(object):
                     self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
                                    self.current_id, elapsed, self.current_mintime))
                 else:
+                    # We should already be parked
                     self.log.warning('nothing to observe!')
                     if not self.testing:
                         send_slack_msg('Pilot has nothing to observe!')
@@ -762,6 +763,8 @@ class Pilot(object):
 
             else:
                 self.log.info('nothing to do, parking mount')
+                if not self.testing:
+                    send_slack_msg('Pilot has nothing to do, parking mount')
                 self.park_mount()
                 execute_command('exq clear')
                 execute_command('cam abort')
