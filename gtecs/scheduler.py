@@ -495,7 +495,7 @@ def what_to_do_next(current_pointing, highest_pointing, log=None):
             new_pointing = highest_pointing
 
     elif not current_pointing.valid:  # current pointing is illegal (finished)
-        if not highest_pointing.valid:  # new pointing is legal
+        if highest_pointing.valid:  # new pointing is legal
             reason = 'CP invalid; HP valid => Do HP'
             new_pointing = highest_pointing
         else:
