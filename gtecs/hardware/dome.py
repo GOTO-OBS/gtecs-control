@@ -513,7 +513,7 @@ class AstroHavenDome(object):
             if self.heartbeat_serial.in_waiting:
                 out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
                 x = out[-1]
-                # print('heartbeat says:{}'.format(x))
+                # print('heartbeat says "{}""'.format(x))
                 self._parse_heartbeat_status(x)
             return 0
         except Exception:
@@ -522,27 +522,29 @@ class AstroHavenDome(object):
             return 1
 
     def _heartbeat_thread(self):
-        heartbeat_timeout = self.heartbeat_timeout
-
         while self.heartbeat_thread_running:
             # check heartbeat status
             self._read_heartbeat()
 
             if not self.heartbeat_enabled:
                 # send a 0 to make sure the system is disabled
-                # if it's in the closed state it already disabled, leave it
+                # if it's in the closed state it's already disabled, so leave it
                 if self.heartbeat_status not in ['disabled', 'closed']:
-                    self.heartbeat_serial.write(0)
+                    v = chr(0).encode('ascii')
+                    self.heartbeat_serial.write(v)
+                    # print('sent "{}" to heartbeat'.format(v))
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
-                    # print('sending reset value')
-                    self.heartbeat_serial.write(chr(0).encode('ascii'))
+                    v = chr(0).encode('ascii')
+                    self.heartbeat_serial.write(v)
+                    # print('sent "{}" to heartbeat'.format(v))
                 else:
                     # send the heartbeat time to the serial port
-                    t = bytes([heartbeat_timeout * 2])  # takes .5 second intervals
-                    self.heartbeat_serial.write(t)
-                    # print('sent byte to heartbeat')
+                    # NB the timeout param is in s, but the board takes .5 second intervals
+                    v = chr(self.heartbeat_timeout * 2).encode('ascii')
+                    self.heartbeat_serial.write(v)
+                    # print('sent "{}" to heartbeat'.format(v))
 
             time.sleep(0.5)
 
