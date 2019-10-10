@@ -523,6 +523,7 @@ class DomeDaemon(BaseDaemon):
         if self.info['button_pressed']:
             lockdown = True
             reasons.append('quick-close button pressed')
+            send_slack_msg('Dome quick-close button has been pressed')
 
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:
