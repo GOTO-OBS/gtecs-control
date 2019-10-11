@@ -484,7 +484,7 @@ def update_header(header, tel, all_info, log):
         event_source = info['source']
         event_skymap = info['skymap']
     except Exception:
-        if from_db and 'survey' in all_info['db']:
+        if from_db and 'event' in all_info['db']:
             # It's not necessarily an error if the info isn't there
             log.error('Failed to fetch event info')
             log.debug('', exc_info=True)
