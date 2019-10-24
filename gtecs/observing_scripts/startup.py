@@ -38,9 +38,9 @@ def run():
 
     # Restart the UT interfaces, as they would have crashed when the power was off
     # Note don't use the restart command, I don't trust it any more
-    execute_command('fli shutdown')
+    execute_command('intf shutdown')
     time.sleep(4)
-    execute_command('fli start')
+    execute_command('intf start')
     time.sleep(4)
 
     # Make sure all the other daemons are running

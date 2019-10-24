@@ -111,7 +111,7 @@ def print_info(info):
 
 def print_instructions():
     """Print instructions for using the daemon."""
-    print('Usage: fli command [options]',
+    print('Usage: intf command [options]',
           'Daemon commands:',
           '  start                          start the interfaces',
           '  shutdown                       shutdown the interfaces',

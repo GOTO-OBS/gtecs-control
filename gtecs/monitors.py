@@ -977,18 +977,18 @@ class CamMonitor(BaseMonitor):
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
                     # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1078,18 +1078,18 @@ class FiltMonitor(BaseMonitor):
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
                     # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1171,18 +1171,18 @@ class FocMonitor(BaseMonitor):
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
                     # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1257,18 +1257,18 @@ class ExqMonitor(BaseMonitor):
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
                     # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             if 'cam' in self.bad_dependencies:
                 # PROBLEM: Cam daemon is not responding or not returning info.
                 recovery_procedure = {}

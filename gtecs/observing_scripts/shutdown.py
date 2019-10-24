@@ -31,7 +31,7 @@ def run():
     execute_command('cam abort')
 
     # Shut down the UT interfaces, else they would crash when we power off
-    execute_command('fli shutdown')
+    execute_command('intf shutdown')
 
     # Power off the UT hardware
     # NB in startup.py we start only for uts in params.UT_DICT,
