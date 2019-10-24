@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""A script to provide control over fli interface daemons."""
+"""A script to provide control over the UT interface daemons."""
 
 import os
 import sys
@@ -14,7 +14,7 @@ DAEMON_ID = os.path.basename(__file__)
 
 DAEMON_IDS = []
 for daemon_id in params.DAEMONS:
-    if daemon_id in params.FLI_INTERFACES:
+    if daemon_id in params.UT_INTERFACES:
         DAEMON_IDS.append(daemon_id)
 DAEMON_IDS.sort()
 
@@ -94,7 +94,7 @@ def query(command, args, daemon_ids):
 
 def print_info(info):
     """Print the full info dict."""
-    print('FLI INTERFACE {}:'.format(info['daemon_id']))
+    print('UT INTERFACE {}:'.format(info['daemon_id']))
     print('   Cameras:       ', end='\t')
     for key in sorted([key for key in info if key.startswith('camera_')]):
         print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
@@ -118,7 +118,7 @@ def print_instructions():
           '  restart                        restart the interfaces',
           '  kill                           kill the interfaces',
           '  check/ping                     check the interfaces for errors',
-          'Fli commands:',
+          'Interface commands:',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

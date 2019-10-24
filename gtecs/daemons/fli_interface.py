@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Interface to access FLI hardware."""
+"""Interface to access hardware connected to the UTs (cameras, focusers, filter wheels)."""
 
 import threading
 import time
@@ -14,18 +14,18 @@ from gtecs.hardware.fli import Camera, FilterWheel, Focuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 
 
-class FLIDaemon(BaseDaemon):
-    """FLI interface daemon class."""
+class UTInterfaceDaemon(BaseDaemon):
+    """UT interface daemon class."""
 
     def __init__(self, daemon_id):
         super().__init__(daemon_id)
 
         # hardware
-        self.tels = params.FLI_INTERFACES[self.daemon_id]['TELS'].copy()
-        self.hw = list(range(len(self.tels)))
-        self.cam_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
-        self.foc_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
-        self.filt_serials = params.FLI_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
+        self.uts = params.UT_INTERFACES[self.daemon_id]['UTS'].copy()
+        self.hw = list(range(len(self.uts)))
+        self.cam_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
+        self.foc_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
+        self.filt_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
         self.cameras = {hw: None for hw in self.hw}
         self.focusers = {hw: None for hw in self.hw}
         self.filterwheels = {hw: None for hw in self.hw}
@@ -79,7 +79,7 @@ class FLIDaemon(BaseDaemon):
                 try:
                     serial = self.cam_serials[hw]
                     camera = Camera.locate_device(serial)
-                    if camera is None and params.USE_FAKE_FLI:
+                    if camera is None and params.FAKE_FLI:
                         camera = FakeCamera('fake', 'FakeCamera')
                     if camera is not None:
                         self.cameras[hw] = camera
@@ -101,7 +101,7 @@ class FLIDaemon(BaseDaemon):
                 try:
                     serial = self.foc_serials[hw]
                     focuser = Focuser.locate_device(serial)
-                    if focuser is None and params.USE_FAKE_FLI:
+                    if focuser is None and params.FAKE_FLI:
                         focuser = FakeFocuser('fake', 'FakeFocuser')
                     if focuser is not None:
                         self.focusers[hw] = focuser
@@ -123,7 +123,7 @@ class FLIDaemon(BaseDaemon):
                 try:
                     serial = self.filt_serials[hw]
                     filterwheel = FilterWheel.locate_device(serial)
-                    if filterwheel is None and params.USE_FAKE_FLI:
+                    if filterwheel is None and params.FAKE_FLI:
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
                     if filterwheel is not None:
                         self.filterwheels[hw] = filterwheel
@@ -194,7 +194,7 @@ class FLIDaemon(BaseDaemon):
                     self.bad_hardware.add(hw_name)
 
         # Get other internal info
-        temp_info['tels'] = list(self.tels)
+        temp_info['uts'] = list(self.uts)
         temp_info['hw'] = list(self.hw)
         temp_info['cam_serials'] = list(self.cam_serials)
         temp_info['foc_serials'] = list(self.foc_serials)
@@ -356,26 +356,26 @@ class FLIDaemon(BaseDaemon):
 def find_interface_id(hostname):
     """Find what interface should be running on a given host.
 
-    Used by the FLI interfaces to find which interface it should identify as.
+    Used to find which interface each should identify as.
 
     """
-    intfs = []
-    for intf in params.FLI_INTERFACES:
-        if params.DAEMONS[intf]['HOST'] == hostname:
-            intfs.append(intf)
-    if len(intfs) == 0:
+    interfaces = []
+    for interface_id in params.UT_INTERFACES:
+        if params.DAEMONS[interface_id]['HOST'] == hostname:
+            interfaces.append(interface_id)
+    if len(interfaces) == 0:
         raise ValueError('Host {} does not have an associated interface'.format(hostname))
-    elif len(intfs) == 1:
-        return intfs[0]
+    elif len(interfaces) == 1:
+        return interfaces[0]
     else:
         # return the first one that's not running
-        for intf in sorted(intfs):
-            if not daemon_is_running(intf):
-                return intf
+        for interface_id in sorted(interfaces):
+            if not daemon_is_running(interface_id):
+                return interface_id
         raise ValueError('All defined interfaces on {} are running'.format(hostname))
 
 
 if __name__ == "__main__":
     daemon_id = find_interface_id(params.LOCAL_HOST)
     with misc.make_pid_file(daemon_id):
-        FLIDaemon(daemon_id)._run()
+        UTInterfaceDaemon(daemon_id)._run()

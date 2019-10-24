@@ -137,7 +137,7 @@ def write_exp_file(db_id, exposure_sets):
             f.write('<html><body><table cellpadding=5 cellspacing=5>\n')
             f.write('<tr>' +
                     '<td><b> </b></td>' +
-                    '<td><b>Tels</b></td>' +
+                    '<td><b>UTs</b></td>' +
                     '<td><b>NumExp</b></td>' +
                     '<td><b>Exptime</b></td>' +
                     '<td><b>Filter</b></td>' +

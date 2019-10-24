@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Daemon to control FLI focusers via fli_interface."""
+"""Daemon to control focusers  via the UT interface daemons."""
 
 import threading
 import time
@@ -18,8 +18,8 @@ class FocDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('foc')
 
-        # foc is dependent on all the FLI interfaces
-        for daemon_id in params.FLI_INTERFACES:
+        # foc is dependent on all the interfaces
+        for daemon_id in params.UT_INTERFACES:
             self.dependencies.add(daemon_id)
 
         # command flags
@@ -27,8 +27,8 @@ class FocDaemon(BaseDaemon):
         self.home_focuser_flag = 0
 
         # focuser variables
-        self.active_tel = []
-        self.move_steps = {tel: 0 for tel in params.TEL_DICT}
+        self.active_uts = []
+        self.move_steps = {ut: 0 for ut in params.UT_DICT}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -63,52 +63,52 @@ class FocDaemon(BaseDaemon):
             # move the focuser
             if self.move_focuser_flag:
                 try:
-                    for tel in self.active_tel:
-                        intf, hw = params.TEL_DICT[tel]
-                        move_steps = self.move_steps[tel]
-                        new_pos = self.info[tel]['current_pos'] + move_steps
+                    for ut in self.active_uts:
+                        interface_id, hw = params.UT_DICT[ut]
+                        move_steps = self.move_steps[ut]
+                        new_pos = self.info[ut]['current_pos'] + move_steps
 
                         self.log.info('Moving focuser %i (%s-%i) by %i to %i',
-                                      tel, intf, hw, move_steps, new_pos)
+                                      ut, interface_id, hw, move_steps, new_pos)
 
                         try:
-                            with daemon_proxy(intf) as fli:
-                                c = fli.step_focuser_motor(move_steps, hw)
+                            with daemon_proxy(interface_id) as interface:
+                                c = interface.step_focuser_motor(move_steps, hw)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.error('No response from interface on %s', interface_id)
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('move_focuser command failed')
                     self.log.debug('', exc_info=True)
-                self.active_tel = []
+                self.active_uts = []
                 self.move_focuser_flag = 0
                 self.force_check_flag = True
 
             # home the focuser
             if self.home_focuser_flag:
                 try:
-                    for tel in self.active_tel:
-                        intf, hw = params.TEL_DICT[tel]
+                    for ut in self.active_uts:
+                        interface_id, hw = params.UT_DICT[ut]
 
                         self.log.info('Homing focuser %i (%s-%i)',
-                                      tel, intf, hw)
+                                      ut, interface_id, hw)
 
                         try:
-                            with daemon_proxy(intf) as fli:
-                                c = fli.home_focuser(hw)
+                            with daemon_proxy(interface_id) as interface:
+                                c = interface.home_focuser(hw)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.error('No response from interface on %s', interface_id)
                             self.log.debug('', exc_info=True)
-                        fli._pyroRelease()
-                        self.move_steps[tel] = 0  # to mark that it's homing
+                        interface._pyroRelease()
+                        self.move_steps[ut] = 0  # to mark that it's homing
                 except Exception:
                     self.log.error('home_focuser command failed')
                     self.log.debug('', exc_info=True)
-                self.active_tel = []
+                self.active_uts = []
                 self.home_focuser_flag = 0
                 self.force_check_flag = True
 
@@ -128,46 +128,46 @@ class FocDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for tel in params.TEL_DICT:
+        for ut in params.UT_DICT:
             # Get info from each interface
             try:
-                intf, hw = params.TEL_DICT[tel]
-                tel_info = {}
-                tel_info['intf'] = intf
-                tel_info['hw'] = hw
+                interface_id, hw = params.UT_DICT[ut]
+                interface_info = {}
+                interface_info['interface_id'] = interface_id
+                interface_info['hw'] = hw
 
-                with daemon_proxy(intf) as fli:
-                    tel_info['remaining'] = fli.get_focuser_steps_remaining(hw)
-                    tel_info['current_pos'] = fli.get_focuser_position(hw)
-                    tel_info['limit'] = fli.get_focuser_limit(hw)
-                    tel_info['int_temp'] = fli.get_focuser_temp('internal', hw)
-                    tel_info['ext_temp'] = fli.get_focuser_temp('external', hw)
-                    tel_info['serial_number'] = fli.get_focuser_serial_number(hw)
+                with daemon_proxy(interface_id) as interface:
+                    interface_info['remaining'] = interface.get_focuser_steps_remaining(hw)
+                    interface_info['current_pos'] = interface.get_focuser_position(hw)
+                    interface_info['limit'] = interface.get_focuser_limit(hw)
+                    interface_info['int_temp'] = interface.get_focuser_temp('internal', hw)
+                    interface_info['ext_temp'] = interface.get_focuser_temp('external', hw)
+                    interface_info['serial_number'] = interface.get_focuser_serial_number(hw)
 
-                if tel_info['remaining'] > 0:
-                    tel_info['status'] = 'Moving'
-                    if self.move_steps[tel] == 0:
+                if interface_info['remaining'] > 0:
+                    interface_info['status'] = 'Moving'
+                    if self.move_steps[ut] == 0:
                         # Homing, needed due to bug in remaining
-                        tel_info['remaining'] = tel_info['current_pos']
+                        interface_info['remaining'] = interface_info['current_pos']
                 else:
-                    tel_info['status'] = 'Ready'
+                    interface_info['status'] = 'Ready'
 
-                temp_info[tel] = tel_info
+                temp_info[ut] = interface_info
             except Exception:
-                self.log.error('Failed to get filter wheel {} info'.format(tel))
+                self.log.error('Failed to get filter wheel {} info'.format(ut))
                 self.log.debug('', exc_info=True)
-                temp_info[tel] = None
+                temp_info[ut] = None
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(tel, temp_info[tel]['status'])
-                        for tel in sorted(params.TEL_DICT)]
+            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+                        for ut in sorted(params.UT_DICT)]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Focusers are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(tel, self.info[tel]['status'])
-                            for tel in sorted(params.TEL_DICT)]
+                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                            for ut in sorted(params.UT_DICT)]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Focusers are {}'.format(now_str))
@@ -178,7 +178,7 @@ class FocDaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def set_focuser(self, new_pos, tel_list):
+    def set_focuser(self, new_pos, ut_list):
         """Move focuser to given position."""
         # Check restrictions
         if self.dependency_error:
@@ -187,35 +187,35 @@ class FocDaemon(BaseDaemon):
         # Check input
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
             raise ValueError('Position must be a positive integer')
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
 
         # Set values
         self.wait_for_info()
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            if self.info[tel]['remaining'] == 0 and new_pos <= self.info[tel]['limit']:
-                self.active_tel += [tel]
-                self.move_steps[tel] = new_pos - self.info[tel]['current_pos']
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
+            if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
+                self.active_uts += [ut]
+                self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
 
         # Set flag
         self.move_focuser_flag = 1
 
         # Format return string
         s = 'Moving:'
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
             s += '\n  '
-            if self.info[tel]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
-            elif new_pos > self.info[tel]['limit']:
-                s += misc.errortxt('"ValueError: Focuser %i position past limit"' % tel)
+            if self.info[ut]['remaining'] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
+            elif new_pos > self.info[ut]['limit']:
+                s += misc.errortxt('"ValueError: Focuser %i position past limit"' % ut)
             else:
-                s += 'Moving focuser %i' % tel
+                s += 'Moving focuser %i' % ut
         return s
 
-    def move_focuser(self, move_steps, tel_list):
+    def move_focuser(self, move_steps, ut_list):
         """Move focuser by given number of steps."""
         # Check restrictions
         if self.dependency_error:
@@ -224,66 +224,66 @@ class FocDaemon(BaseDaemon):
         # Check input
         if (int(move_steps) - move_steps) != 0:
             raise ValueError('Steps must be an integer')
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
 
         # Set values
         self.wait_for_info()
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            new_pos = self.info[tel]['current_pos'] + move_steps
-            if self.info[tel]['remaining'] == 0 and new_pos <= self.info[tel]['limit']:
-                self.active_tel += [tel]
-                self.move_steps[tel] = move_steps
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
+            new_pos = self.info[ut]['current_pos'] + move_steps
+            if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
+                self.active_uts += [ut]
+                self.move_steps[ut] = move_steps
 
         # Set flag
         self.move_focuser_flag = 1
 
         # Format return string
         s = 'Moving:'
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            new_pos = self.info[tel]['current_pos'] + move_steps
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
+            new_pos = self.info[ut]['current_pos'] + move_steps
             s += '\n  '
-            if self.info[tel]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
-            elif new_pos > self.info[tel]['limit']:
+            if self.info[ut]['remaining'] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
+            elif new_pos > self.info[ut]['limit']:
                 s += misc.errortxt('"ValueError: Position past limit"')
             else:
-                s += 'Moving focuser %i' % tel
+                s += 'Moving focuser %i' % ut
         return s
 
-    def home_focuser(self, tel_list):
+    def home_focuser(self, ut_list):
         """Move focuser to the home position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
 
         # Set values
         self.wait_for_info()
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
-            if self.info[tel]['remaining'] == 0:
-                self.active_tel += [tel]
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
+            if self.info[ut]['remaining'] == 0:
+                self.active_uts += [ut]
 
         # Set flag
         self.home_focuser_flag = 1
 
         # Format return string
         s = 'Moving:'
-        for tel in tel_list:
-            intf, hw = params.TEL_DICT[tel]
+        for ut in ut_list:
+            interface_id, hw = params.UT_DICT[ut]
             s += '\n  '
-            if self.info[tel]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % tel)
+            if self.info[ut]['remaining'] > 0:
+                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
             else:
-                s += 'Homing focuser %i' % tel
+                s += 'Homing focuser %i' % ut
         return s
 
 

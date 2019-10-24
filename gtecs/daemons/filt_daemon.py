@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Daemon to control FLI filter wheels via fli_interface."""
+"""Daemon to control filter wheels via the UT interface daemons."""
 
 import threading
 import time
@@ -18,8 +18,8 @@ class FiltDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('filt')
 
-        # filt is dependent on all the FLI interfaces
-        for daemon_id in params.FLI_INTERFACES:
+        # filt is dependent on all the interfaces
+        for daemon_id in params.UT_INTERFACES:
             self.dependencies.add(daemon_id)
 
         # command flags
@@ -27,7 +27,7 @@ class FiltDaemon(BaseDaemon):
         self.home_filter_flag = 0
 
         # filter wheel variables
-        self.active_tel = []
+        self.active_uts = []
         self.new_filter = ''
 
         # start control thread
@@ -63,49 +63,49 @@ class FiltDaemon(BaseDaemon):
             # set the active filter
             if self.set_filter_flag:
                 try:
-                    for tel in self.active_tel:
-                        intf, hw = params.TEL_DICT[tel]
+                    for ut in self.active_uts:
+                        interface_id, hw = params.UT_DICT[ut]
                         new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
                         self.log.info('Moving filter wheel %i (%s-%i) to %s (%i)',
-                                      tel, intf, hw, self.new_filter, new_filter_num)
+                                      ut, interface_id, hw, self.new_filter, new_filter_num)
 
                         try:
-                            with daemon_proxy(intf) as fli:
-                                c = fli.set_filter_pos(new_filter_num, hw)
+                            with daemon_proxy(interface_id) as interface:
+                                c = interface.set_filter_pos(new_filter_num, hw)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.error('No response from interface on %s', interface_id)
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_filter command failed')
                     self.log.debug('', exc_info=True)
-                self.active_tel = []
+                self.active_uts = []
                 self.set_filter_flag = 0
                 self.force_check_flag = True
 
             # home the filter
             if self.home_filter_flag:
                 try:
-                    for tel in self.active_tel:
-                        intf, hw = params.TEL_DICT[tel]
+                    for ut in self.active_uts:
+                        interface_id, hw = params.UT_DICT[ut]
 
                         self.log.info('Homing filter wheel %i (%s-%i)',
-                                      tel, intf, hw)
+                                      ut, interface_id, hw)
 
                         try:
-                            with daemon_proxy(intf) as fli:
-                                c = fli.home_filter(hw)
+                            with daemon_proxy(interface_id) as interface:
+                                c = interface.home_filter(hw)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from fli interface on %s', intf)
+                            self.log.error('No response from interface on %s', interface_id)
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('home_filter command failed')
                     self.log.debug('', exc_info=True)
-                self.active_tel = []
+                self.active_uts = []
                 self.home_filter_flag = 0
                 self.force_check_flag = True
 
@@ -125,42 +125,42 @@ class FiltDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for tel in params.TEL_DICT:
+        for ut in params.UT_DICT:
             # Get info from each interface
             try:
-                intf, hw = params.TEL_DICT[tel]
-                tel_info = {}
-                tel_info['intf'] = intf
-                tel_info['hw'] = hw
+                interface_id, hw = params.UT_DICT[ut]
+                interface_info = {}
+                interface_info['interface_id'] = interface_id
+                interface_info['hw'] = hw
 
-                with daemon_proxy(intf) as fli:
-                    tel_info['remaining'] = fli.get_filter_steps_remaining(hw)
-                    tel_info['current_filter_num'] = fli.get_filter_number(hw)
-                    tel_info['current_pos'] = fli.get_filter_position(hw)
-                    tel_info['serial_number'] = fli.get_filter_serial_number(hw)
-                    tel_info['homed'] = fli.get_filter_homed(hw)
+                with daemon_proxy(interface_id) as interface:
+                    interface_info['remaining'] = interface.get_filter_steps_remaining(hw)
+                    interface_info['current_filter_num'] = interface.get_filter_number(hw)
+                    interface_info['current_pos'] = interface.get_filter_position(hw)
+                    interface_info['serial_number'] = interface.get_filter_serial_number(hw)
+                    interface_info['homed'] = interface.get_filter_homed(hw)
 
-                if tel_info['remaining'] > 0:
-                    tel_info['status'] = 'Moving'
+                if interface_info['remaining'] > 0:
+                    interface_info['status'] = 'Moving'
                 else:
-                    tel_info['status'] = 'Ready'
+                    interface_info['status'] = 'Ready'
 
-                temp_info[tel] = tel_info
+                temp_info[ut] = interface_info
             except Exception:
-                self.log.error('Failed to get filter wheel {} info'.format(tel))
+                self.log.error('Failed to get filter wheel {} info'.format(ut))
                 self.log.debug('', exc_info=True)
-                temp_info[tel] = None
+                temp_info[ut] = None
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(tel, temp_info[tel]['status'])
-                        for tel in sorted(params.TEL_DICT)]
+            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+                        for ut in sorted(params.UT_DICT)]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Filter wheels are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(tel, self.info[tel]['status'])
-                            for tel in sorted(params.TEL_DICT)]
+                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                            for ut in sorted(params.UT_DICT)]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Filter wheels are {}'.format(now_str))
@@ -171,7 +171,7 @@ class FiltDaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def set_filter(self, new_filter, tel_list):
+    def set_filter(self, new_filter, ut_list):
         """Move filter wheel to given filter."""
         # Check restrictions
         if self.dependency_error:
@@ -180,15 +180,15 @@ class FiltDaemon(BaseDaemon):
         # Check input
         if new_filter.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list %s' % str(params.FILTER_LIST))
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
 
         # Set values
         self.wait_for_info()
-        for tel in tel_list:
-            if self.info[tel]['remaining'] == 0 and self.info[tel]['homed']:
-                self.active_tel += [tel]
+        for ut in ut_list:
+            if self.info[ut]['remaining'] == 0 and self.info[ut]['homed']:
+                self.active_uts += [ut]
         self.new_filter = new_filter
 
         # Set flag
@@ -196,44 +196,44 @@ class FiltDaemon(BaseDaemon):
 
         # Format return string
         s = 'Moving:'
-        for tel in tel_list:
+        for ut in ut_list:
             s += '\n  '
-            if self.info[tel]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % tel)
-            elif not self.info[tel]['homed']:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i not homed"' % tel)
+            if self.info[ut]['remaining'] > 0:
+                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % ut)
+            elif not self.info[ut]['homed']:
+                s += misc.errortxt('"HardwareStatusError: Filter wheel %i not homed"' % ut)
             else:
-                s += 'Moving filter wheel %i' % tel
+                s += 'Moving filter wheel %i' % ut
         return s
 
-    def home_filter(self, tel_list):
+    def home_filter(self, ut_list):
         """Move filter wheel to home position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
 
         # Set values
         self.wait_for_info()
-        for tel in tel_list:
-            if self.info[tel]['remaining'] == 0:
-                self.active_tel += [tel]
+        for ut in ut_list:
+            if self.info[ut]['remaining'] == 0:
+                self.active_uts += [ut]
 
         # Set flag
         self.home_filter_flag = 1
 
         # Format return string
         s = 'Moving:'
-        for tel in tel_list:
+        for ut in ut_list:
             s += '\n  '
-            if self.info[tel]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % tel)
+            if self.info[ut]['remaining'] > 0:
+                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % ut)
             else:
-                s += 'Homing filter wheel %i' % tel
+                s += 'Homing filter wheel %i' % ut
         return s
 
 

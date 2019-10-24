@@ -77,103 +77,103 @@ def query(command, args, daemon_id):
     elif command == 'image':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'SCIENCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'SCIENCE'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, tel_list]
+        arg_list = [exptime, binning, imgtype, ut_list]
         reply = daemons.daemon_function(daemon_id, 'take_image', arg_list)
         print(reply)
 
     elif command == 'glance':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'SCIENCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'SCIENCE'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, tel_list]
+        arg_list = [exptime, binning, imgtype, ut_list]
         reply = daemons.daemon_function(daemon_id, 'take_glance', arg_list)
         print(reply)
 
     elif command == 'dark':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'DARK'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'DARK'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, tel_list]
+        arg_list = [exptime, binning, imgtype, ut_list]
         reply = daemons.daemon_function(daemon_id, 'take_dark', arg_list)
         print(reply)
 
     elif command == 'bias':
         # parse arguments
         if len(args) == 1:
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = 0.0
             binning = float(args[0])
             imgtype = 'BIAS'
         elif len(args) == 2:
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = 0.0
             binning = float(args[1])
             imgtype = 'BIAS'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, tel_list]
+        arg_list = [exptime, binning, imgtype, ut_list]
         reply = daemons.daemon_function(daemon_id, 'take_dark', arg_list)
         print(reply)
 
     elif command == 'abort':
         # parse arguments
         if len(args) == 0:
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
         elif len(args) == 1:
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'abort_exposure', [tel_list])
+        reply = daemons.daemon_function(daemon_id, 'abort_exposure', [ut_list])
         print(reply)
 
     elif command == 'temp':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             target_temp = float(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             target_temp = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_temperature', [target_temp, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'set_temperature', [target_temp, ut_list])
         print(reply)
 
     # Unrecognized function
@@ -184,27 +184,27 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('####### CAMERA INFO #######')
-    for tel in sorted(params.TEL_DICT):
-        print('CAMERA ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
-        if info[tel]['status'] != 'Exposing':
-            print('Status: %s' % info[tel]['status'])
+    for ut in sorted(params.UT_DICT):
+        print('CAMERA ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]))
+        if info[ut]['status'] != 'Exposing':
+            print('Status: %s' % info[ut]['status'])
         else:
             if info['run_number'] > 0:
-                print('Status: %s r%07d (%.2fs)' % (info[tel]['status'],
+                print('Status: %s r%07d (%.2fs)' % (info[ut]['status'],
                                                     info['run_number'],
-                                                    info[tel]['remaining']))
+                                                    info[ut]['remaining']))
             else:
-                print('Status: %s glance (%.2fs)' % (info[tel]['status'],
-                                                     info[tel]['remaining']))
-            if info['current_exposure'] and tel in info['current_exposure']['tel_list']:
+                print('Status: %s glance (%.2fs)' % (info[ut]['status'],
+                                                     info[ut]['remaining']))
+            if info['current_exposure'] and ut in info['current_exposure']['ut_list']:
                 print('Exposure time:      %.2fs' % info['current_exposure']['exptime'])
                 print('Binning:            %i' % info['current_exposure']['binning'])
                 print('Frame type:         %s' % info['current_exposure']['frametype'])
-        print('CCD Temperature:    %.2fC' % info[tel]['ccd_temp'])
-        print('Target Temperature: %.2fC' % info[tel]['target_temp'])
-        print('Base Temperature:   %.2fC' % info[tel]['base_temp'])
-        print('Cooler power:       %i%%' % info[tel]['cooler_power'])
-        print('Serial number:      %s' % info[tel]['serial_number'])
+        print('CCD Temperature:    %.2fC' % info[ut]['ccd_temp'])
+        print('Target Temperature: %.2fC' % info[ut]['target_temp'])
+        print('Base Temperature:   %.2fC' % info[ut]['base_temp'])
+        print('Cooler power:       %i%%' % info[ut]['cooler_power'])
+        print('Serial number:      %s' % info[ut]['serial_number'])
         print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
     print('Timestamp: %s' % info['timestamp'])
@@ -213,19 +213,19 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for tel in sorted(params.TEL_DICT):
-        print('CAMERA ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
-        if info[tel]['status'] != 'Exposing':
-            print('  Temp: %6.2fC' % info[tel]['ccd_temp'], end=' ')
-            print('  [%s]' % info[tel]['status'])
+    for ut in sorted(params.UT_DICT):
+        print('CAMERA ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]), end=' ')
+        if info[ut]['status'] != 'Exposing':
+            print('  Temp: %6.2fC' % info[ut]['ccd_temp'], end=' ')
+            print('  [%s]' % info[ut]['status'])
         else:
             if info['run_number'] > 0:
-                print('  %s r%07d (%.2fs)' % (info[tel]['status'],
+                print('  %s r%07d (%.2fs)' % (info[ut]['status'],
                                               info['run_number'],
-                                              info[tel]['remaining']))
+                                              info[ut]['remaining']))
             else:
-                print('  %s glance (%.2fs)' % (info[tel]['status'],
-                                               info[tel]['remaining']))
+                print('  %s glance (%.2fs)' % (info[ut]['status'],
+                                               info[ut]['remaining']))
 
 
 def print_instructions():
@@ -238,12 +238,12 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Camera commands:',
-          '  image [tels] exptime binning   take a normal exposure',
-          '  glance [tels] exptime binning  take a temporary glance',
-          '  dark [tels] exptime binning    take a dark frame',
-          '  bias [tels] binning            take a bias frame',
-          '  abort [tels]                   abort current exposure',
-          '  temp [tels] temp               set camera temperature',
+          '  image [uts] exptime binning   take a normal exposure',
+          '  glance [uts] exptime binning  take a temporary glance',
+          '  dark [uts] exptime binning    take a dark frame',
+          '  bias [uts] binning            take a bias frame',
+          '  abort [uts]                   abort current exposure',
+          '  temp [uts] temp               set camera temperature',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (alias for tail)',
           'Control commands:',

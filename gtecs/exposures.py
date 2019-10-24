@@ -17,7 +17,7 @@ class Exposure(object):
     - info()
 
     Exposures contain the folowing infomation:
-    - tel_list    [lst]  -- REQUIRED --
+    - ut_list    [lst]  -- REQUIRED --
     - exptime     [int]  -- REQUIRED --
     - filt        [str]  <default = None>
     - binning     [int]  <default = 1>
@@ -31,14 +31,14 @@ class Exposure(object):
 
     """
 
-    def __init__(self, tel_list, exptime,
+    def __init__(self, ut_list, exptime,
                  filt=None, binning=1, frametype='normal',
                  target='NA', imgtype='SCIENCE', glance=False,
                  set_pos=1, set_total=1, db_id=None):
         self.creation_time = time.gmtime()
-        self.tel_list = tel_list
-        self.tel_mask = misc.ut_list_to_mask(tel_list)
-        self.tel_string = misc.ut_mask_to_string(self.tel_mask)
+        self.ut_list = ut_list
+        self.ut_mask = misc.ut_list_to_mask(ut_list)
+        self.ut_string = misc.ut_mask_to_string(self.ut_mask)
         self.exptime = exptime
         self.filt = filt
         self.binning = binning
@@ -61,7 +61,7 @@ class Exposure(object):
         """Create an Exposure object from a formatted string."""
         # eg '1011;20;R;2;normal;NA;SCIENCE;0;1;3;126598'
         ls = line.split(';')
-        tel_list = misc.ut_string_to_list(ls[0])
+        ut_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
         filt = ls[2] if ls[2] != 'X' else None
         binning = int(ls[3])
@@ -72,7 +72,7 @@ class Exposure(object):
         set_pos = int(ls[8])
         set_total = int(ls[9])
         db_id = int(ls[10])
-        exp = cls(tel_list, exptime, filt,
+        exp = cls(ut_list, exptime, filt,
                   binning, frametype, target, imgtype, glance,
                   set_pos, set_total, db_id)
         return exp
@@ -80,7 +80,7 @@ class Exposure(object):
     def as_line(self):
         """Give the line representation of this Exposure."""
         line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i;%i\n'\
-               % (self.tel_string, self.exptime, self.filt if self.filt is not None else 'X',
+               % (self.ut_string, self.exptime, self.filt if self.filt is not None else 'X',
                   self.binning, self.frametype, self.target, self.imgtype,
                   self.glance, self.set_pos, self.set_total, self.db_id)
         return line
@@ -89,7 +89,7 @@ class Exposure(object):
         """Return a readable string of summary infomation about this Exposure."""
         s = 'EXPOSURE \n'
         s += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
-        s += '  Unit telescope(s): %s\n' % self.tel_list
+        s += '  Unit telescope(s): %s\n' % self.ut_list
         s += '  Exposure time: %is\n' % self.exptime
         s += '  Filter: %s\n' % self.filt
         s += '  Binning: %i\n' % self.binning

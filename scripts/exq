@@ -80,7 +80,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
             binning = int(args[2])
@@ -97,8 +97,8 @@ def query(command, args, daemon_id):
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
-            # tels exptime filter binning [object] [imgtype]
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            # uts exptime filter binning [object] [imgtype]
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -118,7 +118,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
+            arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
             reply = daemons.daemon_function(daemon_id, 'add', arg_list)
             print(reply)
 
@@ -129,7 +129,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filter binning [object] [imgtype] [db_id]
             nexp = int(args[0])
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -153,9 +153,9 @@ def query(command, args, daemon_id):
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
-            # nexp tels exptime filter binning [object] [imgtype] [db_id]
+            # nexp uts exptime filter binning [object] [imgtype] [db_id]
             nexp = int(args[0])
-            tel_list = misc.valid_ints(args[1].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[1].split(','), sorted(params.UT_DICT))
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
             binning = int(args[4])
@@ -182,7 +182,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
-            arg_list = [nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, db_id]
+            arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
             reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
             print(reply)
 
@@ -193,7 +193,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -213,9 +213,9 @@ def query(command, args, daemon_id):
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
-            # nexp tels exptime filters binning [object] [imgtype]
+            # nexp uts exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            tel_list = misc.valid_ints(args[1].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[1].split(','), sorted(params.UT_DICT))
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
             binning = int(args[4])
@@ -239,7 +239,7 @@ def query(command, args, daemon_id):
         # send command
         for _ in range(nexp):
             for filt in filt_list:
-                arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
+                arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
                 reply = daemons.daemon_function(daemon_id, 'add', arg_list)
                 print(reply)
 
@@ -249,7 +249,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
             binning = int(args[2])
@@ -266,8 +266,8 @@ def query(command, args, daemon_id):
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
-            # tels exptime filter binning [object] [imgtype]
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            # uts exptime filter binning [object] [imgtype]
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -287,7 +287,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Invalid arguments')
         # send command
         for filt in filt_list:
-            arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, True]
+            arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, True]
             reply = daemons.daemon_function(daemon_id, 'add', arg_list)
             print(reply)
 
@@ -297,7 +297,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime binning
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[0])
             filt = None  # Dark
             binning = int(args[1])
@@ -305,8 +305,8 @@ def query(command, args, daemon_id):
             target = 'NA'
             imgtype = 'DARK'
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
-            # tels exptime binning
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            # uts exptime binning
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = float(args[1])
             filt = None  # Dark
             binning = int(args[2])
@@ -316,7 +316,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
+        arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
@@ -327,7 +327,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) in [3, 4]:
             # nexp exptime binning [db_id]
             nexp = int(args[0])
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = float(args[1])
             filt = None  # Dark
             binning = int(args[2])
@@ -339,9 +339,9 @@ def query(command, args, daemon_id):
             else:
                 db_id = int(args[3])
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) in [4, 5]:
-            # nexp tels exptime binning [db_id]
+            # nexp uts exptime binning [db_id]
             nexp = int(args[0])
-            tel_list = misc.valid_ints(args[1].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[1].split(','), sorted(params.UT_DICT))
             exptime = float(args[2])
             filt = None  # Dark
             binning = int(args[3])
@@ -355,7 +355,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, db_id]
+        arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
         reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
         print(reply)
 
@@ -365,7 +365,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: binning')
         elif misc.is_num(args[0]) and len(args) == 1:
             # binning
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[0])
@@ -373,8 +373,8 @@ def query(command, args, daemon_id):
             target = 'NA'
             imgtype = 'BIAS'
         elif misc.is_num(args[1]) and len(args) == 2:
-            # tels binning
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            # uts binning
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[1])
@@ -384,7 +384,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [tel_list, exptime, filt, binning, frametype, target, imgtype, False]
+        arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
         reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
@@ -395,7 +395,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and len(args) in [2, 3]:
             # nexp binning [db_id]
             nexp = int(args[0])
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[1])
@@ -407,9 +407,9 @@ def query(command, args, daemon_id):
             else:
                 db_id = int(args[2])
         elif misc.is_num(args[2]) and len(args) in [3, 4]:
-            # nexp tels binning [db_id]
+            # nexp uts binning [db_id]
             nexp = int(args[0])
-            tel_list = misc.valid_ints(args[1].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[1].split(','), sorted(params.UT_DICT))
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[2])
@@ -423,7 +423,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [nexp, tel_list, exptime, filt, binning, frametype, target, imgtype, db_id]
+        arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
         reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
         print(reply)
 
@@ -466,7 +466,7 @@ def print_info(info):
     print('~~~~~~~')
     print('Current exposure:')
     try:
-        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_tel_list'],
+        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_ut_list'],
                                                  info['current_exptime'],
                                                  info['current_filter'],
                                                  info['current_binning'],
@@ -488,7 +488,7 @@ def print_info_s(info):
     print('QUEUE: [%s]' % info['status'])
     print('  Current exposure:', end=' ')
     try:
-        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_tel_list'],
+        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_ut_list'],
                                                  info['current_exptime'],
                                                  info['current_filter'],
                                                  info['current_binning'],
@@ -511,14 +511,14 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Exposure queue commands:',
-          '  image [tels] exptime filter[s] binning [object] [imgtype]',
-          '  multimage nexp [tels] exptime filter[s] binning [object] [imgtype]',
-          '  multcolimage nexp [tels] exptime filter[s] binning [object] [imgtype]',
-          '  glance [tels] exptime filter[s] binning [object] [imgtype]',
-          '  dark [tels] exptime binning',
-          '  multdark nexp [tels] exptime binning',
-          '  bias [tels] binning',
-          '  multbias nexp [tels] binning',
+          '  image [uts] exptime filter[s] binning [object] [imgtype]',
+          '  multimage nexp [uts] exptime filter[s] binning [object] [imgtype]',
+          '  multcolimage nexp [uts] exptime filter[s] binning [object] [imgtype]',
+          '  glance [uts] exptime filter[s] binning [object] [imgtype]',
+          '  dark [uts] exptime binning',
+          '  multdark nexp [uts] exptime binning',
+          '  bias [uts] binning',
+          '  multbias nexp [uts] binning',
           '  pause                          pause taking exposures',
           '  unpause/resume                 resumes taking exposures',
           '  list [v]                       lists the current queue',

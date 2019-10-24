@@ -141,7 +141,7 @@ def measure_image_hfd(data, filter_width=3, threshold=5, **kwargs):
 def get_hfds(image_data, filter_width=3, threshold=5, **kwargs):
     """Measure the HFD diameter from multiple files.
 
-    Returns a Pandas dataframe with an index of telescope ID
+    Returns a Pandas dataframe with an index of unit telescope ID
     and columns of HFD and std dev
 
     Parameters are passed straight to `measure_image_hfd`
@@ -150,9 +150,9 @@ def get_hfds(image_data, filter_width=3, threshold=5, **kwargs):
     std_dict = {}
     fwhm_dict = {}
     stdf_dict = {}
-    for tel in image_data:
+    for ut in image_data:
         try:
-            median, std, fwhm, f_std = measure_image_hfd(image_data[tel],
+            median, std, fwhm, f_std = measure_image_hfd(image_data[ut],
                                                          filter_width,
                                                          threshold,
                                                          **kwargs)
@@ -162,16 +162,16 @@ def get_hfds(image_data, filter_width=3, threshold=5, **kwargs):
                 raise ValueError
 
         except Exception as error:
-            print('HFD measurement for UT{} errored: {}'.format(tel, str(error)))
+            print('HFD measurement for UT{} errored: {}'.format(ut, str(error)))
             std = np.nan
             median = np.nan
             f_std = np.nan
             fwhm = np.nan
 
-        median_dict[tel] = median
-        std_dict[tel] = std
-        fwhm_dict[tel] = fwhm
-        stdf_dict[tel] = f_std
+        median_dict[ut] = median
+        std_dict[ut] = std
+        fwhm_dict[ut] = fwhm
+        stdf_dict[ut] = f_std
 
     # Return a combined data frame
     data = {'median': median_dict, 'std': std_dict, 'fwhm': fwhm_dict, 'fwhm_std': stdf_dict}

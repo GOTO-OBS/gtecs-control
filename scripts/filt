@@ -77,27 +77,27 @@ def query(command, args, daemon_id):
     elif command == 'set':
         # parse arguments
         if len(args) == 1:
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
             new_filt = args[0].upper()
         elif len(args) == 2:
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
             new_filt = args[1].upper()
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_filter', [new_filt, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'set_filter', [new_filt, ut_list])
         print(reply)
 
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = sorted(params.UT_DICT)
         elif len(args) == 1:
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_filter', [tel_list])
+        reply = daemons.daemon_function(daemon_id, 'home_filter', [ut_list])
         print(reply)
 
     # Other functions
@@ -112,22 +112,22 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
-    for tel in sorted(params.TEL_DICT):
-        print('FILTER WHEEL ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
-        if info[tel]['status'] != 'Moving':
-            print('Status: %s' % info[tel]['status'])
-            if not info[tel]['homed']:
+    for ut in sorted(params.UT_DICT):
+        print('FILTER WHEEL ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]))
+        if info[ut]['status'] != 'Moving':
+            print('Status: %s' % info[ut]['status'])
+            if not info[ut]['homed']:
                 print('Current filter: UNHOMED')
             else:
-                current_filter_num = info[tel]['current_filter_num']
+                current_filter_num = info[ut]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
                 print('Current filter:     %s' % current_filter)
         else:
-            print('Status: %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
+            print('Status: %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
             print('Current filter:     N/A')
-        print('Current filter num: %s' % info[tel]['current_filter_num'])
-        print('Current motor pos:  %s' % info[tel]['current_pos'])
-        print('Serial number:      %s' % info[tel]['serial_number'])
+        print('Current filter num: %s' % info[ut]['current_filter_num'])
+        print('Current motor pos:  %s' % info[ut]['current_pos'])
+        print('Serial number:      %s' % info[ut]['serial_number'])
         print('~~~~~~~')
     print('Uptime: %.1fs' % info['uptime'])
     print('Timestamp: %s' % info['timestamp'])
@@ -136,19 +136,19 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for tel in sorted(params.TEL_DICT):
-        print('FILTER WHEEL ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
-        if info[tel]['status'] != 'Moving':
-            if not info[tel]['homed']:
+    for ut in sorted(params.UT_DICT):
+        print('FILTER WHEEL ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]), end=' ')
+        if info[ut]['status'] != 'Moving':
+            if not info[ut]['homed']:
                 print('Current filter: UNHOMED', end=' ')
             else:
-                current_filter_num = info[tel]['current_filter_num']
+                current_filter_num = info[ut]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
                 print('  Current filter: %s' % current_filter, end=' ')
-                print('(%i)' % info[tel]['current_filter_num'], end=' ')
-            print('  [%s]' % info[tel]['status'])
+                print('(%i)' % info[ut]['current_filter_num'], end=' ')
+            print('  [%s]' % info[ut]['status'])
         else:
-            print('  %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
+            print('  %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
 
 
 def print_instructions():
@@ -161,8 +161,8 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Filter wheel commands:',
-          '  set [tels] filter              set wheel to given filter',
-          '  home [tels]                    home given filter',
+          '  set [uts] filter              set wheel to given filter',
+          '  home [uts]                    home given filter',
           '  list                           lists the possible filters',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',

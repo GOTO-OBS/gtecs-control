@@ -473,7 +473,7 @@ def ang_sep(ra_1, dec_1, ra_2, dec_2):
     return coo1.separation(coo2).degree
 
 
-def tel_str(ra, dec):
+def mnt_str(ra, dec):
     """Get RA and Dec strings to send to mount.
 
     Parameters

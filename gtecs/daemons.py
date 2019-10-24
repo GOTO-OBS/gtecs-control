@@ -22,7 +22,7 @@ class BaseDaemon(ABC):
     """Base class for hardware daemons.
 
     Daemons can be put into two catogaries:
-        - those dependent on hardware (e.g. dome, fli)
+        - those dependent on hardware (e.g. dome, ut)
         - those dependent on other daemons (e.g. cam, exq)
 
     Each daemon should implement a master control loop, which includes a status check routine.

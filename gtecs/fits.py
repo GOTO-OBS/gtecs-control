@@ -19,8 +19,8 @@ from .daemons import daemon_info
 from .flags import Status
 
 
-def image_location(run_number, tel):
-    """Construct the image file location based on the run and tel number."""
+def image_location(run_number, ut):
+    """Construct the image file location based on the run and ut number."""
     # Find the directory, using the date the observing night began
     night = astronomy.night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
@@ -28,32 +28,32 @@ def image_location(run_number, tel):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
-    filename = 'r{:07d}_UT{:d}.fits'.format(run_number, tel)
+    filename = 'r{:07d}_UT{:d}.fits'.format(run_number, ut)
 
     return os.path.join(direc, filename)
 
 
-def glance_location(tel):
-    """Construct the glance file location based on the tel number."""
+def glance_location(ut):
+    """Construct the glance file location based on the ut number."""
     # Find the directory
     direc = params.IMAGE_PATH
     if not os.path.exists(direc):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
-    filename = 'glance_UT{:d}.fits'.format(tel)
+    filename = 'glance_UT{:d}.fits'.format(ut)
 
     return os.path.join(direc, filename)
 
 
-def write_fits(image, filename, tel, all_info, log=None):
+def write_fits(image, filename, ut, all_info, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
     hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
     run_number = all_info['cam']['run_number']
-    update_header(hdu.header, tel, all_info, log)
+    update_header(hdu.header, ut, all_info, log)
 
     # write the image log to the database
     if run_number > 0:
@@ -217,7 +217,7 @@ def get_all_info(cam_info, log):
     return all_info
 
 
-def update_header(header, tel, all_info, log):
+def update_header(header, ut, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
     header.comments["SIMPLE  "] = "Standard FITS"
@@ -240,18 +240,18 @@ def update_header(header, tel, all_info, log):
     write_time.precision = 0
     header["DATE    "] = (write_time.isot, "Date HDU created")
 
-    header["ORIGIN  "] = (params.ORIGIN, "Origin organisation")
-    header["TELESCOP"] = (params.TELESCOP, "Origin telescope")
+    header["ORIGIN  "] = (params.ORG_NAME, "Origin organisation")
+    header["TELESCOP"] = (params.TELESCOPE_NAME, "Origin telescope")
 
-    intf, hw = params.TEL_DICT[tel]
+    interface_id, hw = params.UT_DICT[ut]
     current_exposure = cam_info['current_exposure']
-    ut_mask = misc.ut_list_to_mask(current_exposure['tel_list'])
+    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
-    header["INSTRUME"] = ('UT' + str(tel), "Origin unit telescope")
-    header["UT      "] = (tel, "Integer UT number")
+    header["INSTRUME"] = ('UT' + str(ut), "Origin unit telescope")
+    header["UT      "] = (ut, "Integer UT number")
     header["UTMASK  "] = (ut_mask, "Run UT mask integer")
     header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
-    header["INTERFAC"] = (intf + '-' + str(hw), "System interface code")
+    header["INTERFAC"] = (interface_id + '-' + str(hw), "System interface code")
 
     header["SWVN    "] = (params.VERSION, "Software version number")
 
@@ -505,7 +505,7 @@ def update_header(header, tel, all_info, log):
     header["SKYMAP  "] = (event_skymap, "Skymap URL for this event")
 
     # Camera info
-    cam_info = cam_info[tel]
+    cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
     header["CAMERA  "] = (cam_serial, "Camera serial number")
 
@@ -526,7 +526,7 @@ def update_header(header, tel, all_info, log):
         if all_info['foc'] is None:
             raise ValueError('No focuser info provided')
 
-        info = all_info['foc'][tel]
+        info = all_info['foc'][ut]
 
         foc_serial = info['serial_number']
         foc_pos = info['current_pos']
@@ -550,7 +550,7 @@ def update_header(header, tel, all_info, log):
         if all_info['filt'] is None:
             raise ValueError('No filter wheel info provided')
 
-        info = all_info['filt'][tel]
+        info = all_info['filt'][ut]
 
         filt_serial = info['serial_number']
         if not info['homed']:

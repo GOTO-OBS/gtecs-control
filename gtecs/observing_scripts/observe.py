@@ -52,14 +52,14 @@ def get_exq_commands(db_id):
             if exposure_set.ut_mask is not None:
                 ut_string = ut_mask_to_string(exposure_set.ut_mask)
                 ut_list = ut_string_to_list(ut_string)
-                tels = ','.join([str(i) for i in ut_list]) + ' '
+                uts = ','.join([str(i) for i in ut_list]) + ' '
             else:
-                tels = ''
+                uts = ''
 
             # Format command
             command = 'exq multimage {} {}{:.1f} {} {} "{}" SCIENCE {}'.format(
                 exposure_set.num_exp,
-                tels,
+                uts,
                 exposure_set.exptime,
                 exposure_set.filt,
                 exposure_set.binning,
@@ -99,7 +99,7 @@ def run(db_id):
         for exq_command in exq_command_list:
             execute_command(exq_command)
 
-        # wait for telescope (timeout 120s)
+        # wait for the mount to slew (timeout 120s)
         wait_for_mount(ra, dec, timeout=120)
 
         print('In position: starting exposures')

@@ -39,7 +39,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
 
     # get the mean value for the images
-    sky_mean = np.mean([np.median(data[tel]) for tel in data])
+    sky_mean = np.mean([np.median(data[ut]) for ut in data])
     return sky_mean
 
 

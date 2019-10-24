@@ -19,8 +19,8 @@ class ExqDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('exq')
 
-        # exq is dependent on all the FLI interfaces, cam and filt
-        for daemon_id in params.FLI_INTERFACES:
+        # exq is dependent on all the interfaces, cam and filt
+        for daemon_id in params.UT_INTERFACES:
             self.dependencies.add(daemon_id)
         self.dependencies.add('cam')
         self.dependencies.add('filt')
@@ -124,7 +124,7 @@ class ExqDaemon(BaseDaemon):
         temp_info['queue_length'] = len(self.exp_queue)
         if self.current_exposure is not None:
             temp_info['exposing'] = True
-            temp_info['current_tel_list'] = self.current_exposure.tel_list
+            temp_info['current_ut_list'] = self.current_exposure.ut_list
             temp_info['current_exptime'] = self.current_exposure.exptime
             temp_info['current_filter'] = self.current_exposure.filt
             temp_info['current_binning'] = self.current_exposure.binning
@@ -157,16 +157,16 @@ class ExqDaemon(BaseDaemon):
             # filter doesn't matter, e.g. dark
             return False
 
-        tel_list = self.current_exposure.tel_list
+        ut_list = self.current_exposure.ut_list
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        homed_check = [filt_info[ut]['homed'] for ut in ut_list]
         if not all(homed_check):
             self.log.info('Need to home filter wheels')
             self._home_filter_wheels()
 
-        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
-                 for tel in tel_list]
+        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
+                 for ut in ut_list]
         if all(check):
             return False
         else:
@@ -174,10 +174,10 @@ class ExqDaemon(BaseDaemon):
 
     def _home_filter_wheels(self):
         self.log.info('Homing filter wheels')
-        tel_list = self.current_exposure.tel_list
+        ut_list = self.current_exposure.ut_list
         try:
             with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.home_filter(tel_list)
+                filt_daemon.home_filter(ut_list)
         except Exception:
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)
@@ -186,11 +186,11 @@ class ExqDaemon(BaseDaemon):
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+        homed_check = [filt_info[ut]['homed'] for ut in ut_list]
         while not all(homed_check):
             with daemon_proxy('filt') as filt_daemon:
                 filt_info = filt_daemon.get_info()
-            homed_check = [filt_info[tel]['homed'] for tel in tel_list]
+            homed_check = [filt_info[ut]['homed'] for ut in ut_list]
             time.sleep(0.5)
 
             # keep ping alive
@@ -200,11 +200,11 @@ class ExqDaemon(BaseDaemon):
 
     def _set_filter(self):
         new_filt = self.current_exposure.filt
-        tel_list = self.current_exposure.tel_list
-        self.log.info('Setting filter to {} on {!r}'.format(new_filt, tel_list))
+        ut_list = self.current_exposure.ut_list
+        self.log.info('Setting filter to {} on {!r}'.format(new_filt, ut_list))
         try:
             with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.set_filter(new_filt, tel_list)
+                filt_daemon.set_filter(new_filt, ut_list)
         except Exception:
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)
@@ -213,13 +213,13 @@ class ExqDaemon(BaseDaemon):
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
-                 for tel in tel_list]
+        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
+                 for ut in ut_list]
         while not all(check):
             with daemon_proxy('filt') as filt_daemon:
                 filt_info = filt_daemon.get_info()
-            check = [params.FILTER_LIST[filt_info[tel]['current_filter_num']] == new_filt
-                     for tel in tel_list]
+            check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
+                     for ut in ut_list]
             time.sleep(0.5)
 
             # keep ping alive
@@ -231,14 +231,14 @@ class ExqDaemon(BaseDaemon):
         exptime = self.current_exposure.exptime
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
-        tel_list = self.current_exposure.tel_list
+        ut_list = self.current_exposure.ut_list
         glance = self.current_exposure.glance
         if not glance:
             self.log.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, tel_list))
+                          exptime, binning, binning, frametype, ut_list))
         else:
             self.log.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, tel_list))
+                          exptime, binning, binning, frametype, ut_list))
         try:
             with daemon_proxy('cam') as cam_daemon:
                 cam_daemon.take_exposure(self.current_exposure)
@@ -261,7 +261,7 @@ class ExqDaemon(BaseDaemon):
         self.log.info('Camera exposure complete')
 
     # Control functions
-    def add(self, tel_list, exptime,
+    def add(self, ut_list, exptime,
             filt=None, binning=1, frametype='normal',
             target='NA', imgtype='SCIENCE', glance=False):
         """Add an exposure to the queue."""
@@ -270,9 +270,9 @@ class ExqDaemon(BaseDaemon):
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -283,7 +283,7 @@ class ExqDaemon(BaseDaemon):
             raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
 
         # Call the command
-        exposure = Exposure(tel_list, exptime,
+        exposure = Exposure(ut_list, exptime,
                             filt.upper() if filt else None,
                             binning, frametype,
                             target.replace(';', ''),
@@ -307,7 +307,7 @@ class ExqDaemon(BaseDaemon):
             s += ' [paused]'
         return s
 
-    def add_multi(self, nexp, tel_list, exptime,
+    def add_multi(self, nexp, ut_list, exptime,
                   filt=None, binning=1, frametype='normal',
                   target='NA', imgtype='SCIENCE',
                   db_id=0):
@@ -317,9 +317,9 @@ class ExqDaemon(BaseDaemon):
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
-        for tel in tel_list:
-            if tel not in params.TEL_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.TEL_DICT)))
+        for ut in ut_list:
+            if ut not in params.UT_DICT:
+                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -333,7 +333,7 @@ class ExqDaemon(BaseDaemon):
         for i in range(nexp):
             set_pos = i + 1
             set_total = nexp
-            exposure = Exposure(tel_list, exptime,
+            exposure = Exposure(ut_list, exptime,
                                 filt.upper() if filt else None,
                                 binning, frametype,
                                 target.replace(';', ''),

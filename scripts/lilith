@@ -15,11 +15,11 @@ if __name__ == '__main__':
         else:
             daemons = list(params.DAEMONS)
 
-        # remove individual fli interfaces and replace with one command
-        if any([intf in daemons for intf in params.FLI_INTERFACES]):
-            for intf in params.FLI_INTERFACES:
-                if intf in daemons:
-                    daemons.remove(intf)
+        # remove individual UT interfaces and replace with one command
+        if any([interface_id in daemons for interface_id in params.UT_INTERFACES]):
+            for interface_id in params.UT_INTERFACES:
+                if interface_id in daemons:
+                    daemons.remove(interface_id)
             daemons.append('fli')
 
         # handle dependencies
