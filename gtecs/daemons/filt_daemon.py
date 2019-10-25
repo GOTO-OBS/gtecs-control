@@ -67,8 +67,8 @@ class FiltDaemon(BaseDaemon):
                         interface_id = params.UT_DICT[ut]
                         new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
-                        self.log.info('Moving filter wheel %i (%s) to %s (%i)',
-                                      ut, interface_id, self.new_filter, new_filter_num)
+                        self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
+                                      ut, interface_id, self.new_filter, new_filter_num))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -76,7 +76,7 @@ class FiltDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_filter command failed')
@@ -91,8 +91,8 @@ class FiltDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]
 
-                        self.log.info('Homing filter wheel %i (%s)',
-                                      ut, interface_id)
+                        self.log.info('Homing filter wheel {} ({})'.format(
+                                      ut, interface_id))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -100,7 +100,7 @@ class FiltDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('home_filter command failed')
@@ -178,7 +178,7 @@ class FiltDaemon(BaseDaemon):
 
         # Check input
         if new_filter.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list %s' % str(params.FILTER_LIST))
+            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         for ut in ut_list:
             if ut not in params.UT_DICT:
                 raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
@@ -196,13 +196,14 @@ class FiltDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
+            hw_str = 'Filter Wheel {}'.format(ut)
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
             elif not self.info[ut]['homed']:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i not homed"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} not homed"'.format(hw_str))
             else:
-                s += 'Moving filter wheel %i' % ut
+                s += 'Moving {}'.format(hw_str)
         return s
 
     def home_filter(self, ut_list):
@@ -228,11 +229,12 @@ class FiltDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
+            hw_str = 'Filter Wheel {}'.format(ut)
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Filter wheel %i is still moving"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
             else:
-                s += 'Homing filter wheel %i' % ut
+                s += 'Homing {}'.format(hw_str)
         return s
 
 

@@ -67,7 +67,7 @@ def write_fits(image, filename, ut, all_info, log=None):
 
     if log:
         if run_number > 0:
-            log.info('Exposure r{:07} saved'.format(run_number))
+            log.info('Exposure r{:07d} saved'.format(run_number))
         else:
             log.info('Glance saved')
 

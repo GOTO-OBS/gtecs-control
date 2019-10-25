@@ -79,27 +79,35 @@ class Exposure(object):
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i;%i\n'\
-               % (self.ut_string, self.exptime, self.filt if self.filt is not None else 'X',
-                  self.binning, self.frametype, self.target, self.imgtype,
-                  self.glance, self.set_pos, self.set_total, self.db_id)
+        line = '{};{:.1f};{};{};{};{};{};{};{};{};{}\n'.format(
+               self.ut_string,
+               self.exptime,
+               self.filt if self.filt is not None else 'X',
+               self.binning,
+               self.frametype,
+               self.target,
+               self.imgtype,
+               self.glance,
+               self.set_pos,
+               self.set_total,
+               self.db_id)
         return line
 
     def info(self):
         """Return a readable string of summary infomation about this Exposure."""
         s = 'EXPOSURE \n'
         s += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
-        s += '  Unit telescope(s): %s\n' % self.ut_list
-        s += '  Exposure time: %is\n' % self.exptime
-        s += '  Filter: %s\n' % self.filt
-        s += '  Binning: %i\n' % self.binning
-        s += '  Frame type: %s\n' % self.frametype
-        s += '  Target: %s\n' % self.target
-        s += '  Image type: %s\n' % self.imgtype
-        s += '  Glance: %s\n' % self.glance
-        s += '  Position in set: %i\n' % self.set_pos
-        s += '  Total in set: %i\n' % self.set_total
-        s += '  ExposureSet database ID (if any): %i\n' % self.db_id
+        s += '  Unit telescope(s): {}\n'.format(self.ut_list)
+        s += '  Exposure time: {:.1f}s\n'.format(self.exptime)
+        s += '  Filter: {}\n'.format(self.filt)
+        s += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
+        s += '  Frame type: {}\n'.format(self.frametype)
+        s += '  Target: {}\n'.format(self.target)
+        s += '  Image type: {}\n'.format(self.imgtype)
+        s += '  Glance: {}\n'.format(self.glance)
+        s += '  Position in set: {}\n'.format(self.set_pos)
+        s += '  Total in set: {}\n'.format(self.set_total)
+        s += '  ExposureSet database ID (if any): {}\n'.format(self.db_id)
         return s
 
 

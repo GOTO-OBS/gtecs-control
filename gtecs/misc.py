@@ -249,9 +249,9 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     """
     to_address = ', '.join(recipients)
     from_address = params.EMAIL_ADDRESS
-    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address, from_address, subject)
+    header = 'To:{}\nFrom:{}\nSubject:{}\n'.format(to_address, from_address, subject)
     timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime())
-    text = '%s\n\nMessage sent at %s' % (message, timestamp)
+    text = '{}\n\nMessage sent at {}'.format(message, timestamp)
 
     server = smtplib.SMTP(params.EMAIL_SERVER)
     server.starttls()

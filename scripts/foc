@@ -123,32 +123,32 @@ def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
     for ut in sorted(params.UT_DICT):
-        print('FOCUSER ' + str(ut) + ' (%s)' % params.UT_DICT[ut])
+        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]))
         if info[ut]['status'] != 'Moving':
-            print('Status: %s' % info[ut]['status'])
+            print('Status: {}'.format(info[ut]['status']))
         else:
-            print('Status: %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
-        print('Current motor pos:    %s' % info[ut]['current_pos'])
-        print('Maximum motor limit:  %s' % info[ut]['limit'])
-        print('Internal temperature: %s' % info[ut]['int_temp'])
-        print('External temperature: %s' % info[ut]['ext_temp'])
-        print('Serial number:        %s' % info[ut]['serial_number'])
+            print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
+        print('Current motor pos:    {}'.format(info[ut]['current_pos']))
+        print('Maximum motor limit:  {}'.format(info[ut]['limit']))
+        print('Internal temperature: {}'.format(info[ut]['int_temp']))
+        print('External temperature: {}'.format(info[ut]['ext_temp']))
+        print('Serial number:        {}'.format(info[ut]['serial_number']))
         print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in sorted(params.UT_DICT):
-        print('FOCUSER ' + str(ut) + ' (%s)' % params.UT_DICT[ut], end=' ')
+        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]), end=' ')
         if info[ut]['status'] != 'Moving':
-            print('  Current position: %s/%s' % (info[ut]['current_pos'],
-                                                 info[ut]['limit']), end=' ')
-            print('  [%s]' % info[ut]['status'])
+            print('  Current position: {}/{}'.format(info[ut]['current_pos'],
+                                                     info[ut]['limit']), end=' ')
+            print('  [{}]'.format(info[ut]['status']))
         else:
-            print('  %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
+            print('  {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
 
 
 def print_instructions():

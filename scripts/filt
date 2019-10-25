@@ -113,42 +113,42 @@ def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
     for ut in sorted(params.UT_DICT):
-        print('FILTER WHEEL ' + str(ut) + ' (%s)' % params.UT_DICT[ut])
+        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]))
         if info[ut]['status'] != 'Moving':
-            print('Status: %s' % info[ut]['status'])
+            print('Status: {}'.format(info[ut]['status']))
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED')
             else:
                 current_filter_num = info[ut]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
-                print('Current filter:     %s' % current_filter)
+                print('Current filter:     {}'.format(current_filter))
         else:
-            print('Status: %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
+            print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
             print('Current filter:     N/A')
-        print('Current filter num: %s' % info[ut]['current_filter_num'])
-        print('Current motor pos:  %s' % info[ut]['current_pos'])
-        print('Serial number:      %s' % info[ut]['serial_number'])
+        print('Current filter num: {}'.format(info[ut]['current_filter_num']))
+        print('Current motor pos:  {}'.format(info[ut]['current_pos']))
+        print('Serial number:      {}'.format(info[ut]['serial_number']))
         print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in sorted(params.UT_DICT):
-        print('FILTER WHEEL ' + str(ut) + ' (%s)' % params.UT_DICT[ut], end=' ')
+        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]), end=' ')
         if info[ut]['status'] != 'Moving':
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED', end=' ')
             else:
                 current_filter_num = info[ut]['current_filter_num']
                 current_filter = params.FILTER_LIST[current_filter_num]
-                print('  Current filter: %s' % current_filter, end=' ')
-                print('(%i)' % info[ut]['current_filter_num'], end=' ')
-            print('  [%s]' % info[ut]['status'])
+                print('  Current filter: {}'.format(current_filter), end=' ')
+                print('({})'.format(info[ut]['current_filter_num']), end=' ')
+            print('  [{}]'.format(info[ut]['status']))
         else:
-            print('  %s (%i)' % (info[ut]['status'], info[ut]['remaining']))
+            print('  {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
 
 
 def print_instructions():

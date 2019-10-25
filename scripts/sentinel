@@ -92,21 +92,21 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('####### SENTINEL INFO ########')
-    print('Status: %s' % info['status'])
+    print('Status: {}'.format(info['status']))
     print('~~~~~~~')
     if info['pending_events'] > 0:
-        print('Processed events:     %i (%i pending)' % (info['processed_events'],
-                                                         info['pending_events']))
+        print('Processed events:     {} ({} pending)'.format(info['processed_events'],
+                                                             info['pending_events']))
     else:
-        print('Processed events:     %i' % (info['processed_events']))
-    print('Interesting events:   %i' % (info['interesting_events']))
+        print('Processed events:     {}'.format(info['processed_events']))
+    print('Interesting events:   {}'.format(info['interesting_events']))
     if info['latest_event']:
-        print('Latest event:         %s' % (info['latest_event'].ivorn))
+        print('Latest event:         {}'.format(info['latest_event'].ivorn))
     else:
-        print('Latest event:         %s' % (info['latest_event']))
+        print('Latest event:         {}'.format(info['latest_event']))
     print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 

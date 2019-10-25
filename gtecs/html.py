@@ -67,7 +67,7 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
     with open(flag_filename, 'w') as f:
         f.write('<html><body>\n')
         f.write(html_size2)
-        f.write('ID_%i<br>\n' % db_id)
+        f.write('ID_{:.0f}<br>\n'.format(db_id))
 
         time.format = 'iso'
         time.precision = 0
@@ -111,12 +111,12 @@ def write_flag_file(pointing, time, all_constraint_names, pointing_info):
             f.write('dec = ' + dec + '<br>\n')
 
             alt_now, az_now = altaznow
-            f.write('alt_now = %.2f<br>\n' % alt_now)
-            f.write('az_now = %.2f<br>\n' % az_now)
+            f.write('alt_now = {:.2f}<br>\n'.format(alt_now))
+            f.write('az_now = {:.2f}<br>\n'.format(az_now))
 
             alt_later, az_later = altazlater
-            f.write('alt_mintime = %.2f<br>\n' % alt_later)
-            f.write('az_mintime = %.2f<br>\n' % az_later)
+            f.write('alt_mintime = {:.2f}<br>\n'.format(alt_later))
+            f.write('az_mintime = {:.2f}<br>\n'.format(az_later))
 
             # altart
             # altart_mintime
@@ -206,12 +206,12 @@ def write_queue_page():
         f.write('  SunAlt: ')
         sun = coord.get_sun(time)
         sun_alt, _ = astronomy.altaz_from_radec(sun.ra.value, sun.dec.value, time)
-        f.write('%.1f deg' % sun_alt)
+        f.write('{:.1f} deg'.format(sun_alt))
 
         f.write('  MoonAlt: ')
         moon = coord.get_moon(time)
         moon_alt, _ = astronomy.altaz_from_radec(moon.ra.value, moon.dec.value, time)
-        f.write('%.1f deg' % moon_alt)
+        f.write('{:.1f} deg'.format(moon_alt))
 
         f.write('  MoonPhase: ')
         moon_ill = moon_illumination(time)
@@ -223,7 +223,7 @@ def write_queue_page():
             moonstring = "B"
         if moon_alt < params.MOONELEV_LIMIT:
             moonstring = "D"
-        f.write('%.2f [%s]' % (moon_ill, moonstring))
+        f.write('{:.2f} [{}]'.format(moon_ill, moonstring))
 
         f.write('<br><br>' +
                 '<table border=1 bordercolor=#00639C cellspacing=\"0\"' +

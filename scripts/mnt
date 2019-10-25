@@ -280,7 +280,7 @@ def query(command, args, daemon_id):
             try:
                 coord = get_body(name, Time.now())
             except Exception:
-                raise errors.InputError('Cannot find target "%s"' % name)
+                raise errors.InputError('Cannot find target "{}"'.format(name))
         print('Found coordinates for "{}":'.format(name), end='  ')
         print('RA: {:.4f}  Dec: {:.4f}'.format(coord.ra.hour, coord.dec.value))
         # send commands
@@ -320,12 +320,12 @@ def print_info(info):
     """Print the full info dict."""
     print('####### MOUNT INFO ########')
     if info['status'] != 'Slewing':
-        print('Status: %s' % info['status'])
+        print('Status: {}'.format(info['status']))
     else:
         if info['target_dist']:
-            print('Status: %s (%.2f deg)' % (info['status'], info['target_dist']))
+            print('Status: {} ({:.2f} deg)'.format(info['status'], info['target_dist']))
         else:
-            print('Status: %s' % (info['status']))
+            print('Status: {}'.format(info['status']))
     print('~~~~~~~')
     ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
@@ -347,18 +347,18 @@ def print_info(info):
         print('Target Dec:       TARGET NOT SET')
 
     if info['target_dist'] is not None:
-        print('Target distance:  %.3f' % info['target_dist'])
+        print('Target distance:  {:.3f}'.format(info['target_dist']))
 
-    print('Mount Alt:        %.2f' % info['mount_alt'])
-    print('Mount Az:         %.2f' % info['mount_az'])
+    print('Mount Alt:        {:.2f}'.format(info['mount_alt']))
+    print('Mount Az:         {:.2f}'.format(info['mount_az']))
 
-    print('Offset step size: %.2f arcsec' % info['step'])
+    print('Offset step size: {:.2f} arcsec'.format(info['step']))
     print('~~~~~~~')
-    print('LST:              %.2f' % info['lst'])
-    print('Hour Angle:       %.2f' % info['ha'])
+    print('LST:              {:.2f}'.format(info['lst']))
+    print('Hour Angle:       {:.2f}'.format(info['ha']))
     print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 

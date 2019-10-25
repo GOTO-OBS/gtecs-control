@@ -95,12 +95,12 @@ class CamDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]
                         if self.run_number > 0:
-                            expstr = 'exposure r%07d' % self.run_number
+                            expstr = 'exposure r{:07d}'.format(self.run_number)
                         else:
                             expstr = 'glance'
-                        argstr = '%is, %ix%i, %s' % (exptime, binning, binning, frametype)
-                        camstr = 'camera %i (%s)' % (ut, interface_id)
-                        self.log.info('Taking %s (%s) on %s' % (expstr, argstr, camstr))
+                        argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
+                        camstr = 'camera {} ({})'.format(ut, interface_id)
+                        self.log.info('Taking {} ({}) on {}'.format(expstr, argstr, camstr))
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 interface.clear_exposure_queue(ut)
@@ -117,7 +117,7 @@ class CamDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
 
                     # start exposure
@@ -132,7 +132,7 @@ class CamDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
 
                     # set flags
@@ -155,14 +155,14 @@ class CamDaemon(BaseDaemon):
                                 ready = interface.exposure_ready(ut)
                                 if ready and self.image_ready[ut] == 0:
                                     if self.run_number > 0:
-                                        expstr = 'Exposure r%07d' % self.run_number
+                                        expstr = 'Exposure r{:07d}'.format(self.run_number)
                                     else:
                                         expstr = 'Glance'
-                                    camstr = 'camera %i (%s)' % (ut, interface_id)
-                                    self.log.info('%s finished on %s', expstr, camstr)
+                                    camstr = 'camera {} ({})'.format(ut, interface_id)
+                                    self.log.info('{} finished on {}'.format(expstr, camstr))
                                     self.image_ready[ut] = 1
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
 
                     # start saving thread when all exposures are complete
@@ -191,18 +191,18 @@ class CamDaemon(BaseDaemon):
                     for ut in self.abort_uts:
                         interface_id = params.UT_DICT[ut]
                         if self.run_number > 0:
-                            expstr = 'exposure r%07d' % self.run_number
+                            expstr = 'exposure r{:07d}'.format(self.run_number)
                         else:
                             expstr = 'glance'
-                        camstr = 'camera %i (%s)' % (ut, interface_id)
-                        self.log.info('Aborting %s on %s', expstr, camstr)
+                        camstr = 'camera {} ({})'.format(ut, interface_id)
+                        self.log.info('Aborting {} on {}'.format(expstr, camstr))
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 c = interface.abort_exposure(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
 
                     # reset flags
@@ -228,15 +228,15 @@ class CamDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]
                         target_temp = self.target_temp[ut]
-                        camstr = 'camera %i (%s)' % (ut, interface_id)
-                        self.log.info('Setting temperature on %s to %i', camstr, target_temp)
+                        camstr = 'camera {} ({})'.format(ut, interface_id)
+                        self.log.info('Setting temperature on {} to {}'.format(camstr, target_temp))
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 c = interface.set_camera_temp(target_temp, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_temp command failed')
@@ -353,14 +353,14 @@ class CamDaemon(BaseDaemon):
             interface = daemon_proxy(interface_id, timeout=99)
             try:
                 if run_number > 0:
-                    expstr = 'exposure r%07d' % run_number
+                    expstr = 'exposure r{:07d}'.format(run_number)
                 else:
                     expstr = 'glance'
-                camstr = 'camera %i (%s)' % (ut, interface_id)
-                self.log.info('Fetching %s from %s', expstr, camstr)
+                camstr = 'camera {} ({})'.format(ut, interface_id)
+                self.log.info('Fetching {} from {}'.format(expstr, camstr))
                 future_images[ut] = pool.submit(interface.fetch_exposure, ut)
             except Exception:
-                self.log.error('No response from interface on %s', interface_id)
+                self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
 
         # wait for images to be fetched
@@ -372,11 +372,11 @@ class CamDaemon(BaseDaemon):
                 if future_images[ut].done() and images[ut] is None:
                     images[ut] = future_images[ut].result()
                     if run_number > 0:
-                        expstr = 'exposure r%07d' % run_number
+                        expstr = 'exposure r{:07d}'.format(run_number)
                     else:
                         expstr = 'glance'
-                    camstr = 'camera %i (%s)' % (ut, interface_id)
-                    self.log.info('Fetched %s from %s', expstr, camstr)
+                    camstr = 'camera {} ({})'.format(ut, interface_id)
+                    self.log.info('Fetched {} from {}'.format(expstr, camstr))
 
             # keep looping until all the images are fetched
             if all(images[ut] is not None for ut in active_uts):
@@ -401,10 +401,10 @@ class CamDaemon(BaseDaemon):
 
             # write the FITS file
             if run_number > 0:
-                expstr = 'exposure r%07d' % run_number
+                expstr = 'exposure r{:07d}'.format(run_number)
             else:
                 expstr = 'glance'
-            self.log.info('Saving %s to %s', expstr, filename)
+            self.log.info('Saving {} to {}'.format(expstr, filename))
             pool.submit(write_fits, image, filename, ut, all_info, log=self.log)
 
             self.image_saving[ut] = 0
@@ -492,9 +492,9 @@ class CamDaemon(BaseDaemon):
         else:
             s = 'Exposing glance:'
         for ut in ut_list:
-            argstr = '(%is, %ix%i, %s)' % (exptime, binning, binning, frametype)
+            argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
             s += '\n  '
-            s += 'Taking exposure %s on camera %i' % (argstr, ut)
+            s += 'Taking exposure {} on camera {}'.format(argstr, ut)
         return s
 
     def abort_exposure(self, ut_list):
@@ -525,9 +525,9 @@ class CamDaemon(BaseDaemon):
         for ut in ut_list:
             s += '\n  '
             if ut not in self.abort_uts:
-                s += 'Camera %i is not currently exposing' % ut
+                s += 'Camera {} is not currently exposing'.format(ut)
             else:
-                s += 'Aborting exposure on camera %i' % ut
+                s += 'Aborting exposure on camera {}'.format(ut)
         return s
 
     def set_temperature(self, target_temp, ut_list):
@@ -555,7 +555,7 @@ class CamDaemon(BaseDaemon):
         s = 'Setting:'
         for ut in ut_list:
             s += '\n  '
-            s += 'Setting temperature on camera %i' % ut
+            s += 'Setting temperature on camera {}'.format(ut)
         return s
 
     def is_exposing(self):

@@ -462,43 +462,45 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('####### QUEUE INFO #######')
-    print('Status: %s' % info['status'])
+    print('Status: {}'.format(info['status']))
     print('~~~~~~~')
     print('Current exposure:')
     try:
-        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_ut_list'],
-                                                 info['current_exptime'],
-                                                 info['current_filter'],
-                                                 info['current_binning'],
-                                                 info['current_frametype'],
-                                                 info['current_target'],
-                                                 info['current_imgtype']))
-        print('Other items in queue:     %s' % (info['queue_length'] - 1))
+        print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
+              info['current_ut_list'],
+              info['current_exptime'],
+              info['current_filter'],
+              info['current_binning'],
+              info['current_frametype'],
+              info['current_target'],
+              info['current_imgtype']))
+        print('Other items in queue:     {}'.format(info['queue_length'] - 1))
     except Exception:
         print('   None')
-        print('Items in queue:     %s' % (info['queue_length']))
+        print('Items in queue:     {}'.format(info['queue_length']))
     print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    print('QUEUE: [%s]' % info['status'])
+    print('QUEUE: [{}]'.format(info['status']))
     print('  Current exposure:', end=' ')
     try:
-        print('   %r, %i, %s, %i, %s, %s, %s' % (info['current_ut_list'],
-                                                 info['current_exptime'],
-                                                 info['current_filter'],
-                                                 info['current_binning'],
-                                                 info['current_frametype'],
-                                                 info['current_target'],
-                                                 info['current_imgtype']))
-        print('  Other items in queue: %s' % (info['queue_length'] - 1))
+        print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
+              info['current_ut_list'],
+              info['current_exptime'],
+              info['current_filter'],
+              info['current_binning'],
+              info['current_frametype'],
+              info['current_target'],
+              info['current_imgtype']))
+        print('  Other items in queue: {}'.format(info['queue_length'] - 1))
     except Exception:
         print('   None')
-        print('  Items in queue: %s' % (info['queue_length']))
+        print('  Items in queue: {}'.format(info['queue_length']))
 
 
 def print_instructions():

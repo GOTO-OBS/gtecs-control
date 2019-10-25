@@ -68,8 +68,8 @@ class FocDaemon(BaseDaemon):
                         move_steps = self.move_steps[ut]
                         new_pos = self.info[ut]['current_pos'] + move_steps
 
-                        self.log.info('Moving focuser %i (%s) by %i to %i',
-                                      ut, interface_id, move_steps, new_pos)
+                        self.log.info('Moving focuser {} ({}) by {} to {}'.format(
+                                      ut, interface_id, move_steps, new_pos))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -77,7 +77,7 @@ class FocDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('move_focuser command failed')
@@ -92,8 +92,8 @@ class FocDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]
 
-                        self.log.info('Homing focuser %i (%s)',
-                                      ut, interface_id)
+                        self.log.info('Homing focuser {} ({})'.format(
+                                      ut, interface_id))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -101,7 +101,7 @@ class FocDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                         except Exception:
-                            self.log.error('No response from interface on %s', interface_id)
+                            self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
                         interface._pyroRelease()
                         self.move_steps[ut] = 0  # to mark that it's homing
@@ -203,13 +203,14 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
+            hw_str = 'Focuser {}'.format(ut)
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
             elif new_pos > self.info[ut]['limit']:
-                s += misc.errortxt('"ValueError: Focuser %i position past limit"' % ut)
+                s += misc.errortxt('"ValueError: {} position past limit"'.format(hw_str))
             else:
-                s += 'Moving focuser %i' % ut
+                s += 'Moving {}'.format(hw_str)
         return s
 
     def move_focuser(self, move_steps, ut_list):
@@ -239,14 +240,15 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
+            hw_str = 'Focuser {}'.format(ut)
             new_pos = self.info[ut]['current_pos'] + move_steps
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
             elif new_pos > self.info[ut]['limit']:
-                s += misc.errortxt('"ValueError: Position past limit"')
+                s += misc.errortxt('"ValueError: {} position past limit"'.format(hw_str))
             else:
-                s += 'Moving focuser %i' % ut
+                s += 'Moving {}'.format(hw_str)
         return s
 
     def home_focuser(self, ut_list):
@@ -272,11 +274,12 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
+            hw_str = 'Focuser {}'.format(ut)
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
+                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
             else:
-                s += 'Homing focuser %i' % ut
+                s += 'Homing {}'.format(hw_str)
         return s
 
 

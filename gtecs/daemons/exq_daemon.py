@@ -276,7 +276,7 @@ class ExqDaemon(BaseDaemon):
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list %s' % str(params.FILTER_LIST))
+            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
@@ -323,7 +323,7 @@ class ExqDaemon(BaseDaemon):
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list %s' % str(params.FILTER_LIST))
+            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
