@@ -20,7 +20,7 @@ class ExqDaemon(BaseDaemon):
         super().__init__('exq')
 
         # exq is dependent on all the interfaces, cam and filt
-        for daemon_id in params.UT_INTERFACES:
+        for daemon_id in params.INTERFACES:
             self.dependencies.add(daemon_id)
         self.dependencies.add('cam')
         self.dependencies.add('filt')
@@ -271,8 +271,8 @@ class ExqDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -318,8 +318,8 @@ class ExqDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:

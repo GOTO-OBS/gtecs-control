@@ -14,7 +14,7 @@ DAEMON_ID = os.path.basename(__file__)
 
 DAEMON_IDS = []
 for daemon_id in params.DAEMONS:
-    if daemon_id in params.UT_INTERFACES:
+    if daemon_id in params.INTERFACES:
         DAEMON_IDS.append(daemon_id)
 DAEMON_IDS.sort()
 
@@ -95,18 +95,21 @@ def query(command, args, daemon_ids):
 def print_info(info):
     """Print the full info dict."""
     print('INTERFACE {}:'.format(info['daemon_id']))
-    print('   Cameras:       ', end='\t')
-    for ut in info['cam_serials']:
-        print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
-    print('')
-    print('   Focusers:      ', end='\t')
-    for ut in info['foc_serials']:
-        print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
-    print('')
-    print('   Filter Wheels: ', end='\t')
-    for ut in info['filt_serials']:
-        print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
-    print('')
+    if len(info['cam_serials']) > 0:
+        print('   Cameras:       ', end='\t')
+        for ut in info['cam_serials']:
+            print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
+        print('')
+    if len(info['foc_serials']) > 0:
+        print('   Focusers:      ', end='\t')
+        for ut in info['foc_serials']:
+            print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
+        print('')
+    if len(info['filt_serials']) > 0:
+        print('   Filter Wheels: ', end='\t')
+        for ut in info['filt_serials']:
+            print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
+        print('')
 
 
 def print_instructions():

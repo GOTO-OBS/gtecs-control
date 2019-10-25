@@ -19,7 +19,7 @@ class FocDaemon(BaseDaemon):
         super().__init__('foc')
 
         # foc is dependent on all the interfaces
-        for daemon_id in params.UT_INTERFACES:
+        for daemon_id in params.INTERFACES:
             self.dependencies.add(daemon_id)
 
         # command flags
@@ -28,7 +28,7 @@ class FocDaemon(BaseDaemon):
 
         # focuser variables
         self.active_uts = []
-        self.move_steps = {ut: 0 for ut in params.UT_DICT}
+        self.move_steps = {ut: 0 for ut in params.UTS}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -64,7 +64,7 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]
+                        interface_id = params.UT_INTERFACES[ut]
                         move_steps = self.move_steps[ut]
                         new_pos = self.info[ut]['current_pos'] + move_steps
 
@@ -90,7 +90,7 @@ class FocDaemon(BaseDaemon):
             if self.home_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]
+                        interface_id = params.UT_INTERFACES[ut]
 
                         self.log.info('Homing focuser {} ({})'.format(
                                       ut, interface_id))
@@ -128,10 +128,10 @@ class FocDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for ut in params.UT_DICT:
+        for ut in params.UTS:
             # Get info from each interface
             try:
-                interface_id = params.UT_DICT[ut]
+                interface_id = params.UT_INTERFACES[ut]
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
 
@@ -160,13 +160,13 @@ class FocDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
-                        for ut in sorted(params.UT_DICT)]
+                        for ut in params.UTS]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Focusers are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
-                            for ut in sorted(params.UT_DICT)]
+                            for ut in params.UTS]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Focusers are {}'.format(now_str))
@@ -187,8 +187,8 @@ class FocDaemon(BaseDaemon):
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
             raise ValueError('Position must be a positive integer')
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
 
         # Set values
         self.wait_for_info()
@@ -223,8 +223,8 @@ class FocDaemon(BaseDaemon):
         if (int(move_steps) - move_steps) != 0:
             raise ValueError('Steps must be an integer')
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
 
         # Set values
         self.wait_for_info()
@@ -259,8 +259,8 @@ class FocDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
 
         # Set values
         self.wait_for_info()

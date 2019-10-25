@@ -937,11 +937,11 @@ class CamMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UT_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all([info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UT_DICT])
+        all_cool = all([info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS])
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
         else:
@@ -972,7 +972,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the interfaces.
-            for daemon_id in params.UT_INTERFACES:
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1038,11 +1038,11 @@ class FiltMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UT_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_homed = all([info[ut]['homed'] for ut in params.UT_DICT])
+        all_homed = all([info[ut]['homed'] for ut in params.UTS])
         if not all_homed:
             hardware_status = STATUS_FILT_UNHOMED
         else:
@@ -1073,7 +1073,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the interfaces.
-            for daemon_id in params.UT_INTERFACES:
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1139,7 +1139,7 @@ class FocMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UT_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
@@ -1166,7 +1166,7 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the interfaces.
-            for daemon_id in params.UT_INTERFACES:
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1252,7 +1252,7 @@ class ExqMonitor(BaseMonitor):
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
             # fails.
-            for daemon_id in params.UT_INTERFACES:
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}

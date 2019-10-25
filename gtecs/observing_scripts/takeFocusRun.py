@@ -27,13 +27,13 @@ import pandas as pd
 
 def plot_results(df):
     """Plot the results of the focus run."""
-    fig, axes = plt.subplots(nrows=len(params.UT_DICT), ncols=2)
+    fig, axes = plt.subplots(nrows=len(params.UTS), ncols=2)
     kwargs = dict(
         color='k',
         ecolor='k',
         fmt='.'
     )
-    for i, ut in enumerate(sorted(params.UT_DICT)):
+    for i, ut in enumerate(params.UTS):
         ax_hfd = axes[i, 0]
         ax_fwhm = axes[i, 1]
         df_ut = df.loc[ut]
@@ -90,7 +90,7 @@ def run(width, step, make_plots):
         deltas = np.array(params.FOCUSRUN_DELTAS)
     print('Steps ({:.0f}): '.format(len(deltas)), deltas)
 
-    pos_master_list = {ut: orig_focus[ut] + deltas for ut in params.UT_DICT}
+    pos_master_list = {ut: orig_focus[ut] + deltas for ut in params.UTS}
     pos_master_list = pd.DataFrame(pos_master_list)
     print('Run positions for each UT:')
     print(pos_master_list)

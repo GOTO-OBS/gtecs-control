@@ -29,7 +29,7 @@ def run():
     time.sleep(10)
 
     # Power on the UT hardware and mount box
-    for ut in sorted(params.UT_DICT):
+    for ut in params.UTS:
         execute_command('power on cam{0},foc{0},filt{0}'.format(ut))
         time.sleep(0.5)
     execute_command('power on sitech')
@@ -46,7 +46,7 @@ def run():
     # Make sure all the other daemons are running
     for daemon in list(params.DAEMONS):
         # don't run the individual interfaces
-        if daemon not in params.UT_INTERFACES:
+        if daemon not in params.INTERFACES:
             execute_command('{} start'.format(daemon))
 
     time.sleep(4)

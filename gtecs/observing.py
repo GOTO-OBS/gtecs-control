@@ -76,7 +76,7 @@ def get_cam_temps():
     """Get a dict of camera temps."""
     cam_info = daemon_info('cam')
     values = {}
-    for ut in params.UT_DICT:
+    for ut in params.UTS:
         values[ut] = cam_info[ut]['ccd_temp']
     return values
 
@@ -118,12 +118,12 @@ def set_new_focus(values):
     """
     try:
         # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UT_DICT for ut in values.keys())
+        assert all(ut in params.UTS for ut in values.keys())
     except Exception:
         # same value for all
-        values = {ut: values for ut in params.UT_DICT}
+        values = {ut: values for ut in params.UTS}
 
-    for ut in sorted(params.UT_DICT):
+    for ut in params.UTS:
         execute_command('foc set {} {}'.format(ut, int(values[ut])))
 
 
@@ -131,7 +131,7 @@ def get_current_focus():
     """Find the current focus positions."""
     foc_info = daemon_info('foc')
     values = {}
-    for ut in sorted(params.UT_DICT):
+    for ut in params.UTS:
         values[ut] = foc_info[ut]['current_pos']
     return values
 
@@ -150,10 +150,10 @@ def wait_for_focuser(target_values, timeout=None):
     """
     try:
         # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UT_DICT for ut in target_values.keys())
+        assert all(ut in params.UTS for ut in target_values.keys())
     except Exception:
         # same value for all
-        target_values = {ut: target_values for ut in params.UT_DICT}
+        target_values = {ut: target_values for ut in params.UTS}
 
     start_time = time.time()
     reached_position = False
@@ -421,7 +421,7 @@ def get_latest_image_data(glance=False):
         print('Loading glances:', end=' ')
 
     # get possible file names
-    filenames = {ut: '{}_UT{:d}.fits'.format(root, ut) for ut in params.UT_DICT}
+    filenames = {ut: '{}_UT{:d}.fits'.format(root, ut) for ut in params.UTS}
 
     # get full path
     images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
@@ -490,14 +490,14 @@ def exposure_queue_is_empty():
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt', force_update=False)
-    return all([filt_info[ut]['homed'] for ut in params.UT_DICT])
+    return all([filt_info[ut]['homed'] for ut in params.UTS])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
     cam_info = daemon_info('cam', force_update=False)
-    return all([cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UT_DICT])
+    return all([cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS])
 
 
 def wait_for_exposure_queue(timeout=None):
@@ -558,7 +558,7 @@ def wait_for_images(target_image_number, timeout=None):
             cam_info = daemon_info('cam', force_update=True)
             done = [(cam_info[ut]['status'] == 'Ready' and
                      int(cam_info['num_taken']) == int(target_image_number))
-                    for ut in params.UT_DICT]
+                    for ut in params.UTS]
             if np.all(done):
                 finished = True
         except Exception:

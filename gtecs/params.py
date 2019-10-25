@@ -112,12 +112,13 @@ for daemon_id in DAEMONS:
                                                            DAEMONS[daemon_id]['HOST'],
                                                            DAEMONS[daemon_id]['PORT'])
 
-UT_INTERFACES = config['UT_INTERFACES']
+INTERFACES = config['INTERFACES']
 
-UT_DICT = {}
-for interface_id in UT_INTERFACES:
-    for ut in UT_INTERFACES[interface_id]['UTS']:
-        UT_DICT[ut] = interface_id
+UT_INTERFACES = {}
+for interface_id in INTERFACES:
+    for ut in INTERFACES[interface_id]['UTS']:
+        UT_INTERFACES[ut] = interface_id
+UTS = sorted(UT_INTERFACES)
 
 ############################################################
 # Conditions parameters
@@ -260,19 +261,19 @@ if 'FOCUS_SLOPE_ABOVE' in config:
     FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
                          for key in config['FOCUS_SLOPE_ABOVE']}
 else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UT_DICT}
+    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS}
 
 if 'FOCUS_SLOPE_BELOW' in config:
     FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
                          for key in config['FOCUS_SLOPE_BELOW']}
 else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UT_DICT}
+    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS}
 
 if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
     FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
                                   for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
 else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UT_DICT}
+    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS}
 
 
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']

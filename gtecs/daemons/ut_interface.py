@@ -17,23 +17,32 @@ from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 class UTInterfaceDaemon(BaseDaemon):
     """UT interface daemon class."""
 
-    def __init__(self, daemon_id):
-        super().__init__(daemon_id)
+    def __init__(self, interface_id):
+        super().__init__(interface_id)
 
         # hardware
-        self.uts = params.UT_INTERFACES[self.daemon_id]['UTS'].copy()
+        self.uts = params.INTERFACES[interface_id]['UTS'].copy()
 
         self.cameras = {ut: None for ut in self.uts}
-        cam_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
-        self.cam_serials = {ut: cam_serials[hw] for hw, ut in enumerate(self.uts)}
+        try:
+            cam_targets = params.INTERFACES[interface_id]['CAMERAS'].copy()
+        except KeyError:
+            cam_targets = [None] * len(self.uts)
+        self.cam_targets = {ut: cam_targets[hw] for hw, ut in enumerate(self.uts)}
 
         self.focusers = {ut: None for ut in self.uts}
-        foc_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
-        self.foc_serials = {ut: foc_serials[hw] for hw, ut in enumerate(self.uts)}
+        try:
+            foc_targets = params.INTERFACES[interface_id]['FOCUSERS'].copy()
+        except KeyError:
+            foc_targets = [None] * len(self.uts)
+        self.foc_targets = {ut: foc_targets[hw] for hw, ut in enumerate(self.uts)}
 
         self.filterwheels = {ut: None for ut in self.uts}
-        filt_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
-        self.filt_serials = {ut: filt_serials[hw] for hw, ut in enumerate(self.uts)}
+        try:
+            filt_targets = params.INTERFACES[interface_id]['FILTERWHEELS'].copy()
+        except KeyError:
+            filt_targets = [None] * len(self.uts)
+        self.filt_targets = {ut: filt_targets[hw] for hw, ut in enumerate(self.uts)}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -79,12 +88,14 @@ class UTInterfaceDaemon(BaseDaemon):
         """Connect to hardware."""
         # Connect to cameras
         for ut in self.cameras:
-            if not self.cameras[ut]:
+            if not self.cameras[ut] and self.cam_targets[ut]:
                 hw_name = 'camera_{}'.format(ut)
+                target = self.cam_targets[ut]
                 try:
-                    serial = self.cam_serials[ut]
-                    camera = Camera.locate_device(serial)
+                    self.log.info('Connecting to Camera {} ({})'.format(ut, target))
+                    camera = Camera.locate_device(target)
                     if camera is None and params.FAKE_FLI:
+                        self.log.info('Creating a fake Camera {}'.format(ut))
                         camera = FakeCamera('fake', 'FakeCamera')
                     if camera is not None:
                         self.cameras[ut] = camera
@@ -93,21 +104,23 @@ class UTInterfaceDaemon(BaseDaemon):
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
-                        raise Exception('Camera not found')
+                        raise Exception('Connection failed')
                 except Exception:
                     self.cameras[ut] = None
-                    self.log.error('Failed to connect to Camera {} ({})'.format(ut, serial))
+                    self.log.error('Failed to connect to Camera {} ({})'.format(ut, target))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
         # Connect to focusers
         for ut in self.focusers:
-            if not self.focusers[ut]:
+            if not self.focusers[ut] and self.foc_targets[ut]:
+                target = self.foc_targets[ut]
                 hw_name = 'focuser_{}'.format(ut)
                 try:
-                    serial = self.foc_serials[ut]
-                    focuser = Focuser.locate_device(serial)
+                    self.log.info('Connecting to Focuser {} ({})'.format(ut, target))
+                    focuser = Focuser.locate_device(target)
                     if focuser is None and params.FAKE_FLI:
+                        self.log.info('Creating a fake Focuser {}'.format(ut))
                         focuser = FakeFocuser('fake', 'FakeFocuser')
                     if focuser is not None:
                         self.focusers[ut] = focuser
@@ -116,21 +129,23 @@ class UTInterfaceDaemon(BaseDaemon):
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
-                        raise Exception('Focuser not found')
+                        raise Exception('Connection failed')
                 except Exception:
                     self.focusers[ut] = None
-                    self.log.error('Failed to connect to Focuser {} ({})'.format(ut, serial))
+                    self.log.error('Failed to connect to Focuser {} ({})'.format(ut, target))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
         for ut in self.filterwheels:
-            if not self.filterwheels[ut]:
+            if not self.filterwheels[ut] and self.filt_targets[ut]:
+                target = self.filt_targets[ut]
                 hw_name = 'filterwheel_{}'.format(ut)
                 try:
-                    serial = self.filt_serials[ut]
-                    filterwheel = FilterWheel.locate_device(serial)
+                    self.log.info('Connecting to Filter Wheel {} ({})'.format(ut, target))
+                    filterwheel = FilterWheel.locate_device(target)
                     if filterwheel is None and params.FAKE_FLI:
+                        self.log.info('Creating a fake Filter Wheel {}'.format(ut))
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
                     if filterwheel is not None:
                         self.filterwheels[ut] = filterwheel
@@ -139,10 +154,10 @@ class UTInterfaceDaemon(BaseDaemon):
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
-                        raise Exception('Filter Wheel not found')
+                        raise Exception('Connection failed')
                 except Exception:
                     self.filterwheels[ut] = None
-                    self.log.error('Failed to connect to Filter Wheel {} ({})'.format(ut, serial))
+                    self.log.error('Failed to connect to Filter Wheel {} ({})'.format(ut, target))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
@@ -159,50 +174,58 @@ class UTInterfaceDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        temp_info['interface_id'] = self.daemon_id
+
+        temp_info['cam_targets'] = self.cam_targets
         temp_info['cam_serials'] = {}
         for ut in self.cameras:
             # Get info from each camera
-            try:
-                temp_info['cam_serials'][ut] = self.cameras[ut].serial_number
-            except Exception:
-                self.log.error('Failed to get Camera {} info'.format(ut))
-                self.log.debug('', exc_info=True)
-                temp_info['cam_serials'][ut] = None
-                # Report the connection as failed
-                self.cameras[ut] = None
-                hw_name = 'camera_{}'.format(ut)
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if self.cam_targets[ut]:
+                try:
+                    temp_info['cam_serials'][ut] = self.cameras[ut].serial_number
+                except Exception:
+                    self.log.error('Failed to get Camera {} info'.format(ut))
+                    self.log.debug('', exc_info=True)
+                    temp_info['cam_serials'][ut] = None
+                    # Report the connection as failed
+                    self.cameras[ut] = None
+                    hw_name = 'camera_{}'.format(ut)
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
+        temp_info['foc_targets'] = self.foc_targets
         temp_info['foc_serials'] = {}
         for ut in self.focusers:
             # Get info from each focuser
-            try:
-                temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
-            except Exception:
-                self.log.error('Failed to get Focuser {} info'.format(ut))
-                self.log.debug('', exc_info=True)
-                temp_info['foc_serials'][ut] = None
-                # Report the connection as failed
-                self.focusers[ut] = None
-                hw_name = 'focuser_{}'.format(ut)
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if self.foc_targets[ut]:
+                try:
+                    temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
+                except Exception:
+                    self.log.error('Failed to get Focuser {} info'.format(ut))
+                    self.log.debug('', exc_info=True)
+                    temp_info['foc_serials'][ut] = None
+                    # Report the connection as failed
+                    self.focusers[ut] = None
+                    hw_name = 'focuser_{}'.format(ut)
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
+        temp_info['filt_targets'] = self.filt_targets
         temp_info['filt_serials'] = {}
         for ut in self.filterwheels:
             # Get info from each filterwheel
-            try:
-                temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
-            except Exception:
-                self.log.error('Failed to get Filter Wheel {} info'.format(ut))
-                self.log.debug('', exc_info=True)
-                temp_info['filt_serials'][ut] = None
-                # Report the connection as failed
-                self.filterwheels[ut] = None
-                hw_name = 'filterwheel_{}'.format(ut)
-                if hw_name not in self.bad_hardware:
-                    self.bad_hardware.add(hw_name)
+            if self.filt_targets[ut]:
+                try:
+                    temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
+                except Exception:
+                    self.log.error('Failed to get Filter Wheel {} info'.format(ut))
+                    self.log.debug('', exc_info=True)
+                    temp_info['filt_serials'][ut] = None
+                    # Report the connection as failed
+                    self.filterwheels[ut] = None
+                    hw_name = 'filterwheel_{}'.format(ut)
+                    if hw_name not in self.bad_hardware:
+                        self.bad_hardware.add(hw_name)
 
         # Get other internal info
         temp_info['uts'] = list(self.uts)
@@ -367,7 +390,7 @@ def find_interface_id(hostname):
 
     """
     interfaces = []
-    for interface_id in params.UT_INTERFACES:
+    for interface_id in params.INTERFACES:
         if params.DAEMONS[interface_id]['HOST'] == hostname:
             interfaces.append(interface_id)
     if len(interfaces) == 0:

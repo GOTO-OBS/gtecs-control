@@ -19,7 +19,7 @@ class FiltDaemon(BaseDaemon):
         super().__init__('filt')
 
         # filt is dependent on all the interfaces
-        for daemon_id in params.UT_INTERFACES:
+        for daemon_id in params.INTERFACES:
             self.dependencies.add(daemon_id)
 
         # command flags
@@ -64,7 +64,7 @@ class FiltDaemon(BaseDaemon):
             if self.set_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]
+                        interface_id = params.UT_INTERFACES[ut]
                         new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
                         self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
@@ -89,7 +89,7 @@ class FiltDaemon(BaseDaemon):
             if self.home_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]
+                        interface_id = params.UT_INTERFACES[ut]
 
                         self.log.info('Homing filter wheel {} ({})'.format(
                                       ut, interface_id))
@@ -125,10 +125,10 @@ class FiltDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for ut in params.UT_DICT:
+        for ut in params.UTS:
             # Get info from each interface
             try:
-                interface_id = params.UT_DICT[ut]
+                interface_id = params.UT_INTERFACES[ut]
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
 
@@ -153,13 +153,13 @@ class FiltDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
-                        for ut in sorted(params.UT_DICT)]
+                        for ut in params.UTS]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Filter wheels are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
-                            for ut in sorted(params.UT_DICT)]
+                            for ut in params.UTS]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Filter wheels are {}'.format(now_str))
@@ -180,8 +180,8 @@ class FiltDaemon(BaseDaemon):
         if new_filter.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
 
         # Set values
         self.wait_for_info()
@@ -214,8 +214,8 @@ class FiltDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UT_DICT:
-                raise ValueError('Unit telescope ID not in list {}'.format(sorted(params.UT_DICT)))
+            if ut not in params.UTS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
 
         # Set values
         self.wait_for_info()

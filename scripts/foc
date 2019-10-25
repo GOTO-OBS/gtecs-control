@@ -77,10 +77,10 @@ def query(command, args, daemon_id):
     elif command == 'set':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            ut_list = sorted(params.UT_DICT)
+            ut_list = params.UTS
             pos = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             pos = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
@@ -91,10 +91,10 @@ def query(command, args, daemon_id):
     elif command == 'move':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            ut_list = sorted(params.UT_DICT)
+            ut_list = params.UTS
             steps = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             steps = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
@@ -105,9 +105,9 @@ def query(command, args, daemon_id):
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
-            ut_list = sorted(params.UT_DICT)
+            ut_list = params.UTS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), sorted(params.UT_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -122,8 +122,8 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
-    for ut in sorted(params.UT_DICT):
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]))
+    for ut in params.UTS:
+        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]))
         if info[ut]['status'] != 'Moving':
             print('Status: {}'.format(info[ut]['status']))
         else:
@@ -141,8 +141,8 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in sorted(params.UT_DICT):
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]), end=' ')
+    for ut in params.UTS:
+        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]), end=' ')
         if info[ut]['status'] != 'Moving':
             print('  Current position: {}/{}'.format(info[ut]['current_pos'],
                                                      info[ut]['limit']), end=' ')

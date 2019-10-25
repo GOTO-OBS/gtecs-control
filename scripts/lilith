@@ -16,8 +16,8 @@ if __name__ == '__main__':
             daemons = list(params.DAEMONS)
 
         # remove individual UT interfaces and replace with one command
-        if any([interface_id in daemons for interface_id in params.UT_INTERFACES]):
-            for interface_id in params.UT_INTERFACES:
+        if any([interface_id in daemons for interface_id in params.INTERFACES]):
+            for interface_id in params.INTERFACES:
                 if interface_id in daemons:
                     daemons.remove(interface_id)
             daemons.append('intf')
