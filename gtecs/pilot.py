@@ -108,7 +108,7 @@ class Pilot(object):
         self.system_mode = 'robotic'
 
         # dictionary of reasons to pause
-        self.whypause = {'hw': False, 'cond': False, 'manual': False}
+        self.whypause = {'hardware': False, 'conditions': False, 'manual': False}
         self.time_paused = 0
         self.bad_flags = None
 
@@ -202,14 +202,14 @@ class Pilot(object):
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
-                await self.handle_pause('hw', True)
+                await self.handle_pause('hardware', True)
 
                 # check more frequently untill fixed, and save time for delay afterwards
                 sleep_time = bad_sleep_time
                 bad_timestamp = time.time()
             else:
                 self.log.debug('hardware status AOK')
-                await self.handle_pause('hw', False)
+                await self.handle_pause('hardware', False)
 
                 # only allow the night marshal to open after a
                 # successful hardware check
@@ -252,10 +252,10 @@ class Pilot(object):
             if conditions.bad:
                 self.bad_flags = ', '.join(conditions.bad_flags)
                 self.log.warning('Conditions bad: ({})'.format(self.bad_flags))
-                await self.handle_pause('cond', True)
+                await self.handle_pause('conditions', True)
             else:
                 self.bad_flags = None
-                await self.handle_pause('cond', False)
+                await self.handle_pause('conditions', False)
 
             # emergency file
             if status.emergency_shutdown:
@@ -352,7 +352,7 @@ class Pilot(object):
         # wait for the right sunalt to open dome
         await self.wait_for_sunalt(0, 'OPEN')
 
-        # no point opening if we are paused due to bad weather or hw fault
+        # no point opening if we are paused due to bad weather or hardware fault
         while self.paused:
             self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
@@ -549,9 +549,9 @@ class Pilot(object):
                 self.log.info('too late to start {}'.format(name))
                 continue
 
-            elif ((self.whypause['hw']) or
+            elif ((self.whypause['hardware']) or
                   (self.whypause['manual']) or
-                  (self.whypause['cond'] and not ignore_conditions)):
+                  (self.whypause['conditions'] and not ignore_conditions)):
                 # need to check if we're paused
                 # if ignore_conditions (daytime tasks) we can start even if
                 # paused for conditions, but not for other reasons
@@ -805,7 +805,7 @@ class Pilot(object):
         ----------
         reason : string
             the reason why we might pause or unpause
-            one of 'manual', 'cond' or 'hw'
+            one of 'manual', 'conditions' or 'hardware'
         pause : bool
             does reason suggest a pause (True) or unpause (False)
 
@@ -814,7 +814,7 @@ class Pilot(object):
             # we can set this here because we want to pause right away
             self.whypause[reason] = True
 
-            if reason == 'cond':
+            if reason == 'conditions':
                 msg = 'Pausing due to bad conditions'
                 self.log.warning(msg)
                 send_slack_msg('Pilot is pausing due to bad conditions ({})'.format(self.bad_flags))
@@ -830,7 +830,7 @@ class Pilot(object):
                 self.close_dome()
                 self.park_mount()
 
-            elif reason == 'hw':
+            elif reason == 'hardware':
                 msg = 'Pausing operations due to hardware fault'
                 self.log.warning(msg)
                 send_slack_msg('Pilot is pausing due to hardware fault')
@@ -878,7 +878,7 @@ class Pilot(object):
 
         # finally, change global pause status by updating flag
         # by putting this last, we dont unpause until the dome
-        # is actually open or HW is fixed etc.
+        # is actually open or hardware is fixed etc.
         self.whypause[reason] = pause
 
     # Night countdown

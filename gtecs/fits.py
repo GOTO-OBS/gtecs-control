@@ -243,7 +243,7 @@ def update_header(header, ut, all_info, log):
     header["ORIGIN  "] = (params.ORG_NAME, "Origin organisation")
     header["TELESCOP"] = (params.TELESCOPE_NAME, "Origin telescope")
 
-    interface_id, hw = params.UT_DICT[ut]
+    interface_id = params.UT_DICT[ut]
     current_exposure = cam_info['current_exposure']
     ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
@@ -251,7 +251,7 @@ def update_header(header, ut, all_info, log):
     header["UT      "] = (ut, "Integer UT number")
     header["UTMASK  "] = (ut_mask, "Run UT mask integer")
     header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
-    header["INTERFAC"] = (interface_id + '-' + str(hw), "System interface code")
+    header["INTERFAC"] = (interface_id, "System interface code")
 
     header["SWVN    "] = (params.VERSION, "Software version number")
 

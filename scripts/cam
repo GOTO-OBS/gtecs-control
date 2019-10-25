@@ -185,7 +185,7 @@ def print_info(info):
     """Print the full info dict."""
     print('####### CAMERA INFO #######')
     for ut in sorted(params.UT_DICT):
-        print('CAMERA ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]))
+        print('CAMERA ' + str(ut) + ' (%s)' % params.UT_DICT[ut])
         if info[ut]['status'] != 'Exposing':
             print('Status: %s' % info[ut]['status'])
         else:
@@ -214,7 +214,7 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in sorted(params.UT_DICT):
-        print('CAMERA ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]), end=' ')
+        print('CAMERA ' + str(ut) + ' (%s)' % params.UT_DICT[ut], end=' ')
         if info[ut]['status'] != 'Exposing':
             print('  Temp: %6.2fC' % info[ut]['ccd_temp'], end=' ')
             print('  [%s]' % info[ut]['status'])

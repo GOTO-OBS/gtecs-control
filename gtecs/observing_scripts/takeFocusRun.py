@@ -27,14 +27,13 @@ import pandas as pd
 
 def plot_results(df):
     """Plot the results of the focus run."""
-    uts = params.UT_DICT.keys()
-    fig, axes = plt.subplots(nrows=len(uts), ncols=2)
+    fig, axes = plt.subplots(nrows=len(params.UT_DICT), ncols=2)
     kwargs = dict(
         color='k',
         ecolor='k',
         fmt='.'
     )
-    for i, ut in enumerate(uts):
+    for i, ut in enumerate(sorted(params.UT_DICT)):
         ax_hfd = axes[i, 0]
         ax_fwhm = axes[i, 1]
         df_ut = df.loc[ut]

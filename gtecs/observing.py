@@ -117,11 +117,11 @@ def set_new_focus(values):
 
     """
     try:
-        # will raise if not a dict, or keys not valid
-        assert all(key in params.UT_DICT for key in values.keys())
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
+        assert all(ut in params.UT_DICT for ut in values.keys())
     except Exception:
         # same value for all
-        values = {key: values for key in params.UT_DICT}
+        values = {ut: values for ut in params.UT_DICT}
 
     for ut in sorted(params.UT_DICT):
         execute_command('foc set {} {}'.format(ut, int(values[ut])))
@@ -131,7 +131,7 @@ def get_current_focus():
     """Find the current focus positions."""
     foc_info = daemon_info('foc')
     values = {}
-    for ut in params.UT_DICT:
+    for ut in sorted(params.UT_DICT):
         values[ut] = foc_info[ut]['current_pos']
     return values
 
@@ -149,7 +149,7 @@ def wait_for_focuser(target_values, timeout=None):
 
     """
     try:
-        # will raise if not a dict, or keys not valid
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
         assert all(ut in params.UT_DICT for ut in target_values.keys())
     except Exception:
         # same value for all

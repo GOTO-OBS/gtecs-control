@@ -64,15 +64,15 @@ class FiltDaemon(BaseDaemon):
             if self.set_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
-                        self.log.info('Moving filter wheel %i (%s-%i) to %s (%i)',
-                                      ut, interface_id, hw, self.new_filter, new_filter_num)
+                        self.log.info('Moving filter wheel %i (%s) to %s (%i)',
+                                      ut, interface_id, self.new_filter, new_filter_num)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.set_filter_pos(new_filter_num, hw)
+                                c = interface.set_filter_pos(new_filter_num, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -89,14 +89,14 @@ class FiltDaemon(BaseDaemon):
             if self.home_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
 
-                        self.log.info('Homing filter wheel %i (%s-%i)',
-                                      ut, interface_id, hw)
+                        self.log.info('Homing filter wheel %i (%s)',
+                                      ut, interface_id)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.home_filter(hw)
+                                c = interface.home_filter(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -128,17 +128,16 @@ class FiltDaemon(BaseDaemon):
         for ut in params.UT_DICT:
             # Get info from each interface
             try:
-                interface_id, hw = params.UT_DICT[ut]
+                interface_id = params.UT_DICT[ut]
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
-                interface_info['hw'] = hw
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_filter_steps_remaining(hw)
-                    interface_info['current_filter_num'] = interface.get_filter_number(hw)
-                    interface_info['current_pos'] = interface.get_filter_position(hw)
-                    interface_info['serial_number'] = interface.get_filter_serial_number(hw)
-                    interface_info['homed'] = interface.get_filter_homed(hw)
+                    interface_info['remaining'] = interface.get_filter_steps_remaining(ut)
+                    interface_info['current_filter_num'] = interface.get_filter_number(ut)
+                    interface_info['current_pos'] = interface.get_filter_position(ut)
+                    interface_info['serial_number'] = interface.get_filter_serial_number(ut)
+                    interface_info['homed'] = interface.get_filter_homed(ut)
 
                 if interface_info['remaining'] > 0:
                     interface_info['status'] = 'Moving'

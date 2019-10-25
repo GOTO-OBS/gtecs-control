@@ -116,8 +116,8 @@ UT_INTERFACES = config['UT_INTERFACES']
 
 UT_DICT = {}
 for interface_id in UT_INTERFACES:
-    for hw, ut in enumerate(UT_INTERFACES[interface_id]['UTS']):
-        UT_DICT[ut] = [interface_id, hw]
+    for ut in UT_INTERFACES[interface_id]['UTS']:
+        UT_DICT[ut] = interface_id
 
 ############################################################
 # Conditions parameters

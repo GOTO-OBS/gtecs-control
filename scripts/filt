@@ -113,7 +113,7 @@ def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
     for ut in sorted(params.UT_DICT):
-        print('FILTER WHEEL ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]))
+        print('FILTER WHEEL ' + str(ut) + ' (%s)' % params.UT_DICT[ut])
         if info[ut]['status'] != 'Moving':
             print('Status: %s' % info[ut]['status'])
             if not info[ut]['homed']:
@@ -137,7 +137,7 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in sorted(params.UT_DICT):
-        print('FILTER WHEEL ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]), end=' ')
+        print('FILTER WHEEL ' + str(ut) + ' (%s)' % params.UT_DICT[ut], end=' ')
         if info[ut]['status'] != 'Moving':
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED', end=' ')

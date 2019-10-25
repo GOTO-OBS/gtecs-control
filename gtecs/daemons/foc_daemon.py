@@ -64,16 +64,16 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         move_steps = self.move_steps[ut]
                         new_pos = self.info[ut]['current_pos'] + move_steps
 
-                        self.log.info('Moving focuser %i (%s-%i) by %i to %i',
-                                      ut, interface_id, hw, move_steps, new_pos)
+                        self.log.info('Moving focuser %i (%s) by %i to %i',
+                                      ut, interface_id, move_steps, new_pos)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.step_focuser_motor(move_steps, hw)
+                                c = interface.step_focuser_motor(move_steps, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -90,14 +90,14 @@ class FocDaemon(BaseDaemon):
             if self.home_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
 
-                        self.log.info('Homing focuser %i (%s-%i)',
-                                      ut, interface_id, hw)
+                        self.log.info('Homing focuser %i (%s)',
+                                      ut, interface_id)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.home_focuser(hw)
+                                c = interface.home_focuser(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -131,18 +131,17 @@ class FocDaemon(BaseDaemon):
         for ut in params.UT_DICT:
             # Get info from each interface
             try:
-                interface_id, hw = params.UT_DICT[ut]
+                interface_id = params.UT_DICT[ut]
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
-                interface_info['hw'] = hw
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_focuser_steps_remaining(hw)
-                    interface_info['current_pos'] = interface.get_focuser_position(hw)
-                    interface_info['limit'] = interface.get_focuser_limit(hw)
-                    interface_info['int_temp'] = interface.get_focuser_temp('internal', hw)
-                    interface_info['ext_temp'] = interface.get_focuser_temp('external', hw)
-                    interface_info['serial_number'] = interface.get_focuser_serial_number(hw)
+                    interface_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                    interface_info['current_pos'] = interface.get_focuser_position(ut)
+                    interface_info['limit'] = interface.get_focuser_limit(ut)
+                    interface_info['int_temp'] = interface.get_focuser_temp('internal', ut)
+                    interface_info['ext_temp'] = interface.get_focuser_temp('external', ut)
+                    interface_info['serial_number'] = interface.get_focuser_serial_number(ut)
 
                 if interface_info['remaining'] > 0:
                     interface_info['status'] = 'Moving'
@@ -194,7 +193,6 @@ class FocDaemon(BaseDaemon):
         # Set values
         self.wait_for_info()
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
                 self.active_uts += [ut]
                 self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
@@ -205,7 +203,6 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
                 s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)
@@ -231,7 +228,6 @@ class FocDaemon(BaseDaemon):
         # Set values
         self.wait_for_info()
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             new_pos = self.info[ut]['current_pos'] + move_steps
             if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
                 self.active_uts += [ut]
@@ -243,7 +239,6 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             new_pos = self.info[ut]['current_pos'] + move_steps
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
@@ -268,7 +263,6 @@ class FocDaemon(BaseDaemon):
         # Set values
         self.wait_for_info()
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             if self.info[ut]['remaining'] == 0:
                 self.active_uts += [ut]
 
@@ -278,7 +272,6 @@ class FocDaemon(BaseDaemon):
         # Format return string
         s = 'Moving:'
         for ut in ut_list:
-            interface_id, hw = params.UT_DICT[ut]
             s += '\n  '
             if self.info[ut]['remaining'] > 0:
                 s += misc.errortxt('"HardwareStatusError: Focuser %i motor is still moving"' % ut)

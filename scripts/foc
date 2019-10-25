@@ -123,7 +123,7 @@ def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
     for ut in sorted(params.UT_DICT):
-        print('FOCUSER ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]))
+        print('FOCUSER ' + str(ut) + ' (%s)' % params.UT_DICT[ut])
         if info[ut]['status'] != 'Moving':
             print('Status: %s' % info[ut]['status'])
         else:
@@ -142,7 +142,7 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in sorted(params.UT_DICT):
-        print('FOCUSER ' + str(ut) + ' (%s-%i)' % tuple(params.UT_DICT[ut]), end=' ')
+        print('FOCUSER ' + str(ut) + ' (%s)' % params.UT_DICT[ut], end=' ')
         if info[ut]['status'] != 'Moving':
             print('  Current position: %s/%s' % (info[ut]['current_pos'],
                                                  info[ut]['limit']), end=' ')

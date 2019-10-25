@@ -94,18 +94,18 @@ def query(command, args, daemon_ids):
 
 def print_info(info):
     """Print the full info dict."""
-    print('UT INTERFACE {}:'.format(info['daemon_id']))
+    print('INTERFACE {}:'.format(info['daemon_id']))
     print('   Cameras:       ', end='\t')
-    for key in sorted([key for key in info if key.startswith('camera_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    for ut in info['cam_serials']:
+        print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
     print('')
     print('   Focusers:      ', end='\t')
-    for key in sorted([key for key in info if key.startswith('focuser_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    for ut in info['foc_serials']:
+        print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
     print('')
     print('   Filter Wheels: ', end='\t')
-    for key in sorted([key for key in info if key.startswith('filterwheel_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
+    for ut in info['filt_serials']:
+        print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
     print('')
 
 

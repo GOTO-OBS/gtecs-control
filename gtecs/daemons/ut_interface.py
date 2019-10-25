@@ -22,13 +22,18 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # hardware
         self.uts = params.UT_INTERFACES[self.daemon_id]['UTS'].copy()
-        self.hw = list(range(len(self.uts)))
-        self.cam_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
-        self.foc_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
-        self.filt_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
-        self.cameras = {hw: None for hw in self.hw}
-        self.focusers = {hw: None for hw in self.hw}
-        self.filterwheels = {hw: None for hw in self.hw}
+
+        self.cameras = {ut: None for ut in self.uts}
+        cam_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['cam'].copy()
+        self.cam_serials = {ut: cam_serials[hw] for hw, ut in enumerate(self.uts)}
+
+        self.focusers = {ut: None for ut in self.uts}
+        foc_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['foc'].copy()
+        self.foc_serials = {ut: foc_serials[hw] for hw, ut in enumerate(self.uts)}
+
+        self.filterwheels = {ut: None for ut in self.uts}
+        filt_serials = params.UT_INTERFACES[self.daemon_id]['SERIALS']['filt'].copy()
+        self.filt_serials = {ut: filt_serials[hw] for hw, ut in enumerate(self.uts)}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -73,68 +78,71 @@ class UTInterfaceDaemon(BaseDaemon):
     def _connect(self):
         """Connect to hardware."""
         # Connect to cameras
-        for hw in self.cameras:
-            if not self.cameras[hw]:
-                hw_name = 'camera_' + str(hw)
+        for ut in self.cameras:
+            if not self.cameras[ut]:
+                hw_name = 'camera_{}'.format(ut)
                 try:
-                    serial = self.cam_serials[hw]
+                    serial = self.cam_serials[ut]
                     camera = Camera.locate_device(serial)
                     if camera is None and params.FAKE_FLI:
                         camera = FakeCamera('fake', 'FakeCamera')
                     if camera is not None:
-                        self.cameras[hw] = camera
-                        self.log.info('Connected to Camera {} ({})'.format(hw, serial))
+                        self.cameras[ut] = camera
+                        serial = camera.serial_number
+                        self.log.info('Connected to Camera {} ({})'.format(ut, serial))
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
                         raise Exception('Camera not found')
                 except Exception:
-                    self.cameras[hw] = None
-                    self.log.error('Failed to connect to Camera {} ({})'.format(hw, serial))
+                    self.cameras[ut] = None
+                    self.log.error('Failed to connect to Camera {} ({})'.format(ut, serial))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
         # Connect to focusers
-        for hw in self.focusers:
-            if not self.focusers[hw]:
-                hw_name = 'focuser_' + str(hw)
+        for ut in self.focusers:
+            if not self.focusers[ut]:
+                hw_name = 'focuser_{}'.format(ut)
                 try:
-                    serial = self.foc_serials[hw]
+                    serial = self.foc_serials[ut]
                     focuser = Focuser.locate_device(serial)
                     if focuser is None and params.FAKE_FLI:
                         focuser = FakeFocuser('fake', 'FakeFocuser')
                     if focuser is not None:
-                        self.focusers[hw] = focuser
-                        self.log.info('Connected to Focuser {} ({})'.format(hw, serial))
+                        self.focusers[ut] = focuser
+                        serial = focuser.serial_number
+                        self.log.info('Connected to Focuser {} ({})'.format(ut, serial))
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
                         raise Exception('Focuser not found')
                 except Exception:
-                    self.focusers[hw] = None
-                    self.log.error('Failed to connect to Focuser {} ({})'.format(hw, serial))
+                    self.focusers[ut] = None
+                    self.log.error('Failed to connect to Focuser {} ({})'.format(ut, serial))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
-        for hw in self.filterwheels:
-            if not self.filterwheels[hw]:
-                hw_name = 'filterwheel_' + str(hw)
+        for ut in self.filterwheels:
+            if not self.filterwheels[ut]:
+                hw_name = 'filterwheel_{}'.format(ut)
                 try:
-                    serial = self.filt_serials[hw]
+                    serial = self.filt_serials[ut]
                     filterwheel = FilterWheel.locate_device(serial)
                     if filterwheel is None and params.FAKE_FLI:
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
                     if filterwheel is not None:
-                        self.filterwheels[hw] = filterwheel
-                        self.log.info('Connected to Filter Wheel {} ({})'.format(hw, serial))
+                        self.filterwheels[ut] = filterwheel
+                        serial = filterwheel.serial_number
+                        self.log.info('Connected to Filter Wheel {} ({})'.format(ut, serial))
                         if hw_name in self.bad_hardware:
                             self.bad_hardware.remove(hw_name)
                     else:
                         raise Exception('Filter Wheel not found')
                 except Exception:
-                    self.filterwheels[hw] = None
-                    self.log.error('Failed to connect to Filter Wheel {} ({})'.format(hw, serial))
+                    self.filterwheels[ut] = None
+                    self.log.error('Failed to connect to Filter Wheel {} ({})'.format(ut, serial))
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
@@ -151,54 +159,53 @@ class UTInterfaceDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for hw in self.cameras:
+        temp_info['cam_serials'] = {}
+        for ut in self.cameras:
             # Get info from each camera
-            hw_name = 'camera_' + str(hw)
             try:
-                temp_info[hw_name] = self.cameras[hw].serial_number
+                temp_info['cam_serials'][ut] = self.cameras[ut].serial_number
             except Exception:
-                self.log.error('Failed to get Camera {:.0f} info'.format(hw))
+                self.log.error('Failed to get Camera {} info'.format(ut))
                 self.log.debug('', exc_info=True)
-                temp_info[hw_name] = None
+                temp_info['cam_serials'][ut] = None
                 # Report the connection as failed
-                self.cameras[hw] = None
+                self.cameras[ut] = None
+                hw_name = 'camera_{}'.format(ut)
                 if hw_name not in self.bad_hardware:
                     self.bad_hardware.add(hw_name)
 
-        for hw in self.focusers:
+        temp_info['foc_serials'] = {}
+        for ut in self.focusers:
             # Get info from each focuser
-            hw_name = 'focuser_' + str(hw)
             try:
-                temp_info[hw_name] = self.focusers[hw].serial_number
+                temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
             except Exception:
-                self.log.error('Failed to get Focuser {:.0f} info'.format(hw))
+                self.log.error('Failed to get Focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
-                temp_info[hw_name] = None
+                temp_info['foc_serials'][ut] = None
                 # Report the connection as failed
-                self.focusers[hw] = None
+                self.focusers[ut] = None
+                hw_name = 'focuser_{}'.format(ut)
                 if hw_name not in self.bad_hardware:
                     self.bad_hardware.add(hw_name)
 
-        for hw in self.filterwheels:
+        temp_info['filt_serials'] = {}
+        for ut in self.filterwheels:
             # Get info from each filterwheel
-            hw_name = 'filterwheel_' + str(hw)
             try:
-                temp_info[hw_name] = self.filterwheels[hw].serial_number
+                temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
             except Exception:
-                self.log.error('Failed to get Filter Wheel {:.0f} info'.format(hw))
+                self.log.error('Failed to get Filter Wheel {} info'.format(ut))
                 self.log.debug('', exc_info=True)
-                temp_info[hw_name] = None
+                temp_info['filt_serials'][ut] = None
                 # Report the connection as failed
-                self.filterwheels[hw] = None
+                self.filterwheels[ut] = None
+                hw_name = 'filterwheel_{}'.format(ut)
                 if hw_name not in self.bad_hardware:
                     self.bad_hardware.add(hw_name)
 
         # Get other internal info
         temp_info['uts'] = list(self.uts)
-        temp_info['hw'] = list(self.hw)
-        temp_info['cam_serials'] = list(self.cam_serials)
-        temp_info['foc_serials'] = list(self.foc_serials)
-        temp_info['filt_serials'] = list(self.filt_serials)
 
         # Write debug log line
         # NONE, nothing really changes
@@ -210,147 +217,147 @@ class UTInterfaceDaemon(BaseDaemon):
         self._check_errors()
 
     # Focuser control functions
-    def step_focuser_motor(self, steps, hw):
+    def step_focuser_motor(self, steps, ut):
         """Move focuser by given number of steps."""
-        self.log.info('Moving Focuser {} by {}'.format(hw, steps))
-        self.focusers[int(hw)].step_motor(steps, blocking=False)
+        self.log.info('Focuser {} moving by {}'.format(ut, steps))
+        self.focusers[ut].step_motor(steps, blocking=False)
 
-    def home_focuser(self, hw):
+    def home_focuser(self, ut):
         """Move focuser to the home position."""
-        self.log.info('Homing Focuser {}'.format(hw))
-        self.focusers[int(hw)].home_focuser()
+        self.log.info('Focuser {} moving to home'.format(ut))
+        self.focusers[ut].home_focuser()
 
-    def get_focuser_limit(self, hw):
+    def get_focuser_limit(self, ut):
         """Return focuser motor limit."""
-        return self.focusers[int(hw)].max_extent
+        return self.focusers[ut].max_extent
 
-    def get_focuser_position(self, hw):
+    def get_focuser_position(self, ut):
         """Return focuser position."""
-        return self.focusers[int(hw)].stepper_position
+        return self.focusers[ut].stepper_position
 
-    def get_focuser_steps_remaining(self, hw):
+    def get_focuser_steps_remaining(self, ut):
         """Return focuser motor limit."""
-        return self.focusers[int(hw)].get_steps_remaining()
+        return self.focusers[ut].get_steps_remaining()
 
-    def get_focuser_temp(self, temp_type, hw):
+    def get_focuser_temp(self, temp_type, ut):
         """Return focuser internal/external temperature."""
-        return self.focusers[int(hw)].read_temperature(temp_type)
+        return self.focusers[ut].read_temperature(temp_type)
 
-    def get_focuser_serial_number(self, hw):
+    def get_focuser_serial_number(self, ut):
         """Return focuser unique serial number."""
-        return self.focusers[int(hw)].serial_number
+        return self.focusers[ut].serial_number
 
     # Filter wheel control functions
-    def set_filter_pos(self, new_filter, hw):
+    def set_filter_pos(self, new_filter, ut):
         """Move filter wheel to position."""
-        self.log.info('Moving filter wheel {} to position {}'.format(hw, new_filter))
+        self.log.info('Filter Wheel {} moving to position {}'.format(ut, new_filter))
         pool = ThreadPoolExecutor(max_workers=4)
-        pool.submit(self.filterwheels[int(hw)].set_filter_pos, new_filter)
+        pool.submit(self.filterwheels[ut].set_filter_pos, new_filter)
 
-    def home_filter(self, hw):
+    def home_filter(self, ut):
         """Move filter wheel to home position."""
-        self.log.info('Homing filter wheel {}'.format(hw))
-        self.filterwheels[int(hw)].home()
+        self.log.info('Filter Wheel {} moving to home'.format(ut))
+        self.filterwheels[ut].home()
 
-    def get_filter_number(self, hw):
+    def get_filter_number(self, ut):
         """Return current filter number."""
-        return self.filterwheels[int(hw)].get_filter_pos()
+        return self.filterwheels[ut].get_filter_pos()
 
-    def get_filter_position(self, hw):
+    def get_filter_position(self, ut):
         """Return filter wheel position."""
-        return self.filterwheels[int(hw)].stepper_position
+        return self.filterwheels[ut].stepper_position
 
-    def get_filter_steps_remaining(self, hw):
+    def get_filter_steps_remaining(self, ut):
         """Return filter wheel steps remaining."""
-        return self.filterwheels[int(hw)].get_steps_remaining()
+        return self.filterwheels[ut].get_steps_remaining()
 
-    def get_filter_homed(self, hw):
+    def get_filter_homed(self, ut):
         """Return if filter wheel has been homed."""
-        return self.filterwheels[int(hw)].homed
+        return self.filterwheels[ut].homed
 
-    def get_filter_serial_number(self, hw):
+    def get_filter_serial_number(self, ut):
         """Return filter wheel unique serial number."""
-        return self.filterwheels[int(hw)].serial_number
+        return self.filterwheels[ut].serial_number
 
     # Camera control functions
-    def set_exposure(self, exptime_ms, frametype, hw):
+    def set_exposure(self, exptime_ms, frametype, ut):
         """Set exposure time and frametype."""
         expstr = '{}s {} exposure'.format(str(exptime_ms / 1000), frametype)
-        self.log.info('Camera {} setting {}'.format(hw, expstr))
-        self.cameras[int(hw)].set_exposure(exptime_ms, frametype)
+        self.log.info('Camera {} setting {}'.format(ut, expstr))
+        self.cameras[ut].set_exposure(exptime_ms, frametype)
 
-    def start_exposure(self, hw):
+    def start_exposure(self, ut):
         """Begin exposure."""
-        self.log.info('Camera {} starting exposure'.format(hw))
-        self.cameras[int(hw)].start_exposure()
+        self.log.info('Camera {} starting exposure'.format(ut))
+        self.cameras[ut].start_exposure()
 
-    def exposure_ready(self, hw):
+    def exposure_ready(self, ut):
         """Check if an exposure is ready."""
-        return self.cameras[int(hw)].image_ready
+        return self.cameras[ut].image_ready
 
-    def fetch_exposure(self, hw):
+    def fetch_exposure(self, ut):
         """Fetch the image."""
-        self.log.info('Camera {} fetching image'.format(hw))
-        return self.cameras[int(hw)].fetch_image()
+        self.log.info('Camera {} fetching image'.format(ut))
+        return self.cameras[ut].fetch_image()
 
-    def abort_exposure(self, hw):
+    def abort_exposure(self, ut):
         """Abort current exposure."""
-        self.log.info('Camera {} aborting exposure'.format(hw))
-        self.cameras[int(hw)].cancel_exposure()
+        self.log.info('Camera {} aborting exposure'.format(ut))
+        self.cameras[ut].cancel_exposure()
 
-    def clear_exposure_queue(self, hw):
+    def clear_exposure_queue(self, ut):
         """Clear exposure queue."""
-        self.log.info('Camera {} clearing exposure queue'.format(hw))
-        self.cameras[int(hw)].image_queue.clear()
+        self.log.info('Camera {} clearing exposure queue'.format(ut))
+        self.cameras[ut].image_queue.clear()
 
-    def set_camera_temp(self, target_temp, hw):
+    def set_camera_temp(self, target_temp, ut):
         """Set the camera's temperature."""
-        self.log.info('Camera {} setting temperature to {}'.format(hw, target_temp))
-        self.cameras[int(hw)].set_temperature(target_temp)
+        self.log.info('Camera {} setting temperature to {}'.format(ut, target_temp))
+        self.cameras[ut].set_temperature(target_temp)
 
-    def set_camera_flushes(self, target_flushes, hw):
+    def set_camera_flushes(self, target_flushes, ut):
         """Set the number of times to flush the CCD before an exposure."""
-        self.log.info('Camera {} setting flushes to {}'.format(hw, target_flushes))
-        self.cameras[int(hw)].set_flushes(target_flushes)
+        self.log.info('Camera {} setting flushes to {}'.format(ut, target_flushes))
+        self.cameras[ut].set_flushes(target_flushes)
 
-    def set_camera_binning(self, hbin, vbin, hw):
+    def set_camera_binning(self, hbin, vbin, ut):
         """Set the image binning."""
-        self.log.info('Camera {} setting binning factor to ({},{})'.format(hw, hbin, vbin))
-        self.cameras[int(hw)].set_image_binning(hbin, vbin)
+        self.log.info('Camera {} setting binning factor to ({},{})'.format(ut, hbin, vbin))
+        self.cameras[ut].set_image_binning(hbin, vbin)
 
-    def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, hw):
+    def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, ut):
         """Set the active image area."""
         areastr = '({},{},{},{})'.format(ul_x, ul_y, lr_x, lr_y)
-        self.log.info('Camera {} setting active area to {}'.format(hw, areastr))
-        self.cameras[int(hw)].set_image_size(ul_x, ul_y, lr_x, lr_y)
+        self.log.info('Camera {} setting active area to {}'.format(ut, areastr))
+        self.cameras[ut].set_image_size(ul_x, ul_y, lr_x, lr_y)
 
-    def get_camera_info(self, hw):
+    def get_camera_info(self, ut):
         """Return camera infomation dictionary."""
-        return self.cameras[int(hw)].get_info()
+        return self.cameras[ut].get_info()
 
-    def get_camera_state(self, hw):
+    def get_camera_state(self, ut):
         """Return camera state string."""
-        return self.cameras[int(hw)].state
+        return self.cameras[ut].state
 
-    def get_camera_data_state(self, hw):
+    def get_camera_data_state(self, ut):
         """Return True if data is available."""
-        return self.cameras[int(hw)].dataAvailable
+        return self.cameras[ut].dataAvailable
 
-    def get_camera_time_remaining(self, hw):
+    def get_camera_time_remaining(self, ut):
         """Return exposure time remaining."""
-        return self.cameras[int(hw)].get_exposure_timeleft() / 1000.
+        return self.cameras[ut].get_exposure_timeleft() / 1000.
 
-    def get_camera_temp(self, temp_type, hw):
+    def get_camera_temp(self, temp_type, ut):
         """Return camera CCD/base temperature."""
-        return self.cameras[int(hw)].get_temperature(temp_type)
+        return self.cameras[ut].get_temperature(temp_type)
 
-    def get_camera_cooler_power(self, hw):
+    def get_camera_cooler_power(self, ut):
         """Return peltier cooler power."""
-        return self.cameras[int(hw)].get_cooler_power()
+        return self.cameras[ut].get_cooler_power()
 
-    def get_camera_serial_number(self, hw):
+    def get_camera_serial_number(self, ut):
         """Return camera unique serial number."""
-        return self.cameras[int(hw)].serial_number
+        return self.cameras[ut].serial_number
 
 
 def find_interface_id(hostname):

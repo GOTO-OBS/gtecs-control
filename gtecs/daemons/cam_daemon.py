@@ -93,27 +93,27 @@ class CamDaemon(BaseDaemon):
 
                     # set exposure info
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         if self.run_number > 0:
                             expstr = 'exposure r%07d' % self.run_number
                         else:
                             expstr = 'glance'
                         argstr = '%is, %ix%i, %s' % (exptime, binning, binning, frametype)
-                        camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                        camstr = 'camera %i (%s)' % (ut, interface_id)
                         self.log.info('Taking %s (%s) on %s' % (expstr, argstr, camstr))
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                interface.clear_exposure_queue(hw)
+                                interface.clear_exposure_queue(ut)
                                 # set exposure time and frame type
-                                c = interface.set_exposure(exptime_ms, frametype, hw)
+                                c = interface.set_exposure(exptime_ms, frametype, ut)
                                 if c:
                                     self.log.info(c)
                                 # set binning factor
-                                c = interface.set_camera_binning(binning, binning, hw)
+                                c = interface.set_camera_binning(binning, binning, ut)
                                 if c:
                                     self.log.info(c)
                                 # set area (always full-frame)
-                                c = interface.set_camera_area(0, 0, 8304, 6220, hw)
+                                c = interface.set_camera_area(0, 0, 8304, 6220, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -123,12 +123,12 @@ class CamDaemon(BaseDaemon):
                     # start exposure
                     # (seperate from the above, so they all start closer together)
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 # start the exposure
                                 self.exposure_start_time = self.loop_time
-                                c = interface.start_exposure(hw)
+                                c = interface.start_exposure(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -149,16 +149,16 @@ class CamDaemon(BaseDaemon):
 
                     # check if exposures are complete
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                ready = interface.exposure_ready(hw)
+                                ready = interface.exposure_ready(ut)
                                 if ready and self.image_ready[ut] == 0:
                                     if self.run_number > 0:
                                         expstr = 'Exposure r%07d' % self.run_number
                                     else:
                                         expstr = 'Glance'
-                                    camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                                    camstr = 'camera %i (%s)' % (ut, interface_id)
                                     self.log.info('%s finished on %s', expstr, camstr)
                                     self.image_ready[ut] = 1
                         except Exception:
@@ -189,16 +189,16 @@ class CamDaemon(BaseDaemon):
             if self.abort_exposure_flag:
                 try:
                     for ut in self.abort_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         if self.run_number > 0:
                             expstr = 'exposure r%07d' % self.run_number
                         else:
                             expstr = 'glance'
-                        camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                        camstr = 'camera %i (%s)' % (ut, interface_id)
                         self.log.info('Aborting %s on %s', expstr, camstr)
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.abort_exposure(hw)
+                                c = interface.abort_exposure(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -226,13 +226,13 @@ class CamDaemon(BaseDaemon):
             if self.set_temp_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id, hw = params.UT_DICT[ut]
+                        interface_id = params.UT_DICT[ut]
                         target_temp = self.target_temp[ut]
-                        camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                        camstr = 'camera %i (%s)' % (ut, interface_id)
                         self.log.info('Setting temperature on %s to %i', camstr, target_temp)
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.set_camera_temp(target_temp, hw)
+                                c = interface.set_camera_temp(target_temp, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -264,10 +264,9 @@ class CamDaemon(BaseDaemon):
         for ut in params.UT_DICT:
             # Get info from each interface
             try:
-                interface_id, hw = params.UT_DICT[ut]
+                interface_id = params.UT_DICT[ut]
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
-                interface_info['hw'] = hw
 
                 if self.exposing and ut in self.active_uts:
                     interface_info['status'] = 'Exposing'
@@ -280,11 +279,11 @@ class CamDaemon(BaseDaemon):
                 interface_info['target_temp'] = self.target_temp[ut]
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_camera_time_remaining(hw)
-                    interface_info['ccd_temp'] = interface.get_camera_temp('CCD', hw)
-                    interface_info['base_temp'] = interface.get_camera_temp('BASE', hw)
-                    interface_info['cooler_power'] = interface.get_camera_cooler_power(hw)
-                    cam_info = interface.get_camera_info(hw)
+                    interface_info['remaining'] = interface.get_camera_time_remaining(ut)
+                    interface_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
+                    interface_info['base_temp'] = interface.get_camera_temp('BASE', ut)
+                    interface_info['cooler_power'] = interface.get_camera_cooler_power(ut)
+                    cam_info = interface.get_camera_info(ut)
                     interface_info['serial_number'] = cam_info['serial_number']
                     interface_info['x_pixel_size'] = cam_info['pixel_size'][0]
                     interface_info['y_pixel_size'] = cam_info['pixel_size'][1]
@@ -350,16 +349,16 @@ class CamDaemon(BaseDaemon):
         future_images = {ut: None for ut in active_uts}
         for ut in active_uts:
             self.image_saving[ut] = 1
-            interface_id, hw = params.UT_DICT[ut]
+            interface_id = params.UT_DICT[ut]
             interface = daemon_proxy(interface_id, timeout=99)
             try:
                 if run_number > 0:
                     expstr = 'exposure r%07d' % run_number
                 else:
                     expstr = 'glance'
-                camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                camstr = 'camera %i (%s)' % (ut, interface_id)
                 self.log.info('Fetching %s from %s', expstr, camstr)
-                future_images[ut] = pool.submit(interface.fetch_exposure, hw)
+                future_images[ut] = pool.submit(interface.fetch_exposure, ut)
             except Exception:
                 self.log.error('No response from interface on %s', interface_id)
                 self.log.debug('', exc_info=True)
@@ -369,14 +368,14 @@ class CamDaemon(BaseDaemon):
         while True:
             time.sleep(0.001)
             for ut in active_uts:
-                interface_id, hw = params.UT_DICT[ut]
+                interface_id = params.UT_DICT[ut]
                 if future_images[ut].done() and images[ut] is None:
                     images[ut] = future_images[ut].result()
                     if run_number > 0:
                         expstr = 'exposure r%07d' % run_number
                     else:
                         expstr = 'glance'
-                    camstr = 'camera %i (%s-%i)' % (ut, interface_id, hw)
+                    camstr = 'camera %i (%s)' % (ut, interface_id)
                     self.log.info('Fetched %s from %s', expstr, camstr)
 
             # keep looping until all the images are fetched
