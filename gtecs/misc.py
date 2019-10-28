@@ -5,6 +5,7 @@ import os
 import re
 import signal
 import smtplib
+import socket
 import subprocess
 import sys
 import time
@@ -15,6 +16,23 @@ import pid
 from . import errors
 from . import params
 from .style import errortxt
+
+
+def get_ip():
+    """Get local IP address.
+
+    https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        ip_addr = s.getsockname()[0]
+    except Exception:
+        ip_addr = '127.0.0.1'
+    finally:
+        s.close()
+    return ip_addr
 
 
 def kill_process(pidname, host='127.0.0.1'):
