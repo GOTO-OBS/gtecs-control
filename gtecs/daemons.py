@@ -222,7 +222,9 @@ def daemon_is_running(daemon_id):
 
 def daemon_proxy(daemon_id, timeout=params.PYRO_TIMEOUT):
     """Get a proxy connection to the given daemon."""
-    address = params.DAEMONS[daemon_id]['ADDRESS']
+    host = params.DAEMONS[daemon_id]['HOST']
+    port = params.DAEMONS[daemon_id]['PORT']
+    address = 'PYRO:{}@{}:{}'.format(daemon_id, host, port)
     proxy = Pyro4.Proxy(address)
     proxy._pyroTimeout = timeout
     return proxy

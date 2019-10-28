@@ -108,9 +108,6 @@ DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
-    DAEMONS[daemon_id]['ADDRESS'] = 'PYRO:{}@{}:{}'.format(daemon_id,
-                                                           DAEMONS[daemon_id]['HOST'],
-                                                           DAEMONS[daemon_id]['PORT'])
 
 INTERFACES = config['INTERFACES']
 
