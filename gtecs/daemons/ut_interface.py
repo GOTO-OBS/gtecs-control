@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Interface to access hardware connected to the UTs (cameras, focusers, filter wheels)."""
 
+import argparse
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -17,32 +18,21 @@ from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 class UTInterfaceDaemon(BaseDaemon):
     """UT interface daemon class."""
 
-    def __init__(self, interface_id):
+    def __init__(self, interface_id, serial_dict):
         super().__init__(interface_id)
 
         # hardware
-        self.uts = params.INTERFACES[interface_id]['UTS'].copy()
+        self.serial_dict = serial_dict
+        self.uts = serial_dict.keys()
 
         self.cameras = {ut: None for ut in self.uts}
-        try:
-            cam_targets = params.INTERFACES[interface_id]['CAMERAS'].copy()
-        except KeyError:
-            cam_targets = [None] * len(self.uts)
-        self.cam_targets = {ut: cam_targets[hw] for hw, ut in enumerate(self.uts)}
+        self.cam_targets = {ut: self.serial_dict[ut]['cam'] for ut in self.uts}
 
         self.focusers = {ut: None for ut in self.uts}
-        try:
-            foc_targets = params.INTERFACES[interface_id]['FOCUSERS'].copy()
-        except KeyError:
-            foc_targets = [None] * len(self.uts)
-        self.foc_targets = {ut: foc_targets[hw] for hw, ut in enumerate(self.uts)}
+        self.foc_targets = {ut: self.serial_dict[ut]['foc'] for ut in self.uts}
 
         self.filterwheels = {ut: None for ut in self.uts}
-        try:
-            filt_targets = params.INTERFACES[interface_id]['FILTERWHEELS'].copy()
-        except KeyError:
-            filt_targets = [None] * len(self.uts)
-        self.filt_targets = {ut: filt_targets[hw] for hw, ut in enumerate(self.uts)}
+        self.filt_targets = {ut: self.serial_dict[ut]['filt'] for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -383,6 +373,26 @@ class UTInterfaceDaemon(BaseDaemon):
         return self.cameras[ut].serial_number
 
 
+def parse_args():
+    """Parse arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--uts', nargs='+', action='append')
+    args = parser.parse_args()
+    ut_dicts = args.uts
+    serial_dict = {}
+    for ut_dict in ut_dicts:
+        if len(ut_dict) == 4:
+            # Should be four strings: UT number, cam serial, foc serial, filt serial
+            ut, cam, foc, filt = ut_dict
+            serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': filt}
+        else:
+            # This UT has no filter wheel
+            ut, cam, foc = ut_dict
+            serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': None}
+
+    return serial_dict
+
+
 def find_interface_id(hostname):
     """Find what interface should be running on a given host.
 
@@ -405,7 +415,8 @@ def find_interface_id(hostname):
         raise ValueError('All defined interfaces on {} are running'.format(hostname))
 
 
-if __name__ == "__main__":
-    daemon_id = find_interface_id(params.LOCAL_HOST)
-    with misc.make_pid_file(daemon_id):
-        UTInterfaceDaemon(daemon_id)._run()
+if __name__ == '__main__':
+    serial_dict = parse_args()
+    interface_id = find_interface_id(params.LOCAL_HOST)
+    with misc.make_pid_file(interface_id):
+        UTInterfaceDaemon(interface_id, serial_dict)._run()

@@ -19,6 +19,22 @@ for daemon_id in params.DAEMONS:
 DAEMON_IDS.sort()
 
 
+def get_args(intf):
+    """Format the arguments to send to the interface script."""
+    args = []
+    for hw in range(len(params.INTERFACES[intf]['UTS'])):
+        args.append('--ut')
+        args.append(params.INTERFACES[intf]['UTS'][hw])
+        args.append(params.INTERFACES[intf]['CAMERAS'][hw])
+        args.append(params.INTERFACES[intf]['FOCUSERS'][hw])
+        try:
+            args.append(params.INTERFACES[intf]['FILTERWHEELS'][hw])
+        except KeyError:
+            # This UT has no filter wheel
+            pass
+    return args
+
+
 def query(command, args, daemon_ids):
     """Process a query."""
     # Command functions
@@ -32,7 +48,7 @@ def query(command, args, daemon_ids):
     elif command == 'start':
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.start_daemon(daemon_id)
+                reply = daemons.start_daemon(daemon_id, args=get_args(daemon_id))
                 print(reply)
 
     elif command == 'shutdown':
@@ -44,7 +60,7 @@ def query(command, args, daemon_ids):
     elif command == 'restart':
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.restart_daemon(daemon_id)
+                reply = daemons.restart_daemon(daemon_id, args=get_args(daemon_id))
                 print(reply)
 
     elif command == 'kill':

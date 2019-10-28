@@ -301,7 +301,7 @@ def daemon_info(daemon_id, force_update=True):
     return daemon_function(daemon_id, 'get_info', args=[force_update])
 
 
-def start_daemon(daemon_id):
+def start_daemon(daemon_id, args=None):
     """Start a daemon (unless it is already running)."""
     host = params.DAEMONS[daemon_id]['HOST']
     if daemon_is_running(daemon_id):
@@ -320,7 +320,12 @@ def start_daemon(daemon_id):
         fpipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
-    misc.python_command(process_path, '', **process_options)
+    if args is not None:
+        args = ' '.join([str(arg) for arg in args])
+    else:
+        args = ''
+
+    misc.python_command(process_path, args, **process_options)
 
     time.sleep(1)
     start_time = time.time()
@@ -388,12 +393,12 @@ def kill_daemon(daemon_id):
         time.sleep(0.5)
 
 
-def restart_daemon(daemon_id, wait_time=1):
+def restart_daemon(daemon_id, args=None, wait_time=1):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     reply = shutdown_daemon(daemon_id)
     print(reply)
 
     time.sleep(wait_time)
 
-    reply = start_daemon(daemon_id)
+    reply = start_daemon(daemon_id, args=args)
     return reply
