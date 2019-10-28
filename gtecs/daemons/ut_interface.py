@@ -10,7 +10,7 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
-from gtecs.daemons import BaseDaemon, daemon_is_running
+from gtecs.daemons import BaseDaemon
 from gtecs.hardware.fli import Camera, FilterWheel, Focuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 
@@ -376,8 +376,10 @@ class UTInterfaceDaemon(BaseDaemon):
 def parse_args():
     """Parse arguments."""
     parser = argparse.ArgumentParser()
+    parser.add_argument('interface_id')
     parser.add_argument('--uts', nargs='+', action='append')
     args = parser.parse_args()
+    interface_id = args.interface_id
     ut_dicts = args.uts
     serial_dict = {}
     for ut_dict in ut_dicts:
@@ -390,33 +392,10 @@ def parse_args():
             ut, cam, foc = ut_dict
             serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': None}
 
-    return serial_dict
-
-
-def find_interface_id(hostname):
-    """Find what interface should be running on a given host.
-
-    Used to find which interface each should identify as.
-
-    """
-    interfaces = []
-    for interface_id in params.INTERFACES:
-        if params.DAEMONS[interface_id]['HOST'] == hostname:
-            interfaces.append(interface_id)
-    if len(interfaces) == 0:
-        raise ValueError('Host {} does not have an associated interface'.format(hostname))
-    elif len(interfaces) == 1:
-        return interfaces[0]
-    else:
-        # return the first one that's not running
-        for interface_id in sorted(interfaces):
-            if not daemon_is_running(interface_id):
-                return interface_id
-        raise ValueError('All defined interfaces on {} are running'.format(hostname))
+    return interface_id, serial_dict
 
 
 if __name__ == '__main__':
-    serial_dict = parse_args()
-    interface_id = find_interface_id(params.LOCAL_HOST)
+    interface_id, serial_dict = parse_args()
     with misc.make_pid_file(interface_id):
         UTInterfaceDaemon(interface_id, serial_dict)._run()

@@ -19,16 +19,16 @@ for daemon_id in params.DAEMONS:
 DAEMON_IDS.sort()
 
 
-def get_args(intf):
+def get_args(interface_id):
     """Format the arguments to send to the interface script."""
-    args = []
-    for hw in range(len(params.INTERFACES[intf]['UTS'])):
+    args = [interface_id]
+    for hw in range(len(params.INTERFACES[interface_id]['UTS'])):
         args.append('--ut')
-        args.append(params.INTERFACES[intf]['UTS'][hw])
-        args.append(params.INTERFACES[intf]['CAMERAS'][hw])
-        args.append(params.INTERFACES[intf]['FOCUSERS'][hw])
+        args.append(params.INTERFACES[interface_id]['UTS'][hw])
+        args.append(params.INTERFACES[interface_id]['CAMERAS'][hw])
+        args.append(params.INTERFACES[interface_id]['FOCUSERS'][hw])
         try:
-            args.append(params.INTERFACES[intf]['FILTERWHEELS'][hw])
+            args.append(params.INTERFACES[interface_id]['FILTERWHEELS'][hw])
         except KeyError:
             # This UT has no filter wheel
             pass
