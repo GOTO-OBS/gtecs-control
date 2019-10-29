@@ -157,7 +157,8 @@ class ExqDaemon(BaseDaemon):
             # filter doesn't matter, e.g. dark
             return False
 
-        ut_list = self.current_exposure.ut_list
+        ut_list = [ut for ut in self.current_exposure.ut_list
+                   if ut in params.UTS_WITH_FILTERWHEELS]
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
         homed_check = [filt_info[ut]['homed'] for ut in ut_list]
@@ -174,7 +175,8 @@ class ExqDaemon(BaseDaemon):
 
     def _home_filter_wheels(self):
         self.log.info('Homing filter wheels')
-        ut_list = self.current_exposure.ut_list
+        ut_list = [ut for ut in self.current_exposure.ut_list
+                   if ut in params.UTS_WITH_FILTERWHEELS]
         try:
             with daemon_proxy('filt') as filt_daemon:
                 filt_daemon.home_filter(ut_list)
@@ -200,7 +202,8 @@ class ExqDaemon(BaseDaemon):
 
     def _set_filter(self):
         new_filt = self.current_exposure.filt
-        ut_list = self.current_exposure.ut_list
+        ut_list = [ut for ut in self.current_exposure.ut_list
+                   if ut in params.UTS_WITH_FILTERWHEELS]
         self.log.info('Setting filter to {} on {!r}'.format(new_filt, ut_list))
         try:
             with daemon_proxy('filt') as filt_daemon:
@@ -231,7 +234,8 @@ class ExqDaemon(BaseDaemon):
         exptime = self.current_exposure.exptime
         binning = self.current_exposure.binning
         frametype = self.current_exposure.frametype
-        ut_list = self.current_exposure.ut_list
+        ut_list = [ut for ut in self.current_exposure.ut_list
+                   if ut in params.UTS_WITH_CAMERAS]
         glance = self.current_exposure.glance
         if not glance:
             self.log.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
