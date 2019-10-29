@@ -93,7 +93,7 @@ class BaseDaemon(ABC):
     def _run(self):
         """Start the daemon as a Pyro daemon, and run until shutdown."""
         host = self.params['HOST']
-        port = self.params['PORT']
+        port = int(self.params['PORT'])
 
         # Check the Pyro address is available
         try:
