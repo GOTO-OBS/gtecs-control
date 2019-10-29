@@ -30,11 +30,8 @@ def run():
     # Abort any current exposures
     execute_command('cam abort')
 
-    # Shut down the UT interfaces, else they would crash when we power off
-    execute_command('intf shutdown')
-
-    # Power off the UT hardware
-    execute_command('power off cams,focs,filts')
+    # Power off the cameras
+    execute_command('power off cams')
 
     # Park the mount
     execute_command('mnt park')

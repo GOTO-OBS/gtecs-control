@@ -35,18 +35,9 @@ def run():
 
     time.sleep(5)
 
-    # Restart the UT interfaces, as they would have crashed when the power was off
-    # Note don't use the restart command, I don't trust it any more
-    execute_command('intf shutdown')
-    time.sleep(4)
-    execute_command('intf start')
-    time.sleep(4)
-
-    # Make sure all the other daemons are running
+    # Make all the other daemons are running
     for daemon in list(params.DAEMONS):
-        # don't run the individual interfaces
-        if daemon not in params.INTERFACES:
-            execute_command('{} start'.format(daemon))
+        execute_command('{} start'.format(daemon))
 
     time.sleep(4)
 
