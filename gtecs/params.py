@@ -284,6 +284,9 @@ FOCUSRUN_EXPTIME = config['FOCUSRUN_EXPTIME']
 FOCUSRUN_FILTER = config['FOCUSRUN_FILTER']
 FOCUSRUN_DELTAS = config['FOCUSRUN_DELTAS']
 
+IERS_A_URL = config['IERS_A_URL']
+IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
+
 ############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
