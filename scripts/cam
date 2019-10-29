@@ -203,7 +203,7 @@ def print_info(info):
         print('CCD Temperature:    {:.2f}C'.format(info[ut]['ccd_temp']))
         print('Target Temperature: {:.2f}C'.format(info[ut]['target_temp']))
         print('Base Temperature:   {:.2f}C'.format(info[ut]['base_temp']))
-        print('Cooler power:       {:.0%}%'.format(info[ut]['cooler_power']))
+        print('Cooler power:       {:.0f}%'.format(info[ut]['cooler_power'] / 100))
         print('Serial number:      {}'.format(info[ut]['serial_number']))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
