@@ -526,12 +526,18 @@ def update_header(header, ut, all_info, log):
         if all_info['foc'] is None:
             raise ValueError('No focuser info provided')
 
-        info = all_info['foc'][ut]
+        if ut not in params.UTS_WITH_FOCUSERS:
+            foc_serial = 'None'
+            foc_pos = 'NA'
+            foc_temp_int = 'NA'
+            foc_temp_ext = 'NA'
+        else:
+            info = all_info['foc'][ut]
 
-        foc_serial = info['serial_number']
-        foc_pos = info['current_pos']
-        foc_temp_int = info['int_temp']
-        foc_temp_ext = info['ext_temp']
+            foc_serial = info['serial_number']
+            foc_pos = info['current_pos']
+            foc_temp_int = info['int_temp']
+            foc_temp_ext = info['ext_temp']
     except Exception:
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
@@ -550,16 +556,22 @@ def update_header(header, ut, all_info, log):
         if all_info['filt'] is None:
             raise ValueError('No filter wheel info provided')
 
-        info = all_info['filt'][ut]
-
-        filt_serial = info['serial_number']
-        if not info['homed']:
-            filt_filter = 'UNHOMED'
+        if ut not in params.UTS_WITH_FILTERWHEELS:
+            filt_serial = 'None'
+            filt_filter = 'None'
+            filt_num = 'NA'
+            filt_pos = 'NA'
         else:
-            filt_filter_num = info['current_filter_num']
-            filt_filter = params.FILTER_LIST[filt_filter_num]
-        filt_num = info['current_filter_num']
-        filt_pos = info['current_pos']
+            info = all_info['filt'][ut]
+
+            filt_serial = info['serial_number']
+            if not info['homed']:
+                filt_filter = 'UNHOMED'
+            else:
+                filt_filter_num = info['current_filter_num']
+                filt_filter = params.FILTER_LIST[filt_filter_num]
+            filt_num = info['current_filter_num']
+            filt_pos = info['current_pos']
     except Exception:
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
