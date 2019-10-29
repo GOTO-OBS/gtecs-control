@@ -27,6 +27,7 @@ class FiltDaemon(BaseDaemon):
         self.home_filter_flag = 0
 
         # filter wheel variables
+        self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
         self.new_filter = ''
 
@@ -125,7 +126,7 @@ class FiltDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for ut in params.UTS:
+        for ut in self.uts:
             # Get info from each interface
             try:
                 interface_id = params.UT_INTERFACES[ut]
@@ -153,13 +154,13 @@ class FiltDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
-                        for ut in params.UTS]
+                        for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Filter wheels are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
-                            for ut in params.UTS]
+                            for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Filter wheels are {}'.format(now_str))
@@ -180,8 +181,8 @@ class FiltDaemon(BaseDaemon):
         if new_filter.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         self.wait_for_info()
@@ -214,8 +215,8 @@ class FiltDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         self.wait_for_info()

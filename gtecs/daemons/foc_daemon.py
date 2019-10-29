@@ -27,8 +27,9 @@ class FocDaemon(BaseDaemon):
         self.home_focuser_flag = 0
 
         # focuser variables
+        self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
-        self.move_steps = {ut: 0 for ut in params.UTS}
+        self.move_steps = {ut: 0 for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -128,7 +129,7 @@ class FocDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for ut in params.UTS:
+        for ut in self.uts:
             # Get info from each interface
             try:
                 interface_id = params.UT_INTERFACES[ut]
@@ -160,13 +161,13 @@ class FocDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
-                        for ut in params.UTS]
+                        for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Focusers are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
-                            for ut in params.UTS]
+                            for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Focusers are {}'.format(now_str))
@@ -187,8 +188,8 @@ class FocDaemon(BaseDaemon):
         if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
             raise ValueError('Position must be a positive integer')
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         self.wait_for_info()
@@ -223,8 +224,8 @@ class FocDaemon(BaseDaemon):
         if (int(move_steps) - move_steps) != 0:
             raise ValueError('Steps must be an integer')
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         self.wait_for_info()
@@ -259,8 +260,8 @@ class FocDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         self.wait_for_info()

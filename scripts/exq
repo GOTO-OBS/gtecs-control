@@ -80,7 +80,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
             binning = int(args[2])
@@ -98,7 +98,7 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # uts exptime filter binning [object] [imgtype]
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -129,7 +129,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filter binning [object] [imgtype] [db_id]
             nexp = int(args[0])
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -155,7 +155,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # nexp uts exptime filter binning [object] [imgtype] [db_id]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
             binning = int(args[4])
@@ -193,7 +193,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -215,7 +215,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # nexp uts exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
             binning = int(args[4])
@@ -249,7 +249,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
             binning = int(args[2])
@@ -267,7 +267,7 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # uts exptime filter binning [object] [imgtype]
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
@@ -297,7 +297,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: exptime binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime binning
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt = None  # Dark
             binning = int(args[1])
@@ -306,7 +306,7 @@ def query(command, args, daemon_id):
             imgtype = 'DARK'
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # uts exptime binning
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt = None  # Dark
             binning = int(args[2])
@@ -327,7 +327,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) in [3, 4]:
             # nexp exptime binning [db_id]
             nexp = int(args[0])
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             filt = None  # Dark
             binning = int(args[2])
@@ -341,7 +341,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) in [4, 5]:
             # nexp uts exptime binning [db_id]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             filt = None  # Dark
             binning = int(args[3])
@@ -365,7 +365,7 @@ def query(command, args, daemon_id):
             raise errors.InputError('Need at least: binning')
         elif misc.is_num(args[0]) and len(args) == 1:
             # binning
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[0])
@@ -374,7 +374,7 @@ def query(command, args, daemon_id):
             imgtype = 'BIAS'
         elif misc.is_num(args[1]) and len(args) == 2:
             # uts binning
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[1])
@@ -395,7 +395,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and len(args) in [2, 3]:
             # nexp binning [db_id]
             nexp = int(args[0])
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[1])
@@ -409,7 +409,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[2]) and len(args) in [3, 4]:
             # nexp uts binning [db_id]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = 0.0
             filt = None  # Dark
             binning = int(args[2])

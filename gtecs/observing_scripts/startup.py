@@ -29,9 +29,8 @@ def run():
     time.sleep(10)
 
     # Power on the UT hardware and mount box
-    for ut in params.UTS:
-        execute_command('power on cam{0},foc{0},filt{0}'.format(ut))
-        time.sleep(0.5)
+    execute_command('power on cams,focs,filts')
+    time.sleep(0.5)
     execute_command('power on sitech')
 
     time.sleep(5)

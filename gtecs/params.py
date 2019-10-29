@@ -115,7 +115,16 @@ UT_INTERFACES = {}
 for interface_id in INTERFACES:
     for ut in INTERFACES[interface_id]['UTS']:
         UT_INTERFACES[ut] = interface_id
-UTS = sorted(UT_INTERFACES)
+ALL_UTS = sorted(UT_INTERFACES)
+UTS_WITH_CAMERAS = sorted(ut for intf in INTERFACES
+                          if 'CAMERAS' in INTERFACES[intf]
+                          for ut in INTERFACES[intf]['UTS'])
+UTS_WITH_FOCUSERS = sorted(ut for intf in INTERFACES
+                           if 'FOCUSERS' in INTERFACES[intf]
+                           for ut in INTERFACES[intf]['UTS'])
+UTS_WITH_FILTERWHEELS = sorted(ut for intf in INTERFACES
+                               if 'FILTERWHEELS' in INTERFACES[intf]
+                               for ut in INTERFACES[intf]['UTS'])
 
 ############################################################
 # Conditions parameters
@@ -258,19 +267,19 @@ if 'FOCUS_SLOPE_ABOVE' in config:
     FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
                          for key in config['FOCUS_SLOPE_ABOVE']}
 else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS}
+    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_SLOPE_BELOW' in config:
     FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
                          for key in config['FOCUS_SLOPE_BELOW']}
 else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS}
+    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
     FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
                                   for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
 else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS}
+    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS_WITH_FOCUSERS}
 
 
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']

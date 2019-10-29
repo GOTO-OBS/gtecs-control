@@ -34,8 +34,6 @@ def run():
     execute_command('intf shutdown')
 
     # Power off the UT hardware
-    # NB in startup.py we start only for uts in params.UTS,
-    # here we shut them all down in case one unintentially started
     execute_command('power off cams,focs,filts')
 
     # Park the mount

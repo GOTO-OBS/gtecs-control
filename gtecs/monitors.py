@@ -937,11 +937,11 @@ class CamMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_CAMERAS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all([info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS])
+        all_cool = all(info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS_WITH_CAMERAS)
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
         else:
@@ -1038,11 +1038,11 @@ class FiltMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FILTERWHEELS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_homed = all([info[ut]['homed'] for ut in params.UTS])
+        all_homed = all([info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS])
         if not all_homed:
             hardware_status = STATUS_FILT_UNHOMED
         else:
@@ -1139,7 +1139,7 @@ class FocMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FOCUSERS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 

@@ -77,12 +77,12 @@ def query(command, args, daemon_id):
     elif command == 'image':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'SCIENCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'SCIENCE'
@@ -96,12 +96,12 @@ def query(command, args, daemon_id):
     elif command == 'glance':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'SCIENCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'SCIENCE'
@@ -115,12 +115,12 @@ def query(command, args, daemon_id):
     elif command == 'dark':
         # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'DARK'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'DARK'
@@ -134,12 +134,12 @@ def query(command, args, daemon_id):
     elif command == 'bias':
         # parse arguments
         if len(args) == 1:
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             exptime = 0.0
             binning = float(args[0])
             imgtype = 'BIAS'
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = 0.0
             binning = float(args[1])
             imgtype = 'BIAS'
@@ -153,9 +153,9 @@ def query(command, args, daemon_id):
     elif command == 'abort':
         # parse arguments
         if len(args) == 0:
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -165,10 +165,10 @@ def query(command, args, daemon_id):
     elif command == 'temp':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            ut_list = params.UTS
+            ut_list = params.UTS_WITH_CAMERAS
             target_temp = float(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             target_temp = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
@@ -184,7 +184,7 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('####### CAMERA INFO #######')
-    for ut in params.UTS:
+    for ut in params.UTS_WITH_CAMERAS:
         print('CAMERA {} ({})'.format(ut, params.UT_INTERFACES[ut]))
         if info[ut]['status'] != 'Exposing':
             print('Status: {}'.format(info[ut]['status']))
@@ -213,7 +213,7 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS:
+    for ut in params.UTS_WITH_CAMERAS:
         print('CAMERA {} ({})'.format(ut, params.UT_INTERFACES[ut]), end=' ')
         if info[ut]['status'] != 'Exposing':
             print('  Temp: {:6.2f}C'.format(info[ut]['ccd_temp']), end=' ')

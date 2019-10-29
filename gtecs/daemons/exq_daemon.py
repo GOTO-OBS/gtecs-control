@@ -271,8 +271,8 @@ class ExqDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in params.UTS_WITH_CAMERAS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:
@@ -318,8 +318,8 @@ class ExqDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in params.UTS_WITH_CAMERAS:
+                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt and filt.upper() not in params.FILTER_LIST:

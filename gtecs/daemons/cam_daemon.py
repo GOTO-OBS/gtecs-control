@@ -32,6 +32,7 @@ class CamDaemon(BaseDaemon):
         self.set_temp_flag = 0
 
         # camera variables
+        self.uts = params.UTS_WITH_CAMERAS.copy()
         self.active_uts = []
         self.abort_uts = []
 
@@ -39,16 +40,16 @@ class CamDaemon(BaseDaemon):
         self.run_number = 0
         self.num_taken = 0
 
-        self.pool = ThreadPoolExecutor(max_workers=len(params.UTS))
+        self.pool = ThreadPoolExecutor(max_workers=len(self.uts))
 
         self.current_exposure = None
         self.exposing = False
         self.exposure_start_time = 0
         self.all_info = None
-        self.image_ready = {ut: 0 for ut in params.UTS}
-        self.image_saving = {ut: 0 for ut in params.UTS}
+        self.image_ready = {ut: 0 for ut in self.uts}
+        self.image_saving = {ut: 0 for ut in self.uts}
 
-        self.target_temp = {ut: 0 for ut in params.UTS}
+        self.target_temp = {ut: 0 for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -178,7 +179,7 @@ class CamDaemon(BaseDaemon):
                         # clear tags, ready for next exposure
                         self.exposing = False
                         self.exposure_start_time = 0
-                        self.image_ready = {ut: 0 for ut in params.UTS}
+                        self.image_ready = {ut: 0 for ut in self.uts}
                         self.active_uts = []
                         self.all_info = None
                         self.num_taken += 1
@@ -261,7 +262,7 @@ class CamDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        for ut in params.UTS:
+        for ut in self.uts:
             # Get info from each interface
             try:
                 interface_id = params.UT_INTERFACES[ut]
@@ -318,13 +319,13 @@ class CamDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
-                        for ut in params.UTS]
+                        for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Cameras are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
-                            for ut in params.UTS]
+                            for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Cameras are {}'.format(now_str))
@@ -385,7 +386,7 @@ class CamDaemon(BaseDaemon):
         # if taking glance images, clear all old glances
         if run_number <= 0:
             glance_files = [os.path.join(params.IMAGE_PATH, 'glance_UT{:d}.fits'.format(ut))
-                            for ut in params.UTS]
+                            for ut in self.uts]
             for glance_file in glance_files:
                 if os.path.exists(glance_file):
                     os.remove(glance_file)
@@ -455,8 +456,8 @@ class CamDaemon(BaseDaemon):
         glance = exposure.glance
 
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if int(binning) < 1 or (int(binning) - binning) != 0:
@@ -505,8 +506,8 @@ class CamDaemon(BaseDaemon):
 
         # Check input
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Check current status
         if not self.exposing:
@@ -540,8 +541,8 @@ class CamDaemon(BaseDaemon):
         if not (-55 <= target_temp <= 45):
             raise ValueError('Temperature must be between -55 and 45')
         for ut in ut_list:
-            if ut not in params.UTS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS))
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         for ut in ut_list:
