@@ -82,7 +82,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 hw_name = 'camera_{}'.format(ut)
                 target = self.cam_targets[ut]
                 try:
-                    self.log.info('Connecting to Camera {} ({})'.format(ut, target))
+                    self.log.debug('Connecting to Camera {} ({})'.format(ut, target))
                     camera = Camera.locate_device(target)
                     if camera is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Camera {}'.format(ut))
@@ -107,7 +107,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 target = self.foc_targets[ut]
                 hw_name = 'focuser_{}'.format(ut)
                 try:
-                    self.log.info('Connecting to Focuser {} ({})'.format(ut, target))
+                    self.log.debug('Connecting to Focuser {} ({})'.format(ut, target))
                     focuser = Focuser.locate_device(target)
                     if focuser is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Focuser {}'.format(ut))
@@ -132,7 +132,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 target = self.filt_targets[ut]
                 hw_name = 'filterwheel_{}'.format(ut)
                 try:
-                    self.log.info('Connecting to Filter Wheel {} ({})'.format(ut, target))
+                    self.log.debug('Connecting to Filter Wheel {} ({})'.format(ut, target))
                     filterwheel = FilterWheel.locate_device(target)
                     if filterwheel is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Filter Wheel {}'.format(ut))
