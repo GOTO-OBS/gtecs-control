@@ -110,9 +110,9 @@ for daemon_id in DAEMONS:
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
 
 INTERFACES = config['INTERFACES']
-
 UT_INTERFACES = {}
 for interface_id in INTERFACES:
+    INTERFACES[interface_id]['UTS'] = sorted(int(ut) for ut in INTERFACES[interface_id]['UTS'])
     for ut in INTERFACES[interface_id]['UTS']:
         UT_INTERFACES[ut] = interface_id
 ALL_UTS = sorted(UT_INTERFACES)
