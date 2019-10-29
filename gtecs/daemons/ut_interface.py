@@ -387,10 +387,14 @@ def parse_args():
             # Should be four strings: UT number, cam serial, foc serial, filt serial
             ut, cam, foc, filt = ut_dict
             serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': filt}
-        else:
+        elif len(ut_dict) == 3:
             # This UT has no filter wheel
             ut, cam, foc = ut_dict
             serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': None}
+        else:
+            # This UT has no filter wheel or focuser
+            ut, cam = ut_dict
+            serial_dict[int(ut)] = {'cam': cam, 'foc': None, 'filt': None}
 
     return interface_id, serial_dict
 
