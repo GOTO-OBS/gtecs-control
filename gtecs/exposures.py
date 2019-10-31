@@ -68,7 +68,7 @@ class Exposure(object):
         frametype = ls[4]
         target = ls[5]
         imgtype = ls[6]
-        glance = bool(ls[7])
+        glance = bool(ls[7] == 'True')  # Stop the "bool('False')" problem
         set_pos = int(ls[8])
         set_total = int(ls[9])
         db_id = int(ls[10])
