@@ -385,7 +385,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     execute_command('exq resume')  # just in case
 
     # wait for the camera daemon to finish saving the images
-    wait_for_images(img_num + 1, exptime + 30)
+    wait_for_images(img_num + 1, exptime + 60)
     time.sleep(2)  # just in case
 
     data = get_latest_image_data(glance)
