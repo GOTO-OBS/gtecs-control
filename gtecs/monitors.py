@@ -66,7 +66,7 @@ ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
-ERROR_FILT_UNHOMED = 'FLIT:NOT_HOMED'
+ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
 ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
 
@@ -937,11 +937,11 @@ class CamMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_CAMERAS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all([info[tel]['ccd_temp'] < params.CCD_TEMP + 1 for tel in params.TEL_DICT])
+        all_cool = all(info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS_WITH_CAMERAS)
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
         else:
@@ -971,24 +971,24 @@ class CamMonitor(BaseMonitor):
             return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
-            # The cam daemon depends on the FLI interfaces.
-            for daemon_id in params.FLI_INTERFACES:
+            # The cam daemon depends on the interfaces.
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
-                    # PROBLEM: The FLI interfaces aren't responding.
+                    # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
-                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
+                    # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1038,11 +1038,11 @@ class FiltMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FILTERWHEELS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_homed = all([info[tel]['homed'] for tel in params.TEL_DICT])
+        all_homed = all([info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS])
         if not all_homed:
             hardware_status = STATUS_FILT_UNHOMED
         else:
@@ -1072,24 +1072,24 @@ class FiltMonitor(BaseMonitor):
             return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
-            # The filt daemon depends on the FLI interfaces.
-            for daemon_id in params.FLI_INTERFACES:
+            # The filt daemon depends on the interfaces.
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
-                    # PROBLEM: The FLI interfaces aren't responding.
+                    # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
-                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
+                    # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1139,7 +1139,7 @@ class FocMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[tel] is None for tel in params.TEL_DICT]):
+        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FOCUSERS]):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
@@ -1165,24 +1165,24 @@ class FocMonitor(BaseMonitor):
             return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
-            # The foc daemon depends on the FLI interfaces.
-            for daemon_id in params.FLI_INTERFACES:
+            # The foc daemon depends on the interfaces.
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
-                    # PROBLEM: The FLI interfaces aren't responding.
+                    # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
-                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
+                    # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1248,27 +1248,27 @@ class ExqMonitor(BaseMonitor):
             return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
-            # The exq daemon depends on the FLI interfaces, cam and filt daemons.
+            # The exq daemon depends on the interfaces, cam and filt daemons.
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
             # fails.
-            for daemon_id in params.FLI_INTERFACES:
+            for daemon_id in params.INTERFACES:
                 if daemon_id in self.bad_dependencies:
-                    # PROBLEM: The FLI interfaces aren't responding.
+                    # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['fli start', 30]
+                    recovery_procedure[1] = ['intf start', 30]
                     # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['fli restart', 30]
+                    recovery_procedure[2] = ['intf restart', 30]
                     # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['fli kill', 10]
-                    recovery_procedure[4] = ['fli start', 30]
-                    # SOLUTION 4: Maybe the FLI hardware isn't powered on.
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
+                    # SOLUTION 4: Maybe the hardware isn't powered on.
                     recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['fli kill', 10]
-                    recovery_procedure[7] = ['fli start', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
                     # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'fli', recovery_procedure
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
             if 'cam' in self.bad_dependencies:
                 # PROBLEM: Cam daemon is not responding or not returning info.
                 recovery_procedure = {}

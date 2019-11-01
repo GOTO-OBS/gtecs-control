@@ -75,8 +75,8 @@ DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 LOCAL_HOST = config['LOCAL_HOST']
 
 # Common file strings
-ORIGIN = config['ORIGIN']
-TELESCOP = config['TELESCOP']
+ORG_NAME = config['ORG_NAME']
+TELESCOPE_NAME = config['TELESCOPE_NAME']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # Site location (predicted location of GOTO dome on La Palma)
@@ -102,22 +102,29 @@ FILE_LOGGING = config['FILE_LOGGING']
 STDOUT_LOGGING = config['STDOUT_LOGGING']
 REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 
-USE_FAKE_FLI = config['USE_FAKE_FLI']
+FAKE_FLI = config['FAKE_FLI']
 
 DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
-    DAEMONS[daemon_id]['ADDRESS'] = 'PYRO:{}@{}:{}'.format(daemon_id,
-                                                           DAEMONS[daemon_id]['HOST'],
-                                                           DAEMONS[daemon_id]['PORT'])
 
-FLI_INTERFACES = config['FLI_INTERFACES']
-
-TEL_DICT = {}
-for intf in FLI_INTERFACES:
-    for hw, tel in enumerate(FLI_INTERFACES[intf]['TELS']):
-        TEL_DICT[tel] = [intf, hw]
+INTERFACES = config['INTERFACES']
+UT_INTERFACES = {}
+for interface_id in INTERFACES:
+    INTERFACES[interface_id]['UTS'] = sorted(int(ut) for ut in INTERFACES[interface_id]['UTS'])
+    for ut in INTERFACES[interface_id]['UTS']:
+        UT_INTERFACES[ut] = interface_id
+ALL_UTS = sorted(UT_INTERFACES)
+UTS_WITH_CAMERAS = sorted(ut for intf in INTERFACES
+                          if 'CAMERAS' in INTERFACES[intf]
+                          for ut in INTERFACES[intf]['UTS'])
+UTS_WITH_FOCUSERS = sorted(ut for intf in INTERFACES
+                           if 'FOCUSERS' in INTERFACES[intf]
+                           for ut in INTERFACES[intf]['UTS'])
+UTS_WITH_FILTERWHEELS = sorted(ut for intf in INTERFACES
+                               if 'FILTERWHEELS' in INTERFACES[intf]
+                               for ut in INTERFACES[intf]['UTS'])
 
 ############################################################
 # Conditions parameters
@@ -260,19 +267,19 @@ if 'FOCUS_SLOPE_ABOVE' in config:
     FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
                          for key in config['FOCUS_SLOPE_ABOVE']}
 else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in TEL_DICT}
+    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_SLOPE_BELOW' in config:
     FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
                          for key in config['FOCUS_SLOPE_BELOW']}
 else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in TEL_DICT}
+    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
     FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
                                   for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
 else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in TEL_DICT}
+    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS_WITH_FOCUSERS}
 
 
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']

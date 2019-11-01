@@ -15,12 +15,12 @@ if __name__ == '__main__':
         else:
             daemons = list(params.DAEMONS)
 
-        # remove individual fli interfaces and replace with one command
-        if any([intf in daemons for intf in params.FLI_INTERFACES]):
-            for intf in params.FLI_INTERFACES:
-                if intf in daemons:
-                    daemons.remove(intf)
-            daemons.append('fli')
+        # remove individual UT interfaces and replace with one command
+        if any([interface_id in daemons for interface_id in params.INTERFACES]):
+            for interface_id in params.INTERFACES:
+                if interface_id in daemons:
+                    daemons.remove(interface_id)
+            daemons.append('intf')
 
         # handle dependencies
         if 'exq' in daemons:
@@ -32,16 +32,16 @@ if __name__ == '__main__':
                 # move to front
                 daemons.remove('exq')
                 daemons.insert(0, 'exq')
-        if 'fli' in daemons:
+        if 'intf' in daemons:
             # interfaces need to start before the daemons and shutdown after
             if sys.argv[1] == 'start':
                 # move to front
-                daemons.remove('fli')
-                daemons.insert(0, 'fli')
+                daemons.remove('intf')
+                daemons.insert(0, 'intf')
             elif sys.argv[1] == 'shutdown':
                 # move to back
-                daemons.remove('fli')
-                daemons.append('fli')
+                daemons.remove('intf')
+                daemons.append('intf')
 
         for d in daemons:
             command = '{} {}'.format(d, sys.argv[1])

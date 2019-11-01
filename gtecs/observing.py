@@ -76,8 +76,8 @@ def get_cam_temps():
     """Get a dict of camera temps."""
     cam_info = daemon_info('cam')
     values = {}
-    for tel in params.TEL_DICT:
-        values[tel] = cam_info[tel]['ccd_temp']
+    for ut in params.UTS_WITH_CAMERAS:
+        values[ut] = cam_info[ut]['ccd_temp']
     return values
 
 
@@ -108,31 +108,31 @@ def prepare_for_images():
 
 
 def set_new_focus(values):
-    """Move each telescope to the requested focus.
+    """Move each unit telescope to the requested focus.
 
     Parameters
     ----------
     values : float, dict
-        a dictionary of telescope IDs and focus values
+        a dictionary of unit telescope IDs and focus values
 
     """
     try:
-        # will raise if not a dict, or keys not valid
-        assert all(key in params.TEL_DICT for key in values.keys())
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
+        assert all(ut in params.UTS_WITH_FOCUSERS for ut in values.keys())
     except Exception:
         # same value for all
-        values = {key: values for key in params.TEL_DICT}
+        values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
 
-    for tel in sorted(params.TEL_DICT):
-        execute_command('foc set {} {}'.format(tel, int(values[tel])))
+    for ut in params.UTS_WITH_FOCUSERS:
+        execute_command('foc set {} {}'.format(ut, int(values[ut])))
 
 
 def get_current_focus():
     """Find the current focus positions."""
     foc_info = daemon_info('foc')
     values = {}
-    for tel in params.TEL_DICT:
-        values[tel] = foc_info[tel]['current_pos']
+    for ut in params.UTS_WITH_FOCUSERS:
+        values[ut] = foc_info[ut]['current_pos']
     return values
 
 
@@ -142,18 +142,18 @@ def wait_for_focuser(target_values, timeout=None):
     Parameters
     ----------
     target_values : float, dict
-        a dictionary of telescope IDs and focus values
+        a dictionary of unit telescope IDs and focus values
         (see `gtecs.observing.set_new_focus`)
     timeout : float
         time in seconds after which to timeout, None to wait forever
 
     """
     try:
-        # will raise if not a dict, or keys not valid
-        assert all(tel in params.TEL_DICT for tel in target_values.keys())
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
+        assert all(ut in params.UTS_WITH_FOCUSERS for ut in target_values.keys())
     except Exception:
         # same value for all
-        target_values = {tel: target_values for tel in params.TEL_DICT}
+        target_values = {ut: target_values for ut in params.UTS_WITH_FOCUSERS}
 
     start_time = time.time()
     reached_position = False
@@ -164,9 +164,9 @@ def wait_for_focuser(target_values, timeout=None):
         try:
             foc_info = daemon_info('foc', force_update=True)
 
-            done = [(foc_info[tel]['current_pos'] == int(target_values[tel]) and
-                    foc_info[tel]['status'] == 'Ready')
-                    for tel in target_values.keys()]
+            done = [(foc_info[ut]['current_pos'] == int(target_values[ut]) and
+                    foc_info[ut]['status'] == 'Ready')
+                    for ut in target_values.keys()]
             if np.all(done):
                 reached_position = True
         except Exception:
@@ -385,7 +385,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     execute_command('exq resume')  # just in case
 
     # wait for the camera daemon to finish saving the images
-    wait_for_images(img_num + 1, exptime + 30)
+    wait_for_images(img_num + 1, exptime + 60)
     time.sleep(2)  # just in case
 
     data = get_latest_image_data(glance)
@@ -421,26 +421,26 @@ def get_latest_image_data(glance=False):
         print('Loading glances:', end=' ')
 
     # get possible file names
-    filenames = {tel: '{}_UT{:d}.fits'.format(root, tel) for tel in params.TEL_DICT}
+    filenames = {ut: '{}_UT{:d}.fits'.format(root, ut) for ut in params.UTS_WITH_CAMERAS}
 
     # get full path
-    images = {tel: os.path.join(path, filenames[tel]) for tel in filenames}
+    images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
 
     # limit it to only existing files
-    images = {tel: images[tel] for tel in images if os.path.exists(images[tel])}
+    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
 
     print('{} images'.format(len(images)))
 
     data = {}
-    for tel in images.keys():
+    for ut in images.keys():
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                data[tel] = fits.getdata(images[tel]).astype('float')
+                data[ut] = fits.getdata(images[ut]).astype('float')
         except (TypeError, OSError):
             # Image was still being written, wait a sec and try again
             time.sleep(1)
-            data[tel] = fits.getdata(images[tel]).astype('float')
+            data[ut] = fits.getdata(images[ut]).astype('float')
 
     return data
 
@@ -490,14 +490,14 @@ def exposure_queue_is_empty():
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt', force_update=False)
-    return all([filt_info[tel]['homed'] for tel in params.TEL_DICT])
+    return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
     cam_info = daemon_info('cam', force_update=False)
-    return all([cam_info[tel]['ccd_temp'] < target_temp + 0.1 for tel in params.TEL_DICT])
+    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
 
 
 def wait_for_exposure_queue(timeout=None):
@@ -556,9 +556,9 @@ def wait_for_images(target_image_number, timeout=None):
 
         try:
             cam_info = daemon_info('cam', force_update=True)
-            done = [(cam_info[tel]['status'] == 'Ready' and
+            done = [(cam_info[ut]['status'] == 'Ready' and
                      int(cam_info['num_taken']) == int(target_image_number))
-                    for tel in params.TEL_DICT]
+                    for ut in params.UTS_WITH_CAMERAS]
             if np.all(done):
                 finished = True
         except Exception:

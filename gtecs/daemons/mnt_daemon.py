@@ -491,7 +491,7 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = ra
 
-        self.log.info('Set target RA to %.4f', ra)
+        self.log.info('Set target RA to {:.4f}'.format(ra))
         return 'Setting target RA'
 
     def set_target_dec(self, dec):
@@ -508,7 +508,7 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_dec = dec
 
-        self.log.info('Set target Dec to %.4f', dec)
+        self.log.info('Set target Dec to {:.4f}'.format(dec))
         return 'Setting target Dec'
 
     def set_target(self, ra, dec):
@@ -528,8 +528,8 @@ class MntDaemon(BaseDaemon):
         self.target_ra = ra
         self.target_dec = dec
 
-        self.log.info('Set target RA to %.4f', ra)
-        self.log.info('Set target Dec to %.4f', dec)
+        self.log.info('Set target RA to {:.4f}'.format(ra))
+        self.log.info('Set target Dec to {:.4f}'.format(dec))
         return 'Setting target'
 
     def clear_target(self):

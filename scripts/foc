@@ -77,41 +77,41 @@ def query(command, args, daemon_id):
     elif command == 'set':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = params.UTS_WITH_FOCUSERS
             pos = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
             pos = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_focuser', [pos, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'set_focuser', [pos, ut_list])
         print(reply)
 
     elif command == 'move':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = params.UTS_WITH_FOCUSERS
             steps = int(args[0])
         elif len(args) == 2 and misc.is_num(args[1]):
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
             steps = int(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'move_focuser', [steps, tel_list])
+        reply = daemons.daemon_function(daemon_id, 'move_focuser', [steps, ut_list])
         print(reply)
 
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
-            tel_list = sorted(params.TEL_DICT)
+            ut_list = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
-            tel_list = misc.valid_ints(args[0].split(','), sorted(params.TEL_DICT))
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_focuser', [tel_list])
+        reply = daemons.daemon_function(daemon_id, 'home_focuser', [ut_list])
         print(reply)
 
     # Unrecognized function
@@ -122,33 +122,33 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
-    for tel in sorted(params.TEL_DICT):
-        print('FOCUSER ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]))
-        if info[tel]['status'] != 'Moving':
-            print('Status: %s' % info[tel]['status'])
+    for ut in params.UTS_WITH_FOCUSERS:
+        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]))
+        if info[ut]['status'] != 'Moving':
+            print('Status: {}'.format(info[ut]['status']))
         else:
-            print('Status: %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
-        print('Current motor pos:    %s' % info[tel]['current_pos'])
-        print('Maximum motor limit:  %s' % info[tel]['limit'])
-        print('Internal temperature: %s' % info[tel]['int_temp'])
-        print('External temperature: %s' % info[tel]['ext_temp'])
-        print('Serial number:        %s' % info[tel]['serial_number'])
+            print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
+        print('Current motor pos:    {}'.format(info[ut]['current_pos']))
+        print('Maximum motor limit:  {}'.format(info[ut]['limit']))
+        print('Internal temperature: {}'.format(info[ut]['int_temp']))
+        print('External temperature: {}'.format(info[ut]['ext_temp']))
+        print('Serial number:        {}'.format(info[ut]['serial_number']))
         print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for tel in sorted(params.TEL_DICT):
-        print('FOCUSER ' + str(tel) + ' (%s-%i)' % tuple(params.TEL_DICT[tel]), end=' ')
-        if info[tel]['status'] != 'Moving':
-            print('  Current position: %s/%s' % (info[tel]['current_pos'],
-                                                 info[tel]['limit']), end=' ')
-            print('  [%s]' % info[tel]['status'])
+    for ut in params.UTS_WITH_FOCUSERS:
+        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]), end=' ')
+        if info[ut]['status'] != 'Moving':
+            print('  Current position: {}/{}'.format(info[ut]['current_pos'],
+                                                     info[ut]['limit']), end=' ')
+            print('  [{}]'.format(info[ut]['status']))
         else:
-            print('  %s (%i)' % (info[tel]['status'], info[tel]['remaining']))
+            print('  {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
 
 
 def print_instructions():
@@ -161,9 +161,9 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Focuser commands:',
-          '  move [tels] steps              move by the given steps',
-          '  set [tels] pos                 move to the given position',
-          '  home [tels]                    move to the home position',
+          '  move [uts] steps              move by the given steps',
+          '  set [uts] pos                 move to the given position',
+          '  home [uts]                    move to the home position',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

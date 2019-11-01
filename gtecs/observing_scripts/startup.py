@@ -28,26 +28,16 @@ def run():
 
     time.sleep(10)
 
-    # Power on the FLI hardware and mount box
-    for tel in sorted(params.TEL_DICT):
-        execute_command('power on cam{0},foc{0},filt{0}'.format(tel))
-        time.sleep(0.5)
+    # Power on the UT hardware and mount box
+    execute_command('power on cams,focs,filts')
+    time.sleep(0.5)
     execute_command('power on sitech')
 
     time.sleep(5)
 
-    # Restart the FLI interface, as it would have crashed if the power was off
-    # Note don't use the restart command, I don't trust it any more
-    execute_command('fli shutdown')
-    time.sleep(4)
-    execute_command('fli start')
-    time.sleep(4)
-
-    # Make sure all the other daemons are running
+    # Make all the other daemons are running
     for daemon in list(params.DAEMONS):
-        # don't run the individual interfaces
-        if daemon not in params.FLI_INTERFACES:
-            execute_command('{} start'.format(daemon))
+        execute_command('{} start'.format(daemon))
 
     time.sleep(4)
 

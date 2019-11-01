@@ -5,6 +5,7 @@ import os
 import re
 import signal
 import smtplib
+import socket
 import subprocess
 import sys
 import time
@@ -15,6 +16,23 @@ import pid
 from . import errors
 from . import params
 from .style import errortxt
+
+
+def get_ip():
+    """Get local IP address.
+
+    https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        ip_addr = s.getsockname()[0]
+    except Exception:
+        ip_addr = '127.0.0.1'
+    finally:
+        s.close()
+    return ip_addr
 
 
 def kill_process(pidname, host='127.0.0.1'):
@@ -249,9 +267,9 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
     """
     to_address = ', '.join(recipients)
     from_address = params.EMAIL_ADDRESS
-    header = 'To:%s\nFrom:%s\nSubject:%s\n' % (to_address, from_address, subject)
+    header = 'To:{}\nFrom:{}\nSubject:{}\n'.format(to_address, from_address, subject)
     timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime())
-    text = '%s\n\nMessage sent at %s' % (message, timestamp)
+    text = '{}\n\nMessage sent at {}'.format(message, timestamp)
 
     server = smtplib.SMTP(params.EMAIL_SERVER)
     server.starttls()
@@ -264,8 +282,8 @@ def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
 def ut_list_to_mask(ut_list):
     """Convert a UT list to a mask integer."""
     ut_mask = 0
-    all_tels = sorted(params.TEL_DICT)
-    for i in all_tels:
+    all_uts = params.ALL_UTS
+    for i in all_uts:
         if i in ut_list:
             ut_mask += 2**(i - 1)
     return ut_mask
@@ -273,17 +291,17 @@ def ut_list_to_mask(ut_list):
 
 def ut_mask_to_string(ut_mask):
     """Convert a UT mask integer to a string of 0s and 1s."""
-    total_tels = max(sorted(params.TEL_DICT))
-    bin_str = format(ut_mask, '0{}b'.format(total_tels))
-    ut_str = bin_str[-1 * total_tels:]
+    total_uts = max(params.ALL_UTS)
+    bin_str = format(ut_mask, '0{}b'.format(total_uts))
+    ut_str = bin_str[-1 * total_uts:]
     return ut_str
 
 
 def ut_string_to_list(ut_string):
     """Convert a UT string of 0s and 1s to a list."""
     ut_list = []
-    all_tels = sorted(params.TEL_DICT)
-    for i in all_tels:
+    all_uts = params.ALL_UTS
+    for i in all_uts:
         if ut_string[-1 * i] == '1':
             ut_list.append(i)
     ut_list.sort()

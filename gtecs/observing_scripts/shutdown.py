@@ -30,13 +30,8 @@ def run():
     # Abort any current exposures
     execute_command('cam abort')
 
-    # Shut down the FLI interface, else it would crash when we power off
-    execute_command('fli shutdown')
-
-    # Power off the FLI hardware
-    # NB in startup.py we start only for tel in params.TEL_DICT,
-    # here we shut them all down in case one unintentially started
-    execute_command('power off cams,focs,filts')
+    # Power off the cameras
+    execute_command('power off cams')
 
     # Park the mount
     execute_command('mnt park')

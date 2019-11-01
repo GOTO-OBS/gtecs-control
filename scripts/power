@@ -126,8 +126,8 @@ def print_info(info):
             print('Outlet {: <2} {: <15} {}'.format(outlet_no, outlet_name, outlet_status))
         print('~~~~~~~')
 
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 

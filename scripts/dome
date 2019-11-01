@@ -180,45 +180,46 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('######## DOME INFO ########')
-    print('North:        %s' % info['north'].capitalize())
-    print('South:        %s' % info['south'].capitalize())
-    print('Hatch:        %s' % info['hatch'].capitalize())
-    print('Dehumidifier: %s' % ('On' if info['dehumidifier_on'] else 'Off'))
-    print('Autoclose:    %s' % (style.rtxt('Disabled')
-                                if not info['autoclose_enabled']
-                                else 'Enabled'))
-    print('Alarm:        %s' % (style.rtxt('Disabled')
-                                if not info['alarm_enabled']
-                                else 'Enabled'))
-    print('Heartbeat:    %s' % (style.rtxt('Disabled')
-                                if info['heartbeat_status'] == 'disabled'
-                                else info['heartbeat_status'].capitalize()))
-    print('Lockdown:     %s' % (style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
+    print('North:        {}'.format(info['north'].capitalize()))
+    print('South:        {}'.format(info['south'].capitalize()))
+    print('Hatch:        {}'.format(info['hatch'].capitalize()))
+    print('Dehumidifier: {}'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('Autoclose:    {}'.format(style.rtxt('Disabled')
+                                    if not info['autoclose_enabled']
+                                    else 'Enabled'))
+    print('Alarm:        {}'.format(style.rtxt('Disabled')
+                                    if not info['alarm_enabled']
+                                    else 'Enabled'))
+    print('Heartbeat:    {}'.format(style.rtxt('Disabled')
+                                    if info['heartbeat_status'] == 'disabled'
+                                    else info['heartbeat_status'].capitalize()))
+    print('Lockdown:     {}'.format(style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))
     print('~~~~~~~')
-    print('Uptime: %.1fs' % info['uptime'])
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    print('DOME:               [%s|%s]' % (info['north'].capitalize(), info['south'].capitalize()))
+    print('DOME:               [{}|{}]'.format(info['north'].capitalize(),
+                                               info['south'].capitalize()))
     if info['lockdown']:
         print(style.rtxt('                    LOCKDOWN ACTIVE'))
-    print('   Hatch:           [%s]' % info['hatch'].capitalize())
-    print('   Dehumidifier:    [%s]' % ('On' if info['dehumidifier_on'] else 'Off'))
-    print('   Autoclose:       [%s]' % (style.rtxt('Disabled')
-                                        if not info['autoclose_enabled']
-                                        else 'Enabled'))
-    print('   Alarm:           [%s]' % (style.rtxt('Disabled')
-                                        if not info['alarm_enabled']
-                                        else 'Enabled'))
-    print('   Heartbeat:       [%s]' % (style.rtxt('Disabled')
-                                        if info['heartbeat_status'] == 'disabled'
-                                        else info['heartbeat_status'].capitalize()))
+    print('   Hatch:           [{}]'.format(info['hatch'].capitalize()))
+    print('   Dehumidifier:    [{}]'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
+                                            if not info['autoclose_enabled']
+                                            else 'Enabled'))
+    print('   Alarm:           [{}]'.format(style.rtxt('Disabled')
+                                            if not info['alarm_enabled']
+                                            else 'Enabled'))
+    print('   Heartbeat:       [{}]'.format(style.rtxt('Disabled')
+                                            if info['heartbeat_status'] == 'disabled'
+                                            else info['heartbeat_status'].capitalize()))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))

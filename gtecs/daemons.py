@@ -22,7 +22,7 @@ class BaseDaemon(ABC):
     """Base class for hardware daemons.
 
     Daemons can be put into two catogaries:
-        - those dependent on hardware (e.g. dome, fli)
+        - those dependent on hardware (e.g. dome, ut)
         - those dependent on other daemons (e.g. cam, exq)
 
     Each daemon should implement a master control loop, which includes a status check routine.
@@ -93,7 +93,7 @@ class BaseDaemon(ABC):
     def _run(self):
         """Start the daemon as a Pyro daemon, and run until shutdown."""
         host = self.params['HOST']
-        port = self.params['PORT']
+        port = int(self.params['PORT'])
 
         # Check the Pyro address is available
         try:
@@ -222,7 +222,9 @@ def daemon_is_running(daemon_id):
 
 def daemon_proxy(daemon_id, timeout=params.PYRO_TIMEOUT):
     """Get a proxy connection to the given daemon."""
-    address = params.DAEMONS[daemon_id]['ADDRESS']
+    host = params.DAEMONS[daemon_id]['HOST']
+    port = params.DAEMONS[daemon_id]['PORT']
+    address = 'PYRO:{}@{}:{}'.format(daemon_id, host, port)
     proxy = Pyro4.Proxy(address)
     proxy._pyroTimeout = timeout
     return proxy
@@ -299,7 +301,7 @@ def daemon_info(daemon_id, force_update=True):
     return daemon_function(daemon_id, 'get_info', args=[force_update])
 
 
-def start_daemon(daemon_id):
+def start_daemon(daemon_id, args=None):
     """Start a daemon (unless it is already running)."""
     host = params.DAEMONS[daemon_id]['HOST']
     if daemon_is_running(daemon_id):
@@ -318,7 +320,12 @@ def start_daemon(daemon_id):
         fpipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
         process_options.update({'stdout': fpipe, 'stderr': fpipe})
 
-    misc.python_command(process_path, '', **process_options)
+    if args is not None:
+        args = ' '.join([str(arg) for arg in args])
+    else:
+        args = ''
+
+    misc.python_command(process_path, args, **process_options)
 
     time.sleep(1)
     start_time = time.time()
@@ -386,12 +393,12 @@ def kill_daemon(daemon_id):
         time.sleep(0.5)
 
 
-def restart_daemon(daemon_id, wait_time=1):
+def restart_daemon(daemon_id, args=None, wait_time=1):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     reply = shutdown_daemon(daemon_id)
     print(reply)
 
     time.sleep(wait_time)
 
-    reply = start_daemon(daemon_id)
+    reply = start_daemon(daemon_id, args=args)
     return reply

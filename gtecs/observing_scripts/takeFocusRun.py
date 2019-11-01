@@ -27,31 +27,30 @@ import pandas as pd
 
 def plot_results(df):
     """Plot the results of the focus run."""
-    tels = params.TEL_DICT.keys()
-    fig, axes = plt.subplots(nrows=len(tels), ncols=2)
+    fig, axes = plt.subplots(nrows=len(params.UTS_WITH_FOCUSERS), ncols=2)
     kwargs = dict(
         color='k',
         ecolor='k',
         fmt='.'
     )
-    for i, tel in enumerate(tels):
+    for i, ut in enumerate(params.UTS_WITH_FOCUSERS):
         ax_hfd = axes[i, 0]
         ax_fwhm = axes[i, 1]
-        df_tel = df.loc[tel]
+        df_ut = df.loc[ut]
 
-        x = df_tel['pos']
-        yfw = df_tel['fwhm']
-        yhfd = df_tel['median']
+        x = df_ut['pos']
+        yfw = df_ut['fwhm']
+        yhfd = df_ut['median']
 
-        sn_mask = yfw / df_tel['fwhm_std'] > 2
-        e = df_tel['fwhm_std'][sn_mask]
+        sn_mask = yfw / df_ut['fwhm_std'] > 2
+        e = df_ut['fwhm_std'][sn_mask]
         pars = np.polyfit(x[sn_mask], yfw[sn_mask], w=1 / e, deg=2)
         best_focus = -pars[1] / 2 / pars[0]
-        print('UT{} best focus @ {}'.format(tel, int(best_focus)))
+        print('UT{} best focus @ {}'.format(ut, int(best_focus)))
         poly = np.poly1d(pars)
 
-        ax_hfd.errorbar(x, yhfd, yerr=df_tel['std'], **kwargs)
-        ax_fwhm.errorbar(x, yfw, yerr=df_tel['fwhm_std'], **kwargs)
+        ax_hfd.errorbar(x, yhfd, yerr=df_ut['std'], **kwargs)
+        ax_fwhm.errorbar(x, yfw, yerr=df_ut['fwhm_std'], **kwargs)
         ax_fwhm.axvline(best_focus, color='r', ls='--')
         ax_fwhm.plot(x, poly(x), 'r-')
         ax_fwhm.set_xlabel('Pos')
@@ -91,7 +90,7 @@ def run(width, step, make_plots):
         deltas = np.array(params.FOCUSRUN_DELTAS)
     print('Steps ({:.0f}): '.format(len(deltas)), deltas)
 
-    pos_master_list = {tel: orig_focus[tel] + deltas for tel in params.TEL_DICT}
+    pos_master_list = {ut: orig_focus[ut] + deltas for ut in params.UTS_WITH_FOCUSERS}
     pos_master_list = pd.DataFrame(pos_master_list)
     print('Run positions for each UT:')
     print(pos_master_list)

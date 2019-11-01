@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""A script to provide control over fli interface daemons."""
+"""A script to provide control over the UT interface daemons."""
 
 import os
 import sys
@@ -14,9 +14,29 @@ DAEMON_ID = os.path.basename(__file__)
 
 DAEMON_IDS = []
 for daemon_id in params.DAEMONS:
-    if daemon_id in params.FLI_INTERFACES:
+    if daemon_id in params.INTERFACES:
         DAEMON_IDS.append(daemon_id)
 DAEMON_IDS.sort()
+
+
+def get_args(interface_id):
+    """Format the arguments to send to the interface script."""
+    args = [interface_id]
+    for hw in range(len(params.INTERFACES[interface_id]['UTS'])):
+        args.append('--ut')
+        args.append(params.INTERFACES[interface_id]['UTS'][hw])
+        args.append(params.INTERFACES[interface_id]['CAMERAS'][hw])
+        try:
+            args.append(params.INTERFACES[interface_id]['FOCUSERS'][hw])
+        except KeyError:
+            # This UT has no focuser
+            pass
+        try:
+            args.append(params.INTERFACES[interface_id]['FILTERWHEELS'][hw])
+        except KeyError:
+            # This UT has no filter wheel
+            pass
+    return args
 
 
 def query(command, args, daemon_ids):
@@ -32,7 +52,7 @@ def query(command, args, daemon_ids):
     elif command == 'start':
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.start_daemon(daemon_id)
+                reply = daemons.start_daemon(daemon_id, args=get_args(daemon_id))
                 print(reply)
 
     elif command == 'shutdown':
@@ -44,7 +64,7 @@ def query(command, args, daemon_ids):
     elif command == 'restart':
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                reply = daemons.restart_daemon(daemon_id)
+                reply = daemons.restart_daemon(daemon_id, args=get_args(daemon_id))
                 print(reply)
 
     elif command == 'kill':
@@ -94,31 +114,34 @@ def query(command, args, daemon_ids):
 
 def print_info(info):
     """Print the full info dict."""
-    print('FLI INTERFACE {}:'.format(info['daemon_id']))
-    print('   Cameras:       ', end='\t')
-    for key in sorted([key for key in info if key.startswith('camera_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
-    print('')
-    print('   Focusers:      ', end='\t')
-    for key in sorted([key for key in info if key.startswith('focuser_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
-    print('')
-    print('   Filter Wheels: ', end='\t')
-    for key in sorted([key for key in info if key.startswith('filterwheel_')]):
-        print('{}: {: <14}'.format(key[-1], info[key]), end='  ')
-    print('')
+    print('INTERFACE {}:'.format(info['daemon_id']))
+    if len(info['cam_serials']) > 0:
+        print('   Cameras:       ', end='\t')
+        for ut in info['cam_serials']:
+            print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
+        print('')
+    if len(info['foc_serials']) > 0:
+        print('   Focusers:      ', end='\t')
+        for ut in info['foc_serials']:
+            print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
+        print('')
+    if len(info['filt_serials']) > 0:
+        print('   Filter Wheels: ', end='\t')
+        for ut in info['filt_serials']:
+            print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
+        print('')
 
 
 def print_instructions():
     """Print instructions for using the daemon."""
-    print('Usage: fli command [options]',
+    print('Usage: intf command [options]',
           'Daemon commands:',
           '  start                          start the interfaces',
           '  shutdown                       shutdown the interfaces',
           '  restart                        restart the interfaces',
           '  kill                           kill the interfaces',
           '  check/ping                     check the interfaces for errors',
-          'Fli commands:',
+          'Interface commands:',
           '  info/status [v]                report current status',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

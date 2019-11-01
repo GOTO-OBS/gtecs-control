@@ -17,7 +17,7 @@ class Exposure(object):
     - info()
 
     Exposures contain the folowing infomation:
-    - tel_list    [lst]  -- REQUIRED --
+    - ut_list    [lst]  -- REQUIRED --
     - exptime     [int]  -- REQUIRED --
     - filt        [str]  <default = None>
     - binning     [int]  <default = 1>
@@ -31,14 +31,14 @@ class Exposure(object):
 
     """
 
-    def __init__(self, tel_list, exptime,
+    def __init__(self, ut_list, exptime,
                  filt=None, binning=1, frametype='normal',
                  target='NA', imgtype='SCIENCE', glance=False,
                  set_pos=1, set_total=1, db_id=None):
         self.creation_time = time.gmtime()
-        self.tel_list = tel_list
-        self.tel_mask = misc.ut_list_to_mask(tel_list)
-        self.tel_string = misc.ut_mask_to_string(self.tel_mask)
+        self.ut_list = ut_list
+        self.ut_mask = misc.ut_list_to_mask(ut_list)
+        self.ut_string = misc.ut_mask_to_string(self.ut_mask)
         self.exptime = exptime
         self.filt = filt
         self.binning = binning
@@ -61,45 +61,53 @@ class Exposure(object):
         """Create an Exposure object from a formatted string."""
         # eg '1011;20;R;2;normal;NA;SCIENCE;0;1;3;126598'
         ls = line.split(';')
-        tel_list = misc.ut_string_to_list(ls[0])
+        ut_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
         filt = ls[2] if ls[2] != 'X' else None
         binning = int(ls[3])
         frametype = ls[4]
         target = ls[5]
         imgtype = ls[6]
-        glance = bool(ls[7])
+        glance = bool(ls[7] == 'True')  # Stop the "bool('False')" problem
         set_pos = int(ls[8])
         set_total = int(ls[9])
         db_id = int(ls[10])
-        exp = cls(tel_list, exptime, filt,
+        exp = cls(ut_list, exptime, filt,
                   binning, frametype, target, imgtype, glance,
                   set_pos, set_total, db_id)
         return exp
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '%s;%.1f;%s;%i;%s;%s;%s;%i;%i;%i;%i\n'\
-               % (self.tel_string, self.exptime, self.filt if self.filt is not None else 'X',
-                  self.binning, self.frametype, self.target, self.imgtype,
-                  self.glance, self.set_pos, self.set_total, self.db_id)
+        line = '{};{:.1f};{};{};{};{};{};{};{};{};{}\n'.format(
+               self.ut_string,
+               self.exptime,
+               self.filt if self.filt is not None else 'X',
+               self.binning,
+               self.frametype,
+               self.target,
+               self.imgtype,
+               self.glance,
+               self.set_pos,
+               self.set_total,
+               self.db_id)
         return line
 
     def info(self):
         """Return a readable string of summary infomation about this Exposure."""
         s = 'EXPOSURE \n'
         s += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
-        s += '  Unit telescope(s): %s\n' % self.tel_list
-        s += '  Exposure time: %is\n' % self.exptime
-        s += '  Filter: %s\n' % self.filt
-        s += '  Binning: %i\n' % self.binning
-        s += '  Frame type: %s\n' % self.frametype
-        s += '  Target: %s\n' % self.target
-        s += '  Image type: %s\n' % self.imgtype
-        s += '  Glance: %s\n' % self.glance
-        s += '  Position in set: %i\n' % self.set_pos
-        s += '  Total in set: %i\n' % self.set_total
-        s += '  ExposureSet database ID (if any): %i\n' % self.db_id
+        s += '  Unit telescope(s): {}\n'.format(self.ut_list)
+        s += '  Exposure time: {:.1f}s\n'.format(self.exptime)
+        s += '  Filter: {}\n'.format(self.filt)
+        s += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
+        s += '  Frame type: {}\n'.format(self.frametype)
+        s += '  Target: {}\n'.format(self.target)
+        s += '  Image type: {}\n'.format(self.imgtype)
+        s += '  Glance: {}\n'.format(self.glance)
+        s += '  Position in set: {}\n'.format(self.set_pos)
+        s += '  Total in set: {}\n'.format(self.set_total)
+        s += '  ExposureSet database ID (if any): {}\n'.format(self.db_id)
         return s
 
 

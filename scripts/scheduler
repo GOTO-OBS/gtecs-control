@@ -113,8 +113,8 @@ def print_info(info):
     else:
         print('ID:        None')
 
-    print('~~~~~~~')
-    print('Timestamp: %s' % info['timestamp'])
+    print('Uptime: {:.1f}s'.format(info['uptime']))
+    print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
 
 
@@ -123,10 +123,9 @@ def print_info_s(info):
     print('SCHEDULER:')
     if info['next_pointing'] is not None:
         new_id = info['next_pointing'].db_id
-        new_mintime = info['next_pointing'].mintime
-        print('  ID: %i' %new_id)
+        print('  ID: {}'.format(new_id))
     else:
-        print('  ID: None (Priority: None, MinTime: None)')
+        print('  ID: None')
 
 
 def print_instructions():
