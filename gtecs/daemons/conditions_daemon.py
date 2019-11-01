@@ -176,6 +176,22 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['clouds'] = -999
 
+        # Get seeing from the TNG webpage
+        # (note there isn't actually a 'seeing' flag, it's just useful infomation)
+        try:
+            seeing_dict = conditions.get_tng_seeing()
+
+            # check if the seeing timeout has been exceded
+            dt = seeing_dict['dt']
+            if dt >= params.SEEING_TIMEOUT or dt == -999:
+                seeing_dict = {key: -999 for key in seeing_dict}
+
+            temp_info['seeing'] = seeing_dict['seeing']
+        except Exception:
+            self.log.error('Failed to get TNG seeing info')
+            self.log.debug('', exc_info=True)
+            temp_info['seeing'] = -999
+
         # Get current sun alt
         try:
             sunalt = get_sunalt(Time(self.loop_time, format='unix'))

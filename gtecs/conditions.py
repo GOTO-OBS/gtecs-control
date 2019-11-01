@@ -553,3 +553,48 @@ def get_satellite_clouds():
     # Measure the median pixel value, and scale by the pixel range (0-255)
     median = np.median(img_av) / 255
     return median
+
+
+def get_tng_seeing():
+    """Get the seeing from the TNG DIMM."""
+    url = 'https://tngweb.tng.iac.es/api/meteo/weather'
+    outfile = os.path.join(params.FILE_PATH, 'tng.json')
+
+    try:
+        indata = curl_data_from_url(url, outfile)
+        if len(indata) < 2 or '500 Internal Server Error' in indata:
+            raise IOError
+    except Exception:
+        time.sleep(0.2)
+        try:
+            indata = curl_data_from_url(url, outfile)
+        except Exception:
+            print('Error fetching JSON from TNG')
+
+    try:
+        data = json.loads(indata)
+    except Exception:
+        print('Error reading data from TNG')
+        traceback.print_exc()
+        print(indata)
+
+    weather_dict = {'update_time': -999,
+                    'dt': -999,
+                    'seeing': -999,
+                    'seeing_error': -999,
+                    }
+
+    try:
+        weather_dict['update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['update_time'])
+        weather_dict['dt'] = int(dt.to('second').value)
+    except Exception:
+        print('Error parsing update time')
+
+    try:
+        weather_dict['seeing'] = float(data['seeing']['median'])
+        weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+    except Exception:
+        print('Error parsing seeing from TNG')
+
+    return weather_dict

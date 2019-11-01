@@ -232,6 +232,13 @@ def print_info(info):
             clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
         print('  {: <10}   {}%'.format('sat_clouds', clouds_str))
 
+        seeing = info['seeing']
+        if seeing == -999:
+            seeing_str = style.rtxt('ERR')
+        else:
+            seeing_str = style.boldtxt('{:>3.1f}"'.format(seeing))
+        print('  {: <12}   {}'.format('seeing (TNG)', seeing_str))
+
         print('OTHER:')
         ups_percents = info['ups_percent']
         ups_strings = []

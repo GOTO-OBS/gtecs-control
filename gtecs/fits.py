@@ -737,6 +737,12 @@ def update_header(header, ut, all_info, log):
         else:
             clouds = numpy.around(clouds, decimals=1)
 
+        seeing = info['seeing']
+        if seeing == -999:
+            seeing = 'NA'
+        else:
+            seeing = numpy.around(seeing, decimals=1)
+
         ext_weather = info['weather']['goto']
 
         ext_temp = ext_weather['temperature']
@@ -775,6 +781,7 @@ def update_header(header, ut, all_info, log):
         log.error('Failed to write conditions info to header')
         log.debug('', exc_info=True)
         clouds = 'NA'
+        seeing = 'NA'
         ext_temp = 'NA'
         ext_hum = 'NA'
         ext_wind = 'NA'
@@ -782,6 +789,7 @@ def update_header(header, ut, all_info, log):
         int_hum = 'NA'
 
     header["SATCLOUD"] = (clouds, "IR satellite cloud opacity, percent (sat24.com)")
+    header["SEEING  "] = (seeing, "Seeing, arcseconds (TNG DIMM)")
 
     header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
     header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
