@@ -199,6 +199,9 @@ MAX_SATCLOUDS = config['MAX_SATCLOUDS']
 SATCLOUDS_BADDELAY = config['SATCLOUDS_BADDELAY']
 SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 
+# Seeing
+SEEING_TIMEOUT = config['SEEING_TIMEOUT']
+
 ############################################################
 # Sentinel parameters
 LOCAL_IVO = config['LOCAL_IVO']
