@@ -154,7 +154,7 @@ class FocDaemon(BaseDaemon):
 
                 temp_info[ut] = interface_info
             except Exception:
-                self.log.error('Failed to get filter wheel {} info'.format(ut))
+                self.log.error('Failed to get focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
                 temp_info[ut] = None
 
