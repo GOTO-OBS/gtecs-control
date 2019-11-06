@@ -135,7 +135,7 @@ class FocusLynx(object):
                     break
                 time.sleep(0.1)
 
-    def read_temperature(self):
+    def read_temperature(self, temp_type='internal'):
         """Get the focuser temperature, in Celcius."""
         info_dict = self._get_info()
         return float(info_dict['Temp(C)'])
