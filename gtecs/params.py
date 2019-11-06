@@ -102,8 +102,6 @@ FILE_LOGGING = config['FILE_LOGGING']
 STDOUT_LOGGING = config['STDOUT_LOGGING']
 REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 
-FAKE_FLI = config['FAKE_FLI']
-
 DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
@@ -218,8 +216,16 @@ SITECH_PORT = config['SITECH_PORT']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
 ############################################################
+# FLI parameters
+FAKE_FLI = config['FAKE_FLI']
+
+############################################################
 # Filter wheel parameters
 FILTER_LIST = config['FILTER_LIST']
+
+############################################################
+# Focuser parameters
+RASA_PORT = config['RASA_PORT']
 
 ############################################################
 # Camera parameters
