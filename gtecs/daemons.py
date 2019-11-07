@@ -55,7 +55,7 @@ class BaseDaemon(ABC):
 
         self.info = None
 
-        self.check_period = 2
+        self.check_period = params.DAEMON_CHECK_PERIOD
         self.check_time = 0
         self.force_check_flag = True
 

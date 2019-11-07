@@ -96,6 +96,7 @@ EMAIL_SERVER = config['EMAIL_SERVER']
 ############################################################
 # Daemon parameters
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
+DAEMON_CHECK_PERIOD = config['DAEMON_CHECK_PERIOD']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
 FILE_LOGGING = config['FILE_LOGGING']
