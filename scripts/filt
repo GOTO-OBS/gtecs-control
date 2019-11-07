@@ -47,12 +47,24 @@ def query(command, args, daemon_id):
         # parse arguments
         if len(args) == 0:
             info_type = 'simple'
-        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V']:
+            force = False
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V', '--verbose']:
             info_type = 'verbose'
+            force = False
+        elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
+            info_type = 'simple'
+            force = True
+        elif (len(args) == 2 and
+              ((args[0] in ['v', 'V', '-v', '-V', '--verbose'] and
+                args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
+               (args[1] in ['v', 'V', '-v', '-V', '--verbose'] and
+                args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
+            info_type = 'verbose'
+            force = True
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[False])
+        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -164,7 +176,7 @@ def print_instructions():
           '  set [uts] filter               set wheel to given filter',
           '  home [uts]                     home given filter',
           '  list                           lists the possible filters',
-          '  info/status [v]                report current status',
+          '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',
