@@ -564,7 +564,7 @@ class CamDaemon(BaseDaemon):
 
         Used to save time when the exposure queue doesn't need the full info.
         """
-        return self.exposing
+        return self.take_exposure_flag or self.exposing
 
 
 if __name__ == "__main__":
