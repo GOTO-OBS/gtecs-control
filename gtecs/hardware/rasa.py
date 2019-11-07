@@ -15,6 +15,9 @@ class FocusLynx(object):
     def __init__(self, port, number=1):
         self.number = int(number)
 
+        self._stored_info = None
+        self._info_delay = 1
+
         self.port = port
         self.serial_baudrate = 115200
         self.serial_timeout = 5
@@ -67,19 +70,24 @@ class FocusLynx(object):
 
     def _get_info(self):
         """Get the focuser status infomation."""
-        info_dict = {}
-        # Use both info commands
-        for command in ['GETSTATUS', 'GETCONFIG']:
-            reply = self._serial_command(command)
-            for s in reply[1:-1]:
-                key, value = s.split('=')
-                info_dict[key.strip()] = value.strip()
+        # Info queries take time, so we don't want to do it too often
+        if self._stored_info is None or time.time() - self._stored_info['ts'] > self._info_delay:
+            info_dict = {}
+            # Use both info commands
+            for command in ['GETSTATUS', 'GETCONFIG']:
+                reply = self._serial_command(command)
+                for s in reply[1:-1]:
+                    key, value = s.split('=')
+                    info_dict[key.strip()] = value.strip()
 
-        # fill properties that shouldn't change
-        self.max_extent = int(info_dict['Max Pos'])
-        self.serial_number = info_dict['Nickname']
+            # fill properties that shouldn't change
+            self.max_extent = int(info_dict['Max Pos'])
+            self.serial_number = info_dict['Nickname']
 
-        return info_dict
+            # save timestamp and store
+            info_dict['ts'] = time.time()
+            self._stored_info = info_dict
+        return self._stored_info
 
     @property
     def connected(self):
