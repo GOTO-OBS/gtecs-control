@@ -13,6 +13,7 @@ from gtecs import params
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.fli import Camera, FilterWheel, Focuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
+from gtecs.hardware.rasa import FocusLynx
 
 
 class UTInterfaceDaemon(BaseDaemon):
@@ -108,7 +109,10 @@ class UTInterfaceDaemon(BaseDaemon):
                 hw_name = 'focuser_{}'.format(ut)
                 try:
                     self.log.debug('Connecting to Focuser {} ({})'.format(ut, target))
-                    focuser = Focuser.locate_device(target)
+                    if 'RASA' in target:
+                        focuser = FocusLynx.locate_device(params.RASA_PORT, target)
+                    else:
+                        focuser = Focuser.locate_device(target)
                     if focuser is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Focuser {}'.format(ut))
                         focuser = FakeFocuser('fake', 'FakeFocuser')

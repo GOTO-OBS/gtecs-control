@@ -45,8 +45,16 @@ def query(command, args, daemon_id):
         print(reply)
 
     elif command in ['info', 'status']:
+        # parse arguments
+        if len(args) == 0:
+            force = False
+        elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
+            force = True
+        else:
+            raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[False])
+        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
         else:
@@ -270,7 +278,7 @@ def print_instructions():
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
           '  update                         force update the conditions',
-          '  info/status [v]                report current status',
+          '  info/status [-f]               report current status [force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',
