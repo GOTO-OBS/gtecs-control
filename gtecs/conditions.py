@@ -483,6 +483,7 @@ def get_rain():
 
     try:
         with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
+            rain_daemon._pyroSerializer = 'serpent'
             info = rain_daemon.last_measurement()
 
         rain_dict['update_time'] = Time(info['date'])
