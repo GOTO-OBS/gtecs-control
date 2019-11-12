@@ -108,6 +108,9 @@ def print_info(info):
             params.WINDGUST_PERIOD / 60))
         # SuperWASP doesn't have a rain sensor
         weather['superwasp']['rain'] = 'NA'
+        # If we're using thr W1m boards then we're ignoring the GOTO rain too
+        if params.USE_W1M_RAINBOARDS:
+            weather['goto']['rain'] = 'NA'
         # SuperWASP wind readings aren't trustworthy
         weather['superwasp']['windspeed'] = 'NA'
         weather['superwasp']['windgust'] = 'NA'

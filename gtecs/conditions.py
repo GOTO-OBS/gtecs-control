@@ -16,6 +16,8 @@ import cv2
 
 import numpy as np
 
+import Pyro4
+
 from . import misc
 from . import params
 from .flags import Status
@@ -470,6 +472,35 @@ def get_ing_internal_weather(weather_source):
     return weather_dict
 
 
+def get_rain():
+    """Get rain readings from the 1m boards."""
+    rain_daemon_uri = 'PYRO:onemetre_rain_daemon@10.2.6.202:9017'
+
+    rain_dict = {'update_time': -999,
+                 'dt': -999,
+                 'rain': -999,
+                 }
+
+    try:
+        with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
+            info = rain_daemon.last_measurement()
+
+        rain_dict['update_time'] = Time(info['date'])
+        dt = Time.now() - rain_dict['update_time']
+        rain_dict['dt'] = int(dt.to('second').value)
+
+        if info['unsafe_boards'] > 0:
+            rain_dict['rain'] = True
+        else:
+            rain_dict['rain'] = False
+
+    except Exception:
+        print('Error reading rain boards')
+        traceback.print_exc()
+
+    return rain_dict
+
+
 def get_weather():
     """Get the current weather conditions."""
     weather = {}
@@ -481,6 +512,17 @@ def get_weather():
             weather[source] = get_local_weather(source)
         except Exception:
             print('Error getting weather from "{}"'.format(source))
+            traceback.print_exc()
+
+    # Get the W1m rain boards reading
+    if params.USE_W1M_RAINBOARDS:
+        try:
+            rain_info = get_rain()
+            # Replace the local rain measurements
+            weather['w1m']['rain'] = rain_info['rain']
+            del weather['goto']['rain']
+        except Exception:
+            print('Error getting weather from "rain"')
             traceback.print_exc()
 
     # Get the weather fron the ING webpage as a backup
