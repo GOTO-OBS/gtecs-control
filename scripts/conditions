@@ -104,17 +104,20 @@ def print_info(info):
                 status = style.rtxt('ERROR')
             print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
 
-        print('WEATHER:')
+        print('WEATHER:         temp   humid   dewpt  wind ({:.0f} min max)   rain'.format(
+            params.WINDGUST_PERIOD / 60))
         # SuperWASP doesn't have a rain sensor
         weather['superwasp']['rain'] = 'NA'
         # SuperWASP wind readings aren't trustworthy
         weather['superwasp']['windspeed'] = 'NA'
+        weather['superwasp']['windgust'] = 'NA'
 
         for source in ['goto', 'w1m', 'superwasp']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
             dewpoint = weather[source]['dew_point']
             windspeed = weather[source]['windspeed']
+            windgust = weather[source]['windgust']
             rain = weather[source]['rain']
             dt = weather[source]['dt']
 
@@ -148,15 +151,26 @@ def print_info(info):
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
             if windspeed == -999:
-                windspeed_str = style.rtxt('  ERR')
+                windspeed_str = style.rtxt(' ERR')
             elif windspeed == 'NA':
-                windspeed_str = '  N/A'
+                windspeed_str = ' N/A'
             elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = style.ytxt('{:>5.1f}'.format(windspeed))
+                windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
                 if (windspeed < params.MAX_WINDSPEED * 0.9):
-                    windspeed_str = style.gtxt('{:>5.1f}'.format(windspeed))
+                    windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
             else:
-                windspeed_str = style.rtxt('{:>5.1f}'.format(windspeed))
+                windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
+
+            if windgust == -999:
+                windgust_str = style.rtxt(' ERR')
+            elif windgust == 'NA':
+                windgust_str = ' N/A'
+            elif (windgust < params.MAX_WINDGUST):
+                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
+                if (windgust < params.MAX_WINDGUST * 0.9):
+                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
+            else:
+                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
 
             if rain == -999:
                 rain_str = style.rtxt('  ERR')
@@ -175,12 +189,13 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}C  {}%  {}C  {} km/h  {}  dt={}'.format(temperature_str,
-                                                                     humidity_str,
-                                                                     dewpoint_str,
-                                                                     windspeed_str,
-                                                                     rain_str,
-                                                                     dt_str)
+            weather_str = '{}C  {}%  {}C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
+                                                                          humidity_str,
+                                                                          dewpoint_str,
+                                                                          windspeed_str,
+                                                                          windgust_str,
+                                                                          rain_str,
+                                                                          dt_str)
             print(weather_str)
 
         # for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
@@ -217,9 +232,8 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}C  {}%                             dt={}'.format(int_temperature_str,
-                                                                              int_humidity_str,
-                                                                              dt_str)
+            weather_str = '{}C  {}%                                   dt={}'.format(
+                int_temperature_str, int_humidity_str, dt_str)
             print(weather_str)
 
         sunalt = info['sunalt']

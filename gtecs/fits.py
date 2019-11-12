@@ -763,6 +763,12 @@ def update_header(header, ut, all_info, log):
         else:
             ext_wind = numpy.around(ext_wind, decimals=1)
 
+        ext_gust = ext_weather['windgust']
+        if ext_gust == -999:
+            ext_gust = 'NA'
+        else:
+            ext_gust = numpy.around(ext_gust, decimals=1)
+
         int_weather = info['weather']['pier']
 
         int_temp = int_weather['int_temperature']
@@ -785,6 +791,7 @@ def update_header(header, ut, all_info, log):
         ext_temp = 'NA'
         ext_hum = 'NA'
         ext_wind = 'NA'
+        ext_gust = 'NA'
         int_temp = 'NA'
         int_hum = 'NA'
 
@@ -794,6 +801,8 @@ def update_header(header, ut, all_info, log):
     header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
     header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
     header["EXT-WIND"] = (ext_wind, "External wind speed, km/h (GOTO mast)")
+    header["EXT-GUST"] = (ext_wind, "External wind gust, km/h (last {:.0f}s, GOTO mast)".format(
+                          params.WINDGUST_PERIOD))
 
     header["INT-TEMP"] = (int_temp, "Internal temperature, Celsius (dome)")
     header["INT-HUM "] = (int_hum, "Internal humidity, percent (dome)")
