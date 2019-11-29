@@ -32,6 +32,7 @@ class ConditionsDaemon(BaseDaemon):
                                 ]
         self.normal_flag_names = ['rain',
                                   'windspeed',
+                                  'windgust',
                                   'humidity',
                                   'temperature',
                                   'dew_point',
@@ -122,6 +123,22 @@ class ConditionsDaemon(BaseDaemon):
                     if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
                         source_info = {key: -999 for key in weather[source]}
                         source_info['changed_time'] = changed_time
+
+                # Store a history of wind so we can get gusts
+                if (self.info and self.info['weather'][source] and
+                        'windhist' in self.info['weather'][source]):
+                    windhist = self.info['weather'][source]['windhist']
+                else:
+                    windhist = []
+                # remove old values
+                windhist = [h for h in windhist if h[0] > self.loop_time - params.WINDGUST_PERIOD]
+                # add new value
+                if 'windspeed' in weather[source]:
+                    windhist.append((self.loop_time, weather[source]['windspeed']))
+                # store history and maximum (windgust)
+                source_info['windhist'] = windhist
+                if len(windhist) > 1:
+                    source_info['windgust'] = max(h[1] for h in windhist)
 
                 temp_info['weather'][source] = source_info
         except Exception:
@@ -236,6 +253,8 @@ class ConditionsDaemon(BaseDaemon):
                          if 'rain' in weather[source]])
         windspeed = np.array([weather[source]['windspeed'] for source in weather
                               if 'windspeed' in weather[source]])
+        windgust = np.array([weather[source]['windgust'] for source in weather
+                             if 'windgust' in weather[source]])
         temp = np.array([weather[source]['temperature'] for source in weather
                          if 'temperature' in weather[source]])
         humidity = np.array([weather[source]['humidity'] for source in weather
@@ -249,6 +268,7 @@ class ConditionsDaemon(BaseDaemon):
 
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
+        windgust = windgust[windgust != -999]
         temp = temp[temp != -999]
         humidity = humidity[humidity != -999]
         dew_point = dew_point[dew_point != -999]
@@ -285,7 +305,7 @@ class ConditionsDaemon(BaseDaemon):
         # ~~~~~~~~~~~~~~
         # Calcualte the flags and if they are valid.
         # At least two of the external sources and one of the internal sources need to be valid,
-        # except for rain and windspeed because we only have two sources (no SuperWASP),
+        # except for rain and wind* because we only have two sources (no SuperWASP),
         # so only need at least one.
         good = {flag: False for flag in self.flag_names}
         valid = {flag: False for flag in self.flag_names}
@@ -304,6 +324,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['windspeed'] = len(windspeed) >= 1
         good_delay['windspeed'] = params.WINDSPEED_GOODDELAY
         bad_delay['windspeed'] = params.WINDSPEED_BADDELAY
+
+        # windgust flag
+        good['windgust'] = np.all(windgust < params.MAX_WINDGUST)
+        valid['windgust'] = len(windgust) >= 1
+        good_delay['windgust'] = params.WINDGUST_GOODDELAY
+        bad_delay['windgust'] = params.WINDGUST_BADDELAY
 
         # temperature flag
         good['temperature'] = (np.all(temp > params.MIN_TEMPERATURE) and
