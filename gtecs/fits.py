@@ -30,6 +30,10 @@ def image_location(run_number, ut):
     # Find the file name, using the run number and UT number
     filename = 'r{:07d}_UT{:d}.fits'.format(run_number, ut)
 
+    # Append .gz to write compressed files
+    if params.COMPRESS_IMAGES:
+        filename += '.gz'
+
     return os.path.join(direc, filename)
 
 
@@ -42,6 +46,10 @@ def glance_location(ut):
 
     # Find the file name, using the run number and UT number
     filename = 'glance_UT{:d}.fits'.format(ut)
+
+    # Append .gz to write compressed files
+    if params.COMPRESS_IMAGES:
+        filename += '.gz'
 
     return os.path.join(direc, filename)
 
