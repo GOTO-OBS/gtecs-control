@@ -65,6 +65,12 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.remove(filename)
     hdulist.writeto(filename)
 
+    # create an empty "done" file
+    # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
+    done_file = filename + '.done'
+    with open(done_file, 'a'):
+        os.utime(done_file, None)
+
     if log:
         if run_number > 0:
             log.info('Exposure r{:07d} saved'.format(run_number))
