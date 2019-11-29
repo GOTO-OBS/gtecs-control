@@ -30,10 +30,6 @@ def image_location(run_number, ut):
     # Find the file name, using the run number and UT number
     filename = 'r{:07d}_UT{:d}.fits'.format(run_number, ut)
 
-    # Append .gz to write compressed files
-    if params.COMPRESS_IMAGES:
-        filename += '.gz'
-
     return os.path.join(direc, filename)
 
 
@@ -47,17 +43,16 @@ def glance_location(ut):
     # Find the file name, using the run number and UT number
     filename = 'glance_UT{:d}.fits'.format(ut)
 
-    # Append .gz to write compressed files
-    if params.COMPRESS_IMAGES:
-        filename += '.gz'
-
     return os.path.join(direc, filename)
 
 
 def write_fits(image, filename, ut, all_info, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
-    hdu = pyfits.PrimaryHDU(image)
+    if params.COMPRESS_IMAGES:
+        hdu = pyfits.CompImageHDU(image)
+    else:
+        hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
     run_number = all_info['cam']['run_number']
