@@ -63,7 +63,10 @@ def write_fits(image, filename, ut, all_info, log=None):
         write_image_log(filename, hdu.header)
 
     # recreate the hdulist, and write to file
-    hdulist = pyfits.HDUList([hdu])
+    if not isinstance(hdu, pyfits.PrimaryHDU):
+        hdulist = pyfits.HDUList([pyfits.PrimaryHDU(), hdu])
+    else:
+        hdulist = pyfits.HDUList([hdu])
     if os.path.exists(filename):
         os.remove(filename)
     hdulist.writeto(filename)
@@ -229,14 +232,14 @@ def get_all_info(cam_info, log):
 def update_header(header, ut, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
-    header.comments["SIMPLE  "] = "Standard FITS"
-    header.comments["BITPIX  "] = "Bits per pixel"
-    header.comments["NAXIS   "] = "Number of dimensions"
-    header.comments["NAXIS1  "] = "Number of columns"
-    header.comments["NAXIS2  "] = "Number of rows"
-    header.comments["EXTEND  "] = "Can contain extensions"
-    header.comments["BSCALE  "] = "Pixel scale factor"
-    header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
+    # header.comments["SIMPLE  "] = "Standard FITS"
+    # header.comments["BITPIX  "] = "Bits per pixel"
+    # header.comments["NAXIS   "] = "Number of dimensions"
+    # header.comments["NAXIS1  "] = "Number of columns"
+    # header.comments["NAXIS2  "] = "Number of rows"
+    # header.comments["EXTEND  "] = "Can contain extensions"
+    # header.comments["BSCALE  "] = "Pixel scale factor"
+    # header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
 
     # Observation info
     cam_info = all_info['cam']
