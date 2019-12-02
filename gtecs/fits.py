@@ -570,7 +570,7 @@ def update_header(header, ut, all_info, log):
 
         if ut not in params.UTS_WITH_FILTERWHEELS:
             filt_serial = 'None'
-            filt_filter = 'None'
+            filt_filter = 'C'
             filt_num = 'NA'
             filt_pos = 'NA'
         else:
