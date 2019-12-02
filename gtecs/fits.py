@@ -49,7 +49,10 @@ def glance_location(ut):
 def write_fits(image, filename, ut, all_info, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
-    hdu = pyfits.PrimaryHDU(image)
+    if params.COMPRESS_IMAGES:
+        hdu = pyfits.CompImageHDU(image)
+    else:
+        hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
     run_number = all_info['cam']['run_number']
@@ -60,10 +63,19 @@ def write_fits(image, filename, ut, all_info, log=None):
         write_image_log(filename, hdu.header)
 
     # recreate the hdulist, and write to file
-    hdulist = pyfits.HDUList([hdu])
+    if not isinstance(hdu, pyfits.PrimaryHDU):
+        hdulist = pyfits.HDUList([pyfits.PrimaryHDU(), hdu])
+    else:
+        hdulist = pyfits.HDUList([hdu])
     if os.path.exists(filename):
         os.remove(filename)
     hdulist.writeto(filename)
+
+    # create an empty "done" file
+    # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
+    done_file = filename + '.done'
+    with open(done_file, 'a'):
+        os.utime(done_file, None)
 
     if log:
         if run_number > 0:
@@ -220,14 +232,14 @@ def get_all_info(cam_info, log):
 def update_header(header, ut, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
-    header.comments["SIMPLE  "] = "Standard FITS"
-    header.comments["BITPIX  "] = "Bits per pixel"
-    header.comments["NAXIS   "] = "Number of dimensions"
-    header.comments["NAXIS1  "] = "Number of columns"
-    header.comments["NAXIS2  "] = "Number of rows"
-    header.comments["EXTEND  "] = "Can contain extensions"
-    header.comments["BSCALE  "] = "Pixel scale factor"
-    header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
+    # header.comments["SIMPLE  "] = "Standard FITS"
+    # header.comments["BITPIX  "] = "Bits per pixel"
+    # header.comments["NAXIS   "] = "Number of dimensions"
+    # header.comments["NAXIS1  "] = "Number of columns"
+    # header.comments["NAXIS2  "] = "Number of rows"
+    # header.comments["EXTEND  "] = "Can contain extensions"
+    # header.comments["BSCALE  "] = "Pixel scale factor"
+    # header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
 
     # Observation info
     cam_info = all_info['cam']

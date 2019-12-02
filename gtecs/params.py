@@ -239,6 +239,7 @@ RASA_PORT = config['RASA_PORT']
 # Camera parameters
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
+COMPRESS_IMAGES = config['COMPRESS_IMAGES']
 
 ############################################################
 # Exposure Queue parameters
