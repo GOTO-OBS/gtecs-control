@@ -103,7 +103,7 @@ class SchedulerDaemon(BaseDaemon):
         return next_pointing
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'scheduler'
     with misc.make_pid_file(daemon_id):
         SchedulerDaemon()._run()

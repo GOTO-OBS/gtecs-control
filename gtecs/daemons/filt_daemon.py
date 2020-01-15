@@ -239,7 +239,7 @@ class FiltDaemon(BaseDaemon):
         return s
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'filt'
     with misc.make_pid_file(daemon_id):
         FiltDaemon()._run()

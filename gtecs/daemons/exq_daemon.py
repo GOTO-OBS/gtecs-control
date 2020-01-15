@@ -423,7 +423,7 @@ class ExqDaemon(BaseDaemon):
         return 'Queue resumed'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'exq'
     with misc.make_pid_file(daemon_id):
         ExqDaemon()._run()

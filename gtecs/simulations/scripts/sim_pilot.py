@@ -55,7 +55,7 @@ def run(start_time, duration=24, sites='N', telescopes=1):
         print(pointing_id)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     def date_validator(date):
         """Validate dates."""
         try:

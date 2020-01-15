@@ -202,7 +202,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, meridi
         print('  observed {: >3.0f} tiles {:.0f} times'.format(sum(obs_count == i), i))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     def date_validator(date):
         """Validate dates."""
         try:

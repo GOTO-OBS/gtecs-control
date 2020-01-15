@@ -257,7 +257,7 @@ class SentinelDaemon(BaseDaemon):
         return 'Alert listener resumed'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'sentinel'
     with misc.make_pid_file(daemon_id):
         SentinelDaemon()._run()

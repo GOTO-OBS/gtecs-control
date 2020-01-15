@@ -284,7 +284,7 @@ class FocDaemon(BaseDaemon):
         return s
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'foc'
     with misc.make_pid_file(daemon_id):
         FocDaemon()._run()

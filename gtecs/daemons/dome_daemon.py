@@ -848,7 +848,7 @@ class DomeDaemon(BaseDaemon):
             return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'dome'
     with misc.make_pid_file(daemon_id):
         DomeDaemon()._run()

@@ -42,5 +42,5 @@ def run():
     wait_for_dome(target_position='closed', timeout=120)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

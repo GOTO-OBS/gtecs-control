@@ -160,7 +160,7 @@ def run(width, step, make_plots):
     print("Done")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('width', nargs='?', default=2000)

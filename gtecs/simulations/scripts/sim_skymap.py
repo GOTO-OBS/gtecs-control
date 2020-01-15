@@ -201,7 +201,7 @@ def run(fits_path, system='GOTO-8', duration=24, sites='N', telescopes=1):
               )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = ArgumentParser(description='Simulate observations of a skymap using the fake pilot')
     parser.add_argument('path', type=str,
                         help='path to the FITS skymap file',

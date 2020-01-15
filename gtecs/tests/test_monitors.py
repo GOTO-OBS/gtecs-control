@@ -35,7 +35,7 @@ def check_hardware(hardware):
         time.sleep(sleep_time)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # hardware to keep track of and fix if necessary
     hardware = {'dome': monitors.DomeMonitor(),
                 'mnt': monitors.MntMonitor(),

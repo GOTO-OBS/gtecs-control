@@ -42,7 +42,7 @@ def run(nexp=5):
     print('Biases and darks done')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if len(sys.argv) > 1:
         nexp = int(sys.argv[1])
     else:

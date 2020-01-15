@@ -140,7 +140,7 @@ def run(start_date, system='GOTO-8', duration=1, sites='N', telescopes=1, verbos
     print('  total observations: {}'.format(len(observed_tiles)))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     def date_validator(date):
         """Validate dates."""
         try:

@@ -81,7 +81,7 @@ def run():
     print("Done")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # if len(sys.argv) == 1:
     #     n_alt = 4
     #     n_az = 4

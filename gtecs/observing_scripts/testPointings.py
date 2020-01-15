@@ -70,7 +70,7 @@ def run(n_alt, n_az):
     print('Done')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if len(sys.argv) == 1:
         n_alt = 2
         n_az = 2

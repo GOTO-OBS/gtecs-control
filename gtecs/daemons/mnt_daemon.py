@@ -604,7 +604,7 @@ class MntDaemon(BaseDaemon):
         return 'New offset step set'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'mnt'
     with misc.make_pid_file(daemon_id):
         MntDaemon()._run()

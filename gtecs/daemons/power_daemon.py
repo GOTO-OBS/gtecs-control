@@ -409,7 +409,7 @@ class PowerDaemon(BaseDaemon):
         return 'Rebooting power'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'power'
     with misc.make_pid_file(daemon_id):
         PowerDaemon()._run()

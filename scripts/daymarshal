@@ -259,7 +259,7 @@ def run(test=False):
     log.info('Done')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Disable day marshal in engineering mode
     status = Status()
     if status.mode == 'engineering':

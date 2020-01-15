@@ -481,7 +481,7 @@ class ConditionsDaemon(BaseDaemon):
         return 'Updating conditions'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'conditions'
     with misc.make_pid_file(daemon_id):
         ConditionsDaemon()._run()
