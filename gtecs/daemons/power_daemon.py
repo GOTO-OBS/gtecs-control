@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control APC PDUs and UPSs."""
 
 import threading

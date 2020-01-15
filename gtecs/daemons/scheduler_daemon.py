@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to allow remote computation of next observation."""
 
 import threading

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A script to make it easier for users to run observation scripts."""
 
 import os

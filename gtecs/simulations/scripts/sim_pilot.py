@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A script simulate a night's run with the pilot."""
 
 import warnings

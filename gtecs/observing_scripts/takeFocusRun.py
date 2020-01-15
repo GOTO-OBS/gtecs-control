@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to take a series of images running through focus.
 
 takeFocusRun [width=2000] [step=200] [plot (y/n)]

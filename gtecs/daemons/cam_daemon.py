@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control cameras via the UT interface daemons."""
 
 import os

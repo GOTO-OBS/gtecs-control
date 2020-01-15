@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to listen for alerts and insert them into the database."""
 
 import os

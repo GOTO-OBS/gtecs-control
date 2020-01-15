@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to take images over the sky, avoiding the Moon.
 
 moonTest

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to take images at a range of pointings.
 
 testPointings [n_alt] [n_az]

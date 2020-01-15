@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Interface to access hardware connected to the UTs (cameras, focusers, filter wheels)."""
 
 import argparse

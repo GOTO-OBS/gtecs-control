@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """G-TeCS core control system parameters."""
 
 import os

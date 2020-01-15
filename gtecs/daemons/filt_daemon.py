@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control filter wheels via the UT interface daemons."""
 
 import threading

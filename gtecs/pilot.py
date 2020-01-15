@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Master control program for the observatory."""
 
 import asyncio

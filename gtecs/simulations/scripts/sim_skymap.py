@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Simulate a night observing a given skymap, treating it as an LVC binary-black hole.
 
 Where possible, this script uses the real G-TeCS scheduling, ObsDB database,

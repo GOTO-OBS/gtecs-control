@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Test code: goes through a night and returns the current best pointing.
 
 NOTE pointings are never completed so are never removed from the queue folder.

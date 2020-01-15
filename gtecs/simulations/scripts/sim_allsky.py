@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Simulate observing the all-sky survey.
 
 Where possible, this script uses the real G-TeCS scheduling, ObsDB database,

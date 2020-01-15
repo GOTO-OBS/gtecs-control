@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to take flat frames in the morning or evening.
 
 takeFlats [EVE|MORN] [-l]

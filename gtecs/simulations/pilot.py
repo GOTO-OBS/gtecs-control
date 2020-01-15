@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """A fake pilot to test the scheduler."""
 
 import os

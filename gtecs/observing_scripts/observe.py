@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to control observing a single pointing.
 
 observe [db_id]

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Find visability statistics for skymaps, without running through the whole simulation."""
 
 import os
