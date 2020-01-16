@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Script to run start of night tasks.
 
-startup
-
 These are hardware tasks to do BEFORE the dome opens:
     * power on the hardware
     * make sure the daemons are running

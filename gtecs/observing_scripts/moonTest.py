@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Script to take images over the sky, avoiding the Moon.
-
-moonTest
-"""
+"""Script to take images over the sky, avoiding the Moon."""
 
 import sys
 

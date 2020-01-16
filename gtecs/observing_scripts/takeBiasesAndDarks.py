@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Script to take bias and dark frames.
+"""Script to take bias and dark frames."""
 
-takeBiasesAndDarks [nExp]
-"""
-
-import sys
+from argparse import ArgumentParser
 
 from gtecs.misc import execute_command
 from gtecs.observing import prepare_for_images, wait_for_exposure_queue
@@ -43,9 +40,9 @@ def run(nexp=5):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        nexp = int(sys.argv[1])
-    else:
-        nexp = 5
+    parser = ArgumentParser(description='Take bias and dark frames.')
+    parser.add_argument('nexp', type=int, nargs='?', default=5,
+                        help='number of frames to take (default=5)')
+    args = parser.parse_args()
 
-    run(nexp)
+    run(args.nexp)

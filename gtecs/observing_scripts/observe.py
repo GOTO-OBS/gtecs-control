@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Script to control observing a single pointing.
-
-observe [db_id]
-"""
+"""Script to control observing a single pointing."""
 
 import sys
+from argparse import ArgumentParser
 
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
 from gtecs.observing import (prepare_for_images, slew_to_radec,
@@ -121,5 +119,8 @@ def run(db_id):
 
 
 if __name__ == '__main__':
-    db_id = int(sys.argv[1])
-    run(db_id)
+    parser = ArgumentParser(description='Observe the given database pointing.')
+    parser.add_argument('db_id', type=int, help='ObsDB pointing ID')
+    args = parser.parse_args()
+
+    run(args.db_id)

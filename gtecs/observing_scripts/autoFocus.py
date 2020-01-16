@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Script to autofocus the telescopes.
 
-autoFocus
-
 Image quality is measured via the half-flux-diameter (HFD).
 
 Half flux diameter vs focus position should be linear relationship,

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Script to run end of night tasks.
 
-shutdown
-
 This script should perform the following simple tasks:
     * empty the camera queues
     * abort any current exposures

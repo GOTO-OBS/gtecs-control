@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Script to take Landolt standard star observations.
 
-takeStandards
-
 with a range of colours and airmasses.
 """
 
@@ -22,8 +20,8 @@ def run():
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
     # use set so we don't duplicate observations
-    stars = set([standard_star(Time.now(), airmass, colour)
-                 for airmass, colour in zip(airmasses, colours)])
+    stars = {standard_star(Time.now(), airmass, colour)
+             for airmass, colour in zip(airmasses, colours)}
     print('Starting standard star routine')
     for star in stars:
         coordinate = star.coord_now()
@@ -40,7 +38,7 @@ def run():
         # take 20 second exposures in all filters
         take_image_set(20, params.FILTER_LIST, name, imgtype='STD')
 
-    print("Done")
+    print('Done')
 
 
 if __name__ == '__main__':
