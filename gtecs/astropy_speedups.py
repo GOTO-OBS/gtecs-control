@@ -15,7 +15,6 @@ from astropy.time import Time
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy import _erfa as erfa
-from astropy.extern import six
 from astropy.coordinates.baseframe import frame_transform_graph
 from astropy.coordinates.transformations import FunctionTransform
 from astropy.coordinates.representation import (SphericalRepresentation, CartesianRepresentation,
