@@ -7,6 +7,7 @@ already focused (see autoFocus script)
 
 import os
 import sys
+import traceback
 from argparse import ArgumentParser, ArgumentTypeError
 
 from astropy.time import Time
@@ -59,6 +60,7 @@ def plot_results(df, finish_time):
 
         except Exception:
             print('Error plotting UT{}'.format(ut))
+            print(traceback.format_exc())
 
     # Save the plot
     path = os.path.join(params.FILE_PATH, 'focus_data')
