@@ -133,8 +133,8 @@ def measure_image_hfd(data, filter_width=3, threshold=5, **kwargs):
         raise ValueError('Not enough objects ({}) found for HFD measurement'.format(hfd.size))
     else:
         print('Found {} objects with measurable HFDs'.format(hfd.size))
-        mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfd, sigma=2.5, iters=10)
-        mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhm, sigma=2.5, iters=10)
+        mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfd, sigma=2.5, maxiters=10)
+        mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhm, sigma=2.5, maxiters=10)
         return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
