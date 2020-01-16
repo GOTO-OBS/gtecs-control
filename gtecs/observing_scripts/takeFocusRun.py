@@ -186,7 +186,7 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     print('~~~~~~')
     print('Restoring original focus...')
     set_new_focus(orig_focus)
-    wait_for_focuser(orig_focus, timeout=30)
+    wait_for_focuser(orig_focus, timeout=120)
     print('Restored focus: ', get_current_focus())
 
     # Write out data
