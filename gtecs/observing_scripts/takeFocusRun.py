@@ -61,7 +61,7 @@ def plot_results(df, finish_time):
     # Save the plot
     path = os.path.join(params.FILE_PATH, 'focus_data')
     ofname = 'focusplot_{}.png'.format(finish_time)
-    plt.savefig()
+    plt.savefig(ofname)
     print('Saved to {}'.format(os.path.join(path, ofname)))
 
     plt.show()
