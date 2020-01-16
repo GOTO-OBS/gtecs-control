@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 
-def plot_results(df):
+def plot_results(df, finish_time):
     """Plot the results of the focus run."""
     fig, axes = plt.subplots(nrows=len(params.UTS_WITH_FOCUSERS), ncols=2)
     kwargs = {'color': 'k', 'ecolor': 'k', 'fmt': '.'}
@@ -54,6 +54,13 @@ def plot_results(df):
         ax_hfd.set_xlabel('Pos')
         ax_hfd.set_ylabel('HFD')
         ax_fwhm.set_ylabel('FWHM')
+
+    # Save the plot
+    path = os.path.join(params.FILE_PATH, 'focus_data')
+    ofname = 'focusplot_{}.png'.format(finish_time)
+    plt.savefig()
+    print('Saved to {}'.format(os.path.join(path, ofname)))
+
     plt.show()
 
 
@@ -173,6 +180,7 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         print('~~~~~~')
 
     print('Exposures finished')
+    finish_time = Time.now().isot
 
     # Restore the origional focus
     print('~~~~~~')
@@ -186,7 +194,7 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     print('Writing out data to file...')
     path = os.path.join(params.FILE_PATH, 'focus_data')
     df = pd.concat(series_list)
-    ofname = 'focusdata_{}.csv'.format(Time.now().isot)
+    ofname = 'focusdata_{}.csv'.format(finish_time)
     df.to_csv(os.path.join(path, ofname))
     print('Saved to {}'.format(os.path.join(path, ofname)))
 
@@ -194,7 +202,7 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df)
+        plot_results(df, finish_time)
 
     print('Done')
 
