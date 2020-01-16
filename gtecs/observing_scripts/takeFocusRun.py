@@ -28,33 +28,35 @@ import pandas as pd
 def plot_results(df, finish_time):
     """Plot the results of the focus run."""
     fig, axes = plt.subplots(nrows=len(params.UTS_WITH_FOCUSERS), ncols=2)
-    kwargs = {'color': 'k', 'ecolor': 'k', 'fmt': '.'}
 
     for i, ut in enumerate(params.UTS_WITH_FOCUSERS):
         try:
+            ut_data = df.loc[ut]
+
+            # HFD plot
             ax_hfd = axes[i, 0]
+            ax_hfd.errorbar(ut_data['pos'], ut_data['median'], yerr=ut_data['std'],
+                            color='k', ecolor='k', fmt='.')
+            ax_hfd.set_xlabel('Pos')
+            ax_hfd.set_ylabel('HFD')
+
+            # FWHM plot
             ax_fwhm = axes[i, 1]
-            df_ut = df.loc[ut]
-
-            x = df_ut['pos']
-            yfw = df_ut['fwhm']
-            yhfd = df_ut['median']
-
-            sn_mask = yfw / df_ut['fwhm_std'] > 2
-            e = df_ut['fwhm_std'][sn_mask]
-            pars = np.polyfit(x[sn_mask], yfw[sn_mask], w=1 / e, deg=2)
+            sn_mask = ut_data['fwhm'] / ut_data['fwhm_std'] > 2
+            e = ut_data['fwhm_std'][sn_mask]
+            pars = np.polyfit(ut_data['pos'][sn_mask], ut_data['fwhm'][sn_mask], w=1 / e, deg=2)
             best_focus = -pars[1] / 2 / pars[0]
             print('UT{} best focus @ {}'.format(ut, int(best_focus)))
             poly = np.poly1d(pars)
 
-            ax_hfd.errorbar(x, yhfd, yerr=df_ut['std'], **kwargs)
-            ax_fwhm.errorbar(x, yfw, yerr=df_ut['fwhm_std'], **kwargs)
+            ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
+                             color='k', ecolor='k', fmt='.')
+            ax_fwhm.plot(ut_data['pos'], poly(ut_data['pos']), 'r-')
             ax_fwhm.axvline(best_focus, color='r', ls='--')
-            ax_fwhm.plot(x, poly(x), 'r-')
+
             ax_fwhm.set_xlabel('Pos')
-            ax_hfd.set_xlabel('Pos')
-            ax_hfd.set_ylabel('HFD')
             ax_fwhm.set_ylabel('FWHM')
+
         except Exception:
             print('Error plotting UT{}'.format(ut))
 
