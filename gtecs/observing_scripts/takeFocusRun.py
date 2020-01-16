@@ -43,16 +43,17 @@ def plot_results(df, finish_time):
 
             # FWHM plot
             ax_fwhm = axes[i, 1]
+            ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
+                             color='k', ecolor='k', fmt='.')
+
             sn_mask = ut_data['fwhm'] / ut_data['fwhm_std'] > 2
             e = ut_data['fwhm_std'][sn_mask]
             pars = np.polyfit(ut_data['pos'][sn_mask], ut_data['fwhm'][sn_mask], w=1 / e, deg=2)
+            poly = np.poly1d(pars)
+            ax_fwhm.plot(ut_data['pos'], poly(ut_data['pos']), 'r-')
+
             best_focus = -pars[1] / 2 / pars[0]
             print('UT{} best focus @ {}'.format(ut, int(best_focus)))
-            poly = np.poly1d(pars)
-
-            ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
-                             color='k', ecolor='k', fmt='.')
-            ax_fwhm.plot(ut_data['pos'], poly(ut_data['pos']), 'r-')
             ax_fwhm.axvline(best_focus, color='r', ls='--')
 
             ax_fwhm.set_xlabel('Pos')
