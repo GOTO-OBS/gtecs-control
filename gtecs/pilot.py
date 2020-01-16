@@ -749,7 +749,7 @@ class Pilot(object):
                 self.log.debug('starting pointing {}'.format(self.new_id))
 
                 script = os.path.join(SCRIPT_PATH, 'observe.py')
-                args = [str(self.new_id), str(int(self.new_mintime))]
+                args = [str(self.new_id)]
                 cmd = [script, *args]
                 asyncio.ensure_future(self.start_script('OBS', SimpleProtocol, cmd))
 

@@ -91,7 +91,7 @@ def calculate_positions(fraction, steps):
     return all_positions
 
 
-def run(fraction, steps, num_exp, exptime, filt, skip_slew, display_plot, skip_confirm):
+def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -99,7 +99,7 @@ def run(fraction, steps, num_exp, exptime, filt, skip_slew, display_plot, skip_c
     positions = calculate_positions(fraction, steps)
 
     # Confirm
-    if not skip_confirm:
+    if not no_confirm:
         go = ''
         while go not in ['y', 'n']:
             go = input('Continue? [y/n]: ')
@@ -113,7 +113,7 @@ def run(fraction, steps, num_exp, exptime, filt, skip_slew, display_plot, skip_c
     print('Starting focus routine')
 
     # Slew to a focus star
-    if not skip_slew:
+    if not no_slew:
         star = focus_star(Time.now())
         print('~~~~~~')
         print('Slewing to target...', star)
@@ -191,7 +191,7 @@ def run(fraction, steps, num_exp, exptime, filt, skip_slew, display_plot, skip_c
     print('Saved to {}'.format(os.path.join(path, ofname)))
 
     # Make plots
-    if display_plot:
+    if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
         plot_results(df)
@@ -229,13 +229,13 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
-    parser.add_argument('--skip-slew', action='store_true',
-                        help=('do not slew to a focus star, and stay at the current position')
+    parser.add_argument('--no-slew', action='store_true',
+                        help=('do not slew to a focus star (stay at current position)')
                         )
-    parser.add_argument('-p', '--plot', action='store_true',
-                        help=('display plot of positions')
+    parser.add_argument('--no-plot', action='store_true',
+                        help=('do not display plot of results')
                         )
-    parser.add_argument('-y', '--yes', action='store_true',
+    parser.add_argument('--no-confirm', action='store_true',
                         help=('skip confirmation (needed if running automatically)')
                         )
     args = parser.parse_args()
@@ -245,8 +245,8 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
-    skip_slew = args.skip_slew
-    display_plot = args.plot
-    skip_confirm = args.yes
+    no_slew = args.no_slew
+    no_plot = args.no_plot
+    no_confirm = args.no_confirm
 
-    run(fraction, steps, num_exp, exptime, filt, skip_slew, display_plot, skip_confirm)
+    run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm)
