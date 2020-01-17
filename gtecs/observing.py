@@ -179,6 +179,26 @@ def wait_for_focuser(target_values, timeout=None):
         raise TimeoutError('Focuser timed out')
 
 
+def get_focuser_temp_compensation():
+    """Find the offset in focuser position based on temperature change since it was last set."""
+    foc_info = daemon_info('foc')
+
+    # Find the change in temperature since the last move
+    curr_temp = foc_info['dome_temp']
+    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
+    deltas = {ut: curr_temp - prev_temp[ut] for ut in params.UTS_WITH_FOCUSERS}
+
+    # Find the gradients
+    gradients = {ut: params.FOCUS_TEMP_GRADIENT[ut]
+                 if ut in params.FOCUS_TEMP_GRADIENT else 0
+                 for ut in params.UTS_WITH_FOCUSERS}
+
+    # Calculate the focus offset
+    offsets = {ut: deltas[ut] * gradients[ut] for ut in params.UTS_WITH_FOCUSERS}
+
+    return offsets
+
+
 def get_current_mount_position():
     """Find the current mount position.
 
