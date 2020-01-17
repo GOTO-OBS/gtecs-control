@@ -102,7 +102,7 @@ class BaseMonitor(ABC):
 
         self.successful_check_time = 0
 
-        self.pending_errors = dict()
+        self.pending_errors = {}
 
         self.errors = set()
         self.bad_dependencies = set()
@@ -193,7 +193,7 @@ class BaseMonitor(ABC):
                 if not critical:
                     self.errors.add(error)
                 else:
-                    self.errors = set([error])
+                    self.errors = set(error)
                 return
 
             if error not in self.pending_errors:
@@ -209,7 +209,7 @@ class BaseMonitor(ABC):
                     if not critical:
                         self.errors.add(error)
                     else:
-                        self.errors = set([error])
+                        self.errors = set(error)
                     return
 
     def clear_error(self, error):
@@ -937,7 +937,7 @@ class CamMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS_WITH_CAMERAS]):
+        if info is None or any(info[ut] is None for ut in params.UTS_WITH_CAMERAS):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
@@ -1038,11 +1038,11 @@ class FiltMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FILTERWHEELS]):
+        if info is None or any(info[ut] is None for ut in params.UTS_WITH_FILTERWHEELS):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_homed = all([info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS])
+        all_homed = all(info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
         if not all_homed:
             hardware_status = STATUS_FILT_UNHOMED
         else:
@@ -1139,7 +1139,7 @@ class FocMonitor(BaseMonitor):
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any([info[ut] is None for ut in params.UTS_WITH_FOCUSERS]):
+        if info is None or any(info[ut] is None for ut in params.UTS_WITH_FOCUSERS):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
