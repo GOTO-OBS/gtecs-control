@@ -66,14 +66,6 @@ class FocDaemon(BaseDaemon):
             # move the focuser
             if self.move_focuser_flag:
                 try:
-                    # get the dome internal temperature
-                    try:
-                        int_temp = get_roomalert('dome')['int_temperature']
-                    except Exception:
-                        self.log.error('failed to get internal temperature')
-                        self.log.debug('', exc_info=True)
-                        int_temp = None
-
                     for ut in self.active_uts:
                         interface_id = params.UT_INTERFACES[ut]
                         move_steps = self.move_steps[ut]
@@ -89,7 +81,7 @@ class FocDaemon(BaseDaemon):
                                     self.log.info(c)
 
                                 # store the temperature at the time it moved
-                                self.last_move_temp[ut] = int_temp
+                                self.last_move_temp[ut] = self.info['dome_temp']
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -173,6 +165,15 @@ class FocDaemon(BaseDaemon):
                 self.log.error('Failed to get focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
                 temp_info[ut] = None
+
+        # get the dome internal temperature
+        try:
+            dome_temp = get_roomalert('dome')['int_temperature']
+            temp_info['dome_temp'] = dome_temp
+        except Exception:
+            self.log.error('Failed to get dome internal temperature')
+            self.log.debug('', exc_info=True)
+            temp_info['dome_temp'] = None
 
         # Write debug log line
         try:
