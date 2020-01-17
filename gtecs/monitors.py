@@ -549,8 +549,11 @@ class DomeMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['dome restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
@@ -753,8 +756,11 @@ class MntMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['mnt restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         elif ERROR_MNT_CONNECTION in self.errors:
@@ -915,8 +921,11 @@ class PowerMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['power restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         else:
@@ -1006,8 +1015,11 @@ class CamMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['cam restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         elif ERROR_CAM_WARM in self.errors:
@@ -1107,8 +1119,11 @@ class FiltMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['filt restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         elif ERROR_FILT_UNHOMED in self.errors:
@@ -1200,8 +1215,11 @@ class FocMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['foc restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         else:
@@ -1310,8 +1328,11 @@ class ExqMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['exq restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         else:
@@ -1386,8 +1407,11 @@ class ConditionsMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['conditions restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         elif ERROR_CONDITIONS_INTERNAL in self.errors:
@@ -1465,8 +1489,11 @@ class SchedulerMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['scheduler restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         else:
@@ -1530,8 +1557,11 @@ class SentinelMonitor(BaseMonitor):
             return ERROR_PING + ERROR_INFO, recovery_procedure
 
         elif ERROR_STATUS in self.errors:
-            # PROBLEM: Daemon is in an unknown state.
-            # OUT OF SOLUTIONS: We don't know what to do.
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['sentinel restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
 
         else:
