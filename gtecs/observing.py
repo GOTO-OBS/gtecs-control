@@ -188,6 +188,11 @@ def get_focuser_temp_compensation():
     prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
     deltas = {ut: curr_temp - prev_temp[ut] for ut in params.UTS_WITH_FOCUSERS}
 
+    # Check if the change is greater than the minimum to refocus
+    deltas = {ut: deltas[ut]
+              if abs(deltas[ut]) > params.FOCUS_TEMP_MINCHANGE else 0
+              for ut in deltas}
+
     # Find the gradients
     gradients = {ut: params.FOCUS_TEMP_GRADIENT[ut]
                  if ut in params.FOCUS_TEMP_GRADIENT else 0

@@ -234,6 +234,7 @@ FILTER_LIST = config['FILTER_LIST']
 ############################################################
 # Focuser parameters
 RASA_PORT = config['RASA_PORT']
+FOCUS_TEMP_MINCHANGE = config['FOCUS_TEMP_MINCHANGE']
 # cant add these to validation without adding unwanted defaults
 # enforce type here instead.
 if 'FOCUS_TEMP_GRADIENT' in config:
