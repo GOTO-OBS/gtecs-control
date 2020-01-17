@@ -9,6 +9,7 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
+from gtecs.conditions import get_roomalert
 from gtecs.daemons import BaseDaemon, daemon_proxy
 
 
@@ -30,6 +31,7 @@ class FocDaemon(BaseDaemon):
         self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
         self.move_steps = {ut: 0 for ut in self.uts}
+        self.last_move_temp = {ut: None for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -64,6 +66,14 @@ class FocDaemon(BaseDaemon):
             # move the focuser
             if self.move_focuser_flag:
                 try:
+                    # get the dome internal temperature
+                    try:
+                        int_temp = get_roomalert('dome')['int_temperature']
+                    except Exception:
+                        self.log.error('failed to get internal temperature')
+                        self.log.debug('', exc_info=True)
+                        int_temp = None
+
                     for ut in self.active_uts:
                         interface_id = params.UT_INTERFACES[ut]
                         move_steps = self.move_steps[ut]
@@ -77,6 +87,10 @@ class FocDaemon(BaseDaemon):
                                 c = interface.step_focuser_motor(move_steps, ut)
                                 if c:
                                     self.log.info(c)
+
+                                # store the temperature at the time it moved
+                                self.last_move_temp[ut] = int_temp
+
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
@@ -151,6 +165,8 @@ class FocDaemon(BaseDaemon):
                         interface_info['remaining'] = interface_info['current_pos']
                 else:
                     interface_info['status'] = 'Ready'
+
+                interface_info['last_move_temp'] = self.last_move_temp[ut]
 
                 temp_info[ut] = interface_info
             except Exception:
