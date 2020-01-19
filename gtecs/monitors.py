@@ -190,10 +190,11 @@ class BaseMonitor(ABC):
             if not delay:
                 # Sometimes we don't want to wait
                 self.log.debug('Adding error "{}"'.format(error))
-                if not critical:
-                    self.errors.add(error)
-                else:
-                    self.errors = set(error)
+                # If critical clear all other errors
+                if critical:
+                    self.errors = set()
+                # Add the error to the set
+                self.errors.add(error)
                 return
 
             if error not in self.pending_errors:
@@ -205,11 +206,13 @@ class BaseMonitor(ABC):
                 self.log.debug('"{}" timer: {:.0f}/{:.0f}s'.format(error, error_time, delay))
                 if error_time > delay:
                     self.log.debug('Adding error "{}" after {:.0f}s'.format(error, delay))
+                    # Remove the error from the pending list
                     del self.pending_errors[error]
-                    if not critical:
-                        self.errors.add(error)
-                    else:
-                        self.errors = set(error)
+                    # If critical clear all other errors
+                    if critical:
+                        self.errors = set()
+                    # Add the error to the set
+                    self.errors.add(error)
                     return
 
     def clear_error(self, error):
