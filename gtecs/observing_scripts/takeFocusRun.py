@@ -157,31 +157,31 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         fwhms = None
         for i in range(num_exp):
             print('Taking exposure {}/{}...'.format(i + 1, num_exp))
-            image = get_analysis_image(exptime, filt,
-                                       'Focus run', 'FOCUS', glance=False)
-            data = get_hfds(image, xslice=slice(3300, 5100), yslice=slice(1400, 4100),
-                            filter_width=4, threshold=15)
+            image_data = get_analysis_image(exptime, filt,
+                                            'Focus run', 'FOCUS', glance=False)
+            foc_data = get_hfds(image_data, xslice=slice(3300, 5100), yslice=slice(1400, 4100),
+                                filter_width=4, threshold=15)
             if hfds is not None:
-                hfds = hfds.append(data['median'])
-                fwhms = fwhms.append(data['fwhm'])
+                hfds = hfds.append(foc_data['median'])
+                fwhms = fwhms.append(foc_data['fwhm'])
             else:
-                hfds = data['median']
-                fwhms = data['fwhm']
-            print('HFDs:', data['median'].to_dict())
+                hfds = foc_data['median']
+                fwhms = foc_data['fwhm']
+            print('HFDs:', foc_data['median'].to_dict())
             print('~~~~~~')
 
         # Take the smallest value of the set
         hfds = hfds.groupby(level=0)
-        best_hfds = hfds.min()
         fwhms = fwhms.groupby(level=0)
-        best_fwhms = fwhms.min()
-        print('Best HFDs:', best_hfds.to_dict())
-        data = {'median': best_hfds,
-                'std': best_hfds.std(),
-                'fwhm': best_fwhms,
-                'fwhm_std': best_fwhms.std(),
+        data = {'median': hfds.min(),
+                'std': hfds.std(),
+                'fwhm': fwhms.min(),
+                'fwhm_std': fwhms.std(),
                 'pos': pd.Series(get_current_focus()),
                 }
+        print('Best HFDs:', data['median'].to_dict())
+
+        # Save in series list
         series_list.append(pd.DataFrame(data))
 
         print('~~~~~~')
