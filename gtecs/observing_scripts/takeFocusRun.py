@@ -28,23 +28,27 @@ import pandas as pd
 
 def plot_results(df, finish_time):
     """Plot the results of the focus run."""
-    fig, axes = plt.subplots(nrows=len(params.UTS_WITH_FOCUSERS), ncols=2)
+    uts = list(set(list(df.index)))
 
-    for i, ut in enumerate(params.UTS_WITH_FOCUSERS):
+    fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 10), dpi=100)
+    plt.tight_layout()
+
+    for i, ut in enumerate(uts):
         try:
             ut_data = df.loc[ut]
 
             # HFD plot
             ax_hfd = axes[i, 0]
             ax_hfd.errorbar(ut_data['pos'], ut_data['median'], yerr=ut_data['std'],
-                            color='k', ecolor='k', fmt='.')
-            ax_hfd.set_xlabel('Pos')
-            ax_hfd.set_ylabel('HFD')
+                            color='k', ecolor='k', fmt='.', ms=2)
+            if ut == 1:
+                ax_hfd.set_title('HFD')
+            ax_hfd.set_ylabel('UT{}'.format(ut))
 
             # FWHM plot
             ax_fwhm = axes[i, 1]
             ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
-                             color='k', ecolor='k', fmt='.')
+                             color='k', ecolor='k', fmt='.', ms=2)
 
             sn_mask = ut_data['fwhm'] / ut_data['fwhm_std'] > 2
             e = ut_data['fwhm_std'][sn_mask]
@@ -56,8 +60,8 @@ def plot_results(df, finish_time):
             print('UT{} best focus @ {}'.format(ut, int(best_focus)))
             ax_fwhm.axvline(best_focus, color='r', ls='--')
 
-            ax_fwhm.set_xlabel('Pos')
-            ax_fwhm.set_ylabel('FWHM')
+            if ut == 1:
+                ax_fwhm.set_title('FWHM')
 
         except Exception:
             print('Error plotting UT{}'.format(ut))
