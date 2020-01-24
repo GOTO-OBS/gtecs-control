@@ -206,13 +206,13 @@ def get_focuser_temp_compensation():
               if abs(deltas[ut]) > params.FOCUS_TEMP_MINCHANGE else 0
               for ut in deltas}
 
-    # Find the gradients
+    # Find the gradients (in steps/degree C)
     gradients = {ut: params.FOCUS_TEMP_GRADIENT[ut]
                  if ut in params.FOCUS_TEMP_GRADIENT else 0
                  for ut in params.UTS_WITH_FOCUSERS}
 
     # Calculate the focus offset
-    offsets = {ut: deltas[ut] * gradients[ut] for ut in params.UTS_WITH_FOCUSERS}
+    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
 
     return offsets
 
