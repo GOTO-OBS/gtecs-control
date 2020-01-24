@@ -214,6 +214,9 @@ def get_focuser_temp_compensation():
     # Calculate the focus offset
     offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
 
+    # Ignore any UTs which do not need changing
+    offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
+
     return offsets
 
 
