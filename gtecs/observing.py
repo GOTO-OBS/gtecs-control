@@ -87,24 +87,37 @@ def prepare_for_images():
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are at operating temperature
+    - apply temperature compensation to the focusers
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
+        print('Clearing exposure queue')
         execute_command('exq clear')
         while not exposure_queue_is_empty():
             time.sleep(0.5)
 
     # Home the filter wheels
     if not filters_are_homed():
+        print('Homing filters')
         execute_command('filt home')
         while not filters_are_homed():
             time.sleep(0.5)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
+        print('Cooling cameras')
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
+
+    # Apply any temperature compensation to the focusers
+    positions = get_current_focus()
+    offsets = get_focuser_temp_compensation()
+    if len(offsets) > 0:
+        print('Applying temperature compensation to focusers')
+        move_focusers(offsets)
+        new_positions = {ut: positions[ut] + offsets[ut] for ut in offsets}
+        wait_for_focuser(new_positions, timeout=None)
 
 
 def set_new_focus(values):
@@ -123,8 +136,28 @@ def set_new_focus(values):
         # same value for all
         values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
 
-    for ut in params.UTS_WITH_FOCUSERS:
+    for ut in values:
         execute_command('foc set {} {}'.format(ut, int(values[ut])))
+
+
+def move_focusers(values):
+    """Move each focuser by the given number of steps.
+
+    Parameters
+    ----------
+    values : float, dict
+        a dictionary of unit telescope IDs and step values
+
+    """
+    try:
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
+        assert all(ut in params.UTS_WITH_FOCUSERS for ut in values.keys())
+    except Exception:
+        # same value for all
+        values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
+
+    for ut in values:
+        execute_command('foc move {} {}'.format(ut, int(values[ut])))
 
 
 def get_current_focus():
