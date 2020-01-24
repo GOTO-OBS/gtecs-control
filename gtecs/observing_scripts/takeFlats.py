@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-"""Script to take flat frames in the morning or evening.
-
-takeFlats [EVE|MORN] [-l]
-"""
+#!/usr/bin/env python3
+"""Script to take flat frames in the morning or evening."""
 
 import sys
 import time
+from argparse import ArgumentParser
 
 from astropy import units as u
 from astropy.time import Time
@@ -161,22 +159,21 @@ def run(eve, alt, late=False):
     print('Done')
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1].upper() not in ['EVE', 'MORN']:
-        print("usage: takeFlats EVE|MORN")
-        sys.exit(1)
-    else:
-        period = sys.argv[1].upper()
-    if len(sys.argv) > 2 and sys.argv[2] in ['l', 'late', '-l', '--late']:
-        late = True
-    else:
-        late = False
+if __name__ == '__main__':
+    parser = ArgumentParser(description='Take flat frames in the morning or evening.')
+    parser.add_argument('time', type=str, choices=['EVE', 'MORN'],
+                        help='run the evening or morning routine')
+    parser.add_argument('-l', '--late', action='store_true',
+                        help=('ignore the expected twilight time')
+                        )
+    args = parser.parse_args()
 
-    if period == 'EVE':
+    if args.time == 'EVE':
         eve = True
         alt = -3 * u.deg
     else:
         eve = False
         alt = -10 * u.deg
+    late = args.late
 
     run(eve, alt, late)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control filter wheels via the UT interface daemons."""
 
 import threading
@@ -239,7 +239,7 @@ class FiltDaemon(BaseDaemon):
         return s
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'filt'
     with misc.make_pid_file(daemon_id):
         FiltDaemon()._run()

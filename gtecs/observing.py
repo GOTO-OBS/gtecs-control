@@ -136,6 +136,15 @@ def get_current_focus():
     return values
 
 
+def get_focus_limit():
+    """Find the maximum focus position limit."""
+    foc_info = daemon_info('foc')
+    values = {}
+    for ut in params.UTS_WITH_FOCUSERS:
+        values[ut] = foc_info[ut]['limit']
+    return values
+
+
 def wait_for_focuser(target_values, timeout=None):
     """Wait until focuser has reached the target position.
 

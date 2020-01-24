@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to listen for alerts and insert them into the database."""
 
 import os
@@ -257,7 +257,7 @@ class SentinelDaemon(BaseDaemon):
         return 'Alert listener resumed'
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'sentinel'
     with misc.make_pid_file(daemon_id):
         SentinelDaemon()._run()

@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-"""Script to take images at a range of pointings.
-
-testPointings [n_alt] [n_az]
-"""
+#!/usr/bin/env python3
+"""Script to take images at a range of pointings."""
 
 import sys
+from argparse import ArgumentParser
 
 from astropy.time import Time
 
@@ -70,15 +68,12 @@ def run(n_alt, n_az):
     print('Done')
 
 
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        n_alt = 2
-        n_az = 2
-    elif len(sys.argv) == 2:
-        n_alt = int(sys.argv[1])
-        n_az = 2
-    else:
-        n_alt = int(sys.argv[1])
-        n_az = int(sys.argv[2])
+if __name__ == '__main__':
+    parser = ArgumentParser(description='Take images at a range of pointings.')
+    parser.add_argument('n_alt', type=int, nargs='?', default=2,
+                        help='number of altitude rows (default=2)')
+    parser.add_argument('n_az', type=int, nargs='?', default=2,
+                        help='number of aximuth rows (default=2)')
+    args = parser.parse_args()
 
-    run(n_alt, n_az)
+    run(args.n_alt, args.n_az)

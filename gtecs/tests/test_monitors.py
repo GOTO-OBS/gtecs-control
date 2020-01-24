@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Test code: a simple version of the pilot check_hardware routine to test the monitors."""
 
 import time
@@ -35,7 +35,7 @@ def check_hardware(hardware):
         time.sleep(sleep_time)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # hardware to keep track of and fix if necessary
     hardware = {'dome': monitors.DomeMonitor(),
                 'mnt': monitors.MntMonitor(),

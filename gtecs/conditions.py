@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Conditions monitor functions."""
 
 import json
