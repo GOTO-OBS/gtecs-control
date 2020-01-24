@@ -24,14 +24,14 @@ def run():
     # Make sure the power daemon is running
     execute_command('power start')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # Power on the UT hardware and mount box
     execute_command('power on cams,focs,filts')
     time.sleep(0.5)
     execute_command('power on sitech')
 
-    time.sleep(5)
+    time.sleep(10)
 
     # Make all the other daemons and interfaces are running
     execute_command('intf start')
