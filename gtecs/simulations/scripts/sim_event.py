@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Simulate a night observing a given event.
 
 Where possible, this script uses the real G-TeCS scheduling, ObsDB database,
@@ -108,7 +108,7 @@ def run(ivorn, system='GOTO-8', duration=24, sites='N', telescopes=1):
               )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = ArgumentParser(description='Simulate observations of an event using the fake pilot')
     parser.add_argument('ivorn', type=str,
                         help='ivorn of the event to fetch from the VOEvent database',

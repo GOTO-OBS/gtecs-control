@@ -1,8 +1,5 @@
-#!/usr/bin/env python
-"""Script to take images over the sky, avoiding the Moon.
-
-moonTest
-"""
+#!/usr/bin/env python3
+"""Script to take images over the sky, avoiding the Moon."""
 
 import sys
 
@@ -81,7 +78,7 @@ def run():
     print("Done")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # if len(sys.argv) == 1:
     #     n_alt = 4
     #     n_az = 4

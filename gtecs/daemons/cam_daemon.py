@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control cameras via the UT interface daemons."""
 
 import os
@@ -567,7 +567,7 @@ class CamDaemon(BaseDaemon):
         return self.take_exposure_flag or self.exposing
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'cam'
     with misc.make_pid_file(daemon_id):
         CamDaemon()._run()

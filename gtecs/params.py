@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """G-TeCS core control system parameters."""
 
 import os
@@ -312,10 +311,6 @@ FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
 FLATS_NUM = config['FLATS_NUM']
 FLATS_MAXEXPTIME = config['FLATS_MAXEXPTIME']
 FLATS_STEPSIZE = config['FLATS_STEPSIZE']
-
-FOCUSRUN_EXPTIME = config['FOCUSRUN_EXPTIME']
-FOCUSRUN_FILTER = config['FOCUSRUN_FILTER']
-FOCUSRUN_DELTAS = config['FOCUSRUN_DELTAS']
 
 IERS_A_URL = config['IERS_A_URL']
 IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']

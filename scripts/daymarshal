@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to run in the morning to confirm the dome is closed."""
 
 import argparse
@@ -259,7 +259,7 @@ def run(test=False):
     log.info('Done')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Disable day marshal in engineering mode
     status = Status()
     if status.mode == 'engineering':

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A script simulate a night's run with the pilot."""
 
 import warnings
@@ -55,7 +55,7 @@ def run(start_time, duration=24, sites='N', telescopes=1):
         print(pointing_id)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     def date_validator(date):
         """Validate dates."""
         try:

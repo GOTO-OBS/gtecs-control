@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Find visability statistics for skymaps, without running through the whole simulation."""
 
 import os
@@ -180,7 +180,7 @@ def run(fits_direc, system='GOTO-8', duration=24, sites='N'):
             name, visible_sites.count(name)) for name in set(visible_sites)])))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = ArgumentParser(description='Simulate observations of skymaps using the fake pilot')
     parser.add_argument('path', type=str,
                         help='path to the directory containing the FITS skymap files',

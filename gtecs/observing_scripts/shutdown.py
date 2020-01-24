@@ -1,7 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to run end of night tasks.
-
-shutdown
 
 This script should perform the following simple tasks:
     * empty the camera queues
@@ -42,5 +40,5 @@ def run():
     wait_for_dome(target_position='closed', timeout=120)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

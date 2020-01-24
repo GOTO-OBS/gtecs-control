@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Daemon to control focusers  via the UT interface daemons."""
 
 import threading
@@ -301,7 +301,7 @@ class FocDaemon(BaseDaemon):
         return s
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     daemon_id = 'foc'
     with misc.make_pid_file(daemon_id):
         FocDaemon()._run()

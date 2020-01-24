@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Download the LIGO/Virgo First Two Years simulated skymaps, and regrade for use."""
 
 import os
