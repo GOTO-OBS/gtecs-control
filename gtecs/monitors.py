@@ -984,8 +984,8 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the interfaces.
-            for daemon_id in params.INTERFACES:
-                if daemon_id in self.bad_dependencies:
+            for interface_id in params.INTERFACES:
+                if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
@@ -1088,8 +1088,8 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the interfaces.
-            for daemon_id in params.INTERFACES:
-                if daemon_id in self.bad_dependencies:
+            for interface_id in params.INTERFACES:
+                if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
@@ -1184,8 +1184,8 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the interfaces.
-            for daemon_id in params.INTERFACES:
-                if daemon_id in self.bad_dependencies:
+            for interface_id in params.INTERFACES:
+                if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.
@@ -1273,8 +1273,8 @@ class ExqMonitor(BaseMonitor):
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
             # fails.
-            for daemon_id in params.INTERFACES:
-                if daemon_id in self.bad_dependencies:
+            for interface_id in params.INTERFACES:
+                if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
                     # SOLUTION 1: Make sure the interfaces are started.

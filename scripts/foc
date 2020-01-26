@@ -135,7 +135,7 @@ def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
     for ut in params.UTS_WITH_FOCUSERS:
-        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]))
+        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         if info[ut]['status'] != 'Moving':
             print('Status: {}'.format(info[ut]['status']))
         else:
@@ -154,7 +154,7 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in params.UTS_WITH_FOCUSERS:
-        print('FOCUSER {} ({})'.format(ut, params.UT_INTERFACES[ut]), end=' ')
+        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         if info[ut]['status'] != 'Moving':
             print('  Current position: {}/{}'.format(info[ut]['current_pos'],
                                                      info[ut]['limit']), end=' ')

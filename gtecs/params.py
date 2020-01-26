@@ -107,43 +107,39 @@ for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
 
-INTERFACES = config['INTERFACES']
-UT_INTERFACES = {}
-UTS_WITH_CAMERAS = []
-UTS_WITH_FOCUSERS = []
-UTS_WITH_FILTERWHEELS = []
-for interface_id in INTERFACES:
-    # Ensure UT keys are ints, and sort them
-    INTERFACES[interface_id]['UTS'] = sorted(int(ut) for ut in INTERFACES[interface_id]['UTS'])
+UT_DICT = config['UTS']
+# UT IDs should be integers
+UT_DICT = {int(ut): d for ut, d in UT_DICT.items()}
+for ut in UT_DICT:
+    # Add UT to interface list
+    if 'INTERFACE' in UT_DICT[ut]:
+        interface_id = UT_DICT[ut]['INTERFACE']
+        if interface_id in DAEMONS:
+            if 'UTS' in DAEMONS[interface_id]:
+                # Add and sort
+                DAEMONS[interface_id]['UTS'].append(ut)
+                DAEMONS[interface_id]['UTS'] = sorted(DAEMONS[interface_id]['UTS'])
+            else:
+                # Just add
+                DAEMONS[interface_id]['UTS'] = [ut]
+        else:
+            raise ValueError('Can not find interface "{}" for UT{}'.format(interface_id, ut))
+    else:
+        raise ValueError('No interface defined for UT{}'.format(ut))
 
-    # Tidy lists
-    n_uts = len(INTERFACES[interface_id]['UTS'])
-    for hw_class in ['CAMERAS', 'FOCUSERS', 'FILTERWHEELS']:
-        # Add placeholder lists of `None`s
-        if hw_class not in INTERFACES[interface_id]:
-            INTERFACES[interface_id][hw_class] = [None] * n_uts
-        # Parse any empty serials
-        for i, serial in enumerate(INTERFACES[interface_id][hw_class]):
-            if serial in ['None', 'none', 'NA', 'na', '0']:
-                INTERFACES[interface_id][hw_class][i] = None
+    # Add any `None`s for any missing hardware
+    for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
+        if hw_class not in UT_DICT[ut]:
+            UT_DICT[ut][hw_class] = None
 
-    # Create dict linking UTs to interfaces
-    for ut in INTERFACES[interface_id]['UTS']:
-        UT_INTERFACES[ut] = interface_id
+UTS = sorted(UT_DICT)
+UTS_WITH_CAMERAS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['CAMERA'] is not None)
+UTS_WITH_FOCUSERS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FOCUSER'] is not None)
+UTS_WITH_FILTERWHEELS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FILTERWHEEL'] is not None)
 
-    # Create lists of UTS with each type of hardware
-    for i, ut in enumerate(INTERFACES[interface_id]['UTS']):
-        if INTERFACES[interface_id]['CAMERAS'][i] is not None:
-            UTS_WITH_CAMERAS.append(ut)
-        if INTERFACES[interface_id]['FOCUSERS'][i] is not None:
-            UTS_WITH_FOCUSERS.append(ut)
-        if INTERFACES[interface_id]['FILTERWHEELS'][i] is not None:
-            UTS_WITH_FILTERWHEELS.append(ut)
-
-ALL_UTS = sorted(UT_INTERFACES)
-UTS_WITH_CAMERAS = sorted(UTS_WITH_CAMERAS)
-UTS_WITH_FOCUSERS = sorted(UTS_WITH_FOCUSERS)
-UTS_WITH_FILTERWHEELS = sorted(UTS_WITH_FILTERWHEELS)
+INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
+              for interface_id in DAEMONS
+              if 'UTS' in DAEMONS[interface_id]}
 
 ############################################################
 # Conditions parameters

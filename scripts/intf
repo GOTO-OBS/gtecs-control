@@ -22,14 +22,15 @@ DAEMON_IDS.sort()
 def get_args(interface_id):
     """Format the arguments to send to the interface script."""
     args = [interface_id]
-    for hw in range(len(params.INTERFACES[interface_id]['UTS'])):
+    for ut in params.INTERFACES[interface_id]:
         args.append('--ut')
-        args.append(params.INTERFACES[interface_id]['UTS'][hw])
-        args.append(params.INTERFACES[interface_id]['CAMERAS'][hw])
-        if params.INTERFACES[interface_id]['FOCUSERS'][hw] is not None:
-            args.append(params.INTERFACES[interface_id]['FOCUSERS'][hw])
-        if params.INTERFACES[interface_id]['FILTERWHEELS'][hw] is not None:
-            args.append(params.INTERFACES[interface_id]['FILTERWHEELS'][hw])
+        args.append(ut)
+        if params.UT_DICT[ut]['CAMERA'] is not None:
+            args.append('cam={}'.format(params.UT_DICT[ut]['CAMERA']))
+        if params.UT_DICT[ut]['FOCUSER'] is not None:
+            args.append('foc={}'.format(params.UT_DICT[ut]['FOCUSER']))
+        if params.UT_DICT[ut]['FILTERWHEEL'] is not None:
+            args.append('filt={}'.format(params.UT_DICT[ut]['FILTERWHEEL']))
     return args
 
 
@@ -123,7 +124,7 @@ def print_info(info):
             if ut in info['cam_serials']:
                 print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
             else:
-                print('                 ', end='  ')
+                print('{}: {: <14}'.format(ut, '----'), end='  ')
         print('')
     if len(info['foc_serials']) > 0:
         print('   Focusers:      ', end='\t')
@@ -131,7 +132,7 @@ def print_info(info):
             if ut in info['foc_serials']:
                 print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
             else:
-                print('                 ', end='  ')
+                print('{}: {: <14}'.format(ut, '----'), end='  ')
         print('')
     if len(info['filt_serials']) > 0:
         print('   Filter Wheels: ', end='\t')
@@ -139,7 +140,7 @@ def print_info(info):
             if ut in info['filt_serials']:
                 print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
             else:
-                print('                 ', end='  ')
+                print('{}: {: <14}'.format(ut, '----'), end='  ')
         print('')
 
 
