@@ -112,7 +112,7 @@ def prepare_for_images():
 
     # Apply any temperature compensation to the focusers
     positions = get_current_focus()
-    offsets = get_focuser_temp_compensation()
+    offsets = get_focuser_temp_compensation(params.FOCUS_TEMP_GRADIENT, params.FOCUS_TEMP_MINCHANGE)
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
         move_focusers(offsets)
@@ -221,8 +221,17 @@ def wait_for_focuser(target_values, timeout=None):
         raise TimeoutError('Focuser timed out')
 
 
-def get_focuser_temp_compensation():
-    """Find the offset in focuser position based on temperature change since it was last set."""
+def get_focuser_temp_compensation(gradients, min_change=0.5):
+    """Find the offset in focuser position based on temperature change since it was last set.
+
+    Parameters
+    ----------
+    gradients : dict
+        the gradient in steps/degree C for each UT
+    min_change : float, default=0.5
+        the minimum temperature change needed to change the focus
+
+    """
     foc_info = daemon_info('foc')
 
     # Find the change in temperature since the last move
@@ -236,12 +245,12 @@ def get_focuser_temp_compensation():
 
     # Check if the change is greater than the minimum to refocus
     deltas = {ut: deltas[ut]
-              if abs(deltas[ut]) > params.FOCUS_TEMP_MINCHANGE else 0
+              if abs(deltas[ut]) > min_change else 0
               for ut in deltas}
 
     # Find the gradients (in steps/degree C)
-    gradients = {ut: params.FOCUS_TEMP_GRADIENT[ut]
-                 if ut in params.FOCUS_TEMP_GRADIENT else 0
+    gradients = {ut: gradients[ut]
+                 if ut in gradients else 0
                  for ut in params.UTS_WITH_FOCUSERS}
 
     # Calculate the focus offset
