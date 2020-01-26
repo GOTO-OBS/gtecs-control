@@ -22,9 +22,9 @@ else:
 
 # Try to find .gtecs.conf file, look in the home directory and
 # anywhere specified by GTECS_CONF environment variable
-paths = [os.path.expanduser("~")]
-if "GTECS_CONF" in os.environ:
-    GTECS_CONF_PATH = os.environ["GTECS_CONF"]
+paths = [os.path.expanduser('~')]
+if 'GTECS_CONF' in os.environ:
+    GTECS_CONF_PATH = os.environ['GTECS_CONF']
     paths.append(GTECS_CONF_PATH)
 else:
     GTECS_CONF_PATH = None
@@ -34,7 +34,7 @@ config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
 CONFIG_FILE_PATH = None
 for loc in paths:
     try:
-        with open(os.path.join(loc, ".gtecs.conf")) as source:
+        with open(os.path.join(loc, '.gtecs.conf')) as source:
             config = configobj.ConfigObj(source, configspec=CONFIGSPEC_FILE)
             CONFIG_FILE_PATH = loc
     except IOError:
@@ -109,20 +109,41 @@ for daemon_id in DAEMONS:
 
 INTERFACES = config['INTERFACES']
 UT_INTERFACES = {}
+UTS_WITH_CAMERAS = []
+UTS_WITH_FOCUSERS = []
+UTS_WITH_FILTERWHEELS = []
 for interface_id in INTERFACES:
+    # Ensure UT keys are ints, and sort them
     INTERFACES[interface_id]['UTS'] = sorted(int(ut) for ut in INTERFACES[interface_id]['UTS'])
+
+    # Tidy lists
+    n_uts = len(INTERFACES[interface_id]['UTS'])
+    for hw_class in ['CAMERAS', 'FOCUSERS', 'FILTERWHEELS']:
+        # Add placeholder lists of `None`s
+        if hw_class not in INTERFACES[interface_id]:
+            INTERFACES[interface_id][hw_class] = [None] * n_uts
+        # Parse any empty serials
+        for i, serial in enumerate(INTERFACES[interface_id][hw_class]):
+            if serial in ['None', 'none', 'NA', 'na', '0']:
+                INTERFACES[interface_id][hw_class][i] = None
+
+    # Create dict linking UTs to interfaces
     for ut in INTERFACES[interface_id]['UTS']:
         UT_INTERFACES[ut] = interface_id
+
+    # Create lists of UTS with each type of hardware
+    for i, ut in enumerate(INTERFACES[interface_id]['UTS']):
+        if INTERFACES[interface_id]['CAMERAS'][i] is not None:
+            UTS_WITH_CAMERAS.append(ut)
+        if INTERFACES[interface_id]['FOCUSERS'][i] is not None:
+            UTS_WITH_FOCUSERS.append(ut)
+        if INTERFACES[interface_id]['FILTERWHEELS'][i] is not None:
+            UTS_WITH_FILTERWHEELS.append(ut)
+
 ALL_UTS = sorted(UT_INTERFACES)
-UTS_WITH_CAMERAS = sorted(ut for intf in INTERFACES
-                          if 'CAMERAS' in INTERFACES[intf]
-                          for ut in INTERFACES[intf]['UTS'])
-UTS_WITH_FOCUSERS = sorted(ut for intf in INTERFACES
-                           if 'FOCUSERS' in INTERFACES[intf]
-                           for ut in INTERFACES[intf]['UTS'])
-UTS_WITH_FILTERWHEELS = sorted(ut for intf in INTERFACES
-                               if 'FILTERWHEELS' in INTERFACES[intf]
-                               for ut in INTERFACES[intf]['UTS'])
+UTS_WITH_CAMERAS = sorted(UTS_WITH_CAMERAS)
+UTS_WITH_FOCUSERS = sorted(UTS_WITH_FOCUSERS)
+UTS_WITH_FILTERWHEELS = sorted(UTS_WITH_FILTERWHEELS)
 
 ############################################################
 # Conditions parameters

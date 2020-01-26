@@ -26,16 +26,10 @@ def get_args(interface_id):
         args.append('--ut')
         args.append(params.INTERFACES[interface_id]['UTS'][hw])
         args.append(params.INTERFACES[interface_id]['CAMERAS'][hw])
-        try:
+        if params.INTERFACES[interface_id]['FOCUSERS'][hw] is not None:
             args.append(params.INTERFACES[interface_id]['FOCUSERS'][hw])
-        except KeyError:
-            # This UT has no focuser
-            pass
-        try:
+        if params.INTERFACES[interface_id]['FILTERWHEELS'][hw] is not None:
             args.append(params.INTERFACES[interface_id]['FILTERWHEELS'][hw])
-        except KeyError:
-            # This UT has no filter wheel
-            pass
     return args
 
 
