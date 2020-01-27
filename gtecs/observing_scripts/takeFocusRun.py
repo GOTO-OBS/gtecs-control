@@ -323,6 +323,9 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     print('Fitting to data...')
     fit_df, hfd_coeffs, fwhm_coeffs = fit_to_data(df)
     print(fit_df)
+    ofname = 'focusfit_{}.csv'.format(finish_time)
+    fit_df.to_csv(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
 
     # Make plots
     if not no_plot:
