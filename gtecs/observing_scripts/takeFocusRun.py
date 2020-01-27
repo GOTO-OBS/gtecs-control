@@ -17,63 +17,14 @@ from gtecs.catalogs import focus_star
 from gtecs.observing import (get_analysis_image, get_current_focus, get_focus_limit,
                              prepare_for_images, set_new_focus, slew_to_radec, wait_for_focuser,
                              wait_for_mount)
-from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfds, set_focus_carefully
+from gtecs.observing_scripts.autoFocus import (RestoreFocus, find_best_focus, get_hfds,
+                                               set_focus_carefully)
 
 from matplotlib import pyplot as plt
 
 import numpy as np
 
 import pandas as pd
-
-
-def plot_results(df, finish_time):
-    """Plot the results of the focus run."""
-    uts = list(set(list(df.index)))
-
-    fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 10), dpi=100)
-    plt.tight_layout()
-
-    for i, ut in enumerate(uts):
-        try:
-            ut_data = df.loc[ut]
-
-            # HFD plot
-            ax_hfd = axes[i, 0]
-            ax_hfd.errorbar(ut_data['pos'], ut_data['median'], yerr=ut_data['std'],
-                            color='k', ecolor='k', fmt='.', ms=2)
-            if ut == 1:
-                ax_hfd.set_title('HFD')
-            ax_hfd.set_ylabel('UT{}'.format(ut))
-
-            # FWHM plot
-            ax_fwhm = axes[i, 1]
-            ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
-                             color='k', ecolor='k', fmt='.', ms=2)
-
-            sn_mask = ut_data['fwhm'] / ut_data['fwhm_std'] > 2
-            e = ut_data['fwhm_std'][sn_mask]
-            pars = np.polyfit(ut_data['pos'][sn_mask], ut_data['fwhm'][sn_mask], w=1 / e, deg=2)
-            poly = np.poly1d(pars)
-            ax_fwhm.plot(ut_data['pos'], poly(ut_data['pos']), 'r-')
-
-            best_focus = -pars[1] / 2 / pars[0]
-            print('UT{} best focus @ {}'.format(ut, int(best_focus)))
-            ax_fwhm.axvline(best_focus, color='r', ls='--')
-
-            if ut == 1:
-                ax_fwhm.set_title('FWHM')
-
-        except Exception:
-            print('Error plotting UT{}'.format(ut))
-            print(traceback.format_exc())
-
-    # Save the plot
-    path = os.path.join(params.FILE_PATH, 'focus_data')
-    ofname = 'focusplot_{}.png'.format(finish_time)
-    plt.savefig(os.path.join(path, ofname))
-    print('Saved to {}'.format(os.path.join(path, ofname)))
-
-    plt.show()
 
 
 def calculate_positions(fraction, steps):
@@ -108,6 +59,164 @@ def calculate_positions(fraction, steps):
         all_positions[ut] = positions
 
     return all_positions
+
+
+def fit_to_data(df):
+    """Fit to HFD and FWHM data."""
+    uts = list(set(list(df.index)))
+    fit_df = pd.DataFrame(columns=['min_hfd', 'm1', 'm2', 'delta', 'best_hfd', 'best_fwhm'],
+                          index=uts)
+    hfd_coeffs = {ut: None for ut in uts}
+    fwhm_coeffs = {ut: None for ut in uts}
+
+    for ut in uts:
+        # Get data arrays
+        ut_data = df.loc[ut]
+        pos = ut_data['pos'].to_numpy()
+        hfd = ut_data['median'].to_numpy()
+        hfd_std = ut_data['std'].to_numpy()
+        fwhm = ut_data['fwhm'].to_numpy()
+        fwhm_std = ut_data['fwhm_std'].to_numpy()
+
+        # HFD
+        min_hfd, m1, m2, delta, best_hfd = None, None, None, None, None
+        try:
+            # Split into left and right
+            min_i = np.where(hfd == min(hfd))[0][0]
+            min_hfd = pos[min_i]
+            mask_l = pos <= min_hfd
+            mask_r = pos >= min_hfd
+
+            # Fit straight line
+            coeffs_l = np.polyfit(pos[mask_l], hfd[mask_l], w=1 / hfd_std[mask_l], deg=1)
+            coeffs_r = np.polyfit(pos[mask_r], hfd[mask_r], w=1 / hfd_std[mask_r], deg=1)
+            hfd_coeffs[ut] = (coeffs_l, coeffs_r)
+            m1 = coeffs_l[0]
+            m2 = coeffs_r[0]
+            delta = (coeffs_r[1] / coeffs_r[0]) - (coeffs_l[1] / coeffs_l[0])
+
+            # Find meeting point by picking a point on the line and using the autofocus function
+            poly_r = np.poly1d(coeffs_r)
+            point = (min_hfd, poly_r(min_hfd))
+            best_hfd = int(find_best_focus(m1, m2, delta, point[0], point[1]))
+
+        except Exception:
+            print('UT{}: Error fitting to HFD data'.format(ut))
+            print(traceback.format_exc())
+
+        # FWHM
+        best_fwhm = None
+        try:
+            # Fit parabola
+            coeffs = np.polyfit(pos, fwhm, w=1 / fwhm_std, deg=2)
+            fwhm_coeffs[ut] = coeffs
+
+            # Find minimum
+            best_fwhm = int(-coeffs[1] / 2 / coeffs[0])
+
+        except Exception:
+            print('UT{}: Error fitting to FWHM data'.format(ut))
+            print(traceback.format_exc())
+
+        # Add to dataframe
+        fit_df.loc[ut] = pd.Series({'min_hfd': min_hfd, 'm1': m1, 'm2': m2, 'delta': delta,
+                                    'best_hfd': best_hfd, 'best_fwhm': best_fwhm})
+
+    return fit_df, hfd_coeffs, fwhm_coeffs
+
+
+def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
+    """Plot the results of the focus run."""
+    uts = list(set(list(df.index)))
+    fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 12), dpi=100)
+    plt.tight_layout()
+
+    for i, ut in enumerate(uts):
+        ut_data = df.loc[ut]
+        fit_data = fit_df.loc[ut]
+
+        # HFD plot
+        try:
+            ax = axes[i, 0]
+
+            # Plot data
+            mask_l = ut_data['pos'].to_numpy() < fit_data['min_hfd']
+            mask_mid = ut_data['pos'].to_numpy() == fit_data['min_hfd']
+            mask_r = ut_data['pos'].to_numpy() > fit_data['min_hfd']
+            ax.errorbar(ut_data['pos'][mask_l], ut_data['median'][mask_l],
+                        yerr=ut_data['std'][mask_l], color='tab:blue', fmt='.', ms=7)
+            ax.errorbar(ut_data['pos'][mask_mid], ut_data['median'][mask_mid],
+                        yerr=ut_data['std'][mask_mid], color='tab:green', fmt='.', ms=7)
+            ax.errorbar(ut_data['pos'][mask_r], ut_data['median'][mask_r],
+                        yerr=ut_data['std'][mask_r], color='tab:orange', fmt='.', ms=7)
+
+            # Plot fit
+            if hfd_coeffs[ut] is not None:
+                poly_l = np.poly1d(hfd_coeffs[ut][0])
+                poly_r = np.poly1d(hfd_coeffs[ut][1])
+                ax.plot(ut_data['pos'], poly_l(ut_data['pos']),
+                        color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
+                ax.plot(ut_data['pos'], poly_r(ut_data['pos']),
+                        color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
+                ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
+            else:
+                ax.text(0.02, 0.1, 'Fit failed', transform=ax.transAxes,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
+
+            # Set labels
+            ax.set_ylabel('UT{}'.format(ut))
+            if i == 0:
+                ax.set_title('HFD')
+            if i == len(uts) - 1:
+                ax.set_xlabel('Focus position')
+
+            # Set limits
+            ax.set_ylim(bottom=0)
+
+        except Exception:
+            print('Error making HFD plot', end='\t')
+            print(traceback.format_exc())
+
+        # FWHM plot
+        try:
+            ax = axes[i, 1]
+
+            # Plot data
+            ax.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
+                        color='tab:red', fmt='.', ms=7)
+
+            # Plot fit
+            if fwhm_coeffs[ut] is not None:
+                poly = np.poly1d(fwhm_coeffs[ut])
+                ax.plot(ut_data['pos'], poly(ut_data['pos']),
+                        color='tab:red', ls='dashed', zorder=-1, alpha=0.5)
+                ax.axvline(fit_data['best_fwhm'], c='tab:red', ls='dotted', zorder=-1)
+                if fit_data['best_hfd'] is not None:
+                    ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
+            else:
+                ax.text(0.02, 0.1, 'Fit failed', transform=ax.transAxes,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
+
+            # Set labels
+            if i == 0:
+                ax.set_title('FWHM')
+            if i == len(uts) - 1:
+                ax.set_xlabel('Focus position')
+
+            # Set limits
+            ax.set_ylim(bottom=0)
+
+        except Exception:
+            print('Error making FWHM plot')
+            print(traceback.format_exc())
+
+    # Save the plot
+    path = os.path.join(params.FILE_PATH, 'focus_data')
+    ofname = 'focusplot_{}.png'.format(finish_time)
+    plt.savefig(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
+
+    plt.show()
 
 
 def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
@@ -209,11 +318,17 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     df.to_csv(os.path.join(path, ofname))
     print('Saved to {}'.format(os.path.join(path, ofname)))
 
+    # Fit to data
+    print('~~~~~~')
+    print('Fitting to data...')
+    fit_df, hfd_coeffs, fwhm_coeffs = fit_to_data(df)
+    print(fit_df)
+
     # Make plots
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, finish_time)
+        plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time)
 
     print('Done')
 
