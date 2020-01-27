@@ -292,10 +292,10 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         # Take the smallest value of the set
         hfds = hfds.groupby(level=0)
         fwhms = fwhms.groupby(level=0)
-        data = {'median': hfds.min(),
-                'std': hfds.std() if len(hfds) > 1 else 0,
-                'fwhm': fwhms.min(),
-                'fwhm_std': fwhms.std() if len(fwhms) > 1 else 0,
+        data = {'median': np.min(hfds),
+                'std': np.std(hfds),
+                'fwhm': np.min(fwhms),
+                'fwhm_std': np.std(fwhms),
                 'pos': pd.Series(get_current_focus()),
                 }
         print('Best HFDs:', data['median'].to_dict())
