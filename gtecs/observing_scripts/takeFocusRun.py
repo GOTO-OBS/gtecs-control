@@ -72,11 +72,11 @@ def fit_to_data(df):
     for ut in uts:
         # Get data arrays
         ut_data = df.loc[ut]
-        pos = ut_data['pos'].to_numpy()
-        hfd = ut_data['median'].to_numpy()
-        hfd_std = ut_data['std'].to_numpy()
-        fwhm = ut_data['fwhm'].to_numpy()
-        fwhm_std = ut_data['fwhm_std'].to_numpy()
+        pos = np.array(ut_data['pos'])
+        hfd = np.array(ut_data['median'])
+        hfd_std = np.array(ut_data['std'])
+        fwhm = np.array(ut_data['fwhm'])
+        fwhm_std = np.array(ut_data['fwhm_std'])
 
         # HFD
         min_hfd, m1, m2, delta, best_hfd = None, None, None, None, None
@@ -140,9 +140,9 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
             ax = axes[i, 0]
 
             # Plot data
-            mask_l = ut_data['pos'].to_numpy() < fit_data['min_hfd']
-            mask_mid = ut_data['pos'].to_numpy() == fit_data['min_hfd']
-            mask_r = ut_data['pos'].to_numpy() > fit_data['min_hfd']
+            mask_l = np.array(ut_data['pos']) < fit_data['min_hfd']
+            mask_mid = np.array(ut_data['pos']) == fit_data['min_hfd']
+            mask_r = np.array(ut_data['pos']) > fit_data['min_hfd']
             ax.errorbar(ut_data['pos'][mask_l], ut_data['median'][mask_l],
                         yerr=ut_data['std'][mask_l], color='tab:blue', fmt='.', ms=7)
             ax.errorbar(ut_data['pos'][mask_mid], ut_data['median'][mask_mid],
