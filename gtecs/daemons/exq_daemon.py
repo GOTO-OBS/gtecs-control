@@ -20,8 +20,8 @@ class ExqDaemon(BaseDaemon):
         super().__init__('exq')
 
         # exq is dependent on all the interfaces, cam and filt
-        for daemon_id in params.INTERFACES:
-            self.dependencies.add(daemon_id)
+        for interface_id in params.INTERFACES:
+            self.dependencies.add(interface_id)
         self.dependencies.add('cam')
         self.dependencies.add('filt')
 
@@ -284,7 +284,7 @@ class ExqDaemon(BaseDaemon):
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
+            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
 
         # Call the command
         exposure = Exposure(ut_list, exptime,
@@ -331,7 +331,7 @@ class ExqDaemon(BaseDaemon):
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
+            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
 
         # Call the command
         for i in range(nexp):

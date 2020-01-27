@@ -255,7 +255,7 @@ def update_header(header, ut, all_info, log):
     header["ORIGIN  "] = (params.ORG_NAME, "Origin organisation")
     header["TELESCOP"] = (params.TELESCOPE_NAME, "Origin telescope")
 
-    interface_id = params.UT_INTERFACES[ut]
+    interface_id = params.UT_DICT[ut]['INTERFACE']
     current_exposure = cam_info['current_exposure']
     ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)

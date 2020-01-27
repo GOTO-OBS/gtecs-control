@@ -22,9 +22,9 @@ else:
 
 # Try to find .gtecs.conf file, look in the home directory and
 # anywhere specified by GTECS_CONF environment variable
-paths = [os.path.expanduser("~")]
-if "GTECS_CONF" in os.environ:
-    GTECS_CONF_PATH = os.environ["GTECS_CONF"]
+paths = [os.path.expanduser('~')]
+if 'GTECS_CONF' in os.environ:
+    GTECS_CONF_PATH = os.environ['GTECS_CONF']
     paths.append(GTECS_CONF_PATH)
 else:
     GTECS_CONF_PATH = None
@@ -34,7 +34,7 @@ config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
 CONFIG_FILE_PATH = None
 for loc in paths:
     try:
-        with open(os.path.join(loc, ".gtecs.conf")) as source:
+        with open(os.path.join(loc, '.gtecs.conf')) as source:
             config = configobj.ConfigObj(source, configspec=CONFIGSPEC_FILE)
             CONFIG_FILE_PATH = loc
     except IOError:
@@ -107,22 +107,39 @@ for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
 
-INTERFACES = config['INTERFACES']
-UT_INTERFACES = {}
-for interface_id in INTERFACES:
-    INTERFACES[interface_id]['UTS'] = sorted(int(ut) for ut in INTERFACES[interface_id]['UTS'])
-    for ut in INTERFACES[interface_id]['UTS']:
-        UT_INTERFACES[ut] = interface_id
-ALL_UTS = sorted(UT_INTERFACES)
-UTS_WITH_CAMERAS = sorted(ut for intf in INTERFACES
-                          if 'CAMERAS' in INTERFACES[intf]
-                          for ut in INTERFACES[intf]['UTS'])
-UTS_WITH_FOCUSERS = sorted(ut for intf in INTERFACES
-                           if 'FOCUSERS' in INTERFACES[intf]
-                           for ut in INTERFACES[intf]['UTS'])
-UTS_WITH_FILTERWHEELS = sorted(ut for intf in INTERFACES
-                               if 'FILTERWHEELS' in INTERFACES[intf]
-                               for ut in INTERFACES[intf]['UTS'])
+UT_DICT = config['UTS']
+# UT IDs should be integers
+UT_DICT = {int(ut): d for ut, d in UT_DICT.items()}
+for ut in UT_DICT:
+    # Add UT to interface list
+    if 'INTERFACE' in UT_DICT[ut]:
+        interface_id = UT_DICT[ut]['INTERFACE']
+        if interface_id in DAEMONS:
+            if 'UTS' in DAEMONS[interface_id]:
+                # Add and sort
+                DAEMONS[interface_id]['UTS'].append(ut)
+                DAEMONS[interface_id]['UTS'] = sorted(DAEMONS[interface_id]['UTS'])
+            else:
+                # Just add
+                DAEMONS[interface_id]['UTS'] = [ut]
+        else:
+            raise ValueError('Can not find interface "{}" for UT{}'.format(interface_id, ut))
+    else:
+        raise ValueError('No interface defined for UT{}'.format(ut))
+
+    # Add any `None`s for any missing hardware
+    for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
+        if hw_class not in UT_DICT[ut]:
+            UT_DICT[ut][hw_class] = None
+
+UTS = sorted(UT_DICT)
+UTS_WITH_CAMERAS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['CAMERA'] is not None)
+UTS_WITH_FOCUSERS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FOCUSER'] is not None)
+UTS_WITH_FILTERWHEELS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FILTERWHEEL'] is not None)
+
+INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
+              for interface_id in DAEMONS
+              if 'UTS' in DAEMONS[interface_id]}
 
 ############################################################
 # Conditions parameters

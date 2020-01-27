@@ -19,8 +19,8 @@ class FiltDaemon(BaseDaemon):
         super().__init__('filt')
 
         # filt is dependent on all the interfaces
-        for daemon_id in params.INTERFACES:
-            self.dependencies.add(daemon_id)
+        for interface_id in params.INTERFACES:
+            self.dependencies.add(interface_id)
 
         # command flags
         self.set_filter_flag = 0
@@ -65,7 +65,7 @@ class FiltDaemon(BaseDaemon):
             if self.set_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         new_filter_num = params.FILTER_LIST.index(self.new_filter)
 
                         self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
@@ -90,7 +90,7 @@ class FiltDaemon(BaseDaemon):
             if self.home_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
 
                         self.log.info('Homing filter wheel {} ({})'.format(
                                       ut, interface_id))
@@ -129,7 +129,7 @@ class FiltDaemon(BaseDaemon):
         for ut in self.uts:
             # Get info from each interface
             try:
-                interface_id = params.UT_INTERFACES[ut]
+                interface_id = params.UT_DICT[ut]['INTERFACE']
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
 

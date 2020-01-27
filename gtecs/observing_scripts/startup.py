@@ -35,9 +35,9 @@ def run():
 
     # Make all the other daemons and interfaces are running
     execute_command('intf start')
-    for daemon in list(params.DAEMONS):
-        if daemon not in params.INTERFACES:
-            execute_command('{} start'.format(daemon))
+    for daemon_id in list(params.DAEMONS):
+        if daemon_id not in params.INTERFACES:
+            execute_command('{} start'.format(daemon_id))
 
     time.sleep(4)
 

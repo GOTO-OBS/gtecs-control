@@ -19,8 +19,8 @@ class FocDaemon(BaseDaemon):
         super().__init__('foc')
 
         # foc is dependent on all the interfaces
-        for daemon_id in params.INTERFACES:
-            self.dependencies.add(daemon_id)
+        for interface_id in params.INTERFACES:
+            self.dependencies.add(interface_id)
 
         # command flags
         self.move_focuser_flag = 0
@@ -65,7 +65,7 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         move_steps = self.move_steps[ut]
                         new_pos = self.info[ut]['current_pos'] + move_steps
 
@@ -91,7 +91,7 @@ class FocDaemon(BaseDaemon):
             if self.home_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
 
                         self.log.info('Homing focuser {} ({})'.format(
                                       ut, interface_id))
@@ -132,7 +132,7 @@ class FocDaemon(BaseDaemon):
         for ut in self.uts:
             # Get info from each interface
             try:
-                interface_id = params.UT_INTERFACES[ut]
+                interface_id = params.UT_DICT[ut]['INTERFACE']
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
 

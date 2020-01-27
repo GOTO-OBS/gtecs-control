@@ -23,8 +23,8 @@ class CamDaemon(BaseDaemon):
         super().__init__('cam')
 
         # cam is dependent on all the interfaces
-        for daemon_id in params.INTERFACES:
-            self.dependencies.add(daemon_id)
+        for interface_id in params.INTERFACES:
+            self.dependencies.add(interface_id)
 
         # command flags
         self.take_exposure_flag = 0
@@ -94,7 +94,7 @@ class CamDaemon(BaseDaemon):
 
                     # set exposure info
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         if self.run_number > 0:
                             expstr = 'exposure r{:07d}'.format(self.run_number)
                         else:
@@ -124,7 +124,7 @@ class CamDaemon(BaseDaemon):
                     # start exposure
                     # (seperate from the above, so they all start closer together)
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 # start the exposure
@@ -150,7 +150,7 @@ class CamDaemon(BaseDaemon):
 
                     # check if exposures are complete
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 ready = interface.exposure_ready(ut)
@@ -190,7 +190,7 @@ class CamDaemon(BaseDaemon):
             if self.abort_exposure_flag:
                 try:
                     for ut in self.abort_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         if self.run_number > 0:
                             expstr = 'exposure r{:07d}'.format(self.run_number)
                         else:
@@ -227,7 +227,7 @@ class CamDaemon(BaseDaemon):
             if self.set_temp_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_INTERFACES[ut]
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         target_temp = self.target_temp[ut]
                         camstr = 'camera {} ({})'.format(ut, interface_id)
                         self.log.info('Setting temperature on {} to {}'.format(camstr, target_temp))
@@ -265,7 +265,7 @@ class CamDaemon(BaseDaemon):
         for ut in self.uts:
             # Get info from each interface
             try:
-                interface_id = params.UT_INTERFACES[ut]
+                interface_id = params.UT_DICT[ut]['INTERFACE']
                 interface_info = {}
                 interface_info['interface_id'] = interface_id
 
@@ -350,7 +350,7 @@ class CamDaemon(BaseDaemon):
         future_images = {ut: None for ut in active_uts}
         for ut in active_uts:
             self.image_saving[ut] = 1
-            interface_id = params.UT_INTERFACES[ut]
+            interface_id = params.UT_DICT[ut]['INTERFACE']
             interface = daemon_proxy(interface_id, timeout=99)
             try:
                 if run_number > 0:
@@ -369,7 +369,7 @@ class CamDaemon(BaseDaemon):
         while True:
             time.sleep(0.001)
             for ut in active_uts:
-                interface_id = params.UT_INTERFACES[ut]
+                interface_id = params.UT_DICT[ut]['INTERFACE']
                 if future_images[ut].done() and images[ut] is None:
                     images[ut] = future_images[ut].result()
                     if run_number > 0:
@@ -463,7 +463,7 @@ class CamDaemon(BaseDaemon):
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError("Frame type must be in {}".format(params.FRAMETYPE_LIST))
+            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
 
         # Check current status
         if self.exposing:

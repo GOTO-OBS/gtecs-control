@@ -383,23 +383,37 @@ def parse_args():
     parser.add_argument('interface_id')
     parser.add_argument('--uts', nargs='+', action='append')
     args = parser.parse_args()
-    interface_id = args.interface_id
-    ut_dicts = args.uts
-    serial_dict = {}
-    for ut_dict in ut_dicts:
-        if len(ut_dict) == 4:
-            # Should be four strings: UT number, cam serial, foc serial, filt serial
-            ut, cam, foc, filt = ut_dict
-            serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': filt}
-        elif len(ut_dict) == 3:
-            # This UT has no filter wheel
-            ut, cam, foc = ut_dict
-            serial_dict[int(ut)] = {'cam': cam, 'foc': foc, 'filt': None}
-        else:
-            # This UT has no filter wheel or focuser
-            ut, cam = ut_dict
-            serial_dict[int(ut)] = {'cam': cam, 'foc': None, 'filt': None}
 
+    # Interface ID should be first argument
+    interface_id = args.interface_id
+
+    # Each UT should have an ID and list of serials
+    ut_lists = args.uts
+    serial_dict = {}
+    for ut_list in ut_lists:
+        # ID number should be first
+        ut = int(ut_list[0])
+        ut_dict = {}
+
+        # Extract the HW serials
+        for arg in ut_list[1:]:
+            if arg.startswith('cam='):
+                ut_dict['cam'] = arg.strip('cam=')
+            if arg.startswith('foc='):
+                ut_dict['foc'] = arg.strip('foc=')
+            if arg.startswith('filt='):
+                ut_dict['filt'] = arg.strip('filt=')
+
+        # Add `None`s for missing HW
+        if 'cam' not in ut_dict:
+            ut_dict['cam'] = None
+        if 'foc' not in ut_dict:
+            ut_dict['foc'] = None
+        if 'filt' not in ut_dict:
+            ut_dict['filt'] = None
+
+        # Add to main dict
+        serial_dict[ut] = ut_dict
     return interface_id, serial_dict
 
 
