@@ -88,8 +88,12 @@ def fit_to_data(df):
             mask_r = pos >= min_hfd
 
             # Fit straight line
-            coeffs_l = np.polyfit(pos[mask_l], hfd[mask_l], w=1 / hfd_std[mask_l], deg=1)
-            coeffs_r = np.polyfit(pos[mask_r], hfd[mask_r], w=1 / hfd_std[mask_r], deg=1)
+            width_l = 1 / hfd_std[mask_l]
+            width_r = 1 / hfd_std[mask_r]
+            width_l[np.isnan(width_l)] = 0
+            width_r[np.isnan(width_r)] = 0
+            coeffs_l = np.polyfit(pos[mask_l], hfd[mask_l], w=width_l, deg=1)
+            coeffs_r = np.polyfit(pos[mask_r], hfd[mask_r], w=width_r, deg=1)
             hfd_coeffs[ut] = (coeffs_l, coeffs_r)
             m1 = coeffs_l[0]
             m2 = coeffs_r[0]
@@ -98,7 +102,7 @@ def fit_to_data(df):
             # Find meeting point by picking a point on the line and using the autofocus function
             poly_r = np.poly1d(coeffs_r)
             point = (min_hfd, poly_r(min_hfd))
-            best_hfd = int(find_best_focus(m1, m2, delta, point[0], point[1]))
+            best_hfd = find_best_focus(m1, m2, delta, point[0], point[1])
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
@@ -108,11 +112,13 @@ def fit_to_data(df):
         best_fwhm = None
         try:
             # Fit parabola
-            coeffs = np.polyfit(pos, fwhm, w=1 / fwhm_std, deg=2)
+            width = 1 / fwhm_std
+            width[np.isnan(width)] = 0
+            coeffs = np.polyfit(pos, fwhm, w=width, deg=2)
             fwhm_coeffs[ut] = coeffs
 
             # Find minimum
-            best_fwhm = int(-coeffs[1] / 2 / coeffs[0])
+            best_fwhm = -coeffs[1] / 2 / coeffs[0]
 
         except Exception:
             print('UT{}: Error fitting to FWHM data'.format(ut))
