@@ -287,9 +287,9 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         hfds = hfds.groupby(level=0)
         fwhms = fwhms.groupby(level=0)
         data = {'median': hfds.min(),
-                'std': hfds.std(),
+                'std': hfds.std() if not np.isnan(hfds.std()) else 0,
                 'fwhm': fwhms.min(),
-                'fwhm_std': fwhms.std(),
+                'fwhm_std': fwhms.std() if not np.isnan(fwhms.std()) else 0,
                 'pos': pd.Series(get_current_focus()),
                 }
         print('Best HFDs:', data['median'].to_dict())
