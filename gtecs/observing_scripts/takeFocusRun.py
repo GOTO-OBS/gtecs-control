@@ -105,7 +105,7 @@ def fit_to_data(df):
 
             # Raise error if not enough points on both sides
             if sum(mask_l) < 2 or sum(mask_r) < 2:
-                raise ValueError('Can not fit HFD V-curve (n_l={}, l_r={})'.format(
+                raise ValueError('Can not fit HFD V-curve (n_l={}, n_r={})'.format(
                                  sum(mask_l), sum(mask_r)))
 
             # Fit straight line
