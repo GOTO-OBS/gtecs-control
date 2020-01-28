@@ -90,6 +90,10 @@ def fit_to_data(df):
         fwhm = np.array(ut_data['fwhm'])
         fwhm_std = np.array(ut_data['fwhm_std'])
 
+        # Need a nominal non-zero sigma, otherwise the curve fit fails
+        hfd_std[hfd_std == 0] = 0.001
+        fwhm_std[fwhm_std == 0] = 0.0001
+
         # HFD
         min_hfd, m1, m2, delta, best_hfd = None, None, None, None, None
         try:
@@ -300,9 +304,9 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         hfds = hfds.groupby(level=0)
         fwhms = fwhms.groupby(level=0)
         data = {'median': hfds.min(),
-                'std': hfds.std().fillna(0),
+                'std': hfds.std().fillna(0.0),
                 'fwhm': fwhms.min(),
-                'fwhm_std': fwhms.std().fillna(0),
+                'fwhm_std': fwhms.std().fillna(0.0),
                 'pos': pd.Series(get_current_focus()),
                 }
         print('Best HFDs:', data['median'].to_dict())
