@@ -354,8 +354,14 @@ def run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot,
         plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time)
 
     # Move to best position
+    go = ''
     if change_focus:
-        print('~~~~~~')
+        go = 'y'
+    else:
+        if not no_confirm:
+            while go not in ['y', 'n']:
+                go = input('Move to best focus? [y/n]: ')
+    if go == 'y':
         print('Moving to best focus...')
         best_focus = fit_df['best_fwhm'].to_dict()
         best_focus = {ut: focus for ut, focus in best_focus.items() if not np.isnan(focus)}
