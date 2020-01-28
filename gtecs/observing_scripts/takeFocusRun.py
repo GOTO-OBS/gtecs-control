@@ -237,7 +237,7 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
     plt.show()
 
 
-def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
+def run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -351,6 +351,16 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
         print('Plotting results...')
         plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time)
 
+    # Move to best position
+    if change_focus:
+        print('~~~~~~')
+        print('Moving to best focus...')
+        best_focus = fit_df['best_fwhm'].to_dict()
+        best_focus = {ut: focus for ut, focus in best_focus.items() if not np.isnan(focus)}
+        print('Best focus: ', best_focus)
+        set_new_focus(best_focus)
+        wait_for_focuser(best_focus, timeout=120)
+
     print('Done')
 
 
@@ -384,6 +394,9 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
+    parser.add_argument('--change-focus', action='store_true',
+                        help=('when the run is complete move to the best measured focus')
+                        )
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
                         )
@@ -400,8 +413,9 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
+    change_focus = args.change_focus
     no_slew = args.no_slew
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm)
+    run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm)

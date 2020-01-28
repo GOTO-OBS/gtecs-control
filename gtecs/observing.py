@@ -107,24 +107,24 @@ def prepare_for_images():
             time.sleep(0.5)
 
 
-def set_new_focus(values):
+def set_new_focus(target_values):
     """Move each unit telescope to the requested focus.
 
     Parameters
     ----------
-    values : float, dict
+    target_values : float, dict
         a dictionary of unit telescope IDs and focus values
 
     """
     try:
         # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UTS_WITH_FOCUSERS for ut in values.keys())
+        assert all(ut in params.UTS_WITH_FOCUSERS for ut in target_values.keys())
     except Exception:
         # same value for all
-        values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
+        target_values = {ut: target_values for ut in params.UTS_WITH_FOCUSERS}
 
-    for ut in params.UTS_WITH_FOCUSERS:
-        execute_command('foc set {} {}'.format(ut, int(values[ut])))
+    for ut in target_values:
+        execute_command('foc set {} {}'.format(ut, int(target_values[ut])))
 
 
 def get_current_focus():
@@ -175,7 +175,7 @@ def wait_for_focuser(target_values, timeout=None):
 
             done = [(foc_info[ut]['current_pos'] == int(target_values[ut]) and
                     foc_info[ut]['status'] == 'Ready')
-                    for ut in target_values.keys()]
+                    for ut in target_values]
             if np.all(done):
                 reached_position = True
         except Exception:
