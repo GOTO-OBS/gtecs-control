@@ -99,6 +99,11 @@ def fit_to_data(df):
             mask_l = pos <= min_hfd
             mask_r = pos >= min_hfd
 
+            # Raise error if not enough points on both sides
+            if sum(mask_l) < 2 or sum(mask_r) < 2:
+                raise ValueError('Can not fit HFD V-curve (n_l={}, l_r={})'.format(
+                                 sum(mask_l), sum(mask_r)))
+
             # Fit straight line
             coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
             coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
