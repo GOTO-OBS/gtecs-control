@@ -171,10 +171,11 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
                         yerr=ut_data['std'][mask_r], color='tab:orange', fmt='.', ms=7)
 
             # Plot fit
+            test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
             if hfd_coeffs[ut] is not None:
-                ax.plot(ut_data['pos'], lin_func(ut_data['pos'], *hfd_coeffs[ut][0]),
+                ax.plot(test_range, lin_func(test_range, *hfd_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
-                ax.plot(ut_data['pos'], lin_func(ut_data['pos'], *hfd_coeffs[ut][1]),
+                ax.plot(test_range, lin_func(test_range, *hfd_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
             else:
@@ -205,7 +206,7 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
             # Plot fit
             if fwhm_coeffs[ut] is not None:
-                ax.plot(ut_data['pos'], parabola_func(ut_data['pos'], *fwhm_coeffs[ut]),
+                ax.plot(test_range, parabola_func(test_range, *fwhm_coeffs[ut]),
                         color='tab:red', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['best_fwhm'], c='tab:red', ls='dotted', zorder=-1)
                 if fit_data['best_hfd'] is not None:
