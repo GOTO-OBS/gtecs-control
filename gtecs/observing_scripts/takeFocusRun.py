@@ -26,6 +26,8 @@ import numpy as np
 
 import pandas as pd
 
+from scipy.optimize import curve_fit
+
 
 def calculate_positions(fraction, steps):
     """Calculate the positions for the focus run."""
@@ -61,6 +63,16 @@ def calculate_positions(fraction, steps):
     return all_positions
 
 
+def lin_func(x, m, c):
+    """Fit HFDs."""
+    return m * x + c
+
+
+def parabola_func(x, a, b, c):
+    """Fit FWHMs."""
+    return a * x ** 2 + b * x + c
+
+
 def fit_to_data(df):
     """Fit to HFD and FWHM data."""
     uts = list(set(list(df.index)))
@@ -88,20 +100,15 @@ def fit_to_data(df):
             mask_r = pos >= min_hfd
 
             # Fit straight line
-            width_l = 1 / hfd_std[mask_l]
-            width_r = 1 / hfd_std[mask_r]
-            width_l[np.isnan(width_l)] = 0
-            width_r[np.isnan(width_r)] = 0
-            coeffs_l = np.polyfit(pos[mask_l], hfd[mask_l], w=width_l, deg=1)
-            coeffs_r = np.polyfit(pos[mask_r], hfd[mask_r], w=width_r, deg=1)
+            coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
+            coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
             hfd_coeffs[ut] = (coeffs_l, coeffs_r)
             m1 = coeffs_l[0]
             m2 = coeffs_r[0]
             delta = (coeffs_r[1] / coeffs_r[0]) - (coeffs_l[1] / coeffs_l[0])
 
             # Find meeting point by picking a point on the line and using the autofocus function
-            poly_r = np.poly1d(coeffs_r)
-            point = (min_hfd, poly_r(min_hfd))
+            point = (min_hfd, lin_func(min_hfd, *coeffs_r))
             best_hfd = find_best_focus(m1, m2, delta, point[0], point[1])
 
         except Exception:
@@ -112,9 +119,7 @@ def fit_to_data(df):
         best_fwhm = None
         try:
             # Fit parabola
-            width = 1 / fwhm_std
-            width[np.isnan(width)] = 0
-            coeffs = np.polyfit(pos, fwhm, w=width, deg=2)
+            coeffs, _ = curve_fit(parabola_func, pos, fwhm, sigma=fwhm_std)
             fwhm_coeffs[ut] = coeffs
 
             # Find minimum
@@ -158,11 +163,9 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
             # Plot fit
             if hfd_coeffs[ut] is not None:
-                poly_l = np.poly1d(hfd_coeffs[ut][0])
-                poly_r = np.poly1d(hfd_coeffs[ut][1])
-                ax.plot(ut_data['pos'], poly_l(ut_data['pos']),
+                ax.plot(ut_data['pos'], lin_func(ut_data['pos'], *hfd_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
-                ax.plot(ut_data['pos'], poly_r(ut_data['pos']),
+                ax.plot(ut_data['pos'], lin_func(ut_data['pos'], *hfd_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
             else:
@@ -193,8 +196,7 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
             # Plot fit
             if fwhm_coeffs[ut] is not None:
-                poly = np.poly1d(fwhm_coeffs[ut])
-                ax.plot(ut_data['pos'], poly(ut_data['pos']),
+                ax.plot(ut_data['pos'], parabola_func(ut_data['pos'], *fwhm_coeffs[ut]),
                         color='tab:red', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['best_fwhm'], c='tab:red', ls='dotted', zorder=-1)
                 if fit_data['best_hfd'] is not None:
