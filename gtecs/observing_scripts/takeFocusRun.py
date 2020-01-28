@@ -149,8 +149,9 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
     fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 12), dpi=100)
-    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.7, wspace=0.1)
 
+    fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.9)
     for i, ut in enumerate(uts):
         ut_data = df.loc[ut]
         fit_data = fit_df.loc[ut]
@@ -179,15 +180,15 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
             else:
-                ax.text(0.02, 0.1, 'Fit failed', transform=ax.transAxes,
+                ax.text(0.03, 0.15, 'Fit failed', transform=ax.transAxes,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
 
             # Set labels
-            ax.set_ylabel('UT{}'.format(ut))
-            if i == 0:
-                ax.set_title('HFD')
+            ax.set_ylabel('HFD')
             if i == len(uts) - 1:
                 ax.set_xlabel('Focus position')
+            ax.text(0.05, 1.15, 'UT{}'.format(ut), fontweight='bold',
+                    transform=ax.transAxes, zorder=9, ha='center', va='center')
 
             # Set limits
             ax.set_ylim(bottom=0)
@@ -212,12 +213,13 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
                 if fit_data['best_hfd'] is not None:
                     ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
             else:
-                ax.text(0.02, 0.1, 'Fit failed', transform=ax.transAxes,
+                ax.text(0.03, 0.15, 'Fit failed', transform=ax.transAxes,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
 
             # Set labels
-            if i == 0:
-                ax.set_title('FWHM')
+            ax.yaxis.tick_right()
+            ax.yaxis.set_label_position('right')
+            ax.set_ylabel('FWHM')
             if i == len(uts) - 1:
                 ax.set_xlabel('Focus position')
 
