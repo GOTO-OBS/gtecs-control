@@ -372,9 +372,9 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
         filter to take the image in
     name : str
         target name
-    imgtype : str, default 'SCIENCE'
+    imgtype : str, default='SCIENCE'
         image type
-    glance : bool, default `False`
+    glance : bool, default=`False`
         take a temporary glance image
 
     Returns
@@ -383,20 +383,22 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
         a dictionary of the image data, with the UT numbers as keys
 
     """
-    # Fund the current image count, so we know what to wait for
+    # Find the current image count, so we know what to wait for
     img_num = get_current_image_count()
 
+    # Send the command
     if not glance:
         exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
     else:
         exq_command = 'exq glance {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
     execute_command(exq_command)
-    execute_command('exq resume')  # just in case
+    execute_command('exq resume')
 
-    # wait for the camera daemon to finish saving the images
+    # Wait for the camera daemon to finish saving the images
     wait_for_images(img_num + 1, exptime + 60)
-    time.sleep(2)  # just in case
+    time.sleep(2)
 
+    # Fetch the data
     data = get_latest_image_data(glance)
 
     return data

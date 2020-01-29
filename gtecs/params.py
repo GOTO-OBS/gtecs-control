@@ -292,8 +292,6 @@ MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 AUTOFOCUS_NEARFOCUSVALUE = config['AUTOFOCUS_NEARFOCUSVALUE']
 AUTOFOCUS_BIGSTEP = config['AUTOFOCUS_BIGSTEP']
 AUTOFOCUS_SMALLSTEP = config['AUTOFOCUS_SMALLSTEP']
-AUTOFOCUS_EXPTIME = config['AUTOFOCUS_EXPTIME']
-AUTOFOCUS_FILTER = config['AUTOFOCUS_FILTER']
 
 # cant add these to validation without adding unwanted defaults
 # enforce type here instead.
