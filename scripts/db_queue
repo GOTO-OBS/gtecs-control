@@ -32,6 +32,7 @@ def run(time, limit):
     pointing_list = list(queue.pointings)
     pointing_list.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
     n_pointings = len(pointing_list)
+    n_valid = len([p for p in pointing_list if p.valid])
     pointing_list = pointing_list[:limit]
 
     # Get the max name length, for nicer formatting
@@ -39,15 +40,17 @@ def run(time, limit):
 
     # Print the pointings
     all_cons = {}
-    print('Pointings queue at {} UTC: {} objects'.format(time.iso, n_pointings))
-    print(' db_id | {: >{w}} | Vld | Rnk | ToO | Nobs | TieBrk | Constraints'.format(
+    print(boldtxt('Pointings queue at {} UTC'.format(time.iso)), end='')
+    print(': {} pointings, {} valid'.format(n_pointings, n_valid))
+    print('  db_id | {: >{w}} | Vld | Rnk | ToO | Nobs | TieBrk | Constraints'.format(
           'Object name', w=name_len))
     for pointing in pointing_list[:limit]:
-        print('{: >6.0f}'.format(pointing.db_id), end=' | ')
 
         if pointing.current:
-            print(ytxt('{: >{w}}'.format('*' + pointing.name + '*', w=name_len)), end=' | ')
+            print(ytxt('{: >7.0f}'.format(pointing.db_id)), end=' | ')
+            print(ytxt('{: >{w}}'.format(pointing.name, w=name_len)), end=' | ')
         else:
+            print('{: >7.0f}'.format(pointing.db_id), end=' | ')
             print('{: >{w}}'.format(pointing.name, w=name_len), end=' | ')
 
         print(gtxt(' Y ') if pointing.valid else rtxt(' N '), end=' | ')
