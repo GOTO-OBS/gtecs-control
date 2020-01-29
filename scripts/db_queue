@@ -87,7 +87,7 @@ if __name__ == '__main__':
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-t', '--time', nargs='?', default=None)
     parser.add_argument('-s', '--sunalt', nargs='?', default=None)
-    parser.add_argument('-a', '--all', action="store_true", default=False)
+    parser.add_argument('-a', '--all', action='store_true', default=False)
     args = parser.parse_args()
 
     if args.time:

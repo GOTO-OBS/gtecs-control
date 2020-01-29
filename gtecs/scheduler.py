@@ -26,25 +26,7 @@ from . import html
 from . import params
 
 
-# Setup
-warnings.simplefilter("ignore", ErfaWarning)
-
-# set debug level
-debug = 1
-
-# tiebreaker params
-WEIGHTING_WEIGHT = 10
-AIRMASS_WEIGHT = 1
-TTS_WEIGHT = 0.1
-
-WEIGHTING_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-AIRMASS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-TTS_WEIGHT /= (WEIGHTING_WEIGHT + AIRMASS_WEIGHT + TTS_WEIGHT)
-
-
-HARD_ALT_LIM = 10
-HARD_HA_LIM = 8
-MOON_PHASES = {'B': 1.0, 'G': 0.65, 'D': 0.25}
+warnings.simplefilter('ignore', ErfaWarning)
 
 
 def apply_constraints(constraints, observer, targets, times):
@@ -141,10 +123,10 @@ class Pointing(object):
         return not self == other
 
     def __repr__(self):
-        template = ("Pointing(db_id={}, name={}, ra={}, dec={}, rank={}, weight={}, " +
-                    "num_obs={}, too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, " +
-                    "minmoonsep={}, start={}, stop={}, " +
-                    "current={})")
+        template = ('Pointing(db_id={}, name={}, ra={}, dec={}, rank={}, weight={}, ' +
+                    'num_obs={}, too={}, maxsunalt={}, minalt={}, mintime={}, maxmoon={}, ' +
+                    'minmoonsep={}, start={}, stop={}, ' +
+                    'current={})')
         return template.format(
             self.db_id, self.name, self.ra, self.dec, self.rank, self.weight,
             self.num_obs, self.too, self.maxsunalt, self.minalt, self.mintime,
@@ -213,7 +195,7 @@ class PointingQueue(object):
         return len(self.pointings)
 
     def __repr__(self):
-        template = ("PointingQueue(length={})")
+        template = ('PointingQueue(length={})')
         return template.format(len(self.pointings))
 
     @classmethod
@@ -237,8 +219,8 @@ class PointingQueue(object):
             current, pending = db.get_filtered_queue(session,
                                                      time=time,
                                                      location=observer.location,
-                                                     altitude_limit=HARD_ALT_LIM,
-                                                     hourangle_limit=HARD_HA_LIM)
+                                                     altitude_limit=params.HARD_ALT_LIM,
+                                                     hourangle_limit=params.HARD_HA_LIM)
 
             pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
             if current:
@@ -270,7 +252,7 @@ class PointingQueue(object):
         self.constraints['ArtHoriz'] = ArtificialHorizonConstraint()
 
         # Moon
-        moonphases = [float(MOON_PHASES[p.maxmoon]) for p in self.pointings]
+        moonphases = [float(params.MOON_PHASES[p.maxmoon]) for p in self.pointings]
         self.constraints['Moon'] = MoonIlluminationConstraint(None, moonphases)
 
         # MoonSep
@@ -353,9 +335,11 @@ class PointingQueue(object):
         tts_arr[bad_tts_mask] = 1
 
         # Construct the tiebreaker value
-        tiebreak_arr = (weight_arr * WEIGHTING_WEIGHT +
-                        airmass_arr * AIRMASS_WEIGHT +
-                        tts_arr * TTS_WEIGHT)
+        total_weight = params.WEIGHTING_WEIGHT + params.AIRMASS_WEIGHT + params.TTS_WEIGHT
+        w_weight = params.WEIGHTING_WEIGHT / total_weight
+        a_weight = params.AIRMASS_WEIGHT / total_weight
+        t_weight = params.TTS_WEIGHT / total_weight
+        tiebreak_arr = (weight_arr * w_weight + airmass_arr * a_weight + tts_arr * t_weight)
 
         # Save values on the pointings
         for pointing, tiebreaker in zip(self.pointings, tiebreak_arr):
@@ -410,7 +394,7 @@ class PointingQueue(object):
         """Write any time-dependent pointing infomation to a file."""
         # The queue should already have priorities calculated
         if not hasattr(self.pointings[0], 'valid') or not hasattr(self.pointings[0], 'tiebreaker'):
-            raise ValueError("Queue has not yet had priorities calculated")
+            raise ValueError('Queue has not yet had priorities calculated')
 
         # get and sort pointings
         pointings = list(self.pointings)  # make a copy
