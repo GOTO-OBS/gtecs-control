@@ -31,10 +31,16 @@ def run(time, limit):
     # Get the pointings, now with extra infomation
     pointing_list = list(queue.pointings)
     pointing_list.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
+    pointing_list = pointing_list[:limit]
+
+    # Get the max name length, for nicer formatting
+    name_len = int(max(len(p.name) for p in pointing_list)) + 2
 
     # Print the pointings
     all_cons = {}
     print('Pointings queue at {} UTC:'.format(time.iso))
+    print(' db_id | {: >{w}} | Vld | Rnk | ToO | Nobs | TieBrk | Constraints'.format(
+          'Object name', w=name_len))
     reached_invalid = False
     for pointing in pointing_list[:limit]:
         if not pointing.valid and not reached_invalid:
@@ -44,18 +50,15 @@ def run(time, limit):
         print('{: >6.0f}'.format(pointing.db_id), end=' | ')
 
         if pointing.current:
-            print(ytxt('{: >35}'.format(pointing.name)), end=' | ')
+            print(ytxt('{: >{w}}'.format('*' + pointing.name + '*', w=name_len)), end=' | ')
         else:
-            print('{: >35}'.format(pointing.name), end=' | ')
+            print('{: >{w}}'.format(pointing.name, w=name_len), end=' | ')
 
-        if not pointing.valid:
-            print(rtxt('{: >1}'.format(pointing.valid)), end=' | ')
-        else:
-            print(gtxt('{: >1}'.format(pointing.valid)), end=' | ')
+        print(gtxt(' Y ') if pointing.valid else rtxt(' N '), end=' | ')
 
         print('{: >3.0f}'.format(pointing.rank), end=' | ')
-        print('{: >1}'.format(pointing.too), end=' | ')
-        print('{: >3.0f}'.format(pointing.num_obs), end=' | ')
+        print(' Y ' if pointing.too else ' N ', end=' | ')
+        print('{: >4.0f}'.format(pointing.num_obs), end=' | ')
         print('{: >6.4f}'.format(pointing.tiebreaker), end=' | ')
 
         cons = [(name, valid) for name, valid in zip(pointing.constraint_names, pointing.valid_arr)]
