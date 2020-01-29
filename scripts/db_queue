@@ -73,7 +73,6 @@ def run(time, limit):
         print(end='\n')
     if limit != -1 and len(pointing_list) > limit:
         print(' ...and {} more'.format(len(pointing_list) - limit))
-    print('----------------')
 
     for name in sorted(all_cons):
         if '_' not in name:
@@ -85,8 +84,12 @@ def run(time, limit):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-t', '--time', nargs='?', default=None)
-    parser.add_argument('-s', '--sunalt', nargs='?', default=None)
+    parser.add_argument('-t', '--time', nargs='?', default=None,
+                        help='Time to check the queue at')
+    parser.add_argument('-s', '--sunalt', nargs='?', default=None,
+                        help='Sun altitude to check the queue at (next)')
+    parser.add_argument('-n', '--lines', nargs='?', type=int, default=20,
+                        help='Number of lines to print')
     parser.add_argument('-a', '--all', action='store_true', default=False)
     args = parser.parse_args()
 
@@ -102,6 +105,8 @@ if __name__ == '__main__':
 
     if args.all:
         limit = -1
+    elif args.lines:
+        limit = args.lines
     else:
         limit = 20
 
