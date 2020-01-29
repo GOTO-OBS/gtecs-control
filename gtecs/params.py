@@ -289,30 +289,35 @@ MOONELEV_LIMIT = config['MOONELEV_LIMIT']
 
 ############################################################
 # Obs script parameters
-AUTOFOCUS_NEARFOCUSVALUE = config['AUTOFOCUS_NEARFOCUSVALUE']
-AUTOFOCUS_BIGSTEP = config['AUTOFOCUS_BIGSTEP']
-AUTOFOCUS_SMALLSTEP = config['AUTOFOCUS_SMALLSTEP']
+AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
+for ut in UTS_WITH_FOCUSERS:
+    # Each focuser should have params here
+    if ut not in AUTOFOCUS_PARAMS:
+        AUTOFOCUS_PARAMS[str(ut)] = {}
+# It complains about types, I don't know why
+AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[str(ut)] for ut in AUTOFOCUS_PARAMS}
 
-# cant add these to validation without adding unwanted defaults
-# enforce type here instead.
-if 'FOCUS_SLOPE_ABOVE' in config:
-    FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
-                         for key in config['FOCUS_SLOPE_ABOVE']}
-else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS_WITH_FOCUSERS}
-
-if 'FOCUS_SLOPE_BELOW' in config:
-    FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
-                         for key in config['FOCUS_SLOPE_BELOW']}
-else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS_WITH_FOCUSERS}
-
-if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
-    FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
-                                  for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
-else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS_WITH_FOCUSERS}
-
+for ut in AUTOFOCUS_PARAMS:
+    # Use default params if they're not given (not perfect, they really need to be defined per UT)
+    if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
+    if 'BIG_STEP_FRACTION' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
+    if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
+    if 'SLOPE_LEFT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = -0.001
+    if 'SLOPE_RIGHT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
+    if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
+    # Enforce type
+    AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
+    AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
+    AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
 
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
 FLATS_NUM = config['FLATS_NUM']

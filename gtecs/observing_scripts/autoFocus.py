@@ -317,7 +317,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     orig_focus = get_focus()
     RestoreFocus(orig_focus)
     print('~~~~~~')
-    print('Initial focus:', orig_focus)
+    print('Initial focus:', orig_focus.to_dict())
     print('Taking {} measurements at initial focus position...'.format(num_exp))
     foc_data = measure_hfd_carefully(orig_focus, num_exp, **exp_args, **sep_args)
     hfds = foc_data['hfd']
@@ -429,14 +429,14 @@ if __name__ == '__main__':
     filt = args.filter
     no_slew = args.no_slew
 
-    # Get the autofocus parameters (should be a dict in params)
-    big_step = pd.Series({ut: params.AUTOFOCUS_BIGSTEP for ut in params.UTS_WITH_FOCUSERS})
-    small_step = pd.Series({ut: params.AUTOFOCUS_SMALLSTEP for ut in params.UTS_WITH_FOCUSERS})
-    nfv = pd.Series({ut: params.AUTOFOCUS_NEARFOCUSVALUE for ut in params.UTS_WITH_FOCUSERS})
-
-    # Get the parameters of the focus curves
-    m_l = pd.Series(params.FOCUS_SLOPE_BELOW, dtype='float')
-    m_r = pd.Series(params.FOCUS_SLOPE_ABOVE, dtype='float')
-    delta_x = pd.Series(params.FOCUS_INTERCEPT_DIFFERENCE, dtype='float')
+    # Get the autofocus parameters
+    ut_params = params.AUTOFOCUS_PARAMS
+    uts = list(params.AUTOFOCUS_PARAMS.keys())
+    big_step = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in uts})
+    small_step = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in uts})
+    nfv = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts})
+    m_l = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in uts})
+    m_r = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in uts})
+    delta_x = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts})
 
     run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp, exptime, filt, no_slew)
