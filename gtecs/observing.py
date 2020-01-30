@@ -87,24 +87,37 @@ def prepare_for_images():
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are at operating temperature
+    - apply temperature compensation to the focusers
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
+        print('Clearing exposure queue')
         execute_command('exq clear')
         while not exposure_queue_is_empty():
             time.sleep(0.5)
 
     # Home the filter wheels
     if not filters_are_homed():
+        print('Homing filters')
         execute_command('filt home')
         while not filters_are_homed():
             time.sleep(0.5)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
+        print('Cooling cameras')
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
+
+    # Apply any temperature compensation to the focusers
+    positions = get_current_focus()
+    offsets = get_focuser_temp_compensation(params.FOCUS_TEMP_GRADIENT, params.FOCUS_TEMP_MINCHANGE)
+    if len(offsets) > 0:
+        print('Applying temperature compensation to focusers')
+        move_focusers(offsets)
+        new_positions = {ut: positions[ut] + offsets[ut] for ut in offsets}
+        wait_for_focuser(new_positions, timeout=None)
 
 
 def set_new_focus(target_values):
@@ -125,6 +138,26 @@ def set_new_focus(target_values):
 
     for ut in target_values:
         execute_command('foc set {} {}'.format(ut, int(target_values[ut])))
+
+
+def move_focusers(values):
+    """Move each focuser by the given number of steps.
+
+    Parameters
+    ----------
+    values : float, dict
+        a dictionary of unit telescope IDs and step values
+
+    """
+    try:
+        # will raise if not a dict (which is why .keys() is there), or if keys not valid
+        assert all(ut in params.UTS_WITH_FOCUSERS for ut in values.keys())
+    except Exception:
+        # same value for all
+        values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
+
+    for ut in values:
+        execute_command('foc move {} {}'.format(ut, int(values[ut])))
 
 
 def get_current_focus():
@@ -186,6 +219,47 @@ def wait_for_focuser(target_values, timeout=None):
 
     if timed_out:
         raise TimeoutError('Focuser timed out')
+
+
+def get_focuser_temp_compensation(gradients, min_change=0.5):
+    """Find the offset in focuser position based on temperature change since it was last set.
+
+    Parameters
+    ----------
+    gradients : dict
+        the gradient in steps/degree C for each UT
+    min_change : float, default=0.5
+        the minimum temperature change needed to change the focus
+
+    """
+    foc_info = daemon_info('foc')
+
+    # Find the change in temperature since the last move
+    curr_temp = foc_info['dome_temp']
+    if curr_temp is None:
+        raise ValueError('Could not get current dome temperature from the focuser daemon')
+    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
+    deltas = {ut: curr_temp - prev_temp[ut]
+              if prev_temp[ut] is not None else 0
+              for ut in params.UTS_WITH_FOCUSERS}
+
+    # Check if the change is greater than the minimum to refocus
+    deltas = {ut: deltas[ut]
+              if abs(deltas[ut]) > min_change else 0
+              for ut in deltas}
+
+    # Find the gradients (in steps/degree C)
+    gradients = {ut: gradients[ut]
+                 if ut in gradients else 0
+                 for ut in params.UTS_WITH_FOCUSERS}
+
+    # Calculate the focus offset
+    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
+
+    # Ignore any UTs which do not need changing
+    offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
+
+    return offsets
 
 
 def get_current_mount_position():

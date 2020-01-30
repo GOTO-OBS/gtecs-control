@@ -528,7 +528,7 @@ def get_moon_params(now):
         phase = 'G'
     elif 0.65 <= illumination <= 1.00:
         phase = 'B'
-    if alt < params.MOONELEV_LIMIT:
+    if alt < params.DARK_MOON_ALT_LIMIT:
         phase = 'D'
 
     return alt, illumination, phase

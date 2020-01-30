@@ -221,7 +221,7 @@ def write_queue_page():
             moonstring = "G"
         elif 0.65 <= moon_ill <= 1.00:
             moonstring = "B"
-        if moon_alt < params.MOONELEV_LIMIT:
+        if moon_alt < params.DARK_MOON_ALT_LIMIT:
             moonstring = "D"
         f.write('{:.2f} [{}]'.format(moon_ill, moonstring))
 

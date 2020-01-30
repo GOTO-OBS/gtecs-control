@@ -225,13 +225,6 @@ SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 
 ############################################################
-# Sentinel parameters
-LOCAL_IVO = config['LOCAL_IVO']
-VOSERVER_HOST = config['VOSERVER_HOST']
-VOSERVER_PORT = config['VOSERVER_PORT']
-SENTINEL_SEND_MESSAGES = config['SENTINEL_SEND_MESSAGES']
-
-############################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION']
 DEFAULT_OFFSET_STEP = config['DEFAULT_OFFSET_STEP']
@@ -250,6 +243,14 @@ FILTER_LIST = config['FILTER_LIST']
 ############################################################
 # Focuser parameters
 RASA_PORT = config['RASA_PORT']
+FOCUS_TEMP_MINCHANGE = config['FOCUS_TEMP_MINCHANGE']
+# cant add these to validation without adding unwanted defaults
+# enforce type here instead.
+if 'FOCUS_TEMP_GRADIENT' in config:
+    FOCUS_TEMP_GRADIENT = {int(ut): float(config['FOCUS_TEMP_GRADIENT'][ut])
+                           for ut in config['FOCUS_TEMP_GRADIENT']}
+else:
+    FOCUS_TEMP_GRADIENT = {ut: 0 for ut in UTS_WITH_FOCUSERS}
 
 ############################################################
 # Camera parameters
@@ -283,9 +284,25 @@ DOME_ALARM_DURATION = config['DOME_ALARM_DURATION']
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
+########################################################################
+# Scheduler parameters
+WEIGHTING_WEIGHT = config['WEIGHTING_WEIGHT']
+AIRMASS_WEIGHT = config['AIRMASS_WEIGHT']
+TTS_WEIGHT = config['TTS_WEIGHT']
+HARD_ALT_LIM = config['HARD_ALT_LIM']
+HARD_HA_LIM = config['HARD_HA_LIM']
+BRIGHT_MOON = config['BRIGHT_MOON']
+GREY_MOON = config['GREY_MOON']
+DARK_MOON = config['DARK_MOON']
+MOON_PHASES = {'B': BRIGHT_MOON, 'G': GREY_MOON, 'D': DARK_MOON}
+DARK_MOON_ALT_LIMIT = config['DARK_MOON_ALT_LIMIT']
+
 ############################################################
-# Observing parameters
-MOONELEV_LIMIT = config['MOONELEV_LIMIT']
+# Sentinel parameters
+LOCAL_IVO = config['LOCAL_IVO']
+VOSERVER_HOST = config['VOSERVER_HOST']
+VOSERVER_PORT = config['VOSERVER_PORT']
+SENTINEL_SEND_MESSAGES = config['SENTINEL_SEND_MESSAGES']
 
 ############################################################
 # Obs script parameters
