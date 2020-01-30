@@ -356,7 +356,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('~~~~~~')
         print('Initial HFDs:', old_hfds.to_dict())
         print('Current HFDs:', hfds.to_dict())
-        set_new_focus(orig_focus)
+        set_new_focus(orig_focus.to_dict())
         raise Exception('HFD not changing with focus position')
 
     # Now move back towards where best focus should be.
@@ -377,7 +377,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('~~~~~~')
         print('Far out HFDs:', old_hfds.to_dict())
         print('Back in HFDs:', hfds.to_dict())
-        set_new_focus(orig_focus)
+        set_new_focus(orig_focus.to_dict())
         raise Exception('Can not be sure we are on the correct side of best focus')
 
     # We're on the curve, so we can estimate the focus position for given HFDs
