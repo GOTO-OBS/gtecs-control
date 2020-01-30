@@ -89,6 +89,14 @@ def fit_to_data(df):
         fwhm = np.array(ut_data['fwhm'])
         fwhm_std = np.array(ut_data['fwhm_std'])
 
+        # Mask any failed measurements (e.g. not enough objects)
+        mask = np.logical_and(np.invert(np.isnan(hfd)), np.invert(np.isnan(fwhm)))
+        pos = pos[mask]
+        hfd = hfd[mask]
+        hfd_std = hfd_std[mask]
+        fwhm = fwhm[mask]
+        fwhm_std = fwhm_std[mask]
+
         # Need a nominal non-zero sigma, otherwise the curve fit fails
         hfd_std[hfd_std == 0] = 0.001
         fwhm_std[fwhm_std == 0] = 0.0001
