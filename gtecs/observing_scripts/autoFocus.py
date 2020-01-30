@@ -22,8 +22,9 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_current_focus, prepare_for_images,
-                             set_new_focus, slew_to_radec, wait_for_focuser, wait_for_mount)
+from gtecs.observing import (get_analysis_image, get_current_focus, get_focus_limit,
+                             prepare_for_images, set_new_focus, slew_to_radec, wait_for_focuser,
+                             wait_for_mount)
 
 import numpy as np
 
@@ -55,8 +56,21 @@ def get_focus():
 def set_focus_carefully(new_focus, orig_focus, timeout=30):
     """Move to focus, but restore old values if we fail."""
     try:
+        # The set_new_focus function doesn't like series
         if type(new_focus) == pd.Series:
             new_focus = new_focus.to_dict()
+
+        # Check if the position is outside of the limit of the focuser
+        limits = get_focus_limit()
+        for ut in new_focus:
+            if new_focus[ut] < 0:
+                print('  WARNING: UT{} position is below minimum (0)'.format(ut))
+                new_focus[ut] = 0
+            if new_focus[ut] > limits[ut]:
+                print('  WARNING: UT{} position is above maximum ({})'.format(ut, limits[ut]))
+                new_focus[ut] = limits[ut]
+
+        # Set the new position and wait until it returns (or times out)
         set_new_focus(new_focus)
         wait_for_focuser(new_focus, timeout)
     except Exception:

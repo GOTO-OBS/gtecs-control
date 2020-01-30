@@ -53,7 +53,7 @@ def calculate_positions(fraction, steps):
             positions[positions < 0] = [0] * n_bad
         if positions[-1] > limits[ut]:
             n_bad = sum(positions > limits[ut])
-            print('  WARNING: {} position(s) above maximum ({})'.format(n_bad, limits[ut]))
+            print('  WARNING: {} position(s) is above maximum ({})'.format(n_bad, limits[ut]))
             positions[positions > limits[ut]] = [limits[ut]] * n_bad
         print('  {} positions:'.format(len(positions)), positions)
 
