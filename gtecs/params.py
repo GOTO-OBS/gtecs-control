@@ -243,6 +243,14 @@ FILTER_LIST = config['FILTER_LIST']
 ############################################################
 # Focuser parameters
 RASA_PORT = config['RASA_PORT']
+FOCUS_TEMP_MINCHANGE = config['FOCUS_TEMP_MINCHANGE']
+# cant add these to validation without adding unwanted defaults
+# enforce type here instead.
+if 'FOCUS_TEMP_GRADIENT' in config:
+    FOCUS_TEMP_GRADIENT = {int(ut): float(config['FOCUS_TEMP_GRADIENT'][ut])
+                           for ut in config['FOCUS_TEMP_GRADIENT']}
+else:
+    FOCUS_TEMP_GRADIENT = {ut: 0 for ut in UTS_WITH_FOCUSERS}
 
 ############################################################
 # Camera parameters
@@ -307,22 +315,22 @@ AUTOFOCUS_FILTER = config['AUTOFOCUS_FILTER']
 # cant add these to validation without adding unwanted defaults
 # enforce type here instead.
 if 'FOCUS_SLOPE_ABOVE' in config:
-    FOCUS_SLOPE_ABOVE = {int(key): float(config['FOCUS_SLOPE_ABOVE'][key])
-                         for key in config['FOCUS_SLOPE_ABOVE']}
+    FOCUS_SLOPE_ABOVE = {int(ut): float(config['FOCUS_SLOPE_ABOVE'][ut])
+                         for ut in config['FOCUS_SLOPE_ABOVE']}
 else:
-    FOCUS_SLOPE_ABOVE = {key: 12.0 for key in UTS_WITH_FOCUSERS}
+    FOCUS_SLOPE_ABOVE = {ut: 12.0 for ut in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_SLOPE_BELOW' in config:
-    FOCUS_SLOPE_BELOW = {int(key): float(config['FOCUS_SLOPE_BELOW'][key])
-                         for key in config['FOCUS_SLOPE_BELOW']}
+    FOCUS_SLOPE_BELOW = {int(ut): float(config['FOCUS_SLOPE_BELOW'][ut])
+                         for ut in config['FOCUS_SLOPE_BELOW']}
 else:
-    FOCUS_SLOPE_BELOW = {key: -12.0 for key in UTS_WITH_FOCUSERS}
+    FOCUS_SLOPE_BELOW = {ut: -12.0 for ut in UTS_WITH_FOCUSERS}
 
 if 'FOCUS_INTERCEPT_DIFFERENCE' in config:
-    FOCUS_INTERCEPT_DIFFERENCE = {int(key): float(config['FOCUS_INTERCEPT_DIFFERENCE'][key])
-                                  for key in config['FOCUS_INTERCEPT_DIFFERENCE']}
+    FOCUS_INTERCEPT_DIFFERENCE = {int(ut): float(config['FOCUS_INTERCEPT_DIFFERENCE'][ut])
+                                  for ut in config['FOCUS_INTERCEPT_DIFFERENCE']}
 else:
-    FOCUS_INTERCEPT_DIFFERENCE = {key: 0.1 for key in UTS_WITH_FOCUSERS}
+    FOCUS_INTERCEPT_DIFFERENCE = {ut: 0.1 for ut in UTS_WITH_FOCUSERS}
 
 
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
