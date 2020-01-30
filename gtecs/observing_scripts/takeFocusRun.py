@@ -411,4 +411,12 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm)
+    # If something goes wrong we need to restore the origional focus
+    try:
+        orig_focus = get_current_focus()
+        run(fraction, steps, num_exp, exptime, filt,
+            change_focus, no_slew, no_plot, no_confirm)
+    except Exception:
+        print('Restoring original focus...')
+        set_new_focus(orig_focus)
+        raise

@@ -439,4 +439,12 @@ if __name__ == '__main__':
     m_r = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in uts})
     delta_x = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts})
 
-    run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp, exptime, filt, no_slew)
+    # If something goes wrong we need to restore the origional focus
+    try:
+        orig_focus = get_current_focus()
+        run(big_step, small_step, nfv, m_l, m_r, delta_x,
+            num_exp, exptime, filt, no_slew)
+    except Exception:
+        print('Restoring original focus...')
+        set_new_focus(orig_focus)
+        raise
