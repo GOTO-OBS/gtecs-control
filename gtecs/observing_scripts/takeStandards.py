@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.astronomy import check_alt_limit
 from gtecs.catalogs import standard_star
-from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set, wait_for_mount
+from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set
 
 
 def run():
@@ -32,8 +32,7 @@ def run():
 
         print('Slewing to star', star)
         name = star.name
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-        wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
         # take 20 second exposures in all filters
         take_image_set(20, params.FILTER_LIST, name, imgtype='STD')

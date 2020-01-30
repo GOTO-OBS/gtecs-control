@@ -14,8 +14,8 @@ from astropy.time import Time
 
 from gtecs import params
 from gtecs.catalogs import focus_star
-from gtecs.observing import (get_current_focus, get_focus_limit, prepare_for_images,
-                             set_new_focus, slew_to_radec, wait_for_focuser, wait_for_mount)
+from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
+                             set_focuser_positions, slew_to_radec)
 from gtecs.observing_scripts.autoFocus import (RestoreFocus, find_best_focus,
                                                measure_focus, set_focus)
 
@@ -31,8 +31,8 @@ from scipy.optimize import curve_fit
 def calculate_positions(fraction, steps):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
-    current = get_current_focus()
-    limits = get_focus_limit()
+    current = get_focuser_positions()
+    limits = get_focuser_limits()
 
     all_positions = {}
     for ut in limits:
@@ -275,8 +275,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
         print('Slewing to target {}...'.format(star))
         target_name = star.name
         coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-        wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         print('Reached target')
     else:
         target_name = 'Focus run'
@@ -289,9 +288,8 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
                 'xslice': slice(3300, 5100), 'yslice': slice(1400, 4100)}
 
     # Store the current focus
-    # From here any exception or attempt to close should move to old focus
-    orig_focus = get_current_focus()
     print('~~~~~~')
+    orig_focus = get_focuser_positions()
     print('Initial focus:', orig_focus)
 
     # Measure the HFDs at each position calculated earlier
@@ -301,7 +299,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
         print('## RUN {} of {}'.format(i + 1, len(positions)))
         print('Setting focus...')
         set_focus(new_focus, timeout=120)
-        print('New focus:', get_current_focus())
+        print('New focus:', get_focuser_positions())
         print('Taking {} measurements at new focus position...'.format(num_exp))
         foc_data = measure_focus(num_exp, **exp_args, **sep_args)
         hfds = foc_data['hfd']
@@ -319,7 +317,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     print('~~~~~~')
     print('Restoring original focus...')
     set_focus(orig_focus, timeout=120)
-    print('Restored focus: ', get_current_focus())
+    print('Restored focus: ', get_focuser_positions())
 
     # Write out data
     print('~~~~~~')
@@ -347,7 +345,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Move to best position?
     best_focus = fit_df['best_fwhm'].to_dict()
     best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
-    print('Current focus: ', get_current_focus())
+    print('Current focus: ', get_focuser_positions())
     print('Best focus: ', best_focus)
     go = ''
     if change_focus:
@@ -358,8 +356,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
                 go = input('Move to best focus? [y/n]: ')
     if go == 'y':
         print('Moving to best focus...')
-        set_new_focus(best_focus)
-        wait_for_focuser(best_focus, timeout=120)
+        set_focuser_positions(best_focus, timeout=120)
 
     print('Done')
 
@@ -420,10 +417,10 @@ if __name__ == '__main__':
 
     # If something goes wrong we need to restore the origional focus
     try:
-        orig_focus = get_current_focus()
+        orig_focus = get_focuser_positions()
         RestoreFocus(orig_focus)
         run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus...')
-        set_new_focus(orig_focus)
+        set_focuser_positions(orig_focus)
         raise

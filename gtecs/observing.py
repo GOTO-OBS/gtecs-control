@@ -72,15 +72,6 @@ def wait_for_dome(target_position, timeout=None):
         raise TimeoutError('Dome timed out')
 
 
-def get_cam_temps():
-    """Get a dict of camera temps."""
-    cam_info = daemon_info('cam')
-    values = {}
-    for ut in params.UTS_WITH_CAMERAS:
-        values[ut] = cam_info[ut]['ccd_temp']
-    return values
-
-
 def prepare_for_images():
     """Make sure the hardware is set up for taking images.
 
@@ -111,7 +102,6 @@ def prepare_for_images():
             time.sleep(0.5)
 
     # Apply any temperature compensation to the focusers
-    positions = get_current_focus()
     gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
                  for ut in params.UTS_WITH_FOCUSERS}
     min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
@@ -119,87 +109,94 @@ def prepare_for_images():
     offsets = get_focuser_temp_compensation(gradients, min_change)
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
-        move_focusers(offsets)
-        new_positions = {ut: positions[ut] + offsets[ut] for ut in offsets}
-        wait_for_focuser(new_positions, timeout=None)
+        move_focusers(offsets, timeout=None)
 
 
-def set_new_focus(target_values):
-    """Move each unit telescope to the requested focus.
+def get_focuser_positions():
+    """Find the current focuser positions."""
+    foc_info = daemon_info('foc')
+    positions = {}
+    for ut in params.UTS_WITH_FOCUSERS:
+        positions[ut] = foc_info[ut]['current_pos']
+    return positions
+
+
+def get_focuser_limits():
+    """Find the maximum focuser position limit."""
+    foc_info = daemon_info('foc')
+    limits = {}
+    for ut in params.UTS_WITH_FOCUSERS:
+        limits[ut] = foc_info[ut]['limit']
+    return limits
+
+
+def set_focuser_positions(positions, wait=False, timeout=None):
+    """Move each focuser to the requested position.
 
     Parameters
     ----------
-    target_values : float, dict
-        a dictionary of unit telescope IDs and focus values
+    positions : float, dict
+        position to move to, or a dictionary of unit telescope IDs and positions
+
+    wait: bool, default=False
+        wait for the focusers to complete their move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    try:
-        # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UTS_WITH_FOCUSERS for ut in target_values.keys())
-    except Exception:
-        # same value for all
-        target_values = {ut: target_values for ut in params.UTS_WITH_FOCUSERS}
+    if type(positions) != dict:
+        positions = {ut: positions for ut in params.UTS_WITH_FOCUSERS}
 
-    for ut in target_values:
-        execute_command('foc set {} {}'.format(ut, int(target_values[ut])))
+    for ut in positions:
+        execute_command('foc set {} {}'.format(ut, int(positions[ut])))
+
+    if wait or timeout is not None:
+        wait_for_focusers(positions, timeout)
 
 
-def move_focusers(values):
+def move_focusers(offsets, wait=False, timeout=None):
     """Move each focuser by the given number of steps.
 
     Parameters
     ----------
-    values : float, dict
-        a dictionary of unit telescope IDs and step values
+    offsets : float, dict
+        offsets in steps to move by, or a dictionary of unit telescope IDs and offsets
+
+    wait: bool, default=False
+        wait for the focusers to complete their move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    try:
-        # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UTS_WITH_FOCUSERS for ut in values.keys())
-    except Exception:
-        # same value for all
-        values = {ut: values for ut in params.UTS_WITH_FOCUSERS}
+    if type(offsets) != dict:
+        offsets = {ut: offsets for ut in params.UTS_WITH_FOCUSERS}
 
-    for ut in values:
-        execute_command('foc move {} {}'.format(ut, int(values[ut])))
+    start_positions = get_focuser_positions()
+    finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
 
+    for ut in offsets:
+        execute_command('foc move {} {}'.format(ut, int(offsets[ut])))
 
-def get_current_focus():
-    """Find the current focus positions."""
-    foc_info = daemon_info('foc')
-    values = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        values[ut] = foc_info[ut]['current_pos']
-    return values
+    if wait or timeout is not None:
+        wait_for_focusers(finish_positions, timeout)
 
 
-def get_focus_limit():
-    """Find the maximum focus position limit."""
-    foc_info = daemon_info('foc')
-    values = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        values[ut] = foc_info[ut]['limit']
-    return values
-
-
-def wait_for_focuser(target_values, timeout=None):
+def wait_for_focusers(target_positions, timeout=None):
     """Wait until focuser has reached the target position.
 
     Parameters
     ----------
-    target_values : float, dict
-        a dictionary of unit telescope IDs and focus values
-        (see `gtecs.observing.set_new_focus`)
-    timeout : float
+    target_positions : float, dict
+        targrt position, or a dictionary of unit telescope IDs and positions
+
+    timeout : float, default=None
         time in seconds after which to timeout, None to wait forever
 
     """
-    try:
-        # will raise if not a dict (which is why .keys() is there), or if keys not valid
-        assert all(ut in params.UTS_WITH_FOCUSERS for ut in target_values.keys())
-    except Exception:
-        # same value for all
-        target_values = {ut: target_values for ut in params.UTS_WITH_FOCUSERS}
+    if type(target_positions) != dict:
+        target_positions = {ut: target_positions for ut in params.UTS_WITH_FOCUSERS}
 
     start_time = time.time()
     reached_position = False
@@ -210,9 +207,9 @@ def wait_for_focuser(target_values, timeout=None):
         try:
             foc_info = daemon_info('foc', force_update=True)
 
-            done = [(foc_info[ut]['current_pos'] == int(target_values[ut]) and
+            done = [(foc_info[ut]['current_pos'] == int(target_positions[ut]) and
                     foc_info[ut]['status'] == 'Ready')
-                    for ut in target_values]
+                    for ut in target_positions]
             if np.all(done):
                 reached_position = True
         except Exception:
@@ -268,7 +265,7 @@ def get_focuser_temp_compensation(gradients, min_change=0.5):
     return offsets
 
 
-def get_current_mount_position():
+def get_mount_position():
     """Find the current mount position.
 
     Returns
@@ -286,7 +283,7 @@ def get_current_mount_position():
     return ra, dec
 
 
-def slew_to_radec(ra, dec):
+def slew_to_radec(ra, dec, wait=False, timeout=None):
     """Move mount to given RA/Dec.
 
     Parameters
@@ -296,18 +293,25 @@ def slew_to_radec(ra, dec):
     dec : float
         J2000 dec in decimal degrees
 
-    """
-    # Check alt limit
-    if check_alt_limit(ra, dec, Time.now()):
-        raise ValueError('target too low, cannot set target')
+    wait: bool, default=False
+        wait for the mount to complete the move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
 
-    # Stop any current slews
+    """
+    if check_alt_limit(ra, dec, Time.now()):
+        raise ValueError('Target is too low, cannot slew')
+
     mnt_info = daemon_info('mnt')
     if mnt_info['status'] == 'Slewing':
         execute_command('mnt stop')
+        time.sleep(2)
 
-    # Slew
     execute_command('mnt slew {} {}'.format(ra, dec))
+
+    if wait or timeout is not None:
+        wait_for_mount(ra, dec, timeout)
 
 
 def slew_to_altaz(alt, az):
@@ -321,21 +325,18 @@ def slew_to_altaz(alt, az):
         azimuth in decimal degrees
 
     """
-    # Check alt limit
     if alt < params.MIN_ELEVATION:
         raise ValueError('target too low, cannot set target')
 
-    # Stop any current slews
     mnt_info = daemon_info('mnt')
     if mnt_info['status'] == 'Slewing':
         execute_command('mnt stop')
+        time.sleep(2)
 
-    # Slew
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
 
-def wait_for_mount(target_ra, target_dec,
-                   timeout=None, targ_dist=0.003):
+def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
     """Wait for mount to be in target position.
 
     Parameters
@@ -418,9 +419,9 @@ def random_offset(offset_size):
     """
     compass = ['n', 's', 'e', 'w']
     dirn = np.random.choice(compass)
-    execute_command("mnt step {}".format(offset_size))
+    execute_command('mnt step {}'.format(offset_size))
     time.sleep(0.2)
-    execute_command("mnt {}".format(dirn))
+    execute_command('mnt {}'.format(dirn))
     # wait a short while for it to move
     time.sleep(2)
 
@@ -436,7 +437,7 @@ def offset(direction, size):
         offset size in arcseconds
 
     """
-    execute_command("mnt {} {}".format(direction, size))
+    execute_command('mnt {} {}'.format(direction, size))
     # wait a short while for it to move
     time.sleep(2)
 
@@ -464,7 +465,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
 
     """
     # Find the current image count, so we know what to wait for
-    img_num = get_current_image_count()
+    img_num = get_image_count()
 
     # Send the command
     if not glance:
@@ -622,7 +623,7 @@ def wait_for_exposure_queue(timeout=None):
         raise TimeoutError('Exposure queue timed out')
 
 
-def get_current_image_count():
+def get_image_count():
     """Find the current camera image number."""
     cam_info = daemon_info('cam')
     return cam_info['num_taken']

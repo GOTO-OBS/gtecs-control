@@ -22,9 +22,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_current_focus, get_focus_limit,
-                             prepare_for_images, set_new_focus, slew_to_radec, wait_for_focuser,
-                             wait_for_mount)
+from gtecs.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
+                             prepare_for_images, set_focuser_positions, slew_to_radec)
 
 import numpy as np
 
@@ -43,22 +42,22 @@ class RestoreFocus(NeatCloser):
     def tidy_up(self):
         """Restore the original focus."""
         print('Interrupt caught: Restoring original focus...')
-        set_new_focus(self.focus_vals)
+        set_focuser_positions(self.focus_vals)
 
 
 def get_focus():
     """Find the current focus positions, and return as a Pandas dataframe."""
-    return pd.Series(get_current_focus())
+    return pd.Series(get_focuser_positions())
 
 
 def set_focus(target_values, timeout=60):
     """Move to focus, restricted to the focuser limits."""
-    # The set_new_focus function doesn't like series
+    # The set_focuser_positions function doesn't like series
     if type(target_values) == pd.Series:
         target_values = target_values.to_dict()
 
     # Check if the position is outside of the limit of the focuser
-    limits = get_focus_limit()
+    limits = get_focuser_limits()
     for ut in target_values:
         if target_values[ut] < 0:
             print('  WARNING: UT{} position is below minimum (0)'.format(ut))
@@ -68,8 +67,7 @@ def set_focus(target_values, timeout=60):
             target_values[ut] = limits[ut]
 
     # Set the new position and wait until it returns (or times out)
-    set_new_focus(target_values)
-    wait_for_focuser(target_values, timeout)
+    set_focuser_positions(target_values, timeout=timeout)
 
 
 def find_best_focus(m_l, m_r, delta_x, xval, yval):
@@ -267,8 +265,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('Slewing to target {}...'.format(star))
         target_name = star.name
         coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-        wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         print('Reached target')
     else:
         target_name = 'Focus run'
@@ -294,7 +291,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Moving focus out...')
     set_focus(orig_focus + big_step)
-    print('New focus:', get_current_focus())
+    print('New focus:', get_focuser_positions())
     print('Taking {} measurements at new focus position...'.format(num_exp))
     old_hfds = hfds
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
@@ -315,7 +312,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Moving focus back in...')
     set_focus(get_focus() - small_step)
-    print('New focus:', get_current_focus())
+    print('New focus:', get_focuser_positions())
     print('Taking {} measurements at new focus position...'.format(num_exp))
     old_hfds = hfds
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
@@ -344,7 +341,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         new_focus = estimate_focus(target_hfds, hfds, get_focus(), m_r)
         new_focus = {ut: new_focus.to_dict()[ut] for ut in moving_uts}
         set_focus(new_focus)
-        print('New focus:', get_current_focus())
+        print('New focus:', get_focuser_positions())
         foc_data = measure_focus(num_exp, **exp_args, **sep_args)
         hfds = foc_data['hfd']
         print('Best HFDs:', hfds.to_dict())
@@ -406,10 +403,10 @@ if __name__ == '__main__':
 
     # If something goes wrong we need to restore the origional focus
     try:
-        orig_focus = get_current_focus()
+        orig_focus = get_focuser_positions()
         RestoreFocus(orig_focus)
         run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp, exptime, filt, no_slew)
     except Exception:
         print('Error caught: Restoring original focus...')
-        set_new_focus(orig_focus)
+        set_focuser_positions(orig_focus)
         raise
