@@ -348,7 +348,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
 
     # Move to best position?
     best_focus = fit_df['best_fwhm'].to_dict()
-    best_focus = {ut: focus for ut, focus in best_focus.items() if not np.isnan(focus)}
+    best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
     print('Current focus: ', get_current_focus())
     print('Best focus: ', best_focus)
     go = ''
