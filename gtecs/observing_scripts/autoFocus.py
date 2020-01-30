@@ -53,7 +53,7 @@ def get_focus():
     return pd.Series(get_current_focus())
 
 
-def set_focus_carefully(new_focus, orig_focus, timeout=30):
+def set_focus_carefully(new_focus, orig_focus, timeout=60):
     """Move to focus, but restore old values if we fail."""
     try:
         # The set_new_focus function doesn't like series
@@ -341,7 +341,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     # Assume the starting value is close to best, and a big step should be far enough out.
     print('~~~~~~')
     print('Moving focus out...')
-    set_focus_carefully(orig_focus + big_step, orig_focus, timeout=60)
+    set_focus_carefully(orig_focus + big_step, orig_focus)
     print('New focus:', get_current_focus())
     print('Taking {} measurements at new focus position...'.format(num_exp))
     old_hfds = hfds
@@ -363,7 +363,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     # This should confirm we're actually on the right-hand (positive) side of the V-curve.
     print('~~~~~~')
     print('Moving focus back in...')
-    set_focus_carefully(get_focus() - small_step, orig_focus, timeout=60)
+    set_focus_carefully(get_focus() - small_step, orig_focus)
     print('New focus:', get_current_focus())
     print('Taking {} measurements at new focus position...'.format(num_exp))
     old_hfds = hfds
