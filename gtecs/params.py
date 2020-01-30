@@ -301,7 +301,7 @@ for ut in AUTOFOCUS_PARAMS:
     # Use default params if they're not given (not perfect, they really need to be defined per UT)
     if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
-    if 'BIG_STEP_FRACTION' not in AUTOFOCUS_PARAMS[ut]:
+    if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
     if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
