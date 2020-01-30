@@ -244,13 +244,40 @@ FILTER_LIST = config['FILTER_LIST']
 # Focuser parameters
 RASA_PORT = config['RASA_PORT']
 FOCUS_TEMP_MINCHANGE = config['FOCUS_TEMP_MINCHANGE']
-# cant add these to validation without adding unwanted defaults
-# enforce type here instead.
-if 'FOCUS_TEMP_GRADIENT' in config:
-    FOCUS_TEMP_GRADIENT = {int(ut): float(config['FOCUS_TEMP_GRADIENT'][ut])
-                           for ut in config['FOCUS_TEMP_GRADIENT']}
-else:
-    FOCUS_TEMP_GRADIENT = {ut: 0 for ut in UTS_WITH_FOCUSERS}
+AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
+for ut in UTS_WITH_FOCUSERS:
+    # Each focuser should have params here
+    if str(ut) not in AUTOFOCUS_PARAMS:
+        AUTOFOCUS_PARAMS[str(ut)] = {}
+# It complains about types, I don't know why
+AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[str(ut)] for ut in AUTOFOCUS_PARAMS}
+for ut in AUTOFOCUS_PARAMS:
+    # Use default params if they're not given (not perfect, they really need to be defined per UT)
+    if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
+    if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
+    if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
+    if 'SLOPE_LEFT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = -0.001
+    if 'SLOPE_RIGHT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
+    if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
+    if 'TEMP_GRADIENT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = 0
+    if 'TEMP_MINCHANGE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = 0.5
+    # Enforce type
+    AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
+    AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
+    AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
+    AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
+    AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
 
 ############################################################
 # Camera parameters
@@ -306,36 +333,6 @@ SENTINEL_SEND_MESSAGES = config['SENTINEL_SEND_MESSAGES']
 
 ############################################################
 # Obs script parameters
-AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
-for ut in UTS_WITH_FOCUSERS:
-    # Each focuser should have params here
-    if ut not in AUTOFOCUS_PARAMS:
-        AUTOFOCUS_PARAMS[str(ut)] = {}
-# It complains about types, I don't know why
-AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[str(ut)] for ut in AUTOFOCUS_PARAMS}
-
-for ut in AUTOFOCUS_PARAMS:
-    # Use default params if they're not given (not perfect, they really need to be defined per UT)
-    if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
-    if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
-    if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
-    if 'SLOPE_LEFT' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = -0.001
-    if 'SLOPE_RIGHT' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
-    if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
-    # Enforce type
-    AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
-    AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
-    AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
-    AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
-    AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
-    AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
-
 FLATS_SKYMEANTARGET = config['FLATS_SKYMEANTARGET']
 FLATS_NUM = config['FLATS_NUM']
 FLATS_MAXEXPTIME = config['FLATS_MAXEXPTIME']
