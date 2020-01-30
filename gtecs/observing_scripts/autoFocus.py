@@ -388,7 +388,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     while np.any(hfds > nfv):
         print('Moving focus in...')
         mask = hfds > nfv
-        moving_uts = sorted(hfds.index)[mask]
+        moving_uts = hfds.index[mask]
         print('UTs above near-focus position: {}'.format(','.join(moving_uts)))
         target_hfds = (0.5 * hfds).where(mask, hfds)
         new_focus = estimate_focus(target_hfds, hfds, get_focus(), m_r)
