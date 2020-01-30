@@ -17,7 +17,7 @@ from gtecs.catalogs import focus_star
 from gtecs.observing import (get_current_focus, get_focus_limit, prepare_for_images,
                              set_new_focus, slew_to_radec, wait_for_focuser, wait_for_mount)
 from gtecs.observing_scripts.autoFocus import (RestoreFocus, find_best_focus,
-                                               measure_hfd_carefully, set_focus_carefully)
+                                               measure_focus, set_focus)
 
 from matplotlib import pyplot as plt
 
@@ -291,7 +291,6 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Store the current focus
     # From here any exception or attempt to close should move to old focus
     orig_focus = get_current_focus()
-    RestoreFocus(orig_focus)
     print('~~~~~~')
     print('Initial focus:', orig_focus)
 
@@ -301,10 +300,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
         print('~~~~~~')
         print('## RUN {} of {}'.format(i + 1, len(positions)))
         print('Setting focus...')
-        set_focus_carefully(new_focus, orig_focus, timeout=120)
+        set_focus(new_focus, timeout=120)
         print('New focus:', get_current_focus())
         print('Taking {} measurements at new focus position...'.format(num_exp))
-        foc_data = measure_hfd_carefully(orig_focus, num_exp, **exp_args, **sep_args)
+        foc_data = measure_focus(num_exp, **exp_args, **sep_args)
         hfds = foc_data['hfd']
         print('Best HFDs:', hfds.to_dict())
 
@@ -319,8 +318,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Restore the origional focus
     print('~~~~~~')
     print('Restoring original focus...')
-    set_new_focus(orig_focus)
-    wait_for_focuser(orig_focus, timeout=120)
+    set_focus(orig_focus, timeout=120)
     print('Restored focus: ', get_current_focus())
 
     # Write out data
@@ -423,9 +421,9 @@ if __name__ == '__main__':
     # If something goes wrong we need to restore the origional focus
     try:
         orig_focus = get_current_focus()
-        run(fraction, steps, num_exp, exptime, filt,
-            change_focus, no_slew, no_plot, no_confirm)
+        RestoreFocus(orig_focus)
+        run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm)
     except Exception:
-        print('Restoring original focus...')
+        print('Error caught: Restoring original focus...')
         set_new_focus(orig_focus)
         raise
