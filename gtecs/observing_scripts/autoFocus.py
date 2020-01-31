@@ -345,8 +345,13 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(bf_positions.to_dict(), timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
-    print('Best HFDs at initial position:', initial_hfds.to_dict())
+    bf_hfds = foc_data['hfd']
     print('Best HFDs at best focus position:\n', foc_data[['pos', 'hfd', 'hfd_std']])
+    print('~~~~~~')
+    print('Best HFDs at initial position:', initial_hfds.to_dict())
+    print('Best HFDs at best focus position:', bf_hfds.to_dict())
+    diff = initial_hfds - bf_hfds
+    print('Difference :', diff.to_dict())
 
     print('Done')
 
