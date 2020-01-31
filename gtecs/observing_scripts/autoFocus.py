@@ -116,7 +116,7 @@ def measure_image_focus(data, filter_width=3, threshold=5, xslice=None, yslice=N
 
     # Extract sources
     objects = sep.extract(data, threshold, background.globalrms,
-                          filter_kernel=kernel.array, clean=True)
+                          filter_kernel=kernel.array, clean=True, **kwargs)
 
     # Measure Half-Flux Radius to find HFDs
     hfrs, flags = sep.flux_radius(data, objects['x'], objects['y'],
