@@ -265,7 +265,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Moving focusers out...')
     new_positions = {ut: initial_positions[ut] + big_step[ut] for ut in initial_positions}
-    set_focuser_positions(new_positions, timeout=60)
+    set_focuser_positions(new_positions, timeout=120)  # longer timeout for big step
     print('New positions:', get_focuser_positions())
     print('Taking {} focus measurements...'.format(num_exp))
     old_hfds = hfds
