@@ -257,8 +257,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Initial positions:', initial_positions)
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
-    hfds = foc_data['hfd']
-    print('Best HFDs:', hfds.to_dict())
+    initial_hfds = foc_data['hfd']
+    print('Best HFDs:', initial_hfds.to_dict())
 
     # Move to the positive side of the best focus position and measure HFD.
     # Assume the starting value is close to best, and a big step should be far enough out.
@@ -268,18 +268,17 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(new_positions, timeout=120)  # longer timeout for big step
     print('New positions:', get_focuser_positions())
     print('Taking {} focus measurements...'.format(num_exp))
-    old_hfds = hfds
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
-    hfds = foc_data['hfd']
-    print('Best HFDs:', hfds.to_dict())
+    out_hfds = foc_data['hfd']
+    print('Best HFDs:', out_hfds.to_dict())
 
     # The HFDs should have increased substantially.
     # If they haven't then the focus measurement isn't reliable, so we can't continue.
-    ratio = hfds / old_hfds
+    ratio = out_hfds / initial_hfds
     if np.any(ratio < 1.2):
         print('~~~~~~')
-        print('Initial HFDs:', old_hfds.to_dict())
-        print('Current HFDs:', hfds.to_dict())
+        print('Initial HFDs:', initial_hfds.to_dict())
+        print('Current HFDs:', out_hfds.to_dict())
         raise Exception('HFD not changing with focuser position')
 
     # Now move back towards where best focus position should be.
@@ -291,17 +290,16 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(new_positions, timeout=60)
     print('New positions:', get_focuser_positions())
     print('Taking {} focus measurements...'.format(num_exp))
-    old_hfds = hfds
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
-    hfds = foc_data['hfd']
-    print('Best HFDs:', hfds.to_dict())
+    in_hfds = foc_data['hfd']
+    print('Best HFDs:', in_hfds.to_dict())
 
     # The HDFs should have all decreased.
     # If they haven't we can't continue, because we might not be on the correct side.
-    if np.any(hfds > old_hfds):
+    if np.any(in_hfds > out_hfds):
         print('~~~~~~')
-        print('Far out HFDs:', old_hfds.to_dict())
-        print('Back in HFDs:', hfds.to_dict())
+        print('Far out HFDs:', out_hfds.to_dict())
+        print('Back in HFDs:', in_hfds.to_dict())
         raise Exception('Can not be sure we are on the correct side of best focus')
 
     # We're on the curve, so we can estimate the focuser positions for given HFDs.
@@ -309,6 +307,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     # Note we only move the focusers that need it, by masking.
     print('~~~~~~')
     print('Moving towards near-focus position...')
+    hfds = in_hfds
     while np.any(hfds > nfv):
         print('Moving focusers in...')
         mask = hfds > nfv
@@ -335,7 +334,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
     nf_hfds = foc_data['hfd']
-    print('Best HFDs at near-focus position:\n', foc_data[['hfd', 'hfd_std']])
+    print('Best HFDs at near-focus position:', nf_hfds.to_dict())
 
     # Now we have the near-focus HFDs, find the best focus position and move there.
     print('~~~~~~')
@@ -345,6 +344,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(bf_positions.to_dict(), timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    print('Best HFDs at initial position:', initial_hfds.to_dict())
     print('Best HFDs at best focus position:\n', foc_data[['pos', 'hfd', 'hfd_std']])
 
     print('Done')
