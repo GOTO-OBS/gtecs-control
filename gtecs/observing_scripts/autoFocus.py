@@ -303,17 +303,17 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         raise Exception('Can not be sure we are on the correct side of best focus')
 
     # We're on the curve, so we can estimate the focuser positions for given HFDs.
-    # Keep halving the target HFDs while we are greater than twice the near-focus HFD value.
+    # Keep reducing the target HFDs while we are greater than twice the near-focus HFD value.
     # Note we only move the focusers that need it, by masking.
     print('~~~~~~')
     print('Moving towards near-focus position...')
     hfds = in_hfds
-    while np.any(hfds > nfv):
+    while np.any(hfds > 2 * nfv):
         print('Moving focusers in...')
-        mask = hfds > nfv
+        mask = hfds > 2 * nfv
         moving_uts = hfds.index[mask]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
-        target_hfds = (0.5 * hfds).where(mask, hfds)
+        target_hfds = (hfds / 4).where(mask, hfds)
         current_positions = pd.Series(get_focuser_positions())
         new_positions = get_position(target_hfds, hfds, current_positions, m_r)
         new_positions = {ut: new_positions.to_dict()[ut] for ut in moving_uts}
