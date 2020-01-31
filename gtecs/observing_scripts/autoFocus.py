@@ -63,14 +63,14 @@ def get_position(target_hfd, current_hfd, current_position, slope):
     return current_position + (target_hfd - current_hfd) / slope
 
 
-def measure_image_focus(data, filter_width=3, threshold=5, xslice=None, yslice=None, **kwargs):
+def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=None, **kwargs):
     """Measure of half-flux-diameter and full-width at half-maximum of an image.
 
     Parameters
     ----------
     data : `numpy.array`
         image data to analyse
-    filter_width : int, default=3
+    filter_width : int, default=5
         before detection, the image is filtered. This is the filter width in pixels.
         For optimal source detection, this should roughly match the expected FWHM
     threshold : float, default=5
@@ -248,8 +248,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     exp_args = {'exptime': exptime, 'filt': filt, 'target_name': target_name}
 
     # Set extraction params
-    sep_args = {'filter_width': 20, 'threshold': 5,
-                'xslice': slice(3300, 5100), 'yslice': slice(1400, 4100)}
+    sep_args = {'filter_width': 5, 'threshold': 5,
+                'xslice': slice(2500, 6000), 'yslice': slice(1500, 4500)}
 
     # With the focusers where they are now, take images to get a baseline HFD.
     initial_positions = get_focuser_positions()

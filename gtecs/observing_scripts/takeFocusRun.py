@@ -283,8 +283,8 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     exp_args = {'exptime': exptime, 'filt': filt, 'target_name': target_name}
 
     # Set extraction params
-    sep_args = {'filter_width': 4, 'threshold': 15,
-                'xslice': slice(3300, 5100), 'yslice': slice(1400, 4100)}
+    sep_args = {'filter_width': 5, 'threshold': 5,
+                'xslice': slice(2500, 6000), 'yslice': slice(1500, 4500)}
 
     # Store the current focus
     print('~~~~~~')
