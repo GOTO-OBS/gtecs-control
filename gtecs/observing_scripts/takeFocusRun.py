@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Script to take a series of images running through focus.
+"""Script to take a series of images running through focuser positions.
 
 It assumes you're already on a reasonable patch of sky and that you're
-already focused (see autoFocus script)
+already focused (see autoFocus script).
 """
 
 import os
@@ -16,8 +16,7 @@ from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
                              set_focuser_positions, slew_to_radec)
-from gtecs.observing_scripts.autoFocus import (RestoreFocus, find_best_focus,
-                                               measure_focus, set_focus)
+from gtecs.observing_scripts.autoFocus import (RestoreFocus, get_best_focus_position, measure_focus)
 
 from matplotlib import pyplot as plt
 
@@ -125,7 +124,7 @@ def fit_to_data(df):
 
             # Find meeting point by picking a point on the line and using the autofocus function
             point = (min_hfd, lin_func(min_hfd, *coeffs_r))
-            best_hfd = find_best_focus(m_l, m_r, delta_x, point[0], point[1])
+            best_hfd = get_best_focus_position(m_l, m_r, delta_x, point[0], point[1])
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
@@ -247,7 +246,7 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
 
 def run(fraction, steps, num_exp=3, exptime=30, filt='L',
-        change_focus=False, no_slew=False, no_plot=False, no_confirm=False):
+        go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -289,17 +288,17 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
 
     # Store the current focus
     print('~~~~~~')
-    orig_focus = get_focuser_positions()
-    print('Initial focus:', orig_focus)
+    initial_positions = get_focuser_positions()
+    print('Initial positions:', initial_positions)
 
     # Measure the HFDs at each position calculated earlier
     all_data = []
-    for i, new_focus in positions.iterrows():
+    for i, new_positions in positions.iterrows():
         print('~~~~~~')
         print('## RUN {} of {}'.format(i + 1, len(positions)))
-        print('Setting focus...')
-        set_focus(new_focus, timeout=120)
-        print('New focus:', get_focuser_positions())
+        print('Moving focusers...')
+        set_focuser_positions(new_positions.to_dict(), timeout=120)
+        print('New positions:', get_focuser_positions())
         print('Taking {} measurements at new focus position...'.format(num_exp))
         foc_data = measure_focus(num_exp, **exp_args, **sep_args)
         hfds = foc_data['hfd']
@@ -315,8 +314,8 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
 
     # Restore the origional focus
     print('~~~~~~')
-    print('Restoring original focus...')
-    set_focus(orig_focus, timeout=120)
+    print('Restoring original focuser positions...')
+    set_focuser_positions(initial_positions, timeout=120)
     print('Restored focus: ', get_focuser_positions())
 
     # Write out data
@@ -348,7 +347,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     print('Current focus: ', get_focuser_positions())
     print('Best focus: ', best_focus)
     go = ''
-    if change_focus:
+    if go_to_best:
         go = 'y'
     else:
         if not no_confirm:
@@ -391,8 +390,8 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
-    parser.add_argument('--change-focus', action='store_true',
-                        help=('when the run is complete move to the best measured focus')
+    parser.add_argument('--go-to-best', action='store_true',
+                        help=('when the run is complete move to the best focus position')
                         )
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
@@ -410,17 +409,17 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
-    change_focus = args.change_focus
+    go_to_best = args.go_to_best
     no_slew = args.no_slew
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
     # If something goes wrong we need to restore the origional focus
     try:
-        orig_focus = get_focuser_positions()
-        RestoreFocus(orig_focus)
-        run(fraction, steps, num_exp, exptime, filt, change_focus, no_slew, no_plot, no_confirm)
+        initial_positions = get_focuser_positions()
+        RestoreFocus(initial_positions)
+        run(fraction, steps, num_exp, exptime, filt, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
-        print('Error caught: Restoring original focus...')
-        set_focuser_positions(orig_focus)
+        print('Error caught: Restoring original focus positions...')
+        set_focuser_positions(initial_positions)
         raise
