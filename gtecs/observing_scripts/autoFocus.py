@@ -328,6 +328,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     # and move directly to that position.
     print('~~~~~~')
     print('Moving to near-focus position...')
+    current_positions = pd.Series(get_focuser_positions())
     nf_positions = get_position(nfv, hfds, current_positions, m_r)
     print('Near-focus positions:', nf_positions.to_dict())
     set_focuser_positions(nf_positions.to_dict(), timeout=60)
