@@ -173,6 +173,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         # Take a set of images
         image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False)
 
+        # Restrict to UTs with focusers
+        image_data = {ut: image_data[ut] for ut in params.UTS_WITH_FOCUSERS if ut in image_data}
+
         # Measure the median HFDs in each image
         hfd_dict = {}
         fwhm_dict = {}
