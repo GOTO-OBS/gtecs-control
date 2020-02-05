@@ -362,6 +362,14 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     diff = initial_hfds - bf_hfds
     print('Difference :', diff.to_dict())
 
+    if params.FOCUS_SLACK_REPORTS:
+        # Send Slack report
+        print('~~~~~~')
+        print('Sending best focus measurements to Slack...')
+        from gtecs.slack import send_slack_msg
+        s = '*Autofocus results*\nFocus data at best position:```' + repr(foc_data) + '```'
+        send_slack_msg(s)
+
     print('Done')
 
 

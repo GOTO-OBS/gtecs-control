@@ -278,6 +278,7 @@ for ut in AUTOFOCUS_PARAMS:
     AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
     AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
     AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
+FOCUS_SLACK_REPORTS = config['FOCUS_SLACK_REPORTS']
 
 ############################################################
 # Camera parameters
