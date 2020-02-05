@@ -63,7 +63,7 @@ def get_position(target_hfd, current_hfd, current_position, slope):
     return current_position + (target_hfd - current_hfd) / slope
 
 
-def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=None, **kwargs):
+def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=None):
     """Measure of half-flux-diameter and full-width at half-maximum of an image.
 
     Parameters
@@ -75,12 +75,10 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
         For optimal source detection, this should roughly match the expected FWHM
     threshold : float, default=5
         if set to, e.g. 5, objects 5sigma above the background are detected
-    xslice : `slice`, default=None
+    xslice : `slice`, default=slice(2500, 6000)
         slice in x axis
-    yslice : `slice`, default=None
+    yslice : `slice`, default=slice(1500, 4500)
         slice in y axis
-    kwargs : dict
-        all other keyword arguments are passed to SEP's `extract` method
 
     Returns
     -------
@@ -96,9 +94,9 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
     """
     # Slice the data
     if xslice is None:
-        xslice = slice(None)
+        xslice = slice(2500, 6000)
     if yslice is None:
-        yslice = slice(None)
+        yslice = slice(1500, 4500)
     data = np.ascontiguousarray(data[yslice, xslice])
 
     # Measure spatially varying background and subtract from the data
@@ -116,7 +114,7 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
 
     # Extract sources
     objects = sep.extract(data, threshold, background.globalrms,
-                          filter_kernel=kernel.array, clean=True, **kwargs)
+                          filter_kernel=kernel.array, clean=True)
 
     # Measure Half-Flux Radius to find HFDs
     hfrs, flags = sep.flux_radius(data, objects['x'], objects['y'],
@@ -143,7 +141,7 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
     return median_hfd, std_hfd, median_fwhm, std_fwhm
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', **kwargs):
+def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image'):
     """Take a set of images and measure the median half-flux diameters and FWHMs.
 
     Parameters
@@ -157,8 +155,6 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
        Filter to use for the exposures.
     target_name : str, default='Focus test image'
         Name of the target being observed.
-    kwargs : dict
-        Any other parameters are passed to `measure_image_focus`.
 
     Returns
     -------
@@ -182,7 +178,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         for ut in image_data:
             try:
                 # Extract median and std values from the image data
-                hfd, hfd_std, fwhm, fwhm_std = measure_image_focus(image_data[ut], **kwargs)
+                hfd, hfd_std, fwhm, fwhm_std = measure_image_focus(image_data[ut])
 
                 # Check for invalid values
                 if hfd_std <= 0.0 or fwhm_std <= 0.0:
@@ -252,19 +248,12 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     else:
         target_name = 'Focus run'
 
-    # Set exposure params
-    exp_args = {'exptime': exptime, 'filt': filt, 'target_name': target_name}
-
-    # Set extraction params
-    sep_args = {'filter_width': 5, 'threshold': 5,
-                'xslice': slice(2500, 6000), 'yslice': slice(1500, 4500)}
-
     # With the focusers where they are now, take images to get a baseline HFD.
     initial_positions = get_focuser_positions()
     print('~~~~~~')
     print('Initial positions:', initial_positions)
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    foc_data = measure_focus(num_exp, exptime, filt, target_name)
     initial_hfds = foc_data['hfd']
     print('Best HFDs:', initial_hfds.to_dict())
 
@@ -276,7 +265,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(new_positions, timeout=120)  # longer timeout for big step
     print('New positions:', get_focuser_positions())
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    foc_data = measure_focus(num_exp, exptime, filt, target_name)
     out_hfds = foc_data['hfd']
     print('Best HFDs:', out_hfds.to_dict())
 
@@ -298,7 +287,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     set_focuser_positions(new_positions, timeout=60)
     print('New positions:', get_focuser_positions())
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    foc_data = measure_focus(num_exp, exptime, filt, target_name)
     in_hfds = foc_data['hfd']
     print('Best HFDs:', in_hfds.to_dict())
 
@@ -328,7 +317,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         set_focuser_positions(new_positions, timeout=60)
         print('New positions:', get_focuser_positions())
         print('Taking {} focus measurements...'.format(num_exp))
-        foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+        foc_data = measure_focus(num_exp, exptime, filt, target_name)
         hfds = foc_data['hfd']
         print('Best HFDs:', hfds.to_dict())
 
@@ -341,7 +330,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Near-focus positions:', nf_positions.to_dict())
     set_focuser_positions(nf_positions.to_dict(), timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    foc_data = measure_focus(num_exp, exptime, filt, target_name)
     nf_hfds = foc_data['hfd']
     print('Best HFDs at near-focus position:', nf_hfds.to_dict())
 
@@ -352,7 +341,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Best focus positions:', bf_positions.to_dict())
     set_focuser_positions(bf_positions.to_dict(), timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+    foc_data = measure_focus(num_exp, exptime, filt, target_name)
     bf_hfds = foc_data['hfd']
     print('Best HFDs at best focus position:\n', foc_data[['pos', 'hfd', 'hfd_std']])
     print('Temperature:', foc_data['temp'].to_dict())

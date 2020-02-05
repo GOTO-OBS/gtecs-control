@@ -279,13 +279,6 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     else:
         target_name = 'Focus run'
 
-    # Set exposure params
-    exp_args = {'exptime': exptime, 'filt': filt, 'target_name': target_name}
-
-    # Set extraction params
-    sep_args = {'filter_width': 5, 'threshold': 5,
-                'xslice': slice(2500, 6000), 'yslice': slice(1500, 4500)}
-
     # Store the current focus
     print('~~~~~~')
     initial_positions = get_focuser_positions()
@@ -300,7 +293,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
         set_focuser_positions(new_positions.to_dict(), timeout=120)
         print('New positions:', get_focuser_positions())
         print('Taking {} measurements at new focus position...'.format(num_exp))
-        foc_data = measure_focus(num_exp, **exp_args, **sep_args)
+        foc_data = measure_focus(num_exp, exptime, filt, target_name)
         hfds = foc_data['hfd']
         print('Best HFDs:', hfds.to_dict())
 
