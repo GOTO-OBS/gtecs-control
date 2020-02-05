@@ -225,7 +225,7 @@ def wait_for_focusers(target_positions, timeout=None):
 def get_focuser_temperatures():
     """Get the current temperature and the temperature when the focusers last moved."""
     foc_info = daemon_info('foc')
-    curr_temp = foc_info['dome_temp']
+    curr_temp = {ut: foc_info[ut]['current_temp'] for ut in params.UTS_WITH_FOCUSERS}
     prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
     return curr_temp, prev_temp
 
@@ -243,8 +243,8 @@ def get_focuser_temp_compensation(gradients, min_change=0.5):
     """
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()
-    deltas = {ut: curr_temp - prev_temp[ut]
-              if prev_temp[ut] is not None else 0
+    deltas = {ut: curr_temp[ut] - prev_temp[ut]
+              if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
               for ut in params.UTS_WITH_FOCUSERS}
 
     # Check if the change is greater than the minimum to refocus

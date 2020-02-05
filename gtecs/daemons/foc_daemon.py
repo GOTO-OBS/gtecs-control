@@ -81,7 +81,7 @@ class FocDaemon(BaseDaemon):
                                     self.log.info(c)
 
                                 # store the temperature at the time it moved
-                                self.last_move_temp[ut] = self.info['dome_temp']
+                                self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -135,6 +135,18 @@ class FocDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get the dome internal temperature
+        # Note the focusers each have inbuilt temperature sensors, but they always differ by a lot.
+        # Best to just use the single measurement for the temperature inside the dome,
+        # but store it on each UT's info so if we want to change it in the future it's easier.
+        try:
+            dome_temp = get_roomalert('dome')['int_temperature']
+            temp_info['dome_temp'] = dome_temp
+        except Exception:
+            self.log.error('Failed to get dome internal temperature')
+            self.log.debug('', exc_info=True)
+            temp_info['dome_temp'] = None
+
         for ut in self.uts:
             # Get info from each interface
             try:
@@ -158,6 +170,7 @@ class FocDaemon(BaseDaemon):
                 else:
                     interface_info['status'] = 'Ready'
 
+                interface_info['current_temp'] = temp_info['dome_temp']
                 interface_info['last_move_temp'] = self.last_move_temp[ut]
 
                 temp_info[ut] = interface_info
@@ -165,15 +178,6 @@ class FocDaemon(BaseDaemon):
                 self.log.error('Failed to get focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
                 temp_info[ut] = None
-
-        # get the dome internal temperature
-        try:
-            dome_temp = get_roomalert('dome')['int_temperature']
-            temp_info['dome_temp'] = dome_temp
-        except Exception:
-            self.log.error('Failed to get dome internal temperature')
-            self.log.debug('', exc_info=True)
-            temp_info['dome_temp'] = None
 
         # Write debug log line
         try:
