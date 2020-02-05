@@ -219,17 +219,8 @@ def get_focuser_temperatures():
     return curr_temp, prev_temp
 
 
-def get_focuser_temp_compensation(gradients, min_change=0.5):
-    """Find the offset in focuser position based on temperature change since it was last set.
-
-    Parameters
-    ----------
-    gradients : dict
-        the gradient in steps/degree C for each UT
-    min_change : float or dict, default=0.5
-        the minimum temperature change needed to change the focus
-
-    """
+def refocus():
+    """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()
     deltas = {ut: curr_temp[ut] - prev_temp[ut]
@@ -237,15 +228,14 @@ def get_focuser_temp_compensation(gradients, min_change=0.5):
               for ut in params.UTS_WITH_FOCUSERS}
 
     # Check if the change is greater than the minimum to refocus
-    if type(min_change) != dict:
-        min_change = {ut: min_change for ut in params.UTS_WITH_FOCUSERS}
+    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
+                  for ut in params.UTS_WITH_FOCUSERS}
     deltas = {ut: deltas[ut]
               if abs(deltas[ut]) > min_change[ut] else 0
               for ut in deltas}
 
     # Find the gradients (in steps/degree C)
-    gradients = {ut: gradients[ut]
-                 if ut in gradients else 0
+    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
                  for ut in params.UTS_WITH_FOCUSERS}
 
     # Calculate the focus offset
@@ -254,16 +244,6 @@ def get_focuser_temp_compensation(gradients, min_change=0.5):
     # Ignore any UTs which do not need changing
     offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
 
-    return offsets
-
-
-def refocus():
-    """Apply any needed temperature compensation to the focusers."""
-    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
-                 for ut in params.UTS_WITH_FOCUSERS}
-    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
-                  for ut in params.UTS_WITH_FOCUSERS}
-    offsets = get_focuser_temp_compensation(gradients, min_change)
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
         move_focusers(offsets, timeout=None)
