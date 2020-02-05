@@ -22,8 +22,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.catalogs import focus_star
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_focuser_positions, prepare_for_images,
-                             set_focuser_positions, slew_to_radec)
+from gtecs.observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
+                             prepare_for_images, set_focuser_positions, slew_to_radec)
 
 import numpy as np
 
@@ -216,6 +216,11 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
             'fwhm': fwhms.min(),
             'fwhm_std': fwhms.std().fillna(0.0),
             }
+
+    # Also store the temperatures of the last focuser move
+    _, temp = get_focuser_temperatures()
+    data['temp'] = pd.Series(temp)
+
     return pd.DataFrame(data)
 
 
@@ -347,6 +352,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     foc_data = measure_focus(num_exp, **exp_args, **sep_args)
     bf_hfds = foc_data['hfd']
     print('Best HFDs at best focus position:\n', foc_data[['pos', 'hfd', 'hfd_std']])
+    print('Temperature:', foc_data['temp'].to_dict())
     print('~~~~~~')
     print('Best HFDs at initial position:', initial_hfds.to_dict())
     print('Best HFDs at best focus position:', bf_hfds.to_dict())
