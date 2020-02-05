@@ -243,7 +243,6 @@ FILTER_LIST = config['FILTER_LIST']
 ############################################################
 # Focuser parameters
 RASA_PORT = config['RASA_PORT']
-FOCUS_TEMP_MINCHANGE = config['FOCUS_TEMP_MINCHANGE']
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 for ut in UTS_WITH_FOCUSERS:
     # Each focuser should have params here
