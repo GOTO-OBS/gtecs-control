@@ -78,7 +78,6 @@ def prepare_for_images():
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are at operating temperature
-    - apply temperature compensation to the focusers
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
@@ -100,16 +99,6 @@ def prepare_for_images():
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
-
-    # Apply any temperature compensation to the focusers
-    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
-                 for ut in params.UTS_WITH_FOCUSERS}
-    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
-                  for ut in params.UTS_WITH_FOCUSERS}
-    offsets = get_focuser_temp_compensation(gradients, min_change)
-    if len(offsets) > 0:
-        print('Applying temperature compensation to focusers')
-        move_focusers(offsets, timeout=None)
 
 
 def get_focuser_positions():
@@ -266,6 +255,18 @@ def get_focuser_temp_compensation(gradients, min_change=0.5):
     offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
 
     return offsets
+
+
+def refocus():
+    """Apply any needed temperature compensation to the focusers."""
+    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
+                 for ut in params.UTS_WITH_FOCUSERS}
+    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
+                  for ut in params.UTS_WITH_FOCUSERS}
+    offsets = get_focuser_temp_compensation(gradients, min_change)
+    if len(offsets) > 0:
+        print('Applying temperature compensation to focusers')
+        move_focusers(offsets, timeout=None)
 
 
 def get_mount_position():
