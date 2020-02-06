@@ -119,6 +119,18 @@ def get_focuser_limits():
     return limits
 
 
+def focusers_are_ready(uts=None):
+    """Return true if none of the focusers are moving."""
+    foc_info = daemon_info('foc', force_update=True)
+
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+
+    done = [foc_info[ut]['status'] == 'Ready' for ut in uts]
+
+    return np.all(done)
+
+
 def set_focuser_positions(positions, wait=False, timeout=None):
     """Move each focuser to the requested position.
 
@@ -136,6 +148,9 @@ def set_focuser_positions(positions, wait=False, timeout=None):
     """
     if type(positions) != dict:
         positions = {ut: positions for ut in params.UTS_WITH_FOCUSERS}
+
+    while not focusers_are_ready(uts=positions.keys()):
+        time.sleep(0.5)
 
     for ut in positions:
         execute_command('foc set {} {}'.format(ut, int(positions[ut])))
@@ -161,6 +176,9 @@ def move_focusers(offsets, wait=False, timeout=None):
     """
     if type(offsets) != dict:
         offsets = {ut: offsets for ut in params.UTS_WITH_FOCUSERS}
+
+    while not focusers_are_ready(uts=offsets.keys()):
+        time.sleep(0.5)
 
     start_positions = get_focuser_positions()
     finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
