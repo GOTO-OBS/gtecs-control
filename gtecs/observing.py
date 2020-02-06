@@ -246,26 +246,28 @@ def refocus():
 
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
-        if not params.FOCUS_SLACK_REPORTS:
-            move_focusers(offsets, timeout=None)
-        else:
+
+        if params.FOCUS_TEST_COMPENSATION:
             # Take a test image first
             from gtecs.observing_scripts.autoFocus import measure_focus
             initial_foc_data = measure_focus(num_exp=1, exptime=10)
-            print('HFDs at initial position:', initial_foc_data['hfd'].to_dict())
+            print('Focus data at old position:\n', initial_foc_data)
 
-            # Then move and measure again
-            move_focusers(offsets, timeout=None)
+        # Move by the calculated offsets
+        move_focusers(offsets, timeout=None)
+
+        if params.FOCUS_TEST_COMPENSATION:
             final_foc_data = measure_focus(num_exp=1, exptime=10)
-            print('HFDs at new position:', final_foc_data['hfd'].to_dict())
+            print('Focus data at new position:\n', final_foc_data)
 
-            # Now send report to Slack
-            print('Sending report to Slack')
-            from gtecs.slack import send_slack_msg
-            s = '*Refocusing results*\n'
-            s += 'Focus data at previous position:```' + repr(initial_foc_data) + '```\n'
-            s += 'Focus data at new position:```' + repr(final_foc_data) + '```\n'
-            send_slack_msg(s)
+            if params.FOCUS_SLACK_REPORTS:
+                # Now send report to Slack
+                print('Sending report to Slack')
+                from gtecs.slack import send_slack_msg
+                s = '*Refocusing results*\n'
+                s += 'Focus data at old position:\n```' + repr(initial_foc_data) + '```\n'
+                s += 'Focus data at new position:\n```' + repr(final_foc_data) + '```\n'
+                send_slack_msg(s)
 
 
 def get_mount_position():
