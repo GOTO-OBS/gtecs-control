@@ -5,6 +5,7 @@ It assumes you're already on a reasonable patch of sky and that you're
 already focused (see autoFocus script).
 """
 
+import math
 import os
 import sys
 import traceback
@@ -132,17 +133,17 @@ def fit_to_data(df):
 def plot_results(df, fit_df, fit_coeffs, finish_time):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
-    fig, axes = plt.subplots(nrows=len(uts), ncols=1, figsize=(8, 12), dpi=100)
-    plt.subplots_adjust(hspace=0.7, wspace=0.1)
+    fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=150)
+    plt.subplots_adjust(hspace=0.15, wspace=0.2)
 
-    fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.9)
+    fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.92)
     for i, ut in enumerate(uts):
         ut_data = df.loc[ut]
         fit_data = fit_df.loc[ut]
 
         # HFD plot
         try:
-            ax = axes[i]
+            ax = axes.flatten()[i]
 
             # Plot data
             mask_l = np.array(ut_data['pos']) < fit_data['pivot_pos']
@@ -168,10 +169,11 @@ def plot_results(df, fit_df, fit_coeffs, finish_time):
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
 
             # Set labels
-            ax.set_ylabel('HFD')
-            if i == len(uts) - 1:
+            if i % 4 == 0:
+                ax.set_ylabel('HFD')
+            if i >= len(axes.flatten()) - 4:
                 ax.set_xlabel('Focus position')
-            ax.text(0.05, 1.15, 'UT{}'.format(ut), fontweight='bold',
+            ax.text(0.07, 0.95, 'UT{}'.format(ut), fontweight='bold',
                     transform=ax.transAxes, zorder=9, ha='center', va='center')
 
             # Set limits
