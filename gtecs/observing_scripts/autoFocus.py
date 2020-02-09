@@ -178,7 +178,8 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         for ut in image_data:
             try:
                 # Extract median and std values from the image data
-                hfd, hfd_std, fwhm, fwhm_std = measure_image_focus(image_data[ut])
+                # Note focus_width is 15, this deals much better with out-of-focus images
+                hfd, hfd_std, fwhm, fwhm_std = measure_image_focus(image_data[ut], focus_width=15)
 
                 # Check for invalid values
                 if hfd_std <= 0.0 or fwhm_std <= 0.0:
