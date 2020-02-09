@@ -63,8 +63,8 @@ def get_position(target_hfd, current_hfd, current_position, slope):
     return current_position + (target_hfd - current_hfd) / slope
 
 
-def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=None):
-    """Measure of half-flux-diameter and full-width at half-maximum of an image.
+def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=None):
+    """Measure the half-flux-diameter of an image.
 
     Parameters
     ----------
@@ -82,14 +82,10 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
 
     Returns
     -------
-    hfd : float
+    median : float
         median HFD value
-    hfd_std : float
+    std : float
         standard deviation of HFD measurements
-    fwhm : float
-        median FWHM
-    fwhm_std : float
-        standard deviation of FWHM measurements
 
     """
     # Slice the data
@@ -130,19 +126,14 @@ def measure_image_focus(data, filter_width=5, threshold=5, xslice=None, yslice=N
     else:
         print('Found {} objects with measurable HFDs'.format(len(hfds)))
 
-    # Calculate FWHMs
-    fwhms = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
-    fwhms = fwhms[mask]
-
     # Get median and standard deviation over all extracted objects
     mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfds, sigma=2.5, maxiters=10)
-    mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhms, sigma=2.5, maxiters=10)
 
-    return median_hfd, std_hfd, median_fwhm, std_fwhm
+    return median_hfd, std_hfd
 
 
 def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image'):
-    """Take a set of images and measure the median half-flux diameters and FWHMs.
+    """Take a set of images and measure the median half-flux diameters.
 
     Parameters
     ----------
@@ -163,7 +154,6 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
 
     """
     hfds = None
-    fwhms = None
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
@@ -174,33 +164,28 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
 
         # Measure the median HFDs in each image
         hfd_dict = {}
-        fwhm_dict = {}
         for ut in image_data:
             try:
-                # Extract median and std values from the image data
-                # Note focus_width is 15, this deals much better with out-of-focus images
-                hfd, hfd_std, fwhm, fwhm_std = measure_image_focus(image_data[ut], focus_width=15)
+                # Extract median HFD and std values from the image data
+                # Note filter_width is 15, this deals much better with out-of-focus images
+                hfd, hfd_std = measure_image_hfd(image_data[ut], filter_width=15)
 
                 # Check for invalid values
-                if hfd_std <= 0.0 or fwhm_std <= 0.0:
+                if hfd_std <= 0.0 <= 0.0:
                     raise ValueError
 
             except Exception as err:
                 print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
                 hfd = np.nan
-                fwhm = np.nan
 
             # Add to dicts
             hfd_dict[ut] = hfd
-            fwhm_dict[ut] = fwhm
 
         # Add to set
         if hfds is None:
             hfds = pd.Series(hfd_dict)
-            fwhms = pd.Series(fwhm_dict)
         else:
             hfds = hfds.append(pd.Series(hfd_dict))
-            fwhms = fwhms.append(pd.Series(fwhm_dict))
 
         print('HFDs:', hfd_dict)
 
@@ -209,12 +194,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     # so across multiple frames we only sample external fluctuations, usually windshake,
     # which will always make the HFD worse, never better.
     hfds = hfds.groupby(level=0)
-    fwhms = fwhms.groupby(level=0)
     data = {'pos': pd.Series(get_focuser_positions()),
             'hfd': hfds.min(),
             'hfd_std': hfds.std().fillna(0.0),
-            'fwhm': fwhms.min(),
-            'fwhm_std': fwhms.std().fillna(0.0),
             }
 
     # Also store the temperatures of the last focuser move

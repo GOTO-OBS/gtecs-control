@@ -66,18 +66,12 @@ def lin_func(x, m, c):
     return m * x + c
 
 
-def parabola_func(x, a, b, c):
-    """Fit FWHMs."""
-    return a * x ** 2 + b * x + c
-
-
 def fit_to_data(df):
-    """Fit to HFD and FWHM data."""
+    """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
-    fit_df = pd.DataFrame(columns=['min_hfd', 'm_l', 'm_r', 'delta_x', 'best_hfd', 'best_fwhm'],
+    fit_df = pd.DataFrame(columns=['pivot_pos', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
                           index=uts)
-    hfd_coeffs = {ut: None for ut in uts}
-    fwhm_coeffs = {ut: None for ut in uts}
+    fit_coeffs = {ut: None for ut in uts}
 
     for ut in uts:
         # Get data arrays
@@ -85,29 +79,24 @@ def fit_to_data(df):
         pos = np.array(ut_data['pos'])
         hfd = np.array(ut_data['hfd'])
         hfd_std = np.array(ut_data['hfd_std'])
-        fwhm = np.array(ut_data['fwhm'])
-        fwhm_std = np.array(ut_data['fwhm_std'])
 
         # Mask any failed measurements (e.g. not enough objects)
-        mask = np.logical_and(np.invert(np.isnan(hfd)), np.invert(np.isnan(fwhm)))
+        mask = np.invert(np.isnan(hfd))
         pos = pos[mask]
         hfd = hfd[mask]
         hfd_std = hfd_std[mask]
-        fwhm = fwhm[mask]
-        fwhm_std = fwhm_std[mask]
 
         # Need a nominal non-zero sigma, otherwise the curve fit fails
         hfd_std[hfd_std == 0] = 0.001
-        fwhm_std[fwhm_std == 0] = 0.0001
 
         # HFD
-        min_hfd, m_l, m_r, delta_x, best_hfd = None, None, None, None, None
+        pivot_pos, m_l, m_r, delta_x, cross_pos = None, None, None, None, None
         try:
             # Split into left and right
             min_i = np.where(hfd == min(hfd))[0][0]
-            min_hfd = pos[min_i]
-            mask_l = pos <= min_hfd
-            mask_r = pos >= min_hfd
+            pivot_pos = pos[min_i]
+            mask_l = pos <= pivot_pos
+            mask_r = pos >= pivot_pos
 
             # Raise error if not enough points on both sides
             if sum(mask_l) < 2 or sum(mask_r) < 2:
@@ -117,44 +106,33 @@ def fit_to_data(df):
             # Fit straight line
             coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
             coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
-            hfd_coeffs[ut] = (coeffs_l, coeffs_r)
+            fit_coeffs[ut] = (coeffs_l, coeffs_r)
             m_l, c_l = coeffs_l
             m_r, c_r = coeffs_r
             delta_x = (c_r / m_r) - (c_l / m_l)
 
             # Find meeting point by picking a point on the line and using the autofocus function
-            point = (min_hfd, lin_func(min_hfd, *coeffs_r))
-            best_hfd = get_best_focus_position(m_l, m_r, delta_x, point[0], point[1])
+            point = (pivot_pos, lin_func(pivot_pos, *coeffs_r))
+            cross_pos = get_best_focus_position(m_l, m_r, delta_x, point[0], point[1])
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
             print(traceback.format_exc())
 
-        # FWHM
-        best_fwhm = None
-        try:
-            # Fit parabola
-            coeffs, _ = curve_fit(parabola_func, pos, fwhm, sigma=fwhm_std)
-            fwhm_coeffs[ut] = coeffs
-
-            # Find minimum
-            best_fwhm = -coeffs[1] / 2 / coeffs[0]
-
-        except Exception:
-            print('UT{}: Error fitting to FWHM data'.format(ut))
-            print(traceback.format_exc())
-
         # Add to dataframe
-        fit_df.loc[ut] = pd.Series({'min_hfd': min_hfd, 'm_l': m_l, 'm_r': m_r, 'delta_x': delta_x,
-                                    'best_hfd': best_hfd, 'best_fwhm': best_fwhm})
+        fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
+                                    'm_l': m_l,
+                                    'm_r': m_r,
+                                    'delta_x': delta_x,
+                                    'cross_pos': cross_pos})
 
-    return fit_df, hfd_coeffs, fwhm_coeffs
+    return fit_df, fit_coeffs
 
 
-def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
+def plot_results(df, fit_df, fit_coeffs, finish_time):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
-    fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 12), dpi=100)
+    fig, axes = plt.subplots(nrows=len(uts), ncols=1, figsize=(8, 12), dpi=100)
     plt.subplots_adjust(hspace=0.7, wspace=0.1)
 
     fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.9)
@@ -164,12 +142,12 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
         # HFD plot
         try:
-            ax = axes[i, 0]
+            ax = axes[i]
 
             # Plot data
-            mask_l = np.array(ut_data['pos']) < fit_data['min_hfd']
-            mask_mid = np.array(ut_data['pos']) == fit_data['min_hfd']
-            mask_r = np.array(ut_data['pos']) > fit_data['min_hfd']
+            mask_l = np.array(ut_data['pos']) < fit_data['pivot_pos']
+            mask_mid = np.array(ut_data['pos']) == fit_data['pivot_pos']
+            mask_r = np.array(ut_data['pos']) > fit_data['pivot_pos']
             ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
                         yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
             ax.errorbar(ut_data['pos'][mask_mid], ut_data['hfd'][mask_mid],
@@ -179,12 +157,12 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
             # Plot fit
             test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
-            if hfd_coeffs[ut] is not None:
-                ax.plot(test_range, lin_func(test_range, *hfd_coeffs[ut][0]),
+            if fit_coeffs[ut] is not None:
+                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
-                ax.plot(test_range, lin_func(test_range, *hfd_coeffs[ut][1]),
+                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
-                ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
+                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
             else:
                 ax.text(0.03, 0.15, 'Fit failed', transform=ax.transAxes,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
@@ -201,39 +179,6 @@ def plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time):
 
         except Exception:
             print('Error making HFD plot', end='\t')
-            print(traceback.format_exc())
-
-        # FWHM plot
-        try:
-            ax = axes[i, 1]
-
-            # Plot data
-            ax.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
-                        color='tab:red', fmt='.', ms=7)
-
-            # Plot fit
-            if fwhm_coeffs[ut] is not None:
-                ax.plot(test_range, parabola_func(test_range, *fwhm_coeffs[ut]),
-                        color='tab:red', ls='dashed', zorder=-1, alpha=0.5)
-                ax.axvline(fit_data['best_fwhm'], c='tab:red', ls='dotted', zorder=-1)
-                if fit_data['best_hfd'] is not None:
-                    ax.axvline(fit_data['best_hfd'], c='tab:green', ls='dotted', zorder=-1)
-            else:
-                ax.text(0.03, 0.15, 'Fit failed', transform=ax.transAxes,
-                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
-
-            # Set labels
-            ax.yaxis.tick_right()
-            ax.yaxis.set_label_position('right')
-            ax.set_ylabel('FWHM')
-            if i == len(uts) - 1:
-                ax.set_xlabel('Focus position')
-
-            # Set limits
-            ax.set_ylim(bottom=0)
-
-        except Exception:
-            print('Error making FWHM plot')
             print(traceback.format_exc())
 
     # Save the plot
@@ -322,7 +267,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
-    fit_df, hfd_coeffs, fwhm_coeffs = fit_to_data(df)
+    fit_df, fit_coeffs = fit_to_data(df)
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
     fit_df.to_csv(os.path.join(path, ofname))
@@ -332,10 +277,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, fit_df, hfd_coeffs, fwhm_coeffs, finish_time)
+        plot_results(df, fit_df, fit_coeffs, finish_time)
 
     # Move to best position?
-    best_focus = fit_df['best_fwhm'].to_dict()
+    best_focus = fit_df['cross_pos'].to_dict()
     best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
     print('Current focus: ', get_focuser_positions())
     print('Best focus: ', best_focus)
