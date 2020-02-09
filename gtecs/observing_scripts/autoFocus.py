@@ -153,7 +153,8 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         A Pandas dataframe with an index of unit telescope ID.
 
     """
-    hfds = None
+    hfd_arrs = {}
+    hfd_std_arrs = {}
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
@@ -163,7 +164,6 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         image_data = {ut: image_data[ut] for ut in params.UTS_WITH_FOCUSERS if ut in image_data}
 
         # Measure the median HFDs in each image
-        hfd_dict = {}
         for ut in image_data:
             try:
                 # Extract median HFD and std values from the image data
@@ -178,25 +178,34 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
                 print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
                 hfd = np.nan
 
-            # Add to dicts
-            hfd_dict[ut] = hfd
+            # Add to main arrays
+            if ut in hfd_arrs:
+                hfd_arrs[ut].append(hfd)
+                hfd_std_arrs[ut].append(hfd_std)
+            else:
+                hfd_arrs[ut] = [hfd]
+                hfd_std_arrs[ut] = [hfd_std]
 
-        # Add to set
-        if hfds is None:
-            hfds = pd.Series(hfd_dict)
-        else:
-            hfds = hfds.append(pd.Series(hfd_dict))
+        print('HFDs:', {ut: hfd_arrs[ut][i] for ut in hfd_arrs})
 
-        print('HFDs:', hfd_dict)
-
-    # Take the smallest value of the set as the best estimate for the HFD at this position.
+    # Take the smallest of the HFD values measured as the best estimate for this position.
     # The reasoning is that we already average the HFD over many stars in each frame,
     # so across multiple frames we only sample external fluctuations, usually windshake,
     # which will always make the HFD worse, never better.
-    hfds = hfds.groupby(level=0)
+    # We also want to make sure we get the std associated with that image.
+    best_hfd = {}
+    best_hfd_std = {}
+    for ut in hfd_arrs:
+        hfds = np.array(hfd_arrs[ut])
+        stds = np.array(hfd_std_arrs[ut])
+
+        min_i = np.where(hfds == min(hfds))[0][0]
+        best_hfd[ut] = hfds[min_i]
+        best_hfd_std[ut] = stds[min_i]
+
     data = {'pos': pd.Series(get_focuser_positions()),
-            'hfd': hfds.min(),
-            'hfd_std': hfds.std().fillna(0.0),
+            'hfd': pd.Series(best_hfd),
+            'hfd_std': pd.Series(best_hfd_std),
             }
 
     # Also store the temperatures of the last focuser move
