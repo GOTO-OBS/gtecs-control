@@ -67,7 +67,7 @@ def lin_func(x, m, c):
     return m * x + c
 
 
-def fit_to_data(df):
+def fit_to_data(df, nfvs):
     """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
     fit_df = pd.DataFrame(columns=['pivot_pos', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
@@ -93,11 +93,16 @@ def fit_to_data(df):
         # HFD
         pivot_pos, m_l, m_r, delta_x, cross_pos = None, None, None, None, None
         try:
+            # Exclude any points below the near-focus value
+            # (the NFV is supposed to mark where the V-curve is no-longer linear)
+            nfv = nfvs[ut]
+            mask = hfd > nfv
+
             # Split into left and right
             min_i = np.where(hfd == min(hfd))[0][0]
             pivot_pos = pos[min_i]
-            mask_l = pos <= pivot_pos
-            mask_r = pos >= pivot_pos
+            mask_l = mask & (pos <= pivot_pos)
+            mask_r = mask & (pos >= pivot_pos)
 
             # Raise error if not enough points on both sides
             if sum(mask_l) < 2 or sum(mask_r) < 2:
@@ -107,7 +112,7 @@ def fit_to_data(df):
             # Fit straight line
             coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
             coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
-            fit_coeffs[ut] = (coeffs_l, coeffs_r)
+            fit_coeffs[ut] = (coeffs_l, coeffs_r, nfv)
             m_l, c_l = coeffs_l
             m_r, c_r = coeffs_r
             delta_x = (c_r / m_r) - (c_l / m_l)
@@ -145,27 +150,35 @@ def plot_results(df, fit_df, fit_coeffs, finish_time):
         try:
             ax = axes.flatten()[i]
 
-            # Plot data
-            mask_l = np.array(ut_data['pos']) < fit_data['pivot_pos']
-            mask_mid = np.array(ut_data['pos']) == fit_data['pivot_pos']
-            mask_r = np.array(ut_data['pos']) > fit_data['pivot_pos']
-            ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
-                        yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
-            ax.errorbar(ut_data['pos'][mask_mid], ut_data['hfd'][mask_mid],
-                        yerr=ut_data['hfd_std'][mask_mid], color='tab:green', fmt='.', ms=7)
-            ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
-                        yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
-
-            # Plot fit
-            test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
             if fit_coeffs[ut] is not None:
+                # Plot data
+                nfv = fit_coeffs[ut][2]
+                mask = np.array(ut_data['hfd']) > nfv
+                mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
+                mask_m = np.invert(mask)
+                mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
+                ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
+                            yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
+                ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
+                            yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
+                ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
+                            yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+
+                # Plot fit
+                test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
+                ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
             else:
-                ax.text(0.03, 0.15, 'Fit failed', transform=ax.transAxes,
+                # Plot data
+                ax.errorbar(ut_data['pos'], ut_data['hfd'],
+                            yerr=ut_data['hfd_std'], color='tab:red', fmt='.', ms=7)
+
+                # Plot fit
+                ax.text(0.03, 0.05, 'Fit failed', transform=ax.transAxes,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
 
             # Set labels
@@ -173,11 +186,12 @@ def plot_results(df, fit_df, fit_coeffs, finish_time):
                 ax.set_ylabel('HFD')
             if i >= len(axes.flatten()) - 4:
                 ax.set_xlabel('Focus position')
-            ax.text(0.07, 0.95, 'UT{}'.format(ut), fontweight='bold',
+            ax.text(0.08, 0.93, 'UT{}'.format(ut), fontweight='bold',
+                    bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
                     transform=ax.transAxes, zorder=9, ha='center', va='center')
 
             # Set limits
-            ax.set_ylim(bottom=0)
+            ax.set_ylim(bottom=0, top=15)
 
         except Exception:
             print('Error making HFD plot', end='\t')
@@ -192,7 +206,7 @@ def plot_results(df, fit_df, fit_coeffs, finish_time):
     plt.show()
 
 
-def run(fraction, steps, num_exp=3, exptime=30, filt='L',
+def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
         go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -269,6 +283,8 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
+    if not type(nfv) == dict:
+        nfv = {ut: nfv for ut in foc_data}
     fit_df, fit_coeffs = fit_to_data(df)
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
@@ -354,11 +370,15 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
+    # Get the autofocus parameters
+    uts = sorted(params.AUTOFOCUS_PARAMS.keys())
+    nfv = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts}
+
     # If something goes wrong we need to restore the origional focus
     try:
         initial_positions = get_focuser_positions()
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt, go_to_best, no_slew, no_plot, no_confirm)
+        run(fraction, steps, num_exp, exptime, filt, nfv, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
