@@ -505,7 +505,7 @@ class Pilot(object):
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
-                   'args': ['-n', '1', '-t', '10'],
+                   'args': ['-n', '1', '-t', '5'],
                    'protocol': SimpleProtocol}
 
         self.evening_tasks = [flats_e, autofoc]
