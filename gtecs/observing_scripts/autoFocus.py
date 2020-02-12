@@ -55,12 +55,12 @@ def get_best_focus_position(m_l, m_r, delta_x, xval, yval):
     c2 = yval - m_r * xval
     c1 = m_l * (-delta_x + c2 / m_r)
     meeting_point = ((c1 - c2) / (m_r - m_l))
-    return meeting_point
+    return int(meeting_point)
 
 
 def get_position(target_hfd, current_hfd, current_position, slope):
     """Estimate the focuser position producing the target HFD."""
-    return current_position + (target_hfd - current_hfd) / slope
+    return int(current_position + (target_hfd - current_hfd) / slope)
 
 
 def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=None):
@@ -186,7 +186,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
                 hfd_arrs[ut] = [hfd]
                 hfd_std_arrs[ut] = [hfd_std]
 
-        print('HFDs:', {ut: hfd_arrs[ut][i] for ut in hfd_arrs})
+        print('HFDs:', {ut: np.round(hfd_arrs[ut][i], 1) for ut in hfd_arrs})
 
     # Take the smallest of the HFD values measured as the best estimate for this position.
     # The reasoning is that we already average the HFD over many stars in each frame,
@@ -247,7 +247,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     initial_hfds = foc_data['hfd']
-    print('Best HFDs:', initial_hfds.to_dict())
+    print('Best HFDs:', initial_hfds.round(1).to_dict())
 
     # Move to the positive side of the best focus position and measure HFD.
     # Assume the starting value is close to best, and a big step should be far enough out.
@@ -259,7 +259,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     out_hfds = foc_data['hfd']
-    print('Best HFDs:', out_hfds.to_dict())
+    print('Best HFDs:', out_hfds.round(1).to_dict())
 
     # The HFDs should have increased substantially.
     # If they haven't then the focus measurement isn't reliable, so we can't continue.
@@ -281,7 +281,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     in_hfds = foc_data['hfd']
-    print('Best HFDs:', in_hfds.to_dict())
+    print('Best HFDs:', in_hfds.round(1).to_dict())
 
     # The HDFs should have all decreased.
     # If they haven't we can't continue, because we might not be on the correct side.
@@ -311,7 +311,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('Taking {} focus measurements...'.format(num_exp))
         foc_data = measure_focus(num_exp, exptime, filt, target_name)
         hfds = foc_data['hfd']
-        print('Best HFDs:', hfds.to_dict())
+        print('Best HFDs:', hfds.round(1).to_dict())
 
     # We're close enough to the near-focus HFD to estimate the distance
     # and move directly to that position.
@@ -324,7 +324,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     nf_hfds = foc_data['hfd']
-    print('Best HFDs at near-focus position:', nf_hfds.to_dict())
+    print('Best HFDs at near-focus position:', nf_hfds.round(1).to_dict())
 
     # Now we have the near-focus HFDs, find the best focus position and move there.
     print('~~~~~~')
@@ -335,20 +335,19 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     bf_hfds = foc_data['hfd']
-    print('Best HFDs at best focus position:\n', foc_data[['pos', 'hfd', 'hfd_std']])
-    print('Temperature:', foc_data['temp'].to_dict())
+    print('Focus data at best focus position:\n', foc_data.round(1))
     print('~~~~~~')
-    print('Best HFDs at initial position:', initial_hfds.to_dict())
-    print('Best HFDs at best focus position:', bf_hfds.to_dict())
+    print('Best HFDs at initial position:', initial_hfds.round(1).to_dict())
+    print('Best HFDs at best focus position:', bf_hfds.round(1).to_dict())
     diff = initial_hfds - bf_hfds
-    print('Difference :', diff.to_dict())
+    print('Difference :', diff.round(1).to_dict())
 
     if params.FOCUS_SLACK_REPORTS:
         # Send Slack report
         print('~~~~~~')
         print('Sending best focus measurements to Slack...')
         from gtecs.slack import send_slack_msg
-        s = '*Autofocus results*\nFocus data at best position:```' + repr(foc_data) + '```'
+        s = '*Autofocus results*\nFocus data at best position:```' + repr(foc_data.round(1)) + '```'
         send_slack_msg(s)
 
     print('Done')

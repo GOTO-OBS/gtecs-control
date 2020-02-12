@@ -256,7 +256,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
         print('Taking {} measurements at new focus position...'.format(num_exp))
         foc_data = measure_focus(num_exp, exptime, filt, target_name)
         hfds = foc_data['hfd']
-        print('Best HFDs:', hfds.to_dict())
+        print('Best HFDs:', hfds.round(1).to_dict())
 
         # Save data in list
         all_data.append(foc_data)
