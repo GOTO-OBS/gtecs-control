@@ -119,7 +119,7 @@ def fit_to_data(df, nfvs):
 
             # Find meeting point by picking a point on the line and using the autofocus function
             point = (pivot_pos, lin_func(pivot_pos, *coeffs_r))
-            cross_pos = get_best_focus_position(m_l, m_r, delta_x, point[0], point[1])
+            cross_pos = int(get_best_focus_position(m_l, m_r, delta_x, point[0], point[1]))
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))

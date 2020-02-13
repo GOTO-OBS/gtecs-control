@@ -55,12 +55,12 @@ def get_best_focus_position(m_l, m_r, delta_x, xval, yval):
     c2 = yval - m_r * xval
     c1 = m_l * (-delta_x + c2 / m_r)
     meeting_point = ((c1 - c2) / (m_r - m_l))
-    return int(meeting_point)
+    return meeting_point
 
 
-def get_position(target_hfd, current_hfd, current_position, slope):
+def get_hfd_position(target_hfd, current_hfd, current_position, slope):
     """Estimate the focuser position producing the target HFD."""
-    return int(current_position + (target_hfd - current_hfd) / slope)
+    return current_position + (target_hfd - current_hfd) / slope
 
 
 def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=None):
@@ -304,8 +304,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
         target_hfds = (hfds / 4).where(mask, hfds)
         current_positions = pd.Series(get_focuser_positions())
-        new_positions = get_position(target_hfds, hfds, current_positions, m_r)
-        new_positions = {ut: new_positions.to_dict()[ut] for ut in moving_uts}
+        new_positions = get_hfd_position(target_hfds, hfds, current_positions, m_r)
+        new_positions = {ut: int(new_positions.to_dict()[ut]) for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         print('New positions:', get_focuser_positions())
         print('Taking {} focus measurements...'.format(num_exp))
@@ -318,9 +318,10 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Moving to near-focus position...')
     current_positions = pd.Series(get_focuser_positions())
-    nf_positions = get_position(nfv, hfds, current_positions, m_r)
-    print('Near-focus positions:', nf_positions.to_dict())
-    set_focuser_positions(nf_positions.to_dict(), timeout=60)
+    nf_positions = get_hfd_position(nfv, hfds, current_positions, m_r)
+    nf_positions_dict = {ut: int(nf_positions.to_dict()[ut]) for ut in nf_positions.index}
+    print('Near-focus positions:', nf_positions_dict)
+    set_focuser_positions(nf_positions_dict, timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     nf_hfds = foc_data['hfd']
@@ -330,8 +331,9 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Finding best focus...')
     bf_positions = get_best_focus_position(m_l, m_r, delta_x, nf_positions, nf_hfds)
-    print('Best focus positions:', bf_positions.to_dict())
-    set_focuser_positions(bf_positions.to_dict(), timeout=60)
+    bf_positions_dict = {ut: int(bf_positions.to_dict()[ut]) for ut in bf_positions.index}
+    print('Best focus positions:', bf_positions_dict)
+    set_focuser_positions(bf_positions_dict, timeout=60)
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     bf_hfds = foc_data['hfd']
