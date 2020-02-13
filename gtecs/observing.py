@@ -146,7 +146,7 @@ def set_focuser_positions(positions, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if type(positions) != dict:
+    if not isinstance(positions, dict):
         positions = {ut: positions for ut in params.UTS_WITH_FOCUSERS}
 
     while not focusers_are_ready(uts=positions.keys()):
@@ -174,7 +174,7 @@ def move_focusers(offsets, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if type(offsets) != dict:
+    if not isinstance(offsets, dict):
         offsets = {ut: offsets for ut in params.UTS_WITH_FOCUSERS}
 
     while not focusers_are_ready(uts=offsets.keys()):
@@ -202,7 +202,7 @@ def wait_for_focusers(target_positions, timeout=None):
         time in seconds after which to timeout, None to wait forever
 
     """
-    if type(target_positions) != dict:
+    if not isinstance(target_positions, dict):
         target_positions = {ut: target_positions for ut in params.UTS_WITH_FOCUSERS}
 
     start_time = time.time()
