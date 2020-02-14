@@ -99,7 +99,7 @@ def fit_to_data(df, nfvs):
             mask = hfd > nfv
 
             # Split into left and right
-            min_i = np.where(hfd == min(hfd))[0][0]
+            min_i = np.where(hfd == np.nanmin(hfd))[0][0]
             pivot_pos = pos[min_i]
             mask_l = mask & (pos <= pivot_pos)
             mask_r = mask & (pos >= pivot_pos)
