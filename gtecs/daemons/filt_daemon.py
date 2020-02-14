@@ -29,7 +29,7 @@ class FiltDaemon(BaseDaemon):
         # filter wheel variables
         self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
-        self.new_filter = ''
+        self.new_filter = {ut: '' for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -66,10 +66,10 @@ class FiltDaemon(BaseDaemon):
                 try:
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        new_filter_num = params.FILTER_LIST.index(self.new_filter)
+                        new_filter_num = params.FILTER_LIST.index(self.new_filter[ut])
 
                         self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
-                                      ut, interface_id, self.new_filter, new_filter_num))
+                                      ut, interface_id, self.new_filter[ut], new_filter_num))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -171,72 +171,104 @@ class FiltDaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def set_filter(self, new_filter, ut_list):
-        """Move filter wheel to given filter."""
+    def set_filters(self, new_filter):
+        """Move filter wheel(s) to given filter(s)."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
-        # Check input
-        if new_filter.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        # Format input
+        if not isinstance(new_filter, dict):
+            new_filter = {ut: new_filter for ut in self.uts}
 
-        # Set values
         self.wait_for_info()
-        for ut in ut_list:
-            if self.info[ut]['remaining'] == 0 and self.info[ut]['homed']:
-                self.active_uts += [ut]
-        self.new_filter = new_filter
+        retstrs = []
+        for ut in sorted(new_filter):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new filter is a valid input
+            try:
+                new_filt = new_filter[ut].upper()
+            except Exception:
+                s = '"{}" is not a valid filter'.format(new_filter[ut])
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new filter is in the filter list
+            if new_filt not in params.FILTER_LIST:
+                s = 'New filter "{}" not in list {}'.format(new_filt, params.FILTER_LIST)
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new filter is different from the current filter
+            # if new_filt == self.info[ut]['current_filter']:
+            #     s = 'Filter Wheel is already at position {}'.format(new_filt)
+            #     retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+            #     continue
+
+            # Check the filter wheel is not already moving
+            if self.info[ut]['remaining'] > 0:
+                s = 'Filter Wheel is already moving'
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the filter wheel is homed
+            if not self.info[ut]['homed']:
+                s = 'Filter Wheel is not homed'
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            self.new_filter[ut] = new_filt
+            s = 'Filter Wheel {}: Changing filter to {}'.format(ut, new_filt)
+            retstrs.append(s)
 
         # Set flag
         self.set_filter_flag = 1
 
         # Format return string
-        s = 'Moving:'
-        for ut in ut_list:
-            hw_str = 'Filter Wheel {}'.format(ut)
-            s += '\n  '
-            if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
-            elif not self.info[ut]['homed']:
-                s += misc.errortxt('"HardwareStatusError: {} not homed"'.format(hw_str))
-            else:
-                s += 'Moving {}'.format(hw_str)
-        return s
+        return '\n'.join(retstrs)
 
-    def home_filter(self, ut_list):
-        """Move filter wheel to home position."""
+    def home_filters(self, ut_list=None):
+        """Move filter wheel(s) to the home position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        # Format input
+        if ut_list is None:
+            ut_list = self.uts.copy()
 
-        # Set values
         self.wait_for_info()
-        for ut in ut_list:
-            if self.info[ut]['remaining'] == 0:
-                self.active_uts += [ut]
+        retstrs = []
+        for ut in sorted(ut_list):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the filter wheel is not already moving
+            if self.info[ut]['remaining'] > 0:
+                s = 'Filter Wheel is already moving'
+                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            s = 'Filter Wheel {}: Moving to home position'.format(ut)
+            retstrs.append(s)
 
         # Set flag
         self.home_filter_flag = 1
 
         # Format return string
-        s = 'Moving:'
-        for ut in ut_list:
-            hw_str = 'Filter Wheel {}'.format(ut)
-            s += '\n  '
-            if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
-            else:
-                s += 'Homing {}'.format(hw_str)
-        return s
+        return '\n'.join(retstrs)
 
 
 if __name__ == '__main__':

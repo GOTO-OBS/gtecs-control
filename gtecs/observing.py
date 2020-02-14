@@ -152,8 +152,9 @@ def set_focuser_positions(positions, wait=False, timeout=None):
     while not focusers_are_ready(uts=positions.keys()):
         time.sleep(0.5)
 
-    for ut in positions:
-        execute_command('foc set {} {}'.format(ut, int(positions[ut])))
+    ut_list = [str(int(ut)) for ut in sorted(positions.keys())]
+    pos_list = [str(int(positions[int(ut)])) for ut in ut_list]
+    execute_command('foc set {} {}'.format(','.join(ut_list), ','.join(pos_list)))
 
     if wait or timeout is not None:
         wait_for_focusers(positions, timeout)
@@ -183,8 +184,9 @@ def move_focusers(offsets, wait=False, timeout=None):
     start_positions = get_focuser_positions()
     finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
 
-    for ut in offsets:
-        execute_command('foc move {} {}'.format(ut, int(offsets[ut])))
+    ut_list = [str(int(ut)) for ut in sorted(offsets.keys())]
+    steps_list = [str(int(offsets[int(ut)])) for ut in ut_list]
+    execute_command('foc move {} {}'.format(','.join(ut_list), ','.join(steps_list)))
 
     if wait or timeout is not None:
         wait_for_focusers(finish_positions, timeout)

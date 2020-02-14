@@ -89,41 +89,59 @@ def query(command, args, daemon_id):
     elif command == 'set':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            ut_list = params.UTS_WITH_FOCUSERS
+            # foc set <pos>
             pos = int(args[0])
+            pos_dict = {ut: pos for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
+            # foc set <ut>[,<ut>...] <pos>
+            ut_list = [int(x) for x in args[0].split(',')]
             pos = int(args[1])
+            pos_dict = {ut: pos for ut in ut_list}
+        elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
+            # foc set <ut>[,<ut>...] <pos>[,<pos>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+            pos_list = [int(x) for x in args[1].split(',')]
+            pos_dict = {ut: pos for ut, pos in zip(ut_list, pos_list)}
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_focuser', [pos, ut_list])
+        reply = daemons.daemon_function(daemon_id, 'set_focusers', [pos_dict])
         print(reply)
 
     elif command == 'move':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
-            ut_list = params.UTS_WITH_FOCUSERS
+            # foc move <steps>
             steps = int(args[0])
+            steps_dict = {ut: steps for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
+            # foc move <ut>[,<ut>...] <steps>
+            ut_list = [int(x) for x in args[0].split(',')]
             steps = int(args[1])
+            steps_dict = {ut: steps for ut in ut_list}
+        elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
+            # foc move <ut>[,<ut>...] <steps>[,<steps>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+            steps_list = [int(x) for x in args[1].split(',')]
+            steps_dict = {ut: steps for ut, steps in zip(ut_list, steps_list)}
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'move_focuser', [steps, ut_list])
+        reply = daemons.daemon_function(daemon_id, 'move_focusers', [steps_dict])
         print(reply)
 
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
+            # foc home
             ut_list = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FOCUSERS)
+            # foc home <ut>[,<ut>...]
+            ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_focuser', [ut_list])
+        reply = daemons.daemon_function(daemon_id, 'home_focusers', [ut_list])
         print(reply)
 
     # Unrecognized function
