@@ -179,6 +179,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
             except Exception as err:
                 print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
                 hfd = np.nan
+                hfd_std = np.nan
 
             # Add to main arrays
             if ut in hfd_arrs:
