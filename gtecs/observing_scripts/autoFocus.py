@@ -12,6 +12,8 @@ The routine searches for a target HFD known as the near focus value,
 and hops to the best focus from there.
 """
 
+import os
+import sqlite3
 from argparse import ArgumentParser
 
 from astropy.convolution import Gaussian2DKernel
@@ -212,7 +214,11 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     _, temp = get_focuser_temperatures()
     data['temp'] = pd.Series(temp)
 
-    return pd.DataFrame(data)
+    # Make into a dataframe
+    df = pd.DataFrame(data)
+    df.index.name = 'UT'
+
+    return df
 
 
 def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, filt='L',
@@ -351,6 +357,12 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         from gtecs.slack import send_slack_msg
         s = '*Autofocus results*\nFocus data at best position:```' + repr(foc_data.round(1)) + '```'
         send_slack_msg(s)
+
+    # Store the best focus data in a database
+    foc_data['ts'] = Time.now().iso
+    path = os.path.join(params.FILE_PATH, 'focus_data')
+    with sqlite3.connect(os.path.join(path, 'focus.db')) as db_con:
+        foc_data.to_sql(name='best_focus', con=db_con, if_exists='append')
 
     print('Done')
 
