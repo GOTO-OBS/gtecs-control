@@ -254,7 +254,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     initial_hfds = foc_data['hfd']
-    print('Best HFDs:', initial_hfds.round(1).to_dict())
+    if num_exp > 1:
+        print('Best HFDs:', initial_hfds.round(1).to_dict())
 
     # Move to the positive side of the best focus position and measure HFD.
     # Assume the starting value is close to best, and a big step should be far enough out.
@@ -266,7 +267,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     out_hfds = foc_data['hfd']
-    print('Best HFDs:', out_hfds.round(1).to_dict())
+    if num_exp > 1:
+        print('Best HFDs:', out_hfds.round(1).to_dict())
 
     # The HFDs should have increased substantially.
     # If they haven't then the focus measurement isn't reliable, so we can't continue.
@@ -288,7 +290,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     in_hfds = foc_data['hfd']
-    print('Best HFDs:', in_hfds.round(1).to_dict())
+    if num_exp > 1:
+        print('Best HFDs:', in_hfds.round(1).to_dict())
 
     # The HDFs should have all decreased.
     # If they haven't we can't continue, because we might not be on the correct side.
@@ -318,7 +321,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('Taking {} focus measurements...'.format(num_exp))
         foc_data = measure_focus(num_exp, exptime, filt, target_name)
         hfds = foc_data['hfd']
-        print('Best HFDs:', hfds.round(1).to_dict())
+        if num_exp > 1:
+            print('Best HFDs:', hfds.round(1).to_dict())
 
     # We're close enough to the near-focus HFD to estimate the distance
     # and move directly to that position.
@@ -332,7 +336,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     nf_hfds = foc_data['hfd']
-    print('Best HFDs at near-focus position:', nf_hfds.round(1).to_dict())
+    if num_exp > 1:
+        print('Best HFDs:', nf_hfds.round(1).to_dict())
 
     # Now we have the near-focus HFDs, find the best focus position and move there.
     print('~~~~~~')
@@ -345,11 +350,11 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     foc_data = measure_focus(num_exp, exptime, filt, target_name)
     bf_hfds = foc_data['hfd']
     print('Focus data at best focus position:\n', foc_data.round(1))
+
+    # Compare to initial values
     print('~~~~~~')
-    print('Best HFDs at initial position:', initial_hfds.round(1).to_dict())
-    print('Best HFDs at best focus position:', bf_hfds.round(1).to_dict())
-    diff = initial_hfds - bf_hfds
-    print('Difference :', diff.round(1).to_dict())
+    print('Initial HFDs:', initial_hfds.round(1).to_dict())
+    print('Final HFDs:  ', bf_hfds.round(1).to_dict())
 
     if params.FOCUS_SLACK_REPORTS:
         # Send Slack report
