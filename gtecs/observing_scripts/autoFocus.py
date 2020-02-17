@@ -65,7 +65,7 @@ def get_hfd_position(target_hfd, current_hfd, current_position, slope):
     return current_position + (target_hfd - current_hfd) / slope
 
 
-def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=None):
+def measure_image_hfd(data, filter_width=15, threshold=5, xslice=None, yslice=None, verbose=True):
     """Measure the half-flux-diameter of an image.
 
     Parameters
@@ -81,6 +81,8 @@ def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=Non
         slice in x axis
     yslice : `slice`, default=slice(1500, 4500)
         slice in y axis
+    verbose : bool, default=True
+        if False, supress printout
 
     Returns
     -------
@@ -126,7 +128,8 @@ def measure_image_hfd(data, filter_width=5, threshold=5, xslice=None, yslice=Non
     if len(hfds) <= 3:
         raise ValueError('Not enough objects ({}) found for focus measurement'.format(len(hfds)))
     else:
-        print('Found {} objects with measurable HFDs'.format(len(hfds)))
+        if verbose:
+            print('Found {} objects with measurable HFDs'.format(len(hfds)))
 
     # Get median and standard deviation over all extracted objects
     mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfds, sigma=2.5, maxiters=10)
