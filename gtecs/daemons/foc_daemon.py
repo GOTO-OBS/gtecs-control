@@ -81,7 +81,7 @@ class FocDaemon(BaseDaemon):
                                     self.log.info(c)
 
                                 # store the temperature at the time it moved
-                                self.last_move_temp[ut] = self.info['dome_temp']
+                                self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -135,6 +135,18 @@ class FocDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get the dome internal temperature
+        # Note the focusers each have inbuilt temperature sensors, but they always differ by a lot.
+        # Best to just use the single measurement for the temperature inside the dome,
+        # but store it on each UT's info so if we want to change it in the future it's easier.
+        try:
+            dome_temp = get_roomalert('dome')['int_temperature']
+            temp_info['dome_temp'] = dome_temp
+        except Exception:
+            self.log.error('Failed to get dome internal temperature')
+            self.log.debug('', exc_info=True)
+            temp_info['dome_temp'] = None
+
         for ut in self.uts:
             # Get info from each interface
             try:
@@ -158,6 +170,7 @@ class FocDaemon(BaseDaemon):
                 else:
                     interface_info['status'] = 'Ready'
 
+                interface_info['current_temp'] = temp_info['dome_temp']
                 interface_info['last_move_temp'] = self.last_move_temp[ut]
 
                 temp_info[ut] = interface_info
@@ -165,15 +178,6 @@ class FocDaemon(BaseDaemon):
                 self.log.error('Failed to get focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
                 temp_info[ut] = None
-
-        # get the dome internal temperature
-        try:
-            dome_temp = get_roomalert('dome')['int_temperature']
-            temp_info['dome_temp'] = dome_temp
-        except Exception:
-            self.log.error('Failed to get dome internal temperature')
-            self.log.debug('', exc_info=True)
-            temp_info['dome_temp'] = None
 
         # Write debug log line
         try:
@@ -195,110 +199,162 @@ class FocDaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def set_focuser(self, new_pos, ut_list):
-        """Move focuser to given position."""
+    def set_focusers(self, new_position):
+        """Move focuser(s) to the given position(s)."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
-        # Check input
-        if int(new_pos) < 0 or (int(new_pos) - new_pos) != 0:
-            raise ValueError('Position must be a positive integer')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        # Format input
+        if not isinstance(new_position, dict):
+            new_position = {ut: new_position for ut in self.uts}
 
-        # Set values
         self.wait_for_info()
-        for ut in ut_list:
-            if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
-                self.active_uts += [ut]
-                self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
+        retstrs = []
+        for ut in sorted(new_position):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is a valid input
+            try:
+                new_pos = int(new_position[ut])
+                assert new_pos == new_position[ut]
+            except Exception:
+                s = '"{}" is not a valid integer'.format(new_position[ut])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is within the focuser limit
+            if new_pos < 0 or new_pos > self.info[ut]['limit']:
+                s = 'New position {} is outside focuser limits (0-{})'.format(
+                    new_pos, self.info[ut]['limit'])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is different from the current position
+            if new_pos == self.info[ut]['current_pos']:
+                s = 'Focuser is already at position {}'.format(new_pos)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the focuser is not already moving
+            if self.info[ut]['remaining'] > 0:
+                s = 'Focuser is already moving'
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
+            s = 'Focuser {}: Moving {} steps from {} to {}'.format(
+                ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
+            retstrs.append(s)
 
         # Set flag
         self.move_focuser_flag = 1
 
         # Format return string
-        s = 'Moving:'
-        for ut in ut_list:
-            hw_str = 'Focuser {}'.format(ut)
-            s += '\n  '
-            if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
-            elif new_pos > self.info[ut]['limit']:
-                s += misc.errortxt('"ValueError: {} position past limit"'.format(hw_str))
-            else:
-                s += 'Moving {}'.format(hw_str)
-        return s
+        return '\n'.join(retstrs)
 
-    def move_focuser(self, move_steps, ut_list):
-        """Move focuser by given number of steps."""
+    def move_focusers(self, move_steps):
+        """Move focuser(s) by the given number of steps."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
-        # Check input
-        if (int(move_steps) - move_steps) != 0:
-            raise ValueError('Steps must be an integer')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        # Format input
+        if not isinstance(move_steps, dict):
+            move_steps = {ut: move_steps for ut in self.uts}
 
-        # Set values
         self.wait_for_info()
-        for ut in ut_list:
-            new_pos = self.info[ut]['current_pos'] + move_steps
-            if self.info[ut]['remaining'] == 0 and new_pos <= self.info[ut]['limit']:
-                self.active_uts += [ut]
-                self.move_steps[ut] = move_steps
+        retstrs = []
+        for ut in sorted(move_steps):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is a valid input
+            try:
+                steps = int(move_steps[ut])
+                assert steps == move_steps[ut]
+            except Exception:
+                s = '"{}" is not a valid integer'.format(move_steps[ut])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is within the focuser limit
+            new_pos = self.info[ut]['current_pos'] + steps
+            if new_pos < 0 or new_pos > self.info[ut]['limit']:
+                s = 'New position {} is outside focuser limits (0-{})'.format(
+                    new_pos, self.info[ut]['limit'])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is different from the current position
+            if new_pos == self.info[ut]['current_pos']:
+                s = 'Focuser is already at position {}'.format(new_pos)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the focuser is not already moving
+            if self.info[ut]['remaining'] > 0:
+                s = 'Focuser is already moving'
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
+            s = 'Focuser {}: Moving {} steps from {} to {}'.format(
+                ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
+            retstrs.append(s)
 
         # Set flag
         self.move_focuser_flag = 1
 
         # Format return string
-        s = 'Moving:'
-        for ut in ut_list:
-            hw_str = 'Focuser {}'.format(ut)
-            new_pos = self.info[ut]['current_pos'] + move_steps
-            s += '\n  '
-            if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
-            elif new_pos > self.info[ut]['limit']:
-                s += misc.errortxt('"ValueError: {} position past limit"'.format(hw_str))
-            else:
-                s += 'Moving {}'.format(hw_str)
-        return s
+        return '\n'.join(retstrs)
 
-    def home_focuser(self, ut_list):
-        """Move focuser to the home position."""
+    def home_focusers(self, ut_list=None):
+        """Move focuser(s) to the home position."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
 
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        # Format input
+        if ut_list is None:
+            ut_list = self.uts.copy()
 
-        # Set values
         self.wait_for_info()
-        for ut in ut_list:
-            if self.info[ut]['remaining'] == 0:
-                self.active_uts += [ut]
+        retstrs = []
+        for ut in sorted(ut_list):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the focuser is not already moving
+            if self.info[ut]['remaining'] > 0:
+                s = 'Focuser is already moving'
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            s = 'Focuser {}: Moving to home position'.format(ut)
+            retstrs.append(s)
 
         # Set flag
         self.home_focuser_flag = 1
 
         # Format return string
-        s = 'Moving:'
-        for ut in ut_list:
-            hw_str = 'Focuser {}'.format(ut)
-            s += '\n  '
-            if self.info[ut]['remaining'] > 0:
-                s += misc.errortxt('"HardwareStatusError: {} is still moving"'.format(hw_str))
-            else:
-                s += 'Homing {}'.format(hw_str)
-        return s
+        return '\n'.join(retstrs)
 
 
 if __name__ == '__main__':

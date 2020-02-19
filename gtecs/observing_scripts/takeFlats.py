@@ -11,8 +11,8 @@ from astropy.time import Time
 from gtecs import params
 from gtecs.astronomy import night_startdate, sunalt_time
 from gtecs.catalogs import antisun_flat, exposure_sequence, extrapolate_from_filters
-from gtecs.observing import (get_analysis_image, get_current_mount_position,
-                             prepare_for_images, slew_to_radec, wait_for_mount)
+from gtecs.observing import (get_analysis_image, get_mount_position,
+                             prepare_for_images, slew_to_radec)
 
 import numpy as np
 
@@ -21,7 +21,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     """Offset the telescope then take an image and return the mean sky brightness."""
     # make an offset to move the stars
     step = params.FLATS_STEPSIZE * u.arcsec
-    current_ra, current_dec = get_current_mount_position()
+    current_ra, current_dec = get_mount_position()
     new_ra = current_ra + step.to(u.deg).value
     if new_ra >= 360:
         new_ra -= 360
@@ -30,8 +30,7 @@ def take_sky(exptime, current_filter, name, glance=False):
         new_dec = current_dec - step.to(u.deg).value
 
     # move to the new position and wait until we're there
-    slew_to_radec(new_ra, new_dec)
-    wait_for_mount(new_ra, new_dec, timeout=120)
+    slew_to_radec(new_ra, new_dec, timeout=120)
 
     # take the image and load the image data
     data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
@@ -75,8 +74,7 @@ def run(eve, alt, late=False):
     print('Slewing to target')
     field_name = skyflat.name
     coordinate = skyflat.coord
-    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-    wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
     # Set exposure order and check for sky brightness
     sky_mean_target = params.FLATS_SKYMEANTARGET

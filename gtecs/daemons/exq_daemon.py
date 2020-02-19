@@ -179,7 +179,7 @@ class ExqDaemon(BaseDaemon):
                    if ut in params.UTS_WITH_FILTERWHEELS]
         try:
             with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.home_filter(ut_list)
+                filt_daemon.home_filters(ut_list)
         except Exception:
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)
@@ -205,9 +205,10 @@ class ExqDaemon(BaseDaemon):
         ut_list = [ut for ut in self.current_exposure.ut_list
                    if ut in params.UTS_WITH_FILTERWHEELS]
         self.log.info('Setting filter to {} on {!r}'.format(new_filt, ut_list))
+        filt_dict = {ut: new_filt for ut in ut_list}
         try:
             with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.set_filter(new_filt, ut_list)
+                filt_daemon.set_filters(filt_dict)
         except Exception:
             self.log.error('No response from filter wheel daemon')
             self.log.debug('', exc_info=True)

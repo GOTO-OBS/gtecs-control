@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Script to take a series of images running through focus.
+"""Script to take a series of images running through focuser positions.
 
 It assumes you're already on a reasonable patch of sky and that you're
-already focused (see autoFocus script)
+already focused (see autoFocus script).
 """
 
+import math
 import os
 import sys
 import traceback
@@ -14,10 +15,9 @@ from astropy.time import Time
 
 from gtecs import params
 from gtecs.catalogs import focus_star
-from gtecs.observing import (get_analysis_image, get_current_focus, get_focus_limit,
-                             prepare_for_images, set_new_focus, slew_to_radec, wait_for_focuser,
-                             wait_for_mount)
-from gtecs.observing_scripts.autoFocus import RestoreFocus, get_hfds, set_focus_carefully
+from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
+                             set_focuser_positions, slew_to_radec)
+from gtecs.observing_scripts.autoFocus import (RestoreFocus, get_best_focus_position, measure_focus)
 
 from matplotlib import pyplot as plt
 
@@ -25,62 +25,14 @@ import numpy as np
 
 import pandas as pd
 
-
-def plot_results(df, finish_time):
-    """Plot the results of the focus run."""
-    uts = list(set(list(df.index)))
-
-    fig, axes = plt.subplots(nrows=len(uts), ncols=2, figsize=(8, 10), dpi=100)
-    plt.tight_layout()
-
-    for i, ut in enumerate(uts):
-        try:
-            ut_data = df.loc[ut]
-
-            # HFD plot
-            ax_hfd = axes[i, 0]
-            ax_hfd.errorbar(ut_data['pos'], ut_data['median'], yerr=ut_data['std'],
-                            color='k', ecolor='k', fmt='.', ms=2)
-            if ut == 1:
-                ax_hfd.set_title('HFD')
-            ax_hfd.set_ylabel('UT{}'.format(ut))
-
-            # FWHM plot
-            ax_fwhm = axes[i, 1]
-            ax_fwhm.errorbar(ut_data['pos'], ut_data['fwhm'], yerr=ut_data['fwhm_std'],
-                             color='k', ecolor='k', fmt='.', ms=2)
-
-            sn_mask = ut_data['fwhm'] / ut_data['fwhm_std'] > 2
-            e = ut_data['fwhm_std'][sn_mask]
-            pars = np.polyfit(ut_data['pos'][sn_mask], ut_data['fwhm'][sn_mask], w=1 / e, deg=2)
-            poly = np.poly1d(pars)
-            ax_fwhm.plot(ut_data['pos'], poly(ut_data['pos']), 'r-')
-
-            best_focus = -pars[1] / 2 / pars[0]
-            print('UT{} best focus @ {}'.format(ut, int(best_focus)))
-            ax_fwhm.axvline(best_focus, color='r', ls='--')
-
-            if ut == 1:
-                ax_fwhm.set_title('FWHM')
-
-        except Exception:
-            print('Error plotting UT{}'.format(ut))
-            print(traceback.format_exc())
-
-    # Save the plot
-    path = os.path.join(params.FILE_PATH, 'focus_data')
-    ofname = 'focusplot_{}.png'.format(finish_time)
-    plt.savefig(os.path.join(path, ofname))
-    print('Saved to {}'.format(os.path.join(path, ofname)))
-
-    plt.show()
+from scipy.optimize import curve_fit
 
 
 def calculate_positions(fraction, steps):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
-    current = get_current_focus()
-    limits = get_focus_limit()
+    current = get_focuser_positions()
+    limits = get_focuser_limits()
 
     all_positions = {}
     for ut in limits:
@@ -101,16 +53,161 @@ def calculate_positions(fraction, steps):
             positions[positions < 0] = [0] * n_bad
         if positions[-1] > limits[ut]:
             n_bad = sum(positions > limits[ut])
-            print('  WARNING: {} position(s) above maximum ({})'.format(n_bad, limits[ut]))
+            print('  WARNING: {} position(s) is above maximum ({})'.format(n_bad, limits[ut]))
             positions[positions > limits[ut]] = [limits[ut]] * n_bad
         print('  {} positions:'.format(len(positions)), positions)
 
         all_positions[ut] = positions
 
-    return all_positions
+    return pd.DataFrame(all_positions)
 
 
-def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
+def lin_func(x, m, c):
+    """Fit HFDs."""
+    return m * x + c
+
+
+def fit_to_data(df, nfvs):
+    """Fit to a series of HFD measurements."""
+    uts = list(set(list(df.index)))
+    fit_df = pd.DataFrame(columns=['pivot_pos', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
+                          index=uts)
+    fit_coeffs = {ut: None for ut in uts}
+
+    for ut in uts:
+        # Get data arrays
+        ut_data = df.loc[ut]
+        pos = np.array(ut_data['pos'])
+        hfd = np.array(ut_data['hfd'])
+        hfd_std = np.array(ut_data['hfd_std'])
+
+        # Mask any failed measurements (e.g. not enough objects)
+        mask = np.invert(np.isnan(hfd))
+        pos = pos[mask]
+        hfd = hfd[mask]
+        hfd_std = hfd_std[mask]
+
+        # Need a nominal non-zero sigma, otherwise the curve fit fails
+        hfd_std[hfd_std == 0] = 0.001
+
+        # HFD
+        pivot_pos, m_l, m_r, delta_x, cross_pos = None, None, None, None, None
+        try:
+            # Exclude any points below the near-focus value
+            # (the NFV is supposed to mark where the V-curve is no-longer linear)
+            nfv = nfvs[ut]
+            mask = hfd > nfv
+
+            # Split into left and right
+            min_i = np.where(hfd == np.nanmin(hfd))[0][0]
+            pivot_pos = pos[min_i]
+            mask_l = mask & (pos <= pivot_pos)
+            mask_r = mask & (pos >= pivot_pos)
+
+            # Raise error if not enough points on both sides
+            if sum(mask_l) < 2 or sum(mask_r) < 2:
+                raise ValueError('Can not fit HFD V-curve (n_l={}, n_r={})'.format(
+                                 sum(mask_l), sum(mask_r)))
+
+            # Fit straight line
+            coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
+            coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
+            fit_coeffs[ut] = (coeffs_l, coeffs_r, nfv)
+            m_l, c_l = coeffs_l
+            m_r, c_r = coeffs_r
+            delta_x = (c_r / m_r) - (c_l / m_l)
+
+            # Find meeting point by picking a point on the line and using the autofocus function
+            point = (pivot_pos, lin_func(pivot_pos, *coeffs_r))
+            cross_pos = int(get_best_focus_position(m_l, m_r, delta_x, point[0], point[1]))
+
+        except Exception:
+            print('UT{}: Error fitting to HFD data'.format(ut))
+            print(traceback.format_exc())
+
+        # Add to dataframe
+        fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
+                                    'm_l': m_l,
+                                    'm_r': m_r,
+                                    'delta_x': delta_x,
+                                    'cross_pos': cross_pos})
+
+    return fit_df, fit_coeffs
+
+
+def plot_results(df, fit_df, fit_coeffs, finish_time):
+    """Plot the results of the focus run."""
+    uts = list(set(list(df.index)))
+    fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=150)
+    plt.subplots_adjust(hspace=0.15, wspace=0.2)
+
+    fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.92)
+    for i, ut in enumerate(uts):
+        ut_data = df.loc[ut]
+        fit_data = fit_df.loc[ut]
+
+        # HFD plot
+        try:
+            ax = axes.flatten()[i]
+
+            if fit_coeffs[ut] is not None:
+                # Plot data
+                nfv = fit_coeffs[ut][2]
+                mask = np.array(ut_data['hfd']) > nfv
+                mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
+                mask_m = np.invert(mask)
+                mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
+                ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
+                            yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
+                ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
+                            yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
+                ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
+                            yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+
+                # Plot fit
+                test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
+                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
+                        color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
+                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
+                        color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
+                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
+                ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
+            else:
+                # Plot data
+                ax.errorbar(ut_data['pos'], ut_data['hfd'],
+                            yerr=ut_data['hfd_std'], color='tab:red', fmt='.', ms=7)
+
+                # Plot fit
+                ax.text(0.03, 0.05, 'Fit failed', transform=ax.transAxes,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
+
+            # Set labels
+            if i % 4 == 0:
+                ax.set_ylabel('HFD')
+            if i >= len(axes.flatten()) - 4:
+                ax.set_xlabel('Focus position')
+            ax.text(0.08, 0.93, 'UT{}'.format(ut), fontweight='bold',
+                    bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
+                    transform=ax.transAxes, zorder=9, ha='center', va='center')
+
+            # Set limits
+            ax.set_ylim(bottom=0, top=15)
+
+        except Exception:
+            print('Error making HFD plot', end='\t')
+            print(traceback.format_exc())
+
+    # Save the plot
+    path = os.path.join(params.FILE_PATH, 'focus_data')
+    ofname = 'focusplot_{}.png'.format(finish_time)
+    plt.savefig(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
+
+    plt.show()
+
+
+def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
+        go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -135,85 +232,87 @@ def run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm):
     if not no_slew:
         star = focus_star(Time.now())
         print('~~~~~~')
-        print('Slewing to target...', star)
+        print('Slewing to target {}...'.format(star))
+        target_name = star.name
         coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg)
-        wait_for_mount(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         print('Reached target')
-        print('~~~~~~')
+    else:
+        target_name = 'Focus run'
 
     # Store the current focus
-    orig_focus = get_current_focus()
-    print('Initial focus: ', get_current_focus())
     print('~~~~~~')
-    # from here any exception or attempt to close should move to old focus
-    RestoreFocus(orig_focus)
+    initial_positions = get_focuser_positions()
+    print('Initial positions:', initial_positions)
 
-    series_list = []
-    pos_master_list = pd.DataFrame(positions)
-    for runno, row in pos_master_list.iterrows():
-        print('## RUN {} of {}'.format(runno + 1, len(pos_master_list)))
-        print('Setting focus...')
-        set_focus_carefully(row, orig_focus, 100)
-        print('New focus: ', get_current_focus())
+    # Measure the HFDs at each position calculated earlier
+    all_data = []
+    for i, new_positions in positions.iterrows():
         print('~~~~~~')
-        hfds = None
-        fwhms = None
-        for i in range(num_exp):
-            print('Taking exposure {}/{}...'.format(i + 1, num_exp))
-            image_data = get_analysis_image(exptime, filt,
-                                            'Focus run', 'FOCUS', glance=False)
-            foc_data = get_hfds(image_data, xslice=slice(3300, 5100), yslice=slice(1400, 4100),
-                                filter_width=4, threshold=15)
-            if hfds is not None:
-                hfds = hfds.append(foc_data['median'])
-                fwhms = fwhms.append(foc_data['fwhm'])
-            else:
-                hfds = foc_data['median']
-                fwhms = foc_data['fwhm']
-            print('HFDs:', foc_data['median'].to_dict())
-            print('~~~~~~')
+        print('## RUN {} of {}'.format(i + 1, len(positions)))
+        print('Moving focusers...')
+        set_focuser_positions(new_positions.to_dict(), timeout=120)
+        print('New positions:', get_focuser_positions())
+        print('Taking {} measurements at new focus position...'.format(num_exp))
+        foc_data = measure_focus(num_exp, exptime, filt, target_name)
+        hfds = foc_data['hfd']
+        if num_exp > 1:
+            print('Best HFDs:', hfds.round(1).to_dict())
 
-        # Take the smallest value of the set
-        hfds = hfds.groupby(level=0)
-        fwhms = fwhms.groupby(level=0)
-        data = {'median': hfds.min(),
-                'std': hfds.std(),
-                'fwhm': fwhms.min(),
-                'fwhm_std': fwhms.std(),
-                'pos': pd.Series(get_current_focus()),
-                }
-        print('Best HFDs:', data['median'].to_dict())
+        # Save data in list
+        all_data.append(foc_data)
+    df = pd.concat(all_data)
 
-        # Save in series list
-        series_list.append(pd.DataFrame(data))
-
-        print('~~~~~~')
-
+    print('~~~~~~')
     print('Exposures finished')
     finish_time = Time.now().isot
 
     # Restore the origional focus
     print('~~~~~~')
-    print('Restoring original focus...')
-    set_new_focus(orig_focus)
-    wait_for_focuser(orig_focus, timeout=120)
-    print('Restored focus: ', get_current_focus())
+    print('Restoring original focuser positions...')
+    set_focuser_positions(initial_positions, timeout=120)
+    print('Restored focus: ', get_focuser_positions())
 
     # Write out data
     print('~~~~~~')
     print('Writing out data to file...')
     path = os.path.join(params.FILE_PATH, 'focus_data')
-    df = pd.concat(series_list)
     ofname = 'focusdata_{}.csv'.format(finish_time)
     df.to_csv(os.path.join(path, ofname))
+    print('Saved to {}'.format(os.path.join(path, ofname)))
+
+    # Fit to data
+    print('~~~~~~')
+    print('Fitting to data...')
+    if not isinstance(nfv, dict):
+        nfv = {ut: nfv for ut in foc_data}
+    fit_df, fit_coeffs = fit_to_data(df)
+    print(fit_df)
+    ofname = 'focusfit_{}.csv'.format(finish_time)
+    fit_df.to_csv(os.path.join(path, ofname))
     print('Saved to {}'.format(os.path.join(path, ofname)))
 
     # Make plots
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, finish_time)
+        plot_results(df, fit_df, fit_coeffs, finish_time)
+
+    # Move to best position?
+    best_focus = fit_df['cross_pos'].to_dict()
+    best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
+    print('Current focus: ', get_focuser_positions())
+    print('Best focus: ', best_focus)
+    go = ''
+    if go_to_best:
+        go = 'y'
+    else:
+        if not no_confirm:
+            while go not in ['y', 'n']:
+                go = input('Move to best focus? [y/n]: ')
+    if go == 'y':
+        print('Moving to best focus...')
+        set_focuser_positions(best_focus, timeout=120)
 
     print('Done')
 
@@ -248,6 +347,9 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
+    parser.add_argument('--go-to-best', action='store_true',
+                        help=('when the run is complete move to the best focus position')
+                        )
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
                         )
@@ -264,8 +366,21 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
+    go_to_best = args.go_to_best
     no_slew = args.no_slew
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    run(fraction, steps, num_exp, exptime, filt, no_slew, no_plot, no_confirm)
+    # Get the autofocus parameters
+    uts = sorted(params.AUTOFOCUS_PARAMS.keys())
+    nfv = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts}
+
+    # If something goes wrong we need to restore the origional focus
+    try:
+        initial_positions = get_focuser_positions()
+        RestoreFocus(initial_positions)
+        run(fraction, steps, num_exp, exptime, filt, nfv, go_to_best, no_slew, no_plot, no_confirm)
+    except Exception:
+        print('Error caught: Restoring original focus positions...')
+        set_focuser_positions(initial_positions)
+        raise

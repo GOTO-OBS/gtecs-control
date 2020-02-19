@@ -89,27 +89,37 @@ def query(command, args, daemon_id):
     elif command == 'set':
         # parse arguments
         if len(args) == 1:
-            ut_list = params.UTS_WITH_FILTERWHEELS
-            new_filt = args[0].upper()
-        elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FILTERWHEELS)
-            new_filt = args[1].upper()
+            # filt set <filt>
+            filt = args[0].upper()
+            filt_dict = {ut: filt for ut in params.UTS_WITH_FILTERWHEELS}
+        elif len(args) == 2 and len(args[1]) == 1:
+            # filt set <ut>[,<ut>...] <filt>
+            ut_list = [int(x) for x in args[0].split(',')]
+            filt = args[1].upper()
+            filt_dict = {ut: filt for ut in ut_list}
+        elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
+            # filt set <ut>[,<ut>...] <filt>[,<filt>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+            filt_list = [x.upper() for x in args[1].split(',')]
+            filt_dict = {ut: filt for ut, filt in zip(ut_list, filt_list)}
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_filter', [new_filt, ut_list])
+        reply = daemons.daemon_function(daemon_id, 'set_filters', [filt_dict])
         print(reply)
 
     elif command == 'home':
         # parse arguments
         if len(args) == 0:
+            # filt home
             ut_list = params.UTS_WITH_FILTERWHEELS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_FILTERWHEELS)
+            # filt home <ut>[,<ut>...]
+            ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_filter', [ut_list])
+        reply = daemons.daemon_function(daemon_id, 'home_filters', [ut_list])
         print(reply)
 
     # Other functions

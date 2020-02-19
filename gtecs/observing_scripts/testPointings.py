@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from astropy.time import Time
 
 from gtecs.astronomy import radec_from_altaz
-from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set, wait_for_mount
+from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set
 
 
 def run(n_alt, n_az):
@@ -60,8 +60,7 @@ def run(n_alt, n_az):
 
         # Slew to position
         ra, dec = radec_from_altaz(alt, az, Time.now())
-        slew_to_radec(ra, dec)
-        wait_for_mount(ra, dec, timeout=120)
+        slew_to_radec(ra, dec, timeout=120)
 
         take_image_set(exposure_list, 'L', 'Test Pointing')
 
