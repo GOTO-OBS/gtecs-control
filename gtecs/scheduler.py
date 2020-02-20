@@ -342,8 +342,13 @@ class PointingQueue(object):
         tiebreak_arr = (weight_arr * w_weight + airmass_arr * a_weight + tts_arr * t_weight)
 
         # Save values on the pointings
-        for pointing, tiebreaker in zip(self.pointings, tiebreak_arr):
-            pointing.tiebreaker = tiebreaker
+        for i, pointing in enumerate(self.pointings):
+            pointing.altaz_now = altaz_now[i]
+            pointing.altaz_later = altaz_later[i]
+            pointing.weight = weight_arr[i]
+            pointing.airmass = airmass_arr[i]
+            pointing.tts = tts_arr[i]
+            pointing.tiebreaker = tiebreak_arr[i]
 
     def get_highest_priority_pointing(self, time, observer):
         """Return the pointing with the highest priority."""
