@@ -72,7 +72,7 @@ class ArtificialHorizonConstraint(Constraint):
         horizon_file = os.path.join(params.FILE_PATH, 'horizon')
         az, alt = np.loadtxt(horizon_file, usecols=(0, 1)).T
         self.alt = interpolate.interp1d(az, alt, bounds_error=False,
-                                        fill_value=12.0)
+                                        fill_value='extrapolate')
 
     def compute_constraint(self, times, observer, targets):
         """Compute the constraint."""
