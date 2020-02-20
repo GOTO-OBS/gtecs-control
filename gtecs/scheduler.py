@@ -72,7 +72,7 @@ class ArtificialHorizonConstraint(Constraint):
         horizon_file = os.path.join(params.FILE_PATH, 'horizon')
         az, alt = np.loadtxt(horizon_file, usecols=(0, 1)).T
         self.alt = interpolate.interp1d(az, alt, bounds_error=False,
-                                        fill_value=12.0)
+                                        fill_value='extrapolate')
 
     def compute_constraint(self, times, observer, targets):
         """Compute the constraint."""
@@ -342,8 +342,13 @@ class PointingQueue(object):
         tiebreak_arr = (weight_arr * w_weight + airmass_arr * a_weight + tts_arr * t_weight)
 
         # Save values on the pointings
-        for pointing, tiebreaker in zip(self.pointings, tiebreak_arr):
-            pointing.tiebreaker = tiebreaker
+        for i, pointing in enumerate(self.pointings):
+            pointing.altaz_now = altaz_now[i]
+            pointing.altaz_later = altaz_later[i]
+            pointing.weight = weight_arr[i]
+            pointing.airmass = airmass_arr[i]
+            pointing.tts = tts_arr[i]
+            pointing.tiebreaker = tiebreak_arr[i]
 
     def get_highest_priority_pointing(self, time, observer):
         """Return the pointing with the highest priority."""
@@ -359,7 +364,7 @@ class PointingQueue(object):
         #   - First is by validity
         #   - Then by rank
         #   - Then by ToO flag
-        #   - Then by number ot fimes already observed
+        #   - Then by number of times already observed
         #   - Finally use the tiebreaker
         pointings = list(self.pointings)  # make a copy
         pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
@@ -380,7 +385,7 @@ class PointingQueue(object):
         #   - First is by validity
         #   - Then by rank
         #   - Then by ToO flag
-        #   - Then by number ot fimes already observed
+        #   - Then by number of times already observed
         #   - Finally use the tiebreaker
         pointings = list(self.pointings)  # make a copy
         pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
