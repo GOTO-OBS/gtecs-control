@@ -359,7 +359,7 @@ class PointingQueue(object):
         #   - First is by validity
         #   - Then by rank
         #   - Then by ToO flag
-        #   - Then by number ot fimes already observed
+        #   - Then by number of times already observed
         #   - Finally use the tiebreaker
         pointings = list(self.pointings)  # make a copy
         pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
@@ -380,7 +380,7 @@ class PointingQueue(object):
         #   - First is by validity
         #   - Then by rank
         #   - Then by ToO flag
-        #   - Then by number ot fimes already observed
+        #   - Then by number of times already observed
         #   - Finally use the tiebreaker
         pointings = list(self.pointings)  # make a copy
         pointings.sort(key=lambda p: (not p.valid, p.rank, not p.too, p.num_obs, p.tiebreaker))
