@@ -71,7 +71,7 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.remove(filename)
     hdulist.writeto(filename)
 
-    # create an empty "done" file
+    # create an empty 'done' file
     # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
     done_file = filename + '.done'
     with open(done_file, 'a'):
@@ -168,10 +168,10 @@ def get_all_info(cam_info, log):
                     db_info['pointing']['mintime'] = pointing.min_time
                     db_info['pointing']['maxmoon'] = pointing.max_moon
                     db_info['pointing']['minmoonsep'] = pointing.min_moonsep
-                    starttime = pointing.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    starttime = pointing.start_time.strftime('%Y-%m-%dT%H:%M:%S')
                     db_info['pointing']['starttime'] = starttime
                     if pointing.stop_time:
-                        stoptime = pointing.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
+                        stoptime = pointing.stop_time.strftime('%Y-%m-%dT%H:%M:%S')
                         db_info['pointing']['stoptime'] = stoptime
                     else:
                         db_info['pointing']['stoptime'] = 'None'
@@ -215,7 +215,7 @@ def get_all_info(cam_info, log):
                         db_info['event']['id'] = pointing.event.db_id
                         db_info['event']['name'] = pointing.event.name
                         db_info['event']['type'] = pointing.event.event_type
-                        db_info['event']['time'] = pointing.event.time.strftime("%Y-%m-%dT%H:%M:%S")
+                        db_info['event']['time'] = pointing.event.time.strftime('%Y-%m-%dT%H:%M:%S')
                         db_info['event']['ivorn'] = pointing.event.ivorn
                         db_info['event']['source'] = pointing.event.source
                         db_info['event']['skymap'] = pointing.event.skymap
@@ -232,66 +232,66 @@ def get_all_info(cam_info, log):
 def update_header(header, ut, all_info, log):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
-    # header.comments["SIMPLE  "] = "Standard FITS"
-    # header.comments["BITPIX  "] = "Bits per pixel"
-    # header.comments["NAXIS   "] = "Number of dimensions"
-    # header.comments["NAXIS1  "] = "Number of columns"
-    # header.comments["NAXIS2  "] = "Number of rows"
-    # header.comments["EXTEND  "] = "Can contain extensions"
-    # header.comments["BSCALE  "] = "Pixel scale factor"
-    # header.comments["BZERO   "] = "Real = Pixel * BSCALE + BZERO"
+    # header.comments['SIMPLE  '] = 'Standard FITS'
+    # header.comments['BITPIX  '] = 'Bits per pixel'
+    # header.comments['NAXIS   '] = 'Number of dimensions'
+    # header.comments['NAXIS1  '] = 'Number of columns'
+    # header.comments['NAXIS2  '] = 'Number of rows'
+    # header.comments['EXTEND  '] = 'Can contain extensions'
+    # header.comments['BSCALE  '] = 'Pixel scale factor'
+    # header.comments['BZERO   '] = 'Real = Pixel * BSCALE + BZERO'
 
     # Observation info
     cam_info = all_info['cam']
     run_number = cam_info['run_number']
     run_id = 'r{:07d}'.format(run_number)
-    header["RUN     "] = (run_number, "GOTO run number")
-    header["RUN-ID  "] = (run_id, "Padded run ID string")
+    header['RUN     '] = (run_number, 'GOTO run number')
+    header['RUN-ID  '] = (run_id, 'Padded run ID string')
 
     write_time = Time.now()
     write_time.precision = 0
-    header["DATE    "] = (write_time.isot, "Date HDU created")
+    header['DATE    '] = (write_time.isot, 'Date HDU created')
 
-    header["ORIGIN  "] = (params.ORG_NAME, "Origin organisation")
-    header["TELESCOP"] = (params.TELESCOPE_NAME, "Origin telescope")
+    header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
+    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope')
 
     interface_id = params.UT_DICT[ut]['INTERFACE']
     current_exposure = cam_info['current_exposure']
     ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
-    header["INSTRUME"] = ('UT' + str(ut), "Origin unit telescope")
-    header["UT      "] = (ut, "Integer UT number")
-    header["UTMASK  "] = (ut_mask, "Run UT mask integer")
-    header["UTMASKBN"] = (ut_string, "Run UT mask binary string")
-    header["INTERFAC"] = (interface_id, "System interface code")
+    header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
+    header['UT      '] = (ut, 'Integer UT number')
+    header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
+    header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
+    header['INTERFAC'] = (interface_id, 'System interface code')
 
-    header["SWVN    "] = (params.VERSION, "Software version number")
+    header['SWVN    '] = (params.VERSION, 'Software version number')
 
     status = Status()
-    header["SYS-MODE"] = (status.mode, "Current telescope system mode")
-    header["OBSERVER"] = (status.observer, "Who started the exposure")
+    header['SYS-MODE'] = (status.mode, 'Current telescope system mode')
+    header['OBSERVER'] = (status.observer, 'Who started the exposure')
 
-    header["OBJECT  "] = (current_exposure['target'], "Observed object name")
+    header['OBJECT  '] = (current_exposure['target'], 'Observed object name')
 
-    header["SET-POS "] = (current_exposure['set_pos'], "Position of this exposure in this set")
-    header["SET-TOT "] = (current_exposure['set_total'], "Total number of exposures in this set")
+    header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
+    header['SET-TOT '] = (current_exposure['set_total'], 'Total number of exposures in this set')
 
-    header["SITE-LAT"] = (params.SITE_LATITUDE, "Site latitude, degrees +N")
-    header["SITE-LON"] = (params.SITE_LONGITUDE, "Site longitude, degrees +E")
-    header["SITE-ALT"] = (params.SITE_ALTITUDE, "Site elevation, m above sea level")
-    header["SITE-LOC"] = (params.SITE_LOCATION, "Site location")
+    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
+    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
+    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
+    header['SITE-LOC'] = (params.SITE_LOCATION, 'Site location')
 
     # Exposure data
-    header["EXPTIME "] = (current_exposure['exptime'], "Exposure time, seconds")
+    header['EXPTIME '] = (current_exposure['exptime'], 'Exposure time, seconds')
 
     start_time = Time(cam_info['exposure_start_time'], format='unix')
     start_time.precision = 0
     mid_time = start_time + (current_exposure['exptime'] * u.second) / 2.
-    header["DATE-OBS"] = (start_time.isot, "Exposure start time, UTC")
-    header["DATE-MID"] = (mid_time.isot, "Exposure midpoint, UTC")
+    header['DATE-OBS'] = (start_time.isot, 'Exposure start time, UTC')
+    header['DATE-MID'] = (mid_time.isot, 'Exposure midpoint, UTC')
 
     mid_jd = mid_time.jd
-    header["JD      "] = (mid_jd, "Exposure midpoint, Julian Date")
+    header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
 
     lst = astronomy.find_lst(mid_time)
     lst_m, lst_s = divmod(abs(lst) * 3600, 60)
@@ -299,23 +299,23 @@ def update_header(header, ut, all_info, log):
     if lst < 0:
         lst_h = -lst_h
     mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
-    header["LST     "] = (mid_lst, "Exposure midpoint, Local Sidereal Time")
+    header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
 
     # Frame info
-    header["FRMTYPE "] = (current_exposure['frametype'], "Frame type (shutter open/closed)")
-    header["IMGTYPE "] = (current_exposure['imgtype'], "Image type")
+    header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
+    header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
 
-    header["FULLSEC "] = ('[1:8304,1:6220]', "Size of the full frame")
-    header["TRIMSEC "] = ('[65:8240,46:6177]', "Central data region (both channels)")
+    header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
+    header['TRIMSEC '] = ('[65:8240,46:6177]', 'Central data region (both channels)')
 
-    header["CHANNELS"] = (2, "Number of CCD channels")
+    header['CHANNELS'] = (2, 'Number of CCD channels')
 
-    header["TRIMSEC1"] = ('[65:4152,46:6177]', "Data section for left channel")
-    header["TRIMSEC2"] = ('[4153:8240,46:6177]', "Data section for right channel")
-    header["BIASSEC1"] = ('[3:10,3:6218]', "Recommended bias section for left channel")
-    header["BIASSEC2"] = ('[8295:8302,3:6218]', "Recommended bias section for right channel")
-    header["DARKSEC1"] = ('[26:41,500:5721]', "Recommended dark section for left channel")
-    header["DARKSEC2"] = ('[8264:8279,500:5721]', "Recommended dark section for right channel")
+    header['TRIMSEC1'] = ('[65:4152,46:6177]', 'Data section for left channel')
+    header['TRIMSEC2'] = ('[4153:8240,46:6177]', 'Data section for right channel')
+    header['BIASSEC1'] = ('[3:10,3:6218]', 'Recommended bias section for left channel')
+    header['BIASSEC2'] = ('[8295:8302,3:6218]', 'Recommended bias section for right channel')
+    header['DARKSEC1'] = ('[26:41,500:5721]', 'Recommended dark section for left channel')
+    header['DARKSEC2'] = ('[8264:8279,500:5721]', 'Recommended dark section for right channel')
 
     # Database info
     try:
@@ -328,7 +328,7 @@ def update_header(header, ut, all_info, log):
         log.debug('', exc_info=True)
         from_db = False
 
-    header["FROMDB  "] = (from_db, "Exposure linked to database set?")
+    header['FROMDB  '] = (from_db, 'Exposure linked to database set?')
 
     try:
         info = all_info['db']['expset']
@@ -339,7 +339,7 @@ def update_header(header, ut, all_info, log):
             log.debug('', exc_info=True)
         expset_id = 'NA'
 
-    header["DB-EXPS "] = (expset_id, "Database ExposureSet ID")
+    header['DB-EXPS '] = (expset_id, 'Database ExposureSet ID')
 
     try:
         info = all_info['db']['pointing']
@@ -369,16 +369,16 @@ def update_header(header, ut, all_info, log):
         pointing_starttime = 'NA'
         pointing_stoptime = 'NA'
 
-    header["DB-PNT  "] = (pointing_id, "Database Pointing ID")
-    header["RANK    "] = (pointing_rank, "Rank of this pointing when observed")
-    header["TOO     "] = (pointing_too, "ToO flag for this pointing")
-    header["LIM-ALT "] = (pointing_minalt, "Minimum altitude limit for this pointing")
-    header["LIM-SALT"] = (pointing_maxsunalt, "Maximum Sun altitude limit for this pointing")
-    header["LIM-MPHS"] = (pointing_maxmoon, "Maximum Moon phase limit for this pointing")
-    header["LIM-MDIS"] = (pointing_minmoonsep, "Minimum Moon distance limit for this pointing")
-    header["LIM-TIME"] = (pointing_mintime, "Minimum valid time limit for this pointing")
-    header["LIM-STRT"] = (pointing_starttime, "Valid start time limit for this pointing")
-    header["LIM-STOP"] = (pointing_stoptime, "Valid stop time limit for this pointing")
+    header['DB-PNT  '] = (pointing_id, 'Database Pointing ID')
+    header['RANK    '] = (pointing_rank, 'Rank of this pointing when observed')
+    header['TOO     '] = (pointing_too, 'ToO flag for this pointing')
+    header['LIM-ALT '] = (pointing_minalt, 'Minimum altitude limit for this pointing')
+    header['LIM-SALT'] = (pointing_maxsunalt, 'Maximum Sun altitude limit for this pointing')
+    header['LIM-MPHS'] = (pointing_maxmoon, 'Maximum Moon phase limit for this pointing')
+    header['LIM-MDIS'] = (pointing_minmoonsep, 'Minimum Moon distance limit for this pointing')
+    header['LIM-TIME'] = (pointing_mintime, 'Minimum valid time limit for this pointing')
+    header['LIM-STRT'] = (pointing_starttime, 'Valid start time limit for this pointing')
+    header['LIM-STOP'] = (pointing_stoptime, 'Valid stop time limit for this pointing')
 
     try:
         info = all_info['db']['user']
@@ -394,9 +394,9 @@ def update_header(header, ut, all_info, log):
         user_name = 'NA'
         user_fullname = 'NA'
 
-    header["DB-USER "] = (user_id, "Database User ID who submitted this pointing")
-    header["USERNAME"] = (user_name, "Username that submitted this pointing")
-    header["USERFULL"] = (user_fullname, "User who submitted this pointing")
+    header['DB-USER '] = (user_id, 'Database User ID who submitted this pointing')
+    header['USERNAME'] = (user_name, 'Username that submitted this pointing')
+    header['USERFULL'] = (user_fullname, 'User who submitted this pointing')
 
     try:
         info = all_info['db']['mpointing']
@@ -417,11 +417,11 @@ def update_header(header, ut, all_info, log):
         mpointing_target = 'NA'
         mpointing_infinite = 'NA'
 
-    header["DB-MPNT "] = (mpointing_id, "Database Mpointing ID")
-    header["BASERANK"] = (mpointing_initialrank, "Initial rank of this Mpointing")
-    header["OBSNUM  "] = (mpointing_obsnum, "Count of times this pointing has been observed")
-    header["OBSTARG "] = (mpointing_target, "Count of times this pointing should be observed")
-    header["INFINITE"] = (mpointing_infinite, "Is this an infinitely repeating pointing?")
+    header['DB-MPNT '] = (mpointing_id, 'Database Mpointing ID')
+    header['BASERANK'] = (mpointing_initialrank, 'Initial rank of this Mpointing')
+    header['OBSNUM  '] = (mpointing_obsnum, 'Count of times this pointing has been observed')
+    header['OBSTARG '] = (mpointing_target, 'Count of times this pointing should be observed')
+    header['INFINITE'] = (mpointing_infinite, 'Is this an infinitely repeating pointing?')
 
     try:
         info = all_info['db']['time_block']
@@ -436,8 +436,8 @@ def update_header(header, ut, all_info, log):
         time_block_id = 'NA'
         time_block_num = 'NA'
 
-    header["DB-TIMBK"] = (time_block_id, "Database TimeBlock ID")
-    header["TIMBKNUM"] = (time_block_num, "Number of this time block")
+    header['DB-TIMBK'] = (time_block_id, 'Database TimeBlock ID')
+    header['TIMBKNUM'] = (time_block_num, 'Number of this time block')
 
     try:
         info = all_info['db']['grid']
@@ -456,10 +456,10 @@ def update_header(header, ut, all_info, log):
         grid_tile_id = 'NA'
         grid_tile_name = 'NA'
 
-    header["DB-GRID "] = (grid_id, "Database Grid ID")
-    header["GRID    "] = (grid_name, "Sky grid name")
-    header["DB-GTILE"] = (grid_tile_id, "Database GridTile ID")
-    header["TILENAME"] = (grid_tile_name, "Name of this grid tile")
+    header['DB-GRID '] = (grid_id, 'Database Grid ID')
+    header['GRID    '] = (grid_name, 'Sky grid name')
+    header['DB-GTILE'] = (grid_tile_id, 'Database GridTile ID')
+    header['TILENAME'] = (grid_tile_name, 'Name of this grid tile')
 
     try:
         info = all_info['db']['survey']
@@ -480,11 +480,11 @@ def update_header(header, ut, all_info, log):
         survey_tile_weight = 'NA'
         survey_tile_initial = 'NA'
 
-    header["DB-SURVY"] = (survey_id, "Database Survey ID")
-    header["SURVEY  "] = (survey_name, "Name of this survey")
-    header["DB-STILE"] = (survey_tile_id, "Database SurveyTile ID")
-    header["WEIGHT  "] = (survey_tile_weight, "Survey tile current weighting")
-    header["INWEIGHT"] = (survey_tile_initial, "Survey tile initial weighting")
+    header['DB-SURVY'] = (survey_id, 'Database Survey ID')
+    header['SURVEY  '] = (survey_name, 'Name of this survey')
+    header['DB-STILE'] = (survey_tile_id, 'Database SurveyTile ID')
+    header['WEIGHT  '] = (survey_tile_weight, 'Survey tile current weighting')
+    header['INWEIGHT'] = (survey_tile_initial, 'Survey tile initial weighting')
 
     try:
         info = all_info['db']['event']
@@ -508,30 +508,30 @@ def update_header(header, ut, all_info, log):
         event_source = 'NA'
         event_skymap = 'NA'
 
-    header["DB-EVENT"] = (event_id, "Database Event ID")
-    header["EVENT   "] = (event_name, "Event name for this pointing")
-    header["EVNTTYPE"] = (event_type, "Type of event")
-    header["EVNTTIME"] = (event_time, "Recorded time of the event")
-    header["IVORN   "] = (event_ivorn, "IVOA identifier for this event")
-    header["SOURCE  "] = (event_source, "Source of this event")
-    header["SKYMAP  "] = (event_skymap, "Skymap URL for this event")
+    header['DB-EVENT'] = (event_id, 'Database Event ID')
+    header['EVENT   '] = (event_name, 'Event name for this pointing')
+    header['EVNTTYPE'] = (event_type, 'Type of event')
+    header['EVNTTIME'] = (event_time, 'Recorded time of the event')
+    header['IVORN   '] = (event_ivorn, 'IVOA identifier for this event')
+    header['SOURCE  '] = (event_source, 'Source of this event')
+    header['SKYMAP  '] = (event_skymap, 'Skymap URL for this event')
 
     # Camera info
     cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
-    header["CAMERA  "] = (cam_serial, "Camera serial number")
+    header['CAMERA  '] = (cam_serial, 'Camera serial number')
 
-    header["XBINNING"] = (current_exposure['binning'], "CCD x binning factor")
-    header["YBINNING"] = (current_exposure['binning'], "CCD y binning factor")
+    header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
+    header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
 
     x_pixel_size = cam_info['x_pixel_size'] * current_exposure['binning']
     y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
-    header["XPIXSZ  "] = (x_pixel_size, "Binned x pixel size, microns")
-    header["YPIXSZ  "] = (y_pixel_size, "Binned y pixel size, microns")
+    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, microns')
+    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, microns')
 
-    header["CCDTEMP "] = (cam_info['ccd_temp'], "CCD temperature, C")
-    header["CCDTEMPS"] = (cam_info['target_temp'], "Requested CCD temperature, C")
-    header["BASETEMP"] = (cam_info['base_temp'], "Peltier base temperature, C")
+    header['CCDTEMP '] = (cam_info['ccd_temp'], 'CCD temperature, C')
+    header['CCDTEMPS'] = (cam_info['target_temp'], 'Requested CCD temperature, C')
+    header['BASETEMP'] = (cam_info['base_temp'], 'Peltier base temperature, C')
 
     # Focuser info
     try:
@@ -558,10 +558,10 @@ def update_header(header, ut, all_info, log):
         foc_temp_int = 'NA'
         foc_temp_ext = 'NA'
 
-    header["FOCUSER "] = (foc_serial, "Focuser serial number")
-    header["FOCPOS  "] = (foc_pos, "Focuser motor position")
-    header["FOCTEMPI"] = (foc_temp_int, "Focuser internal temperature, C")
-    header["FOCTEMPX"] = (foc_temp_ext, "Focuser external temperature, C")
+    header['FOCUSER '] = (foc_serial, 'Focuser serial number')
+    header['FOCPOS  '] = (foc_pos, 'Focuser motor position')
+    header['FOCTEMPI'] = (foc_temp_int, 'Focuser internal temperature, C')
+    header['FOCTEMPX'] = (foc_temp_ext, 'Focuser external temperature, C')
 
     # Filter wheel info
     try:
@@ -593,10 +593,10 @@ def update_header(header, ut, all_info, log):
         filt_pos = 'NA'
     filter_list_str = ''.join(params.FILTER_LIST)
 
-    header["FLTWHEEL"] = (filt_serial, "Filter wheel serial number")
-    header["FILTER  "] = (filt_filter, "Filter used for exposure [{}]".format(filter_list_str))
-    header["FILTNUM "] = (filt_num, "Filter wheel position number")
-    header["FILTPOS "] = (filt_pos, "Filter wheel motor position")
+    header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
+    header['FILTER  '] = (filt_filter, 'Filter used for exposure [{}]'.format(filter_list_str))
+    header['FILTNUM '] = (filt_num, 'Filter wheel position number')
+    header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')
 
     # Dome info
     try:
@@ -626,8 +626,8 @@ def update_header(header, ut, all_info, log):
         dome_status = 'NA'
         dome_open = 'NA'
 
-    header["DOMESTAT"] = (dome_status, "Dome status")
-    header["DOMEOPEN"] = (dome_open, "Dome is open")
+    header['DOMESTAT'] = (dome_status, 'Dome status')
+    header['DOMEOPEN'] = (dome_open, 'Dome is open')
 
     # Mount info
     try:
@@ -690,26 +690,26 @@ def update_header(header, ut, all_info, log):
         equinox = 'NA'
         moon_dist = 'NA'
 
-    header["TRACKING"] = (mount_tracking, "Mount is tracking")
+    header['TRACKING'] = (mount_tracking, 'Mount is tracking')
 
-    header["RA-TARG "] = (targ_ra_str, "Requested pointing RA")
-    header["DEC-TARG"] = (targ_dec_str, "Requested pointing Dec")
+    header['RA-TARG '] = (targ_ra_str, 'Requested pointing RA')
+    header['DEC-TARG'] = (targ_dec_str, 'Requested pointing Dec')
 
-    header["RA-TEL  "] = (mnt_ra_str, "Reported mount pointing RA")
-    header["DEC-TEL "] = (mnt_dec_str, "Reported mount pointing Dec")
+    header['RA-TEL  '] = (mnt_ra_str, 'Reported mount pointing RA')
+    header['DEC-TEL '] = (mnt_dec_str, 'Reported mount pointing Dec')
 
-    header["EQUINOX "] = (equinox, "RA/Dec equinox, years")
+    header['EQUINOX '] = (equinox, 'RA/Dec equinox, years')
 
-    header["TARGDIST"] = (targ_dist, "Distance from target, degrees")
+    header['TARGDIST'] = (targ_dist, 'Distance from target, degrees')
 
-    header["ALT     "] = (mnt_alt, "Mount altitude")
-    header["AZ      "] = (mnt_az, "Mount azimuth")
+    header['ALT     '] = (mnt_alt, 'Mount altitude')
+    header['AZ      '] = (mnt_az, 'Mount azimuth')
 
-    header["AIRMASS "] = (airmass, "Airmass")
+    header['AIRMASS '] = (airmass, 'Airmass')
 
-    header["ZENDIST "] = (zen_dist, "Distance from zenith, degrees")
+    header['ZENDIST '] = (zen_dist, 'Distance from zenith, degrees')
 
-    header["MOONDIST"] = (moon_dist, "Distance from Moon, degrees")
+    header['MOONDIST'] = (moon_dist, 'Distance from Moon, degrees')
 
     # Astronomy info
     try:
@@ -731,10 +731,10 @@ def update_header(header, ut, all_info, log):
         moon_phase = 'NA'
         sun_alt = 'NA'
 
-    header["MOONALT "] = (moon_alt, "Current Moon altitude, degrees")
-    header["MOONILL "] = (moon_ill, "Current Moon illumination, percent")
-    header["MOONPHAS"] = (moon_phase, "Current Moon phase, [DGB]")
-    header["SUNALT  "] = (sun_alt, "Current Sun altitude, degrees")
+    header['MOONALT '] = (moon_alt, 'Current Moon altitude, degrees')
+    header['MOONILL '] = (moon_ill, 'Current Moon illumination, percent')
+    header['MOONPHAS'] = (moon_phase, 'Current Moon phase, [DGB]')
+    header['SUNALT  '] = (sun_alt, 'Current Sun altitude, degrees')
 
     # Conditions info
     try:
@@ -814,41 +814,41 @@ def update_header(header, ut, all_info, log):
         int_temp = 'NA'
         int_hum = 'NA'
 
-    header["SATCLOUD"] = (clouds, "IR satellite cloud opacity, percent (sat24.com)")
-    header["SEEING  "] = (seeing, "Seeing, arcseconds (TNG DIMM)")
-    header["DUST    "] = (dust, "Dust level, ugr/m3 (TNG)")
+    header['SATCLOUD'] = (clouds, 'IR satellite cloud opacity, percent (sat24.com)')
+    header['SEEING  '] = (seeing, 'Seeing, arcseconds (TNG DIMM)')
+    header['DUST    '] = (dust, 'Dust level, ugr/m3 (TNG)')
 
-    header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
-    header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")
-    header["EXT-WIND"] = (ext_wind, "External wind speed, km/h (GOTO mast)")
-    header["EXT-GUST"] = (ext_wind, "External wind gust, km/h (last {:.0f}s, GOTO mast)".format(
+    header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
+    header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
+    header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
+    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s, GOTO mast)'.format(
                           params.WINDGUST_PERIOD))
 
-    header["INT-TEMP"] = (int_temp, "Internal temperature, Celsius (dome)")
-    header["INT-HUM "] = (int_hum, "Internal humidity, percent (dome)")
+    header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
+    header['INT-HUM '] = (int_hum, 'Internal humidity, percent (dome)')
 
 
 def write_image_log(filename, header):
     """Add an image log to the database for this frame."""
     filename = filename.split('/')[-1]
-    run_number = int(header["RUN     "])
-    ut = int(header["UT      "])
-    ut_mask = int(header["UTMASK  "])
-    start_time = Time(header["DATE-OBS"])
-    write_time = Time(header["DATE    "])
-    set_position = int(header["SET-POS "])
-    set_total = int(header["SET-TOT "])
+    run_number = int(header['RUN     '])
+    ut = int(header['UT      '])
+    ut_mask = int(header['UTMASK  '])
+    start_time = Time(header['DATE-OBS'])
+    write_time = Time(header['DATE    '])
+    set_position = int(header['SET-POS '])
+    set_total = int(header['SET-TOT '])
 
     expset_id = None
     pointing_id = None
     mpointing_id = None
 
-    if header["DB-EXPS "] != 'NA':
-        expset_id = header["DB-EXPS "]
-    if header["DB-PNT  "] != 'NA':
-        pointing_id = header["DB-PNT  "]
-    if header["DB-MPNT "] != 'NA':
-        mpointing_id = header["DB-MPNT "]
+    if header['DB-EXPS '] != 'NA':
+        expset_id = header['DB-EXPS ']
+    if header['DB-PNT  '] != 'NA':
+        pointing_id = header['DB-PNT  ']
+    if header['DB-MPNT '] != 'NA':
+        mpointing_id = header['DB-MPNT ']
 
     log = db.ImageLog(filename=filename, run_number=run_number, ut=ut,
                       ut_mask=ut_mask, start_time=start_time, write_time=write_time,

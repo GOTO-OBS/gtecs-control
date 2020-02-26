@@ -23,7 +23,7 @@ from .flags import Status
 from .hardware.power import APCUPS, FakeUPS
 
 
-warnings.simplefilter("error", ErfaWarning)
+warnings.simplefilter('error', ErfaWarning)
 
 
 def curl_data_from_url(url, outfile, encoding=None):
@@ -381,11 +381,11 @@ def get_ing_weather():
 def get_ing_internal_weather(weather_source):
     """Get the current weather from the internal ING xml weather file."""
     if weather_source == 'wht':
-        url = "http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = 'http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
     elif weather_source == 'int':
-        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
     elif weather_source == 'jkt':
-        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
+        url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml'
 
     outfile = os.path.join(params.FILE_PATH, 'weather.xml')
     indata = curl_data_from_url(url, outfile)
@@ -405,8 +405,8 @@ def get_ing_internal_weather(weather_source):
         for line in indata.split('\n'):
             columns = line.split()
             try:
-                label = columns[1].split("\"")[1].split(".")[2]
-                value = columns[2].split("\"")[1]
+                label = columns[1].split('\"')[1].split('.')[2]
+                value = columns[2].split('\"')[1]
             except Exception:
                 continue
 
@@ -552,7 +552,7 @@ def check_ping(url, count=3, timeout=10):
         out = subprocess.check_output(ping_command.split(),
                                       stderr=subprocess.STDOUT,
                                       timeout=timeout)
-        if "ttl=" in str(out):
+        if 'ttl=' in str(out):
             return True
         else:
             return False
