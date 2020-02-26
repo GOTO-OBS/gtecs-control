@@ -755,6 +755,12 @@ def update_header(header, ut, all_info, log):
         else:
             seeing = numpy.around(seeing, decimals=1)
 
+        dust = info['dust_level']
+        if dust == -999:
+            dust = 'NA'
+        else:
+            dust = numpy.around(dust, decimals=1)
+
         ext_weather = info['weather']['goto']
 
         ext_temp = ext_weather['temperature']
@@ -800,6 +806,7 @@ def update_header(header, ut, all_info, log):
         log.debug('', exc_info=True)
         clouds = 'NA'
         seeing = 'NA'
+        dust = 'NA'
         ext_temp = 'NA'
         ext_hum = 'NA'
         ext_wind = 'NA'
@@ -809,6 +816,7 @@ def update_header(header, ut, all_info, log):
 
     header["SATCLOUD"] = (clouds, "IR satellite cloud opacity, percent (sat24.com)")
     header["SEEING  "] = (seeing, "Seeing, arcseconds (TNG DIMM)")
+    header["DUST    "] = (dust, "Dust level, ugr/m3 (TNG)")
 
     header["EXT-TEMP"] = (ext_temp, "External temperature, Celsius (GOTO mast)")
     header["EXT-HUM "] = (ext_hum, "External humidity, percent (GOTO mast)")

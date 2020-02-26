@@ -248,6 +248,15 @@ def print_info(info):
             sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
         print('  {: <10}   {} degrees'.format('sunalt', sunalt_str))
 
+        dust = info['dust']
+        if dust > params.MAX_DUSTLEVEL - 10:
+            dust_str = style.ytxt('{:>5.1f}'.format(dust))
+            if dust > params.MAX_DUSTLEVEL:
+                dust_str = style.rtxt('{:>5.1f}'.format(dust))
+        else:
+            dust_str = style.gtxt('{:>5.1f}'.format(dust))
+        print('  {: <10}   {} ugr/m3'.format('dust_level', dust_str))
+
         clouds = info['clouds']
         if clouds > params.MAX_SATCLOUDS - 5:
             clouds_str = style.ytxt('{:>5.1f}'.format(clouds))

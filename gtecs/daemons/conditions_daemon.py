@@ -43,6 +43,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'hatch',
                                     'internal',
                                     'ice',
+                                    'dust',
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
@@ -193,21 +194,26 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['clouds'] = -999
 
-        # Get seeing from the TNG webpage
-        # (note there isn't actually a 'seeing' flag, it's just useful infomation)
+        # Get seeing and dust from the TNG webpage
+        # (note we don't have limits on seeing, it's just useful infomation)
         try:
-            seeing_dict = conditions.get_tng_seeing()
+            tng_dict = conditions.get_tng_conditions()
 
-            # check if the seeing timeout has been exceded
-            dt = seeing_dict['dt']
-            if dt >= params.SEEING_TIMEOUT or dt == -999:
-                seeing_dict = {key: -999 for key in seeing_dict}
+            # check if the timeouts have been exceded
+            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
+                temp_info['seeing'] = -999
+            else:
+                temp_info['seeing'] = tng_dict['seeing']
+            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
+                temp_info['dust'] = -999
+            else:
+                temp_info['dust'] = tng_dict['dust']
 
-            temp_info['seeing'] = seeing_dict['seeing']
         except Exception:
-            self.log.error('Failed to get TNG seeing info')
+            self.log.error('Failed to get TNG info')
             self.log.debug('', exc_info=True)
             temp_info['seeing'] = -999
+            temp_info['dust'] = -999
 
         # Get current sun alt
         try:
@@ -297,6 +303,10 @@ class ConditionsDaemon(BaseDaemon):
         # Clouds
         clouds = np.array(self.info['clouds'])
         clouds = clouds[clouds != -999]
+
+        # Dust
+        dust = np.array(self.info['dust'])
+        dust = dust[dust != -999]
 
         # Sunalt
         sunalt = np.array(self.info['sunalt'])
@@ -396,6 +406,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['clouds'] = len(clouds) >= 1
         good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
+
+        # dust flag
+        good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
+        valid['dust'] = len(dust) >= 1
+        good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
+        bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)

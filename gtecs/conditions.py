@@ -597,8 +597,8 @@ def get_satellite_clouds():
     return median
 
 
-def get_tng_seeing():
-    """Get the seeing from the TNG DIMM."""
+def get_tng_conditions():
+    """Get the seeing and dust level from the TNG."""
     url = 'https://tngweb.tng.iac.es/api/meteo/weather'
     outfile = os.path.join(params.FILE_PATH, 'tng.json')
 
@@ -620,23 +620,30 @@ def get_tng_seeing():
         traceback.print_exc()
         print(indata)
 
-    weather_dict = {'update_time': -999,
-                    'dt': -999,
-                    'seeing': -999,
+    weather_dict = {'seeing': -999,
                     'seeing_error': -999,
+                    'seeing_update_time': -999,
+                    'seeing_dt': -999,
+                    'dust': -999,
+                    'dust_update_time': -999,
+                    'dust_dt': -999,
                     }
-
-    try:
-        weather_dict['update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
-        dt = Time.now() - Time(weather_dict['update_time'])
-        weather_dict['dt'] = int(dt.to('second').value)
-    except Exception:
-        print('Error parsing update time')
 
     try:
         weather_dict['seeing'] = float(data['seeing']['median'])
         weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+        weather_dict['seeing_update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['seeing_update_time'])
+        weather_dict['seeing_dt'] = int(dt.to('second').value)
     except Exception:
         print('Error parsing seeing from TNG')
+
+    try:
+        weather_dict['dust'] = float(data['dust']['value'])
+        weather_dict['dust_update_time'] = Time(data['dust']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['dust_update_time'])
+        weather_dict['dust_dt'] = int(dt.to('second').value)
+    except Exception:
+        print('Error parsing dust level from TNG')
 
     return weather_dict
