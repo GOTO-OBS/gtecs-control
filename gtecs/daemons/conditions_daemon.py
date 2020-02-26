@@ -226,6 +226,9 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get internal info
         temp_info['flags'] = self.flags.copy()
+        temp_info['info_flags'] = sorted(self.info_flag_names)
+        temp_info['normal_flags'] = sorted(self.normal_flag_names)
+        temp_info['critical_flags'] = sorted(self.critical_flag_names)
 
         # Write debug log line
         try:

@@ -91,18 +91,34 @@ def print_info(info):
     else:
         print('FLAGS ({}):'.format(info['timestamp']))
         flags = info['flags']
+        n_flags = sorted(info['normal_flags'])
+        c_flags = sorted(info['critical_flags'])
         weather = info['weather']
-        for flag in sorted(flags):
-            if flag in ['clouds', 'dark']:
-                # skip "info" flags
-                continue
-            if flags[flag] == 0:
-                status = style.gtxt('Good')
-            elif flags[flag] == 1:
-                status = style.rtxt('Bad')
+        for i in range(max(len(n_flags), len(c_flags))):
+            # Print normal flags on the left, and critical flags on the right
+            if len(n_flags) >= i + 1:
+                n_flag = n_flags[i]
+                if flags[n_flag] == 0:
+                    status = style.gtxt('Good')
+                elif flags[n_flag] == 1:
+                    status = style.rtxt('Bad')
+                else:
+                    status = style.rtxt('ERROR')
+                print('  {: >12} : {: <16} ({})'.format(n_flag, status, flags[n_flag]), end='')
             else:
-                status = style.rtxt('ERROR')
-            print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
+                print('                          ', end='')
+
+            if len(c_flags) >= i + 1:
+                c_flag = c_flags[i]
+                if flags[c_flag] == 0:
+                    status = style.gtxt('Good')
+                elif flags[c_flag] == 1:
+                    status = style.rtxt('Bad')
+                else:
+                    status = style.rtxt('ERROR')
+                print('  {: >12} : {: <16} ({})'.format(c_flag, status, flags[c_flag]))
+            else:
+                print('')
 
         print('WEATHER:         temp   humid   dewpt  wind ({:.0f} min max)   rain'.format(
             params.WINDGUST_PERIOD / 60))
@@ -219,7 +235,7 @@ def print_info(info):
                 int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
 
             if int_humidity == -999:
-                int_humidity_str = style.rtxt(' ERR')
+                int_humidity_str = style.rtxt('  ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
                 int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
                 if (int_humidity < params.MAX_INTERNAL_HUMIDITY * 0.9):
