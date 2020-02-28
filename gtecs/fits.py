@@ -755,7 +755,7 @@ def update_header(header, ut, all_info, log):
         else:
             seeing = numpy.around(seeing, decimals=1)
 
-        dust = info['dust_level']
+        dust = info['dust']
         if dust == -999:
             dust = 'NA'
         else:
