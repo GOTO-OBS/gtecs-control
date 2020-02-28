@@ -816,7 +816,7 @@ def update_header(header, ut, all_info, log):
 
     header['SATCLOUD'] = (clouds, 'IR satellite cloud opacity, percent (sat24.com)')
     header['SEEING  '] = (seeing, 'Seeing, arcseconds (TNG DIMM)')
-    header['DUST    '] = (dust, 'Dust level, ugr/m3 (TNG)')
+    header['DUST    '] = (dust, 'Dust level, ug/m3 (TNG)')
 
     header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
     header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')

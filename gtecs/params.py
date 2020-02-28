@@ -221,7 +221,7 @@ MAX_SATCLOUDS = config['MAX_SATCLOUDS']
 SATCLOUDS_BADDELAY = config['SATCLOUDS_BADDELAY']
 SATCLOUDS_GOODDELAY = config['SATCLOUDS_GOODDELAY']
 
-# Dust level - concentration measured in ugr/m3
+# Dust level - concentration measured in μg/m³
 DUSTLEVEL_TIMEOUT = config['DUSTLEVEL_TIMEOUT']
 MAX_DUSTLEVEL = config['MAX_DUSTLEVEL']
 DUSTLEVEL_BADDELAY = config['DUSTLEVEL_BADDELAY']

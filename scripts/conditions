@@ -279,7 +279,7 @@ def print_info(info):
                 dust_str = style.gtxt('{:>5.1f}'.format(dust))
         else:
             dust_str = style.rtxt('{:>5.1f}'.format(dust))
-        print('  {: <10}   {} ugr/m3'.format('dust_level', dust_str))
+        print('  {: <10}   {} μg/m³'.format('dust_level', dust_str))
 
         clouds = info['clouds']
         if clouds == -999:
@@ -495,7 +495,7 @@ def print_limits(info):
             status = style.rtxt('Bad')
             dust_str = style.rtxt('{:>5.1f}'.format(dust))
 
-        print('{} ugr/m3  (max={:.1f} ugr/m3)      \t : {}'.format(
+        print('{} μg/m³   (max={:.1f} μg/m³)      \t : {}'.format(
             dust_str, params.MAX_DUSTLEVEL, status))
 
         print('  {: <10}'.format('sat_clouds'), end='\t')
