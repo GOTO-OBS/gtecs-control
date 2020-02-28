@@ -351,7 +351,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
-            print(' {}°C       (min={:.1f}°C max={:.1f}°C)  : {}'.format(
+            print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
                 temperature_str, params.MIN_TEMPERATURE, params.MAX_TEMPERATURE, status))
 
         print('HUMIDITY:')
@@ -371,7 +371,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
-            print('{}%        (max={:.1f}%)             : {}'.format(
+            print('{}%        (max={:.1f}%)            \t : {}'.format(
                 humidity_str, params.MAX_HUMIDITY, status))
 
         print('DEW POINT:')
@@ -391,7 +391,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
 
-            print('{}°C       (min={:+.1f}°C)            : {}'.format(
+            print('{}°C       (min={:+.1f}°C)           \t : {}'.format(
                 dewpoint_str, params.MIN_DEWPOINT, status))
 
         print('WIND SPEED:')
@@ -411,7 +411,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
 
-            print(' {} km/h    (max={:.1f} km/h)         : {}'.format(
+            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
                 windspeed_str, params.MAX_WINDSPEED, status))
 
         print('WIND GUST ({:.0f} min maximum):'.format(params.WINDGUST_PERIOD / 60))
@@ -431,7 +431,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
 
-            print(' {} km/h    (max={:.1f} km/h)         : {}'.format(
+            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
                 windgust_str, params.MAX_WINDGUST, status))
 
         print('INTERNAL:')
@@ -453,7 +453,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
 
-            print(' {}°C       (min={:.1f}°C max={:.1f}°C)  : {}'.format(
+            print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
                 int_temperature_str, params.MIN_INTERNAL_TEMPERATURE,
                 params.MAX_INTERNAL_TEMPERATURE, status))
 
@@ -472,7 +472,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
 
-            print('{}%        (max={:.1f}%)             : {}'.format(
+            print('{}%        (max={:.1f}%)            \t : {}'.format(
                 int_humidity_str, params.MAX_INTERNAL_HUMIDITY, status))
 
         print('OTHER:')
@@ -488,7 +488,7 @@ def print_limits(info):
             status = style.rtxt('Bad')
             dust_str = style.rtxt('{:>5.1f}'.format(dust))
 
-        print('{} ugr/m3  (max={:.1f} ugr/m3)       : {}'.format(
+        print('{} ugr/m3  (max={:.1f} ugr/m3)      \t : {}'.format(
             dust_str, params.MAX_DUSTLEVEL, status))
 
         print('  {: <10}'.format('sat_clouds'), end='\t')
@@ -502,7 +502,7 @@ def print_limits(info):
             status = style.rtxt('Bad')
             clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
 
-        print('{}%        (max={:.1f}%)             : {}'.format(
+        print('{}%        (max={:.1f}%)            \t : {}'.format(
             clouds_str, params.MAX_SATCLOUDS, status))
 
         print('  {: <10}'.format('sunalt'), end='\t')
@@ -517,7 +517,7 @@ def print_limits(info):
             status = style.rtxt('Bad')
             sunalt_str = style.rtxt('{:+>5.1f}'.format(sunalt))
 
-        print('{}°        (max={:.1f}°)            : {}'.format(
+        print('{}°        (max={:.1f}°)           \t : {}'.format(
             sunalt_str, params.SUN_ELEVATION_LIMIT, status))
 
 
