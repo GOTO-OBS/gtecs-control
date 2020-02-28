@@ -271,7 +271,9 @@ def print_info(info):
             print(weather_str)
 
         dust = info['dust']
-        if dust < params.MAX_DUSTLEVEL:
+        if dust == -999:
+            dust_str = style.rtxt('  ERR')
+        elif dust < params.MAX_DUSTLEVEL:
             dust_str = style.ytxt('{:>5.1f}'.format(dust))
             if dust < params.MAX_DUSTLEVEL - 10:
                 dust_str = style.gtxt('{:>5.1f}'.format(dust))
@@ -280,7 +282,9 @@ def print_info(info):
         print('  {: <10}   {} ugr/m3'.format('dust_level', dust_str))
 
         clouds = info['clouds']
-        if clouds < params.MAX_SATCLOUDS:
+        if clouds == -999:
+            clouds_str = style.rtxt('  ERR')
+        elif clouds < params.MAX_SATCLOUDS:
             clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
             if clouds < params.MAX_SATCLOUDS - 5:
                 clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
@@ -479,7 +483,10 @@ def print_limits(info):
 
         print('  {: <10}'.format('dust_level'), end='\t')
         dust = info['dust']
-        if dust < params.MAX_DUSTLEVEL:
+        if dust == -999:
+            status = style.rtxt('ERROR')
+            dust_str = style.rtxt('  ERR')
+        elif dust < params.MAX_DUSTLEVEL:
             status = style.gtxt('Good')
             dust_str = style.ytxt('{:>5.1f}'.format(dust))
             if dust < params.MAX_DUSTLEVEL - 10:
@@ -493,7 +500,10 @@ def print_limits(info):
 
         print('  {: <10}'.format('sat_clouds'), end='\t')
         clouds = info['clouds']
-        if clouds < params.MAX_SATCLOUDS:
+        if clouds == -999:
+            status = style.rtxt('ERROR')
+            clouds_str = style.rtxt('  ERR')
+        elif clouds < params.MAX_SATCLOUDS:
             status = style.gtxt('Good')
             clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
             if clouds < params.MAX_SATCLOUDS - 5:
