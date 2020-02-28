@@ -266,7 +266,7 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}°C  {}%                                   dt={}'.format(
+            weather_str = '{}°C  {}%                                    dt={}'.format(
                 int_temperature_str, int_humidity_str, dt_str)
             print(weather_str)
 
