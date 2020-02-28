@@ -93,7 +93,6 @@ def print_info(info):
         flags = info['flags']
         n_flags = sorted(info['normal_flags'])
         c_flags = sorted(info['critical_flags'])
-        weather = info['weather']
         for i in range(max(len(n_flags), len(c_flags))):
             # Print normal flags on the left, and critical flags on the right
             if len(n_flags) >= i + 1:
@@ -120,8 +119,8 @@ def print_info(info):
             else:
                 print('')
 
-        print('WEATHER:         temp   humid   dewpt  wind ({:.0f} min max)   rain'.format(
-            params.WINDGUST_PERIOD / 60))
+        print('WEATHER:          temp   humid    dewpt  wind (gust)        rain')
+        weather = info['weather']
         # SuperWASP doesn't have a rain sensor
         weather['superwasp']['rain'] = 'NA'
         # If we're using thr W1m boards then we're ignoring the GOTO rain too
@@ -208,13 +207,13 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}C  {}%  {}C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
-                                                                          humidity_str,
-                                                                          dewpoint_str,
-                                                                          windspeed_str,
-                                                                          windgust_str,
-                                                                          rain_str,
-                                                                          dt_str)
+            weather_str = '{}°C  {}%  {}°C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
+                                                                            humidity_str,
+                                                                            dewpoint_str,
+                                                                            windspeed_str,
+                                                                            windgust_str,
+                                                                            rain_str,
+                                                                            dt_str)
             print(weather_str)
 
         # for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
@@ -251,40 +250,40 @@ def print_info(info):
                 dt_str = style.gtxt('{:>3.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}C  {}%                                   dt={}'.format(
+            weather_str = '{}°C  {}%                                   dt={}'.format(
                 int_temperature_str, int_humidity_str, dt_str)
             print(weather_str)
 
-        sunalt = info['sunalt']
-        if sunalt < 0:
-            sunalt_str = style.ytxt('{:>5.1f}'.format(sunalt))
-            if sunalt < params.SUN_ELEVATION_LIMIT:
-                sunalt_str = style.gtxt('{:>5.1f}'.format(sunalt))
-        else:
-            sunalt_str = style.rtxt('{:>5.1f}'.format(sunalt))
-        print('  {: <10}   {} degrees'.format('sunalt', sunalt_str))
-
         dust = info['dust']
-        if dust > params.MAX_DUSTLEVEL - 10:
+        if dust < params.MAX_DUSTLEVEL:
             dust_str = style.ytxt('{:>5.1f}'.format(dust))
-            if dust > params.MAX_DUSTLEVEL:
-                dust_str = style.rtxt('{:>5.1f}'.format(dust))
+            if dust < params.MAX_DUSTLEVEL - 10:
+                dust_str = style.gtxt('{:>5.1f}'.format(dust))
         else:
-            dust_str = style.gtxt('{:>5.1f}'.format(dust))
+            dust_str = style.rtxt('{:>5.1f}'.format(dust))
         print('  {: <10}   {} ugr/m3'.format('dust_level', dust_str))
 
         clouds = info['clouds']
-        if clouds > params.MAX_SATCLOUDS - 5:
+        if clouds < params.MAX_SATCLOUDS:
             clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
-            if clouds > params.MAX_SATCLOUDS:
-                clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
+            if clouds < params.MAX_SATCLOUDS - 5:
+                clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
         else:
-            clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
+            clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
         print('  {: <10}   {}%'.format('sat_clouds', clouds_str))
+
+        sunalt = info['sunalt']
+        if sunalt < 0:
+            sunalt_str = style.ytxt('{:+>5.1f}'.format(sunalt))
+            if sunalt < params.SUN_ELEVATION_LIMIT:
+                sunalt_str = style.gtxt('{:+>5.1f}'.format(sunalt))
+        else:
+            sunalt_str = style.rtxt('{:+>5.1f}'.format(sunalt))
+        print('  {: <10}   {}°'.format('sunalt', sunalt_str))
 
         seeing = info['seeing']
         if seeing == -999:
-            seeing_str = style.rtxt('ERR')
+            seeing_str = 'N/A'
         else:
             seeing_str = style.boldtxt('{:>3.1f}"'.format(seeing))
         print('  {: <12}   {}'.format('seeing (TNG)', seeing_str))
