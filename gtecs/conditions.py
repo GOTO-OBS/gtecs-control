@@ -23,7 +23,7 @@ from .flags import Status
 from .hardware.power import APCUPS, FakeUPS
 
 
-warnings.simplefilter("error", ErfaWarning)
+warnings.simplefilter('error', ErfaWarning)
 
 
 def curl_data_from_url(url, outfile, encoding=None):
@@ -381,11 +381,11 @@ def get_ing_weather():
 def get_ing_internal_weather(weather_source):
     """Get the current weather from the internal ING xml weather file."""
     if weather_source == 'wht':
-        url = "http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = 'http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
     elif weather_source == 'int':
-        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml"
+        url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
     elif weather_source == 'jkt':
-        url = "http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml"
+        url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml'
 
     outfile = os.path.join(params.FILE_PATH, 'weather.xml')
     indata = curl_data_from_url(url, outfile)
@@ -405,8 +405,8 @@ def get_ing_internal_weather(weather_source):
         for line in indata.split('\n'):
             columns = line.split()
             try:
-                label = columns[1].split("\"")[1].split(".")[2]
-                value = columns[2].split("\"")[1]
+                label = columns[1].split('\"')[1].split('.')[2]
+                value = columns[2].split('\"')[1]
             except Exception:
                 continue
 
@@ -552,7 +552,7 @@ def check_ping(url, count=3, timeout=10):
         out = subprocess.check_output(ping_command.split(),
                                       stderr=subprocess.STDOUT,
                                       timeout=timeout)
-        if "ttl=" in str(out):
+        if 'ttl=' in str(out):
             return True
         else:
             return False
@@ -597,8 +597,8 @@ def get_satellite_clouds():
     return median
 
 
-def get_tng_seeing():
-    """Get the seeing from the TNG DIMM."""
+def get_tng_conditions():
+    """Get the seeing and dust level from the TNG."""
     url = 'https://tngweb.tng.iac.es/api/meteo/weather'
     outfile = os.path.join(params.FILE_PATH, 'tng.json')
 
@@ -620,23 +620,30 @@ def get_tng_seeing():
         traceback.print_exc()
         print(indata)
 
-    weather_dict = {'update_time': -999,
-                    'dt': -999,
-                    'seeing': -999,
+    weather_dict = {'seeing': -999,
                     'seeing_error': -999,
+                    'seeing_update_time': -999,
+                    'seeing_dt': -999,
+                    'dust': -999,
+                    'dust_update_time': -999,
+                    'dust_dt': -999,
                     }
-
-    try:
-        weather_dict['update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
-        dt = Time.now() - Time(weather_dict['update_time'])
-        weather_dict['dt'] = int(dt.to('second').value)
-    except Exception:
-        print('Error parsing update time')
 
     try:
         weather_dict['seeing'] = float(data['seeing']['median'])
         weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+        weather_dict['seeing_update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['seeing_update_time'])
+        weather_dict['seeing_dt'] = int(dt.to('second').value)
     except Exception:
         print('Error parsing seeing from TNG')
+
+    try:
+        weather_dict['dust'] = float(data['dust']['value'])
+        weather_dict['dust_update_time'] = Time(data['dust']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['dust_update_time'])
+        weather_dict['dust_dt'] = int(dt.to('second').value)
+    except Exception:
+        print('Error parsing dust level from TNG')
 
     return weather_dict
