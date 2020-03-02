@@ -286,7 +286,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
     print('Fitting to data...')
     if not isinstance(nfv, dict):
         nfv = {ut: nfv for ut in foc_data}
-    fit_df, fit_coeffs = fit_to_data(df)
+    fit_df, fit_coeffs = fit_to_data(df, nfv)
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
     fit_df.to_csv(os.path.join(path, ofname))
