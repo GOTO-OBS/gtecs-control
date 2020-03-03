@@ -323,11 +323,20 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
         print('Plotting results...')
         plot_results(df, nfv, fit_df, fit_coeffs, finish_time)
 
-    # Move to best position?
+    # Get best positions
     best_focus = fit_df['cross_pos'].to_dict()
     best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
+    for ut in fit_df.index:
+        if ut not in best_focus:
+            # Use the minimum point if the fit failed
+            pivot_pos = fit_df['pivot_pos'].to_dict()[ut]
+            if not np.isnan(pivot_pos):
+                best_focus[ut] = int(pivot_pos)
+    best_focus = {ut: best_focus[ut] for ut in sorted(best_focus.keys())}
+
+    # Move to best positions?
     print('Current focus: ', get_focuser_positions())
-    print('Best focus: ', best_focus)
+    print('Best focus:    ', best_focus)
     go = ''
     if go_to_best:
         go = 'y'
