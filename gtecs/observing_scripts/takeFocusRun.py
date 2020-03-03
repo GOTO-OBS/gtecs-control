@@ -153,7 +153,7 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
     if finish_time is None:
         finish_time = Time.now()
 
-    fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=150)
+    fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=100)
     plt.subplots_adjust(hspace=0.15, wspace=0.2)
 
     fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.92)
@@ -194,8 +194,8 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
             else:
                 txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
                     fit_data['n_l'], fit_data['n_r'])
-                ax.text(0.025, 0.82, txt, fontweight='normal', c='tab:red',
-                        transform=ax.transAxes, zorder=4,
+                ax.text(0.03, 0.8, txt, fontweight='normal', c='tab:red',
+                        transform=ax.transAxes, ha='left', zorder=4,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
 
             # Set labels
@@ -203,9 +203,9 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
                 ax.set_ylabel('HFD')
             if i >= len(axes.flatten()) - 4:
                 ax.set_xlabel('Focus position')
-            ax.text(0.08, 0.93, 'UT{}'.format(ut), fontweight='bold',
+            ax.text(0.03, 0.9, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
-                    transform=ax.transAxes, zorder=9, ha='center', va='center')
+                    transform=ax.transAxes, ha='left', zorder=9)
 
             # Set limits
             ax.set_xlim(*x_lim)
