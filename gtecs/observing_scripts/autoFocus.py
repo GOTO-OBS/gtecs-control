@@ -358,6 +358,9 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Initial HFDs:', initial_hfds.round(1).to_dict())
     print('Final HFDs:  ', bf_hfds.round(1).to_dict())
+    if np.any(bf_hfds > initial_hfds + 1):
+        print('~~~~~~')
+        raise Exception('Final focus values are significantly worse than initial values')
 
     if params.FOCUS_SLACK_REPORTS:
         # Send Slack report
