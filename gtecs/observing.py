@@ -484,18 +484,27 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     time.sleep(2)
 
     # Fetch the data
-    data = get_latest_image_data(glance)
+    if not glance:
+        # Get the run number, it should be safer than the last modified which has messed up before
+        # (perhaps due to the Warwick archiver?)
+        run_number = get_run_number()
+        data = get_image_data(run_number=run_number)
+    else:
+        data = get_image_data(glance=True)
 
     return data
 
 
-def get_latest_image_data(glance=False):
+def get_image_data(glance=False, run_number=None):
     """Open the most recent images and return the data.
 
     Parameters
     ----------
-    glance : bool, default `False`
+    glance : bool, default=False
         read the glance images instead of the latest "normal" images
+    run_number : int, default=None
+        the run number of the files to open
+        if None (and glance=False), open the latest images
 
     Returns
     -------
@@ -504,20 +513,22 @@ def get_latest_image_data(glance=False):
 
     """
     if not glance:
-        dirs = [d for d in list(glob.iglob(params.IMAGE_PATH + '*')) if os.path.isdir(d)]
+        dirs = [d for d in list(glob.iglob(os.path.join(params.IMAGE_PATH, '*')))
+                if os.path.isdir(d)]
         path = max(dirs, key=os.path.getctime)
-        newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
-        root = newest.split('_UT')[0]
-
-        print('Loading run {}:'.format(root.split('/')[-1]), end=' ')
+        if run_number:
+            run = 'r{:07d}'.format(run_number)
+        else:
+            newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getctime)
+            run = os.path.basename(newest).split('_UT')[0]
+        print(f'Loading run {run}:', end=' ')
     else:
         path = os.path.join(params.IMAGE_PATH)
-        root = 'glance'
-
+        run = 'glance'
         print('Loading glances:', end=' ')
 
     # get possible file names
-    filenames = {ut: '{}_UT{:d}.fits'.format(root, ut) for ut in params.UTS_WITH_CAMERAS}
+    filenames = {ut: '{}_UT{:d}.fits'.format(run, ut) for ut in params.UTS_WITH_CAMERAS}
 
     # get full path
     images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
@@ -631,6 +642,12 @@ def get_image_count():
     """Find the current camera image number."""
     cam_info = daemon_info('cam')
     return cam_info['num_taken']
+
+
+def get_run_number():
+    """Find the latest exposure run number."""
+    cam_info = daemon_info('cam')
+    return cam_info['run_number']
 
 
 def wait_for_images(target_image_number, timeout=None):
