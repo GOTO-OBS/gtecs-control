@@ -179,30 +179,24 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
                         yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
             ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
             ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
-            x_lim = ax.get_xlim()
 
             # Plot fits (if they worked)
+            x_lim = ax.get_xlim()
             test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
             if fit_coeffs[ut][0] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
-            else:
-                txt = 'Error: $n_L={:.0f}$'.format(fit_data['n_l'])
-                ax.text(0.65, 0.05, txt, fontweight='normal', c='tab:red',
-                        transform=ax.transAxes, zorder=4,
-                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
-
             if fit_coeffs[ut][1] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
+            if not np.isnan(fit_data['cross_pos']):
+                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
             else:
-                txt = 'Error: $n_R={:.0f}$'.format(fit_data['n_r'])
-                ax.text(0.03, 0.05, txt, fontweight='normal', c='tab:red',
+                txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
+                    fit_data['n_l'], fit_data['n_r'])
+                ax.text(0.025, 0.82, txt, fontweight='normal', c='tab:red',
                         transform=ax.transAxes, zorder=4,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
-
-            if fit_data['cross_pos'] is not None:
-                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
 
             # Set labels
             if i % 4 == 0:
