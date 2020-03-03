@@ -70,7 +70,7 @@ def lin_func(x, m, c):
 def fit_to_data(df, nfvs):
     """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
-    fit_df = pd.DataFrame(columns=['pivot_pos', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
+    fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
                           index=uts)
     fit_coeffs = {ut: None for ut in uts}
 
@@ -91,7 +91,7 @@ def fit_to_data(df, nfvs):
         hfd_std[hfd_std == 0] = 0.001
 
         # HFD
-        pivot_pos, m_l, m_r, delta_x, cross_pos = None, None, None, None, None
+        pivot_pos, n_l, n_r, m_l, m_r, delta_x, cross_pos = None, None, None, None, None, None, None
         try:
             # Exclude any points below the near-focus value
             # (the NFV is supposed to mark where the V-curve is no-longer linear)
@@ -101,18 +101,19 @@ def fit_to_data(df, nfvs):
             # Split into left and right
             min_i = np.where(hfd == np.nanmin(hfd))[0][0]
             pivot_pos = pos[min_i]
-            mask_l = mask & (pos <= pivot_pos)
-            mask_r = mask & (pos >= pivot_pos)
+            mask_l = mask & (pos < pivot_pos)
+            mask_r = mask & (pos > pivot_pos)
+            n_l = sum(mask_l)
+            n_r = sum(mask_r)
 
             # Raise error if not enough points on both sides
             if sum(mask_l) < 2 or sum(mask_r) < 2:
-                raise ValueError('Can not fit HFD V-curve (n_l={}, n_r={})'.format(
-                                 sum(mask_l), sum(mask_r)))
+                raise ValueError('Can not fit HFD V-curve (n_l={}, n_r={})'.format(n_l, n_r))
 
             # Fit straight line
             coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
             coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
-            fit_coeffs[ut] = (coeffs_l, coeffs_r, nfv)
+            fit_coeffs[ut] = (coeffs_l, coeffs_r)
             m_l, c_l = coeffs_l
             m_r, c_r = coeffs_r
             delta_x = (c_r / m_r) - (c_l / m_l)
@@ -127,6 +128,8 @@ def fit_to_data(df, nfvs):
 
         # Add to dataframe
         fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
+                                    'n_l': n_l,
+                                    'n_r': n_r,
                                     'm_l': m_l,
                                     'm_r': m_r,
                                     'delta_x': delta_x,
@@ -135,7 +138,7 @@ def fit_to_data(df, nfvs):
     return fit_df, fit_coeffs
 
 
-def plot_results(df, fit_df, fit_coeffs, finish_time=None, save_plot=True):
+def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
     if finish_time is None:
@@ -153,36 +156,36 @@ def plot_results(df, fit_df, fit_coeffs, finish_time=None, save_plot=True):
         try:
             ax = axes.flatten()[i]
 
-            if fit_coeffs[ut] is not None:
-                # Plot data
-                nfv = fit_coeffs[ut][2]
-                mask = np.array(ut_data['hfd']) > nfv
-                mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
-                mask_m = np.invert(mask)
-                mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
-                ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
-                            yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
-                ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
-                            yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
-                ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
-                            yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+            # Plot data
+            nfv = nfvs[ut]
+            mask = np.array(ut_data['hfd']) > nfv
+            mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
+            mask_m = np.invert(mask) | (np.array(ut_data['pos']) == fit_data['pivot_pos'])
+            mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
+            ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
+                        yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
+            ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
+                        yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
+            ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
+                        yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+            ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
+            ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
+            x_lim = ax.get_xlim()
 
-                # Plot fit
-                test_range = np.arange(min(ut_data['pos']), max(ut_data['pos']), 50)
+            # Plot fit
+            if fit_coeffs[ut] is not None:
+                test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
                 ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
-                ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
             else:
-                # Plot data
-                ax.errorbar(ut_data['pos'], ut_data['hfd'],
-                            yerr=ut_data['hfd_std'], color='tab:red', fmt='.', ms=7)
-
-                # Plot fit
-                ax.text(0.03, 0.05, 'Fit failed', transform=ax.transAxes,
-                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9}, zorder=4)
+                txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
+                    fit_data['n_l'], fit_data['n_r'])
+                ax.text(0.03, 0.05, txt, fontweight='normal', c='tab:red',
+                        transform=ax.transAxes, zorder=4,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
 
             # Set labels
             if i % 4 == 0:
@@ -194,6 +197,7 @@ def plot_results(df, fit_df, fit_coeffs, finish_time=None, save_plot=True):
                     transform=ax.transAxes, zorder=9, ha='center', va='center')
 
             # Set limits
+            ax.set_xlim(*x_lim)
             ax.set_ylim(bottom=0, top=15)
 
         except Exception:
@@ -300,7 +304,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, fit_df, fit_coeffs, finish_time)
+        plot_results(df, nfv, fit_df, fit_coeffs, finish_time)
 
     # Move to best position?
     best_focus = fit_df['cross_pos'].to_dict()
