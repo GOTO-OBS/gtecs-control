@@ -72,28 +72,26 @@ def fit_to_data(df, nfvs):
     uts = list(set(list(df.index)))
     fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
                           index=uts)
-    fit_coeffs = {ut: None for ut in uts}
+    fit_coeffs = {ut: [None, None] for ut in uts}
 
     for ut in uts:
-        # Get data arrays
-        ut_data = df.loc[ut]
-        pos = np.array(ut_data['pos'])
-        hfd = np.array(ut_data['hfd'])
-        hfd_std = np.array(ut_data['hfd_std'])
-
-        # Mask any failed measurements (e.g. not enough objects)
-        mask = np.invert(np.isnan(hfd))
-        pos = pos[mask]
-        hfd = hfd[mask]
-        hfd_std = hfd_std[mask]
-
-        # Need a nominal non-zero sigma, otherwise the curve fit fails
-        hfd_std[hfd_std == 0] = 0.001
-
-        # HFD
-        pivot_pos, n_l, n_r, m_l, m_r, delta_x, cross_pos = None, None, None, None, None, None, None
         try:
-            # Exclude any points below the near-focus value
+            # Get data arrays
+            ut_data = df.loc[ut]
+            pos = np.array(ut_data['pos'])
+            hfd = np.array(ut_data['hfd'])
+            hfd_std = np.array(ut_data['hfd_std'])
+
+            # Mask any failed measurements (e.g. not enough objects)
+            mask = np.invert(np.isnan(hfd))
+            pos = pos[mask]
+            hfd = hfd[mask]
+            hfd_std = hfd_std[mask]
+
+            # Need a nominal non-zero sigma, otherwise the curve fit fails
+            hfd_std[hfd_std == 0] = 0.001
+
+            # Mask to exclude any points below the near-focus value
             # (the NFV is supposed to mark where the V-curve is no-longer linear)
             nfv = nfvs[ut]
             mask = hfd > nfv
@@ -106,21 +104,32 @@ def fit_to_data(df, nfvs):
             n_l = sum(mask_l)
             n_r = sum(mask_r)
 
-            # Raise error if not enough points on both sides
-            if sum(mask_l) < 2 or sum(mask_r) < 2:
-                raise ValueError('Can not fit HFD V-curve (n_l={}, n_r={})'.format(n_l, n_r))
+            # Fit straight lines
+            if n_l > 1:
+                coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
+                m_l, c_l = coeffs_l
+                fit_coeffs[ut][0] = (m_l, c_l)
+            else:
+                print('UT{}: Can not fit to left side of V-curve (n_l={})'.format(ut, n_l))
+                m_l, c_l = None, None
 
-            # Fit straight line
-            coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
-            coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
-            fit_coeffs[ut] = (coeffs_l, coeffs_r)
-            m_l, c_l = coeffs_l
-            m_r, c_r = coeffs_r
-            delta_x = (c_r / m_r) - (c_l / m_l)
+            if n_r > 1:
+                coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
+                m_r, c_r = coeffs_r
+                fit_coeffs[ut][1] = (m_r, c_r)
+            else:
+                print('UT{}: Can not fit to right side of V-curve (n_r={})'.format(ut, n_r))
+                m_r, c_r = None, None
 
-            # Find meeting point by picking a point on the line and using the autofocus function
-            point = (pivot_pos, lin_func(pivot_pos, *coeffs_r))
-            cross_pos = int(get_best_focus_position(m_l, m_r, delta_x, point[0], point[1]))
+            # Find crossing point
+            if m_l is not None and m_r is not None:
+                delta_x = (c_r / m_r) - (c_l / m_l)
+
+                # Find meeting point by picking a point on the line and using the autofocus function
+                point = (pivot_pos, lin_func(pivot_pos, m_r, c_r))
+                cross_pos = int(get_best_focus_position(m_l, m_r, delta_x, point[0], point[1]))
+            else:
+                delta_x, cross_pos = None, None
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
@@ -172,20 +181,28 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
             ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
             x_lim = ax.get_xlim()
 
-            # Plot fit
-            if fit_coeffs[ut] is not None:
-                test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
+            # Plot fits (if they worked)
+            test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
+            if fit_coeffs[ut][0] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
+            else:
+                txt = 'Error: $n_L={:.0f}$'.format(fit_data['n_l'])
+                ax.text(0.65, 0.05, txt, fontweight='normal', c='tab:red',
+                        transform=ax.transAxes, zorder=4,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
+
+            if fit_coeffs[ut][1] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
-                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
             else:
-                txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
-                    fit_data['n_l'], fit_data['n_r'])
+                txt = 'Error: $n_R={:.0f}$'.format(fit_data['n_r'])
                 ax.text(0.03, 0.05, txt, fontweight='normal', c='tab:red',
                         transform=ax.transAxes, zorder=4,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
+
+            if fit_data['cross_pos'] is not None:
+                ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
 
             # Set labels
             if i % 4 == 0:
