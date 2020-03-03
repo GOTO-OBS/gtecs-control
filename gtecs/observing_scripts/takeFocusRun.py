@@ -135,9 +135,12 @@ def fit_to_data(df, nfvs):
     return fit_df, fit_coeffs
 
 
-def plot_results(df, fit_df, fit_coeffs, finish_time):
+def plot_results(df, fit_df, fit_coeffs, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
+    if finish_time is None:
+        finish_time = Time.now()
+
     fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=150)
     plt.subplots_adjust(hspace=0.15, wspace=0.2)
 
@@ -198,10 +201,11 @@ def plot_results(df, fit_df, fit_coeffs, finish_time):
             print(traceback.format_exc())
 
     # Save the plot
-    path = os.path.join(params.FILE_PATH, 'focus_data')
-    ofname = 'focusplot_{}.png'.format(finish_time)
-    plt.savefig(os.path.join(path, ofname))
-    print('Saved to {}'.format(os.path.join(path, ofname)))
+    if save_plot:
+        path = os.path.join(params.FILE_PATH, 'focus_data')
+        ofname = 'focusplot_{}.png'.format(finish_time)
+        plt.savefig(os.path.join(path, ofname))
+        print('Saved to {}'.format(os.path.join(path, ofname)))
 
     plt.show()
 
