@@ -275,11 +275,10 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
 
     # The HFDs should have increased substantially.
     # If they haven't then the focus measurement isn't reliable, so we can't continue.
-    ratio = out_hfds / initial_hfds
-    if np.any(ratio < 1.2):
+    if np.any(out_hfds < initial_hfds + 1):
         print('~~~~~~')
-        print('Initial HFDs:', initial_hfds.to_dict())
-        print('Current HFDs:', out_hfds.to_dict())
+        print('Initial HFDs:', initial_hfds.round(1).to_dict())
+        print('Current HFDs:', out_hfds.round(1).to_dict())
         raise Exception('HFD not changing with focuser position')
 
     # Now move back towards where best focus position should be.
@@ -300,8 +299,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     # If they haven't we can't continue, because we might not be on the correct side.
     if np.any(in_hfds > out_hfds):
         print('~~~~~~')
-        print('Far out HFDs:', out_hfds.to_dict())
-        print('Back in HFDs:', in_hfds.to_dict())
+        print('Far out HFDs:', out_hfds.round(1).to_dict())
+        print('Back in HFDs:', in_hfds.round(1).to_dict())
         raise Exception('Can not be sure we are on the correct side of best focus')
 
     # We're on the curve, so we can estimate the focuser positions for given HFDs.
@@ -358,6 +357,9 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
     print('~~~~~~')
     print('Initial HFDs:', initial_hfds.round(1).to_dict())
     print('Final HFDs:  ', bf_hfds.round(1).to_dict())
+    if np.any(bf_hfds > initial_hfds + 1):
+        print('~~~~~~')
+        raise Exception('Final focus values are significantly worse than initial values')
 
     if params.FOCUS_SLACK_REPORTS:
         # Send Slack report
