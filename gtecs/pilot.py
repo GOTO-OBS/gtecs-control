@@ -328,8 +328,12 @@ class Pilot(object):
             await asyncio.sleep(30)
 
         # if paused due to manual mode we should not do anything
+        message_sent = False
         while self.whypause['manual']:
             self.log.info('in manual mode, tasks suspended')
+            if not message_sent:
+                send_slack_msg('Pilot has started in manual mode, tasks suspended')
+                message_sent = True
             await asyncio.sleep(30)
 
         # wait for the right sunalt to start
