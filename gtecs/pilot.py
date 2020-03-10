@@ -116,6 +116,7 @@ class Pilot(object):
         self.close_command_time = 0.
 
         self.initial_hardware_check_complete = False
+        self.initial_flags_check_complete = False
 
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
@@ -267,6 +268,10 @@ class Pilot(object):
                 reasons = [k for k in self.whypause if self.whypause[k]]
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
 
+            # only allow the night marshal to start after a
+            # successful flags check
+            self.initial_flags_check_complete = True
+
             await asyncio.sleep(sleep_time)
 
     async def check_dome(self):
@@ -316,6 +321,11 @@ class Pilot(object):
 
         """
         self.log.info('night marshal initialised')
+
+        # now startup is complete we can start hardware checks
+        while not self.initial_flags_check_complete:
+            self.log.info('waiting for the first successful flags check')
+            await asyncio.sleep(30)
 
         # if paused due to manual mode we should not do anything
         while self.whypause['manual']:
