@@ -116,6 +116,7 @@ class Pilot(object):
         self.close_command_time = 0.
 
         self.initial_hardware_check_complete = False
+        self.initial_flags_check_complete = False
 
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
@@ -267,6 +268,10 @@ class Pilot(object):
                 reasons = [k for k in self.whypause if self.whypause[k]]
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
 
+            # only allow the night marshal to start after a
+            # successful flags check
+            self.initial_flags_check_complete = True
+
             await asyncio.sleep(sleep_time)
 
     async def check_dome(self):
@@ -317,9 +322,18 @@ class Pilot(object):
         """
         self.log.info('night marshal initialised')
 
+        # now startup is complete we can start hardware checks
+        while not self.initial_flags_check_complete:
+            self.log.info('waiting for the first successful flags check')
+            await asyncio.sleep(30)
+
         # if paused due to manual mode we should not do anything
+        message_sent = False
         while self.whypause['manual']:
             self.log.info('in manual mode, tasks suspended')
+            if not message_sent:
+                send_slack_msg('Pilot has started in manual mode, tasks suspended')
+                message_sent = True
             await asyncio.sleep(30)
 
         # wait for the right sunalt to start
@@ -432,7 +446,7 @@ class Pilot(object):
                                     stdin=None)
 
         # start the process and get transport and protocol for control of it
-        self.log.info("starting {}".format(name))
+        self.log.info('starting {}'.format(name))
         self.running_script = name
         self.running_script_transport, self.running_script_protocol = await proc
 
@@ -450,12 +464,12 @@ class Pilot(object):
             if name == 'OBS' and self.current_id is not None:
                 mark_aborted(self.current_id)
 
-        self.log.info("finished {}".format(name))
+        self.log.info('finished {}'.format(name))
         self.running_script = None
 
         # if it was an observation that just finished (aborted or not) force a scheduler check
         if name == 'OBS':
-            self.log.debug("forcing scheduler check".format(name))
+            self.log.debug('forcing scheduler check'.format(name))
             self.force_scheduler_check = True
 
         return retcode, result
@@ -540,9 +554,9 @@ class Pilot(object):
             self.log.info('next task: {}'.format(name))
 
             # wait for the right sun altitude
-            OK = await self.wait_for_sunalt(sunalt, name, rising, ignore_late)
+            can_start = await self.wait_for_sunalt(sunalt, name, rising, ignore_late)
 
-            if not OK:
+            if not can_start:
                 # too late
                 self.log.info('too late to start {}'.format(name))
                 continue
@@ -856,7 +870,7 @@ class Pilot(object):
                 self.log.info('current task will continue')
 
         # does this change suggest a global unpause?
-        unpause = (not any([self.whypause[key] for key in self.whypause if key != reason]) and
+        unpause = (not any(self.whypause[key] for key in self.whypause if key != reason) and
                    not pause)
         if unpause and self.paused:
             # OK, we can resume
@@ -1037,7 +1051,7 @@ class Pilot(object):
             # panic time
             elapsed_time = time.time() - start_time
             if elapsed_time / 60. > mins_until_panic:
-                msg = "IMPORTANT: Pilot cannot close dome!"
+                msg = 'IMPORTANT: Pilot cannot close dome!'
                 send_slack_msg(msg)
                 try:
                     send_email(message=msg)
