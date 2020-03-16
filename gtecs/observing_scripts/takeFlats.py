@@ -19,7 +19,7 @@ import numpy as np
 
 def take_sky(exptime, current_filter, name, glance=False):
     """Offset the telescope then take an image and return the mean sky brightness."""
-    # make an offset to move the stars
+    # Make an offset to move the stars
     step = params.FLATS_STEPSIZE * u.arcsec
     current_ra, current_dec = get_mount_position()
     new_ra = current_ra + step.to(u.deg).value
@@ -29,14 +29,18 @@ def take_sky(exptime, current_filter, name, glance=False):
     if new_dec > 90:
         new_dec = current_dec - step.to(u.deg).value
 
-    # move to the new position and wait until we're there
+    # Move to the new position and wait until we're there
     slew_to_radec(new_ra, new_dec, timeout=120)
 
-    # take the image and load the image data
-    data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
+    # Take the image and load the image data
+    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
 
-    # get the mean value for the images
-    sky_mean = np.mean([np.median(data[ut]) for ut in data])
+    # Get the mean value for the images
+    sky_mean = np.mean([np.median(image_data[ut]) for ut in image_data])
+
+    # Delete the image data for good measure, to save memory
+    del image_data
+
     return sky_mean
 
 
