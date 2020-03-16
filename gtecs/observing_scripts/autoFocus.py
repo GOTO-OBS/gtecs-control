@@ -192,6 +192,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
                 hfd_arrs[ut] = [hfd]
                 hfd_std_arrs[ut] = [hfd_std]
 
+        # Delete the image data for good measure, to save memory
+        del image_data
+
         print('HFDs:', {ut: np.round(hfd_arrs[ut][i], 1) for ut in hfd_arrs})
 
     # Take the smallest of the HFD values measured as the best estimate for this position.
