@@ -294,11 +294,11 @@ def print_info(info):
 
         sunalt = info['sunalt']
         if sunalt < 0:
-            sunalt_str = style.ytxt('{:+>5.1f}'.format(sunalt))
+            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
             if sunalt < params.SUN_ELEVATION_LIMIT:
-                sunalt_str = style.gtxt('{:+>5.1f}'.format(sunalt))
+                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
         else:
-            sunalt_str = style.rtxt('{:+>5.1f}'.format(sunalt))
+            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
         print('  {: <10}   {}°'.format('sunalt', sunalt_str))
 
         seeing = info['seeing']
@@ -519,13 +519,13 @@ def print_limits(info):
         sunalt = info['sunalt']
         if sunalt < 0:
             status = style.rtxt('Bad')
-            sunalt_str = style.ytxt('{:+>5.1f}'.format(sunalt))
+            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
             if sunalt < params.SUN_ELEVATION_LIMIT:
                 status = style.gtxt('Good')
-                sunalt_str = style.gtxt('{:+>5.1f}'.format(sunalt))
+                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
         else:
             status = style.rtxt('Bad')
-            sunalt_str = style.rtxt('{:+>5.1f}'.format(sunalt))
+            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
 
         print('{}°        (max={:.1f}°)           \t : {}'.format(
             sunalt_str, params.SUN_ELEVATION_LIMIT, status))
