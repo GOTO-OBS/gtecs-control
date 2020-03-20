@@ -182,6 +182,8 @@ class Status(object):
         cmd = 'touch ' + self.emergency_file
         os.system(cmd)
 
+        if isinstance(reasons, str):
+            reasons = [reasons]
         if reasons is None:
             reasons = ['no reason given']
         for reason in reasons:
