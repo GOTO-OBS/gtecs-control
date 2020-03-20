@@ -21,11 +21,15 @@ def query(command, args):
 
     # Primary control
     elif command == 'start':
-        # Disable pilot in engineering mode
+        # Disable pilot in engineering mode or emergency shutdown
         status = Status()
         if status.mode == 'engineering':
             print('Pilot is disabled in engineering mode')
             send_slack_msg('Pilot tried to start, but system is in engineering mode')
+            return
+        elif status.emergency_shutdown:
+            print('Pilot is disabled during emergency shutdown')
+            send_slack_msg('Pilot tried to start, but system is in emergency shutdown')
             return
 
         # Check it it's already running
@@ -36,9 +40,9 @@ def query(command, args):
             return
 
         parser = argparse.ArgumentParser()
-        parser.add_argument('-t', '--test', action="store_true", default=False)
-        parser.add_argument('-r', '--restart', action="store_true", default=False)
-        parser.add_argument('-l', '--late', action="store_true", default=False)
+        parser.add_argument('-t', '--test', action='store_true', default=False)
+        parser.add_argument('-r', '--restart', action='store_true', default=False)
+        parser.add_argument('-l', '--late', action='store_true', default=False)
         args = parser.parse_args(args).__dict__
 
         with misc.make_pid_file('pilot'):
@@ -71,18 +75,18 @@ def query(command, args):
 
 def print_instructions():
     """Print instructions for using the script."""
-    print("Usage: pilot command [options]",
-          "The pilot is the master control program for the observatory.",
-          "",
-          "Commands:",
-          "   start [options]        start the pilot",
-          "         -l, --late       run the evening tasks even if it's too late",
-          "         -r, --restart    skip the evening tasks and go straight to observing",
-          "         -t, --test       start the pilot in testing mode",
-          "   ping                   check if the pilot is running",
-          "   kill                   kill the pilot",
-          "   log [tail args]        print pilot log (alias for tail)",
-          "   help                   print these instructions",
+    print('Usage: pilot command [options]',
+          'The pilot is the master control program for the observatory.',
+          '',
+          'Commands:',
+          '   start [options]        start the pilot',
+          '         -l, --late       run the evening tasks even if it is too late',
+          '         -r, --restart    skip the evening tasks and go straight to observing',
+          '         -t, --test       start the pilot in testing mode',
+          '   ping                   check if the pilot is running',
+          '   kill                   kill the pilot',
+          '   log [tail args]        print pilot log (alias for tail)',
+          '   help                   print these instructions',
           sep='\n')
 
 
