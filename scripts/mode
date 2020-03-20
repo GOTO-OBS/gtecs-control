@@ -52,6 +52,17 @@ if __name__ == '__main__':
         print('All automated systems are disabled')
         sys.exit()
 
+    # Create EMERGENCY-SHUTDOWN file
+    if command == 'lockdown':
+        reason = input('Please enter reason for the lockdown: ')
+        if len(reason) == 0:
+            reason = 'unknown'
+
+        status.create_shutdown_file(reasons=[reason])
+        print('Lockdown file created at {}'.format(status.emergency_file))
+        print('The dome will not open until that file is deleted')
+        sys.exit()
+
     if command not in ['h', '-h', 'help', '--help']:
         print('ERROR: "{}" is an invalid mode'.format(command.strip('-')))
 
@@ -60,3 +71,5 @@ if __name__ == '__main__':
     print('  -r, --robotic        Robotic pilot control')
     print('  -m, --manual         Remote or on-site human control')
     print('  -e, --engineering    All automatic systems disabled')
+    print('Other valid commands:')
+    print('  lockdown             Create the EMERGENCY-SHUTDOWN file to prevent the dome opening')
