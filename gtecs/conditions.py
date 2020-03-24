@@ -99,6 +99,9 @@ def hatch_closed():
             if params.IGNORE_HATCH:
                 print('Hatch is open but IGNORE_HATCH is true')
                 return True
+            elif status.emergency_shutdown:
+                print('Hatch is open during emergency shutdown!')
+                return False
             elif status.mode != 'robotic':
                 print('Hatch is open but not in robotic mode')
                 return True
