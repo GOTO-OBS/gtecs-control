@@ -4,6 +4,7 @@
 import sys
 
 from gtecs import flags
+from gtecs import style
 
 status = flags.Status()
 
@@ -11,6 +12,8 @@ if __name__ == '__main__':
     if len(sys.argv) != 2:
         print('System is currently in {} mode'.format(status.mode.upper()))
         print('Current observer is "{}"'.format(status.observer))
+        if status.emergency_shutdown:
+            print(style.rtxt('EMERGENCY SHUTDOWN IS ACTIVE'))
         print('See "mode --help" for usage')
         sys.exit()
 
