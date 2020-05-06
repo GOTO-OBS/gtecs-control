@@ -29,6 +29,7 @@ class ConditionsDaemon(BaseDaemon):
 
         self.info_flag_names = ['clouds',
                                 'dark',
+                                'dust',
                                 ]
         self.normal_flag_names = ['rain',
                                   'windspeed',
@@ -43,7 +44,6 @@ class ConditionsDaemon(BaseDaemon):
                                     'hatch',
                                     'internal',
                                     'ice',
-                                    'dust',
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
@@ -472,6 +472,9 @@ class ConditionsDaemon(BaseDaemon):
         for flag in self.update_times:
             data[flag + '_update_time'] = Time(self.update_times[flag], format='unix').iso
         data['current_time'] = Time(current_time, format='unix').iso
+        data['info_flags'] = sorted(self.info_flag_names)
+        data['normal_flags'] = sorted(self.normal_flag_names)
+        data['critical_flags'] = sorted(self.critical_flag_names)
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
