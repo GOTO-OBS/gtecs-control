@@ -241,6 +241,18 @@ class Pilot(object):
                 send_slack_msg('Pilot exiting abnormally')
                 sys.exit(1)
 
+            # check for the emergency file
+            if status.emergency_shutdown:
+                reasons = ', '.join(status.emergency_shutdown_reasons)
+                self.log.warning('Emergency shutdown file detected: ({})'.format(reasons))
+                if not self.startup_complete:
+                    # If we haven't started yet then just quit here
+                    send_slack_msg('Pilot exiting due to emergency shutdown')
+                    sys.exit(1)
+                else:
+                    # The file has appeared while we're running, shut down now!
+                    asyncio.ensure_future(self.emergency_shutdown(reasons))
+
             # handle manual override
             if self.system_mode == 'manual':
                 await self.handle_pause('manual', True)
@@ -256,12 +268,6 @@ class Pilot(object):
             else:
                 self.bad_flags = None
                 await self.handle_pause('conditions', False)
-
-            # emergency file
-            if status.emergency_shutdown:
-                reasons = ', '.join(status.emergency_shutdown_reasons)
-                self.log.warning('Emergency shutdown file detected: ({})'.format(reasons))
-                asyncio.ensure_future(self.emergency_shutdown(reasons))
 
             # print if we're paused
             if self.paused:
