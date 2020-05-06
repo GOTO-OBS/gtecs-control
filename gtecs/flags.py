@@ -48,17 +48,18 @@ class Conditions(object):
         self.update_times = {flag.replace('_update_time', ''): Time(self.data[flag])
                              for flag in [k for k in self.data if k.endswith('_update_time')]}
         self.conditions_dict = {flag: self.data[flag] for flag in self.update_times}
+        self.info_flags = self.data['info_flags']
 
         # Get update time and caclulate age flag
         self.current_time = Time(self.data['current_time'])
         self.age = float(Time.now().unix - self.current_time.unix)
         self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
 
-        # Store the total of all flags, excluding clouds and dark ('info flags')
+        # Store the total of all flags, excluding info flags
         self.total = 0
         self.bad_flags = []
         for key, value in self.conditions_dict.items():
-            if key not in ['clouds', 'dark']:
+            if key not in self.info_flags:
                 self.total += value
                 if value:
                     self.bad_flags += [key]
@@ -67,10 +68,9 @@ class Conditions(object):
     def get_formatted_string(self, good='1', bad='0'):
         """Get a formatted string of the conditions flags."""
         flags = self.conditions_dict.copy()
-        del flags['clouds']
-        del flags['dark']
         arr = ['{} {}'.format(flag, good if not flags[flag] else bad)
-               for flag in sorted(flags.keys())]
+               for flag in sorted(flags.keys())
+               if flag not in self.info_flags]
         return ' - '.join(arr)
 
 
