@@ -141,7 +141,7 @@ def print_info(info):
         if params.USE_W1M_RAINBOARDS:
             weather['goto']['rain'] = 'NA'
 
-        #for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
+        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
         for source in ['goto', 'w1m']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
@@ -333,7 +333,8 @@ def print_limits(info):
         weather = info['weather']
 
         print('TEMPERATURE:')
-        for source in ['goto', 'w1m', 'superwasp']:
+        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
+        for source in ['goto', 'w1m']:
             print('  {: <10}'.format(source), end='\t')
 
             temperature = weather[source]['temperature']
@@ -355,7 +356,8 @@ def print_limits(info):
                 temperature_str, params.MIN_TEMPERATURE, params.MAX_TEMPERATURE, status))
 
         print('HUMIDITY:')
-        for source in ['goto', 'w1m', 'superwasp']:
+        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
+        for source in ['goto', 'w1m']:
             print('  {: <10}'.format(source), end='\t')
 
             humidity = weather[source]['humidity']
@@ -375,7 +377,8 @@ def print_limits(info):
                 humidity_str, params.MAX_HUMIDITY, status))
 
         print('DEW POINT:')
-        for source in ['goto', 'w1m', 'superwasp']:
+        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
+        for source in ['goto', 'w1m']:
             print('  {: <10}'.format(source), end='\t')
 
             dewpoint = weather[source]['dew_point']
