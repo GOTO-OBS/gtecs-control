@@ -29,6 +29,7 @@ class ConditionsDaemon(BaseDaemon):
 
         self.info_flag_names = ['clouds',
                                 'dark',
+                                'dust',
                                 ]
         self.normal_flag_names = ['rain',
                                   'windspeed',
@@ -43,7 +44,6 @@ class ConditionsDaemon(BaseDaemon):
                                     'hatch',
                                     'internal',
                                     'ice',
-                                    'dust',
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
