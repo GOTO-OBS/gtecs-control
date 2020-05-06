@@ -137,16 +137,12 @@ def print_info(info):
 
         print('WEATHER:          temp   humid    dewpt  wind (gust)        rain')
         weather = info['weather']
-        # SuperWASP doesn't have a rain sensor
-        weather['superwasp']['rain'] = 'NA'
-        # If we're using thr W1m boards then we're ignoring the GOTO rain too
+        # If we're using thr W1m boards then we're ignoring the GOTO rain sensors
         if params.USE_W1M_RAINBOARDS:
             weather['goto']['rain'] = 'NA'
-        # SuperWASP wind readings aren't trustworthy
-        weather['superwasp']['windspeed'] = 'NA'
-        weather['superwasp']['windgust'] = 'NA'
 
-        for source in ['goto', 'w1m', 'superwasp']:
+        #for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
+        for source in ['goto', 'w1m']:
             temperature = weather[source]['temperature']
             humidity = weather[source]['humidity']
             dewpoint = weather[source]['dew_point']
