@@ -92,9 +92,12 @@ def send_coverage_plots():
                                for survey_name in set(lastnight_othersurveys)}
 
         # Create highlight lists for plot
-        highlight_tiles = [lastnight_surveytiles]
+        highlight_tiles = []
+        highlight_labels = []
+        if len(lastnight_surveytiles) > 0:
+            highlight_tiles += [lastnight_surveytiles]
+            highlight_labels += [db_survey.name]
         highlight_tiles += [lastnight_otherdict[survey] for survey in sorted(lastnight_otherdict)]
-        highlight_labels = [db_survey.name]
         highlight_labels += [survey for survey in sorted(lastnight_otherdict)]
 
         # Use Astroplan to get all the tiles that would have been visible last night
