@@ -639,19 +639,19 @@ def update_header(header, ut, all_info, log):
         mount_tracking = info['status'] == 'Tracking'
 
         targ_ra = info['target_ra']
-        if targ_ra:
+        if targ_ra is not None:
             targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_ra_str = 'NA'
 
         targ_dec = info['target_dec']
-        if targ_dec:
+        if targ_dec is not None:
             targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
         targ_dist_a = info['target_dist']
-        if targ_dist_a:
+        if targ_dist_a is not None:
             targ_dist = numpy.around(targ_dist_a, decimals=1)
         else:
             targ_dist = 'NA'
