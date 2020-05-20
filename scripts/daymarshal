@@ -49,53 +49,18 @@ def send_dome_report(msg, confirmed_closed):
     send_slack_msg(msg, attachments=attachments)
 
 
-def send_coverage_plots():
-    """Send Slack messages with nightly coverage and updated survey coverage plots."""
+def get_lastnight_observations(date_string):
+    """Get the tiles observed last night, and which survey they were part of."""
+    # Get the dates for the start and end of the night just finished
+    midday_yesterday = datetime.datetime.strptime(date_string + ' 12:00:00', '%Y-%m-%d %H:%M:%S')
+    midday_today = midday_yesterday + datetime.timedelta(days=1)
+
     with db.open_session() as session:
-        # Get the base grid
+        # Get the current grid from the database
         db_grid = db.get_current_grid(session)
 
         # Create a SkyGrid from the database Grid
         grid = db_grid.get_skygrid()
-
-        # Get the dates for the start and end of the night just finished
-        midday_today = datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
-        midday_yesterday = midday_today - datetime.timedelta(days=1)
-
-        # Get all pointings observed last night on the grid
-        query = session.query(db.Pointing).filter(
-            db.Pointing.status == 'completed',
-            db.Pointing.grid == db_grid,
-            db.Pointing.stopped_time > midday_yesterday,
-            db.Pointing.stopped_time < midday_today,
-        )
-        lastnight_pointings = query.all()
-
-        # Get the tile names of the all-sky survey pointings completed last night
-        db_survey = db_grid.surveys[0]
-        lastnight_surveytiles = [p.grid_tile.name
-                                 for p in lastnight_pointings
-                                 if p.survey_tile and p.survey_tile.survey.name == db_survey.name]
-
-        # Get the names and surveys of the other, non-all-sky pointings completed last night
-        lastnight_othertiles = [p.grid_tile.name
-                                for p in lastnight_pointings
-                                if not p.survey_tile or p.survey_tile.survey.name != db_survey.name]
-        lastnight_othersurveys = [p.survey_tile.survey.name if p.survey_tile else 'None'
-                                  for p in lastnight_pointings
-                                  if (not p.survey_tile or
-                                      p.survey_tile.survey.name != db_survey.name)]
-        lastnight_othertiles = np.array(lastnight_othertiles)
-        lastnight_othersurveys = np.array(lastnight_othersurveys)
-        lastnight_otherdict = {survey_name:
-                               lastnight_othertiles[lastnight_othersurveys == survey_name]
-                               for survey_name in set(lastnight_othersurveys)}
-
-        # Create highlight lists for plot
-        highlight_tiles = [lastnight_surveytiles]
-        highlight_tiles += [lastnight_otherdict[survey] for survey in sorted(lastnight_otherdict)]
-        highlight_labels = [db_survey.name]
-        highlight_labels += [survey for survey in sorted(lastnight_otherdict)]
 
         # Use Astroplan to get all the tiles that would have been visible last night
         visible_tiles = grid.get_visible_tiles(observatory_location(),
@@ -104,63 +69,63 @@ def send_coverage_plots():
                                                alt_limit=30,
                                                sun_limit=-12,
                                                )
-        notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
 
-        # Create plot of tiles observed last night
-        direc = os.path.join(params.FILE_PATH, 'plots')
-        if not os.path.exists(direc):
-            os.mkdir(direc)
-        date = midday_yesterday.strftime('%Y-%m-%d')
-        filename = '{}_observed.png'.format(date)
-        filepath = os.path.join(direc, filename)
+        # Get all pointings observed last night on the grid
+        query = session.query(db.Pointing).filter(
+            db.Pointing.status == 'completed',
+            db.Pointing.grid == db_grid,
+            db.Pointing.stopped_time > midday_yesterday,
+            db.Pointing.stopped_time < midday_today,
+        )
+        all_pointings = query.all()
+        all_surveys = []
+        all_tiles = []
 
-        title = 'GOTO observations for\nnight beginning {}'.format(date)
-        grid.plot(filename=filepath,
-                  color={tilename: '0.5' for tilename in notvisible_tiles},
-                  highlight=highlight_tiles,
-                  highlight_label=highlight_labels,
-                  alpha=0.5,
-                  title=title)
+        # Get the tile names of the all-sky survey pointings completed last night
+        db_survey = db_grid.surveys[0]
+        survey_pointings = [p for p in all_pointings if p.survey == db_survey]
+        survey_tiles = [p.grid_tile.name for p in survey_pointings]
+        all_surveys.append(db_survey.name)
+        all_tiles.append(survey_tiles)
 
-        # Send the message, with the plot attached
-        send_slack_msg('Last night coverage plot', filepath=filepath)
+        # Get the names and surveys of the other pointings completed last night
+        other_pointings = [p for p in all_pointings if p not in survey_pointings]
+        other_tiles = np.array([p.grid_tile.name for p in other_pointings])
+        other_surveys = np.array([p.survey.name if p.survey else 'None' for p in other_pointings])
+        for survey in sorted(set(other_surveys)):
+            all_surveys.append(survey)
+            all_tiles.append(other_tiles[other_surveys == survey])
 
-        #########
+    return grid, visible_tiles, all_surveys, all_tiles
 
-        # Now get all completed all-sky survey pointings since it started
+
+def get_survey_observations(date_string):
+    """Get all survey observations prior to the given night."""
+    # Get the dates for the start and end of the night just finished
+    midday_yesterday = datetime.datetime.strptime(date_string + ' 12:00:00', '%Y-%m-%d %H:%M:%S')
+    midday_today = midday_yesterday + datetime.timedelta(days=1)
+
+    with db.open_session() as session:
+        # Get the current survey from the database
+        db_grid = db.get_current_grid(session)
+        db_survey = db_grid.surveys[0]
+
+        # Get all completed all-sky survey pointings since it started
         query = session.query(db.Pointing).filter(
             db.Pointing.status == 'completed',
             db.Pointing.survey == db_survey,
+            db.Pointing.stopped_time < midday_today,
         )
         survey_pointings = query.all()
-
-        # Get start date of the survey
-        survey_start = min([p.stopped_time for p in survey_pointings])
 
         # Count tiles
         counter = Counter([p.grid_tile.name for p in survey_pointings])
         count_dict = dict(counter)
 
-        # Create plot
-        direc = os.path.join(params.FILE_PATH, 'plots')
-        if not os.path.exists(direc):
-            os.mkdir(direc)
-        filename = '{}_survey.png'.format(date)
-        filepath = os.path.join(direc, filename)
+        # Get start date of the survey
+        startdate = min(p.stopped_time for p in survey_pointings)
 
-        title = 'GOTO all-sky survey coverage\n'
-        title += 'from {} to {}'.format(survey_start.strftime('%Y-%m-%d'), date)
-        grid.plot(filename=filepath,
-                  color=count_dict,
-                  discrete_colorbar=True,
-                  highlight=lastnight_surveytiles,
-                  highlight_color='red',
-                  highlight_label='observed last night',
-                  alpha=0.5,
-                  title=title)
-
-        # Send the message, with the plot attached
-        send_slack_msg('All-sky survey coverage plot', filepath=filepath)
+    return count_dict, startdate
 
 
 def run(test=False):
@@ -243,7 +208,7 @@ def run(test=False):
         # Run the command through Python, so we can do it on the remote machines
         command = '{} -m gtecs.observing_scripts.update_IERS'.format(sys.executable)
         if host == params.LOCAL_HOST:
-            execute_command("{}".format(command), timeout=120)
+            execute_command(command, timeout=120)
         else:
             execute_command("ssh {} '{}'".format(host, command), timeout=120)
 
@@ -253,8 +218,62 @@ def run(test=False):
     time.sleep(5)
     execute_command('power on poe')
 
-    # Send the coverage plots
-    send_coverage_plots()
+    #####
+
+    # Plots for Slack
+    plot_direc = os.path.join(params.FILE_PATH, 'plots')
+    if not os.path.exists(plot_direc):
+        os.mkdir(plot_direc)
+
+    # Get last night's observations
+    grid, visible_tiles, surveys, tiles = get_lastnight_observations(date)
+    notvisible_tiles = [tile for tile in grid.tilenames if tile not in visible_tiles]
+    obs_tiles = sum(len(t) for t in tiles)
+    obs_survey = len(tiles[0])
+    log.info('Last night we observed {} tiles'.format(obs_tiles))
+    log.info('Last night we observed {} all-sky survey tiles'.format(obs_survey))
+
+    # Remove the empty all-sky survey list if we didn't observe any
+    if obs_survey == 0:
+        surveys = surveys[1:]
+        tiles = tiles[1:]
+
+    # Make a plot of last night's observations (assuming we observed anything)
+    if obs_tiles > 0:
+        title = 'GOTO observations for\nnight beginning {}'.format(date)
+        filepath = os.path.join(plot_direc, '{}_observed.png'.format(date))
+        grid.plot(filename=filepath,
+                  color={tilename: '0.5' for tilename in notvisible_tiles},
+                  highlight=tiles,
+                  highlight_label=surveys,
+                  alpha=0.5,
+                  title=title)
+
+        # Send message to Slack with the plot attached
+        log.info('Sending coverage plot to Slack')
+        send_slack_msg('Last night coverage plot', filepath=filepath)
+
+    # Create plot of all-sky survey coverage (assuming we observed any new ones)
+    if obs_survey > 0:
+        # Get all survey observations (and the date it started)
+        count_dict, startdate = get_survey_observations(date)
+
+        # Create plot
+        title = 'GOTO all-sky survey coverage\n'
+        title += 'from {} to {}'.format(startdate.strftime('%Y-%m-%d'), date)
+        filepath = os.path.join(plot_direc, '{}_survey.png'.format(date))
+        grid.plot(filename=filepath,
+                  color=count_dict,
+                  discrete_colorbar=True,
+                  highlight=tiles[0],
+                  highlight_color='red',
+                  highlight_label='observed last night',
+                  alpha=0.5,
+                  title=title)
+
+        # Send message to Slack with the plot attached
+        log.info('Sending coverage plot to Slack')
+        send_slack_msg('All-sky survey coverage plot', filepath=filepath)
 
     log.info('Done')
 
@@ -276,7 +295,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-t', '--test', action="store_true", default=False)
+    parser.add_argument('-t', '--test', action='store_true', default=False)
     args = parser.parse_args()
 
     with make_pid_file('daymarshal'):
