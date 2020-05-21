@@ -328,12 +328,12 @@ class Pilot(object):
         """
         self.log.info('night marshal initialised')
 
-        # now startup is complete we can start hardware checks
+        # Wait for first flag check
         while not self.initial_flags_check_complete:
             self.log.info('waiting for the first successful flags check')
             await asyncio.sleep(30)
 
-        # if paused due to manual mode we should not do anything
+        # Wait until manual mode is lifted (if starting in manual)
         message_sent = False
         while self.whypause['manual']:
             self.log.info('in manual mode, tasks suspended')
@@ -342,11 +342,11 @@ class Pilot(object):
                 message_sent = True
             await asyncio.sleep(30)
 
-        # wait for the right sunalt to start
+        # Wait for the right sunalt to start
         if not restart:
             await self.wait_for_sunalt(self.startup_sunalt, 'STARTUP')
 
-        # Startup: do this always, unless we're restarting
+        # 1) Startup (skip if we're restarting)
         if not restart:
             if not self.startup_complete:
                 await self.startup()
@@ -354,40 +354,42 @@ class Pilot(object):
         self.send_startup_report()
         self.startup_complete = True
 
-        # now startup is complete we can start hardware checks
+        # Wait for first successful hardware check
         while not self.initial_hardware_check_complete:
             self.log.info('waiting for the first successful hardware check')
             await asyncio.sleep(30)
 
-        # make sure filters are homed and cams are cool, in case of restart
+        # 2) Prepare for images (needed in case we're restarting and therefore skipped startup)
         await self.prepare_for_images_async()
 
-        # Daytime tasks: do these even in bad weather
+        # 3) Daytime tasks (skip if we're restarting, and do even in bad weather)
         if not restart:
-            await self.run_through_tasks(self.daytime_tasks, rising=False,
+            await self.run_through_tasks(self.daytime_tasks,
+                                         rising=False,
                                          ignore_conditions=True,
                                          ignore_late=late)
 
-        # wait for the right sunalt to open dome
+        # Wait for the right sunalt to open dome
         await self.wait_for_sunalt(self.open_sunalt, 'OPEN')
 
         # Wait for daytime tasks to finish
         await self.wait_for_tasks()
 
-        # no point opening if we are paused due to bad weather or hardware fault
+        # Wait for any pause to clear (can't open if conditions are bad or there's a hardware error)
         while self.paused:
             self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
-        # OK - open the dome and start nightly operations
+        # 4) Open the dome
         self.log.info('starting night operations')
         self.night_operations = True
         await self.open_dome()
         await self.unpark_mount()
 
-        # Evening tasks
+        # 4) Evening tasks (skip if we're restarting)
         if not restart:
-            await self.run_through_tasks(self.evening_tasks, rising=False,
+            await self.run_through_tasks(self.evening_tasks,
+                                         rising=False,
                                          ignore_late=late)
 
         # Wait for darkness
@@ -396,21 +398,20 @@ class Pilot(object):
         # Wait for evening tasks to finish
         await self.wait_for_tasks()
 
-        # Start observing: will automatically stop at the target sun alt
+        # 5) Start observing (will stop at the given sunalt)
         await self.observe(self.obs_stop_sunalt)
 
-        # Morning tasks
-        await self.run_through_tasks(self.morning_tasks, rising=True,
+        # 6) Morning tasks
+        await self.run_through_tasks(self.morning_tasks,
+                                     rising=True,
                                      ignore_late=False)
 
         # Wait for morning tasks to finish
         await self.wait_for_tasks()
 
-        # Finished.
+        # 7) All tasks finished, trigger shutdown
         self.log.info('finished night operations')
         self.night_operations = False
-
-        # Shut down the system, nothing else to do
         self.shutdown_now = True
 
     # External scripts
