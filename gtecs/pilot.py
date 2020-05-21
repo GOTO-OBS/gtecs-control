@@ -344,7 +344,7 @@ class Pilot(object):
 
         # wait for the right sunalt to start
         if not restart:
-            await self.wait_for_sunalt(12, 'STARTUP')
+            await self.wait_for_sunalt(self.startup_sunalt, 'STARTUP')
 
         # Startup: do this always, unless we're restarting
         if not restart:
@@ -369,7 +369,7 @@ class Pilot(object):
                                          ignore_late=late)
 
         # wait for the right sunalt to open dome
-        await self.wait_for_sunalt(0, 'OPEN')
+        await self.wait_for_sunalt(self.open_sunalt, 'OPEN')
 
         # no point opening if we are paused due to bad weather or hardware fault
         while self.paused:
@@ -388,7 +388,7 @@ class Pilot(object):
                                          ignore_late=late)
 
         # Wait for darkness
-        await self.wait_for_sunalt(-12, 'OBS')
+        await self.wait_for_sunalt(self.obs_start_sunalt, 'OBS')
 
         # Wait for evening tasks to finish
         while self.tasks_pending or self.running_script:
@@ -396,11 +396,7 @@ class Pilot(object):
             await asyncio.sleep(10)
 
         # Start observing: will automatically stop at the target sun alt
-        if self.testing:
-            await self.observe(until_sunalt=90)
-        else:
-            # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)  # WITH FOCRUN
-            await self.observe(until_sunalt=-12, last_obs_sunalt=-14)  # WITHOUT FOCRUN
+        await self.observe(self.obs_stop_sunalt)
 
         # Morning tasks
         await self.run_through_tasks(self.morning_tasks, rising=True,
@@ -506,7 +502,14 @@ class Pilot(object):
 
     # Daily tasks
     def assign_tasks(self):
-        """Assign the daily tasks for the pilot."""
+        """Assign times and details of the daily tasks carried out by the pilot.
+
+        In an ideal world these would all be defined in params, or even better in a
+        JSON config file.
+        """
+        # startup
+        self.startup_sunalt = -12
+
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
                  'sunalt': 8,
@@ -515,6 +518,9 @@ class Pilot(object):
                  'protocol': SimpleProtocol}
 
         self.daytime_tasks = [darks]
+
+        # open
+        self.open_sunalt = 0
 
         # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
@@ -529,6 +535,14 @@ class Pilot(object):
                    'protocol': SimpleProtocol}
 
         self.evening_tasks = [flats_e, autofoc]
+
+        # observing
+        self.obs_start_sunalt = -12
+        if self.testing:
+            self.obs_stop_sunalt = 90
+        else:
+            # self.obs_stop_sunalt = -14  # WITH FOCRUN
+            self.obs_stop_sunalt = -12  # WITHOUT FOCRUN
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
@@ -661,17 +675,23 @@ class Pilot(object):
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
-    async def observe(self, until_sunalt=-14.6, last_obs_sunalt=-15):
+    async def observe(self, until_sunalt=-12, last_obs_sunalt=None):
         """Observe until further notice.
 
         Parameters
         ----------
-        until_sunalt : float
-            sun altitude at which to stop observing
-        last_obs_sunalt : float
-            sun altitude at which to schedule last new observation
+        until_sunalt : float, default = -12
+            sun altitude at which to stop observing.
+
+        last_obs_sunalt : float, optional
+            sun altitude at which to schedule last new observation.
+            default is two degrees earlier than `until_sunalt`,
+            e.g. if until_sunalt=-12 (the default) then last_obs_sunalt=-14
 
         """
+        if last_obs_sunalt is None:
+            last_obs_sunalt = until_sunalt - 2
+
         self.log.info('observing')
         self.observing = True
 
