@@ -59,6 +59,9 @@ class Pilot(object):
         self.log.info('Pilot started')
         send_slack_msg('Pilot started')
 
+        # flag for daytime testing
+        self.testing = testing
+
         # current and next pointing from scheduler
         self.current_id = None
         self.current_mintime = None
@@ -78,10 +81,10 @@ class Pilot(object):
         # also used to pause and resume operations?
         self.running_tasks = []
 
-        # lists of routine tasks. Each task a dict of name, protocol, cmd and sunalt
-        self.daytime_tasks = []  # before dome opens
-        self.evening_tasks = []  # after dome opens
-        self.morning_tasks = []  # after observing
+        # define nightly tasks
+        self.assign_tasks()
+
+        # status flags, set during the night
         self.startup_complete = False
         self.night_operations = False
         self.tasks_pending = False
@@ -121,9 +124,6 @@ class Pilot(object):
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
         self.initial_scheduler_check_complete = False
-
-        # flag for daytime testing
-        self.testing = testing
 
         # flag to shutdown early
         self.shutdown_now = False
@@ -1209,7 +1209,6 @@ def run(test=False, restart=False, late=False):
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
     pilot = Pilot(testing=test)
-    pilot.assign_tasks()
 
     # start the recurrent tasks
     pilot.running_tasks.extend([
