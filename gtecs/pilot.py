@@ -504,7 +504,7 @@ class Pilot(object):
         JSON config file.
         """
         # startup
-        self.startup_sunalt = -12
+        self.startup_sunalt = 12
 
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
