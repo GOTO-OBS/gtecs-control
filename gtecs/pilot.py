@@ -371,6 +371,11 @@ class Pilot(object):
         # wait for the right sunalt to open dome
         await self.wait_for_sunalt(self.open_sunalt, 'OPEN')
 
+        # Wait for daytime tasks to finish
+        while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
+            await asyncio.sleep(10)
+
         # no point opening if we are paused due to bad weather or hardware fault
         while self.paused:
             self.log.info('opening suspended until pause is cleared')
@@ -512,19 +517,24 @@ class Pilot(object):
 
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
-                 'sunalt': 8,
+                 'sunalt': 9,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': SimpleProtocol}
+        xdarks = {'name': 'XDARKS',
+                  'sunalt': 2,
+                  'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
+                  'args': [],
+                  'protocol': SimpleProtocol}
 
-        self.daytime_tasks = [darks]
+        self.daytime_tasks = [darks, xdarks]
 
         # open
-        self.open_sunalt = 0
+        self.open_sunalt = -2
 
         # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
-                   'sunalt': -2,
+                   'sunalt': -2.5,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
