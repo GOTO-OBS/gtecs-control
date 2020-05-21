@@ -372,9 +372,7 @@ class Pilot(object):
         await self.wait_for_sunalt(self.open_sunalt, 'OPEN')
 
         # Wait for daytime tasks to finish
-        while self.tasks_pending or self.running_script:
-            self.log.debug('waiting for running tasks to finish')
-            await asyncio.sleep(10)
+        await self.wait_for_tasks()
 
         # no point opening if we are paused due to bad weather or hardware fault
         while self.paused:
@@ -396,9 +394,7 @@ class Pilot(object):
         await self.wait_for_sunalt(self.obs_start_sunalt, 'OBS')
 
         # Wait for evening tasks to finish
-        while self.tasks_pending or self.running_script:
-            self.log.debug('waiting for running tasks to finish')
-            await asyncio.sleep(10)
+        await self.wait_for_tasks()
 
         # Start observing: will automatically stop at the target sun alt
         await self.observe(self.obs_stop_sunalt)
@@ -408,9 +404,7 @@ class Pilot(object):
                                      ignore_late=False)
 
         # Wait for morning tasks to finish
-        while self.tasks_pending or self.running_script:
-            self.log.debug('waiting for running tasks to finish')
-            await asyncio.sleep(10)
+        await self.wait_for_tasks()
 
         # Finished.
         self.log.info('finished night operations')
@@ -613,6 +607,13 @@ class Pilot(object):
             await asyncio.sleep(1)
 
         self.tasks_pending = False
+
+    async def wait_for_tasks(self):
+        """Return when all running tasks are complete."""
+        while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
+            await asyncio.sleep(10)
+        return True
 
     async def wait_for_sunalt(self, sunalt, why,
                               rising=False, ignore_late=False):
