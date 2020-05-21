@@ -21,8 +21,7 @@ from .asyncio_protocols import SimpleProtocol
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
-                        get_pointing_status)
+from .observing import check_schedule, get_pointing_status
 from .slack import send_slack_msg
 
 
@@ -359,10 +358,7 @@ class Pilot(object):
             self.log.info('waiting for the first successful hardware check')
             await asyncio.sleep(30)
 
-        # 2) Prepare for images (needed in case we're restarting and therefore skipped startup)
-        await self.prepare_for_images_async()
-
-        # 3) Daytime tasks (skip if we're restarting, and do even in bad weather)
+        # 2) Daytime tasks (skip if we're restarting, and do even in bad weather)
         if not restart:
             await self.run_through_tasks(self.daytime_tasks,
                                          rising=False,
@@ -380,7 +376,7 @@ class Pilot(object):
             self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
-        # 4) Open the dome
+        # 3) Open the dome
         self.log.info('starting night operations')
         self.night_operations = True
         await self.open_dome()
@@ -1129,22 +1125,6 @@ class Pilot(object):
         execute_command('mnt park')
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
-
-    async def prepare_for_images_async(self):
-        """Prepare for taking images."""
-        # Home the filter wheels
-        if not filters_are_homed():
-            execute_command('filt home')
-            while not filters_are_homed():
-                await asyncio.sleep(1)
-        self.log.info('filters are homed')
-
-        # Bring the CCDs down to temperature
-        if not cameras_are_cool():
-            execute_command('cam temp {}'.format(params.CCD_TEMP))
-            while not cameras_are_cool():
-                await asyncio.sleep(1)
-        self.log.info('cameras are cool')
 
     def send_startup_report(self):
         """Format and send a Slack message with a summery of the current conditions."""
