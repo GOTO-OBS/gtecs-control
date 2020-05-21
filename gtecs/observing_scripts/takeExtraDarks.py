@@ -7,7 +7,7 @@ from gtecs.misc import execute_command
 from gtecs.observing import prepare_for_images, wait_for_exposure_queue
 
 
-def run(n):
+def run():
     """Take extra dark frames."""
     print('Taking extra test dark frames.')
 
