@@ -14,8 +14,7 @@ def run():
     # make sure hardware is ready
     prepare_for_images()
 
-    execute_command('exq dark 60 1')
-    execute_command('exq dark 600 1')
+    execute_command('exq multdark 2 600 1')
     execute_command('exq resume')  # just in case
 
     # estimate a deliberately pessimistic timeout

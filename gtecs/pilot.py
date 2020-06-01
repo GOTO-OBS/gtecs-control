@@ -521,11 +521,11 @@ class Pilot(object):
         self.daytime_tasks = [darks, xdarks]
 
         # open
-        self.open_sunalt = -2
+        self.open_sunalt = -4
 
         # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
-                   'sunalt': -2.5,
+                   'sunalt': -4.5,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
