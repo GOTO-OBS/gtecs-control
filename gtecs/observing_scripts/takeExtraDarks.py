@@ -19,7 +19,7 @@ def run():
 
     # estimate a deliberately pessimistic timeout
     readout = 10
-    total_time = (60 + readout +
+    total_time = (600 + readout +
                   600 + readout)
     total_time *= 1.5
     wait_for_exposure_queue(total_time)
