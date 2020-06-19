@@ -508,7 +508,7 @@ class Pilot(object):
 
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
-                 'sunalt': 9,
+                 'sunalt': 9.5,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': SimpleProtocol}
