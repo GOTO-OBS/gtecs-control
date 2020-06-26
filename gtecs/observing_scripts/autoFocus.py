@@ -284,7 +284,7 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('Initial HFDs:', initial_hfds.round(1).to_dict())
         print('Current HFDs:', out_hfds.round(1).to_dict())
         print('Trying to move out again...')
-        mask = out_hfds < initial_hfds + 1
+        mask = out_hfds < initial_hfds + 2  # stricter mask
         moving_uts = initial_hfds.index[mask]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
         new_positions = {ut: initial_positions[ut] + big_step[ut] / 2 for ut in moving_uts}
