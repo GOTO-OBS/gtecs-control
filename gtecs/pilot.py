@@ -21,8 +21,7 @@ from .asyncio_protocols import SimpleProtocol
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import (cameras_are_cool, check_schedule, filters_are_homed,
-                        get_pointing_status)
+from .observing import check_schedule, get_pointing_status
 from .slack import send_slack_msg
 
 
@@ -59,6 +58,9 @@ class Pilot(object):
         self.log.info('Pilot started')
         send_slack_msg('Pilot started')
 
+        # flag for daytime testing
+        self.testing = testing
+
         # current and next pointing from scheduler
         self.current_id = None
         self.current_mintime = None
@@ -78,10 +80,10 @@ class Pilot(object):
         # also used to pause and resume operations?
         self.running_tasks = []
 
-        # lists of routine tasks. Each task a dict of name, protocol, cmd and sunalt
-        self.daytime_tasks = []  # before dome opens
-        self.evening_tasks = []  # after dome opens
-        self.morning_tasks = []  # after observing
+        # define nightly tasks
+        self.assign_tasks()
+
+        # status flags, set during the night
         self.startup_complete = False
         self.night_operations = False
         self.tasks_pending = False
@@ -121,9 +123,6 @@ class Pilot(object):
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
         self.initial_scheduler_check_complete = False
-
-        # flag for daytime testing
-        self.testing = testing
 
         # flag to shutdown early
         self.shutdown_now = False
@@ -328,12 +327,12 @@ class Pilot(object):
         """
         self.log.info('night marshal initialised')
 
-        # now startup is complete we can start hardware checks
+        # Wait for first flag check
         while not self.initial_flags_check_complete:
             self.log.info('waiting for the first successful flags check')
             await asyncio.sleep(30)
 
-        # if paused due to manual mode we should not do anything
+        # Wait until manual mode is lifted (if starting in manual)
         message_sent = False
         while self.whypause['manual']:
             self.log.info('in manual mode, tasks suspended')
@@ -342,11 +341,11 @@ class Pilot(object):
                 message_sent = True
             await asyncio.sleep(30)
 
-        # wait for the right sunalt to start
+        # Wait for the right sunalt to start
         if not restart:
-            await self.wait_for_sunalt(12, 'STARTUP')
+            await self.wait_for_sunalt(self.startup_sunalt, 'STARTUP')
 
-        # Startup: do this always, unless we're restarting
+        # 1) Startup (skip if we're restarting)
         if not restart:
             if not self.startup_complete:
                 await self.startup()
@@ -354,68 +353,61 @@ class Pilot(object):
         self.send_startup_report()
         self.startup_complete = True
 
-        # now startup is complete we can start hardware checks
+        # Wait for first successful hardware check
         while not self.initial_hardware_check_complete:
             self.log.info('waiting for the first successful hardware check')
             await asyncio.sleep(30)
 
-        # make sure filters are homed and cams are cool, in case of restart
-        await self.prepare_for_images_async()
-
-        # Daytime tasks: do these even in bad weather
+        # 2) Daytime tasks (skip if we're restarting, and do even in bad weather)
         if not restart:
-            await self.run_through_tasks(self.daytime_tasks, rising=False,
+            await self.run_through_tasks(self.daytime_tasks,
+                                         rising=False,
                                          ignore_conditions=True,
                                          ignore_late=late)
 
-        # wait for the right sunalt to open dome
-        await self.wait_for_sunalt(0, 'OPEN')
+        # Wait for the right sunalt to open dome
+        await self.wait_for_sunalt(self.open_sunalt, 'OPEN')
 
-        # no point opening if we are paused due to bad weather or hardware fault
+        # Wait for daytime tasks to finish
+        await self.wait_for_tasks()
+
+        # Wait for any pause to clear (can't open if conditions are bad or there's a hardware error)
         while self.paused:
             self.log.info('opening suspended until pause is cleared')
             await asyncio.sleep(30)
 
-        # OK - open the dome and start nightly operations
+        # 3) Open the dome
         self.log.info('starting night operations')
         self.night_operations = True
         await self.open_dome()
         await self.unpark_mount()
 
-        # Evening tasks
+        # 4) Evening tasks (skip if we're restarting)
         if not restart:
-            await self.run_through_tasks(self.evening_tasks, rising=False,
+            await self.run_through_tasks(self.evening_tasks,
+                                         rising=False,
                                          ignore_late=late)
 
         # Wait for darkness
-        await self.wait_for_sunalt(-12, 'OBS')
+        await self.wait_for_sunalt(self.obs_start_sunalt, 'OBS')
 
         # Wait for evening tasks to finish
-        while self.tasks_pending or self.running_script:
-            self.log.debug('waiting for running tasks to finish')
-            await asyncio.sleep(10)
+        await self.wait_for_tasks()
 
-        # Start observing: will automatically stop at the target sun alt
-        if self.testing:
-            await self.observe(until_sunalt=90)
-        else:
-            # await self.observe(until_sunalt=-14.6, last_obs_sunalt=-15)  # WITH FOCRUN
-            await self.observe(until_sunalt=-12, last_obs_sunalt=-14)  # WITHOUT FOCRUN
+        # 5) Start observing (will stop at the given sunalt)
+        await self.observe(self.obs_stop_sunalt)
 
-        # Morning tasks
-        await self.run_through_tasks(self.morning_tasks, rising=True,
+        # 6) Morning tasks
+        await self.run_through_tasks(self.morning_tasks,
+                                     rising=True,
                                      ignore_late=False)
 
         # Wait for morning tasks to finish
-        while self.tasks_pending or self.running_script:
-            self.log.debug('waiting for running tasks to finish')
-            await asyncio.sleep(10)
+        await self.wait_for_tasks()
 
-        # Finished.
+        # 7) All tasks finished, trigger shutdown
         self.log.info('finished night operations')
         self.night_operations = False
-
-        # Shut down the system, nothing else to do
         self.shutdown_now = True
 
     # External scripts
@@ -506,19 +498,34 @@ class Pilot(object):
 
     # Daily tasks
     def assign_tasks(self):
-        """Assign the daily tasks for the pilot."""
+        """Assign times and details of the daily tasks carried out by the pilot.
+
+        In an ideal world these would all be defined in params, or even better in a
+        JSON config file.
+        """
+        # startup
+        self.startup_sunalt = 12
+
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
-                 'sunalt': 8,
+                 'sunalt': 9.5,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': SimpleProtocol}
+        xdarks = {'name': 'XDARKS',
+                  'sunalt': 1,
+                  'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
+                  'args': [],
+                  'protocol': SimpleProtocol}
 
-        self.daytime_tasks = [darks]
+        self.daytime_tasks = [darks, xdarks]
+
+        # open
+        self.open_sunalt = -4
 
         # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
-                   'sunalt': -2,
+                   'sunalt': -4.5,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': SimpleProtocol}
@@ -529,6 +536,14 @@ class Pilot(object):
                    'protocol': SimpleProtocol}
 
         self.evening_tasks = [flats_e, autofoc]
+
+        # observing
+        self.obs_start_sunalt = -12
+        if self.testing:
+            self.obs_stop_sunalt = 90
+        else:
+            # self.obs_stop_sunalt = -14  # WITH FOCRUN
+            self.obs_stop_sunalt = -12  # WITHOUT FOCRUN
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
@@ -589,6 +604,13 @@ class Pilot(object):
             await asyncio.sleep(1)
 
         self.tasks_pending = False
+
+    async def wait_for_tasks(self):
+        """Return when all running tasks are complete."""
+        while self.tasks_pending or self.running_script:
+            self.log.debug('waiting for running tasks to finish')
+            await asyncio.sleep(10)
+        return True
 
     async def wait_for_sunalt(self, sunalt, why,
                               rising=False, ignore_late=False):
@@ -661,17 +683,23 @@ class Pilot(object):
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
-    async def observe(self, until_sunalt=-14.6, last_obs_sunalt=-15):
+    async def observe(self, until_sunalt=-12, last_obs_sunalt=None):
         """Observe until further notice.
 
         Parameters
         ----------
-        until_sunalt : float
-            sun altitude at which to stop observing
-        last_obs_sunalt : float
-            sun altitude at which to schedule last new observation
+        until_sunalt : float, default = -12
+            sun altitude at which to stop observing.
+
+        last_obs_sunalt : float, optional
+            sun altitude at which to schedule last new observation.
+            default is two degrees earlier than `until_sunalt`,
+            e.g. if until_sunalt=-12 (the default) then last_obs_sunalt=-14
 
         """
+        if last_obs_sunalt is None:
+            last_obs_sunalt = until_sunalt - 2
+
         self.log.info('observing')
         self.observing = True
 
@@ -1098,22 +1126,6 @@ class Pilot(object):
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
 
-    async def prepare_for_images_async(self):
-        """Prepare for taking images."""
-        # Home the filter wheels
-        if not filters_are_homed():
-            execute_command('filt home')
-            while not filters_are_homed():
-                await asyncio.sleep(1)
-        self.log.info('filters are homed')
-
-        # Bring the CCDs down to temperature
-        if not cameras_are_cool():
-            execute_command('cam temp {}'.format(params.CCD_TEMP))
-            while not cameras_are_cool():
-                await asyncio.sleep(1)
-        self.log.info('cameras are cool')
-
     def send_startup_report(self):
         """Format and send a Slack message with a summery of the current conditions."""
         msg = 'Pilot reports startup complete'
@@ -1189,7 +1201,6 @@ def run(test=False, restart=False, late=False):
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
     pilot = Pilot(testing=test)
-    pilot.assign_tasks()
 
     # start the recurrent tasks
     pilot.running_tasks.extend([

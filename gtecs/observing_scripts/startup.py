@@ -33,11 +33,23 @@ def run():
 
     time.sleep(10)
 
-    # Make all the other daemons and interfaces are running
+    # Restart the UT interfaces
+    # We shouldn't need to do this, they should be fine running while the hardware is powered off
+    # However sometimes it seems there are errors, so we do this just to be sure
+    execute_command('intf shutdown')
+    time.sleep(2)
+    execute_command('intf kill')  # Just in case they failed to shutdown
+    time.sleep(2)
+
+    # Make sure the interfaces are started before the other daemons
     execute_command('intf start')
+    time.sleep(1)
+
+    # Make all the other daemons are running
     for daemon_id in list(params.DAEMONS):
         if daemon_id not in params.INTERFACES:
             execute_command('{} start'.format(daemon_id))
+            time.sleep(0.5)
 
     time.sleep(4)
 

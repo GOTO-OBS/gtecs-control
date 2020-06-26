@@ -22,16 +22,16 @@ def run(nexp=5):
     prepare_for_images()
 
     execute_command('exq multbias {} 1'.format(nexp))
-    execute_command('exq multdark {} 30 1'.format(nexp))
     execute_command('exq multdark {} 60 1'.format(nexp))
+    execute_command('exq multdark {} 90 1'.format(nexp))
     execute_command('exq multdark {} 120 1'.format(nexp))
     execute_command('exq resume')  # just in case
 
     # estimate a deliberately pessimistic timeout
     readout = 10
     total_time = (1 + readout +
-                  30 + readout +
                   60 + readout +
+                  90 + readout +
                   120 + readout) * nexp
     total_time *= 1.5
     wait_for_exposure_queue(total_time)

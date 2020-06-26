@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     if args.time == 'EVE':
         eve = True
-        alt = -3 * u.deg
+        alt = -5 * u.deg
     else:
         eve = False
         alt = -10 * u.deg
