@@ -230,8 +230,11 @@ def sky_brightness(sunalt, filt):
         # approx R
         return surface_brightness[3](phi)
     elif filt.upper() == 'C':
-        # dunno. G?
-        return surface_brightness[2](phi)
+        # approx twice L?
+        sb_b = surface_brightness[1](phi)
+        sb_v = surface_brightness[2](phi)
+        sb_r = surface_brightness[3](phi)
+        return ((sb_b + sb_v + sb_r) / 3.0) * 2.0
     else:
         raise ValueError('unknown filter ' + str(filt))
 
