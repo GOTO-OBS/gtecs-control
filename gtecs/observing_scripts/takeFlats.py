@@ -33,12 +33,16 @@ def take_sky(exptime, current_filter, name, glance=False):
     slew_to_radec(new_ra, new_dec, timeout=120)
 
     # Take the image and load the image data
-    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
+    if current_filter != 'C':
+        uts = params.UTS_WITH_FILTERWHEELS
+    else:
+        uts = [ut for ut in params.UTS if ut not in params.UTS_WITH_FILTERWHEELS]
+    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance, uts=uts)
 
     # Get the mean value for the images
     sky_medians = {ut: int(np.median(image_data[ut])) for ut in sorted(image_data)}
     print('Median counts:', sky_medians)
-    sky_mean = np.mean([sky_medians[ut] for ut in params.UTS_WITH_FILTERWHEELS])
+    sky_mean = np.mean([sky_medians[ut] for ut in params.sky_medians])
 
     # Delete the image data for good measure, to save memory
     del image_data
@@ -87,11 +91,11 @@ def run(eve, alt, late=False):
     nflats = params.FLATS_NUM
     if eve:
         start_exptime = 3.0
-        filt_list = ['B', 'G', 'R', 'L']
+        filt_list = ['B', 'G', 'R', 'L', 'C']
         sky_mean = 40000.0
     else:
-        start_exptime = 40.0
-        filt_list = ['L', 'R', 'G', 'B']
+        start_exptime = 20.0
+        filt_list = ['C', 'L', 'R', 'G', 'B']
         sky_mean = 2.0
 
     # start taking exposures (glances) and wait for sky
