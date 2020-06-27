@@ -277,12 +277,31 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('Best HFDs:', out_hfds.round(1).to_dict())
 
     # The HFDs should have increased substantially.
-    # If they haven't then the focus measurement isn't reliable, so we can't continue.
+    # If they haven't then something is wrong, we might have started too far over.
+    # Try moving out a little more, but only the ones that need it (by masking).
     if np.any(out_hfds < initial_hfds + 1):
         print('~~~~~~')
         print('Initial HFDs:', initial_hfds.round(1).to_dict())
         print('Current HFDs:', out_hfds.round(1).to_dict())
-        raise Exception('HFD not changing with focuser position')
+        print('Trying to move out again...')
+        mask = out_hfds < initial_hfds + 2  # stricter mask
+        moving_uts = initial_hfds.index[mask]
+        print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
+        new_positions = {ut: initial_positions[ut] + big_step[ut] / 2 for ut in moving_uts}
+        set_focuser_positions(new_positions, timeout=60)
+        print('New positions:', get_focuser_positions())
+        print('Taking {} focus measurements...'.format(num_exp))
+        foc_data = measure_focus(num_exp, exptime, filt, target_name)
+        farout_hfds = foc_data['hfd']
+        if num_exp > 1:
+            print('Best HFDs:', farout_hfds.round(1).to_dict())
+
+        # Now hopefully they should all be far enough from the starting position.
+        # If not then they might need manually adjusting, or else the focusers aren't moving at all.
+        if np.any(farout_hfds < initial_hfds + 1):
+            print('Initial HFDs:', initial_hfds.round(1).to_dict())
+            print('Current HFDs:', farout_hfds.round(1).to_dict())
+            raise Exception('HFD not changing with focuser position')
 
     # Now move back towards where best focus position should be.
     # This should confirm we're actually on the right-hand (positive) side of the V-curve.
