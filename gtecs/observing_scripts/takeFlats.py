@@ -135,16 +135,18 @@ def run(eve, alt, late=False):
 
     # Run through the rest of the filter list
     while filt_list:
-        previous_filter = current_filter
-        current_filter = filt_list.pop(0)
         print('~~~~~~')
-        # Guess starting exposure time for new filter
-        exptime = extrapolate_from_filters(previous_filter, exptime, current_filter, Time.now())
+        # Guess starting exposure time based on the previous filter
+        exptime_dict = extrapolate_from_filters(exptime, current_filter, sky_mean, sky_mean_target)
+
+        # Select the new filter
+        current_filter = filt_list.pop(0)
+        exptime = exptime_dict[current_filter]
 
         # See if it was a good guess
         print('Taking {} test exposure to find new exposure time'.format(current_filter))
         sky_mean = take_sky(exptime, current_filter, field_name, glance=True)
-        scaling_factor = 25000.0 / sky_mean
+        scaling_factor = sky_mean_target / sky_mean
         start_exptime = exptime * scaling_factor
         print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, start_exptime))
         if start_exptime > params.FLATS_MAXEXPTIME:
