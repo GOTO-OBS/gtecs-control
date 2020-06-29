@@ -42,7 +42,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     # Get the mean value for the images
     sky_medians = {ut: int(np.median(image_data[ut])) for ut in sorted(image_data)}
     print('Median counts:', sky_medians)
-    sky_mean = np.mean([sky_medians[ut] for ut in params.sky_medians])
+    sky_mean = np.mean([sky_medians[ut] for ut in sky_medians])
 
     # Delete the image data for good measure, to save memory
     del image_data
