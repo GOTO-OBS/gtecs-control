@@ -36,7 +36,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     if current_filter != 'C':
         uts = params.UTS_WITH_FILTERWHEELS
     else:
-        uts = [ut for ut in params.UTS if ut not in params.UTS_WITH_FILTERWHEELS]
+        uts = None
     image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance, uts=uts)
 
     # Get the mean value for the images
