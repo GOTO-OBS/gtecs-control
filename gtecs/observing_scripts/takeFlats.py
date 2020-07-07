@@ -33,10 +33,16 @@ def take_sky(exptime, current_filter, name, glance=False):
     slew_to_radec(new_ra, new_dec, timeout=120)
 
     # Take the image and load the image data
-    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance)
+    if current_filter != 'C':
+        uts = params.UTS_WITH_FILTERWHEELS
+    else:
+        uts = None
+    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance, uts=uts)
 
     # Get the mean value for the images
-    sky_mean = np.mean([np.median(image_data[ut]) for ut in image_data])
+    sky_medians = {ut: int(np.median(image_data[ut])) for ut in sorted(image_data)}
+    print('Median counts:', sky_medians)
+    sky_mean = np.mean([sky_medians[ut] for ut in sky_medians])
 
     # Delete the image data for good measure, to save memory
     del image_data
@@ -85,11 +91,11 @@ def run(eve, alt, late=False):
     nflats = params.FLATS_NUM
     if eve:
         start_exptime = 3.0
-        filt_list = ['B', 'G', 'R', 'L']
+        filt_list = ['B', 'G', 'R', 'L', 'C']
         sky_mean = 40000.0
     else:
-        start_exptime = 40.0
-        filt_list = ['L', 'R', 'G', 'B']
+        start_exptime = 20.0
+        filt_list = ['C', 'L', 'R', 'G', 'B']
         sky_mean = 2.0
 
     # start taking exposures (glances) and wait for sky
@@ -129,16 +135,18 @@ def run(eve, alt, late=False):
 
     # Run through the rest of the filter list
     while filt_list:
-        previous_filter = current_filter
-        current_filter = filt_list.pop(0)
         print('~~~~~~')
-        # Guess starting exposure time for new filter
-        exptime = extrapolate_from_filters(previous_filter, exptime, current_filter, Time.now())
+        # Guess starting exposure time based on the previous filter
+        exptime_dict = extrapolate_from_filters(exptime, current_filter, sky_mean, sky_mean_target)
+
+        # Select the new filter
+        current_filter = filt_list.pop(0)
+        exptime = exptime_dict[current_filter]
 
         # See if it was a good guess
         print('Taking {} test exposure to find new exposure time'.format(current_filter))
         sky_mean = take_sky(exptime, current_filter, field_name, glance=True)
-        scaling_factor = 25000.0 / sky_mean
+        scaling_factor = sky_mean_target / sky_mean
         start_exptime = exptime * scaling_factor
         print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, start_exptime))
         if start_exptime > params.FLATS_MAXEXPTIME:

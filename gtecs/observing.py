@@ -446,7 +446,7 @@ def offset(direction, size):
     time.sleep(2)
 
 
-def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
+def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts=None):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -461,6 +461,9 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
         image type
     glance : bool, default=`False`
         take a temporary glance image
+    uts : list of ints, default=`None`
+        if given, the UTs to take the exposures with
+        uts=`None` (the default) will take images on all UTs
 
     Returns
     -------
@@ -471,11 +474,26 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False):
     # Find the current image count, so we know what to wait for
     img_num = get_image_count()
 
-    # Send the command
-    if not glance:
-        exq_command = 'exq image {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
+    # Create the command string
+    if uts is not None:
+        uts = [str(int(ut)) for ut in uts if ut in params.UTS_WITH_CAMERAS]
+        if len(uts) == 0:
+            raise ValueError('Invalid UT values (not in {})'.format(params.UTS_WITH_CAMERAS))
+        ut_string = ','.join(uts)
+        exq_command = 'exq {} {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
+                                                             ut_string,
+                                                             exptime,
+                                                             filt,
+                                                             name,
+                                                             imgtype)
     else:
-        exq_command = 'exq glance {:.1f} {} 1 "{}" {}'.format(exptime, filt, name, imgtype)
+        exq_command = 'exq {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
+                                                          exptime,
+                                                          filt,
+                                                          name,
+                                                          imgtype)
+
+    # Send the command
     execute_command(exq_command)
     execute_command('exq resume')
 

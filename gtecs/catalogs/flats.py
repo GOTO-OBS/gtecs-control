@@ -230,42 +230,52 @@ def sky_brightness(sunalt, filt):
         # approx R
         return surface_brightness[3](phi)
     elif filt.upper() == 'C':
-        # dunno. G?
-        return surface_brightness[2](phi)
+        # approx twice L?
+        sb_b = surface_brightness[1](phi)
+        sb_v = surface_brightness[2](phi)
+        sb_r = surface_brightness[3](phi)
+        return ((sb_b + sb_v + sb_r) / 3.0) * 2.0
     else:
         raise ValueError('unknown filter ' + str(filt))
 
 
-def extrapolate_from_filters(filter1, exptime, filter2, time):
-    """Given a decent exposure time in one filter, guess the correct time in another.
+def extrapolate_from_filters(exptime, filt, sky_mean, sky_mean_target):
+    """Estimate flat exposure times given a reasonable exposure time in one filter.
+
+    This is a very basic calculation, is just scales the exptime proportional to the bandwidth
+    of each filter.
 
     Parameters
     ----------
-    filter1 : string
-        the name of the first filter (with a good known time)
     exptime : float
-        exposure time in seconds for this filter
-    filter2 : string
-        the name of the filter we wish to use next
-    time : `astropy.time.Time`
-        time to make calculation
+        exposure time, in seconds, that produces a reasonable number of counts
+    filt : string
+        the filter used for the sky exposure
+    sky_mean : float
+        the mean number of counts recorded in the sky exposure
+    sky_mean_target : float
+        the target number of counts
 
     Returns
     -------
-    guess : float
-        best guess of new exposure time
+    exptimes : dict
+        best guess of new exposure times for each filter
 
     """
-    sunalt = ast.get_sunalt(time)
+    # These bandwidths are from the Baader filter profiles
+    # TODO could be defined in params?
+    bandwidth = {'L': 2942,
+                 'R': 979,
+                 'G': 813,
+                 'B': 1188,
+                 'C': 5596,
+                 }
+    if filt not in bandwidth:
+        raise ValueError('Filter {} is not in known filters {}'.format(filt,
+                                                                       list(bandwidth.keys())))
 
-    sb1 = sky_brightness(sunalt, filter1)
-    sb2 = sky_brightness(sunalt, filter2)
+    scaling_factor = sky_mean_target / sky_mean
+    target_exptime = exptime * scaling_factor
 
-    # calculate colour
-    colour = sb1 - sb2
-    # convert to flux ratio
-    flux_ratio = 10.0**(-0.4 * colour)
-
-    # assume throughputs are close
-    # TODO: replace with proper SN calculator
-    return exptime * flux_ratio
+    return {new_filt: (bandwidth[filt] / bandwidth[new_filt]) * target_exptime
+            for new_filt in bandwidth}
