@@ -87,11 +87,6 @@ class H400(object):
         except AttributeError:
             pass
 
-    @classmethod
-    def locate_device(cls, port, serial_number):
-        """Locate the device by name."""
-        raise NotImplementedError  # TODO
-
     def _serial_command(self, device, command, value=0):
         """Send command to the device, then fetch the reply and return it."""
         if command == 'status':
