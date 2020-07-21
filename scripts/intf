@@ -35,16 +35,19 @@ def get_args(interface_id):
         # Camera details
         if params.UT_DICT[ut]['CAMERA'] is not None:
             hw_str = json.dumps(params.UT_DICT[ut]['CAMERA'], separators=(',', ':'))
+            hw_str = hw_str.replace('"', '\\"')
             args.append('cam={}'.format(hw_str))
 
         # Focuser details
         if params.UT_DICT[ut]['FOCUSER'] is not None:
             hw_str = json.dumps(params.UT_DICT[ut]['FOCUSER'], separators=(',', ':'))
+            hw_str = hw_str.replace('"', '\\"')
             args.append('foc={}'.format(hw_str))
 
         # Filter wheel details
         if params.UT_DICT[ut]['FILTERWHEEL'] is not None:
             hw_str = json.dumps(params.UT_DICT[ut]['FILTERWHEEL'], separators=(',', ':'))
+            hw_str = hw_str.replace('"', '\\"')
             args.append('filt={}'.format(hw_str))
 
     return args
