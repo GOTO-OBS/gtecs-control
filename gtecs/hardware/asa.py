@@ -3,6 +3,8 @@
 import math
 import time
 
+import pyudev
+
 import serial
 
 
@@ -80,6 +82,16 @@ class H400(object):
         # We need to save the target position internally, but on init that's not defined.
         # So take the current position as the target instead.
         self.target_position = info_dict['focuser']['position']
+
+        # Use udev to find device properties directly from the dev file
+        # We need to do this to construct a unique serial number
+        # TODO: Need to check the output of all of these
+        context = pyudev.Context()
+        udev = pyudev.Devices.from_device_file(context, port).parent.parent  # TODO: needs checking
+        self.sys_name = str(udev.sys_name)
+        self.usb = (str(udev['BUSNUM']), str(udev['DEVNUM']))
+        self.type = str(udev['ID_MODEL_FROM_DATABASE'])
+        self.typeID = str(udev['ID_MODEL_ID'])
 
     def __del__(self):
         try:
@@ -171,6 +183,16 @@ class H400(object):
             return True
         except ConnectionError:
             return False
+
+    @property
+    def serial_number(self):
+        """Return a constructed serial number.
+
+        Since the ASA devices don't have serial numbers (they don't really need them to be fair,
+        as long as you know the port) we construct a unique string from the model name and
+        USB bus it is connected to.
+        """
+        return 'H400:' + self.sys_name
 
     @property
     def stepper_position(self):
