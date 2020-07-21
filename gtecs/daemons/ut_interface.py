@@ -84,7 +84,7 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.cameras[ut] is None and self.cam_params[ut] is not None:
                 hw_name = 'camera_{}'.format(ut)
                 hw_params = self.cam_params[ut]
-                self.log.debug('Connecting to Camera {}'.format(ut))
+                self.log.info('Connecting to Camera {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
@@ -124,7 +124,7 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.focusers[ut] is None and self.foc_params[ut] is not None:
                 hw_name = 'focuser_{}'.format(ut)
                 hw_params = self.foc_params[ut]
-                self.log.debug('Connecting to Focuser {}'.format(ut))
+                self.log.info('Connecting to Focuser {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
@@ -180,7 +180,7 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.filterwheels[ut] is None and self.filt_params[ut] is not None:
                 hw_name = 'filterwheel_{}'.format(ut)
                 hw_params = self.filt_params[ut]
-                self.log.debug('Connecting to Filter Wheel {}'.format(ut))
+                self.log.info('Connecting to Filter Wheel {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
