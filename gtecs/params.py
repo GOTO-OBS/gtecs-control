@@ -127,15 +127,20 @@ for ut in UT_DICT:
     else:
         raise ValueError('No interface defined for UT{}'.format(ut))
 
-    # Add any `None`s for any missing hardware
+    # Check hardware dicts
     for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
+        # Add any `None`s for any missing hardware
         if hw_class not in UT_DICT[ut]:
-            UT_DICT[ut][hw_class] = None
+            UT_DICT[ut][hw_class] = {'CLASS': None}
+        else:
+            # Should have at least a class defiend (FLI, RASA, ASA etc, or None from above)
+            if 'CLASS' not in UT_DICT[ut][hw_class]:
+                raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
 UTS = sorted(UT_DICT)
-UTS_WITH_CAMERAS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['CAMERA'] is not None)
-UTS_WITH_FOCUSERS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FOCUSER'] is not None)
-UTS_WITH_FILTERWHEELS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FILTERWHEEL'] is not None)
+UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA']['CLASS'] is not None]
+UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER']['CLASS'] is not None]
+UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL']['CLASS'] is not None]
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
@@ -247,7 +252,6 @@ FILTER_LIST = config['FILTER_LIST']
 
 ############################################################
 # Focuser parameters
-RASA_PORT = config['RASA_PORT']
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 for ut in UTS_WITH_FOCUSERS:
     # Each focuser should have params here
