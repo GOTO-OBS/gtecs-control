@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the UT interface daemons."""
 
+import json
 import os
 import sys
 
@@ -20,17 +21,32 @@ DAEMON_IDS.sort()
 
 
 def get_args(interface_id):
-    """Format the arguments to send to the interface script."""
+    """Format the arguments to send to the interface script.
+
+    See also `parse_args()` in ut_interface.py.
+    """
     args = [interface_id]
     for ut in params.INTERFACES[interface_id]:
         args.append('--ut')
+
+        # UT number
         args.append(ut)
+
+        # Camera details
         if params.UT_DICT[ut]['CAMERA'] is not None:
-            args.append('cam={}'.format(params.UT_DICT[ut]['CAMERA']))
+            hw_str = json.dumps(params.UT_DICT[ut]['CAMERA'], separators=(',', ':'))
+            args.append('cam={}'.format(hw_str))
+
+        # Focuser details
         if params.UT_DICT[ut]['FOCUSER'] is not None:
-            args.append('foc={}'.format(params.UT_DICT[ut]['FOCUSER']))
+            hw_str = json.dumps(params.UT_DICT[ut]['FOCUSER'], separators=(',', ':'))
+            args.append('foc={}'.format(hw_str))
+
+        # Filter wheel details
         if params.UT_DICT[ut]['FILTERWHEEL'] is not None:
-            args.append('filt={}'.format(params.UT_DICT[ut]['FILTERWHEEL']))
+            hw_str = json.dumps(params.UT_DICT[ut]['FILTERWHEEL'], separators=(',', ':'))
+            args.append('filt={}'.format(hw_str))
+
     return args
 
 
