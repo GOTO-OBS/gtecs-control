@@ -131,16 +131,17 @@ for ut in UT_DICT:
     for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
         # Add any `None`s for any missing hardware
         if hw_class not in UT_DICT[ut]:
-            UT_DICT[ut][hw_class] = {'CLASS': None}
+            UT_DICT[ut][hw_class] = None
         else:
-            # Should have at least a class defiend (FLI, RASA, ASA etc, or None from above)
+            # Should have at least a class defined (FLI, RASA, ASA etc)
+            # In practice it'll also need a PORT or SERIAL, or both, but don't validate that here
             if 'CLASS' not in UT_DICT[ut][hw_class]:
                 raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
 UTS = sorted(UT_DICT)
-UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA']['CLASS'] is not None]
-UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER']['CLASS'] is not None]
-UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL']['CLASS'] is not None]
+UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
+UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
+UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
