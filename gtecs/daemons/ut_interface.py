@@ -11,7 +11,7 @@ from astropy.time import Time
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
-from gtecs.hardware.fli import Camera, FilterWheel, Focuser
+from gtecs.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 from gtecs.hardware.rasa import FocusLynx
 
@@ -84,7 +84,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 target = self.cam_targets[ut]
                 try:
                     self.log.debug('Connecting to Camera {} ({})'.format(ut, target))
-                    camera = Camera.locate_device(target)
+                    camera = FLICamera.locate_device(target)
                     if camera is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Camera {}'.format(ut))
                         camera = FakeCamera('fake', 'FakeCamera')
@@ -112,7 +112,7 @@ class UTInterfaceDaemon(BaseDaemon):
                     if 'RASA' in target:
                         focuser = FocusLynx.locate_device(params.RASA_PORT, target)
                     else:
-                        focuser = Focuser.locate_device(target)
+                        focuser = FLIFocuser.locate_device(target)
                     if focuser is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Focuser {}'.format(ut))
                         focuser = FakeFocuser('fake', 'FakeFocuser')
@@ -137,7 +137,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 hw_name = 'filterwheel_{}'.format(ut)
                 try:
                     self.log.debug('Connecting to Filter Wheel {} ({})'.format(ut, target))
-                    filterwheel = FilterWheel.locate_device(target)
+                    filterwheel = FLIFilterWheel.locate_device(target)
                     if filterwheel is None and params.FAKE_FLI:
                         self.log.info('Creating a fake Filter Wheel {}'.format(ut))
                         filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
