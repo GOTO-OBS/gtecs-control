@@ -12,7 +12,7 @@ def run():
     print('Taking extra test dark frames.')
 
     # make sure hardware is ready
-    prepare_for_images()
+    prepare_for_images(open_covers=False)
 
     execute_command('exq multdark 2 600 1')
     execute_command('exq resume')  # just in case

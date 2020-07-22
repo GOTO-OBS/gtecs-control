@@ -72,12 +72,13 @@ def wait_for_dome(target_position, timeout=None):
         raise TimeoutError('Dome timed out')
 
 
-def prepare_for_images():
+def prepare_for_images(open_covers=True):
     """Make sure the hardware is set up for taking images.
 
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are at operating temperature
+    - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
@@ -99,6 +100,48 @@ def prepare_for_images():
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
+
+    if open_covers is True:
+        # Open the mirror covers
+        if not mirror_covers_are_open():
+            print('Opening mirror covers')
+            execute_command('ota open')
+            while not mirror_covers_are_open():
+                time.sleep(0.5)
+    else:
+        # Close the mirror covers (for darks etc...)
+        if not mirror_covers_are_closed():
+            print('Closing mirror covers')
+            execute_command('ota close')
+            while not mirror_covers_are_closed():
+                time.sleep(0.5)
+
+
+def get_mirror_cover_positions():
+    """Find the current mirror cover positions."""
+    ota_info = daemon_info('ota')
+    positions = {}
+    for ut in params.UTS_WITH_COVERS:
+        positions[ut] = ota_info[ut]['position']
+    return positions
+
+
+def mirror_covers_are_open():
+    """Return true if all of the covers are open."""
+    positions = get_mirror_cover_positions()
+
+    covers_open = [positions[ut] == 'full_open' for ut in positions]
+
+    return np.all(covers_open)
+
+
+def mirror_covers_are_closed():
+    """Return true if all of the covers are closed."""
+    positions = get_mirror_cover_positions()
+
+    covers_closed = [positions[ut] == 'closed' for ut in positions]
+
+    return np.all(covers_closed)
 
 
 def get_focuser_positions():

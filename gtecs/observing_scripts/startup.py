@@ -83,6 +83,12 @@ def run():
         time.sleep(1)
     execute_command('cam info')
 
+    # Don't open the mirror covers, because we want to do darks first
+    # execute_command('ota open')
+    # while not mirror_covers_are_open():
+    #     time.sleep(1)
+    # execute_command('ota info')
+
     print('Startup tasks done')
 
 
