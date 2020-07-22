@@ -91,6 +91,14 @@ def get_all_info(cam_info, log):
     # Camera daemon
     all_info['cam'] = cam_info
 
+    # OTA info
+    try:
+        all_info['ota'] = daemon_info('ota')
+    except Exception:
+        log.error('Failed to fetch OTA info')
+        log.debug('', exc_info=True)
+        all_info['ota'] = None
+
     # Focuser info
     try:
         all_info['foc'] = daemon_info('foc')
@@ -532,6 +540,28 @@ def update_header(header, ut, all_info, log):
     header['CCDTEMP '] = (cam_info['ccd_temp'], 'CCD temperature, C')
     header['CCDTEMPS'] = (cam_info['target_temp'], 'Requested CCD temperature, C')
     header['BASETEMP'] = (cam_info['base_temp'], 'Peltier base temperature, C')
+
+    # OTA info
+    try:
+        if all_info['ota'] is None:
+            raise ValueError('No OTA info provided')
+
+        if ut not in params.UTS_WITH_COVERS:
+            cover_position = 'NA'
+            cover_open = 'NA'
+        else:
+            info = all_info['ota'][ut]
+
+            cover_position = info['position']
+            cover_open = info['position'] == 'full_open'
+    except Exception:
+        log.error('Failed to write OTA info to header')
+        log.debug('', exc_info=True)
+        cover_position = 'NA'
+        cover_open = 'NA'
+
+    header['COVSTAT '] = (cover_position, 'Mirror cover position')
+    header['COVOPEN '] = (cover_open, 'Mirror cover is open')
 
     # Focuser info
     try:
