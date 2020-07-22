@@ -34,6 +34,9 @@ STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_CAM_COOL = 'cool'
 STATUS_CAM_WARM = 'warm'
+STATUS_OTA_FULLOPEN = 'full_open'
+STATUS_OTA_PARTOPEN = 'part_open'
+STATUS_OTA_CLOSED = 'closed'
 STATUS_FILT_UNHOMED = 'unhomed'
 STATUS_CONDITIONS_INTERNAL_ERROR = 'internal_error'
 
@@ -45,6 +48,8 @@ MODE_MNT_PARKED = 'parked'
 MODE_MNT_TRACKING = 'tracking'
 MODE_CAM_COOL = 'cool'
 MODE_CAM_WARM = 'warm'
+MODE_OTA_CLOSED = 'closed'
+MODE_OTA_OPEN = 'open'
 
 # Hardware errors
 ERROR_RUNNING = 'NOT_RUNNING'
@@ -66,6 +71,8 @@ ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
+ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
+ERROR_OTA_NOTCLOSED = 'OTA:NOT_CLOSED'
 ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
 ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
@@ -1034,6 +1041,133 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: Having trouble getting down to temperature,
             #                   Either it's a hardware issue or it's just too warm.
             return ERROR_CAM_WARM, recovery_procedure
+
+        else:
+            # Some unexpected error.
+            return ERROR_UNKNOWN, {}
+
+
+class OTAMonitor(BaseMonitor):
+    """Hardware monitor for the OTA daemon."""
+
+    def __init__(self, log=None):
+        super().__init__('ota', log)
+
+        # Define modes and starting mode
+        self.available_modes = [MODE_OTA_CLOSED, MODE_OTA_OPEN]
+        self.mode = MODE_OTA_OPEN
+
+    def get_hardware_status(self):
+        """Get the current status of the hardware."""
+        info = self.get_info()
+        if info is None or any(info[ut] is None for ut in params.UTS_WITH_COVERS):
+            self.hardware_status = STATUS_UNKNOWN
+            return STATUS_UNKNOWN
+
+        if any(info[ut]['position'] == 'ERROR' for ut in params.UTS_WITH_COVERS):
+            hardware_status = STATUS_UNKNOWN
+        elif all(info[ut]['position'] == 'closed' for ut in params.UTS_WITH_COVERS):
+            hardware_status = STATUS_OTA_CLOSED
+        elif all(info[ut]['position'] == 'full_open' for ut in params.UTS_WITH_COVERS):
+            hardware_status = STATUS_OTA_FULLOPEN
+        else:
+            hardware_status = STATUS_OTA_PARTOPEN
+
+        self.hardware_status = hardware_status
+        return hardware_status
+
+    def _check_hardware(self):
+        """Check the hardware and report any detected errors."""
+        # ERROR_OTA_NOTCLOSED
+        # Set the error if the mirror covers should be closed and they're not
+        if self.mode == MODE_OTA_CLOSED and self.hardware_status != STATUS_OTA_CLOSED:
+            self.add_error(ERROR_OTA_NOTCLOSED, delay=30)
+        # Clear the error if the covers are closed or they shouldn't be
+        if self.mode != MODE_OTA_CLOSED or self.hardware_status == STATUS_OTA_CLOSED:
+            self.clear_error(ERROR_OTA_NOTCLOSED)
+
+        # ERROR_OTA_NOTFULLOPEN
+        # Set the error if the mirror covers should be open and they're not
+        if self.mode == MODE_OTA_OPEN and self.hardware_status != STATUS_OTA_FULLOPEN:
+            self.add_error(ERROR_OTA_NOTFULLOPEN, delay=30)
+        # Clear the error if the covers are open or they shouldn't be
+        if self.mode != MODE_OTA_OPEN or self.hardware_status == STATUS_OTA_FULLOPEN:
+            self.clear_error(ERROR_OTA_NOTFULLOPEN)
+
+    def _recovery_procedure(self):
+        """Get the recovery commands for the current error(s), based on hardware status and mode."""
+        if not self.errors:
+            # Everything's fine, thank you. How are you?
+            return None, {}
+
+        elif ERROR_HARDWARE in self.errors:
+            # The OTA daemon doesn't directly talk to hardware, so this really shouldn't happen...
+            return ERROR_HARDWARE, {}
+
+        elif ERROR_DEPENDENCY in self.errors:
+            # The OTA daemon depends on the interfaces.
+            for interface_id in params.INTERFACES:
+                if interface_id in self.bad_dependencies:
+                    # PROBLEM: The interfaces aren't responding.
+                    recovery_procedure = {}
+                    # SOLUTION 1: Make sure the interfaces are started.
+                    recovery_procedure[1] = ['intf start', 30]
+                    # SOLUTION 2: Try restarting them.
+                    recovery_procedure[2] = ['intf restart', 30]
+                    # SOLUTION 3: Kill them, then start them again.
+                    recovery_procedure[3] = ['intf kill', 10]
+                    recovery_procedure[4] = ['intf start', 30]
+                    # SOLUTION 4: Maybe the hardware isn't powered on.
+                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
+                    recovery_procedure[6] = ['intf kill', 10]
+                    recovery_procedure[7] = ['intf start', 30]
+                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            # OUT OF SOLUTIONS: We don't know where the dependency error is from?
+            return ERROR_DEPENDENCY, {}
+
+        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
+            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
+            recovery_procedure = {}
+            # SOLUTION 1: Make sure it's started.
+            recovery_procedure[1] = ['ota start', 30]
+            # SOLUTION 2: Try restarting it.
+            recovery_procedure[2] = ['ota restart', 30]
+            # SOLUTION 3: Kill it, then start it again.
+            recovery_procedure[3] = ['ota kill', 10]
+            recovery_procedure[4] = ['ota start', 30]
+            # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+            return ERROR_PING + ERROR_INFO, recovery_procedure
+
+        elif ERROR_STATUS in self.errors:
+            # PROBLEM: Hardware is in an unknown state.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['ota restart', 30]
+            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
+            return ERROR_STATUS, {}
+
+        elif ERROR_OTA_NOTCLOSED in self.errors:
+            # PROBLEM: The mirror covers aren't closed.
+            recovery_procedure = {}
+            # SOLUTION 1: Try closing them.
+            recovery_procedure[1] = ['ota close', 60]
+            # SOLUTION 2: Try opening and then closing again.
+            recovery_procedure[2] = ['ota open', 120]
+            recovery_procedure[3] = ['ota close', 120]
+            # OUT OF SOLUTIONS: Sounds like a hardware issue.
+            return ERROR_OTA_NOTCLOSED, recovery_procedure
+
+        elif ERROR_OTA_NOTFULLOPEN in self.errors:
+            # PROBLEM: The mirror covers aren't fully open.
+            recovery_procedure = {}
+            # SOLUTION 1: Try opening them.
+            recovery_procedure[1] = ['ota open', 60]
+            # SOLUTION 2: Try closing and then opening again.
+            recovery_procedure[2] = ['ota close', 120]
+            recovery_procedure[3] = ['ota open', 120]
+            # OUT OF SOLUTIONS: Sounds like a hardware issue.
+            return ERROR_OTA_NOTFULLOPEN, recovery_procedure
 
         else:
             # Some unexpected error.

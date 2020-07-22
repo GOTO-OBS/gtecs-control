@@ -41,6 +41,7 @@ if __name__ == '__main__':
                 'mnt': monitors.MntMonitor(),
                 'power': monitors.PowerMonitor(),
                 'cam': monitors.CamMonitor(),
+                'ota': monitors.OTAMonitor(),
                 'filt': monitors.FiltMonitor(),
                 'foc': monitors.FocMonitor(),
                 'exq': monitors.ExqMonitor(),
