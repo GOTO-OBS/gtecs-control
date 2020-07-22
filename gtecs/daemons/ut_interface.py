@@ -84,7 +84,8 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.cameras[ut] is None and self.cam_params[ut] is not None:
                 hw_name = 'camera_{}'.format(ut)
                 hw_params = self.cam_params[ut]
-                self.log.info('Connecting to Camera {}'.format(ut))
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Camera {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
@@ -114,9 +115,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
                 except Exception:
                     self.cameras[ut] = None
-                    self.log.error('Failed to connect to Camera {}'.format(ut))
                     self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Connect to focusers
@@ -124,7 +125,8 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.focusers[ut] is None and self.foc_params[ut] is not None:
                 hw_name = 'focuser_{}'.format(ut)
                 hw_params = self.foc_params[ut]
-                self.log.info('Connecting to Focuser {}'.format(ut))
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Focuser {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
@@ -170,9 +172,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
                 except Exception:
                     self.focusers[ut] = None
-                    self.log.error('Failed to connect to Focuser {}'.format(ut))
                     self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
@@ -180,7 +182,8 @@ class UTInterfaceDaemon(BaseDaemon):
             if self.filterwheels[ut] is None and self.filt_params[ut] is not None:
                 hw_name = 'filterwheel_{}'.format(ut)
                 hw_params = self.filt_params[ut]
-                self.log.info('Connecting to Filter Wheel {}'.format(ut))
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Filter Wheel {}'.format(ut))
                 try:
                     if 'CLASS' not in hw_params:
                         raise ValueError('Missing class')
@@ -209,9 +212,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
                 except Exception:
                     self.filterwheels[ut] = None
-                    self.log.error('Failed to connect to hardware')
                     self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Finally check if we need to report an error
