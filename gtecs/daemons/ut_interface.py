@@ -251,9 +251,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
         temp_info['foc_params'] = self.foc_params
         temp_info['foc_serials'] = {}
-        for ut in self.focusers is not None:
+        for ut in self.focusers:
             # Get info from each focuser
-            if self.foc_params[ut]:
+            if self.foc_params[ut] is not None:
                 try:
                     temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
                 except Exception:
@@ -268,9 +268,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
         temp_info['filt_params'] = self.filt_params
         temp_info['filt_serials'] = {}
-        for ut in self.filterwheels is not None:
+        for ut in self.filterwheels:
             # Get info from each filterwheel
-            if self.filt_params[ut]:
+            if self.filt_params[ut] is not None:
                 try:
                     temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
                 except Exception:
