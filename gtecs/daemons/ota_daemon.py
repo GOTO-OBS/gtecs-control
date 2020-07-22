@@ -174,7 +174,7 @@ class OTADaemon(BaseDaemon):
             if not self.info:
                 self.log.debug('Mirror covers are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                old_strs = ['{}:{}'.format(ut, self.info[ut]['position'])
                             for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
