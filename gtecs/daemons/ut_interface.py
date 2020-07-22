@@ -328,6 +328,25 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return focuser unique serial number."""
         return self.focusers[ut].serial_number
 
+    # Mirror cover control functions (part of the ASA H400 class, under focusers)
+    def open_mirror_cover(self, ut):
+        """Open the mirror cover."""
+        if not isinstance(self.focusers[ut], H400):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].open_cover()
+
+    def close_mirror_cover(self, ut):
+        """Close the mirror cover."""
+        if not isinstance(self.focusers[ut], H400):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].close_cover()
+
+    def stop_mirror_cover(self, ut):
+        """Stop the mirror cover from moving."""
+        if not isinstance(self.focusers[ut], H400):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].stop_cover()
+
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, ut):
         """Move filter wheel to position."""
