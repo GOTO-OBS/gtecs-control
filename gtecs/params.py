@@ -245,8 +245,9 @@ SITECH_PORT = config['SITECH_PORT']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
 ############################################################
-# FLI parameters
+# Interface parameters
 FAKE_FLI = config['FAKE_FLI']
+FAKE_ASA = config['FAKE_ASA']
 
 ############################################################
 # Filter wheel parameters

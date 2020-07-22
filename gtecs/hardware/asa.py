@@ -1,6 +1,7 @@
 """Classes to control ASA hardware."""
 
 import math
+import threading
 import time
 
 import pyudev
@@ -98,6 +99,14 @@ class H400(object):
             self.serial.close()
         except AttributeError:
             pass
+
+    @classmethod
+    def locate_device(cls, port):
+        """Locate the focuser by port."""
+        try:
+            return cls(port)
+        except serial.serialutil.SerialException:
+            return None
 
     def _serial_command(self, device, command, value=0):
         """Send command to the device, then fetch the reply and return it."""
@@ -203,7 +212,7 @@ class H400(object):
 
     def get_steps_remaining(self):
         """Get the number of steps remaining."""
-        return self.target_position - self.stepper_position
+        return abs(self.target_position - self.stepper_position)
 
     def step_motor(self, steps, blocking=False):
         """Step motor a given number of steps.
@@ -298,3 +307,138 @@ class H400(object):
         reply = self._serial_command('cover', 'stop')
         if int(reply[0]) != 5000:
             raise Exception('Command error: {}'.format(reply))
+
+
+class FakeH400(object):
+    """Fake ASA H400 gateway controller class, for testing."""
+
+    def __init__(self, port):
+        self.fake = True
+
+        self.port = port
+        self.connected = True
+        self.serial_number = 'Fake-ASA-H400'
+
+        self.stepper_position = 0
+        self.target_position = 0
+        self._focuser_move_speed = 100  # steps/sec
+        self._focuser_moving = False
+        self.max_extent = 5000
+
+        self._cover_position = 0  # 0=closed, 1-4=part_open, 5=full_open
+        self._cover_target_position = 0
+        self._cover_move_speed = 1  # steps/sec
+        self._cover_moving = False
+
+    def get_steps_remaining(self):
+        """Get the number of steps remaining."""
+        return abs(self.target_position - self.stepper_position)
+
+    def _move_fake_focuser(self):
+        """Fake thread to simulate moving the focuser stepper motor."""
+        self._focuser_moving = True
+        while (self._focuser_moving and
+               self.get_steps_remaining() > int(self._focuser_move_speed * 0.1)):
+            time.sleep(0.1)
+            if self.stepper_position < self.target_position:
+                self.stepper_position += int(self._focuser_move_speed * 0.1)
+            else:
+                self.stepper_position -= int(self._focuser_move_speed * 0.1)
+        if self._focuser_moving:
+            self._focuser_moving = False
+            self.stepper_position = self.target_position
+        else:
+            # Stopped early
+            self.target_position = self.stepper_position
+
+    def step_motor(self, steps, blocking=False):
+        """Step motor a given number of steps.
+
+        If blocking is True this function returns when the move is complete.
+        If not this function returns immediately, use 'get_steps_remaining'
+        to see when move is complete.
+        """
+        target_position = int(self.stepper_position + steps)
+        if target_position > self.max_extent:
+            raise ValueError('Target position ({}) past limit ({})'.format(
+                             target_position, self.max_extent))
+        elif target_position < 0:
+            raise ValueError('Target position ({}) is negative'.format(target_position))
+
+        self.target_position = target_position
+
+        if blocking:
+            self._move_fake_focuser()
+        else:
+            ot = threading.Thread(target=self._move_fake_focuser)
+            ot.daemon = True
+            ot.start()
+
+    def home_focuser(self, blocking=False):
+        """Move the focuser to the home position."""
+        steps = int(self.max_extent / 2) - self.stepper_position
+        self.step_motor(steps, blocking=blocking)
+
+    def stop_focuser(self):
+        """Stop the focuser from moving."""
+        self._focuser_moving = False
+
+    def get_cover_position(self):
+        """Get the current position of the mirror cover."""
+        if self._cover_position == 0:
+            return 'closed'
+        elif self._cover_position == 5:
+            return 'full_open'
+        else:
+            return 'part_open'
+
+    def _get_cover_steps_remaining(self):
+        """Get the number of steps remaining."""
+        return abs(self._cover_target_position - self._cover_position)
+
+    def _move_fake_cover(self):
+        """Fake thread to simulate moving the mirror cover."""
+        self._cover_moving = True
+        while (self._cover_moving and
+               self._get_cover_steps_remaining() > self._cover_move_speed * 0.1):
+            time.sleep(0.1)
+            if self._cover_position < self._cover_target_position:
+                self._cover_position += self._cover_move_speed * 0.1
+            else:
+                self._cover_position -= self._cover_move_speed * 0.1
+        if self._cover_moving:
+            self._cover_moving = False
+            self._cover_position = self._cover_target_position
+        else:
+            # Stopped early
+            self._cover_target_position = self._cover_position
+
+    def _move_cover(self, command, blocking=False):
+        """Open or close the mirror cover."""
+        if command not in ['open', 'close']:
+            raise ValueError(f"{command} is not a valid command (should be 'open' or 'close')")
+
+        if command == 'open':
+            self._cover_target_position = 5
+        else:
+            self._cover_target_position = 0
+
+        if blocking:
+            self._move_fake_cover()
+        else:
+            ot = threading.Thread(target=self._move_fake_cover)
+            ot.daemon = True
+            ot.start()
+
+    def open_cover(self, blocking=False):
+        """Open the mirror cover."""
+        self._move_cover('open', blocking=blocking)
+
+    def close_cover(self, blocking=False):
+        """Close the mirror cover."""
+        self._cover_target_position = 0
+        self._move_cover('close', blocking=blocking)
+
+    def stop_cover(self):
+        """Stop the mirror cover from moving."""
+        self._cover_moving = False

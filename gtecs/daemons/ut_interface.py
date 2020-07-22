@@ -12,7 +12,7 @@ from astropy.time import Time
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
-from gtecs.hardware.asa import H400
+from gtecs.hardware.asa import FakeH400, H400
 from gtecs.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 from gtecs.hardware.rasa import FocusLynx
@@ -101,7 +101,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         camera = FLICamera.locate_device(serial)
                         if camera is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Camera')
-                            camera = FakeCamera('fake', 'FakeCamera')
+                            camera = FakeCamera('/dev/fake', 'FakeCamera')
                         if camera is None:
                             raise ValueError('Could not locate hardware')
 
@@ -140,7 +140,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         focuser = FLIFocuser.locate_device(hw_params['SERIAL'])
                         if focuser is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Focuser')
-                            focuser = FakeFocuser('fake', 'FakeCamera')
+                            focuser = FakeFocuser('/dev/fake', 'FakeCamera')
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
 
@@ -158,7 +158,10 @@ class UTInterfaceDaemon(BaseDaemon):
                         # ASA H400 in-built Focuser, needs a port
                         if 'PORT' not in hw_params:
                             raise ValueError('Missing serial port')
-                        focuser = H400(hw_params['PORT'])
+                        focuser = H400.locate_device(hw_params['PORT'])
+                        if focuser is None and params.FAKE_ASA:
+                            self.log.info('Creating a fake Focuser')
+                            focuser = FakeH400('/dev/fake')
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
 
@@ -198,7 +201,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         filterwheel = FLIFilterWheel.locate_device(serial)
                         if filterwheel is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Filter Wheel')
-                            filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
+                            filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
                         if filterwheel is None:
                             raise ValueError('Could not locate hardware')
 
@@ -320,7 +323,7 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def get_focuser_temp(self, temp_type, ut):
         """Return focuser internal/external temperature."""
-        if isinstance(self.focusers[ut], H400):
+        if isinstance(self.focusers[ut], (H400, FakeH400)):
             raise NotImplementedError("ASA H400s don't have temperature sensors")
         return self.focusers[ut].read_temperature(temp_type)
 
@@ -331,25 +334,25 @@ class UTInterfaceDaemon(BaseDaemon):
     # Mirror cover control functions (part of the ASA H400 class, under focusers)
     def open_mirror_cover(self, ut):
         """Open the mirror cover."""
-        if not isinstance(self.focusers[ut], H400):
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
             raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
         return self.focusers[ut].open_cover()
 
     def close_mirror_cover(self, ut):
         """Close the mirror cover."""
-        if not isinstance(self.focusers[ut], H400):
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
             raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
         return self.focusers[ut].close_cover()
 
     def stop_mirror_cover(self, ut):
         """Stop the mirror cover from moving."""
-        if not isinstance(self.focusers[ut], H400):
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
             raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
         return self.focusers[ut].stop_cover()
 
     def get_mirror_cover_position(self, ut):
         """Return mirror cover position."""
-        if not isinstance(self.focusers[ut], H400):
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
             raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
         return self.focusers[ut].get_cover_position()
 
