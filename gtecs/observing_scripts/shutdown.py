@@ -13,7 +13,7 @@ This script should perform the following simple tasks:
 import time
 
 from gtecs.misc import execute_command
-from gtecs.observing import wait_for_dome, wait_for_mount_parking
+from gtecs.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 
 
 def run():
@@ -30,6 +30,10 @@ def run():
 
     # Power off the cameras
     execute_command('power off cams')
+
+    # Close the mirror covers
+    execute_command('ota close')
+    wait_for_mirror_covers(opening=False, timout=60)  # TODO: check closing time
 
     # Park the mount
     execute_command('mnt park')

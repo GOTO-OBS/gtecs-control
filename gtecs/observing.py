@@ -144,6 +144,40 @@ def mirror_covers_are_closed():
     return np.all(covers_closed)
 
 
+def wait_for_mirror_covers(opening=True, timeout=None):
+    """Wait for mirror covers to be fully open or closed.
+
+    Parameters
+    ----------
+    opening : bool
+        if True wait for the covers to be open, if false wait until they are closed
+    timeout : float
+        time in seconds after which to timeout, None to wait forever
+
+    """
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            ota_info = daemon_info('ota', force_update=True)
+            positions = [ota_info[ut]['position'] for ut in params.UTS_WITH_COVERS]
+            if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
+                reached_position = True
+            if opening is False and np.all(positions[ut] == 'closed' for ut in positions):
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Mirror covers timed out')
+
+
 def get_focuser_positions():
     """Find the current focuser positions."""
     foc_info = daemon_info('foc')
