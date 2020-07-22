@@ -139,6 +139,8 @@ class FocDaemon(BaseDaemon):
         # Note the focusers each have inbuilt temperature sensors, but they always differ by a lot.
         # Best to just use the single measurement for the temperature inside the dome,
         # but store it on each UT's info so if we want to change it in the future it's easier.
+        # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
+        #         We still have to get the dome temp here so we can store it each time we move.
         try:
             dome_temp = get_roomalert('dome')['int_temperature']
             temp_info['dome_temp'] = dome_temp
@@ -158,9 +160,14 @@ class FocDaemon(BaseDaemon):
                     interface_info['remaining'] = interface.get_focuser_steps_remaining(ut)
                     interface_info['current_pos'] = interface.get_focuser_position(ut)
                     interface_info['limit'] = interface.get_focuser_limit(ut)
-                    interface_info['int_temp'] = interface.get_focuser_temp('internal', ut)
-                    interface_info['ext_temp'] = interface.get_focuser_temp('external', ut)
                     interface_info['serial_number'] = interface.get_focuser_serial_number(ut)
+                    try:
+                        interface_info['int_temp'] = interface.get_focuser_temp('internal', ut)
+                        interface_info['ext_temp'] = interface.get_focuser_temp('external', ut)
+                    except NotImplementedError:
+                        # The ASA H400s don't have temperature sensors
+                        interface_info['int_temp'] = None
+                        interface_info['ext_temp'] = None
 
                 if interface_info['remaining'] > 0:
                     interface_info['status'] = 'Moving'

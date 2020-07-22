@@ -548,8 +548,8 @@ def update_header(header, ut, all_info, log):
 
             foc_serial = info['serial_number']
             foc_pos = info['current_pos']
-            foc_temp_int = info['int_temp']
-            foc_temp_ext = info['ext_temp']
+            foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
+            foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
