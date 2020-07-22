@@ -347,6 +347,12 @@ class UTInterfaceDaemon(BaseDaemon):
             raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
         return self.focusers[ut].stop_cover()
 
+    def get_mirror_cover_position(self, ut):
+        """Return mirror cover position."""
+        if not isinstance(self.focusers[ut], H400):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].get_cover_position()
+
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, ut):
         """Move filter wheel to position."""

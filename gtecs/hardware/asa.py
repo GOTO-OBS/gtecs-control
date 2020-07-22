@@ -251,6 +251,23 @@ class H400(object):
         if int(reply[0]) != 5000:
             raise Exception('Command error: {}'.format(reply))
 
+    def get_cover_position(self):
+        """Get the current position of the mirror cover."""
+        # TODO: This needs checking, in paticular what the three statuses actually mean.
+        # TODO: Also we don't know when the cover is moving, depending on what the
+        #       0="intermediate" status actually means
+        # TODO: For that matter can we interupt commands, i.e. close while opening?
+        info_dict = self._get_info()
+        positions = list(info_dict['cover']['position'].values())
+        if any(p == 'ERROR' for p in positions):
+            return 'ERROR'
+        elif all(p == 'closed' for p in positions):
+            return 'closed'
+        elif all(p == 'open' for p in positions):
+            return 'full_open'
+        else:
+            return 'part_open'  # Best I can say for now
+
     def _move_cover(self, command, blocking=False):
         """Open or close the mirror cover."""
         if command not in ['open', 'close']:
@@ -262,14 +279,9 @@ class H400(object):
 
         if blocking:
             while True:
-                info_dict = self._get_info()
-                # TODO: we should have a single status for the cover, not three
-                # TODO: also we don't know when the cover is moving, depending on what the
-                #       0="intermediate" status actually means
-                positions = list(info_dict['cover']['position'].values())
-                if command == 'open' and all(p == 'open' for p in positions):
+                if command == 'open' and self.get_cover_position() == 'open':
                     break
-                if command == 'close' and all(p == 'closed' for p in positions):
+                if command == 'close' and self.get_cover_position() == 'closed':
                     break
                 time.sleep(0.5)
 
