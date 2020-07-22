@@ -136,7 +136,7 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('#### OTA INFO ####')
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in params.UTS_WITH_COVERS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         print('Position: {}'.format(info[ut]['position']))
         print('~~~~~~~')
@@ -147,7 +147,7 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in params.UTS_WITH_COVERS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         print('  {}'.format(info[ut]['position']))
 
