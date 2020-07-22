@@ -321,8 +321,7 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_focuser_temp(self, temp_type, ut):
         """Return focuser internal/external temperature."""
         if not isinstance(self.focusers[ut], H400):
-            # H400s don't have temperature sensors
-            raise NotImplementedError
+            raise NotImplementedError("ASA H400s don't have temperature sensors")
         return self.focusers[ut].read_temperature(temp_type)
 
     def get_focuser_serial_number(self, ut):
