@@ -138,7 +138,7 @@ def print_info(info):
     print('#### OTA INFO ####')
     for ut in params.UTS_WITH_COVERS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        print('Position: {}'.format(info[ut]['position']))
+        print('Mirror cover: {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -149,7 +149,7 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in params.UTS_WITH_COVERS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
-        print('  {}'.format(info[ut]['position']))
+        print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
 
 
 def print_instructions():
