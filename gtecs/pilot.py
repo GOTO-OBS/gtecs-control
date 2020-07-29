@@ -17,7 +17,7 @@ from . import logger
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
-from .asyncio_protocols import SimpleProtocol
+from .asyncio_protocols import LoggedProtocol
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
@@ -456,7 +456,8 @@ class Pilot(object):
             # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
             if name != 'OBS':
-                send_slack_msg('Pilot {} task ended abnormally'.format(name))
+                msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
+                send_slack_msg(msg)
 
             # if we were observing, mark as aborted
             if name == 'OBS' and self.current_id is not None:
@@ -477,24 +478,24 @@ class Pilot(object):
 
         This does nothing if the script is already done.
         """
-        if self.running_script is not None:
-            # check script is still running
-            if self.running_script_transport.get_returncode() is None:
-                self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
+        if (self.running_script is not None and
+                self.running_script_transport is not None and
+                self.running_script_transport.get_returncode() is None):
+            self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
 
-                # check script is still running again, just in case
-                try:
-                    self.running_script_transport.terminate()
-                    await self.running_script_result
-                except Exception:
-                    self.log.debug('{} already exited?'.format(self.running_script))
+            # check script is still running again, just in case
+            try:
+                self.running_script_transport.terminate()
+                await self.running_script_result
+            except Exception:
+                self.log.debug('{} already exited?'.format(self.running_script))
 
-                # Make sure everything is stopped
-                execute_command('exq clear')
-                execute_command('cam abort')
-                execute_command('mnt stop')
-                execute_command('mnt clear')
-                execute_command('mnt track')
+            # Make sure everything is stopped
+            execute_command('exq clear')
+            execute_command('cam abort')
+            execute_command('mnt stop')
+            execute_command('mnt clear')
+            execute_command('mnt track')
 
     # Daily tasks
     def assign_tasks(self):
@@ -511,12 +512,12 @@ class Pilot(object):
                  'sunalt': 9.5,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
-                 'protocol': SimpleProtocol}
+                 'protocol': LoggedProtocol}
         xdarks = {'name': 'XDARKS',
                   'sunalt': 1,
                   'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
                   'args': [],
-                  'protocol': SimpleProtocol}
+                  'protocol': LoggedProtocol}
 
         self.daytime_tasks = [darks, xdarks]
 
@@ -528,12 +529,12 @@ class Pilot(object):
                    'sunalt': -4.5,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
-                   'protocol': SimpleProtocol}
+                   'protocol': LoggedProtocol}
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
                    'args': ['-n', '1', '-t', '5'],
-                   'protocol': SimpleProtocol}
+                   'protocol': LoggedProtocol}
 
         self.evening_tasks = [flats_e, autofoc]
 
@@ -550,12 +551,12 @@ class Pilot(object):
         #           'sunalt': -14.5,
         #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
         #           'args': ['1000', '100', 'n'],
-        #           'protocol': SimpleProtocol}
+        #           'protocol': LoggedProtocol}
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['MORN'],
-                   'protocol': SimpleProtocol}
+                   'protocol': LoggedProtocol}
 
         # self.morning_tasks = [foc_run, flats_m]
         self.morning_tasks = [flats_m]
@@ -798,7 +799,7 @@ class Pilot(object):
                 script = os.path.join(SCRIPT_PATH, 'observe.py')
                 args = [str(self.new_id)]
                 cmd = [script, *args]
-                asyncio.ensure_future(self.start_script('OBS', SimpleProtocol, cmd))
+                asyncio.ensure_future(self.start_script('OBS', LoggedProtocol, cmd))
 
                 mark_running(self.new_id)
 
@@ -986,7 +987,7 @@ class Pilot(object):
         # start startup script
         self.log.debug('running startup script')
         cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
-        await self.start_script('STARTUP', SimpleProtocol, cmd)
+        await self.start_script('STARTUP', LoggedProtocol, cmd)
 
         self.log.debug('startup script complete')
 
@@ -1010,7 +1011,7 @@ class Pilot(object):
         # start shutdown script
         self.log.info('running shutdown script')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
-        await self.start_script('SHUTDOWN', SimpleProtocol, cmd)
+        await self.start_script('SHUTDOWN', LoggedProtocol, cmd)
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
