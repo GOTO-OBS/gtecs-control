@@ -456,7 +456,10 @@ class Pilot(object):
             # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
             if name != 'OBS':
-                msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
+                if ('Error' in result) or ('Exception' in result):
+                    msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
+                else:
+                    msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
             # if we were observing, mark as aborted
