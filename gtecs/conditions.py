@@ -2,6 +2,7 @@
 
 import json
 import os
+import ssl
 import subprocess
 import time
 import traceback
@@ -43,6 +44,21 @@ def curl_data_from_url(url, outfile, encoding=None):
         with open(outfile, 'r') as f:
             data = f.read()
 
+    return data
+
+
+def download_data_from_url(url, outfile, timeout=2, encoding='utf-8', verify=True):
+    """Fetch data from a URL, store it in a file and return the contents."""
+    if not verify:
+        context = ssl._create_unverified_context()
+    else:
+        context = None
+
+    with urllib.request.urlopen(url, timeout=timeout, context=context) as r:
+        data = r.read().decode(encoding)
+
+    with open(outfile, 'w') as f:
+        f.write(data)
     return data
 
 
