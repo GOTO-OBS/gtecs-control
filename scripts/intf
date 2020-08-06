@@ -139,7 +139,7 @@ def query(command, args, daemon_ids):
 
 def print_info(info):
     """Print the full info dict."""
-    print('INTERFACE {}:'.format(info['daemon_id']))
+    print('INTERFACE {} ({}):'.format(info['daemon_id'], params.DAEMONS[info['daemon_id']]['HOST']))
     if len(info['ota_serials']) > 0:
         print('   OTAs:          ', end='\t')
         for ut in info['uts']:
