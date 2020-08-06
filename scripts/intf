@@ -32,6 +32,9 @@ def get_args(interface_id):
         # UT number
         args.append(ut)
 
+        # OTA serial number
+        args.append('ota={}'.format(params.UT_DICT[ut]['SERIAL']))
+
         # Camera details
         if params.UT_DICT[ut]['CAMERA'] is not None:
             hw_str = json.dumps(params.UT_DICT[ut]['CAMERA'], separators=(',', ':'))
@@ -137,6 +140,14 @@ def query(command, args, daemon_ids):
 def print_info(info):
     """Print the full info dict."""
     print('INTERFACE {}:'.format(info['daemon_id']))
+    if len(info['ota_serials']) > 0:
+        print('   OTAs:          ', end='\t')
+        for ut in info['uts']:
+            if ut in info['ota_serials']:
+                print('{}: {: <14}'.format(ut, info['ota_serials'][ut]), end='  ')
+            else:
+                print('{}: {: <14}'.format(ut, '----'), end='  ')
+        print('')
     if len(info['cam_serials']) > 0:
         print('   Cameras:       ', end='\t')
         for ut in info['uts']:

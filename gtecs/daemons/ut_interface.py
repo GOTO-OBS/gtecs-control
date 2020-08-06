@@ -28,6 +28,8 @@ class UTInterfaceDaemon(BaseDaemon):
         self.hw_dict = hw_dict
         self.uts = hw_dict.keys()
 
+        self.otas = {ut: self.hw_dict[ut]['OTA'] for ut in self.uts}
+
         self.cameras = {ut: None for ut in self.uts}
         self.cam_params = {ut: self.hw_dict[ut]['CAMERA'] for ut in self.uts}
 
@@ -288,6 +290,7 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['uts'] = list(self.uts)
+        temp_info['ota_serials'] = dict(self.otas)
 
         # Write debug log line
         # NONE, nothing really changes
@@ -468,6 +471,11 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return camera unique serial number."""
         return self.cameras[ut].serial_number
 
+    # OTA functions
+    def get_ota_serial_number(self, ut):
+        """Return OTA unique serial number."""
+        return self.otas[ut]
+
 
 def parse_args():
     """Parse arguments.
@@ -482,16 +490,21 @@ def parse_args():
     # Interface ID should be first argument
     interface_id = args.interface_id
 
-    # Each UT should have an ID and then details of any attached hardware
+    # Each UT should have a number, a name, and details of any attached hardware
     ut_lists = args.uts
     hw_dict = {}
     for ut_list in ut_lists:
+        ut_dict = {}
+
         # ID number should be first
         ut = int(ut_list[0])
 
+        # Then should be the assigned OTA serial number
+        serial = str(ut_list[1].strip('ota='))
+        ut_dict['OTA'] = serial
+
         # Then should be arguments with JSON dictionaries
-        ut_dict = {}
-        for arg in ut_list[1:]:
+        for arg in ut_list[2:]:
             if arg.startswith('cam='):
                 ut_dict['CAMERA'] = json.loads(arg.strip('cam='))
             if arg.startswith('foc='):
