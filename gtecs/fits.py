@@ -60,7 +60,11 @@ def write_fits(image, filename, ut, all_info, log=None):
 
     # write the image log to the database
     if run_number > 0:
-        write_image_log(filename, hdu.header)
+        try:
+            write_image_log(filename, hdu.header)
+        except Exception:
+            log.error('Failed to add entry to image log')
+            log.debug('', exc_info=True)
 
     # recreate the hdulist, and write to file
     if not isinstance(hdu, pyfits.PrimaryHDU):
