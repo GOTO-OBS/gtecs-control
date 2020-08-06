@@ -98,12 +98,11 @@ class UTInterfaceDaemon(BaseDaemon):
                         # FLI USB Camera, needs a serial number
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
-                        serial = hw_params['SERIAL']
-
-                        camera = FLICamera.locate_device(serial)
+                        camera = FLICamera.locate_device(hw_params['SERIAL'])
                         if camera is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Camera')
                             camera = FakeCamera('/dev/fake', 'FakeCamera')
+                            camera.serial_number = hw_params['SERIAL']
                         if camera is None:
                             raise ValueError('Could not locate hardware')
 
@@ -143,6 +142,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         if focuser is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Focuser')
                             focuser = FakeFocuser('/dev/fake', 'FakeCamera')
+                            focuser.serial_number = hw_params['SERIAL']
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
 
@@ -199,11 +199,11 @@ class UTInterfaceDaemon(BaseDaemon):
                         # FLI USB Filter Wheel, needs a serial number
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
-                        serial = hw_params['SERIAL']
-                        filterwheel = FLIFilterWheel.locate_device(serial)
+                        filterwheel = FLIFilterWheel.locate_device(hw_params['SERIAL'])
                         if filterwheel is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Filter Wheel')
                             filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
+                            filterwheel.serial_number = hw_params['SERIAL']
                         if filterwheel is None:
                             raise ValueError('Could not locate hardware')
 
