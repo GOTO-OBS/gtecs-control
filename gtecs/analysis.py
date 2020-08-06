@@ -64,6 +64,9 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
 def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=None, verbose=True):
     """Measure the median FWHM of sources in an image.
 
+    NOTE this is just an estimate, since `sep` doesn't currently include FWHM measurement.
+         See https://github.com/kbarbary/sep/issues/34
+
     Parameters
     ----------
     verbose : bool, default=True
