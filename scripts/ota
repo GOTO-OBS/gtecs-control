@@ -136,9 +136,11 @@ def query(command, args, daemon_id):
 def print_info(info):
     """Print the full info dict."""
     print('#### OTA INFO ####')
-    for ut in params.UTS_WITH_COVERS:
+    for ut in params.UTS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        print('Mirror cover: {}'.format(info[ut]['position'].capitalize()))
+        print('Serial number: {}'.format(info[ut]['serial']))
+        if ut in params.UTS_WITH_COVERS:
+            print('Mirror cover:  {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))

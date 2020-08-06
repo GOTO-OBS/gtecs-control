@@ -28,7 +28,8 @@ class OTADaemon(BaseDaemon):
         self.stop_cover_flag = 0
 
         # OTA variables
-        self.uts = params.UTS_WITH_COVERS.copy()
+        self.uts = params.UTS.copy()
+        self.uts_with_covers = params.UTS_WITH_COVERS.copy()
         self.active_uts = []
 
         # start control thread
@@ -157,8 +158,12 @@ class OTADaemon(BaseDaemon):
                 interface_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['position'] = interface.get_mirror_cover_position(ut)
-                    # See `H400.get_cover_position`
+                    interface_info['serial'] = interface.get_ota_serial_number(ut)
+                    if ut in self.uts_with_covers:
+                        interface_info['position'] = interface.get_mirror_cover_position(ut)
+                        # See `H400.get_cover_position`
+                    else:
+                        interface_info['position'] = 'NA'
 
                 temp_info[ut] = interface_info
             except Exception:
@@ -194,7 +199,7 @@ class OTADaemon(BaseDaemon):
 
         # Format input
         if ut_list is None:
-            ut_list = self.uts.copy()
+            ut_list = self.uts_with_covers.copy()
 
         self.wait_for_info()
         retstrs = []
@@ -202,6 +207,12 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the UT has a mirror cover
+            if ut not in self.uts_with_covers:
+                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
                 retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
                 continue
 
@@ -227,7 +238,7 @@ class OTADaemon(BaseDaemon):
 
         # Format input
         if ut_list is None:
-            ut_list = self.uts.copy()
+            ut_list = self.uts_with_covers.copy()
 
         self.wait_for_info()
         retstrs = []
@@ -235,6 +246,12 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the UT has a mirror cover
+            if ut not in self.uts_with_covers:
+                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
                 retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
                 continue
 
@@ -260,7 +277,7 @@ class OTADaemon(BaseDaemon):
 
         # Format input
         if ut_list is None:
-            ut_list = self.uts.copy()
+            ut_list = self.uts_with_covers.copy()
 
         self.wait_for_info()
         retstrs = []
@@ -268,6 +285,12 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the UT has a mirror cover
+            if ut not in self.uts_with_covers:
+                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
                 retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
                 continue
 
