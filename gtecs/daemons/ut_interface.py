@@ -157,13 +157,15 @@ class UTInterfaceDaemon(BaseDaemon):
                             raise ValueError('Could not locate hardware')
 
                     elif hw_class == 'ASA':
-                        # ASA H400 in-built Focuser, needs a port
+                        # ASA H400 in-built Focuser, needs a port and a serial number
                         if 'PORT' not in hw_params:
                             raise ValueError('Missing serial port')
-                        focuser = H400.locate_device(hw_params['PORT'])
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        focuser = H400.locate_device(hw_params['PORT'], hw_params['SERIAL'])
                         if focuser is None and params.FAKE_ASA:
                             self.log.info('Creating a fake Focuser')
-                            focuser = FakeH400('/dev/fake')
+                            focuser = FakeH400('/dev/fake', hw_params['SERIAL'])
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
 

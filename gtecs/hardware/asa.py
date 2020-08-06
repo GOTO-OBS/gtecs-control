@@ -4,8 +4,6 @@ import math
 import threading
 import time
 
-import pyudev
-
 import serial
 
 
@@ -65,7 +63,7 @@ class H400(object):
                             4: 'ERROR',
                             }
 
-    def __init__(self, port):
+    def __init__(self, port, serial_number):
         self._stored_info = None
         self._info_delay = 1
 
@@ -77,22 +75,17 @@ class H400(object):
                                     baudrate=self.serial_baudrate,
                                     timeout=self.serial_timeout)
 
-        # Get initial info, to fill properties like serial number
+        # Set serial number
+        # (ASAs don't actually have a way to get the serial number from the hub,
+        #  so we just define it here)
+        self.serial_number = serial_number
+
+        # Get initial info
         info_dict = self._get_info()
 
         # We need to save the target position internally, but on init that's not defined.
         # So take the current position as the target instead.
         self.target_position = info_dict['focuser']['position']
-
-        # Use udev to find device properties directly from the dev file
-        # We need to do this to construct a unique serial number
-        # TODO: Need to check the output of all of these
-        context = pyudev.Context()
-        udev = pyudev.Devices.from_device_file(context, port).parent.parent  # TODO: needs checking
-        self.sys_name = str(udev.sys_name)
-        self.usb = (str(udev['BUSNUM']), str(udev['DEVNUM']))
-        self.type = str(udev['ID_MODEL_FROM_DATABASE'])
-        self.typeID = str(udev['ID_MODEL_ID'])
 
     def __del__(self):
         try:
@@ -101,10 +94,10 @@ class H400(object):
             pass
 
     @classmethod
-    def locate_device(cls, port):
+    def locate_device(cls, port, serial_number):
         """Locate the focuser by port."""
         try:
-            return cls(port)
+            return cls(port, serial_number)
         except serial.serialutil.SerialException:
             return None
 
@@ -192,16 +185,6 @@ class H400(object):
             return True
         except ConnectionError:
             return False
-
-    @property
-    def serial_number(self):
-        """Return a constructed serial number.
-
-        Since the ASA devices don't have serial numbers (they don't really need them to be fair,
-        as long as you know the port) we construct a unique string from the model name and
-        USB bus it is connected to.
-        """
-        return 'H400:' + self.sys_name
 
     @property
     def stepper_position(self):
@@ -312,12 +295,12 @@ class H400(object):
 class FakeH400(object):
     """Fake ASA H400 gateway controller class, for testing."""
 
-    def __init__(self, port):
+    def __init__(self, port, serial_number):
         self.fake = True
 
         self.port = port
         self.connected = True
-        self.serial_number = 'Fake-ASA-H400'
+        self.serial_number = serial_number
 
         self.stepper_position = 0
         self.target_position = 0
