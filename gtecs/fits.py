@@ -546,20 +546,22 @@ def update_header(header, ut, all_info, log):
         if all_info['ota'] is None:
             raise ValueError('No OTA info provided')
 
+        info = all_info['ota'][ut]
+        ota_serial = info['serial_number']
         if ut not in params.UTS_WITH_COVERS:
             cover_position = 'NA'
             cover_open = 'NA'
         else:
-            info = all_info['ota'][ut]
-
             cover_position = info['position']
             cover_open = info['position'] == 'full_open'
     except Exception:
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
+        ota_serial = 'NA'
         cover_position = 'NA'
         cover_open = 'NA'
 
+    header['OTA     '] = (ota_serial, 'OTA serial number')
     header['COVSTAT '] = (cover_position, 'Mirror cover position')
     header['COVOPEN '] = (cover_open, 'Mirror cover is open')
 

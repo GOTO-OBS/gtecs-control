@@ -138,7 +138,7 @@ def print_info(info):
     print('#### OTA INFO ####')
     for ut in params.UTS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        print('Serial number: {}'.format(info[ut]['serial']))
+        print('Serial number: {}'.format(info[ut]['serial_number']))
         if ut in params.UTS_WITH_COVERS:
             print('Mirror cover:  {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')

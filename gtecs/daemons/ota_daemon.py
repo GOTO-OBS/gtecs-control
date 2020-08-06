@@ -158,7 +158,7 @@ class OTADaemon(BaseDaemon):
                 interface_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['serial'] = interface.get_ota_serial_number(ut)
+                    interface_info['serial_number'] = interface.get_ota_serial_number(ut)
                     if ut in self.uts_with_covers:
                         interface_info['position'] = interface.get_mirror_cover_position(ut)
                         # See `H400.get_cover_position`
