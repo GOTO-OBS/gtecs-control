@@ -90,18 +90,18 @@ class PilotTaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
 
     def process_exited(self):
         """Run when a process exits."""
-        logstr = 'process {} exited'.format(self.transport.get_pid())
-        self.log.debug('{}: {}'.format(self.name, logstr))
+        pid = self.transport.get_pid()
+        self.log.debug('{}: process {} exited'.format(self.name, pid))
 
-        return_code = self.transport.get_returncode()
-        logstr = 'return code {}'.format(return_code)
-        self.log.debug('{}: {}'.format(self.name, logstr))
-        if not return_code:
-            cmd_output = bytes(self.buffer).decode()
-            results = self._parse_results(cmd_output)
-        else:
-            results = []
-        self.done.set_result((return_code, results))
+        retcode = self.transport.get_returncode()
+        self.log.debug('{}: retcode={}'.format(self.name, retcode))
+
+        cmd_output = bytes(self.buffer).decode()
+        result = self._parse_results(cmd_output)
+        if result is not None:
+            self.log.debug('{}: result="{}"'.format(self.name, result))
+
+        self.done.set_result((retcode, result))
 
     @abc.abstractmethod
     def _parse_results(self, cmd_output):
@@ -118,4 +118,20 @@ class SimpleProtocol(PilotTaskProtocol):
     """
 
     def _parse_results(self, cmd_output):
-        return True
+        return
+
+
+class LoggedProtocol(PilotTaskProtocol):
+    """A fairly simple protocol which returns the last line of the output.
+
+    This can be useful to report any errors that occur.
+    """
+
+    def _parse_results(self, cmd_output):
+        if cmd_output is None or len(cmd_output) == 0:
+            return
+        output_lines = cmd_output.split('\n')
+        last_line = output_lines[-1]
+        if len(last_line) == 0:
+            last_line = output_lines[-2]
+        return last_line
