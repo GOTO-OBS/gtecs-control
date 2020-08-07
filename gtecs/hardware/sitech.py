@@ -75,6 +75,7 @@ class SiTech(object):
         self.port = port
         self.buffer_size = 1024
         self.commands = {'GET_STATUS': 'ReadScopeStatus\n',
+                         'GET_DESTINATION': 'ReadScopeDestination\n',
                          'SLEW_RADEC': 'GoTo {:.5f} {:.5f}\n',
                          'SLEW_RADEC_J2K': 'GoTo {:.5f} {:.5f} J2K\n',
                          'SLEW_ALTAZ': 'GoToAltAz {:.5f} {:.5f}\n',
@@ -126,7 +127,7 @@ class SiTech(object):
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
 
-    def _parse_reply_string(self, reply_string):
+    def _parse_reply_string(self, reply_string, destination=False):
         """Parse the return string from a SiTech command.
 
         The status  values are saved on on the SiTech object, and any attached
@@ -171,27 +172,35 @@ class SiTech(object):
         self._tracking_satellite = (bools & 32768) > 0
 
         # parse values
-        ra_temp = float(reply[1])
-        if ra_temp >= 24:  # fix for RA
-            ra_temp -= 24
-        dec_temp = float(reply[2])
+        self._ra_jnow = float(reply[1])
+        self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
-        self._secondary_angle = float(reply[5])
-        self._primary_angle = float(reply[6])
-        self._sidereal_time = float(reply[7])
-        self._jd = float(reply[8])
+        if destination is False:
+            self._secondary_angle = float(reply[5])
+            self._primary_angle = float(reply[6])
+            self._sidereal_time = float(reply[7])
+            self._jd = float(reply[8])
+        else:
+            self._dest_ra_jnow = float(reply[5])
+            self._dest_dec_jnow = float(reply[6])
+            self._dest_alt = float(reply[7])
+            self._dest_az = float(reply[8])
         self._hours = float(reply[9])
         self._airmass = float(reply[10])
 
         # need to "uncook" the SiTech coordinates into J2000
-        ra_j2000, dec_j2000 = uncook(ra_temp * 360 / 24, dec_temp, self._jd)
+        if self._ra_jnow >= 24:  # fix for RA
+            self._ra_jnow -= 24
+        ra_j2000, dec_j2000 = uncook(self._ra_jnow * 360 / 24, self._dec_jnow, self._jd)
         self._ra = ra_j2000 * 24 / 360
         if self._ra >= 24:
             self._ra -= 24
         self._dec = dec_j2000
-        self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra_temp, dec_temp,
-                                                                        self._ra, self._dec))
+        self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(self._ra_jnow,
+                                                                        self._dec_jnow,
+                                                                        self._ra,
+                                                                        self._dec))
 
         # find the message and return it
         message = reply[-1][1:-1]  # strip leading '_' and trailing '\n'
@@ -204,9 +213,10 @@ class SiTech(object):
         """Read and store status values."""
         # Only update if we need to, to save sending multiple commands
         if (time.time() - self._status_update_time) > 0.5:
-            command = self.commands['GET_STATUS']
-            reply_string = self._tcp_command(command)
+            reply_string = self._tcp_command(self.commands['GET_STATUS'])
             self._parse_reply_string(reply_string)  # no message
+            reply_string = self._tcp_command(self.commands['GET_DESTINATION'])
+            self._parse_reply_string(reply_string, destination=True)  # no message
 
     @property
     def status(self):
