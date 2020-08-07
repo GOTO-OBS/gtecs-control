@@ -39,10 +39,11 @@ def kill_process(pidname, host='127.0.0.1'):
     """Kill any specified processes."""
     pid = get_pid(pidname, host)
 
-    if host in ['127.0.0.1', params.LOCAL_HOST]:
-        os.system('kill -9 {}'.format(pid))
-    else:
-        os.system('ssh {} kill -9 {}'.format(host, pid))
+    command_string = 'kill -9 {}'.format(pid)
+    if host not in ['127.0.0.1', params.LOCAL_HOST]:
+        command_string = "ssh {} '{}'".format(host, command_string)
+
+    subprocess.getoutput(command_string)
 
     clear_pid(pidname, host)
 
@@ -53,10 +54,10 @@ def python_command(filename, command, host='127.0.0.1',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                    in_background=False):
     """Send a command to a control script as if using the terminal."""
-    if host in ['127.0.0.1', params.LOCAL_HOST]:
-        command_string = ' '.join((sys.executable, filename, command))
-    else:
-        command_string = ' '.join(('ssh', host, sys.executable, filename, command))
+    command_string = ' '.join((sys.executable, filename, command))
+    if host not in ['127.0.0.1', params.LOCAL_HOST]:
+        command_string = "ssh {} '{}'".format(host, command_string)
+
     if not in_background:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         output = proc.communicate()[0]
@@ -163,12 +164,14 @@ def get_pid(pidname, host=None):
 
     pidfile = pidname + '.pid'
     pidpath = os.path.join(params.PID_PATH, pidfile)
-    if host in ['127.0.0.1', params.LOCAL_HOST]:
-        command_string = 'cat {}'.format(pidpath)
-    else:
+
+    command_string = 'cat {}'.format(pidpath)
+    if host not in ['127.0.0.1', params.LOCAL_HOST]:
         # NOTE this assumes the pid path is the same on the remote machine
-        command_string = 'ssh {} cat {}'.format(host, pidpath)
+        command_string = "ssh {} '{}'".format(host, command_string)
+
     output = subprocess.getoutput(command_string)
+
     if 'No such file or directory' in output:
         return None
     else:
@@ -179,12 +182,14 @@ def clear_pid(pidname, host='127.0.0.1'):
     """Clear a pid in case we've killed the process."""
     pidfile = pidname + '.pid'
     pidpath = os.path.join(params.PID_PATH, pidfile)
-    if host in ['127.0.0.1', params.LOCAL_HOST]:
-        command_string = 'rm {}'.format(pidpath)
-    else:
+
+    command_string = 'rm {}'.format(pidpath)
+    if host not in ['127.0.0.1', params.LOCAL_HOST]:
         # NOTE this assumes the pid path is the same on the remote machine
-        command_string = 'ssh {} rm {}'.format(host, pidpath)
+        command_string = "ssh {} '{}'".format(host, command_string)
+
     output = subprocess.getoutput(command_string)
+
     if not output or 'No such file or directory' in output:
         return 0
     else:
