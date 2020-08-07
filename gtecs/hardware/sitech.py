@@ -92,6 +92,7 @@ class SiTech(object):
                          'BLINKY_OFF': 'MotorsToAuto\n',
                          'J2K_TO_JNOW': 'CookCoordinates {:.5f} {:.5f}\n',
                          'JNOW_TO_J2K': 'UnCookCoordinates {:.5f} {:.5f}\n',
+                         'CLOSE': 'CloseMe\n',
                          }
         self._status_update_time = 0
 
@@ -109,6 +110,7 @@ class SiTech(object):
 
     def __del__(self):
         try:
+            self.socket.send(self.commands['CLOSE'].encode())  # no reply
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
         except OSError:
