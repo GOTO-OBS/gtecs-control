@@ -153,7 +153,7 @@ def get_all_info(cam_info, log):
     # Database
     expset_id = cam_info['current_exposure']['db_id']
     db_info = {}
-    if expset_id == 0:
+    if expset_id is None:
         db_info['from_db'] = False
     else:
         db_info['from_db'] = True
@@ -164,7 +164,7 @@ def get_all_info(cam_info, log):
                 db_info['expset'] = {}
                 db_info['expset']['id'] = expset_id
             except Exception:
-                pointing = None
+                expset = None
                 log.error('Failed to fetch database expset')
                 log.debug('', exc_info=True)
 
@@ -255,10 +255,11 @@ def update_header(header, ut, all_info, log):
 
     # Observation info
     cam_info = all_info['cam']
+
     run_number = cam_info['run_number']
-    run_id = 'r{:07d}'.format(run_number)
+    run_number_str = 'r{:07d}'.format(run_number)
     header['RUN     '] = (run_number, 'GOTO run number')
-    header['RUN-ID  '] = (run_id, 'Padded run ID string')
+    header['RUN-ID  '] = (run_number_str, 'Padded run ID string')
 
     write_time = Time.now()
     write_time.precision = 0
@@ -285,8 +286,12 @@ def update_header(header, ut, all_info, log):
 
     header['OBJECT  '] = (current_exposure['target'], 'Observed object name')
 
+    set_number = current_exposure['set_num']
+    if set_number is None:
+        set_number = 'NA'
+    header['SET     '] = (set_number, 'GOTO set number')
     header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
-    header['SET-TOT '] = (current_exposure['set_total'], 'Total number of exposures in this set')
+    header['SET-TOT '] = (current_exposure['set_tot'], 'Total number of exposures in this set')
 
     header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
     header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
@@ -873,8 +878,8 @@ def write_image_log(filename, header):
     ut_mask = int(header['UTMASK  '])
     start_time = Time(header['DATE-OBS'])
     write_time = Time(header['DATE    '])
-    set_position = int(header['SET-POS '])
-    set_total = int(header['SET-TOT '])
+    set_pos = int(header['SET-POS '])
+    set_tot = int(header['SET-TOT '])
 
     expset_id = None
     pointing_id = None
@@ -889,7 +894,7 @@ def write_image_log(filename, header):
 
     log = db.ImageLog(filename=filename, run_number=run_number, ut=ut,
                       ut_mask=ut_mask, start_time=start_time, write_time=write_time,
-                      set_position=set_position, set_total=set_total,
+                      set_position=set_pos, set_total=set_tot,
                       exposure_set_id=expset_id, pointing_id=pointing_id, mpointing_id=mpointing_id)
 
     with db.open_session() as session:
