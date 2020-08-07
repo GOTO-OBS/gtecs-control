@@ -287,7 +287,8 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         mask = out_hfds < initial_hfds + 2  # stricter mask
         moving_uts = initial_hfds.index[mask]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
-        new_positions = {ut: initial_positions[ut] + big_step[ut] / 2 for ut in moving_uts}
+        current_positions = get_focuser_positions()
+        new_positions = {ut: current_positions[ut] + big_step[ut] / 2 for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         print('New positions:', get_focuser_positions())
         print('Taking {} focus measurements...'.format(num_exp))
