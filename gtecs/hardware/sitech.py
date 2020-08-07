@@ -142,7 +142,7 @@ class SiTech(object):
         reply = reply_string.split(';')
 
         # a quick check
-        if not len(reply) == 11:
+        if not len(reply) == 12:
             raise ValueError('Invalid SiTech return string: {}'.format(reply))
 
         # parse boolian flags
@@ -176,6 +176,7 @@ class SiTech(object):
         self._sidereal_time = float(reply[7])
         self._jd = float(reply[8])
         self._hours = float(reply[9])
+        self._airmass = float(reply[10])
 
         # need to "uncook" the SiTech coordinates into J2000
         ra_j2000, dec_j2000 = uncook(ra_temp * 360 / 24, dec_temp, self._jd)
@@ -187,7 +188,7 @@ class SiTech(object):
                                                                         self._ra, self._dec))
 
         # find the message and return it
-        message = reply[10][1:-1]  # strip leading '_' and trailing '\n'
+        message = reply[-1][1:-1]  # strip leading '_' and trailing '\n'
         if len(message) == 0:
             return None
         else:
