@@ -87,6 +87,7 @@ class SiTech(object):
                          'HALT': 'Abort\n',
                          'SET_TRACKMODE': 'SetTrackMode {:d} {:d} {:.5f} {:.5f}\n',
                          'PULSEGUIDE': 'PulseGuide {:d} {:d}\n',
+                         'OFFSET': 'JogArcSeconds {} {:.5f}\n',
                          'BLINKY_ON': 'MotorsToBlinky\n',
                          'BLINKY_OFF': 'MotorsToAuto\n',
                          'J2K_TO_JNOW': 'CookCoordinates {:.5f} {:.5f}\n',
@@ -442,6 +443,15 @@ class SiTech(object):
             command = self.commands['BLINKY_ON']
         else:
             command = self.commands['BLINKY_OFF']
+        reply_string = self._tcp_command(command)
+        message = self._parse_reply_string(reply_string)
+        return message
+
+    def offset(self, direction, distance):
+        """Set offset in the given direction by the given distance (in arcsec)."""
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        command = self.commands['OFFSET'].format(direction.upper(), distance)
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
