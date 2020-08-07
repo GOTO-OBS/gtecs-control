@@ -94,9 +94,9 @@ class SiTech(object):
                          }
         self._status_update_time = 0
 
-        self.log = log
         if log is None:
             log = logging.getLogger('sitech')
+        self.log = log
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
