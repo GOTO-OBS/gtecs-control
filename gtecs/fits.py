@@ -151,15 +151,15 @@ def get_all_info(cam_info, log):
     all_info['astro'] = astro
 
     # Database
-    expset_id = cam_info['current_exposure']['db_id']
     db_info = {}
-    if expset_id is None:
+    if not cam_info['current_exposure']['from_db']:
         db_info['from_db'] = False
     else:
         db_info['from_db'] = True
 
         with db.open_session() as session:
             try:
+                expset_id = cam_info['current_exposure']['db_id']
                 expset = db.get_exposure_set_by_id(session, expset_id)
                 db_info['expset'] = {}
                 db_info['expset']['id'] = expset_id
