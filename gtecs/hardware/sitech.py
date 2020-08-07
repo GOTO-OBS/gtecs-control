@@ -127,7 +127,7 @@ class SiTech(object):
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
 
-    def _parse_reply_string(self, reply_string, destination=False):
+    def _parse_reply_string(self, reply_string):
         """Parse the return string from a SiTech command.
 
         The status  values are saved on on the SiTech object, and any attached
@@ -148,6 +148,9 @@ class SiTech(object):
         # a quick check
         if not len(reply) == 12:
             raise ValueError('Invalid SiTech return string: {}'.format(reply))
+
+        # the message should be the last entry
+        message = reply[-1][1:-1]  # strip leading '_' and trailing '\n'
 
         # parse boolian flags
         bools = int(reply[0])
@@ -176,16 +179,16 @@ class SiTech(object):
         self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
-        if destination is False:
-            self._secondary_angle = float(reply[5])
-            self._primary_angle = float(reply[6])
-            self._sidereal_time = float(reply[7])
-            self._jd = float(reply[8])
-        else:
+        if message == 'ReadScopeDestination':
             self._dest_ra_jnow = float(reply[5])
             self._dest_dec_jnow = float(reply[6])
             self._dest_alt = float(reply[7])
             self._dest_az = float(reply[8])
+        else:
+            self._secondary_angle = float(reply[5])
+            self._primary_angle = float(reply[6])
+            self._sidereal_time = float(reply[7])
+            self._jd = float(reply[8])
         self._hours = float(reply[9])
         self._airmass = float(reply[10])
 
@@ -202,8 +205,6 @@ class SiTech(object):
                                                                         self._ra,
                                                                         self._dec))
 
-        # find the message and return it
-        message = reply[-1][1:-1]  # strip leading '_' and trailing '\n'
         if len(message) == 0:
             return None
         else:
@@ -214,9 +215,9 @@ class SiTech(object):
         # Only update if we need to, to save sending multiple commands
         if (time.time() - self._status_update_time) > 0.5:
             reply_string = self._tcp_command(self.commands['GET_STATUS'])
-            self._parse_reply_string(reply_string)  # no message
+            self._parse_reply_string(reply_string)
             reply_string = self._tcp_command(self.commands['GET_DESTINATION'])
-            self._parse_reply_string(reply_string, destination=True)  # no message
+            self._parse_reply_string(reply_string)
 
     @property
     def status(self):
