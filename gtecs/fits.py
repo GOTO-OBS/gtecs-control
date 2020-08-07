@@ -313,21 +313,13 @@ def update_header(header, ut, all_info, log):
     mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
     header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
 
-    # Frame info
     header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
     header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
 
+    # Frame info
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
     header['TRIMSEC '] = ('[65:8240,46:6177]', 'Central data region (both channels)')
-
     header['CHANNELS'] = (2, 'Number of CCD channels')
-
-    header['TRIMSEC1'] = ('[65:4152,46:6177]', 'Data section for left channel')
-    header['TRIMSEC2'] = ('[4153:8240,46:6177]', 'Data section for right channel')
-    header['BIASSEC1'] = ('[3:10,3:6218]', 'Recommended bias section for left channel')
-    header['BIASSEC2'] = ('[8295:8302,3:6218]', 'Recommended bias section for right channel')
-    header['DARKSEC1'] = ('[26:41,500:5721]', 'Recommended dark section for left channel')
-    header['DARKSEC2'] = ('[8264:8279,500:5721]', 'Recommended dark section for right channel')
 
     # Database info
     try:
