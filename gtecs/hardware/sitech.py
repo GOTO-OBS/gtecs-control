@@ -1,5 +1,6 @@
 """Classes to control SiTechExe."""
 
+import logging
 import socket
 import threading
 import time
@@ -93,6 +94,8 @@ class SiTech(object):
         self._status_update_time = 0
 
         self.log = log
+        if log is None:
+            log = logging.getLogger('sitech')
 
         # Create one persistent socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
