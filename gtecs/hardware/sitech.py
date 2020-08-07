@@ -166,6 +166,9 @@ class SiTech(object):
         self._homing_switches = {'primary': (bools & 4096) > 0,
                                  'secondary': (bools & 8192) > 0,
                                  }
+        self._rotator_pos = (bools & 16384) > 0
+        self._tracking_nonsidereal = (bools & 32768) > 0
+        self._tracking_satellite = (bools & 32768) > 0
 
         # parse values
         ra_temp = float(reply[1])
