@@ -397,7 +397,7 @@ class SiTech(object):
 
     def track(self):
         """Start tracking at the siderial rate."""
-        command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
+        command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -429,7 +429,7 @@ class SiTech(object):
         If both RA and Dec are 0.0 then tracking will be (re)set to the siderial rate.
         """
         if ra_rate == 0 and dec_rate == 0:
-            command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
+            command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
         else:
             command = self.commands['SET_TRACKMODE'].format(1, 1, float(ra_rate), float(dec_rate))
         reply_string = self._tcp_command(command)
