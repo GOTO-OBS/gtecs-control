@@ -57,11 +57,6 @@ class H400(object):
                           2: 'closed',
                           3: 'ERROR',
                           }
-    _GATEWAY_STATUS_CODE = {0: 'off',
-                            1: 'on',
-                            3: 'pwm_control',
-                            4: 'ERROR',
-                            }
 
     def __init__(self, port, serial_number):
         self._stored_info = None
@@ -161,13 +156,6 @@ class H400(object):
                                   3: self._COVER_STATUS_CODE[int(reply[6])],
                                   }
             info_dict['cover'] = cov_info
-
-            # Get gateway status
-            gw_info = {}
-            reply = self._serial_command('gateway', 'status')
-            gw_info['swv'] = reply(1)
-            gw_info['status'] = self._GATEWAY_STATUS_CODE[int(reply(2))]
-            info_dict['gateway'] = gw_info
 
             # Store properties that shouldn't change
             self.max_extent = int(info_dict['focuser']['limit'])
