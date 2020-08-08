@@ -335,8 +335,11 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    if info['status'] != 'Slewing':
-        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, info['status']))
+    status = info['status']
+    if status != 'Slewing':
+        if status == 'Tracking' and info['nonsidereal']:
+            status += ' (non-sidereal)'
+        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, status))
     else:
         if info['target_dist']:
             print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,

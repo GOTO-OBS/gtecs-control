@@ -298,6 +298,7 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = self.sitech.az
             temp_info['mount_ra'] = self.sitech.ra
             temp_info['mount_dec'] = self.sitech.dec
+            temp_info['nonsidereal'] = self.sitech.nonsidereal
             temp_info['lst'] = self.sitech.sidereal_time
             temp_info['ha'] = find_ha(temp_info['mount_ra'], temp_info['lst'])
         except Exception:
@@ -308,6 +309,7 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = None
             temp_info['mount_ra'] = None
             temp_info['mount_dec'] = None
+            temp_info['nonsidereal'] = None
             temp_info['lst'] = None
             temp_info['ha'] = None
             # Report the connection as failed

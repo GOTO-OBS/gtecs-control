@@ -235,10 +235,7 @@ class SiTech(object):
         elif self._slewing:
             status = 'Slewing'
         elif self._tracking:
-            if self._tracking_nonsidereal:
-                status = 'Tracking (non-sidereal)'
-            else:
-                status = 'Tracking'
+            status = 'Tracking'
         elif self._parking:
             status = 'Parking'
         else:
@@ -250,6 +247,12 @@ class SiTech(object):
         """Return if the mount is currently tracking."""
         self._update_status()
         return self._tracking
+
+    @property
+    def nonsidereal(self):
+        """Return if the mount has a non-sidereal tracking rate set."""
+        self._update_status()
+        return self._tracking_nonsidereal
 
     @property
     def slewing(self):
