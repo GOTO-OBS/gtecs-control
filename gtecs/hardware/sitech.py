@@ -234,6 +234,8 @@ class SiTech(object):
             status = 'IN BLINKY MODE'
         elif self._slewing:
             status = 'Slewing'
+        elif self._tracking_nonsidereal:
+            status = 'Tracking (non-sidereal)'
         elif self._tracking:
             status = 'Tracking'
         elif self._parking:

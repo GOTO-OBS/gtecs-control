@@ -46,6 +46,8 @@ class MntDaemon(BaseDaemon):
         self.set_blinky = False
         self.offset_direction = None
         self.offset_distance = None
+        self.trackrate_ra = 0
+        self.trackrate_dec = 0
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -158,6 +160,26 @@ class MntDaemon(BaseDaemon):
                     self.log.error('full_stop command failed')
                     self.log.debug('', exc_info=True)
                 self.full_stop_flag = 0
+                self.force_check_flag = True
+
+            # set trackrate
+            if self.set_trackrate_flag:
+                try:
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Setting track rate to ({},{}) [pos {}]'.format(
+                        self.trackrate_ra, self.trackrate_dec, now_str))
+                    c = self.sitech.set_trackrate(self.trackrate_ra, self.trackrate_dec)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('set_trackrate command failed')
+                    self.log.debug('', exc_info=True)
+                self.set_trackrate_flag = 0
+                self.trackrate_ra = 0
+                self.trackrate_dec = 0
                 self.force_check_flag = True
 
             # turn blinky mode on or off
@@ -298,6 +320,8 @@ class MntDaemon(BaseDaemon):
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
         temp_info['target_dist'] = self._get_target_distance()
+        temp_info['trackrate_ra'] = self.trackrate_ra
+        temp_info['trackrate_dec'] = self.trackrate_dec
 
         # Write debug log line
         try:
@@ -433,6 +457,22 @@ class MntDaemon(BaseDaemon):
         self.full_stop_flag = 1
 
         return 'Stopping mount'
+
+    def set_trackrate(self, ra_rate=0, dec_rate=0):
+        """Set tracking rate in RA and Dec in arcseconds per second (0=default)."""
+        # Set values
+        self.trackrate_ra = ra_rate
+        self.trackrate_dec = dec_rate
+
+        # Set flag
+        self.force_check_flag = True
+        self.set_trackrate_flag = 1
+
+        if ra_rate == 0 and dec_rate == 0:
+            s = 'Resetting track rate to sidereal'
+        else:
+            s = 'Setting track rate'
+        return s
 
     def blinky(self, activate):
         """Turn on or off blinky mode."""
