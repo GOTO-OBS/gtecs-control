@@ -373,7 +373,7 @@ def print_instructions():
           '  stop                           stop moving (tracking/slewing)',
           '  park                           enter park state',
           '  unpark                         leave park state',
-          '  trackrate [ra dec] | reset     set track rate in arcsec/sec (reset for sidereal)',
+          '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
           '  blinky on|off                  turn on or off blinky mode',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
