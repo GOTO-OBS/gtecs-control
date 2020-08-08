@@ -79,7 +79,7 @@ class H400(object):
 
         # We need to save the target position internally, but on init that's not defined.
         # So take the current position as the target instead.
-        self.target_position = info_dict['focuser']['position']
+        self._target_position = info_dict['focuser']['position']
 
     def __del__(self):
         try:
@@ -141,6 +141,7 @@ class H400(object):
             # Position is in "LSB" steps (1 LSB=0.156μm), limit is in 0.01mm (10μm) units
             # To be consistent we convert both to μm, and treat them as "steps"
             foc_info['position'] = int(int(reply[1]) * 0.156)
+            foc_info['target_position'] = self._target_position
             foc_info['limit'] = int(reply[3]) * 10
             foc_info['position_status'] = self._FOCUSER_POSITION_STATUS_CODE[int(reply[2])]
             foc_info['control_status'] = self._FOCUSER_CONTROL_STATUS_CODE[int(reply[4])]
@@ -186,7 +187,12 @@ class H400(object):
 
     def get_steps_remaining(self):
         """Get the number of steps remaining."""
-        return abs(self.target_position - self.stepper_position)
+        remaining = abs(self._target_position - self.stepper_position)
+        # Unfortunately the recieved position can vary slightly (we are dealing with microns here)
+        # So we cheat and say we're okay if we're within 10μm of the target
+        if remaining < 10:
+            remaining = 0
+        return remaining
 
     def step_motor(self, steps, blocking=False):
         """Step motor a given number of steps.
@@ -204,7 +210,7 @@ class H400(object):
 
         # Store the target position, so we can tell when it's reached with get_steps_remaining()
         # (because these focusers don't seem to store it themselves)
-        self.target_position = target_position
+        self._target_position = target_position
 
         # Convert from μm steps to LSB (see _get_info)
         steps_lsb = steps / 0.156
