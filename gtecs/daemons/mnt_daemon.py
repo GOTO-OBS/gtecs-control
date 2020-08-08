@@ -30,6 +30,7 @@ class MntDaemon(BaseDaemon):
         self.slew_altaz_flag = 0
         self.start_tracking_flag = 0
         self.full_stop_flag = 0
+        self.set_trackrate_flag = 0
         self.set_blinky_mode_flag = 0
         self.park_flag = 0
         self.unpark_flag = 0
