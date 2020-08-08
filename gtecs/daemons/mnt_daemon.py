@@ -3,7 +3,6 @@
 
 import threading
 import time
-from math import cos, pi
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord
