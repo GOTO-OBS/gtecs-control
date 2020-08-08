@@ -1,6 +1,5 @@
 """Classes to control ASA hardware."""
 
-import math
 import threading
 import time
 
@@ -139,11 +138,13 @@ class H400(object):
             # Get focuser status
             foc_info = {}
             reply = self._serial_command('focuser', 'status')
-            foc_info['position'] = int(reply[1])  # position in "LSB" steps (1 LSB=0.156um)
-            foc_info['limit'] = math.floor(int(reply[3]) / 10 / 0.156)  # limit is in 0.01mm units
-            foc_info['position_status'] = self._FOCUSER_POSITION_STATUS_CODE[int(reply(2))]
-            foc_info['control_status'] = self._FOCUSER_CONTROL_STATUS_CODE[int(reply(4))]
-            foc_info['motor_status'] = self._FOCUSER_MOTOR_STATUS_CODE[int(reply(5))]
+            # Position is in "LSB" steps (1 LSB=0.156μm), limit is in 0.01mm (10μm) units
+            # To be consistent we convert both to μm, and treat them as "steps"
+            foc_info['position'] = int(int(reply[1]) * 0.156)
+            foc_info['limit'] = int(reply[3]) * 10
+            foc_info['position_status'] = self._FOCUSER_POSITION_STATUS_CODE[int(reply[2])]
+            foc_info['control_status'] = self._FOCUSER_CONTROL_STATUS_CODE[int(reply[4])]
+            foc_info['motor_status'] = self._FOCUSER_MOTOR_STATUS_CODE[int(reply[5])]
             info_dict['focuser'] = foc_info
 
             # Get cover status
@@ -180,7 +181,6 @@ class H400(object):
     @property
     def stepper_position(self):
         """Get the number of steps remaining."""
-        # TODO Add more properties
         info_dict = self._get_info()
         return info_dict['focuser']['position']
 
@@ -206,7 +206,9 @@ class H400(object):
         # (because these focusers don't seem to store it themselves)
         self.target_position = target_position
 
-        reply = self._serial_command('focuser', 'goto', int(target_position))
+        # Convert from μm steps to LSB (see _get_info)
+        steps_lsb = steps / 0.156
+        reply = self._serial_command('focuser', 'move', int(steps_lsb))
         if int(reply[0]) != 5000:
             raise Exception('Command error: {}'.format(reply))
 
