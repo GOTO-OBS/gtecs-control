@@ -317,8 +317,14 @@ def print_info(info):
     print('Mount Alt:        {:.2f}'.format(info['mount_alt']))
     print('Mount Az:         {:.2f}'.format(info['mount_az']))
     print('~~~~~~~')
-    print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
-    print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
+    if info['trackrate_ra'] == 0:
+        print('RA track rate:    SIDEREAL')
+    else:
+        print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
+    if info['trackrate_dec'] == 0:
+        print('Dec track rate:    SIDEREAL')
+    else:
+        print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
     print('LST:              {:.2f}'.format(info['lst']))
     print('Hour Angle:       {:.2f}'.format(info['ha']))
     print('~~~~~~~')
