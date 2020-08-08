@@ -486,10 +486,11 @@ def print_info(info):
               info['current_frametype'],
               info['current_target'],
               info['current_imgtype']))
-        print('Other items in queue:     {}'.format(info['queue_length'] - 1))
+        print('Other items in queue:     {}'.format(info['queue_length']))
     except Exception:
         print('   None')
         print('Items in queue:     {}'.format(info['queue_length']))
+    print('Latest set number:  {:d}'.format(info['latest_set_number']))
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -509,7 +510,7 @@ def print_info_s(info):
               info['current_frametype'],
               info['current_target'],
               info['current_imgtype']))
-        print('  Other items in queue: {}'.format(info['queue_length'] - 1))
+        print('  Other items in queue: {}'.format(info['queue_length']))
     except Exception:
         print('   None')
         print('  Items in queue: {}'.format(info['queue_length']))

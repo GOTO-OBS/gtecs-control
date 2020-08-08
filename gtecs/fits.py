@@ -55,11 +55,10 @@ def write_fits(image, filename, ut, all_info, log=None):
         hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
-    run_number = all_info['cam']['run_number']
     update_header(hdu.header, ut, all_info, log)
 
     # write the image log to the database
-    if run_number > 0:
+    if not all_info['cam']['current_exposure']['glance']:
         try:
             write_image_log(filename, hdu.header)
         except Exception:
@@ -82,10 +81,8 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.utime(done_file, None)
 
     if log:
-        if run_number > 0:
-            log.info('Exposure r{:07d} saved'.format(run_number))
-        else:
-            log.info('Glance saved')
+        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
+        log.info('{} saved'.format(expstr))
 
 
 def get_all_info(cam_info, log):
@@ -256,8 +253,14 @@ def update_header(header, ut, all_info, log):
     # Observation info
     cam_info = all_info['cam']
 
-    run_number = cam_info['run_number']
-    run_number_str = 'r{:07d}'.format(run_number)
+    current_exposure = cam_info['current_exposure']
+    glance = current_exposure['glance']
+    if not glance:
+        run_number = current_exposure['run_number']
+        run_number_str = 'r{:07d}'.format(run_number)
+    else:
+        run_number = 'NA'
+        run_number_str = 'NA'
     header['RUN     '] = (run_number, 'GOTO run number')
     header['RUN-ID  '] = (run_number_str, 'Padded run ID string')
 
@@ -269,7 +272,6 @@ def update_header(header, ut, all_info, log):
     header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope')
 
     interface_id = params.UT_DICT[ut]['INTERFACE']
-    current_exposure = cam_info['current_exposure']
     ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
     header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
@@ -320,6 +322,7 @@ def update_header(header, ut, all_info, log):
 
     header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
     header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
+    header['GLANCE  '] = (current_exposure['glance'], 'Is this a glance frame?')
 
     # Frame info
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')

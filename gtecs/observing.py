@@ -739,7 +739,7 @@ def get_image_count():
 def get_run_number():
     """Find the latest exposure run number."""
     cam_info = daemon_info('cam')
-    return cam_info['run_number']
+    return cam_info['latest_run_number']
 
 
 def wait_for_images(target_image_number, timeout=None):

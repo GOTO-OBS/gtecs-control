@@ -201,23 +201,26 @@ def print_info(info):
         if info[ut]['status'] != 'Exposing':
             print('Status: {}'.format(info[ut]['status']))
         else:
-            if info['run_number'] > 0:
-                print('Status: {} r{:07d} ({:.2f}s)'.format(info[ut]['status'],
-                                                            info['run_number'],
-                                                            info[ut]['remaining']))
-            else:
-                print('Status: {} glance ({:.2f}s)'.format(info[ut]['status'],
-                                                           info[ut]['remaining']))
-            if info['current_exposure'] and ut in info['current_exposure']['ut_list']:
-                print('Exposure time:      {:.2f}s'.format(info['current_exposure']['exptime']))
-                print('Binning:            {:.0f}'.format(info['current_exposure']['binning']))
-                print('Frame type:         {}'.format(info['current_exposure']['frametype']))
+            current_exposure = info['current_exposure']
+            expstr = current_exposure['expstr']
+            if 'exposure' in expstr:
+                expstr = expstr.split(' ')[1]
+            if current_exposure and ut in current_exposure['ut_list']:
+                print('Status: {} {} ({:.2f}s)'.format(info[ut]['status'],
+                                                       expstr,
+                                                       info[ut]['remaining']))
+                print('Exposure time:      {:.2f}s'.format(current_exposure['exptime']))
+                print('Binning:            {:.0f}'.format(current_exposure['binning']))
+                print('Frame type:         {}'.format(current_exposure['frametype']))
         print('CCD Temperature:    {:.2f}C'.format(info[ut]['ccd_temp']))
         print('Target Temperature: {:.2f}C'.format(info[ut]['target_temp']))
         print('Base Temperature:   {:.2f}C'.format(info[ut]['base_temp']))
         print('Cooler power:       {:.0f}%'.format(info[ut]['cooler_power']))
         print('Serial number:      {}'.format(info[ut]['serial_number']))
         print('~~~~~~~')
+    print('Latest run number:  {:d}'.format(info['latest_run_number']))
+    print('Exposures taken:    {:d}'.format(info['num_taken']))
+    print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
     print('###########################')
@@ -231,13 +234,13 @@ def print_info_s(info):
             print('  Temp: {:6.2f}C'.format(info[ut]['ccd_temp']), end=' ')
             print('  [{}]'.format(info[ut]['status']))
         else:
-            if info['run_number'] > 0:
-                print('  {} r{:07d} ({:.2f}s)'.format(info[ut]['status'],
-                                                      info['run_number'],
-                                                      info[ut]['remaining']))
-            else:
-                print('  {} glance ({:.2f}s)'.format(info[ut]['status'],
-                                                     info[ut]['remaining']))
+            current_exposure = info['current_exposure']
+            expstr = current_exposure['expstr']
+            if 'exposure' in expstr:
+                expstr = expstr.split(' ')[1]
+            print('  {} {} ({:.2f}s)'.format(info[ut]['status'],
+                                             expstr,
+                                             info[ut]['remaining']))
 
 
 def print_instructions():

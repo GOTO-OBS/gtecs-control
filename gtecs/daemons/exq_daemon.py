@@ -137,6 +137,7 @@ class ExqDaemon(BaseDaemon):
             temp_info['current_imgtype'] = self.current_exposure.imgtype
         else:
             temp_info['exposing'] = False
+        temp_info['latest_set_number'] = self.latest_set_number
 
         # Write debug log line
         try:
