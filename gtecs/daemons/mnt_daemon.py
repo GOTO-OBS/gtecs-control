@@ -179,8 +179,6 @@ class MntDaemon(BaseDaemon):
                     self.log.error('set_trackrate command failed')
                     self.log.debug('', exc_info=True)
                 self.set_trackrate_flag = 0
-                self.trackrate_ra = 0
-                self.trackrate_dec = 0
                 self.force_check_flag = True
 
             # turn blinky mode on or off
