@@ -412,36 +412,33 @@ def wait_for_mount_parking(timeout=None):
         raise TimeoutError('Mount timed out')
 
 
-def random_offset(offset_size):
-    """Make a random offset of the given size.
+def random_offset(distance):
+    """Make an offset of the given distance in a random direction.
 
     Parameters
     ----------
-    offset_size : float
-        offset size in arcseconds
+    distance : float
+        offset distance in arcseconds
 
     """
-    compass = ['n', 's', 'e', 'w']
-    dirn = np.random.choice(compass)
-    execute_command('mnt step {}'.format(offset_size))
-    time.sleep(0.2)
-    execute_command('mnt {}'.format(dirn))
+    direction = np.random.choice(['N', 'E', 'S', 'W'])
+    execute_command('mnt offset {} {}'.format(direction, distance))
     # wait a short while for it to move
     time.sleep(2)
 
 
-def offset(direction, size):
-    """Make a offset in the given direction and of the given size.
+def offset(direction, distance):
+    """Make a offset of the given distance in the given direction .
 
     Parameters
     ----------
     direction : string
-        compass direction to move, one of ['n', 's', 'e', 'w']
-    size : float
-        offset size in arcseconds
+        compass direction to move, one of ['N', 'E', 'S', 'W']
+    distance : float
+        offset distance in arcseconds
 
     """
-    execute_command('mnt {} {}'.format(direction, size))
+    execute_command('mnt offset {} {}'.format(direction.upper(), distance))
     # wait a short while for it to move
     time.sleep(2)
 

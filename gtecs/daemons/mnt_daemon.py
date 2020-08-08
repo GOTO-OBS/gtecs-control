@@ -37,14 +37,16 @@ class MntDaemon(BaseDaemon):
         self.set_target_ra_flag = 0
         self.set_target_dec_flag = 0
         self.set_target_flag = 0
+        self.offset_flag = 0
 
         # mount variables
-        self.step = params.DEFAULT_OFFSET_STEP
         self.target_ra = None
         self.target_dec = None
         self.temp_alt = None
         self.temp_az = None
         self.set_blinky = False
+        self.offset_direction = None
+        self.offset_distance = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -215,6 +217,26 @@ class MntDaemon(BaseDaemon):
                 self.unpark_flag = 0
                 self.force_check_flag = True
 
+            # offset
+            if self.offset_flag:
+                try:
+                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
+                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
+                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
+                                                                     now_alt, now_az)
+                    self.log.info('Offsetting {} {} arcsec [pos {}]'.format(
+                        self.offset_direction, self.offset_distance, now_str))
+                    c = self.sitech.offset(self.offset_direction, self.offset_distance)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('offset command failed')
+                    self.log.debug('', exc_info=True)
+                self.offset_flag = 0
+                self.offset_direction = None
+                self.offset_distance = None
+                self.force_check_flag = True
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -277,7 +299,6 @@ class MntDaemon(BaseDaemon):
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
         temp_info['target_dist'] = self._get_target_distance()
-        temp_info['step'] = self.step
 
         # Write debug log line
         try:
@@ -546,11 +567,11 @@ class MntDaemon(BaseDaemon):
         self.log.info('Cleared target')
         return 'Cleared target'
 
-    def offset(self, direction):
-        """Offset in a specified (cardinal) direction."""
+    def offset(self, direction, distance):
+        """Offset in a specified (cardinal) direction by the given distance."""
         # Check input
-        if direction.lower() not in ['north', 'south', 'east', 'west']:
-            raise ValueError('Invalid direction')
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
 
         # Check current status
         self.wait_for_info()
@@ -561,47 +582,15 @@ class MntDaemon(BaseDaemon):
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
 
-        # Calculate offset position
-        step_deg = self.step / 3600.
-        step_ra = (step_deg * 24. / 360.) / cos(self.sitech.dec * pi / 180.)
-        step_dec = step_deg
-
-        if direction == 'north':
-            ra = self.sitech.ra
-            dec = self.sitech.dec + step_dec
-        elif direction == 'south':
-            ra = self.sitech.ra
-            dec = self.sitech.dec - step_dec
-        elif direction == 'east':
-            ra = self.sitech.ra + step_ra
-            dec = self.sitech.dec
-        elif direction == 'west':
-            ra = self.sitech.ra - step_ra
-            dec = self.sitech.dec
-
-        if check_alt_limit(ra * 360. / 24., dec, Time.now()):
-            raise errors.HorizonError('Target too low, cannot slew')
-
         # Set values
-        self.target_ra = ra
-        self.target_dec = dec
+        self.offset_direction = direction
+        self.offset_distance = distance
 
         # Set flag
         self.force_check_flag = True
-        self.slew_target_flag = 1
+        self.offset_flag = 1
 
         return 'Slewing to offset coordinates'
-
-    def set_step(self, offset):
-        """Set the offset step size."""
-        # Check input
-        if int(offset) < 0:
-            raise ValueError('Offset value must be > 0')
-
-        # Set values
-        self.step = offset
-
-        return 'New offset step set'
 
 
 if __name__ == '__main__':
