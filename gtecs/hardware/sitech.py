@@ -119,13 +119,13 @@ class SiTech(object):
     def _tcp_command(self, command_str):
         """Send a command string to the device, then fetch the reply and return it as a string."""
         try:
-            if self.log:
-                self.log.debug('SEND:{}'.format(command_str[:-1]))
+            #if self.log:
+            #    self.log.debug('SEND:{}'.format(command_str[:-1]))
             with self.thread_lock:
                 self.socket.send(command_str.encode())
                 reply = self.socket.recv(self.buffer_size)
-            if self.log:
-                self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
+            #if self.log:
+            #    self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
             return reply.decode()
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
@@ -203,10 +203,10 @@ class SiTech(object):
         if self._ra >= 24:
             self._ra -= 24
         self._dec = dec_j2000
-        self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(self._ra_jnow,
-                                                                        self._dec_jnow,
-                                                                        self._ra,
-                                                                        self._dec))
+        #self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(self._ra_jnow,
+        #                                                                self._dec_jnow,
+        #                                                                self._ra,
+        #                                                                self._dec))
 
         if len(message) == 0:
             return None
@@ -365,7 +365,7 @@ class SiTech(object):
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
+        #self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
@@ -389,7 +389,7 @@ class SiTech(object):
         ra_jnow *= 24 / 180
         if ra_jnow >= 24:
             ra_jnow -= 24
-        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
+        #self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SYNC_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
