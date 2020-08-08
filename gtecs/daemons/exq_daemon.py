@@ -310,7 +310,7 @@ class ExqDaemon(BaseDaemon):
             set_number = int(f.read())
         self.latest_set_number = set_number + 1
         with open(self.set_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.latest_set_number))
+            f.write('{:d}'.format(self.latest_set_number))
 
         # Call the command
         exposure = Exposure(ut_list,
@@ -370,7 +370,7 @@ class ExqDaemon(BaseDaemon):
             set_number = int(f.read())
         self.latest_set_number = set_number + 1
         with open(self.set_number_file, 'w') as f:
-            f.write('{:07d}'.format(self.latest_set_number))
+            f.write('{:d}'.format(self.latest_set_number))
 
         # Call the command
         for i in range(1, nexp + 1):

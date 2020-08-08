@@ -464,7 +464,7 @@ class CamDaemon(BaseDaemon):
                 run_number = int(f.read())
             self.latest_run_number = run_number + 1
             with open(self.run_number_file, 'w') as f:
-                f.write('{:07d}'.format(self.latest_run_number))
+                f.write('{:d}'.format(self.latest_run_number))
             exposure.run_number = self.latest_run_number
             exposure.expstr = 'exposure r{:07d}'.format(run_number)
         else:
