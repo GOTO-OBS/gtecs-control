@@ -37,7 +37,11 @@ class CamDaemon(BaseDaemon):
         self.abort_uts = []
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
-        self.latest_run_number = 0
+        try:
+            with open(self.run_number_file, 'r') as f:
+                self.latest_run_number = int(f.read())
+        except Exception:
+            self.latest_run_number = 0
         self.num_taken = 0
 
         self.pool = ThreadPoolExecutor(max_workers=len(self.uts))

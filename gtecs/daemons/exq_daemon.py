@@ -31,7 +31,11 @@ class ExqDaemon(BaseDaemon):
         self.current_exposure = None
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
-        self.latest_set_number = 0
+        try:
+            with open(self.set_number_file, 'r') as f:
+                self.latest_set_number = int(f.read())
+        except Exception:
+            self.latest_set_number = 0
 
         self.working = 0
         self.paused = 1  # start paused
