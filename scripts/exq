@@ -477,17 +477,18 @@ def print_info(info):
     print('Status: {}'.format(info['status']))
     print('~~~~~~~')
     print('Current exposure:')
-    try:
+    current_exposure = info['current_exposure']
+    if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              info['current_ut_list'],
-              info['current_exptime'],
-              info['current_filter'],
-              info['current_binning'],
-              info['current_frametype'],
-              info['current_target'],
-              info['current_imgtype']))
+              current_exposure['ut_list'],
+              current_exposure['exptime'],
+              current_exposure['filter'],
+              current_exposure['binning'],
+              current_exposure['frametype'],
+              current_exposure['target'],
+              current_exposure['imgtype']))
         print('Other items in queue:     {}'.format(info['queue_length']))
-    except Exception:
+    else:
         print('   None')
         print('Items in queue:     {}'.format(info['queue_length']))
     print('Latest set number:  {:d}'.format(info['latest_set_number']))
@@ -501,17 +502,18 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     print('QUEUE: [{}]'.format(info['status']))
     print('  Current exposure:', end=' ')
-    try:
+    current_exposure = info['current_exposure']
+    if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              info['current_ut_list'],
-              info['current_exptime'],
-              info['current_filter'],
-              info['current_binning'],
-              info['current_frametype'],
-              info['current_target'],
-              info['current_imgtype']))
+              current_exposure['ut_list'],
+              current_exposure['exptime'],
+              current_exposure['filter'],
+              current_exposure['binning'],
+              current_exposure['frametype'],
+              current_exposure['target'],
+              current_exposure['imgtype']))
         print('  Other items in queue: {}'.format(info['queue_length']))
-    except Exception:
+    else:
         print('   None')
         print('  Items in queue: {}'.format(info['queue_length']))
 

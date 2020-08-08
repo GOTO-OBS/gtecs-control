@@ -128,15 +128,24 @@ class ExqDaemon(BaseDaemon):
         temp_info['queue_length'] = len(self.exp_queue)
         if self.current_exposure is not None:
             temp_info['exposing'] = True
-            temp_info['current_ut_list'] = self.current_exposure.ut_list
-            temp_info['current_exptime'] = self.current_exposure.exptime
-            temp_info['current_filter'] = self.current_exposure.filt
-            temp_info['current_binning'] = self.current_exposure.binning
-            temp_info['current_frametype'] = self.current_exposure.frametype
-            temp_info['current_target'] = self.current_exposure.target
-            temp_info['current_imgtype'] = self.current_exposure.imgtype
+            current_info = {}
+            current_info['ut_list'] = self.current_exposure.ut_list
+            current_info['exptime'] = self.current_exposure.exptime
+            current_info['filter'] = self.current_exposure.filt
+            current_info['binning'] = self.current_exposure.binning
+            current_info['frametype'] = self.current_exposure.frametype
+            current_info['target'] = self.current_exposure.target
+            current_info['imgtype'] = self.current_exposure.imgtype
+            current_info['glance'] = self.current_exposure.glance
+            current_info['set_num'] = self.current_exposure.set_num
+            current_info['set_pos'] = self.current_exposure.set_pos
+            current_info['set_tot'] = self.current_exposure.set_tot
+            current_info['from_db'] = self.current_exposure.from_db
+            current_info['db_id'] = self.current_exposure.db_id
+            temp_info['current_exposure'] = current_info
         else:
             temp_info['exposing'] = False
+            temp_info['current_exposure'] = None
         temp_info['latest_set_number'] = self.latest_set_number
 
         # Write debug log line
