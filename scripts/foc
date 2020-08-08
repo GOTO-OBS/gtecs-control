@@ -171,11 +171,13 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
+    l = max(len(str(info[ut]['limit'])) for ut in params.UTS_WITH_FOCUSERS)
     for ut in params.UTS_WITH_FOCUSERS:
         print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         if info[ut]['status'] != 'Moving':
-            print('  Current position: {}/{}'.format(info[ut]['current_pos'],
-                                                     info[ut]['limit']), end=' ')
+            cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], l)
+            limit = '{:<{}d}'.format(info[ut]['limit'], l)
+            print('  Current position: {}/{}'.format(cur_pos, limit), end=' ')
             print('  [{}]'.format(info[ut]['status']))
         else:
             print('  {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
