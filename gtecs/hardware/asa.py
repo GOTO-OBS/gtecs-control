@@ -119,6 +119,9 @@ class H400(object):
         if self.serial.in_waiting:
             out_bytes = self.serial.read(self.serial.in_waiting)
             reply = out_bytes.decode('ascii').strip()
+            if not reply.startswith('#') or not reply.endswith('$'):
+                raise ValueError('Invalid ASA reply string: "{}"'.format(reply))
+            reply = reply[1:-1]  # strip leading # and trailing $
             reply_list = reply.split(' ')
             if len(reply_list) == 1:
                 return reply_list[0]
