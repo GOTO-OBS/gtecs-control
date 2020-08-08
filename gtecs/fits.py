@@ -636,8 +636,6 @@ def update_header(header, ut, all_info, log):
 
         info = all_info['mnt']
 
-        mount_tracking = info['status'] == 'Tracking'
-
         targ_ra = info['target_ra']
         if targ_ra is not None:
             targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
@@ -665,6 +663,11 @@ def update_header(header, ut, all_info, log):
         mnt_alt = numpy.around(info['mount_alt'], decimals=2)
         mnt_az = numpy.around(info['mount_az'], decimals=2)
 
+        mount_tracking = info['status'] == 'Tracking'
+        sidereal = not info['nonsidereal']
+        trackrate_ra = info['trackrate_ra']
+        trackrate_dec = info['trackrate_dec']
+
         zen_dist = numpy.around(90 - mnt_alt, decimals=1)
         airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
         airmass = numpy.around(airmass, decimals=2)
@@ -677,7 +680,6 @@ def update_header(header, ut, all_info, log):
     except Exception:
         log.error('Failed to write mount info to header')
         log.debug('', exc_info=True)
-        mount_tracking = 'NA'
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
         targ_dist = 'NA'
@@ -685,12 +687,14 @@ def update_header(header, ut, all_info, log):
         mnt_dec_str = 'NA'
         mnt_alt = 'NA'
         mnt_az = 'NA'
+        mount_tracking = 'NA'
+        sidereal = 'NA'
+        trackrate_ra = 'NA'
+        trackrate_dec = 'NA'
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
         moon_dist = 'NA'
-
-    header['TRACKING'] = (mount_tracking, 'Mount is tracking')
 
     header['RA-TARG '] = (targ_ra_str, 'Requested pointing RA')
     header['DEC-TARG'] = (targ_dec_str, 'Requested pointing Dec')
@@ -704,6 +708,11 @@ def update_header(header, ut, all_info, log):
 
     header['ALT     '] = (mnt_alt, 'Mount altitude')
     header['AZ      '] = (mnt_az, 'Mount azimuth')
+
+    header['TRACKING'] = (mount_tracking, 'Mount is tracking')
+    header['SIDEREAL'] = (sidereal, 'Mount is tracking at sidereal rate')
+    header['RA-TRKR '] = (trackrate_ra, 'RA tracking rate (0=sidereal)')
+    header['DEC-TRKR'] = (trackrate_dec, 'Dec tracking rate (0=sidereal)')
 
     header['AIRMASS '] = (airmass, 'Airmass')
 
