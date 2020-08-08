@@ -141,7 +141,6 @@ class H400(object):
             # Position is in "LSB" steps (1 LSB=0.156μm), limit is in 0.01mm (10μm) units
             # To be consistent we convert both to μm, and treat them as "steps"
             foc_info['position'] = int(int(reply[1]) * 0.156)
-            foc_info['target_position'] = self._target_position
             foc_info['limit'] = int(reply[3]) * 10
             foc_info['position_status'] = self._FOCUSER_POSITION_STATUS_CODE[int(reply[2])]
             foc_info['control_status'] = self._FOCUSER_CONTROL_STATUS_CODE[int(reply[4])]
