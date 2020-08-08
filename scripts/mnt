@@ -322,7 +322,7 @@ def print_info(info):
     else:
         print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
     if info['trackrate_dec'] == 0:
-        print('Dec track rate:    SIDEREAL')
+        print('Dec track rate:   SIDEREAL')
     else:
         print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
     print('LST:              {:.2f}'.format(info['lst']))
