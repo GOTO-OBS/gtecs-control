@@ -51,8 +51,8 @@ class H400(object):
                                   5: 'active',
                                   6: 'single',
                                   }
-    _COVER_STATUS_CODE = {0: 'intermediate',  # TODO: no way to tell if moving?
-                          1: 'open',
+    _COVER_STATUS_CODE = {0: 'part_open',
+                          1: 'full_open',
                           2: 'closed',
                           3: 'ERROR',
                           }
@@ -149,17 +149,14 @@ class H400(object):
             info_dict['focuser'] = foc_info
 
             # Get cover status
-            # TODO: What exactly do the three different values mean here?
+            # NB: The open position is ~2700, the closed position is ~0
+            # Unfortunatly there's no way to tell if the cover is moving or not
+            # The 'part_open' status (0) is true if it's moving or if it's stopped
+            # However it shouldn't matter, since new open/close commands can overwrite old ones
             cov_info = {}
             reply = self._serial_command('cover', 'status')
-            cov_info['position'] = {1: int(reply[1]),
-                                    2: int(reply[2]),
-                                    3: int(reply[3]),
-                                    }
-            cov_info['status'] = {1: self._COVER_STATUS_CODE[int(reply[4])],
-                                  2: self._COVER_STATUS_CODE[int(reply[5])],
-                                  3: self._COVER_STATUS_CODE[int(reply[6])],
-                                  }
+            cov_info['position'] = int(reply[1])  # in 10ths of a degree, I think
+            cov_info['status'] = self._COVER_STATUS_CODE[int(reply[4])]
             info_dict['cover'] = cov_info
 
             # Store properties that shouldn't change
@@ -244,20 +241,9 @@ class H400(object):
 
     def get_cover_position(self):
         """Get the current position of the mirror cover."""
-        # TODO: This needs checking, in paticular what the three statuses actually mean.
-        # TODO: Also we don't know when the cover is moving, depending on what the
-        #       0="intermediate" status actually means
-        # TODO: For that matter can we interupt commands, i.e. close while opening?
+        # NB: We can't tell if the cover is moving
         info_dict = self._get_info()
-        positions = list(info_dict['cover']['position'].values())
-        if any(p == 'ERROR' for p in positions):
-            return 'ERROR'
-        elif all(p == 'closed' for p in positions):
-            return 'closed'
-        elif all(p == 'open' for p in positions):
-            return 'full_open'
-        else:
-            return 'part_open'  # Best I can say for now
+        return info_dict['cover']['status']
 
     def _move_cover(self, command, blocking=False):
         """Open or close the mirror cover."""
