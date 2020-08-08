@@ -68,6 +68,7 @@ class H400(object):
         self.serial = serial.Serial(self.port,
                                     baudrate=self.serial_baudrate,
                                     timeout=self.serial_timeout)
+        self._serial_lock = False
 
         # Set serial number
         # (ASAs don't actually have a way to get the serial number from the hub,
@@ -110,6 +111,9 @@ class H400(object):
                 raise ValueError('Unknown device: {}'.format(device))
         command_str = '#{:d} {:d} {:d}$'.format(command_code, device_address, value)
 
+        while self._serial_lock:
+            time.sleep(0.1)
+        self._serial_lock = True
         self.serial.flushInput()
         self.serial.flushOutput()
         self.serial.write(command_str.encode('ascii'))
@@ -117,6 +121,7 @@ class H400(object):
         time.sleep(0.1)
         if self.serial.in_waiting:
             out_bytes = self.serial.read(self.serial.in_waiting)
+            self._serial_lock = False
             reply = out_bytes.decode('ascii').strip()
             if not reply.startswith('#') or not reply.endswith('$'):
                 raise ValueError('Invalid ASA reply string: "{}"'.format(reply))
@@ -127,6 +132,7 @@ class H400(object):
             else:
                 return reply_list
         else:
+            self._serial_lock = False
             raise ConnectionError('No reply from serial connection')
 
     def _get_info(self):
