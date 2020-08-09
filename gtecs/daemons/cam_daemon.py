@@ -176,6 +176,7 @@ class CamDaemon(BaseDaemon):
 
                         # clear tags, ready for next exposure
                         self.exposing = False
+                        self.current_exposure = None
                         self.exposure_start_time = 0
                         self.image_ready = {ut: 0 for ut in self.uts}
                         self.active_uts = []
@@ -207,6 +208,7 @@ class CamDaemon(BaseDaemon):
                     if len(self.active_uts) == 0:
                         # we've aborted everything, stop the exposure
                         self.exposing = False
+                        self.current_exposure = None
                         self.active_uts = []
                         self.all_info = None
                         self.num_taken += 1
