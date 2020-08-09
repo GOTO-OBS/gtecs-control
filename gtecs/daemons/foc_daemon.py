@@ -157,10 +157,14 @@ class FocDaemon(BaseDaemon):
                 interface_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                    interface_info['serial_number'] = interface.get_focuser_serial_number(ut)
                     interface_info['current_pos'] = interface.get_focuser_position(ut)
                     interface_info['limit'] = interface.get_focuser_limit(ut)
-                    interface_info['serial_number'] = interface.get_focuser_serial_number(ut)
+                    try:
+                        interface_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                    except NotImplementedError:
+                        # The ASA H400s don't store steps remaining
+                        interface_info['remaining'] = 0
                     try:
                         interface_info['int_temp'] = interface.get_focuser_temp('internal', ut)
                         interface_info['ext_temp'] = interface.get_focuser_temp('external', ut)
@@ -169,13 +173,17 @@ class FocDaemon(BaseDaemon):
                         interface_info['int_temp'] = None
                         interface_info['ext_temp'] = None
 
-                if interface_info['remaining'] > 0:
-                    interface_info['status'] = 'Moving'
-                    if self.move_steps[ut] == 0:
-                        # Homing, needed due to bug in remaining
-                        interface_info['remaining'] = interface_info['current_pos']
-                else:
-                    interface_info['status'] = 'Ready'
+                    try:
+                        interface_info['status'] = interface.get_focuser_status(ut)
+                    except NotImplementedError:
+                        # The FLI focusers don't have a status
+                        if interface_info['remaining'] > 0:
+                            interface_info['status'] = 'Moving'
+                            if self.move_steps[ut] == 0:
+                                # Homing, needed due to bug in remaining
+                                interface_info['remaining'] = interface_info['current_pos']
+                        else:
+                            interface_info['status'] = 'Ready'
 
                 interface_info['current_temp'] = temp_info['dome_temp']
                 interface_info['last_move_temp'] = self.last_move_temp[ut]
@@ -248,7 +256,7 @@ class FocDaemon(BaseDaemon):
                 continue
 
             # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0:
+            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
@@ -309,7 +317,7 @@ class FocDaemon(BaseDaemon):
                 continue
 
             # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0:
+            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
@@ -347,7 +355,7 @@ class FocDaemon(BaseDaemon):
                 continue
 
             # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0:
+            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue

@@ -325,8 +325,16 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return focuser position."""
         return self.focusers[ut].stepper_position
 
+    def get_focuser_status(self, ut):
+        """Return focuser status."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            raise NotImplementedError("FLI focusers don't have a status")
+        return self.focusers[ut].get_status()
+
     def get_focuser_steps_remaining(self, ut):
         """Return focuser motor limit."""
+        if isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError("ASA H400s don't store steps remaining")
         return self.focusers[ut].get_steps_remaining()
 
     def get_focuser_temp(self, temp_type, ut):

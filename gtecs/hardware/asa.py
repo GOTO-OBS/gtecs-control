@@ -75,12 +75,12 @@ class H400(object):
         #  so we just define it here)
         self.serial_number = serial_number
 
-        # Get initial info
-        info_dict = self._get_info()
+        # Store if the focuser has moved yet
+        # It seems the auto adjusting doesn't happen until we've send a single move command
+        self._initial_move = False
 
-        # We need to save the target position internally, but on init that's not defined.
-        # So take the current position as the target instead.
-        self._target_position = info_dict['focuser']['position']
+        # Get initial info
+        self._get_info()
 
     def __del__(self):
         try:
@@ -135,7 +135,6 @@ class H400(object):
         else:
             return reply_list
 
-
     def _get_info(self):
         """Get the focuser status infomation."""
         # Limit how often we update
@@ -188,20 +187,24 @@ class H400(object):
         info_dict = self._get_info()
         return info_dict['focuser']['position']
 
-    def get_steps_remaining(self):
-        """Get the number of steps remaining."""
-        remaining = abs(self._target_position - self.stepper_position)
-        # Unfortunately the recieved position can vary slightly (we are dealing with microns here)
-        # So we cheat and say we're okay if we're within 10μm of the target
-        if remaining < 10:
-            remaining = 0
-        return remaining
+    def get_status(self):
+        """Get the focuser status."""
+        info_dict = self._get_info()
+        foc_info = info_dict['focuser']
+        if foc_info['control_status'] == 'invalid' or not self._initial_move:
+            return 'UNSET'
+        elif foc_info['control_status'] == 'moving':
+            return 'Moving'
+        elif foc_info['control_status'] == 'at_pos':
+            return 'Ready'
+        else:
+            return 'ERROR'
 
     def step_motor(self, steps, blocking=False):
         """Step motor a given number of steps.
 
         If blocking is True this function returns when the move is complete.
-        If not this function returns immediately, use 'get_steps_remaining'
+        If not this function returns immediately, use 'get_status()'
         to see when move is complete.
         """
         target_position = int(self.stepper_position + steps)
@@ -211,21 +214,18 @@ class H400(object):
         elif target_position < 0:
             raise ValueError('Target position ({}) is negative'.format(target_position))
 
-        # Store the target position, so we can tell when it's reached with get_steps_remaining()
-        # (because these focusers don't seem to store it themselves)
-        self._target_position = target_position
-
         # Convert from μm steps to LSB (see _get_info)
         steps_lsb = steps / 0.156
         reply = self._serial_command('focuser', 'move', int(steps_lsb))
         if int(reply[0]) != 5000:
             raise Exception('Command error: {}'.format(reply))
+        self._initial_move = True
 
         if blocking:
             while True:
-                if self.get_steps_remaining() == 0:
-                    break
                 time.sleep(0.5)
+                if self.get_status() != 'Moving':
+                    break
 
     def home_focuser(self, blocking=False):
         """Move the focuser to the home position.
@@ -294,36 +294,43 @@ class FakeH400(object):
         self.serial_number = serial_number
 
         self.stepper_position = 0
-        self.target_position = 0
+        self._target_position = 0
         self._focuser_move_speed = 100  # steps/sec
         self._focuser_moving = False
         self.max_extent = 5000
+        self._initial_move = False
 
         self._cover_position = 0  # 0=closed, 1-4=part_open, 5=full_open
         self._cover_target_position = 0
         self._cover_move_speed = 1  # steps/sec
         self._cover_moving = False
 
-    def get_steps_remaining(self):
-        """Get the number of steps remaining."""
-        return abs(self.target_position - self.stepper_position)
+    def get_status(self):
+        """Get the focuser status."""
+        if not self._initial_move:
+            return 'UNSET'
+        elif self._focuser_moving:
+            return 'moving'
+        else:
+            return 'ready'
 
     def _move_fake_focuser(self):
         """Fake thread to simulate moving the focuser stepper motor."""
+        self._initial_move = True
         self._focuser_moving = True
         while (self._focuser_moving and
                self.get_steps_remaining() > int(self._focuser_move_speed * 0.1)):
             time.sleep(0.1)
-            if self.stepper_position < self.target_position:
+            if self.stepper_position < self._target_position:
                 self.stepper_position += int(self._focuser_move_speed * 0.1)
             else:
                 self.stepper_position -= int(self._focuser_move_speed * 0.1)
         if self._focuser_moving:
             self._focuser_moving = False
-            self.stepper_position = self.target_position
+            self.stepper_position = self._target_position
         else:
             # Stopped early
-            self.target_position = self.stepper_position
+            self._target_position = self.stepper_position
 
     def step_motor(self, steps, blocking=False):
         """Step motor a given number of steps.
@@ -339,7 +346,7 @@ class FakeH400(object):
         elif target_position < 0:
             raise ValueError('Target position ({}) is negative'.format(target_position))
 
-        self.target_position = target_position
+        self._target_position = target_position
 
         if blocking:
             self._move_fake_focuser()

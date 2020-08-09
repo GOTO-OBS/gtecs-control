@@ -111,6 +111,14 @@ class FocusLynx(object):
         info_dict = self._get_info()
         return int(info_dict['Curr Pos'])
 
+    def get_status(self):
+        """Get the focuser status."""
+        info_dict = self._get_info()
+        if info_dict['IsMoving'] or info_dict['IsHoming']:
+            return 'Moving'
+        else:
+            return 'Ready'
+
     def get_steps_remaining(self):
         """Get the number of steps remaining."""
         info_dict = self._get_info()
