@@ -114,12 +114,14 @@ class H400(object):
         while self._serial_lock:
             time.sleep(0.1)
         self._serial_lock = True
-        self.serial.flushInput()
-        self.serial.flushOutput()
-        self.serial.write(command_str.encode('ascii'))
 
-        time.sleep(0.1)
-        if self.serial.in_waiting:
+        try:
+            self.serial.flushInput()
+            self.serial.flushOutput()
+            self.serial.write(command_str.encode('ascii'))
+
+            time.sleep(0.1)
+
             out_bytes = self.serial.read(self.serial.in_waiting)
             self._serial_lock = False
             reply = out_bytes.decode('ascii').strip()
@@ -131,7 +133,7 @@ class H400(object):
                 return reply_list[0]
             else:
                 return reply_list
-        else:
+        except Exception:
             self._serial_lock = False
             raise ConnectionError('No reply from serial connection')
 
