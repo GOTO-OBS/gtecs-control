@@ -18,14 +18,14 @@ class FocusLynx(object):
         self._stored_info = None
         self._info_delay = 1
 
+        # serial connection to the focuser
         self.port = port
         self.serial_baudrate = 115200
         self.serial_timeout = 5
-
-        # serial connection to the focuser
         self.serial = serial.Serial(self.port,
                                     baudrate=self.serial_baudrate,
                                     timeout=self.serial_timeout)
+        self._serial_lock = False
 
         # get initial info, fill properties like serial number
         self._get_info()
@@ -52,21 +52,28 @@ class FocusLynx(object):
 
     def _serial_command(self, command_str):
         """Send command to the device, then fetch the reply and return it."""
-        self.serial.flushInput()
-        self.serial.flushOutput()
-        command = '<F{}{}>'.format(self.number, command_str)
-        self.serial.write(command.encode('ascii'))
-        time.sleep(0.1)
-        if self.serial.in_waiting:
+        command_str = '<F{}{}>'.format(self.number, command_str)
+
+        while self._serial_lock:
+            time.sleep(0.1)
+        self._serial_lock = True
+        try:
+            self.serial.flushInput()
+            self.serial.flushOutput()
+            self.serial.write(command_str.encode('ascii'))
+            time.sleep(0.1)
             out_bytes = self.serial.read(self.serial.in_waiting)
-            reply = out_bytes.decode('ascii').strip()
-            reply_list = reply.split('\n')[1:]
-            if len(reply_list) == 1:
-                return reply_list[0]
-            else:
-                return reply_list
-        else:
+            self._serial_lock = False
+        except Exception:
+            self._serial_lock = False
             raise ConnectionError('No reply from serial connection')
+
+        reply = out_bytes.decode('ascii').strip()
+        reply_list = reply.split('\n')[1:]
+        if len(reply_list) == 1:
+            return reply_list[0]
+        else:
+            return reply_list
 
     def _get_info(self):
         """Get the focuser status infomation."""

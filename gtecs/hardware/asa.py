@@ -114,28 +114,27 @@ class H400(object):
         while self._serial_lock:
             time.sleep(0.1)
         self._serial_lock = True
-
         try:
             self.serial.flushInput()
             self.serial.flushOutput()
             self.serial.write(command_str.encode('ascii'))
-
             time.sleep(0.1)
-
             out_bytes = self.serial.read(self.serial.in_waiting)
             self._serial_lock = False
-            reply = out_bytes.decode('ascii').strip()
-            if not reply.startswith('#') or not reply.endswith('$'):
-                raise ValueError('Invalid ASA reply string: "{}"'.format(reply))
-            reply = reply[1:-1]  # strip leading # and trailing $
-            reply_list = reply.split(' ')
-            if len(reply_list) == 1:
-                return reply_list[0]
-            else:
-                return reply_list
         except Exception:
             self._serial_lock = False
             raise ConnectionError('No reply from serial connection')
+
+        reply = out_bytes.decode('ascii').strip()
+        if not reply.startswith('#') or not reply.endswith('$'):
+            raise ValueError('Invalid ASA reply string: "{}"'.format(reply))
+        reply = reply[1:-1]  # strip leading # and trailing $
+        reply_list = reply.split(' ')
+        if len(reply_list) == 1:
+            return reply_list[0]
+        else:
+            return reply_list
+
 
     def _get_info(self):
         """Get the focuser status infomation."""
