@@ -1,5 +1,6 @@
 """Classes to control SiTechExe."""
 
+import logging
 import socket
 import threading
 import time
@@ -74,6 +75,7 @@ class SiTech(object):
         self.port = port
         self.buffer_size = 1024
         self.commands = {'GET_STATUS': 'ReadScopeStatus\n',
+                         'GET_DESTINATION': 'ReadScopeDestination\n',
                          'SLEW_RADEC': 'GoTo {:.5f} {:.5f}\n',
                          'SLEW_RADEC_J2K': 'GoTo {:.5f} {:.5f} J2K\n',
                          'SLEW_ALTAZ': 'GoToAltAz {:.5f} {:.5f}\n',
@@ -85,13 +87,17 @@ class SiTech(object):
                          'HALT': 'Abort\n',
                          'SET_TRACKMODE': 'SetTrackMode {:d} {:d} {:.5f} {:.5f}\n',
                          'PULSEGUIDE': 'PulseGuide {:d} {:d}\n',
+                         'OFFSET': 'JogArcSeconds {} {:.5f}\n',
                          'BLINKY_ON': 'MotorsToBlinky\n',
                          'BLINKY_OFF': 'MotorsToAuto\n',
                          'J2K_TO_JNOW': 'CookCoordinates {:.5f} {:.5f}\n',
                          'JNOW_TO_J2K': 'UnCookCoordinates {:.5f} {:.5f}\n',
+                         'CLOSE': 'CloseMe\n',
                          }
         self._status_update_time = 0
 
+        if log is None:
+            log = logging.getLogger('sitech')
         self.log = log
 
         # Create one persistent socket
@@ -104,6 +110,7 @@ class SiTech(object):
 
     def __del__(self):
         try:
+            self.socket.send(self.commands['CLOSE'].encode())  # no reply
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
         except OSError:
@@ -112,13 +119,13 @@ class SiTech(object):
     def _tcp_command(self, command_str):
         """Send a command string to the device, then fetch the reply and return it as a string."""
         try:
-            if self.log:
-                self.log.debug('SEND:{}'.format(command_str[:-1]))
+            #if self.log:
+            #    self.log.debug('SEND:{}'.format(command_str[:-1]))
             with self.thread_lock:
                 self.socket.send(command_str.encode())
                 reply = self.socket.recv(self.buffer_size)
-            if self.log:
-                self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
+            #if self.log:
+            #    self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
             return reply.decode()
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
@@ -142,8 +149,11 @@ class SiTech(object):
         reply = reply_string.split(';')
 
         # a quick check
-        if not len(reply) == 11:
+        if not len(reply) == 12:
             raise ValueError('Invalid SiTech return string: {}'.format(reply))
+
+        # the message should be the last entry
+        message = reply[-1][1:-1]  # strip leading '_' and trailing '\n'
 
         # parse boolian flags
         bools = int(reply[0])
@@ -163,31 +173,41 @@ class SiTech(object):
         self._homing_switches = {'primary': (bools & 4096) > 0,
                                  'secondary': (bools & 8192) > 0,
                                  }
+        self._rotator_pos = (bools & 16384) > 0
+        self._tracking_nonsidereal = (bools & 32768) > 0
+        self._tracking_satellite = (bools & 32768) > 0
 
         # parse values
-        ra_temp = float(reply[1])
-        if ra_temp >= 24:  # fix for RA
-            ra_temp -= 24
-        dec_temp = float(reply[2])
+        self._ra_jnow = float(reply[1])
+        self._dec_jnow = float(reply[2])
         self._alt = float(reply[3])
         self._az = float(reply[4])
-        self._secondary_angle = float(reply[5])
-        self._primary_angle = float(reply[6])
-        self._sidereal_time = float(reply[7])
-        self._jd = float(reply[8])
+        if message == 'ReadScopeDestination':
+            self._dest_ra_jnow = float(reply[5])
+            self._dest_dec_jnow = float(reply[6])
+            self._dest_alt = float(reply[7])
+            self._dest_az = float(reply[8])
+        else:
+            self._secondary_angle = float(reply[5])
+            self._primary_angle = float(reply[6])
+            self._sidereal_time = float(reply[7])
+            self._jd = float(reply[8])
         self._hours = float(reply[9])
+        self._airmass = float(reply[10])
 
         # need to "uncook" the SiTech coordinates into J2000
-        ra_j2000, dec_j2000 = uncook(ra_temp * 360 / 24, dec_temp, self._jd)
+        if self._ra_jnow >= 24:  # fix for RA
+            self._ra_jnow -= 24
+        ra_j2000, dec_j2000 = uncook(self._ra_jnow * 360 / 24, self._dec_jnow, self._jd)
         self._ra = ra_j2000 * 24 / 360
         if self._ra >= 24:
             self._ra -= 24
         self._dec = dec_j2000
-        self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra_temp, dec_temp,
-                                                                        self._ra, self._dec))
+        #self.log.debug('Uncooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(self._ra_jnow,
+        #                                                                self._dec_jnow,
+        #                                                                self._ra,
+        #                                                                self._dec))
 
-        # find the message and return it
-        message = reply[10][1:-1]  # strip leading '_' and trailing '\n'
         if len(message) == 0:
             return None
         else:
@@ -197,9 +217,10 @@ class SiTech(object):
         """Read and store status values."""
         # Only update if we need to, to save sending multiple commands
         if (time.time() - self._status_update_time) > 0.5:
-            command = self.commands['GET_STATUS']
-            reply_string = self._tcp_command(command)
-            self._parse_reply_string(reply_string)  # no message
+            reply_string = self._tcp_command(self.commands['GET_STATUS'])
+            self._parse_reply_string(reply_string)
+            reply_string = self._tcp_command(self.commands['GET_DESTINATION'])
+            self._parse_reply_string(reply_string)
 
     @property
     def status(self):
@@ -226,6 +247,12 @@ class SiTech(object):
         """Return if the mount is currently tracking."""
         self._update_status()
         return self._tracking
+
+    @property
+    def nonsidereal(self):
+        """Return if the mount has a non-sidereal tracking rate set."""
+        self._update_status()
+        return self._tracking_nonsidereal
 
     @property
     def slewing(self):
@@ -338,7 +365,7 @@ class SiTech(object):
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
+        #self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SLEW_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
@@ -362,7 +389,7 @@ class SiTech(object):
         ra_jnow *= 24 / 180
         if ra_jnow >= 24:
             ra_jnow -= 24
-        self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
+        #self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(ra, dec, ra_jnow, dec_jnow))
 
         command = self.commands['SYNC_RADEC'].format(float(ra_jnow), float(dec_jnow))
         reply_string = self._tcp_command(command)
@@ -379,7 +406,7 @@ class SiTech(object):
 
     def track(self):
         """Start tracking at the siderial rate."""
-        command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
+        command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message
@@ -411,7 +438,7 @@ class SiTech(object):
         If both RA and Dec are 0.0 then tracking will be (re)set to the siderial rate.
         """
         if ra_rate == 0 and dec_rate == 0:
-            command = self.commands['SET_TRACKMODE'].format(1, 1, 0, 0)
+            command = self.commands['SET_TRACKMODE'].format(1, 0, 0, 0)
         else:
             command = self.commands['SET_TRACKMODE'].format(1, 1, float(ra_rate), float(dec_rate))
         reply_string = self._tcp_command(command)
@@ -424,6 +451,15 @@ class SiTech(object):
             command = self.commands['BLINKY_ON']
         else:
             command = self.commands['BLINKY_OFF']
+        reply_string = self._tcp_command(command)
+        message = self._parse_reply_string(reply_string)
+        return message
+
+    def offset(self, direction, distance):
+        """Set offset in the given direction by the given distance (in arcsec)."""
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        command = self.commands['OFFSET'].format(direction.upper(), distance)
         reply_string = self._tcp_command(command)
         message = self._parse_reply_string(reply_string)
         return message

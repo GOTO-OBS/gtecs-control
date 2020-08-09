@@ -203,78 +203,31 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'set_target_dec', [dec_deg])
         print(reply)
 
-    elif command == 'n':
-        # parse arguments
-        if len(args) == 0:
-            step = None
-        elif len(args) == 1:
-            step = float(args[0])
-        else:
-            raise errors.InputError('Invalid arguments')
-        # set step
-        if step:
-            reply = daemons.daemon_function(daemon_id, 'set_step', [step])
-            print(reply)
-        # send command
-        reply = daemons.daemon_function(daemon_id, 'offset', ['north'])
-        print(reply)
-
-    elif command == 's':
-        # parse arguments
-        if len(args) == 0:
-            step = None
-        elif len(args) == 1:
-            step = float(args[0])
-        else:
-            raise errors.InputError('Invalid arguments')
-        # set step
-        if step:
-            reply = daemons.daemon_function(daemon_id, 'set_step', [step])
-            print(reply)
-        # send command
-        reply = daemons.daemon_function(daemon_id, 'offset', ['south'])
-        print(reply)
-
-    elif command == 'e':
-        # parse arguments
-        if len(args) == 0:
-            step = None
-        elif len(args) == 1:
-            step = float(args[0])
-        else:
-            raise errors.InputError('Invalid arguments')
-        # set step
-        if step:
-            reply = daemons.daemon_function(daemon_id, 'set_step', [step])
-            print(reply)
-        # send command
-        reply = daemons.daemon_function(daemon_id, 'offset', ['east'])
-        print(reply)
-
-    elif command == 'w':
-        # parse arguments
-        if len(args) == 0:
-            step = None
-        elif len(args) == 1:
-            step = float(args[0])
-        else:
-            raise errors.InputError('Invalid arguments')
-        # set step
-        if step:
-            reply = daemons.daemon_function(daemon_id, 'set_step', [step])
-            print(reply)
-        # send command
-        reply = daemons.daemon_function(daemon_id, 'offset', ['west'])
-        print(reply)
-
-    elif command == 'step':
+    elif command == 'trackrate':
         # parse arguments
         if len(args) == 1:
-            step = float(args[0])
+            assert args[0].lower() == 'reset'
+            ra_rate = 0
+            dec_rate = 0
+        elif len(args) == 2:
+            ra_rate = float(args[0])
+            dec_rate = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_step', [step])
+        reply = daemons.daemon_function(daemon_id, 'set_trackrate', [ra_rate, dec_rate])
+        print(reply)
+
+    elif command == 'offset':
+        # parse arguments
+        if len(args) == 2:
+            direction = args[0].upper()
+            assert direction in ['N', 'E', 'S', 'W']
+            distance = float(args[1])
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'offset', [direction, distance])
         print(reply)
 
     elif command == 'target':
@@ -363,9 +316,15 @@ def print_info(info):
 
     print('Mount Alt:        {:.2f}'.format(info['mount_alt']))
     print('Mount Az:         {:.2f}'.format(info['mount_az']))
-
-    print('Offset step size: {:.2f} arcsec'.format(info['step']))
     print('~~~~~~~')
+    if info['trackrate_ra'] == 0:
+        print('RA track rate:    SIDEREAL')
+    else:
+        print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
+    if info['trackrate_dec'] == 0:
+        print('Dec track rate:   SIDEREAL')
+    else:
+        print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
     print('LST:              {:.2f}'.format(info['lst']))
     print('Hour Angle:       {:.2f}'.format(info['ha']))
     print('~~~~~~~')
@@ -376,8 +335,11 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    if info['status'] != 'Slewing':
-        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, info['status']))
+    status = info['status']
+    if status != 'Slewing':
+        if status == 'Tracking' and info['nonsidereal']:
+            status += ' (non-sidereal)'
+        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, status))
     else:
         if info['target_dist']:
             print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,
@@ -414,8 +376,8 @@ def print_instructions():
           '  stop                           stop moving (tracking/slewing)',
           '  park                           enter park state',
           '  unpark                         leave park state',
-          '  n/s/e/w [step]                 offset in direction by one step',
-          '  step size                      set offset step size (arcsec, default=10)',
+          '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
+          '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
           '  blinky on|off                  turn on or off blinky mode',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',

@@ -20,6 +20,7 @@ import numpy as np
 def take_sky(exptime, current_filter, name, glance=False):
     """Offset the telescope then take an image and return the mean sky brightness."""
     # Make an offset to move the stars
+    # TODO: THIS SHOULD USE MNT OFFSET
     step = params.FLATS_STEPSIZE * u.arcsec
     current_ra, current_dec = get_mount_position()
     new_ra = current_ra + step.to(u.deg).value
