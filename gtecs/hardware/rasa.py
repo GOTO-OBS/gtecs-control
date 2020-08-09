@@ -114,7 +114,9 @@ class FocusLynx(object):
     def get_status(self):
         """Get the focuser status."""
         info_dict = self._get_info()
-        if info_dict['IsMoving'] or info_dict['IsHoming']:
+        if not bool(int(info_dict['IsHomed'])):
+            return 'UNHOMED'
+        elif bool(int(info_dict['IsMoving'])) or bool(int(info_dict['IsHoming'])):
             return 'Moving'
         else:
             return 'Ready'
