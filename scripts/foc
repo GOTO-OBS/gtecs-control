@@ -157,6 +157,8 @@ def print_info(info):
         print('Status: {}'.format(info[ut]['status']), end='')
         if info[ut]['remaining'] > 0:
             print(' ({})'.format(info[ut]['remaining']))
+        else:
+            print('')
         print('Current motor pos:    {}'.format(info[ut]['current_pos']))
         print('Maximum motor limit:  {}'.format(info[ut]['limit']))
         print('Internal temperature: {}'.format(info[ut]['int_temp']))
@@ -182,6 +184,8 @@ def print_info_s(info):
             print('  Moving', end='')
             if info[ut]['remaining'] > 0:
                 print(' ({})'.format(info[ut]['remaining']))
+            else:
+                print('')
 
 
 def print_instructions():
