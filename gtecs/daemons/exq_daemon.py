@@ -307,10 +307,11 @@ class ExqDaemon(BaseDaemon):
 
         # Find and update set number
         with open(self.set_number_file, 'r') as f:
-            set_number = int(f.read())
-        self.latest_set_number = set_number + 1
+            old_set_number = int(f.read())
+        new_set_number = old_set_number + 1
         with open(self.set_number_file, 'w') as f:
-            f.write('{:d}'.format(self.latest_set_number))
+            f.write('{:d}'.format(new_set_number))
+        self.latest_set_number = new_set_number
 
         # Call the command
         exposure = Exposure(ut_list,
@@ -321,7 +322,7 @@ class ExqDaemon(BaseDaemon):
                             target.replace(';', ''),
                             imgtype.replace(';', ''),
                             glance,
-                            set_num=self.latest_set_number,
+                            set_num=new_set_number,
                             set_pos=1,
                             set_tot=1,
                             )
@@ -367,10 +368,11 @@ class ExqDaemon(BaseDaemon):
 
         # Find and update set number
         with open(self.set_number_file, 'r') as f:
-            set_number = int(f.read())
-        self.latest_set_number = set_number + 1
+            old_set_number = int(f.read())
+        new_set_number = old_set_number + 1
         with open(self.set_number_file, 'w') as f:
-            f.write('{:d}'.format(self.latest_set_number))
+            f.write('{:d}'.format(new_set_number))
+        self.latest_set_number = new_set_number
 
         # Call the command
         for i in range(1, nexp + 1):
@@ -381,7 +383,7 @@ class ExqDaemon(BaseDaemon):
                                 target.replace(';', ''),
                                 imgtype.replace(';', ''),
                                 glance=False,
-                                set_num=self.latest_set_number,
+                                set_num=new_set_number,
                                 set_pos=i,
                                 set_tot=nexp,
                                 db_id=db_id,

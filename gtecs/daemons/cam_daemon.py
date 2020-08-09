@@ -463,12 +463,13 @@ class CamDaemon(BaseDaemon):
         # Find and update run number, and store on the Exposure
         if not exposure.glance:
             with open(self.run_number_file, 'r') as f:
-                run_number = int(f.read())
-            self.latest_run_number = run_number + 1
+                old_run_number = int(f.read())
+            new_run_number = old_run_number + 1
             with open(self.run_number_file, 'w') as f:
-                f.write('{:d}'.format(self.latest_run_number))
-            exposure.run_number = self.latest_run_number
-            exposure.expstr = 'exposure r{:07d}'.format(run_number)
+                f.write('{:d}'.format(new_run_number))
+            exposure.run_number = new_run_number
+            exposure.expstr = 'exposure r{:07d}'.format(new_run_number)
+            self.latest_run_number = new_run_number
         else:
             exposure.run_number = None
             exposure.expstr = 'glance'
