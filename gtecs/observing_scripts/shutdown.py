@@ -31,7 +31,7 @@ def run():
     # Close the mirror covers
     # (we need to do this before powering off the cameras, when we lose the interfaces)
     execute_command('ota close')
-    wait_for_mirror_covers(opening=False, timout=60)
+    wait_for_mirror_covers(opening=False, timeout=60)
 
     # Power off the cameras
     execute_command('power off cams')
