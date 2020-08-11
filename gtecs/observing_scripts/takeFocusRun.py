@@ -36,7 +36,7 @@ def calculate_positions(fraction, steps):
 
     all_positions = {}
     for ut in limits:
-        print('UT{}: current position={}'.format(ut, current[ut]))
+        print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
         # Calculate the deltas
         width = int((limits[ut] * fraction) / 2)
         upper_deltas = np.arange(0, width + 1, width // steps)
