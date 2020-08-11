@@ -107,11 +107,14 @@ class FocDaemon(BaseDaemon):
                                 c = interface.home_focuser(ut)
                                 if c:
                                     self.log.info(c)
+
+                            # mark that it's homing
+                            self.move_steps[ut] = 0
+
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
-                        interface._pyroRelease()
-                        self.move_steps[ut] = 0  # to mark that it's homing
+
                 except Exception:
                     self.log.error('home_focuser command failed')
                     self.log.debug('', exc_info=True)
