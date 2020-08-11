@@ -434,8 +434,8 @@ if __name__ == '__main__':
     delta_x = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts})
 
     # If something goes wrong we need to restore the origional focus
+    initial_positions = get_focuser_positions()
     try:
-        initial_positions = get_focuser_positions()
         RestoreFocus(initial_positions)
         run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp, exptime, filt, no_slew)
     except Exception:

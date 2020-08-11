@@ -133,18 +133,18 @@ def fit_to_data(df, hfd_limits=None):
             else:
                 delta_x, cross_pos = None, None
 
+            # Add to dataframe
+            fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
+                                        'n_l': n_l,
+                                        'n_r': n_r,
+                                        'm_l': m_l,
+                                        'm_r': m_r,
+                                        'delta_x': delta_x,
+                                        'cross_pos': cross_pos})
+
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
             print(traceback.format_exc())
-
-        # Add to dataframe
-        fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
-                                    'n_l': n_l,
-                                    'n_r': n_r,
-                                    'm_l': m_l,
-                                    'm_r': m_r,
-                                    'delta_x': delta_x,
-                                    'cross_pos': cross_pos})
 
     return fit_df, fit_coeffs
 
@@ -411,8 +411,8 @@ if __name__ == '__main__':
     no_confirm = args.no_confirm
 
     # If something goes wrong we need to restore the origional focus
+    initial_positions = get_focuser_positions()
     try:
-        initial_positions = get_focuser_positions()
         RestoreFocus(initial_positions)
         run(fraction, steps, num_exp, exptime, filt, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
