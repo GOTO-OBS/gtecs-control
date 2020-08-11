@@ -138,9 +138,10 @@ def print_info(info):
     print('#### OTA INFO ####')
     for ut in params.UTS:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        print('Serial number: {}'.format(info[ut]['serial_number']))
+        print('Serial number:  {}'.format(info[ut]['serial_number']))
+        print('Hardware class: {}'.format(info[ut]['hw_class']))
         if ut in params.UTS_WITH_COVERS:
-            print('Mirror cover:  {}'.format(info[ut]['position'].capitalize()))
+            print('Mirror cover:   {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))

@@ -28,7 +28,7 @@ class UTInterfaceDaemon(BaseDaemon):
         self.hw_dict = hw_dict
         self.uts = hw_dict.keys()
 
-        self.otas = {ut: self.hw_dict[ut]['OTA'] for ut in self.uts}
+        self.ota_params = {ut: self.hw_dict[ut]['OTA'] for ut in self.uts}
 
         self.cameras = {ut: None for ut in self.uts}
         self.cam_params = {ut: self.hw_dict[ut]['CAMERA'] for ut in self.uts}
@@ -247,7 +247,8 @@ class UTInterfaceDaemon(BaseDaemon):
 
         temp_info['interface_id'] = self.daemon_id
 
-        temp_info['cam_params'] = self.cam_params
+        temp_info['ota_serials'] = {ut: self.ota_params[ut]['SERIAL'] for ut in self.ota_params}
+
         temp_info['cam_serials'] = {}
         for ut in self.cameras:
             # Get info from each camera
@@ -265,7 +266,6 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
-        temp_info['foc_params'] = self.foc_params
         temp_info['foc_serials'] = {}
         for ut in self.focusers:
             # Get info from each focuser
@@ -283,7 +283,6 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
-        temp_info['filt_params'] = self.filt_params
         temp_info['filt_serials'] = {}
         for ut in self.filterwheels:
             # Get info from each filterwheel
@@ -303,7 +302,10 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['uts'] = list(self.uts)
-        temp_info['ota_serials'] = dict(self.otas)
+        temp_info['ota_params'] = self.ota_params
+        temp_info['cam_params'] = self.cam_params
+        temp_info['foc_params'] = self.foc_params
+        temp_info['filt_params'] = self.filt_params
 
         # Write debug log line
         # NONE, nothing really changes
@@ -313,6 +315,15 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # Finally check if we need to report an error
         self._check_errors()
+
+    # OTA control functions
+    def get_ota_serial_number(self, ut):
+        """Return OTA unique serial number."""
+        return self.ota_params[ut]['SERIAL']
+
+    def get_ota_class(self, ut):
+        """Return OTA hardware class."""
+        return self.ota_params[ut]['CLASS']
 
     # Focuser control functions
     def step_focuser_motor(self, steps, ut):
@@ -504,11 +515,6 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return camera hardware class."""
         return self.cam_params[ut]['CLASS']
 
-    # OTA functions
-    def get_ota_serial_number(self, ut):
-        """Return OTA unique serial number."""
-        return self.otas[ut]
-
 
 def parse_args():
     """Parse arguments.
@@ -532,9 +538,8 @@ def parse_args():
         # ID number should be first
         ut = int(ut_list[0])
 
-        # Then should be the assigned OTA serial number
-        serial = str(ut_list[1].strip('ota='))
-        ut_dict['OTA'] = serial
+        # Then should be the OTA details
+        ut_dict['OTA'] = json.loads(ut_list[1].strip('ota='))
 
         # Then should be arguments with JSON dictionaries
         for arg in ut_list[2:]:

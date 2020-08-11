@@ -32,8 +32,13 @@ def get_args(interface_id):
         # UT number
         args.append(ut)
 
-        # OTA serial number
-        args.append('ota={}'.format(params.UT_DICT[ut]['SERIAL']))
+        # OTA details
+        if params.UT_DICT[ut]['OTA'] is not None:
+            hw_str = json.dumps(params.UT_DICT[ut]['OTA'], separators=(',', ':'))
+            hw_str = hw_str.replace('{', '\\{')
+            hw_str = hw_str.replace('}', '\\}')
+            hw_str = hw_str.replace('"', '\\"')
+            args.append('ota={}'.format(hw_str))
 
         # Camera details
         if params.UT_DICT[ut]['CAMERA'] is not None:

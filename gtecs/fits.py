@@ -533,7 +533,7 @@ def update_header(header, ut, all_info, log):
     cam_serial = cam_info['serial_number']
     cam_class = cam_info['hw_class']
     header['CAMERA  '] = (cam_serial, 'Camera serial number')
-    header['CAMCLS  '] = (cam_class, 'Camera serial number')
+    header['CAMCLS  '] = (cam_class, 'Camera hardware class')
 
     header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
     header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
@@ -554,6 +554,7 @@ def update_header(header, ut, all_info, log):
 
         info = all_info['ota'][ut]
         ota_serial = info['serial_number']
+        ota_class = info['hw_class']
         if ut not in params.UTS_WITH_COVERS:
             cover_position = 'NA'
             cover_open = 'NA'
@@ -564,10 +565,12 @@ def update_header(header, ut, all_info, log):
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
         ota_serial = 'NA'
+        ota_class = 'NA'
         cover_position = 'NA'
         cover_open = 'NA'
 
     header['OTA     '] = (ota_serial, 'OTA serial number')
+    header['OTACLS  '] = (ota_class, 'OTA hardware class')
     header['COVSTAT '] = (cover_position, 'Mirror cover position')
     header['COVOPEN '] = (cover_open, 'Mirror cover is open')
 
