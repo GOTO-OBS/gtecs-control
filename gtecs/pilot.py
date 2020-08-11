@@ -1039,19 +1039,6 @@ class Pilot(object):
     # Hardware commands
     async def open_dome(self):
         """Open the dome and await until it is finished."""
-        self.log.info('opening mirror covers')
-        execute_command('ota open')
-        self.hardware['ota'].mode = 'open'
-        # wait for mirror covers to open
-        sleep_time = 1
-        while True:
-            cover_status = self.hardware['ota'].get_hardware_status()
-            self.log.debug('covers are {}'.format(cover_status))
-            if cover_status == 'full_open':
-                break
-            await asyncio.sleep(sleep_time)
-        self.log.info('mirror covers confirmed open')
-
         self.log.info('opening dome')
         send_slack_msg('Pilot is opening the dome')
         execute_command('dome open')
@@ -1067,6 +1054,19 @@ class Pilot(object):
                 break
             await asyncio.sleep(sleep_time)
         self.log.info('dome confirmed open')
+
+        self.log.info('opening mirror covers')
+        execute_command('ota open')
+        self.hardware['ota'].mode = 'open'
+        # wait for mirror covers to open
+        sleep_time = 1
+        while True:
+            cover_status = self.hardware['ota'].get_hardware_status()
+            self.log.debug('covers are {}'.format(cover_status))
+            if cover_status == 'full_open':
+                break
+            await asyncio.sleep(sleep_time)
+        self.log.info('mirror covers confirmed open')
 
     def close_dome(self):
         """Send the dome close command and return immediately."""
