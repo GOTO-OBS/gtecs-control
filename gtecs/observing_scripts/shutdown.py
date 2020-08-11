@@ -28,12 +28,13 @@ def run():
     # Abort any current exposures
     execute_command('cam abort')
 
+    # Close the mirror covers
+    # (we need to do this before powering off the cameras, when we lose the interfaces)
+    execute_command('ota close')
+    wait_for_mirror_covers(opening=False, timout=60)
+
     # Power off the cameras
     execute_command('power off cams')
-
-    # Close the mirror covers
-    execute_command('ota close')
-    wait_for_mirror_covers(opening=False, timout=60)  # TODO: check closing time
 
     # Park the mount
     execute_command('mnt park')
