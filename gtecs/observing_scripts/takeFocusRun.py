@@ -28,6 +28,9 @@ import pandas as pd
 from scipy.optimize import curve_fit
 
 
+DEFAULT_NFV = 4
+
+
 def calculate_positions(fraction, steps):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
@@ -67,14 +70,14 @@ def lin_func(x, m, c):
     return m * x + c
 
 
-def fit_to_data(df, hfd_limits=None):
+def fit_to_data(df, nfvs=None):
     """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
     fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
                           index=uts)
     fit_coeffs = {ut: [None, None] for ut in uts}
-    if hfd_limits is None:
-        hfd_limits = {ut: (4, 12) for ut in uts}
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in uts}
 
     for ut in uts:
         try:
@@ -93,10 +96,12 @@ def fit_to_data(df, hfd_limits=None):
             # Need a nominal non-zero sigma, otherwise the curve fit fails
             hfd_std[hfd_std == 0] = 0.001
 
-            # Mask to only include points within the given limits
-            # (the lower limit should be the NFV, where the V-curve is no longer linear)
-            min_hfd, max_hfd = hfd_limits[ut]
-            mask = (hfd > min_hfd) & (hfd < max_hfd)
+            # Mask to exclude any points below the near-focus value
+            # (the NFV is supposed to mark where the V-curve is no-longer linear)
+            # or above double the NFV
+            if ut not in nfvs:
+                nfvs[ut] = DEFAULT_NFV
+            mask = (hfd > nfvs[ut]) & (hfd < 2 * nfvs[ut])
 
             # Split into left and right
             min_i = np.where(hfd == np.nanmin(hfd))[0][0]
@@ -149,13 +154,13 @@ def fit_to_data(df, hfd_limits=None):
     return fit_df, fit_coeffs
 
 
-def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save_plot=True):
+def plot_results(df, fit_df, fit_coeffs, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
-    if hfd_limits is None:
-        hfd_limits = {ut: (4, 12) for ut in uts}
     if finish_time is None:
         finish_time = Time.now()
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in uts}
 
     fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=100)
     plt.subplots_adjust(hspace=0.15, wspace=0.2)
@@ -170,8 +175,7 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
             ax = axes.flatten()[i]
 
             # Plot data
-            min_hfd, max_hfd = hfd_limits[ut]
-            mask = (np.array(ut_data['hfd']) > min_hfd) & (np.array(ut_data['hfd']) < max_hfd)
+            mask = (np.array(ut_data['hfd']) > nfvs[ut]) & (np.array(ut_data['hfd']) < 2 * nfvs[ut])
             mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
             mask_m = np.invert(mask) | (np.array(ut_data['pos']) == fit_data['pivot_pos'])
             mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
@@ -185,8 +189,8 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
                         yerr=ut_data['hfd_std'][mask_r],
                         color='tab:orange', fmt='.', ms=7, zorder=1)
             ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
-            ax.axhline(min_hfd, c='tab:red', ls='dotted', lw=1, zorder=-1)
-            ax.axhline(max_hfd, c='tab:red', ls='dotted', lw=1, zorder=-1)
+            ax.axhline(nfvs[ut], c='tab:red', ls='dotted', lw=1, zorder=-1)
+            ax.axhline(2 * nfvs[ut], c='tab:red', ls='dotted', lw=1, zorder=-1)
 
             # Set limits (lock the x-limit before we add the fit lines)
             x_lim = ax.get_xlim()
@@ -236,7 +240,7 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
     plt.show()
 
 
-def run(fraction, steps, num_exp=3, exptime=30, filt='L',
+def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
         go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -314,8 +318,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
-    hfd_limits = {ut: (4, 12) for ut in set(df.index)}
-    fit_df, fit_coeffs = fit_to_data(df, hfd_limits)
+    all_uts = sorted(set(df.index))
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in all_uts}
+    fit_df, fit_coeffs = fit_to_data(df, nfvs)
     print('Fit results:')
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
@@ -326,7 +332,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, fit_df, fit_coeffs, hfd_limits, finish_time)
+        plot_results(df, fit_df, fit_coeffs, nfvs, finish_time)
 
     # Get best positions
     best_focus = fit_df['cross_pos'].to_dict()
@@ -410,11 +416,14 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
+    # Get the near-focus values for each UT
+    nfvs = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in params.AUTOFOCUS_PARAMS}
+
     # If something goes wrong we need to restore the origional focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt, go_to_best, no_slew, no_plot, no_confirm)
+        run(fraction, steps, num_exp, exptime, filt, nfvs, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
