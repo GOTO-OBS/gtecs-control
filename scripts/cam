@@ -92,12 +92,12 @@ def query(command, args, daemon_id):
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
-            imgtype = 'SCIENCE'
+            imgtype = 'MANUAL'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
-            imgtype = 'SCIENCE'
+            imgtype = 'MANUAL'
         else:
             raise errors.InputError('Invalid arguments')
         # send command
