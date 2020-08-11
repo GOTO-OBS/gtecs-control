@@ -201,7 +201,12 @@ class UTInterfaceDaemon(BaseDaemon):
                         # FLI USB Filter Wheel, needs a serial number
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
-                        filterwheel = FLIFilterWheel.locate_device(hw_params['SERIAL'])
+                        if 'PORT' in hw_params:
+                            # Deal with unserialized hardware
+                            filterwheel = FLIFilterWheel.locate_device(hw_params['PORT'])
+                            filterwheel.serial_number = hw_params['SERIAL']
+                        else:
+                            filterwheel = FLIFilterWheel.locate_device(hw_params['SERIAL'])
                         if filterwheel is None and params.FAKE_FLI:
                             self.log.info('Creating a fake Filter Wheel')
                             filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
