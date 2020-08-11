@@ -174,13 +174,13 @@ class OTADaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(ut, temp_info[ut]['position'])
-                        for ut in self.uts]
+                        for ut in self.uts_with_covers]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Mirror covers are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(ut, self.info[ut]['position'])
-                            for ut in self.uts]
+                            for ut in self.uts_with_covers]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Mirror covers are {}'.format(now_str))
