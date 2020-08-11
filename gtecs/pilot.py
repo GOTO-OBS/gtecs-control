@@ -92,17 +92,17 @@ class Pilot(object):
         self.dome_is_open = False        # should the dome be open?
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': monitors.DomeMonitor(self.log),
-                         'mnt': monitors.MntMonitor(self.log),
-                         'power': monitors.PowerMonitor(self.log),
-                         'cam': monitors.CamMonitor(self.log),
-                         'ota': monitors.OTAMonitor(self.log),
-                         'filt': monitors.FiltMonitor(self.log),
-                         'foc': monitors.FocMonitor(self.log),
-                         'exq': monitors.ExqMonitor(self.log),
-                         'conditions': monitors.ConditionsMonitor(self.log),
-                         'scheduler': monitors.SchedulerMonitor(self.log),
-                         'sentinel': monitors.SentinelMonitor(self.log),
+        self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
+                         'mnt': monitors.MntMonitor('parked', log=self.log),
+                         'power': monitors.PowerMonitor(log=self.log),
+                         'cam': monitors.CamMonitor('cool', log=self.log),
+                         'ota': monitors.OTAMonitor('closed', log=self.log),
+                         'filt': monitors.FiltMonitor(log=self.log),
+                         'foc': monitors.FocMonitor(log=self.log),
+                         'exq': monitors.ExqMonitor(log=self.log),
+                         'conditions': monitors.ConditionsMonitor(log=self.log),
+                         'scheduler': monitors.SchedulerMonitor(log=self.log),
+                         'sentinel': monitors.SentinelMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 

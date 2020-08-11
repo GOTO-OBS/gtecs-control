@@ -93,7 +93,7 @@ class BaseMonitor(ABC):
 
     """
 
-    def __init__(self, daemon_id, log=None):
+    def __init__(self, daemon_id, starting_mode=None, log=None):
         self.daemon_id = daemon_id
         self.monitor_id = self.__class__.__name__
 
@@ -425,12 +425,12 @@ class BaseMonitor(ABC):
 class DomeMonitor(BaseMonitor):
     """Hardware monitor for the dome daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_DOME_CLOSED, log=None):
         super().__init__('dome', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
-        self.mode = MODE_DOME_CLOSED
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -628,12 +628,12 @@ class DomeMonitor(BaseMonitor):
 class MntMonitor(BaseMonitor):
     """Hardware monitor for the mount daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_MNT_PARKED, log=None):
         super().__init__('mnt', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
-        self.mode = MODE_MNT_PARKED
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -870,12 +870,12 @@ class MntMonitor(BaseMonitor):
 class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('power', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -946,12 +946,12 @@ class PowerMonitor(BaseMonitor):
 class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_CAM_COOL, log=None):
         super().__init__('cam', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_CAM_COOL, MODE_CAM_WARM]
-        self.mode = MODE_CAM_COOL
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1050,12 +1050,12 @@ class CamMonitor(BaseMonitor):
 class OTAMonitor(BaseMonitor):
     """Hardware monitor for the OTA daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_OTA_CLOSED, log=None):
         super().__init__('ota', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_OTA_CLOSED, MODE_OTA_OPEN]
-        self.mode = MODE_OTA_CLOSED
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1177,12 +1177,12 @@ class OTAMonitor(BaseMonitor):
 class FiltMonitor(BaseMonitor):
     """Hardware monitor for the filter wheel daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('filt', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1281,12 +1281,12 @@ class FiltMonitor(BaseMonitor):
 class FocMonitor(BaseMonitor):
     """Hardware monitor for the focuser daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('foc', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1367,12 +1367,12 @@ class FocMonitor(BaseMonitor):
 class ExqMonitor(BaseMonitor):
     """Hardware monitor for the exposure queue daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('exq', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1480,12 +1480,12 @@ class ExqMonitor(BaseMonitor):
 class ConditionsMonitor(BaseMonitor):
     """Hardware monitor for the conditions daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('conditions', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
         # Set a longer info timeout than default, as checks can take a while
         self.info_timeout = 30
@@ -1570,12 +1570,12 @@ class ConditionsMonitor(BaseMonitor):
 class SchedulerMonitor(BaseMonitor):
     """Hardware monitor for the scheduler daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('scheduler', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
         # Set a longer info timeout than default, as checks can take a while
         self.info_timeout = 30
@@ -1641,12 +1641,12 @@ class SchedulerMonitor(BaseMonitor):
 class SentinelMonitor(BaseMonitor):
     """Hardware monitor for the sentinel daemon."""
 
-    def __init__(self, log=None):
+    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('sentinel', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
-        self.mode = MODE_ACTIVE
+        self.mode = starting_mode
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
