@@ -1055,7 +1055,7 @@ class OTAMonitor(BaseMonitor):
 
         # Define modes and starting mode
         self.available_modes = [MODE_OTA_CLOSED, MODE_OTA_OPEN]
-        self.mode = MODE_OTA_OPEN
+        self.mode = MODE_OTA_CLOSED
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
