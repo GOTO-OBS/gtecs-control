@@ -93,7 +93,7 @@ class BaseMonitor(ABC):
 
     """
 
-    def __init__(self, daemon_id, starting_mode=None, log=None):
+    def __init__(self, daemon_id, log=None):
         self.daemon_id = daemon_id
         self.monitor_id = self.__class__.__name__
 
