@@ -150,22 +150,22 @@ class OTADaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get info from each UT
         for ut in self.uts:
-            # Get info from each interface
             try:
+                ut_info = {}
                 interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface_info = {}
-                interface_info['interface_id'] = interface_id
+                ut_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['serial_number'] = interface.get_ota_serial_number(ut)
+                    ut_info['serial_number'] = interface.get_ota_serial_number(ut)
                     if ut in self.uts_with_covers:
-                        interface_info['position'] = interface.get_mirror_cover_position(ut)
+                        ut_info['position'] = interface.get_mirror_cover_position(ut)
                         # See `H400.get_cover_position`
                     else:
-                        interface_info['position'] = 'NA'
+                        ut_info['position'] = 'NA'
 
-                temp_info[ut] = interface_info
+                temp_info[ut] = ut_info
             except Exception:
                 self.log.error('Failed to get OTA {} info'.format(ut))
                 self.log.debug('', exc_info=True)

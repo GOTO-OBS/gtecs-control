@@ -259,34 +259,34 @@ class CamDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get info from each UT
         for ut in self.uts:
-            # Get info from each interface
             try:
+                ut_info = {}
                 interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface_info = {}
-                interface_info['interface_id'] = interface_id
+                ut_info['interface_id'] = interface_id
 
                 if self.exposing and ut in self.active_uts:
-                    interface_info['status'] = 'Exposing'
+                    ut_info['status'] = 'Exposing'
                 elif self.image_saving[ut] == 1:
-                    interface_info['status'] = 'Reading'
+                    ut_info['status'] = 'Reading'
                 else:
-                    interface_info['status'] = 'Ready'
-                interface_info['image_ready'] = self.image_ready[ut]
-                interface_info['image_saving'] = self.image_saving[ut]
-                interface_info['target_temp'] = self.target_temp[ut]
+                    ut_info['status'] = 'Ready'
+                ut_info['image_ready'] = self.image_ready[ut]
+                ut_info['image_saving'] = self.image_saving[ut]
+                ut_info['target_temp'] = self.target_temp[ut]
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_camera_time_remaining(ut)
-                    interface_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
-                    interface_info['base_temp'] = interface.get_camera_temp('BASE', ut)
-                    interface_info['cooler_power'] = interface.get_camera_cooler_power(ut)
+                    ut_info['remaining'] = interface.get_camera_time_remaining(ut)
+                    ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
+                    ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
+                    ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
                     cam_info = interface.get_camera_info(ut)
-                    interface_info['serial_number'] = cam_info['serial_number']
-                    interface_info['x_pixel_size'] = cam_info['pixel_size'][0]
-                    interface_info['y_pixel_size'] = cam_info['pixel_size'][1]
+                    ut_info['serial_number'] = cam_info['serial_number']
+                    ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
+                    ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
 
-                temp_info[ut] = interface_info
+                temp_info[ut] = ut_info
             except Exception:
                 self.log.error('Failed to get camera {} info'.format(ut))
                 self.log.debug('', exc_info=True)

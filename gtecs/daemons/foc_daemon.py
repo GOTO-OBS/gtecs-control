@@ -149,46 +149,46 @@ class FocDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['dome_temp'] = None
 
+        # Get info from each UT
         for ut in self.uts:
-            # Get info from each interface
             try:
+                ut_info = {}
                 interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface_info = {}
-                interface_info['interface_id'] = interface_id
+                ut_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['serial_number'] = interface.get_focuser_serial_number(ut)
-                    interface_info['current_pos'] = interface.get_focuser_position(ut)
-                    interface_info['limit'] = interface.get_focuser_limit(ut)
+                    ut_info['serial_number'] = interface.get_focuser_serial_number(ut)
+                    ut_info['current_pos'] = interface.get_focuser_position(ut)
+                    ut_info['limit'] = interface.get_focuser_limit(ut)
                     try:
-                        interface_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                        ut_info['remaining'] = interface.get_focuser_steps_remaining(ut)
                     except NotImplementedError:
                         # The ASA H400s don't store steps remaining
-                        interface_info['remaining'] = 0
+                        ut_info['remaining'] = 0
                     try:
-                        interface_info['int_temp'] = interface.get_focuser_temp('internal', ut)
-                        interface_info['ext_temp'] = interface.get_focuser_temp('external', ut)
+                        ut_info['int_temp'] = interface.get_focuser_temp('internal', ut)
+                        ut_info['ext_temp'] = interface.get_focuser_temp('external', ut)
                     except NotImplementedError:
                         # The ASA H400s don't have temperature sensors
-                        interface_info['int_temp'] = None
-                        interface_info['ext_temp'] = None
+                        ut_info['int_temp'] = None
+                        ut_info['ext_temp'] = None
 
                     try:
-                        interface_info['status'] = interface.get_focuser_status(ut)
+                        ut_info['status'] = interface.get_focuser_status(ut)
                     except NotImplementedError:
                         # The FLI focusers don't have a status
-                        if interface_info['remaining'] > 0:
-                            interface_info['status'] = 'Moving'
+                        if ut_info['remaining'] > 0:
+                            ut_info['status'] = 'Moving'
                             if self.move_steps[ut] == 0:
                                 # Homing, needed due to bug in remaining
-                                interface_info['remaining'] = interface_info['current_pos']
+                                ut_info['remaining'] = ut_info['current_pos']
                         else:
-                            interface_info['status'] = 'Ready'
+                            ut_info['status'] = 'Ready'
 
-                interface_info['current_temp'] = temp_info['dome_temp']
-                interface_info['last_move_temp'] = self.last_move_temp[ut]
+                ut_info['current_temp'] = temp_info['dome_temp']
+                ut_info['last_move_temp'] = self.last_move_temp[ut]
 
-                temp_info[ut] = interface_info
+                temp_info[ut] = ut_info
             except Exception:
                 self.log.error('Failed to get focuser {} info'.format(ut))
                 self.log.debug('', exc_info=True)
