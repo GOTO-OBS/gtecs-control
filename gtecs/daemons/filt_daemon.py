@@ -134,10 +134,11 @@ class FiltDaemon(BaseDaemon):
                 ut_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
+                    ut_info['serial_number'] = interface.get_filter_serial_number(ut)
+                    ut_info['hw_class'] = interface.get_filter_class(ut)
                     ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
                     ut_info['current_filter_num'] = interface.get_filter_number(ut)
                     ut_info['current_pos'] = interface.get_filter_position(ut)
-                    ut_info['serial_number'] = interface.get_filter_serial_number(ut)
                     ut_info['homed'] = interface.get_filter_homed(ut)
 
                 if ut_info['remaining'] > 0:

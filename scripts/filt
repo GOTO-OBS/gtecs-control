@@ -150,6 +150,7 @@ def print_info(info):
         print('Current filter num: {}'.format(info[ut]['current_filter_num']))
         print('Current motor pos:  {}'.format(info[ut]['current_pos']))
         print('Serial number:      {}'.format(info[ut]['serial_number']))
+        print('Hardware class:     {}'.format(info[ut]['hw_class']))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))

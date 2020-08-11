@@ -355,6 +355,10 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return focuser unique serial number."""
         return self.focusers[ut].serial_number
 
+    def get_focuser_class(self, ut):
+        """Return focuser hardware class."""
+        return self.foc_params[ut]['CLASS']
+
     # Mirror cover control functions (part of the ASA H400 class, under focusers)
     def open_mirror_cover(self, ut):
         """Open the mirror cover."""
@@ -411,6 +415,10 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_filter_serial_number(self, ut):
         """Return filter wheel unique serial number."""
         return self.filterwheels[ut].serial_number
+
+    def get_filter_class(self, ut):
+        """Return filter wheel hardware class."""
+        return self.filt_params[ut]['CLASS']
 
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, ut):
@@ -491,6 +499,10 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_camera_serial_number(self, ut):
         """Return camera unique serial number."""
         return self.cameras[ut].serial_number
+
+    def get_camera_class(self, ut):
+        """Return camera hardware class."""
+        return self.cam_params[ut]['CLASS']
 
     # OTA functions
     def get_ota_serial_number(self, ut):

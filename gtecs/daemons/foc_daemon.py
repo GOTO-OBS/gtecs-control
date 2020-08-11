@@ -161,6 +161,7 @@ class FocDaemon(BaseDaemon):
 
                 with daemon_proxy(interface_id) as interface:
                     ut_info['serial_number'] = interface.get_focuser_serial_number(ut)
+                    ut_info['hw_class'] = interface.get_focuser_class(ut)
                     ut_info['current_pos'] = interface.get_focuser_position(ut)
                     ut_info['limit'] = interface.get_focuser_limit(ut)
                     try:

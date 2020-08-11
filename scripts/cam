@@ -217,6 +217,7 @@ def print_info(info):
         print('Base Temperature:   {:.2f}C'.format(info[ut]['base_temp']))
         print('Cooler power:       {:.0f}%'.format(info[ut]['cooler_power']))
         print('Serial number:      {}'.format(info[ut]['serial_number']))
+        print('Hardware class:     {}'.format(info[ut]['hw_class']))
         print('~~~~~~~')
     print('Latest run number:  {:d}'.format(info['latest_run_number']))
     print('Exposures taken:    {:d}'.format(info['num_taken']))

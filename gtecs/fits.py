@@ -531,7 +531,9 @@ def update_header(header, ut, all_info, log):
     # Camera info
     cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
+    cam_class = cam_info['hw_class']
     header['CAMERA  '] = (cam_serial, 'Camera serial number')
+    header['CAMCLS  '] = (cam_class, 'Camera serial number')
 
     header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
     header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
@@ -576,6 +578,7 @@ def update_header(header, ut, all_info, log):
 
         if ut not in params.UTS_WITH_FOCUSERS:
             foc_serial = 'None'
+            foc_class = 'NA'
             foc_pos = 'NA'
             foc_temp_int = 'NA'
             foc_temp_ext = 'NA'
@@ -583,6 +586,7 @@ def update_header(header, ut, all_info, log):
             info = all_info['foc'][ut]
 
             foc_serial = info['serial_number']
+            foc_class = info['hw_class']
             foc_pos = info['current_pos']
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
@@ -590,11 +594,13 @@ def update_header(header, ut, all_info, log):
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
         foc_serial = 'NA'
+        foc_class = 'NA'
         foc_pos = 'NA'
         foc_temp_int = 'NA'
         foc_temp_ext = 'NA'
 
     header['FOCUSER '] = (foc_serial, 'Focuser serial number')
+    header['FOCCLS  '] = (foc_class, 'Focuser hardware class')
     header['FOCPOS  '] = (foc_pos, 'Focuser motor position')
     header['FOCTEMPI'] = (foc_temp_int, 'Focuser internal temperature, C')
     header['FOCTEMPX'] = (foc_temp_ext, 'Focuser external temperature, C')
@@ -606,6 +612,7 @@ def update_header(header, ut, all_info, log):
 
         if ut not in params.UTS_WITH_FILTERWHEELS:
             filt_serial = 'None'
+            filt_class = 'NA'
             filt_filter = 'C'
             filt_num = 'NA'
             filt_pos = 'NA'
@@ -613,6 +620,7 @@ def update_header(header, ut, all_info, log):
             info = all_info['filt'][ut]
 
             filt_serial = info['serial_number']
+            filt_class = info['hw_class']
             if not info['homed']:
                 filt_filter = 'UNHOMED'
             else:
@@ -624,12 +632,14 @@ def update_header(header, ut, all_info, log):
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
         filt_serial = 'NA'
+        filt_class = 'NA'
         filt_filter = 'NA'
         filt_num = 'NA'
         filt_pos = 'NA'
     filter_list_str = ''.join(params.FILTER_LIST)
 
     header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
+    header['FILTCLS '] = (filt_class, 'Filter wheel hardware class')
     header['FILTER  '] = (filt_filter, 'Filter used for exposure [{}]'.format(filter_list_str))
     header['FILTNUM '] = (filt_num, 'Filter wheel position number')
     header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')

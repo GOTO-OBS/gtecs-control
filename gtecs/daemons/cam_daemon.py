@@ -277,12 +277,13 @@ class CamDaemon(BaseDaemon):
                 ut_info['target_temp'] = self.target_temp[ut]
 
                 with daemon_proxy(interface_id) as interface:
+                    ut_info['serial_number'] = interface.get_camera_serial_number(ut)
+                    ut_info['hw_class'] = interface.get_camera_class(ut)
                     ut_info['remaining'] = interface.get_camera_time_remaining(ut)
                     ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
                     ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
                     ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
                     cam_info = interface.get_camera_info(ut)
-                    ut_info['serial_number'] = cam_info['serial_number']
                     ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
                     ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
 
