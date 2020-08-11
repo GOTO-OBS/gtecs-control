@@ -176,17 +176,24 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
             mask_m = np.invert(mask) | (np.array(ut_data['pos']) == fit_data['pivot_pos'])
             mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
             ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
-                        yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_l],
+                        color='tab:blue', fmt='.', ms=7, zorder=1)
             ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
-                        yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_m],
+                        color='0.7', fmt='.', ms=7, zorder=1)
             ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
-                        yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_r],
+                        color='tab:orange', fmt='.', ms=7, zorder=1)
             ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
             ax.axhline(min_hfd, c='tab:red', ls='dotted', lw=1, zorder=-1)
             ax.axhline(max_hfd, c='tab:red', ls='dotted', lw=1, zorder=-1)
 
-            # Plot fits (if they worked)
+            # Set limits (lock the x-limit before we add the fit lines)
             x_lim = ax.get_xlim()
+            ax.set_xlim(*x_lim)
+            ax.set_ylim(bottom=0, top=14)
+
+            # Plot fits (if they worked)
             test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
             if fit_coeffs[ut][0] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
@@ -199,8 +206,8 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
             else:
                 txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
                     fit_data['n_l'], fit_data['n_r'])
-                ax.text(0.03, 0.8, txt, fontweight='normal', c='tab:red',
-                        transform=ax.transAxes, ha='left', zorder=4,
+                ax.text(0.02, 0.8, txt, fontweight='normal', c='tab:red',
+                        transform=ax.transAxes, ha='left', zorder=2.1,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
 
             # Set labels
@@ -208,16 +215,15 @@ def plot_results(df, fit_df, fit_coeffs, hfd_limits=None, finish_time=None, save
                 ax.set_ylabel('HFD')
             if i >= len(axes.flatten()) - 4:
                 ax.set_xlabel('Focus position')
-            ax.text(0.03, 0.9, 'UT{}'.format(ut), fontweight='bold',
+            ax.text(0.02, 0.915, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
-                    transform=ax.transAxes, ha='left', zorder=9)
-
-            # Set limits
-            ax.set_xlim(*x_lim)
-            ax.set_ylim(bottom=0, top=15)
+                    transform=ax.transAxes, ha='left', zorder=2)
+            ax.text(0.98, 0.915, params.UT_DICT[ut]['SERIAL'], fontweight='bold',
+                    bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
+                    transform=ax.transAxes, ha='right', zorder=2)
 
         except Exception:
-            print('Error making HFD plot', end='\t')
+            print('UT{}: Error making HFD plot'.format(ut))
             print(traceback.format_exc())
 
     # Save the plot
