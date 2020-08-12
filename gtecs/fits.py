@@ -617,6 +617,7 @@ def update_header(header, ut, all_info, log):
             filt_serial = 'None'
             filt_class = 'NA'
             filt_filter = 'C'
+            filt_filters = 'C'
             filt_num = 'NA'
             filt_pos = 'NA'
         else:
@@ -629,6 +630,7 @@ def update_header(header, ut, all_info, log):
             else:
                 filt_filter_num = info['current_filter_num']
                 filt_filter = params.FILTER_LIST[filt_filter_num]
+            filt_filters = ','.join(params.FILTER_LIST)
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
     except Exception:
@@ -637,13 +639,14 @@ def update_header(header, ut, all_info, log):
         filt_serial = 'NA'
         filt_class = 'NA'
         filt_filter = 'NA'
+        filt_filters = 'NA'
         filt_num = 'NA'
         filt_pos = 'NA'
-    filter_list_str = ''.join(params.FILTER_LIST)
 
     header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
     header['FILTCLS '] = (filt_class, 'Filter wheel hardware class')
-    header['FILTER  '] = (filt_filter, 'Filter used for exposure [{}]'.format(filter_list_str))
+    header['FILTER  '] = (filt_filter, 'Filter used for exposure')
+    header['FILTERS '] = (filt_filters, 'Filters in filter wheel')
     header['FILTNUM '] = (filt_num, 'Filter wheel position number')
     header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')
 
