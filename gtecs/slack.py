@@ -28,6 +28,7 @@ def send_slack_msg(text, attachments=None, filepath=None):
         NB a message can have a file OR attachments, not both.
 
     """
+    text = str(text)
     if attachments is not None and filepath is not None:
         raise ValueError("A Slack message can't have both attachments and a file.")
 

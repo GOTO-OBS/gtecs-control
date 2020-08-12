@@ -198,7 +198,7 @@ class Pilot(object):
                         monitor.recover()  # Will log recovery commands
                     except RecoveryError as err:
                         # Uh oh, we're out of options
-                        send_slack_msg(err)
+                        send_slack_msg(str(err))
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
