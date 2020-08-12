@@ -138,7 +138,7 @@ class PowerDaemon(BaseDaemon):
         """Connect to hardware."""
         for unit_name in params.POWER_UNITS:
             # Connect to each unit
-            if not self.power_units[unit_name]:
+            if self.power_units[unit_name] is None:
                 unit_params = params.POWER_UNITS[unit_name].copy()
                 unit_class = unit_params['CLASS']
                 unit_ip = unit_params['IP']
@@ -160,8 +160,8 @@ class PowerDaemon(BaseDaemon):
                             self.bad_hardware.remove(unit_name)
                     except Exception:
                         self.power_units[unit_name] = None
-                        self.log.error('Failed to connect to {}'.format(unit_name))
                         if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
                             self.bad_hardware.add(unit_name)
 
                 elif unit_class == 'APCUPS':
@@ -172,8 +172,8 @@ class PowerDaemon(BaseDaemon):
                             self.bad_hardware.remove(unit_name)
                     except Exception:
                         self.power_units[unit_name] = None
-                        self.log.error('Failed to connect to {}'.format(unit_name))
                         if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
                             self.bad_hardware.add(unit_name)
 
                 elif unit_class == 'ETH8020':
@@ -186,8 +186,8 @@ class PowerDaemon(BaseDaemon):
                             self.bad_hardware.remove(unit_name)
                     except Exception:
                         self.power_units[unit_name] = None
-                        self.log.error('Failed to connect to {}'.format(unit_name))
                         if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
                             self.bad_hardware.add(unit_name)
 
         # Finally check if we need to report an error

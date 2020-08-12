@@ -313,7 +313,7 @@ class DomeDaemon(BaseDaemon):
     def _connect(self):
         """Connect to hardware."""
         # Connect to the dome
-        if not self.dome:
+        if self.dome is None:
             if params.FAKE_DOME:
                 self.dome = FakeDome()
                 self.log.info('Connected to dome')
@@ -329,12 +329,12 @@ class DomeDaemon(BaseDaemon):
                     time.sleep(3)
                 except Exception:
                     self.dome = None
-                    self.log.error('Failed to connect to dome')
                     if 'dome' not in self.bad_hardware:
+                        self.log.error('Failed to connect to dome')
                         self.bad_hardware.add('dome')
 
         # Connect to the dehumidifer
-        if not self.dehumidifier:
+        if self.dehumidifier is None:
             if params.FAKE_DOME:
                 self.dehumidifier = FakeDehumidifier()
                 self.log.info('Connected to dehumidifier')
@@ -348,8 +348,8 @@ class DomeDaemon(BaseDaemon):
                         self.bad_hardware.remove('dehumidifier')
                 except Exception:
                     self.dehumidifier = None
-                    self.log.error('Failed to connect to dehumidifier')
                     if 'dehumidifier' not in self.bad_hardware:
+                        self.log.error('Failed to connect to dehumidifier')
                         self.bad_hardware.add('dehumidifier')
 
         # Finally check if we need to report an error
