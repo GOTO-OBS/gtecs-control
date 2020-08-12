@@ -274,8 +274,8 @@ class MntDaemon(BaseDaemon):
                     self.bad_hardware.remove('sitech')
             except Exception:
                 self.sitech = None
-                self.log.error('Failed to connect to SiTechEXE')
                 if 'sitech' not in self.bad_hardware:
+                    self.log.error('Failed to connect to SiTechEXE')
                     self.bad_hardware.add('sitech')
 
         # Finally check if we need to report an error
