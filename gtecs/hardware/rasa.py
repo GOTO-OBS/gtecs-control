@@ -100,8 +100,9 @@ class FocusLynx(object):
     def connected(self):
         """Check if this device is still available."""
         try:
-            self._get_info()
-            return True
+            ret = self._serial_command('HELLO')
+            if ret != self.serial_number:
+                raise ConnectionError('Incorrect reply from serial connection')
         except ConnectionError:
             return False
 
