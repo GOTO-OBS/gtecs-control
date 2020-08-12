@@ -409,7 +409,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype)
+                            target='NA', imgtype=imgtype.upper())
 
         # Use the common function
         return self.take_exposure(exposure)
@@ -419,7 +419,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='dark',
-                            target='NA', imgtype=imgtype)
+                            target='NA', imgtype=imgtype.upper())
 
         # Use the common function
         return self.take_exposure(exposure)
@@ -429,7 +429,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype,
+                            target='NA', imgtype=imgtype.upper(),
                             glance=True)
 
         # Use the common function

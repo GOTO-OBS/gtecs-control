@@ -30,7 +30,7 @@ class Exposure(object):
         Exposure target name
     imgtype : str, default='SCIENCE'
         Exposure type
-        One of SCIENCE, FOCUS, STD, FLAT, BIAS, DARK
+        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK
     glance : bool, default=False
         If True then the exposure is a glance
 
@@ -60,7 +60,7 @@ class Exposure(object):
         self.binning = binning
         self.frametype = frametype
         self.target = target
-        self.imgtype = imgtype
+        self.imgtype = imgtype.upper()
         self.glance = glance
 
         # Set arguments
@@ -88,7 +88,7 @@ class Exposure(object):
         binning = int(ls[3])
         frametype = ls[4]
         target = ls[5]
-        imgtype = ls[6]
+        imgtype = ls[6].upper()
         glance = bool(int(ls[7]))
         set_num = int(ls[8]) if int(ls[8]) != -1 else None
         set_pos = int(ls[9])

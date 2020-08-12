@@ -105,7 +105,7 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 5:
                 target = args[3]
-                imgtype = args[4]
+                imgtype = args[4].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
@@ -123,7 +123,7 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         else:
@@ -156,11 +156,11 @@ def query(command, args, daemon_id):
                 db_id = None
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
                 db_id = None
             elif len(args) == 7:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
                 db_id = int(args[6])
             else:
                 raise errors.InputError('Invalid arguments')
@@ -182,11 +182,11 @@ def query(command, args, daemon_id):
                 db_id = None
             elif len(args) == 7:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
                 db_id = None
             elif len(args) == 8:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
                 db_id = int(args[7])
             else:
                 raise errors.InputError('Invalid arguments')
@@ -218,10 +218,10 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             elif len(args) == 7:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
@@ -240,10 +240,10 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 7:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
             elif len(args) == 8:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         else:
