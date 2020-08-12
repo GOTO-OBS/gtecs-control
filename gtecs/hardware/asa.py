@@ -120,10 +120,10 @@ class H400(object):
             self.serial.write(command_str.encode('ascii'))
             time.sleep(0.1)
             out_bytes = self.serial.read(self.serial.in_waiting)
-            self._serial_lock = False
         except Exception:
-            self._serial_lock = False
             raise ConnectionError('No reply from serial connection')
+        finally:
+            self._serial_lock = False
 
         reply = out_bytes.decode('ascii').strip()
         if not reply.startswith('#') or not reply.endswith('$'):
