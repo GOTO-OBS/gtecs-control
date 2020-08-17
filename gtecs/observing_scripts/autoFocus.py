@@ -293,15 +293,15 @@ def run(big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, fil
         print('New positions:', get_focuser_positions())
         print('Taking {} focus measurements...'.format(num_exp))
         foc_data = measure_focus(num_exp, exptime, filt, target_name)
-        farout_hfds = foc_data['hfd']
+        out_hfds = foc_data['hfd']
         if num_exp > 1:
-            print('Best HFDs:', farout_hfds.round(1).to_dict())
+            print('Best HFDs:', out_hfds.round(1).to_dict())
 
         # Now hopefully they should all be far enough from the starting position.
         # If not then they might need manually adjusting, or else the focusers aren't moving at all.
-        if np.any(farout_hfds < initial_hfds + 1):
+        if np.any(out_hfds < initial_hfds + 1):
             print('Initial HFDs:', initial_hfds.round(1).to_dict())
-            print('Current HFDs:', farout_hfds.round(1).to_dict())
+            print('Current HFDs:', out_hfds.round(1).to_dict())
             raise Exception('HFD not changing with focuser position')
 
     # Now move back towards where best focus position should be.
