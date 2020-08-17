@@ -222,7 +222,7 @@ def plot_results(df, fit_df, fit_coeffs, nfvs=None, finish_time=None, save_plot=
             ax.text(0.02, 0.915, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
                     transform=ax.transAxes, ha='left', zorder=2)
-            ax.text(0.98, 0.915, params.UT_DICT[ut]['SERIAL'], fontweight='bold',
+            ax.text(0.98, 0.915, params.UT_DICT[ut]['OTA']['SERIAL'], fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
                     transform=ax.transAxes, ha='right', zorder=2)
 
