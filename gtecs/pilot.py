@@ -486,6 +486,9 @@ class Pilot(object):
                 self.running_script_transport is not None and
                 self.running_script_transport.get_returncode() is None):
             self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
+            if self.running_script != 'OBS':
+                msg = 'Pilot killing {} task early ("{}")'.format(self.running_script, why)
+                send_slack_msg(msg)
 
             # check script is still running again, just in case
             try:
