@@ -38,6 +38,7 @@ STATUS_OTA_FULLOPEN = 'full_open'
 STATUS_OTA_PARTOPEN = 'part_open'
 STATUS_OTA_CLOSED = 'closed'
 STATUS_FILT_UNHOMED = 'unhomed'
+STATUS_FOC_UNSET = 'unset'
 STATUS_CONDITIONS_INTERNAL_ERROR = 'internal_error'
 
 # Hardware modes
@@ -74,6 +75,7 @@ ERROR_CAM_WARM = 'CAM:NOT_COOL'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
 ERROR_OTA_NOTCLOSED = 'OTA:NOT_CLOSED'
 ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
+ERROR_FOC_UNSET = 'FOC:NOT_SET'
 ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
 
@@ -1191,8 +1193,7 @@ class FiltMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_homed = all(info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
-        if not all_homed:
+        if any(info[ut]['homed'] is False for ut in params.UTS_WITH_FILTERWHEELS):
             hardware_status = STATUS_FILT_UNHOMED
         else:
             hardware_status = STATUS_ACTIVE
@@ -1295,16 +1296,23 @@ class FocMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        # no custom statuses
-        hardware_status = STATUS_ACTIVE
+        if any(info[ut]['status'] == 'UNSET' for ut in params.UTS_WITH_FOCUSERS):
+            hardware_status = STATUS_FOC_UNSET
+        else:
+            hardware_status = STATUS_ACTIVE
 
         self.hardware_status = hardware_status
         return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # no custom errors
-        return
+        # STATUS_FOC_UNSET
+        # Set the error if the filter wheels aren't homed
+        if self.hardware_status == STATUS_FOC_UNSET:
+            self.add_error(ERROR_FOC_UNSET)
+        # Clear the error if the filter wheels have been homed
+        if self.hardware_status != STATUS_FOC_UNSET:
+            self.clear_error(ERROR_FOC_UNSET)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1358,6 +1366,16 @@ class FocMonitor(BaseMonitor):
             recovery_procedure[1] = ['foc restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, {}
+
+        elif ERROR_FOC_UNSET in self.errors:
+            # PROBLEM: The focusers haven't been moved (need to activate auto-correction in ASAs).
+            recovery_procedure = {}
+            # SOLUTION 1: Try moving them by a single step.
+            recovery_procedure[1] = ['foc move 1', 10]
+            # SOLUTION 2: Odd. Try moving them back.
+            recovery_procedure[2] = ['foc move -1', 10]
+            # OUT OF SOLUTIONS: Must be a hardware issue.
+            return ERROR_FOC_UNSET, recovery_procedure
 
         else:
             # Some unexpected error.
