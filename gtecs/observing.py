@@ -565,13 +565,13 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
                                                              exptime,
                                                              filt,
                                                              name,
-                                                             imgtype)
+                                                             imgtype if not glance else '')
     else:
         exq_command = 'exq {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
                                                           exptime,
                                                           filt,
                                                           name,
-                                                          imgtype)
+                                                          imgtype if not glance else '')
 
     # Send the command
     execute_command(exq_command)
