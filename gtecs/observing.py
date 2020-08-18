@@ -293,8 +293,10 @@ def wait_for_focusers(target_positions, timeout=None):
         try:
             foc_info = daemon_info('foc', force_update=True)
 
-            done = [(foc_info[ut]['current_pos'] == int(target_positions[ut]) and
-                    foc_info[ut]['status'] == 'Ready')
+            # Note we say we're there when we're within 5 steps,
+            # because the ASA auto-adjustment means we can't be exact.
+            done = [abs(foc_info[ut]['current_pos'] - int(target_positions[ut])) < 5 and
+                    foc_info[ut]['status'] == 'Ready'
                     for ut in target_positions]
             if np.all(done):
                 reached_position = True
