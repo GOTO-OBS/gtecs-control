@@ -185,34 +185,31 @@ def wait_for_mirror_covers(opening=True, timeout=None):
         raise TimeoutError('Mirror covers timed out')
 
 
-def get_focuser_positions():
+def get_focuser_positions(uts=None):
     """Find the current focuser positions."""
-    foc_info = daemon_info('foc')
-    positions = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        positions[ut] = foc_info[ut]['current_pos']
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    foc_info = daemon_info('foc', force_update=True)
+    positions = {ut: foc_info[ut]['current_pos'] for ut in uts}
     return positions
 
 
-def get_focuser_limits():
+def get_focuser_limits(uts=None):
     """Find the maximum focuser position limit."""
-    foc_info = daemon_info('foc')
-    limits = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        limits[ut] = foc_info[ut]['limit']
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    foc_info = daemon_info('foc', force_update=True)
+    limits = {ut: foc_info[ut]['limit'] for ut in uts}
     return limits
 
 
 def focusers_are_ready(uts=None):
     """Return true if none of the focusers are moving."""
-    foc_info = daemon_info('foc', force_update=True)
-
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
-
-    done = [foc_info[ut]['status'] == 'Ready' for ut in uts]
-
-    return np.all(done)
+    foc_info = daemon_info('foc', force_update=True)
+    ready = [foc_info[ut]['status'] == 'Ready' for ut in uts]
+    return np.all(ready)
 
 
 def set_focuser_positions(positions, wait=False, timeout=None):
