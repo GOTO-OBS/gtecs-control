@@ -94,6 +94,13 @@ def prepare_for_images(open_covers=True):
         while not filters_are_homed():
             time.sleep(0.5)
 
+    # Set the focusers
+    if not focusers_are_set():
+        print('Setting focusers')
+        execute_command('foc move 1')
+        time.sleep(0.5)
+        execute_command('foc move -1')
+
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         print('Cooling cameras')
@@ -692,6 +699,12 @@ def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt', force_update=False)
     return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
+
+
+def focusers_are_set():
+    """Check if all the focusers are set."""
+    foc_info = daemon_info('foc', force_update=False)
+    return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
 
 
 def cameras_are_cool():
