@@ -144,6 +144,20 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'home_focusers', [ut_list])
         print(reply)
 
+    elif command in ['stop', 'halt', 'abort']:
+        # parse arguments
+        if len(args) == 0:
+            # foc stop
+            ut_list = params.UTS_WITH_FOCUSERS
+        elif len(args) == 1:
+            # foc stop <ut>[,<ut>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'stop_focusers', [ut_list])
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -202,6 +216,7 @@ def print_instructions():
           '  move [uts] steps               move by the given steps',
           '  set [uts] pos                  move to the given position',
           '  home [uts]                     move to the home position',
+          '  stop/halt/abort [uts]          stop the focusers moving',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

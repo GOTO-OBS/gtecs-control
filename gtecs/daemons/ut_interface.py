@@ -336,6 +336,18 @@ class UTInterfaceDaemon(BaseDaemon):
         self.log.info('Focuser {} moving to home'.format(ut))
         self.focusers[ut].home_focuser()
 
+    def stop_focuser(self, ut):
+        """Stop the focuser from moving."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            raise NotImplementedError("FLI focusers don't have a stop function")
+        return self.focusers[ut].stop_focuser()
+
+    def focuser_can_stop(self, ut):
+        """Check if the focuser has a stop command."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            return False
+        return True
+
     def get_focuser_limit(self, ut):
         """Return focuser motor limit."""
         return self.focusers[ut].max_extent

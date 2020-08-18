@@ -161,6 +161,12 @@ class FocusLynx(object):
                     break
                 time.sleep(0.1)
 
+    def stop_focuser(self):
+        """Stop the focuser from moving."""
+        reply = self._serial_command('HALT')
+        if reply != 'HALTED':
+            raise Exception('Failed to stop: {}'.format(reply))
+
     def read_temperature(self, temp_type='internal'):
         """Get the focuser temperature, in Celcius."""
         info_dict = self._get_info()
