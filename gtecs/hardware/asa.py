@@ -318,26 +318,39 @@ class FakeH400(object):
         """Fake thread to simulate moving the focuser stepper motor."""
         self._initial_move = True
         self._focuser_moving = True
-        while (self._focuser_moving and
-               self.get_steps_remaining() > int(self._focuser_move_speed * 0.1)):
+
+        while self._focuser_moving:
             time.sleep(0.1)
-            if self.stepper_position < self._target_position:
-                self.stepper_position += int(self._focuser_move_speed * 0.1)
+            step = int(self._focuser_move_speed * 0.1)
+            if abs(self.stepper_position - self._target_position) < step:
+                self.stepper_position = self._target_position
+                break
+            elif self.stepper_position < self._target_position:
+                new_position = self.stepper_position + step
+                if new_position > self.max_extent:
+                    self.stepper_position = self.max_extent
+                    break
+                else:
+                    self.stepper_position = new_position
             else:
-                self.stepper_position -= int(self._focuser_move_speed * 0.1)
+                new_position = self.stepper_position - step
+                if new_position < 0:
+                    self.stepper_position = 0
+                    break
+                else:
+                    self.stepper_position = new_position
+
+        # stopped early?
         if self._focuser_moving:
             self._focuser_moving = False
-            self.stepper_position = self._target_position
         else:
-            # Stopped early
             self._target_position = self.stepper_position
 
     def step_motor(self, steps, blocking=False):
         """Step motor a given number of steps.
 
         If blocking is True this function returns when the move is complete.
-        If not this function returns immediately, use 'get_steps_remaining'
-        to see when move is complete.
+        If not this function returns immediately.
         """
         target_position = int(self.stepper_position + steps)
         if target_position > self.max_extent:
