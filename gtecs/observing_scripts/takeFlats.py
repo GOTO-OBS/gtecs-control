@@ -64,8 +64,7 @@ def run(eve, alt, late=False):
 
     time_to_go = start_time - Time.now()
     if time_to_go < -10 * u.min and not late:
-        print('Too late for flats!')
-        sys.exit(1)
+        raise Exception('Too late for flats!')
 
     print('Flats starting at {}'.format(str(start_time.datetime.time())[:8]))
     while True:
