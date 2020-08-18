@@ -310,9 +310,9 @@ class FakeH400(object):
         if not self._initial_move:
             return 'UNSET'
         elif self._focuser_moving:
-            return 'moving'
+            return 'Moving'
         else:
-            return 'ready'
+            return 'Ready'
 
     def _move_fake_focuser(self):
         """Fake thread to simulate moving the focuser stepper motor."""
