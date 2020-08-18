@@ -158,6 +158,28 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'stop_focusers', [ut_list])
         print(reply)
 
+    elif command == 'sync':
+        # parse arguments
+        if len(args) == 1 and misc.is_num(args[0]):
+            # foc sync <position>
+            position = int(args[0])
+            position_dict = {ut: position for ut in params.UTS_WITH_FOCUSERS}
+        elif len(args) == 2 and misc.is_num(args[1]):
+            # foc sync <ut>[,<ut>...] <position>
+            ut_list = [int(x) for x in args[0].split(',')]
+            position = int(args[1])
+            position_dict = {ut: position for ut in ut_list}
+        elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
+            # foc sync <ut>[,<ut>...] <position>[,<position>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+            position_list = [int(x) for x in args[1].split(',')]
+            position_dict = {ut: position for ut, position in zip(ut_list, position_list)}
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'sync_focusers', [position_dict])
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -217,6 +239,7 @@ def print_instructions():
           '  set [uts] pos                  move to the given position',
           '  home [uts]                     move to the home position',
           '  stop/halt/abort [uts]          stop the focusers moving',
+          '  sync [uts] pos                 set the current focuser position to the given value',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

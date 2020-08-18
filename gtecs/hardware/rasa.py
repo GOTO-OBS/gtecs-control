@@ -167,6 +167,13 @@ class FocusLynx(object):
         if reply != 'HALTED':
             raise Exception('Failed to stop: {}'.format(reply))
 
+    def sync_focuser(self, position):
+        """Set the current motor position to the given value."""
+        command = 'SCCP' + '{:06d}'.format(position)
+        reply = self._serial_command(command)
+        if reply != 'SET':
+            raise Exception('Failed to sync: {}'.format(reply))
+
     def read_temperature(self, temp_type='internal'):
         """Get the focuser temperature, in Celcius."""
         info_dict = self._get_info()

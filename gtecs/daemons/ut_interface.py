@@ -348,6 +348,18 @@ class UTInterfaceDaemon(BaseDaemon):
             return False
         return True
 
+    def sync_focuser(self, position, ut):
+        """Set the current motor position to the given value."""
+        if not isinstance(self.focusers[ut], (FocusLynx)):
+            raise NotImplementedError("Only RASA focusers have a sync function")
+        return self.focusers[ut].sync_focuser(position)
+
+    def focuser_can_sync(self, ut):
+        """Check if the focuser has a sync command."""
+        if not isinstance(self.focusers[ut], (FocusLynx)):
+            return False
+        return True
+
     def get_focuser_limit(self, ut):
         """Return focuser motor limit."""
         return self.focusers[ut].max_extent

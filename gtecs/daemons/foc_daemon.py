@@ -27,11 +27,13 @@ class FocDaemon(BaseDaemon):
         self.move_focuser_flag = 0
         self.home_focuser_flag = 0
         self.stop_focuser_flag = 0
+        self.sync_focuser_flag = 0
 
         # focuser variables
         self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
         self.move_steps = {ut: 0 for ut in self.uts}
+        self.sync_position = {ut: 0 for ut in self.uts}
         self.last_move_temp = {ut: None for ut in self.uts}
 
         # start control thread
@@ -152,6 +154,31 @@ class FocDaemon(BaseDaemon):
                 self.stop_focuser_flag = 0
                 self.force_check_flag = True
 
+            # sync the focuser
+            if self.sync_focuser_flag:
+                try:
+                    for ut in self.active_uts:
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
+                        position = self.sync_position[ut]
+
+                        self.log.info('Syncing focuser position to {}'.format(position))
+
+                        try:
+                            with daemon_proxy(interface_id) as interface:
+                                c = interface.sync_focuser(position, ut)
+                                if c:
+                                    self.log.info(c)
+
+                        except Exception:
+                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('sync_focuser command failed')
+                    self.log.debug('', exc_info=True)
+                self.active_uts = []
+                self.sync_focuser_flag = 0
+                self.force_check_flag = True
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -195,6 +222,7 @@ class FocDaemon(BaseDaemon):
                     ut_info['current_pos'] = interface.get_focuser_position(ut)
                     ut_info['limit'] = interface.get_focuser_limit(ut)
                     ut_info['can_stop'] = interface.focuser_can_stop(ut)
+                    ut_info['can_sync'] = interface.focuser_can_sync(ut)
                     try:
                         ut_info['remaining'] = interface.get_focuser_steps_remaining(ut)
                     except NotImplementedError:
@@ -437,6 +465,66 @@ class FocDaemon(BaseDaemon):
 
         # Set flag
         self.stop_focuser_flag = 1
+
+        # Format return string
+        return '\n'.join(retstrs)
+
+    def sync_focusers(self, position):
+        """Sync focuser position(s) to the given value."""
+        # Check restrictions
+        if self.dependency_error:
+            raise errors.DaemonStatusError('Dependencies are not running')
+
+        # Format input
+        if not isinstance(position, dict):
+            position = {ut: position for ut in self.uts}
+
+        self.wait_for_info()
+        retstrs = []
+        for ut in sorted(position):
+            # Check the UT ID is valid
+            if ut not in self.uts:
+                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is a valid input
+            try:
+                steps = int(position[ut])
+                assert steps == position[ut]
+            except Exception:
+                s = '"{}" is not a valid integer'.format(position[ut])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check if the focuser has a sync command
+            if not self.info[ut]['can_sync']:
+                s = 'Focuser does not a sync command'
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the new position is within the focuser limit
+            if position < 0 or position > self.info[ut]['limit']:
+                s = 'New position {} is outside focuser limits (0-{})'.format(
+                    position, self.info[ut]['limit'])
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Check the focuser is not moving
+            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
+                s = 'Focuser is moving'
+                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                continue
+
+            # Set values
+            self.active_uts += [ut]
+            self.sync_position[ut] = position
+            s = 'Focuser {}: Setting current position {} to {}'.format(
+                ut, self.info[ut]['current_pos'], position)
+            retstrs.append(s)
+
+        # Set flag
+        self.sync_focuser_flag = 1
 
         # Format return string
         return '\n'.join(retstrs)
