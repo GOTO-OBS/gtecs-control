@@ -500,9 +500,10 @@ class Pilot(object):
             # Make sure everything is stopped
             execute_command('exq clear')
             execute_command('cam abort')
-            execute_command('mnt stop')
-            execute_command('mnt clear')
-            execute_command('mnt track')
+            if self.mount_is_tracking:
+                execute_command('mnt stop')
+                execute_command('mnt clear')
+                execute_command('mnt track')
 
     # Daily tasks
     def assign_tasks(self):
