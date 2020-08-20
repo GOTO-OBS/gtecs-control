@@ -470,7 +470,7 @@ class FocDaemon(BaseDaemon):
         return '\n'.join(retstrs)
 
     def sync_focusers(self, position):
-        """Sync focuser position(s) to the given value."""
+        """Sync focuser(s) position to the given value."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
@@ -490,8 +490,8 @@ class FocDaemon(BaseDaemon):
 
             # Check the new position is a valid input
             try:
-                steps = int(position[ut])
-                assert steps == position[ut]
+                sync_pos = int(position[ut])
+                assert sync_pos == position[ut]
             except Exception:
                 s = '"{}" is not a valid integer'.format(position[ut])
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
@@ -504,9 +504,9 @@ class FocDaemon(BaseDaemon):
                 continue
 
             # Check the new position is within the focuser limit
-            if position < 0 or position > self.info[ut]['limit']:
+            if sync_pos < 0 or sync_pos > self.info[ut]['limit']:
                 s = 'New position {} is outside focuser limits (0-{})'.format(
-                    position, self.info[ut]['limit'])
+                    sync_pos, self.info[ut]['limit'])
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
 
@@ -518,9 +518,9 @@ class FocDaemon(BaseDaemon):
 
             # Set values
             self.active_uts += [ut]
-            self.sync_position[ut] = position
+            self.sync_position[ut] = sync_pos
             s = 'Focuser {}: Setting current position {} to {}'.format(
-                ut, self.info[ut]['current_pos'], position)
+                ut, self.info[ut]['current_pos'], sync_pos)
             retstrs.append(s)
 
         # Set flag
