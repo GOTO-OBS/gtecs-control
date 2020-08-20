@@ -202,7 +202,7 @@ class FocDaemon(BaseDaemon):
         # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
-            dome_temp = get_roomalert('dome')['int_temperature']
+            dome_temp = get_roomalert('pier')['int_temperature']
             temp_info['dome_temp'] = dome_temp
         except Exception:
             self.log.error('Failed to get dome internal temperature')
