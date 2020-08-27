@@ -278,13 +278,21 @@ def update_header(header, ut, all_info, log):
     header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope name')
     header['TEL     '] = (params.TELESCOPE_NUMBER, 'Origin telescope ID number')
 
-    interface_id = params.UT_DICT[ut]['INTERFACE']
-    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
-    ut_string = misc.ut_mask_to_string(ut_mask)
     header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
     header['UT      '] = (ut, 'Integer UT number')
+
+    if 'HW_VERSION' in params.UT_DICT[ut]:
+        ut_hw_version = params.UT_DICT[ut]['HW_VERSION']
+    else:
+        ut_hw_version = 'NA'
+    header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
+
+    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
+    ut_string = misc.ut_mask_to_string(ut_mask)
     header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
     header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
+
+    interface_id = params.UT_DICT[ut]['INTERFACE']
     header['INTERFAC'] = (interface_id, 'System interface code')
 
     header['SWVN    '] = (params.VERSION, 'Software version number')
