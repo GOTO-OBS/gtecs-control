@@ -79,11 +79,11 @@ TELESCOPE_NAME = config['TELESCOPE_NAME']
 TELESCOPE_NUMBER = config['TELESCOPE_NUMBER']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
-# Site location (predicted location of GOTO dome on La Palma)
+# Site location
+SITE_NAME = config['SITE_NAME']
 SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
-SITE_LOCATION = config['SITE_LOCATION']
 
 # use colour and fancy formatting in output?
 FANCY_OUTPUT = config['FANCY_OUTPUT']

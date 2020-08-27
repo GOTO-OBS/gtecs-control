@@ -269,6 +269,12 @@ def update_header(header, ut, all_info, log):
     header['DATE    '] = (write_time.isot, 'Date HDU created')
 
     header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
+
+    header['SITE    '] = (params.SITE_NAME, 'Site location')
+    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
+    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
+    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
+
     header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope name')
     header['TEL     '] = (params.TELESCOPE_NUMBER, 'Origin telescope ID number')
 
@@ -295,11 +301,6 @@ def update_header(header, ut, all_info, log):
     header['SET     '] = (set_number, 'GOTO set number')
     header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
     header['SET-TOT '] = (current_exposure['set_tot'], 'Total number of exposures in this set')
-
-    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
-    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
-    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
-    header['SITE-LOC'] = (params.SITE_LOCATION, 'Site location')
 
     # Exposure data
     header['EXPTIME '] = (current_exposure['exptime'], 'Exposure time, seconds')
