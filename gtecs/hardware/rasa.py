@@ -1,5 +1,6 @@
 """Classes to control RASAs."""
 
+import os
 import time
 
 import serial
@@ -25,6 +26,7 @@ class FocusLynx(object):
         self.serial = serial.Serial(self.port,
                                     baudrate=self.serial_baudrate,
                                     timeout=self.serial_timeout)
+        self.__lockfile = os.path.join('/tmp', os.path.split(self.port)[-1] + '.lock')
         self._serial_lock = False
 
         # get initial info, fill properties like serial number
@@ -35,6 +37,19 @@ class FocusLynx(object):
             self.serial.close()
         except AttributeError:
             pass
+
+    @property
+    def _serial_lock(self):
+        return os.path.exists(self.__lockfile)
+
+    @_serial_lock.setter
+    def _serial_lock(self, value):
+        if value:
+            with open(self.__lockfile, 'w') as f:
+                f.write(os.getpid())
+        else:
+            if os.path.exists(self.__lockfile):
+                os.remove(self.__lockfile)
 
     @classmethod
     def locate_device(cls, port, serial_number):
