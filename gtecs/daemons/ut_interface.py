@@ -254,7 +254,7 @@ class UTInterfaceDaemon(BaseDaemon):
             # Get info from each camera
             if self.cam_params[ut] is not None:
                 try:
-                    #assert self.cameras[ut].connected
+                    assert self.cameras[ut].connected
                     temp_info['cam_serials'][ut] = self.cameras[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Camera {} info'.format(ut))
@@ -271,7 +271,7 @@ class UTInterfaceDaemon(BaseDaemon):
             # Get info from each focuser
             if self.foc_params[ut] is not None:
                 try:
-                    #assert self.focusers[ut].connected
+                    assert self.focusers[ut].connected
                     temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Focuser {} info'.format(ut))
@@ -288,7 +288,7 @@ class UTInterfaceDaemon(BaseDaemon):
             # Get info from each filterwheel
             if self.filt_params[ut] is not None:
                 try:
-                    #assert self.filterwheels[ut].connected
+                    assert self.filterwheels[ut].connected
                     temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Filter Wheel {} info'.format(ut))
