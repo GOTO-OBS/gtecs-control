@@ -76,6 +76,7 @@ LOCAL_HOST = config['LOCAL_HOST']
 # Common file strings
 ORG_NAME = config['ORG_NAME']
 TELESCOPE_NAME = config['TELESCOPE_NAME']
+TELESCOPE_NUMBER = config['TELESCOPE_NUMBER']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # Site location (predicted location of GOTO dome on La Palma)

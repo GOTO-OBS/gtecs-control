@@ -269,7 +269,8 @@ def update_header(header, ut, all_info, log):
     header['DATE    '] = (write_time.isot, 'Date HDU created')
 
     header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
-    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope')
+    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope name')
+    header['TEL     '] = (params.TELESCOPE_NUMBER, 'Origin telescope ID number')
 
     interface_id = params.UT_DICT[ut]['INTERFACE']
     ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
