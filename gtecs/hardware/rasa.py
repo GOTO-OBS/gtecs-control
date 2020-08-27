@@ -46,7 +46,7 @@ class FocusLynx(object):
     def _serial_lock(self, value):
         if value:
             with open(self.__lockfile, 'w') as f:
-                f.write(os.getpid())
+                f.write(str(os.getpid()))
         else:
             if os.path.exists(self.__lockfile):
                 os.remove(self.__lockfile)
