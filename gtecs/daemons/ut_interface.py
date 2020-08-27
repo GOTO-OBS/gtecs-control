@@ -110,6 +110,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     else:
                         raise ValueError('Unknown class: {}'.format(hw_class))
 
+                    if not camera.connected:
+                        raise ValueError('Could not connect to hardware')
+
                     self.log.info('Connected to {}'.format(camera.serial_number))
                     self.cameras[ut] = camera
                     if hw_name in self.bad_hardware:
@@ -174,6 +177,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     else:
                         raise ValueError('Unknown class: {}'.format(hw_class))
 
+                    if not focuser.connected:
+                        raise ValueError('Could not connect to hardware')
+
                     self.log.info('Connected to {}'.format(focuser.serial_number))
                     self.focusers[ut] = focuser
                     if hw_name in self.bad_hardware:
@@ -219,6 +225,9 @@ class UTInterfaceDaemon(BaseDaemon):
 
                     else:
                         raise ValueError('Unknown class: {}'.format(hw_class))
+
+                    if not filterwheel.connected:
+                        raise ValueError('Could not connect to hardware')
 
                     self.log.info('Connected to {}'.format(filterwheel.serial_number))
                     self.filterwheels[ut] = filterwheel
