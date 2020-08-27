@@ -118,6 +118,7 @@ class FocusLynx(object):
             ret = self._serial_command('HELLO')
             if ret != self.serial_number:
                 raise ConnectionError('Incorrect reply from serial connection')
+            return True
         except ConnectionError:
             return False
 
