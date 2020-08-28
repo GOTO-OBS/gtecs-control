@@ -15,7 +15,7 @@ from gtecs.daemons import BaseDaemon
 from gtecs.hardware.asa import FakeH400, H400
 from gtecs.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
-from gtecs.hardware.rasa import FocusLynx
+from gtecs.hardware.rasa import FocusLynxHub
 
 
 class UTInterfaceDaemon(BaseDaemon):
@@ -38,6 +38,16 @@ class UTInterfaceDaemon(BaseDaemon):
 
         self.filterwheels = {ut: None for ut in self.uts}
         self.filt_params = {ut: self.hw_dict[ut]['FILTERWHEEL'] for ut in self.uts}
+
+        # Extra dictionary for RASA focuser hubs
+        self.focuser_hubs = {}
+        for ut in self.foc_params:
+            if self.foc_params[ut]['CLASS'] == 'RASA':
+                port = self.foc_params[ut]['PORT']
+                if port not in self.focuser_hubs:
+                    self.focuser_hubs[port] = [ut]
+                elif ut not in self.focuser_hubs[port]:
+                    self.focuser_hubs[port] += [ut]
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -152,14 +162,28 @@ class UTInterfaceDaemon(BaseDaemon):
                             raise ValueError('Could not locate hardware')
 
                     elif hw_class == 'RASA':
-                        # RASA in-built FocusLynx Focuser, needs a port and a serial number
+                        # RASA FocusLynx Focuser, needs a port and a serial number
                         if 'PORT' not in hw_params:
                             raise ValueError('Missing serial port')
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
-                        focuser = FocusLynx.locate_device(hw_params['PORT'], hw_params['SERIAL'])
+                        # We have a single class for the FocusLynxHub, which is connected to
+                        # two focusers. It makes things more complicated here, but having two
+                        # FocusLynx classes sharing the same port caused all sorts of problems.
+                        # Try to connect only if neither UTs are connected. We set the focuser_hubs
+                        # dict in __init__ to match the two UTs by port.
+                        hub_uts = self.focuser_hubs(hw_params['PORT'])
+                        # Always try to connect to the lower UT number, to simplfy things.
+                        if ut == min(hub_uts):
+                            focuser = FocusLynxHub.locate_device(hw_params['PORT'])
+                        else:
+                            focuser = self.focusers[min(hub_uts)]
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
+                        # We need to get the device number.
+                        if 'DEV_NUMBER' not in hw_params:
+                            dev_number = focuser.get_dev_number(hw_params['SERIAL'])
+                            self.foc_params[ut]['DEV_NUMBER'] = dev_number
 
                     elif hw_class == 'ASA':
                         # ASA H400 in-built Focuser, needs a port and a serial number
@@ -338,18 +362,30 @@ class UTInterfaceDaemon(BaseDaemon):
     def step_focuser_motor(self, steps, ut):
         """Move focuser by given number of steps."""
         self.log.info('Focuser {} moving by {}'.format(ut, steps))
-        self.focusers[ut].step_motor(steps, blocking=False)
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            self.focusers[ut].step_motor(dev_number, steps, blocking=False)
+        else:
+            self.focusers[ut].step_motor(steps, blocking=False)
 
     def home_focuser(self, ut):
         """Move focuser to the home position."""
         self.log.info('Focuser {} moving to home'.format(ut))
-        self.focusers[ut].home_focuser()
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            self.focusers[ut].home_focuser(dev_number)
+        else:
+            self.focusers[ut].home_focuser()
 
     def stop_focuser(self, ut):
         """Stop the focuser from moving."""
         if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
-            raise NotImplementedError("FLI focusers don't have a stop function")
-        return self.focusers[ut].stop_focuser()
+            raise NotImplementedError("Focuser doesn't have a stop function")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].stop_focuser(dev_number)
+        else:
+            return self.focusers[ut].stop_focuser()
 
     def focuser_can_stop(self, ut):
         """Check if the focuser has a stop command."""
@@ -359,45 +395,73 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def sync_focuser(self, position, ut):
         """Set the current motor position to the given value."""
-        if not isinstance(self.focusers[ut], (FocusLynx)):
-            raise NotImplementedError("Only RASA focusers have a sync function")
-        return self.focusers[ut].sync_focuser(position)
+        if not isinstance(self.focusers[ut], (FocusLynxHub)):
+            raise NotImplementedError("Focuser doesn't have a sync function")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].sync_focuser(dev_number, position)
+        else:
+            return self.focusers[ut].sync_focuser(position)
 
     def focuser_can_sync(self, ut):
         """Check if the focuser has a sync command."""
-        if not isinstance(self.focusers[ut], (FocusLynx)):
+        if not isinstance(self.focusers[ut], (FocusLynxHub)):
             return False
         return True
 
     def get_focuser_limit(self, ut):
         """Return focuser motor limit."""
-        return self.focusers[ut].max_extent
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_max_extent(dev_number)
+        else:
+            return self.focusers[ut].max_extent
 
     def get_focuser_position(self, ut):
         """Return focuser position."""
-        return self.focusers[ut].stepper_position
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_stepper_position(dev_number)
+        else:
+            return self.focusers[ut].stepper_position
 
     def get_focuser_status(self, ut):
         """Return focuser status."""
         if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
-            raise NotImplementedError("FLI focusers don't have a status")
-        return self.focusers[ut].get_status()
+            raise NotImplementedError("Focuser doesn't have a status")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_status(dev_number)
+        else:
+            return self.focusers[ut].get_status()
 
     def get_focuser_steps_remaining(self, ut):
         """Return focuser motor limit."""
         if isinstance(self.focusers[ut], (H400, FakeH400)):
-            raise NotImplementedError("ASA H400s don't store steps remaining")
-        return self.focusers[ut].get_steps_remaining()
+            raise NotImplementedError("Focuser doesn't store steps remaining")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_steps_remaining(dev_number)
+        else:
+            return self.focusers[ut].get_steps_remaining()
 
     def get_focuser_temp(self, temp_type, ut):
         """Return focuser internal/external temperature."""
         if isinstance(self.focusers[ut], (H400, FakeH400)):
-            raise NotImplementedError("ASA H400s don't have temperature sensors")
-        return self.focusers[ut].read_temperature(temp_type)
+            raise NotImplementedError("Focuser doesn't have temperature sensors")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].read_temperature(dev_number)
+        else:
+            return self.focusers[ut].read_temperature(temp_type)
 
     def get_focuser_serial_number(self, ut):
         """Return focuser unique serial number."""
-        return self.focusers[ut].serial_number
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_serial_number(dev_number)
+        else:
+            return self.focusers[ut].serial_number
 
     def get_focuser_class(self, ut):
         """Return focuser hardware class."""
