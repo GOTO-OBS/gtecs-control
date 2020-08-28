@@ -172,7 +172,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         # FocusLynx classes sharing the same port caused all sorts of problems.
                         # Try to connect only if neither UTs are connected. We set the focuser_hubs
                         # dict in __init__ to match the two UTs by port.
-                        hub_uts = self.focuser_hubs(hw_params['PORT'])
+                        hub_uts = self.focuser_hubs[hw_params['PORT']]
                         # Always try to connect to the lower UT number, to simplfy things.
                         if ut == min(hub_uts):
                             focuser = FocusLynxHub.locate_device(hw_params['PORT'])
