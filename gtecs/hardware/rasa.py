@@ -83,6 +83,9 @@ class FocusLynx(object):
         finally:
             self._serial_lock = False
 
+        if len(out_bytes) == 0:
+            raise ConnectionError('No reply from serial connection')
+
         reply = out_bytes.decode('ascii').strip()
         reply_list = reply.split('\n')[1:]
         if len(reply_list) == 1:
@@ -257,6 +260,9 @@ class FocusLynxHub(object):
             raise ConnectionError('No reply from serial connection')
         finally:
             self._serial_lock = False
+
+        if len(out_bytes) == 0:
+            raise ConnectionError('No reply from serial connection')
 
         reply = out_bytes.decode('ascii').strip()
         reply_list = reply.split('\n')[1:]
