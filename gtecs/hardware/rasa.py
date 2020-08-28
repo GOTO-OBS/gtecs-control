@@ -289,8 +289,9 @@ class FocusLynxHub(object):
             # save timestamp and store
             info_dict['ts'] = time.time()
             self._stored_info = info_dict
-            self.max_extent = max_extent_dict
-            self.serial_number = serial_number_dict
+            self.max_extent_dict = max_extent_dict
+            self.serial_number_dict = serial_number_dict
+            self.serial_number = '+'.join(serial_number_dict.values())
         return self._stored_info
 
     @property
@@ -306,7 +307,7 @@ class FocusLynxHub(object):
 
     def get_dev_number(self, serial):
         """Get the focuser device number."""
-        for dev_number, serial_number in self.serial_number.items():
+        for dev_number, serial_number in self.serial_number_dict.items():
             if serial_number == serial:
                 return dev_number
         raise ValueError('Serial number "{}" not found'.format(serial))
@@ -315,7 +316,7 @@ class FocusLynxHub(object):
         """Get the focuser nickname."""
         if dev_number not in self.dev_numbers:
             raise ValueError('Invalid device number "{}"'.format(dev_number))
-        return self.serial_number[dev_number]
+        return self.serial_number_dict[dev_number]
 
     def get_stepper_position(self, dev_number):
         """Get the number of steps remaining."""
@@ -328,7 +329,7 @@ class FocusLynxHub(object):
         """Get the maximum extent of the focuser."""
         if dev_number not in self.dev_numbers:
             raise ValueError('Invalid device number "{}"'.format(dev_number))
-        return self.max_extent[dev_number]
+        return self.max_extent_dict[dev_number]
 
     def get_status(self, dev_number):
         """Get the focuser status."""
@@ -361,8 +362,9 @@ class FocusLynxHub(object):
         info_dict = self._get_info()[dev_number]
         current_position = int(info_dict['Curr Pos'])
         new_position = int(current_position + steps)
-        if new_position > self.max_extent:
-            raise Exception('New position past limit ({})'.format(self.max_extent))
+        max_extent = self.get_max_extent(dev_number)
+        if new_position > max_extent:
+            raise Exception('New position past limit ({})'.format(max_extent))
 
         command = 'MA' + '{:06d}'.format(new_position)
         reply = self._serial_command(dev_number, command)
