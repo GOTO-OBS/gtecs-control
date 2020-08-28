@@ -239,7 +239,7 @@ class FocusLynxHub(object):
 
     def _serial_command(self, dev_number, command_str):
         """Send command to the device, then fetch the reply and return it."""
-        if dev_number not in self.dev_numbers:
+        if dev_number not in self.dev_numbers and dev_number != 'H':
             raise ValueError('Invalid device number "{}"'.format(dev_number))
 
         command_str = '<F{}{}>'.format(dev_number, command_str)
@@ -297,10 +297,19 @@ class FocusLynxHub(object):
     def connected(self):
         """Check if this device is still available."""
         try:
-            self._get_info()
+            ret = self._serial_command('H', 'GETHUBINFO')
+            if ret[0] != 'HUB INFO':
+                raise ConnectionError('Incorrect reply from serial connection')
             return True
         except ConnectionError:
             return False
+
+    def get_dev_number(self, serial):
+        """Get the focuser device number."""
+        for dev_number, serial_number in self.serial_number.items():
+            if serial_number == serial:
+                return dev_number
+        raise ValueError('Serial number "{}" not found'.format(serial))
 
     def get_serial_number(self, dev_number):
         """Get the focuser nickname."""
@@ -377,6 +386,23 @@ class FocusLynxHub(object):
                 if self.get_steps_remaining(dev_number) == 0:
                     break
                 time.sleep(0.1)
+
+    def stop_focuser(self, dev_number):
+        """Stop the focuser from moving."""
+        if dev_number not in self.dev_numbers:
+            raise ValueError('Invalid device number "{}"'.format(dev_number))
+        reply = self._serial_command(dev_number, 'HALT')
+        if reply != 'HALTED':
+            raise Exception('Failed to stop: {}'.format(reply))
+
+    def sync_focuser(self, dev_number, position):
+        """Set the current motor position to the given value."""
+        if dev_number not in self.dev_numbers:
+            raise ValueError('Invalid device number "{}"'.format(dev_number))
+        command = 'SCCP' + '{:06d}'.format(position)
+        reply = self._serial_command(dev_number, command)
+        if reply != 'SET':
+            raise Exception('Failed to sync: {}'.format(reply))
 
     def read_temperature(self, dev_number):
         """Get the focuser temperature, in Celcius."""
