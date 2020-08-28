@@ -350,7 +350,7 @@ class FocusLynxHub(object):
         info_dict = self._get_info()[dev_number]
         return abs(int(info_dict['Targ Pos']) - int(info_dict['Curr Pos']))
 
-    def step_motor(self, steps, dev_number, blocking=False):
+    def step_motor(self, dev_number, steps, blocking=False):
         """Step motor a given number of steps.
 
         If blocking is True this function returns when the move is complete.
