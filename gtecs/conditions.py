@@ -77,6 +77,8 @@ def get_ups():
                     ups = APCUPS(unit_ip)
                 elif unit_class == 'FakeUPS':
                     ups = FakeUPS(unit_ip)
+                else:
+                    raise ValueError('Unrecognised power class: "{}"'.format(unit_class))
 
                 remaining = ups.percent_remaining()
                 percents.append(remaining)
@@ -130,10 +132,6 @@ def hatch_closed():
 
 def get_roomalert(source):
     """Get internal dome temperature and humidity from GOTO RoomAlert system."""
-    sources = ['dome', 'pier']
-    if source not in sources:
-        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
-
     url = '10.2.6.5/getData.json'
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
@@ -168,6 +166,9 @@ def get_roomalert(source):
             sensor_data = data['sensor'][0]
         elif source == 'pier':
             sensor_data = data['sensor'][1]
+        else:
+            sources = ['dome', 'pier']
+            raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
         int_temperature = float(sensor_data['tc'])
         int_humidity = float(sensor_data['h'])
@@ -185,12 +186,6 @@ def get_roomalert(source):
 def get_local_weather(source):
     """Get the current weather from the Warwick stations."""
     source = source.lower()
-    sources = ['goto', 'w1m', 'superwasp']
-    if source not in sources:
-        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
-
-    base_url = 'http://10.2.6.100/data/raw/'
-
     if source == 'goto':
         json_file = 'goto-vaisala'
         vaisala = True
@@ -200,7 +195,11 @@ def get_local_weather(source):
     elif source == 'superwasp':
         json_file = 'superwasp-log'
         vaisala = False
+    else:
+        sources = ['goto', 'w1m', 'superwasp']
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
+    base_url = 'http://10.2.6.100/data/raw/'
     url = base_url + json_file
     filename = json_file + '.json'
     outfile = os.path.join(params.FILE_PATH, filename)
@@ -397,14 +396,17 @@ def get_ing_weather():
     return weather_dict
 
 
-def get_ing_internal_weather(weather_source):
+def get_ing_internal_weather(source):
     """Get the current weather from the internal ING xml weather file."""
-    if weather_source == 'wht':
+    if source == 'wht':
         url = 'http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
-    elif weather_source == 'int':
+    elif source == 'int':
         url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
-    elif weather_source == 'jkt':
+    elif source == 'jkt':
         url = 'http://intmetsystem.ing.iac.es/WeatherXMLData/MainData.xml'
+    else:
+        sources = ['wht', 'int', 'jkt']
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
     outfile = os.path.join(params.FILE_PATH, 'weather.xml')
     indata = curl_data_from_url(url, outfile)
