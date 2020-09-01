@@ -28,6 +28,9 @@ import pandas as pd
 from scipy.optimize import curve_fit
 
 
+DEFAULT_NFV = 4
+
+
 def calculate_positions(fraction, steps):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
@@ -36,7 +39,7 @@ def calculate_positions(fraction, steps):
 
     all_positions = {}
     for ut in limits:
-        print('UT{}: current position={}'.format(ut, current[ut]))
+        print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
         # Calculate the deltas
         width = int((limits[ut] * fraction) / 2)
         upper_deltas = np.arange(0, width + 1, width // steps)
@@ -67,12 +70,14 @@ def lin_func(x, m, c):
     return m * x + c
 
 
-def fit_to_data(df, nfvs):
+def fit_to_data(df, nfvs=None):
     """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
     fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
                           index=uts)
     fit_coeffs = {ut: [None, None] for ut in uts}
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in uts}
 
     for ut in uts:
         try:
@@ -93,8 +98,10 @@ def fit_to_data(df, nfvs):
 
             # Mask to exclude any points below the near-focus value
             # (the NFV is supposed to mark where the V-curve is no-longer linear)
-            nfv = nfvs[ut]
-            mask = hfd > nfv
+            # or above double the NFV
+            if ut not in nfvs:
+                nfvs[ut] = DEFAULT_NFV
+            mask = (hfd > nfvs[ut]) & (hfd < 2 * nfvs[ut])
 
             # Split into left and right
             min_i = np.where(hfd == np.nanmin(hfd))[0][0]
@@ -131,27 +138,29 @@ def fit_to_data(df, nfvs):
             else:
                 delta_x, cross_pos = None, None
 
+            # Add to dataframe
+            fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
+                                        'n_l': n_l,
+                                        'n_r': n_r,
+                                        'm_l': m_l,
+                                        'm_r': m_r,
+                                        'delta_x': delta_x,
+                                        'cross_pos': cross_pos})
+
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
             print(traceback.format_exc())
 
-        # Add to dataframe
-        fit_df.loc[ut] = pd.Series({'pivot_pos': pivot_pos,
-                                    'n_l': n_l,
-                                    'n_r': n_r,
-                                    'm_l': m_l,
-                                    'm_r': m_r,
-                                    'delta_x': delta_x,
-                                    'cross_pos': cross_pos})
-
     return fit_df, fit_coeffs
 
 
-def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True):
+def plot_results(df, fit_df, fit_coeffs, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
     if finish_time is None:
         finish_time = Time.now()
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in uts}
 
     fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=100)
     plt.subplots_adjust(hspace=0.15, wspace=0.2)
@@ -166,22 +175,29 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
             ax = axes.flatten()[i]
 
             # Plot data
-            nfv = nfvs[ut]
-            mask = np.array(ut_data['hfd']) > nfv
+            mask = (np.array(ut_data['hfd']) > nfvs[ut]) & (np.array(ut_data['hfd']) < 2 * nfvs[ut])
             mask_l = mask & (np.array(ut_data['pos']) < fit_data['pivot_pos'])
             mask_m = np.invert(mask) | (np.array(ut_data['pos']) == fit_data['pivot_pos'])
             mask_r = mask & (np.array(ut_data['pos']) > fit_data['pivot_pos'])
             ax.errorbar(ut_data['pos'][mask_l], ut_data['hfd'][mask_l],
-                        yerr=ut_data['hfd_std'][mask_l], color='tab:blue', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_l],
+                        color='tab:blue', fmt='.', ms=7, zorder=1)
             ax.errorbar(ut_data['pos'][mask_m], ut_data['hfd'][mask_m],
-                        yerr=ut_data['hfd_std'][mask_m], color='0.7', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_m],
+                        color='0.7', fmt='.', ms=7, zorder=1)
             ax.errorbar(ut_data['pos'][mask_r], ut_data['hfd'][mask_r],
-                        yerr=ut_data['hfd_std'][mask_r], color='tab:orange', fmt='.', ms=7)
+                        yerr=ut_data['hfd_std'][mask_r],
+                        color='tab:orange', fmt='.', ms=7, zorder=1)
             ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
-            ax.axhline(nfv, c='tab:red', ls='dotted', zorder=-1)
+            ax.axhline(nfvs[ut], c='tab:red', ls='dotted', lw=1, zorder=-1)
+            ax.axhline(2 * nfvs[ut], c='tab:red', ls='dotted', lw=1, zorder=-1)
+
+            # Set limits (lock the x-limit before we add the fit lines)
+            x_lim = ax.get_xlim()
+            ax.set_xlim(*x_lim)
+            ax.set_ylim(bottom=0, top=14)
 
             # Plot fits (if they worked)
-            x_lim = ax.get_xlim()
             test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
             if fit_coeffs[ut][0] is not None:
                 ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
@@ -194,8 +210,8 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
             else:
                 txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
                     fit_data['n_l'], fit_data['n_r'])
-                ax.text(0.03, 0.8, txt, fontweight='normal', c='tab:red',
-                        transform=ax.transAxes, ha='left', zorder=4,
+                ax.text(0.02, 0.8, txt, fontweight='normal', c='tab:red',
+                        transform=ax.transAxes, ha='left', zorder=2.1,
                         bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
 
             # Set labels
@@ -203,16 +219,15 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
                 ax.set_ylabel('HFD')
             if i >= len(axes.flatten()) - 4:
                 ax.set_xlabel('Focus position')
-            ax.text(0.03, 0.9, 'UT{}'.format(ut), fontweight='bold',
+            ax.text(0.02, 0.915, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
-                    transform=ax.transAxes, ha='left', zorder=9)
-
-            # Set limits
-            ax.set_xlim(*x_lim)
-            ax.set_ylim(bottom=0, top=15)
+                    transform=ax.transAxes, ha='left', zorder=2)
+            ax.text(0.98, 0.915, params.UT_DICT[ut]['OTA']['SERIAL'], fontweight='bold',
+                    bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
+                    transform=ax.transAxes, ha='right', zorder=2)
 
         except Exception:
-            print('Error making HFD plot', end='\t')
+            print('UT{}: Error making HFD plot'.format(ut))
             print(traceback.format_exc())
 
     # Save the plot
@@ -225,7 +240,7 @@ def plot_results(df, nfvs, fit_df, fit_coeffs, finish_time=None, save_plot=True)
     plt.show()
 
 
-def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
+def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
         go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -303,9 +318,11 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
-    if not isinstance(nfv, dict):
-        nfv = {ut: nfv for ut in foc_data}
-    fit_df, fit_coeffs = fit_to_data(df, nfv)
+    all_uts = sorted(set(df.index))
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in all_uts}
+    fit_df, fit_coeffs = fit_to_data(df, nfvs)
+    print('Fit results:')
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
     fit_df.to_csv(os.path.join(path, ofname))
@@ -315,7 +332,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfv=4,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, nfv, fit_df, fit_coeffs, finish_time)
+        plot_results(df, fit_df, fit_coeffs, nfvs, finish_time)
 
     # Get best positions
     best_focus = fit_df['cross_pos'].to_dict()
@@ -399,15 +416,14 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    # Get the autofocus parameters
-    uts = sorted(params.AUTOFOCUS_PARAMS.keys())
-    nfv = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts}
+    # Get the near-focus values for each UT
+    nfvs = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in params.AUTOFOCUS_PARAMS}
 
     # If something goes wrong we need to restore the origional focus
+    initial_positions = get_focuser_positions()
     try:
-        initial_positions = get_focuser_positions()
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt, nfv, go_to_best, no_slew, no_plot, no_confirm)
+        run(fraction, steps, num_exp, exptime, filt, nfvs, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)

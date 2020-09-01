@@ -37,7 +37,11 @@ class CamDaemon(BaseDaemon):
         self.abort_uts = []
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
-        self.run_number = 0
+        try:
+            with open(self.run_number_file, 'r') as f:
+                self.latest_run_number = int(f.read())
+        except Exception:
+            self.latest_run_number = 0
         self.num_taken = 0
 
         self.pool = ThreadPoolExecutor(max_workers=len(self.uts))
@@ -91,14 +95,11 @@ class CamDaemon(BaseDaemon):
                     exptime_ms = exptime * 1000.
                     binning = self.current_exposure.binning
                     frametype = self.current_exposure.frametype
+                    expstr = self.current_exposure.expstr
 
                     # set exposure info
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        if self.run_number > 0:
-                            expstr = 'exposure r{:07d}'.format(self.run_number)
-                        else:
-                            expstr = 'glance'
                         argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
                         camstr = 'camera {} ({})'.format(ut, interface_id)
                         self.log.info('Taking {} ({}) on {}'.format(expstr, argstr, camstr))
@@ -155,10 +156,7 @@ class CamDaemon(BaseDaemon):
                             with daemon_proxy(interface_id) as interface:
                                 ready = interface.exposure_ready(ut)
                                 if ready and self.image_ready[ut] == 0:
-                                    if self.run_number > 0:
-                                        expstr = 'Exposure r{:07d}'.format(self.run_number)
-                                    else:
-                                        expstr = 'Glance'
+                                    expstr = self.current_exposure.expstr.capitalize()
                                     camstr = 'camera {} ({})'.format(ut, interface_id)
                                     self.log.info('{} finished on {}'.format(expstr, camstr))
                                     self.image_ready[ut] = 1
@@ -178,6 +176,7 @@ class CamDaemon(BaseDaemon):
 
                         # clear tags, ready for next exposure
                         self.exposing = False
+                        self.current_exposure = None
                         self.exposure_start_time = 0
                         self.image_ready = {ut: 0 for ut in self.uts}
                         self.active_uts = []
@@ -191,10 +190,7 @@ class CamDaemon(BaseDaemon):
                 try:
                     for ut in self.abort_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        if self.run_number > 0:
-                            expstr = 'exposure r{:07d}'.format(self.run_number)
-                        else:
-                            expstr = 'glance'
+                        expstr = self.current_exposure.expstr
                         camstr = 'camera {} ({})'.format(ut, interface_id)
                         self.log.info('Aborting {} on {}'.format(expstr, camstr))
                         try:
@@ -212,6 +208,7 @@ class CamDaemon(BaseDaemon):
                     if len(self.active_uts) == 0:
                         # we've aborted everything, stop the exposure
                         self.exposing = False
+                        self.current_exposure = None
                         self.active_uts = []
                         self.all_info = None
                         self.num_taken += 1
@@ -262,34 +259,35 @@ class CamDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get info from each UT
         for ut in self.uts:
-            # Get info from each interface
             try:
+                ut_info = {}
                 interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface_info = {}
-                interface_info['interface_id'] = interface_id
+                ut_info['interface_id'] = interface_id
 
                 if self.exposing and ut in self.active_uts:
-                    interface_info['status'] = 'Exposing'
+                    ut_info['status'] = 'Exposing'
                 elif self.image_saving[ut] == 1:
-                    interface_info['status'] = 'Reading'
+                    ut_info['status'] = 'Reading'
                 else:
-                    interface_info['status'] = 'Ready'
-                interface_info['image_ready'] = self.image_ready[ut]
-                interface_info['image_saving'] = self.image_saving[ut]
-                interface_info['target_temp'] = self.target_temp[ut]
+                    ut_info['status'] = 'Ready'
+                ut_info['image_ready'] = self.image_ready[ut]
+                ut_info['image_saving'] = self.image_saving[ut]
+                ut_info['target_temp'] = self.target_temp[ut]
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_camera_time_remaining(ut)
-                    interface_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
-                    interface_info['base_temp'] = interface.get_camera_temp('BASE', ut)
-                    interface_info['cooler_power'] = interface.get_camera_cooler_power(ut)
+                    ut_info['serial_number'] = interface.get_camera_serial_number(ut)
+                    ut_info['hw_class'] = interface.get_camera_class(ut)
+                    ut_info['remaining'] = interface.get_camera_time_remaining(ut)
+                    ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
+                    ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
+                    ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
                     cam_info = interface.get_camera_info(ut)
-                    interface_info['serial_number'] = cam_info['serial_number']
-                    interface_info['x_pixel_size'] = cam_info['pixel_size'][0]
-                    interface_info['y_pixel_size'] = cam_info['pixel_size'][1]
+                    ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
+                    ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
 
-                temp_info[ut] = interface_info
+                temp_info[ut] = ut_info
             except Exception:
                 self.log.error('Failed to get camera {} info'.format(ut))
                 self.log.debug('', exc_info=True)
@@ -300,21 +298,25 @@ class CamDaemon(BaseDaemon):
         temp_info['exposure_start_time'] = self.exposure_start_time
         if self.current_exposure is not None:
             current_info = {}
+            current_info['expstr'] = self.current_exposure.expstr
+            current_info['run_number'] = self.current_exposure.run_number
             current_info['ut_list'] = self.current_exposure.ut_list
             current_info['exptime'] = self.current_exposure.exptime
             current_info['binning'] = self.current_exposure.binning
             current_info['frametype'] = self.current_exposure.frametype
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
+            current_info['glance'] = self.current_exposure.glance
+            current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
-            current_info['set_total'] = self.current_exposure.set_total
+            current_info['set_tot'] = self.current_exposure.set_tot
+            current_info['from_db'] = self.current_exposure.from_db
             current_info['db_id'] = self.current_exposure.db_id
             temp_info['current_exposure'] = current_info
         else:
             temp_info['current_exposure'] = None
-        temp_info['run_number'] = self.run_number
+        temp_info['latest_run_number'] = self.latest_run_number
         temp_info['num_taken'] = self.num_taken
-        temp_info['glance'] = self.run_number < 0
 
         # Write debug log line
         try:
@@ -344,7 +346,8 @@ class CamDaemon(BaseDaemon):
         """
         pool = ThreadPoolExecutor(max_workers=len(active_uts))
 
-        run_number = all_info['cam']['run_number']
+        current_exposure = all_info['cam']['current_exposure']
+        expstr = current_exposure['expstr']
 
         # start fetching images from the interfaces in parallel
         future_images = {ut: None for ut in active_uts}
@@ -353,10 +356,6 @@ class CamDaemon(BaseDaemon):
             interface_id = params.UT_DICT[ut]['INTERFACE']
             interface = daemon_proxy(interface_id, timeout=99)
             try:
-                if run_number > 0:
-                    expstr = 'exposure r{:07d}'.format(run_number)
-                else:
-                    expstr = 'glance'
                 camstr = 'camera {} ({})'.format(ut, interface_id)
                 self.log.info('Fetching {} from {}'.format(expstr, camstr))
                 future_images[ut] = pool.submit(interface.fetch_exposure, ut)
@@ -372,10 +371,6 @@ class CamDaemon(BaseDaemon):
                 interface_id = params.UT_DICT[ut]['INTERFACE']
                 if future_images[ut].done() and images[ut] is None:
                     images[ut] = future_images[ut].result()
-                    if run_number > 0:
-                        expstr = 'exposure r{:07d}'.format(run_number)
-                    else:
-                        expstr = 'glance'
                     camstr = 'camera {} ({})'.format(ut, interface_id)
                     self.log.info('Fetched {} from {}'.format(expstr, camstr))
 
@@ -384,7 +379,8 @@ class CamDaemon(BaseDaemon):
                 break
 
         # if taking glance images, clear all old glances
-        if run_number <= 0:
+        glance = current_exposure['glance']
+        if glance:
             glance_files = [os.path.join(params.IMAGE_PATH, 'glance_UT{:d}.fits'.format(ut))
                             for ut in self.uts]
             for glance_file in glance_files:
@@ -395,16 +391,13 @@ class CamDaemon(BaseDaemon):
         for ut in active_uts:
             # get image and filename
             image = images[ut]
-            if run_number > 0:
+            if not glance:
+                run_number = current_exposure['run_number']
                 filename = image_location(run_number, ut)
             else:
                 filename = glance_location(ut)
 
             # write the FITS file
-            if run_number > 0:
-                expstr = 'exposure r{:07d}'.format(run_number)
-            else:
-                expstr = 'glance'
             self.log.info('Saving {} to {}'.format(expstr, filename))
             pool.submit(write_fits, image, filename, ut, all_info, log=self.log)
 
@@ -416,7 +409,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype)
+                            target='NA', imgtype=imgtype.upper())
 
         # Use the common function
         return self.take_exposure(exposure)
@@ -426,7 +419,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='dark',
-                            target='NA', imgtype=imgtype)
+                            target='NA', imgtype=imgtype.upper())
 
         # Use the common function
         return self.take_exposure(exposure)
@@ -436,7 +429,7 @@ class CamDaemon(BaseDaemon):
         # Create exposure object
         exposure = Exposure(ut_list, exptime,
                             binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype,
+                            target='NA', imgtype=imgtype.upper(),
                             glance=True)
 
         # Use the common function
@@ -453,7 +446,6 @@ class CamDaemon(BaseDaemon):
         exptime = exposure.exptime
         binning = exposure.binning
         frametype = exposure.frametype
-        glance = exposure.glance
 
         for ut in ut_list:
             if ut not in self.uts:
@@ -469,15 +461,19 @@ class CamDaemon(BaseDaemon):
         if self.exposing:
             raise errors.HardwareStatusError('Cameras are already exposing')
 
-        # Find and update run number
-        if not glance:
+        # Find and update run number, and store on the Exposure
+        if not exposure.glance:
             with open(self.run_number_file, 'r') as f:
-                lines = f.readlines()
-                self.run_number = int(lines[0]) + 1
+                old_run_number = int(f.read())
+            new_run_number = old_run_number + 1
             with open(self.run_number_file, 'w') as f:
-                f.write('{:07d}'.format(self.run_number))
+                f.write('{:d}'.format(new_run_number))
+            exposure.run_number = new_run_number
+            exposure.expstr = 'exposure r{:07d}'.format(new_run_number)
+            self.latest_run_number = new_run_number
         else:
-            self.run_number = -1
+            exposure.run_number = None
+            exposure.expstr = 'glance'
 
         # Set values
         self.current_exposure = exposure
@@ -488,10 +484,7 @@ class CamDaemon(BaseDaemon):
         self.take_exposure_flag = 1
 
         # Format return string
-        if not glance:
-            s = 'Exposing r{:07d}:'.format(self.run_number)
-        else:
-            s = 'Exposing glance:'
+        s = 'Taking {}:'.format(exposure.expstr)
         for ut in ut_list:
             argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
             s += '\n  '

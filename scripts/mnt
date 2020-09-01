@@ -373,7 +373,7 @@ def print_instructions():
           '  slew [ra dec]                  slew to target or given ra/dec',
           '  slew_altaz alt az              slew to given alt/az',
           '  track                          start tracking',
-          '  stop                           stop moving (tracking/slewing)',
+          '  stop/halt/abort                stop moving (tracking/slewing)',
           '  park                           enter park state',
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',

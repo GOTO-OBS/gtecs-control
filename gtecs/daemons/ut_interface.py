@@ -2,6 +2,7 @@
 """Interface to access hardware connected to the UTs (cameras, focusers, filter wheels)."""
 
 import argparse
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -11,29 +12,42 @@ from astropy.time import Time
 from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon
-from gtecs.hardware.fli import Camera, FilterWheel, Focuser
+from gtecs.hardware.asa import FakeH400, H400
+from gtecs.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
-from gtecs.hardware.rasa import FocusLynx
+from gtecs.hardware.rasa import FocusLynxHub
 
 
 class UTInterfaceDaemon(BaseDaemon):
     """UT interface daemon class."""
 
-    def __init__(self, interface_id, serial_dict):
+    def __init__(self, interface_id, hw_dict):
         super().__init__(interface_id)
 
         # hardware
-        self.serial_dict = serial_dict
-        self.uts = serial_dict.keys()
+        self.hw_dict = hw_dict
+        self.uts = hw_dict.keys()
+
+        self.ota_params = {ut: self.hw_dict[ut]['OTA'] for ut in self.uts}
 
         self.cameras = {ut: None for ut in self.uts}
-        self.cam_targets = {ut: self.serial_dict[ut]['cam'] for ut in self.uts}
+        self.cam_params = {ut: self.hw_dict[ut]['CAMERA'] for ut in self.uts}
 
         self.focusers = {ut: None for ut in self.uts}
-        self.foc_targets = {ut: self.serial_dict[ut]['foc'] for ut in self.uts}
+        self.foc_params = {ut: self.hw_dict[ut]['FOCUSER'] for ut in self.uts}
 
         self.filterwheels = {ut: None for ut in self.uts}
-        self.filt_targets = {ut: self.serial_dict[ut]['filt'] for ut in self.uts}
+        self.filt_params = {ut: self.hw_dict[ut]['FILTERWHEEL'] for ut in self.uts}
+
+        # Extra dictionary for RASA focuser hubs
+        self.focuser_hubs = {}
+        for ut in self.foc_params:
+            if self.foc_params[ut]['CLASS'] == 'RASA':
+                port = self.foc_params[ut]['PORT']
+                if port not in self.focuser_hubs:
+                    self.focuser_hubs[port] = [ut]
+                elif ut not in self.focuser_hubs[port]:
+                    self.focuser_hubs[port] += [ut]
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -79,80 +93,176 @@ class UTInterfaceDaemon(BaseDaemon):
         """Connect to hardware."""
         # Connect to cameras
         for ut in self.cameras:
-            if not self.cameras[ut] and self.cam_targets[ut]:
+            if self.cameras[ut] is None and self.cam_params[ut] is not None:
                 hw_name = 'camera_{}'.format(ut)
-                target = self.cam_targets[ut]
+                hw_params = self.cam_params[ut]
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Camera {}'.format(ut))
+                    self.log.debug(hw_params)
                 try:
-                    self.log.debug('Connecting to Camera {} ({})'.format(ut, target))
-                    camera = Camera.locate_device(target)
-                    if camera is None and params.FAKE_FLI:
-                        self.log.info('Creating a fake Camera {}'.format(ut))
-                        camera = FakeCamera('fake', 'FakeCamera')
-                    if camera is not None:
-                        self.cameras[ut] = camera
-                        serial = camera.serial_number
-                        self.log.info('Connected to Camera {} ({})'.format(ut, serial))
-                        if hw_name in self.bad_hardware:
-                            self.bad_hardware.remove(hw_name)
+                    if 'CLASS' not in hw_params:
+                        raise ValueError('Missing class')
+                    hw_class = hw_params['CLASS']
+
+                    # Connect to appropriate hardware class
+                    if hw_class == 'FLI':
+                        # FLI USB Camera, needs a serial number
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        camera = FLICamera.locate_device(hw_params['SERIAL'])
+                        if camera is None and params.FAKE_FLI:
+                            self.log.info('Creating a fake Camera')
+                            camera = FakeCamera('/dev/fake', 'FakeCamera')
+                            camera.serial_number = hw_params['SERIAL']
+                        if camera is None:
+                            raise ValueError('Could not locate hardware')
+
                     else:
-                        raise Exception('Connection failed')
+                        raise ValueError('Unknown class: {}'.format(hw_class))
+
+                    if not camera.connected:
+                        raise ValueError('Could not connect to hardware')
+
+                    self.log.info('Connected to {}'.format(camera.serial_number))
+                    self.cameras[ut] = camera
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
+
                 except Exception:
                     self.cameras[ut] = None
-                    self.log.error('Failed to connect to Camera {} ({})'.format(ut, target))
+                    self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Connect to focusers
         for ut in self.focusers:
-            if not self.focusers[ut] and self.foc_targets[ut]:
-                target = self.foc_targets[ut]
+            if self.focusers[ut] is None and self.foc_params[ut] is not None:
                 hw_name = 'focuser_{}'.format(ut)
+                hw_params = self.foc_params[ut]
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Focuser {}'.format(ut))
+                    self.log.debug(hw_params)
                 try:
-                    self.log.debug('Connecting to Focuser {} ({})'.format(ut, target))
-                    if 'RASA' in target:
-                        focuser = FocusLynx.locate_device(params.RASA_PORT, target)
+                    if 'CLASS' not in hw_params:
+                        raise ValueError('Missing class')
+                    hw_class = hw_params['CLASS']
+
+                    # Connect to appropriate hardware class
+                    if hw_class == 'FLI':
+                        # FLI USB Focuser, needs a serial number
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        focuser = FLIFocuser.locate_device(hw_params['SERIAL'])
+                        if focuser is None and params.FAKE_FLI:
+                            self.log.info('Creating a fake Focuser')
+                            focuser = FakeFocuser('/dev/fake', 'FakeCamera')
+                            focuser.serial_number = hw_params['SERIAL']
+                        if focuser is None:
+                            raise ValueError('Could not locate hardware')
+
+                    elif hw_class == 'RASA':
+                        # RASA FocusLynx Focuser, needs a port and a serial number
+                        if 'PORT' not in hw_params:
+                            raise ValueError('Missing serial port')
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        # We have a single class for the FocusLynxHub, which is connected to
+                        # two focusers. It makes things more complicated here, but having two
+                        # FocusLynx classes sharing the same port caused all sorts of problems.
+                        # Try to connect only if neither UTs are connected. We set the focuser_hubs
+                        # dict in __init__ to match the two UTs by port.
+                        hub_uts = self.focuser_hubs[hw_params['PORT']]
+                        # Always try to connect to the lower UT number, to simplfy things.
+                        if ut == min(hub_uts):
+                            focuser = FocusLynxHub.locate_device(hw_params['PORT'])
+                        else:
+                            focuser = self.focusers[min(hub_uts)]
+                        if focuser is None:
+                            raise ValueError('Could not locate hardware')
+                        # We need to get the device number.
+                        if 'DEV_NUMBER' not in hw_params:
+                            dev_number = focuser.get_dev_number(hw_params['SERIAL'])
+                            self.foc_params[ut]['DEV_NUMBER'] = dev_number
+
+                    elif hw_class == 'ASA':
+                        # ASA H400 in-built Focuser, needs a port and a serial number
+                        if 'PORT' not in hw_params:
+                            raise ValueError('Missing serial port')
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        focuser = H400.locate_device(hw_params['PORT'], hw_params['SERIAL'])
+                        if focuser is None and params.FAKE_ASA:
+                            self.log.info('Creating a fake Focuser')
+                            focuser = FakeH400('/dev/fake', hw_params['SERIAL'])
+                        if focuser is None:
+                            raise ValueError('Could not locate hardware')
+
                     else:
-                        focuser = Focuser.locate_device(target)
-                    if focuser is None and params.FAKE_FLI:
-                        self.log.info('Creating a fake Focuser {}'.format(ut))
-                        focuser = FakeFocuser('fake', 'FakeFocuser')
-                    if focuser is not None:
-                        self.focusers[ut] = focuser
-                        serial = focuser.serial_number
-                        self.log.info('Connected to Focuser {} ({})'.format(ut, serial))
-                        if hw_name in self.bad_hardware:
-                            self.bad_hardware.remove(hw_name)
-                    else:
-                        raise Exception('Connection failed')
+                        raise ValueError('Unknown class: {}'.format(hw_class))
+
+                    if not focuser.connected:
+                        raise ValueError('Could not connect to hardware')
+
+                    self.log.info('Connected to {}'.format(focuser.serial_number))
+                    self.focusers[ut] = focuser
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
+
                 except Exception:
                     self.focusers[ut] = None
-                    self.log.error('Failed to connect to Focuser {} ({})'.format(ut, target))
+                    self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Connect to filter wheels
         for ut in self.filterwheels:
-            if not self.filterwheels[ut] and self.filt_targets[ut]:
-                target = self.filt_targets[ut]
+            if self.filterwheels[ut] is None and self.filt_params[ut] is not None:
                 hw_name = 'filterwheel_{}'.format(ut)
+                hw_params = self.filt_params[ut]
+                if hw_name not in self.bad_hardware:
+                    self.log.info('Connecting to Filter Wheel {}'.format(ut))
+                    self.log.debug(hw_params)
                 try:
-                    self.log.debug('Connecting to Filter Wheel {} ({})'.format(ut, target))
-                    filterwheel = FilterWheel.locate_device(target)
-                    if filterwheel is None and params.FAKE_FLI:
-                        self.log.info('Creating a fake Filter Wheel {}'.format(ut))
-                        filterwheel = FakeFilterWheel('fake', 'FakeFilterWheel')
-                    if filterwheel is not None:
-                        self.filterwheels[ut] = filterwheel
-                        serial = filterwheel.serial_number
-                        self.log.info('Connected to Filter Wheel {} ({})'.format(ut, serial))
-                        if hw_name in self.bad_hardware:
-                            self.bad_hardware.remove(hw_name)
+                    if 'CLASS' not in hw_params:
+                        raise ValueError('Missing class')
+                    hw_class = hw_params['CLASS']
+
+                    # Connect to appropriate hardware class
+                    if hw_class == 'FLI':
+                        # FLI USB Filter Wheel, needs a serial number
+                        if 'SERIAL' not in hw_params:
+                            raise ValueError('Missing serial number')
+                        if 'PORT' in hw_params:
+                            # Deal with unserialized hardware
+                            filterwheel = FLIFilterWheel.locate_device(hw_params['PORT'])
+                            filterwheel.serial_number = hw_params['SERIAL']
+                        else:
+                            filterwheel = FLIFilterWheel.locate_device(hw_params['SERIAL'])
+                        if filterwheel is None and params.FAKE_FLI:
+                            self.log.info('Creating a fake Filter Wheel')
+                            filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
+                            filterwheel.serial_number = hw_params['SERIAL']
+                        if filterwheel is None:
+                            raise ValueError('Could not locate hardware')
+
                     else:
-                        raise Exception('Connection failed')
+                        raise ValueError('Unknown class: {}'.format(hw_class))
+
+                    if not filterwheel.connected:
+                        raise ValueError('Could not connect to hardware')
+
+                    self.log.info('Connected to {}'.format(filterwheel.serial_number))
+                    self.filterwheels[ut] = filterwheel
+                    if hw_name in self.bad_hardware:
+                        self.bad_hardware.remove(hw_name)
+
                 except Exception:
                     self.filterwheels[ut] = None
-                    self.log.error('Failed to connect to Filter Wheel {} ({})'.format(ut, target))
+                    self.log.debug('', exc_info=True)
                     if hw_name not in self.bad_hardware:
+                        self.log.error('Failed to connect to hardware')
                         self.bad_hardware.add(hw_name)
 
         # Finally check if we need to report an error
@@ -170,12 +280,14 @@ class UTInterfaceDaemon(BaseDaemon):
 
         temp_info['interface_id'] = self.daemon_id
 
-        temp_info['cam_targets'] = self.cam_targets
+        temp_info['ota_serials'] = {ut: self.ota_params[ut]['SERIAL'] for ut in self.ota_params}
+
         temp_info['cam_serials'] = {}
         for ut in self.cameras:
             # Get info from each camera
-            if self.cam_targets[ut]:
+            if self.cam_params[ut] is not None:
                 try:
+                    assert self.cameras[ut].connected
                     temp_info['cam_serials'][ut] = self.cameras[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Camera {} info'.format(ut))
@@ -187,12 +299,12 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
-        temp_info['foc_targets'] = self.foc_targets
         temp_info['foc_serials'] = {}
         for ut in self.focusers:
             # Get info from each focuser
-            if self.foc_targets[ut]:
+            if self.foc_params[ut] is not None:
                 try:
+                    assert self.focusers[ut].connected
                     temp_info['foc_serials'][ut] = self.focusers[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Focuser {} info'.format(ut))
@@ -204,12 +316,12 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
-        temp_info['filt_targets'] = self.filt_targets
         temp_info['filt_serials'] = {}
         for ut in self.filterwheels:
             # Get info from each filterwheel
-            if self.filt_targets[ut]:
+            if self.filt_params[ut] is not None:
                 try:
+                    assert self.filterwheels[ut].connected
                     temp_info['filt_serials'][ut] = self.filterwheels[ut].serial_number
                 except Exception:
                     self.log.error('Failed to get Filter Wheel {} info'.format(ut))
@@ -223,6 +335,10 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['uts'] = list(self.uts)
+        temp_info['ota_params'] = self.ota_params
+        temp_info['cam_params'] = self.cam_params
+        temp_info['foc_params'] = self.foc_params
+        temp_info['filt_params'] = self.filt_params
 
         # Write debug log line
         # NONE, nothing really changes
@@ -233,36 +349,148 @@ class UTInterfaceDaemon(BaseDaemon):
         # Finally check if we need to report an error
         self._check_errors()
 
+    # OTA control functions
+    def get_ota_serial_number(self, ut):
+        """Return OTA unique serial number."""
+        return self.ota_params[ut]['SERIAL']
+
+    def get_ota_class(self, ut):
+        """Return OTA hardware class."""
+        return self.ota_params[ut]['CLASS']
+
     # Focuser control functions
     def step_focuser_motor(self, steps, ut):
         """Move focuser by given number of steps."""
         self.log.info('Focuser {} moving by {}'.format(ut, steps))
-        self.focusers[ut].step_motor(steps, blocking=False)
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            self.focusers[ut].step_motor(dev_number, steps, blocking=False)
+        else:
+            self.focusers[ut].step_motor(steps, blocking=False)
 
     def home_focuser(self, ut):
         """Move focuser to the home position."""
         self.log.info('Focuser {} moving to home'.format(ut))
-        self.focusers[ut].home_focuser()
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            self.focusers[ut].home_focuser(dev_number)
+        else:
+            self.focusers[ut].home_focuser()
+
+    def stop_focuser(self, ut):
+        """Stop the focuser from moving."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            raise NotImplementedError("Focuser doesn't have a stop function")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].stop_focuser(dev_number)
+        else:
+            return self.focusers[ut].stop_focuser()
+
+    def focuser_can_stop(self, ut):
+        """Check if the focuser has a stop command."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            return False
+        return True
+
+    def sync_focuser(self, position, ut):
+        """Set the current motor position to the given value."""
+        if not isinstance(self.focusers[ut], (FocusLynxHub)):
+            raise NotImplementedError("Focuser doesn't have a sync function")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].sync_focuser(dev_number, position)
+        else:
+            return self.focusers[ut].sync_focuser(position)
+
+    def focuser_can_sync(self, ut):
+        """Check if the focuser has a sync command."""
+        if not isinstance(self.focusers[ut], (FocusLynxHub)):
+            return False
+        return True
 
     def get_focuser_limit(self, ut):
         """Return focuser motor limit."""
-        return self.focusers[ut].max_extent
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_max_extent(dev_number)
+        else:
+            return self.focusers[ut].max_extent
 
     def get_focuser_position(self, ut):
         """Return focuser position."""
-        return self.focusers[ut].stepper_position
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_stepper_position(dev_number)
+        else:
+            return self.focusers[ut].stepper_position
+
+    def get_focuser_status(self, ut):
+        """Return focuser status."""
+        if isinstance(self.focusers[ut], (FLIFocuser, FakeFocuser)):
+            raise NotImplementedError("Focuser doesn't have a status")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_status(dev_number)
+        else:
+            return self.focusers[ut].get_status()
 
     def get_focuser_steps_remaining(self, ut):
         """Return focuser motor limit."""
-        return self.focusers[ut].get_steps_remaining()
+        if isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError("Focuser doesn't store steps remaining")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_steps_remaining(dev_number)
+        else:
+            return self.focusers[ut].get_steps_remaining()
 
     def get_focuser_temp(self, temp_type, ut):
         """Return focuser internal/external temperature."""
-        return self.focusers[ut].read_temperature(temp_type)
+        if isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError("Focuser doesn't have temperature sensors")
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].read_temperature(dev_number)
+        else:
+            return self.focusers[ut].read_temperature(temp_type)
 
     def get_focuser_serial_number(self, ut):
         """Return focuser unique serial number."""
-        return self.focusers[ut].serial_number
+        if isinstance(self.focusers[ut], FocusLynxHub):
+            dev_number = self.foc_params[ut]['DEV_NUMBER']
+            return self.focusers[ut].get_serial_number(dev_number)
+        else:
+            return self.focusers[ut].serial_number
+
+    def get_focuser_class(self, ut):
+        """Return focuser hardware class."""
+        return self.foc_params[ut]['CLASS']
+
+    # Mirror cover control functions (part of the ASA H400 class, under focusers)
+    def open_mirror_cover(self, ut):
+        """Open the mirror cover."""
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].open_cover()
+
+    def close_mirror_cover(self, ut):
+        """Close the mirror cover."""
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].close_cover()
+
+    def stop_mirror_cover(self, ut):
+        """Stop the mirror cover from moving."""
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].stop_cover()
+
+    def get_mirror_cover_position(self, ut):
+        """Return mirror cover position."""
+        if not isinstance(self.focusers[ut], (H400, FakeH400)):
+            raise NotImplementedError('UT {} does not have a mirror cover'.format(ut))
+        return self.focusers[ut].get_cover_position()
 
     # Filter wheel control functions
     def set_filter_pos(self, new_filter, ut):
@@ -295,6 +523,10 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_filter_serial_number(self, ut):
         """Return filter wheel unique serial number."""
         return self.filterwheels[ut].serial_number
+
+    def get_filter_class(self, ut):
+        """Return filter wheel hardware class."""
+        return self.filt_params[ut]['CLASS']
 
     # Camera control functions
     def set_exposure(self, exptime_ms, frametype, ut):
@@ -376,9 +608,16 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return camera unique serial number."""
         return self.cameras[ut].serial_number
 
+    def get_camera_class(self, ut):
+        """Return camera hardware class."""
+        return self.cam_params[ut]['CLASS']
+
 
 def parse_args():
-    """Parse arguments."""
+    """Parse arguments.
+
+    See also `get_args()` in the intf script.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('interface_id')
     parser.add_argument('--uts', nargs='+', action='append')
@@ -387,37 +626,41 @@ def parse_args():
     # Interface ID should be first argument
     interface_id = args.interface_id
 
-    # Each UT should have an ID and list of serials
+    # Each UT should have a number, a name, and details of any attached hardware
     ut_lists = args.uts
-    serial_dict = {}
+    hw_dict = {}
     for ut_list in ut_lists:
-        # ID number should be first
-        ut = int(ut_list[0])
         ut_dict = {}
 
-        # Extract the HW serials
-        for arg in ut_list[1:]:
+        # ID number should be first
+        ut = int(ut_list[0])
+
+        # Then should be the OTA details
+        ut_dict['OTA'] = json.loads(ut_list[1].strip('ota='))
+
+        # Then should be arguments with JSON dictionaries
+        for arg in ut_list[2:]:
             if arg.startswith('cam='):
-                ut_dict['cam'] = arg.strip('cam=')
+                ut_dict['CAMERA'] = json.loads(arg.strip('cam='))
             if arg.startswith('foc='):
-                ut_dict['foc'] = arg.strip('foc=')
+                ut_dict['FOCUSER'] = json.loads(arg.strip('foc='))
             if arg.startswith('filt='):
-                ut_dict['filt'] = arg.strip('filt=')
+                ut_dict['FILTERWHEEL'] = json.loads(arg.strip('filt='))
 
         # Add `None`s for missing HW
-        if 'cam' not in ut_dict:
-            ut_dict['cam'] = None
-        if 'foc' not in ut_dict:
-            ut_dict['foc'] = None
-        if 'filt' not in ut_dict:
-            ut_dict['filt'] = None
+        if 'CAMERA' not in ut_dict:
+            ut_dict['CAMERA'] = None
+        if 'FOCUSER' not in ut_dict:
+            ut_dict['FOCUSER'] = None
+        if 'FILTERWHEEL' not in ut_dict:
+            ut_dict['FILTERWHEEL'] = None
 
         # Add to main dict
-        serial_dict[ut] = ut_dict
-    return interface_id, serial_dict
+        hw_dict[ut] = ut_dict
+    return interface_id, hw_dict
 
 
 if __name__ == '__main__':
-    interface_id, serial_dict = parse_args()
+    interface_id, hw_dict = parse_args()
     with misc.make_pid_file(interface_id):
-        UTInterfaceDaemon(interface_id, serial_dict)._run()
+        UTInterfaceDaemon(interface_id, hw_dict)._run()

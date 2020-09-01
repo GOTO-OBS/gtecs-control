@@ -1,8 +1,8 @@
 """Classes to control FLI cameras, filter wheels and focusers."""
 
 from fliapi import FakeCamera, FakeFilterWheel, FakeFocuser
-from fliapi import USBCamera as Camera
-from fliapi import USBFilterWheel as FilterWheel
-from fliapi import USBFocuser as Focuser
+from fliapi import USBCamera as FLICamera
+from fliapi import USBFilterWheel as FLIFilterWheel
+from fliapi import USBFocuser as FLIFocuser
 
-__all__ = [Camera, FilterWheel, Focuser, FakeCamera, FakeFilterWheel, FakeFocuser]
+__all__ = [FLICamera, FLIFilterWheel, FLIFocuser, FakeCamera, FakeFilterWheel, FakeFocuser]

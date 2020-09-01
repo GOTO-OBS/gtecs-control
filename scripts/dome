@@ -249,7 +249,7 @@ def print_instructions():
           'Dome commands:',
           '  open [north|south]             open the dome',
           '  close [north|south]            close the dome',
-          '  halt/stop                      stop the dome moving',
+          '  stop/halt/abort                stop the dome moving',
           '  dehumidifier [on|off]          force dehumidifier on/off',
           '  alarm [on|off]                 sound the alarm when moving?',
           '  autoclose [on|off]             automatically close in bad weather?',

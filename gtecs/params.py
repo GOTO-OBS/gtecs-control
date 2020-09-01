@@ -76,13 +76,14 @@ LOCAL_HOST = config['LOCAL_HOST']
 # Common file strings
 ORG_NAME = config['ORG_NAME']
 TELESCOPE_NAME = config['TELESCOPE_NAME']
+TELESCOPE_NUMBER = config['TELESCOPE_NUMBER']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
-# Site location (predicted location of GOTO dome on La Palma)
+# Site location
+SITE_NAME = config['SITE_NAME']
 SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
-SITE_LOCATION = config['SITE_LOCATION']
 
 # use colour and fancy formatting in output?
 FANCY_OUTPUT = config['FANCY_OUTPUT']
@@ -127,15 +128,22 @@ for ut in UT_DICT:
     else:
         raise ValueError('No interface defined for UT{}'.format(ut))
 
-    # Add any `None`s for any missing hardware
+    # Check hardware dicts
     for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
+        # Add any `None`s for any missing hardware
         if hw_class not in UT_DICT[ut]:
             UT_DICT[ut][hw_class] = None
+        else:
+            # Should have at least a class defined (FLI, RASA, ASA etc)
+            # In practice it'll also need a PORT or SERIAL, or both, but don't validate that here
+            if 'CLASS' not in UT_DICT[ut][hw_class]:
+                raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
 UTS = sorted(UT_DICT)
-UTS_WITH_CAMERAS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['CAMERA'] is not None)
-UTS_WITH_FOCUSERS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FOCUSER'] is not None)
-UTS_WITH_FILTERWHEELS = sorted(ut for ut in UT_DICT if UT_DICT[ut]['FILTERWHEEL'] is not None)
+UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
+UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
+UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
+UTS_WITH_COVERS = [ut for ut in UTS_WITH_FOCUSERS if UT_DICT[ut]['FOCUSER']['CLASS'] == 'ASA']
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
@@ -238,8 +246,9 @@ SITECH_PORT = config['SITECH_PORT']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
 ############################################################
-# FLI parameters
+# Interface parameters
 FAKE_FLI = config['FAKE_FLI']
+FAKE_ASA = config['FAKE_ASA']
 
 ############################################################
 # Filter wheel parameters
@@ -247,7 +256,6 @@ FILTER_LIST = config['FILTER_LIST']
 
 ############################################################
 # Focuser parameters
-RASA_PORT = config['RASA_PORT']
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 for ut in UTS_WITH_FOCUSERS:
     # Each focuser should have params here

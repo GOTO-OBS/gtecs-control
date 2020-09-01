@@ -55,12 +55,15 @@ def write_fits(image, filename, ut, all_info, log=None):
         hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
-    run_number = all_info['cam']['run_number']
     update_header(hdu.header, ut, all_info, log)
 
     # write the image log to the database
-    if run_number > 0:
-        write_image_log(filename, hdu.header)
+    if not all_info['cam']['current_exposure']['glance']:
+        try:
+            write_image_log(filename, hdu.header)
+        except Exception:
+            log.error('Failed to add entry to image log')
+            log.debug('', exc_info=True)
 
     # recreate the hdulist, and write to file
     if not isinstance(hdu, pyfits.PrimaryHDU):
@@ -78,10 +81,8 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.utime(done_file, None)
 
     if log:
-        if run_number > 0:
-            log.info('Exposure r{:07d} saved'.format(run_number))
-        else:
-            log.info('Glance saved')
+        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
+        log.info('{} saved'.format(expstr))
 
 
 def get_all_info(cam_info, log):
@@ -90,6 +91,14 @@ def get_all_info(cam_info, log):
 
     # Camera daemon
     all_info['cam'] = cam_info
+
+    # OTA info
+    try:
+        all_info['ota'] = daemon_info('ota')
+    except Exception:
+        log.error('Failed to fetch OTA info')
+        log.debug('', exc_info=True)
+        all_info['ota'] = None
 
     # Focuser info
     try:
@@ -139,20 +148,20 @@ def get_all_info(cam_info, log):
     all_info['astro'] = astro
 
     # Database
-    expset_id = cam_info['current_exposure']['db_id']
     db_info = {}
-    if expset_id == 0:
+    if not cam_info['current_exposure']['from_db']:
         db_info['from_db'] = False
     else:
         db_info['from_db'] = True
 
         with db.open_session() as session:
             try:
+                expset_id = cam_info['current_exposure']['db_id']
                 expset = db.get_exposure_set_by_id(session, expset_id)
                 db_info['expset'] = {}
                 db_info['expset']['id'] = expset_id
             except Exception:
-                pointing = None
+                expset = None
                 log.error('Failed to fetch database expset')
                 log.debug('', exc_info=True)
 
@@ -243,26 +252,47 @@ def update_header(header, ut, all_info, log):
 
     # Observation info
     cam_info = all_info['cam']
-    run_number = cam_info['run_number']
-    run_id = 'r{:07d}'.format(run_number)
+
+    current_exposure = cam_info['current_exposure']
+    glance = current_exposure['glance']
+    if not glance:
+        run_number = current_exposure['run_number']
+        run_number_str = 'r{:07d}'.format(run_number)
+    else:
+        run_number = 'NA'
+        run_number_str = 'NA'
     header['RUN     '] = (run_number, 'GOTO run number')
-    header['RUN-ID  '] = (run_id, 'Padded run ID string')
+    header['RUN-ID  '] = (run_number_str, 'Padded run ID string')
 
     write_time = Time.now()
     write_time.precision = 0
     header['DATE    '] = (write_time.isot, 'Date HDU created')
 
     header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
-    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope')
 
-    interface_id = params.UT_DICT[ut]['INTERFACE']
-    current_exposure = cam_info['current_exposure']
-    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
-    ut_string = misc.ut_mask_to_string(ut_mask)
+    header['SITE    '] = (params.SITE_NAME, 'Site location')
+    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
+    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
+    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
+
+    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope name')
+    header['TEL     '] = (params.TELESCOPE_NUMBER, 'Origin telescope ID number')
+
     header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
     header['UT      '] = (ut, 'Integer UT number')
+
+    if 'HW_VERSION' in params.UT_DICT[ut]:
+        ut_hw_version = params.UT_DICT[ut]['HW_VERSION']
+    else:
+        ut_hw_version = 'NA'
+    header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
+
+    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
+    ut_string = misc.ut_mask_to_string(ut_mask)
     header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
     header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
+
+    interface_id = params.UT_DICT[ut]['INTERFACE']
     header['INTERFAC'] = (interface_id, 'System interface code')
 
     header['SWVN    '] = (params.VERSION, 'Software version number')
@@ -273,13 +303,12 @@ def update_header(header, ut, all_info, log):
 
     header['OBJECT  '] = (current_exposure['target'], 'Observed object name')
 
+    set_number = current_exposure['set_num']
+    if set_number is None:
+        set_number = 'NA'
+    header['SET     '] = (set_number, 'GOTO set number')
     header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
-    header['SET-TOT '] = (current_exposure['set_total'], 'Total number of exposures in this set')
-
-    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
-    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
-    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
-    header['SITE-LOC'] = (params.SITE_LOCATION, 'Site location')
+    header['SET-TOT '] = (current_exposure['set_tot'], 'Total number of exposures in this set')
 
     # Exposure data
     header['EXPTIME '] = (current_exposure['exptime'], 'Exposure time, seconds')
@@ -304,6 +333,7 @@ def update_header(header, ut, all_info, log):
     # Frame info
     header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
     header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
+    header['GLANCE  '] = (current_exposure['glance'], 'Is this a glance frame?')
 
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
     header['TRIMSEC '] = ('[65:8240,46:6177]', 'Central data region (both channels)')
@@ -519,7 +549,9 @@ def update_header(header, ut, all_info, log):
     # Camera info
     cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
+    cam_class = cam_info['hw_class']
     header['CAMERA  '] = (cam_serial, 'Camera serial number')
+    header['CAMCLS  '] = (cam_class, 'Camera hardware class')
 
     header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
     header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
@@ -533,6 +565,33 @@ def update_header(header, ut, all_info, log):
     header['CCDTEMPS'] = (cam_info['target_temp'], 'Requested CCD temperature, C')
     header['BASETEMP'] = (cam_info['base_temp'], 'Peltier base temperature, C')
 
+    # OTA info
+    try:
+        if all_info['ota'] is None:
+            raise ValueError('No OTA info provided')
+
+        info = all_info['ota'][ut]
+        ota_serial = info['serial_number']
+        ota_class = info['hw_class']
+        if ut not in params.UTS_WITH_COVERS:
+            cover_position = 'NA'
+            cover_open = 'NA'
+        else:
+            cover_position = info['position']
+            cover_open = info['position'] == 'full_open'
+    except Exception:
+        log.error('Failed to write OTA info to header')
+        log.debug('', exc_info=True)
+        ota_serial = 'NA'
+        ota_class = 'NA'
+        cover_position = 'NA'
+        cover_open = 'NA'
+
+    header['OTA     '] = (ota_serial, 'OTA serial number')
+    header['OTACLS  '] = (ota_class, 'OTA hardware class')
+    header['COVSTAT '] = (cover_position, 'Mirror cover position')
+    header['COVOPEN '] = (cover_open, 'Mirror cover is open')
+
     # Focuser info
     try:
         if all_info['foc'] is None:
@@ -540,6 +599,7 @@ def update_header(header, ut, all_info, log):
 
         if ut not in params.UTS_WITH_FOCUSERS:
             foc_serial = 'None'
+            foc_class = 'NA'
             foc_pos = 'NA'
             foc_temp_int = 'NA'
             foc_temp_ext = 'NA'
@@ -547,18 +607,21 @@ def update_header(header, ut, all_info, log):
             info = all_info['foc'][ut]
 
             foc_serial = info['serial_number']
+            foc_class = info['hw_class']
             foc_pos = info['current_pos']
-            foc_temp_int = info['int_temp']
-            foc_temp_ext = info['ext_temp']
+            foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
+            foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
         foc_serial = 'NA'
+        foc_class = 'NA'
         foc_pos = 'NA'
         foc_temp_int = 'NA'
         foc_temp_ext = 'NA'
 
     header['FOCUSER '] = (foc_serial, 'Focuser serial number')
+    header['FOCCLS  '] = (foc_class, 'Focuser hardware class')
     header['FOCPOS  '] = (foc_pos, 'Focuser motor position')
     header['FOCTEMPI'] = (foc_temp_int, 'Focuser internal temperature, C')
     header['FOCTEMPX'] = (foc_temp_ext, 'Focuser external temperature, C')
@@ -570,31 +633,38 @@ def update_header(header, ut, all_info, log):
 
         if ut not in params.UTS_WITH_FILTERWHEELS:
             filt_serial = 'None'
+            filt_class = 'NA'
             filt_filter = 'C'
+            filt_filters = 'C'
             filt_num = 'NA'
             filt_pos = 'NA'
         else:
             info = all_info['filt'][ut]
 
             filt_serial = info['serial_number']
+            filt_class = info['hw_class']
             if not info['homed']:
                 filt_filter = 'UNHOMED'
             else:
                 filt_filter_num = info['current_filter_num']
                 filt_filter = params.FILTER_LIST[filt_filter_num]
+            filt_filters = ','.join(params.FILTER_LIST)
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
     except Exception:
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
         filt_serial = 'NA'
+        filt_class = 'NA'
         filt_filter = 'NA'
+        filt_filters = 'NA'
         filt_num = 'NA'
         filt_pos = 'NA'
-    filter_list_str = ''.join(params.FILTER_LIST)
 
     header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
-    header['FILTER  '] = (filt_filter, 'Filter used for exposure [{}]'.format(filter_list_str))
+    header['FILTCLS '] = (filt_class, 'Filter wheel hardware class')
+    header['FILTER  '] = (filt_filter, 'Filter used for exposure')
+    header['FILTERS '] = (filt_filters, 'Filters in filter wheel')
     header['FILTNUM '] = (filt_num, 'Filter wheel position number')
     header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')
 
@@ -845,8 +915,8 @@ def write_image_log(filename, header):
     ut_mask = int(header['UTMASK  '])
     start_time = Time(header['DATE-OBS'])
     write_time = Time(header['DATE    '])
-    set_position = int(header['SET-POS '])
-    set_total = int(header['SET-TOT '])
+    set_pos = int(header['SET-POS '])
+    set_tot = int(header['SET-TOT '])
 
     expset_id = None
     pointing_id = None
@@ -861,7 +931,7 @@ def write_image_log(filename, header):
 
     log = db.ImageLog(filename=filename, run_number=run_number, ut=ut,
                       ut_mask=ut_mask, start_time=start_time, write_time=write_time,
-                      set_position=set_position, set_total=set_total,
+                      set_position=set_pos, set_total=set_tot,
                       exposure_set_id=expset_id, pointing_id=pointing_id, mpointing_id=mpointing_id)
 
     with db.open_session() as session:

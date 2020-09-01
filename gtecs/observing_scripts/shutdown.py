@@ -13,7 +13,7 @@ This script should perform the following simple tasks:
 import time
 
 from gtecs.misc import execute_command
-from gtecs.observing import wait_for_dome, wait_for_mount_parking
+from gtecs.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 
 
 def run():
@@ -27,6 +27,11 @@ def run():
 
     # Abort any current exposures
     execute_command('cam abort')
+
+    # Close the mirror covers
+    # (we need to do this before powering off the cameras, when we lose the interfaces)
+    execute_command('ota close')
+    wait_for_mirror_covers(opening=False, timeout=60)
 
     # Power off the cameras
     execute_command('power off cams')

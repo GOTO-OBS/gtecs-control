@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daemon to control the exposure queue."""
 
+import os
 import threading
 import time
 
@@ -28,6 +29,13 @@ class ExqDaemon(BaseDaemon):
         # exposure queue variables
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
+
+        self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
+        try:
+            with open(self.set_number_file, 'r') as f:
+                self.latest_set_number = int(f.read())
+        except Exception:
+            self.latest_set_number = 0
 
         self.working = 0
         self.paused = 1  # start paused
@@ -124,15 +132,25 @@ class ExqDaemon(BaseDaemon):
         temp_info['queue_length'] = len(self.exp_queue)
         if self.current_exposure is not None:
             temp_info['exposing'] = True
-            temp_info['current_ut_list'] = self.current_exposure.ut_list
-            temp_info['current_exptime'] = self.current_exposure.exptime
-            temp_info['current_filter'] = self.current_exposure.filt
-            temp_info['current_binning'] = self.current_exposure.binning
-            temp_info['current_frametype'] = self.current_exposure.frametype
-            temp_info['current_target'] = self.current_exposure.target
-            temp_info['current_imgtype'] = self.current_exposure.imgtype
+            current_info = {}
+            current_info['ut_list'] = self.current_exposure.ut_list
+            current_info['exptime'] = self.current_exposure.exptime
+            current_info['filter'] = self.current_exposure.filt
+            current_info['binning'] = self.current_exposure.binning
+            current_info['frametype'] = self.current_exposure.frametype
+            current_info['target'] = self.current_exposure.target
+            current_info['imgtype'] = self.current_exposure.imgtype
+            current_info['glance'] = self.current_exposure.glance
+            current_info['set_num'] = self.current_exposure.set_num
+            current_info['set_pos'] = self.current_exposure.set_pos
+            current_info['set_tot'] = self.current_exposure.set_tot
+            current_info['from_db'] = self.current_exposure.from_db
+            current_info['db_id'] = self.current_exposure.db_id
+            temp_info['current_exposure'] = current_info
         else:
             temp_info['exposing'] = False
+            temp_info['current_exposure'] = None
+        temp_info['latest_set_number'] = self.latest_set_number
 
         # Write debug log line
         try:
@@ -287,13 +305,27 @@ class ExqDaemon(BaseDaemon):
         if frametype not in params.FRAMETYPE_LIST:
             raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
 
+        # Find and update set number
+        with open(self.set_number_file, 'r') as f:
+            old_set_number = int(f.read())
+        new_set_number = old_set_number + 1
+        with open(self.set_number_file, 'w') as f:
+            f.write('{:d}'.format(new_set_number))
+        self.latest_set_number = new_set_number
+
         # Call the command
-        exposure = Exposure(ut_list, exptime,
+        exposure = Exposure(ut_list,
+                            exptime,
                             filt.upper() if filt else None,
-                            binning, frametype,
+                            binning,
+                            frametype,
                             target.replace(';', ''),
-                            imgtype.replace(';', ''),
-                            glance)
+                            imgtype.replace(';', '').upper(),
+                            glance,
+                            set_num=new_set_number,
+                            set_pos=1,
+                            set_tot=1,
+                            )
         self.exp_queue.append(exposure)
         if not glance:
             self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
@@ -315,7 +347,7 @@ class ExqDaemon(BaseDaemon):
     def add_multi(self, nexp, ut_list, exptime,
                   filt=None, binning=1, frametype='normal',
                   target='NA', imgtype='SCIENCE',
-                  db_id=0):
+                  db_id=None):
         """Add multiple exposures to the queue as a set."""
         # Check restrictions
         if self.dependency_error:
@@ -334,16 +366,28 @@ class ExqDaemon(BaseDaemon):
         if frametype not in params.FRAMETYPE_LIST:
             raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
 
+        # Find and update set number
+        with open(self.set_number_file, 'r') as f:
+            old_set_number = int(f.read())
+        new_set_number = old_set_number + 1
+        with open(self.set_number_file, 'w') as f:
+            f.write('{:d}'.format(new_set_number))
+        self.latest_set_number = new_set_number
+
         # Call the command
-        for i in range(nexp):
-            set_pos = i + 1
-            set_total = nexp
-            exposure = Exposure(ut_list, exptime,
+        for i in range(1, nexp + 1):
+            exposure = Exposure(ut_list,
+                                exptime,
                                 filt.upper() if filt else None,
                                 binning, frametype,
                                 target.replace(';', ''),
-                                imgtype.replace(';', ''), False,
-                                set_pos, set_total, db_id)
+                                imgtype.replace(';', '').upper(),
+                                glance=False,
+                                set_num=new_set_number,
+                                set_pos=i,
+                                set_tot=nexp,
+                                db_id=db_id,
+                                )
             self.exp_queue.append(exposure)
             self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
                           exptime, filt.upper() if filt else 'X', len(self.exp_queue)))

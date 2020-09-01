@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A script to provide control over the filt daemon."""
+"""A script to provide control over the OTA daemon."""
 
 import os
 import sys
@@ -86,45 +86,47 @@ def query(command, args, daemon_id):
         misc.execute_long_command(tail_command)
 
     # Daemon functions
-    elif command == 'set':
-        # parse arguments
-        if len(args) == 1:
-            # filt set <filt>
-            filt = args[0].upper()
-            filt_dict = {ut: filt for ut in params.UTS_WITH_FILTERWHEELS}
-        elif len(args) == 2 and len(args[1]) == 1:
-            # filt set <ut>[,<ut>...] <filt>
-            ut_list = [int(x) for x in args[0].split(',')]
-            filt = args[1].upper()
-            filt_dict = {ut: filt for ut in ut_list}
-        elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
-            # filt set <ut>[,<ut>...] <filt>[,<filt>...]
-            ut_list = [int(x) for x in args[0].split(',')]
-            filt_list = [x.upper() for x in args[1].split(',')]
-            filt_dict = {ut: filt for ut, filt in zip(ut_list, filt_list)}
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function(daemon_id, 'set_filters', [filt_dict])
-        print(reply)
-
-    elif command == 'home':
+    elif command == 'open':
         # parse arguments
         if len(args) == 0:
-            # filt home
-            ut_list = params.UTS_WITH_FILTERWHEELS
+            # ota open
+            ut_list = params.UTS_WITH_COVERS
         elif len(args) == 1:
-            # filt home <ut>[,<ut>...]
+            # ota open <ut>[,<ut>...]
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_filters', [ut_list])
+        reply = daemons.daemon_function(daemon_id, 'open_covers', [ut_list])
         print(reply)
 
-    # Other functions
-    elif command in ['list', 'ls']:
-        print(params.FILTER_LIST)
+    elif command == 'close':
+        # parse arguments
+        if len(args) == 0:
+            # ota close
+            ut_list = params.UTS_WITH_COVERS
+        elif len(args) == 1:
+            # ota close <ut>[,<ut>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'close_covers', [ut_list])
+        print(reply)
+
+    elif command == 'stop':
+        # parse arguments
+        if len(args) == 0:
+            # ota stop
+            ut_list = params.UTS_WITH_COVERS
+        elif len(args) == 1:
+            # ota stop <ut>[,<ut>...]
+            ut_list = [int(x) for x in args[0].split(',')]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'stop_covers', [ut_list])
+        print(reply)
 
     # Unrecognized function
     else:
@@ -133,24 +135,13 @@ def query(command, args, daemon_id):
 
 def print_info(info):
     """Print the full info dict."""
-    print('#### FILTER WHEEL INFO ####')
-    for ut in params.UTS_WITH_FILTERWHEELS:
-        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        if info[ut]['status'] != 'Moving':
-            print('Status: {}'.format(info[ut]['status']))
-            if not info[ut]['homed']:
-                print('Current filter: UNHOMED')
-            else:
-                current_filter_num = info[ut]['current_filter_num']
-                current_filter = params.FILTER_LIST[current_filter_num]
-                print('Current filter:     {}'.format(current_filter))
-        else:
-            print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
-            print('Current filter:     N/A')
-        print('Current filter num: {}'.format(info[ut]['current_filter_num']))
-        print('Current motor pos:  {}'.format(info[ut]['current_pos']))
-        print('Serial number:      {}'.format(info[ut]['serial_number']))
-        print('Hardware class:     {}'.format(info[ut]['hw_class']))
+    print('#### OTA INFO ####')
+    for ut in params.UTS:
+        print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
+        print('Serial number:  {}'.format(info[ut]['serial_number']))
+        print('Hardware class: {}'.format(info[ut]['hw_class']))
+        if ut in params.UTS_WITH_COVERS:
+            print('Mirror cover:   {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -159,34 +150,24 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_FILTERWHEELS:
-        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
-        if info[ut]['status'] != 'Moving':
-            if not info[ut]['homed']:
-                print('Current filter: UNHOMED', end=' ')
-            else:
-                current_filter_num = info[ut]['current_filter_num']
-                current_filter = params.FILTER_LIST[current_filter_num]
-                print('  Current filter: {}'.format(current_filter), end=' ')
-                print('({})'.format(info[ut]['current_filter_num']), end=' ')
-            print('  [{}]'.format(info[ut]['status']))
-        else:
-            print('  {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
+    for ut in params.UTS_WITH_COVERS:
+        print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
+        print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
 
 
 def print_instructions():
     """Print instructions for using the daemon."""
-    print('Usage: filt command [options]',
+    print('Usage: ota command [options]',
           'Daemon commands:',
           '  start                          start the daemon',
           '  shutdown                       shutdown the daemon',
           '  restart                        restart the daemon',
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
-          'Filter wheel commands:',
-          '  set [uts] filter               set wheel to given filter',
-          '  home [uts]                     home given filter',
-          '  list                           lists the possible filters',
+          'OTA commands:',
+          '  open [uts]                     open mirror covers',
+          '  close [uts]                    close mirror covers',
+          '  stop [uts]                     stop mirror covers moving',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

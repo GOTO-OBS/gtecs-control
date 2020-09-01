@@ -19,7 +19,7 @@ def run(nexp=5):
     print('Taking bias and dark frames.')
 
     # make sure hardware is ready
-    prepare_for_images()
+    prepare_for_images(open_covers=False)
 
     execute_command('exq multbias {} 1'.format(nexp))
     execute_command('exq multdark {} 60 1'.format(nexp))

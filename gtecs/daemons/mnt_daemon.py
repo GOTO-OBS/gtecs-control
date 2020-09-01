@@ -266,7 +266,7 @@ class MntDaemon(BaseDaemon):
     def _connect(self):
         """Connect to hardware."""
         # Connect to sitech
-        if not self.sitech:
+        if self.sitech is None:
             try:
                 self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT, self.log)
                 self.log.info('Connected to SiTechEXE')
@@ -274,8 +274,8 @@ class MntDaemon(BaseDaemon):
                     self.bad_hardware.remove('sitech')
             except Exception:
                 self.sitech = None
-                self.log.error('Failed to connect to SiTechEXE')
                 if 'sitech' not in self.bad_hardware:
+                    self.log.error('Failed to connect to SiTechEXE')
                     self.bad_hardware.add('sitech')
 
         # Finally check if we need to report an error

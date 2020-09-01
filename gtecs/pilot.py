@@ -92,16 +92,17 @@ class Pilot(object):
         self.dome_is_open = False        # should the dome be open?
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': monitors.DomeMonitor(self.log),
-                         'mnt': monitors.MntMonitor(self.log),
-                         'power': monitors.PowerMonitor(self.log),
-                         'cam': monitors.CamMonitor(self.log),
-                         'filt': monitors.FiltMonitor(self.log),
-                         'foc': monitors.FocMonitor(self.log),
-                         'exq': monitors.ExqMonitor(self.log),
-                         'conditions': monitors.ConditionsMonitor(self.log),
-                         'scheduler': monitors.SchedulerMonitor(self.log),
-                         'sentinel': monitors.SentinelMonitor(self.log),
+        self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
+                         'mnt': monitors.MntMonitor('parked', log=self.log),
+                         'power': monitors.PowerMonitor(log=self.log),
+                         'cam': monitors.CamMonitor('cool', log=self.log),
+                         'ota': monitors.OTAMonitor('closed', log=self.log),
+                         'filt': monitors.FiltMonitor(log=self.log),
+                         'foc': monitors.FocMonitor(log=self.log),
+                         'exq': monitors.ExqMonitor(log=self.log),
+                         'conditions': monitors.ConditionsMonitor(log=self.log),
+                         'scheduler': monitors.SchedulerMonitor(log=self.log),
+                         'sentinel': monitors.SentinelMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
@@ -197,7 +198,7 @@ class Pilot(object):
                         monitor.recover()  # Will log recovery commands
                     except RecoveryError as err:
                         # Uh oh, we're out of options
-                        send_slack_msg(err)
+                        send_slack_msg(str(err))
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
@@ -485,6 +486,9 @@ class Pilot(object):
                 self.running_script_transport is not None and
                 self.running_script_transport.get_returncode() is None):
             self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
+            if self.running_script != 'OBS':
+                msg = 'Pilot killing {} task early ("{}")'.format(self.running_script, why)
+                send_slack_msg(msg)
 
             # check script is still running again, just in case
             try:
@@ -496,9 +500,10 @@ class Pilot(object):
             # Make sure everything is stopped
             execute_command('exq clear')
             execute_command('cam abort')
-            execute_command('mnt stop')
-            execute_command('mnt clear')
-            execute_command('mnt track')
+            if self.mount_is_tracking:
+                execute_command('mnt stop')
+                execute_command('mnt clear')
+                execute_command('mnt track')
 
     # Daily tasks
     def assign_tasks(self):
@@ -1054,8 +1059,25 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
         self.log.info('dome confirmed open')
 
+        self.log.info('opening mirror covers')
+        execute_command('ota open')
+        self.hardware['ota'].mode = 'open'
+        # wait for mirror covers to open
+        sleep_time = 1
+        while True:
+            cover_status = self.hardware['ota'].get_hardware_status()
+            self.log.debug('covers are {}'.format(cover_status))
+            if cover_status == 'full_open':
+                break
+            await asyncio.sleep(sleep_time)
+        self.log.info('mirror covers confirmed open')
+
     def close_dome(self):
         """Send the dome close command and return immediately."""
+        self.log.info('closing mirror covers')
+        execute_command('ota close')
+        self.hardware['ota'].mode = 'closed'
+
         self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
         if dome_status not in ['closed', 'in_lockdown']:

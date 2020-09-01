@@ -105,7 +105,7 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 5:
                 target = args[3]
-                imgtype = args[4]
+                imgtype = args[4].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
@@ -123,7 +123,7 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         else:
@@ -156,11 +156,11 @@ def query(command, args, daemon_id):
                 db_id = None
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
                 db_id = None
             elif len(args) == 7:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
                 db_id = int(args[6])
             else:
                 raise errors.InputError('Invalid arguments')
@@ -182,11 +182,11 @@ def query(command, args, daemon_id):
                 db_id = None
             elif len(args) == 7:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
                 db_id = None
             elif len(args) == 8:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
                 db_id = int(args[7])
             else:
                 raise errors.InputError('Invalid arguments')
@@ -218,10 +218,10 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 6:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             elif len(args) == 7:
                 target = args[4]
-                imgtype = args[5]
+                imgtype = args[5].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
@@ -240,10 +240,10 @@ def query(command, args, daemon_id):
                 imgtype = 'SCIENCE'
             elif len(args) == 7:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
             elif len(args) == 8:
                 target = args[5]
-                imgtype = args[6]
+                imgtype = args[6].upper()
             else:
                 raise errors.InputError('Invalid arguments')
         else:
@@ -260,39 +260,31 @@ def query(command, args, daemon_id):
         if len(args) < 3:
             raise errors.InputError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
-            # exptime filter binning [object] [imgtype]
+            # exptime filter binning [object]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
             binning = int(args[2])
             frametype = 'normal'
+            imgtype = 'GLANCE'
             if len(args) == 3:
                 target = 'NA'
-                imgtype = 'SCIENCE'
             elif len(args) == 4:
                 target = args[3]
-                imgtype = 'SCIENCE'
-            elif len(args) == 5:
-                target = args[3]
-                imgtype = args[4]
             else:
                 raise errors.InputError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
-            # uts exptime filter binning [object] [imgtype]
+            # uts exptime filter binning [object]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
             binning = int(args[3])
             frametype = 'normal'
+            imgtype = 'GLANCE'
             if len(args) == 4:
                 target = 'NA'
-                imgtype = 'SCIENCE'
             elif len(args) == 5:
                 target = args[4]
-                imgtype = 'SCIENCE'
-            elif len(args) == 6:
-                target = args[4]
-                imgtype = args[5]
             else:
                 raise errors.InputError('Invalid arguments')
         else:
@@ -477,19 +469,21 @@ def print_info(info):
     print('Status: {}'.format(info['status']))
     print('~~~~~~~')
     print('Current exposure:')
-    try:
+    current_exposure = info['current_exposure']
+    if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              info['current_ut_list'],
-              info['current_exptime'],
-              info['current_filter'],
-              info['current_binning'],
-              info['current_frametype'],
-              info['current_target'],
-              info['current_imgtype']))
-        print('Other items in queue:     {}'.format(info['queue_length'] - 1))
-    except Exception:
+              current_exposure['ut_list'],
+              current_exposure['exptime'],
+              current_exposure['filter'],
+              current_exposure['binning'],
+              current_exposure['frametype'],
+              current_exposure['target'],
+              current_exposure['imgtype']))
+        print('Other items in queue:     {}'.format(info['queue_length']))
+    else:
         print('   None')
         print('Items in queue:     {}'.format(info['queue_length']))
+    print('Latest set number:  {:d}'.format(info['latest_set_number']))
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -500,17 +494,18 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     print('QUEUE: [{}]'.format(info['status']))
     print('  Current exposure:', end=' ')
-    try:
+    current_exposure = info['current_exposure']
+    if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              info['current_ut_list'],
-              info['current_exptime'],
-              info['current_filter'],
-              info['current_binning'],
-              info['current_frametype'],
-              info['current_target'],
-              info['current_imgtype']))
-        print('  Other items in queue: {}'.format(info['queue_length'] - 1))
-    except Exception:
+              current_exposure['ut_list'],
+              current_exposure['exptime'],
+              current_exposure['filter'],
+              current_exposure['binning'],
+              current_exposure['frametype'],
+              current_exposure['target'],
+              current_exposure['imgtype']))
+        print('  Other items in queue: {}'.format(info['queue_length']))
+    else:
         print('   None')
         print('  Items in queue: {}'.format(info['queue_length']))
 
@@ -528,7 +523,7 @@ def print_instructions():
           '  image [uts] exptime filter[s] binning [object] [imgtype]',
           '  multimage nexp [uts] exptime filter[s] binning [object] [imgtype]',
           '  multcolimage nexp [uts] exptime filter[s] binning [object] [imgtype]',
-          '  glance [uts] exptime filter[s] binning [object] [imgtype]',
+          '  glance [uts] exptime filter[s] binning [object]',
           '  dark [uts] exptime binning',
           '  multdark nexp [uts] exptime binning',
           '  bias [uts] binning',

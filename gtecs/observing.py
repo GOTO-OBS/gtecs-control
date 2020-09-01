@@ -72,12 +72,13 @@ def wait_for_dome(target_position, timeout=None):
         raise TimeoutError('Dome timed out')
 
 
-def prepare_for_images():
+def prepare_for_images(open_covers=True):
     """Make sure the hardware is set up for taking images.
 
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are at operating temperature
+    - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
     # Empty the exposure queue
     if not exposure_queue_is_empty():
@@ -93,6 +94,13 @@ def prepare_for_images():
         while not filters_are_homed():
             time.sleep(0.5)
 
+    # Set the focusers
+    if not focusers_are_set():
+        print('Setting focusers')
+        execute_command('foc move 1')
+        time.sleep(0.5)
+        execute_command('foc move -1')
+
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         print('Cooling cameras')
@@ -100,35 +108,108 @@ def prepare_for_images():
         while not cameras_are_cool():
             time.sleep(0.5)
 
+    if open_covers is True:
+        # Open the mirror covers
+        if not mirror_covers_are_open():
+            print('Opening mirror covers')
+            execute_command('ota open')
+            while not mirror_covers_are_open():
+                time.sleep(0.5)
+    else:
+        # Close the mirror covers (for darks etc...)
+        if not mirror_covers_are_closed():
+            print('Closing mirror covers')
+            execute_command('ota close')
+            while not mirror_covers_are_closed():
+                time.sleep(0.5)
 
-def get_focuser_positions():
-    """Find the current focuser positions."""
-    foc_info = daemon_info('foc')
+
+def get_mirror_cover_positions():
+    """Find the current mirror cover positions."""
+    ota_info = daemon_info('ota')
     positions = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        positions[ut] = foc_info[ut]['current_pos']
+    for ut in params.UTS_WITH_COVERS:
+        positions[ut] = ota_info[ut]['position']
     return positions
 
 
-def get_focuser_limits():
+def mirror_covers_are_open():
+    """Return true if all of the covers are open."""
+    positions = get_mirror_cover_positions()
+
+    covers_open = [positions[ut] == 'full_open' for ut in positions]
+
+    return np.all(covers_open)
+
+
+def mirror_covers_are_closed():
+    """Return true if all of the covers are closed."""
+    positions = get_mirror_cover_positions()
+
+    covers_closed = [positions[ut] == 'closed' for ut in positions]
+
+    return np.all(covers_closed)
+
+
+def wait_for_mirror_covers(opening=True, timeout=None):
+    """Wait for mirror covers to be fully open or closed.
+
+    Parameters
+    ----------
+    opening : bool
+        if True wait for the covers to be open, if false wait until they are closed
+    timeout : float
+        time in seconds after which to timeout, None to wait forever
+
+    """
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            ota_info = daemon_info('ota', force_update=True)
+            positions = [ota_info[ut]['position'] for ut in params.UTS_WITH_COVERS]
+            if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
+                reached_position = True
+            if opening is False and np.all(positions[ut] == 'closed' for ut in positions):
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Mirror covers timed out')
+
+
+def get_focuser_positions(uts=None):
+    """Find the current focuser positions."""
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    foc_info = daemon_info('foc', force_update=True)
+    positions = {ut: foc_info[ut]['current_pos'] for ut in uts}
+    return positions
+
+
+def get_focuser_limits(uts=None):
     """Find the maximum focuser position limit."""
-    foc_info = daemon_info('foc')
-    limits = {}
-    for ut in params.UTS_WITH_FOCUSERS:
-        limits[ut] = foc_info[ut]['limit']
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    foc_info = daemon_info('foc', force_update=True)
+    limits = {ut: foc_info[ut]['limit'] for ut in uts}
     return limits
 
 
 def focusers_are_ready(uts=None):
     """Return true if none of the focusers are moving."""
-    foc_info = daemon_info('foc', force_update=True)
-
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
-
-    done = [foc_info[ut]['status'] == 'Ready' for ut in uts]
-
-    return np.all(done)
+    foc_info = daemon_info('foc', force_update=True)
+    ready = [foc_info[ut]['status'] == 'Ready' for ut in uts]
+    return np.all(ready)
 
 
 def set_focuser_positions(positions, wait=False, timeout=None):
@@ -216,8 +297,10 @@ def wait_for_focusers(target_positions, timeout=None):
         try:
             foc_info = daemon_info('foc', force_update=True)
 
-            done = [(foc_info[ut]['current_pos'] == int(target_positions[ut]) and
-                    foc_info[ut]['status'] == 'Ready')
+            # Note we say we're there when we're within 5 steps,
+            # because the ASA auto-adjustment means we can't be exact.
+            done = [abs(foc_info[ut]['current_pos'] - int(target_positions[ut])) < 5 and
+                    foc_info[ut]['status'] == 'Ready'
                     for ut in target_positions]
             if np.all(done):
                 reached_position = True
@@ -482,13 +565,13 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
                                                              exptime,
                                                              filt,
                                                              name,
-                                                             imgtype)
+                                                             imgtype if not glance else '')
     else:
         exq_command = 'exq {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
                                                           exptime,
                                                           filt,
                                                           name,
-                                                          imgtype)
+                                                          imgtype if not glance else '')
 
     # Send the command
     execute_command(exq_command)
@@ -615,6 +698,12 @@ def filters_are_homed():
     return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
 
 
+def focusers_are_set():
+    """Check if all the focusers are set."""
+    foc_info = daemon_info('foc', force_update=False)
+    return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
+
+
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     target_temp = params.CCD_TEMP
@@ -662,7 +751,7 @@ def get_image_count():
 def get_run_number():
     """Find the latest exposure run number."""
     cam_info = daemon_info('cam')
-    return cam_info['run_number']
+    return cam_info['latest_run_number']
 
 
 def wait_for_images(target_image_number, timeout=None):

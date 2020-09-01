@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the UT interface daemons."""
 
+import json
 import os
 import sys
 
@@ -20,17 +21,49 @@ DAEMON_IDS.sort()
 
 
 def get_args(interface_id):
-    """Format the arguments to send to the interface script."""
+    """Format the arguments to send to the interface script.
+
+    See also `parse_args()` in ut_interface.py.
+    """
     args = [interface_id]
     for ut in params.INTERFACES[interface_id]:
         args.append('--ut')
+
+        # UT number
         args.append(ut)
+
+        # OTA details
+        if params.UT_DICT[ut]['OTA'] is not None:
+            hw_str = json.dumps(params.UT_DICT[ut]['OTA'], separators=(',', ':'))
+            hw_str = hw_str.replace('{', '\\{')
+            hw_str = hw_str.replace('}', '\\}')
+            hw_str = hw_str.replace('"', '\\"')
+            args.append('ota={}'.format(hw_str))
+
+        # Camera details
         if params.UT_DICT[ut]['CAMERA'] is not None:
-            args.append('cam={}'.format(params.UT_DICT[ut]['CAMERA']))
+            hw_str = json.dumps(params.UT_DICT[ut]['CAMERA'], separators=(',', ':'))
+            hw_str = hw_str.replace('{', '\\{')
+            hw_str = hw_str.replace('}', '\\}')
+            hw_str = hw_str.replace('"', '\\"')
+            args.append('cam={}'.format(hw_str))
+
+        # Focuser details
         if params.UT_DICT[ut]['FOCUSER'] is not None:
-            args.append('foc={}'.format(params.UT_DICT[ut]['FOCUSER']))
+            hw_str = json.dumps(params.UT_DICT[ut]['FOCUSER'], separators=(',', ':'))
+            hw_str = hw_str.replace('{', '\\{')
+            hw_str = hw_str.replace('}', '\\}')
+            hw_str = hw_str.replace('"', '\\"')
+            args.append('foc={}'.format(hw_str))
+
+        # Filter wheel details
         if params.UT_DICT[ut]['FILTERWHEEL'] is not None:
-            args.append('filt={}'.format(params.UT_DICT[ut]['FILTERWHEEL']))
+            hw_str = json.dumps(params.UT_DICT[ut]['FILTERWHEEL'], separators=(',', ':'))
+            hw_str = hw_str.replace('{', '\\{')
+            hw_str = hw_str.replace('}', '\\}')
+            hw_str = hw_str.replace('"', '\\"')
+            args.append('filt={}'.format(hw_str))
+
     return args
 
 
@@ -117,30 +150,38 @@ def query(command, args, daemon_ids):
 
 def print_info(info):
     """Print the full info dict."""
-    print('INTERFACE {}:'.format(info['daemon_id']))
+    print('INTERFACE {} ({}):'.format(info['daemon_id'], params.DAEMONS[info['daemon_id']]['HOST']))
+    if len(info['ota_serials']) > 0:
+        print('   OTAs:          ', end='\t')
+        for ut in info['uts']:
+            if ut in info['ota_serials']:
+                print('{}: {: <16}'.format(ut, info['ota_serials'][ut]), end='  ')
+            else:
+                print('{}: {: <16}'.format(ut, '----'), end='  ')
+        print('')
     if len(info['cam_serials']) > 0:
         print('   Cameras:       ', end='\t')
         for ut in info['uts']:
             if ut in info['cam_serials']:
-                print('{}: {: <14}'.format(ut, info['cam_serials'][ut]), end='  ')
+                print('{}: {: <16}'.format(ut, info['cam_serials'][ut]), end='  ')
             else:
-                print('{}: {: <14}'.format(ut, '----'), end='  ')
+                print('{}: {: <16}'.format(ut, '----'), end='  ')
         print('')
     if len(info['foc_serials']) > 0:
         print('   Focusers:      ', end='\t')
         for ut in info['uts']:
             if ut in info['foc_serials']:
-                print('{}: {: <14}'.format(ut, info['foc_serials'][ut]), end='  ')
+                print('{}: {: <16}'.format(ut, info['foc_serials'][ut]), end='  ')
             else:
-                print('{}: {: <14}'.format(ut, '----'), end='  ')
+                print('{}: {: <16}'.format(ut, '----'), end='  ')
         print('')
     if len(info['filt_serials']) > 0:
         print('   Filter Wheels: ', end='\t')
         for ut in info['uts']:
             if ut in info['filt_serials']:
-                print('{}: {: <14}'.format(ut, info['filt_serials'][ut]), end='  ')
+                print('{}: {: <16}'.format(ut, info['filt_serials'][ut]), end='  ')
             else:
-                print('{}: {: <14}'.format(ut, '----'), end='  ')
+                print('{}: {: <16}'.format(ut, '----'), end='  ')
         print('')
 
 

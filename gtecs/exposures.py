@@ -11,47 +11,68 @@ from . import params
 class Exposure(object):
     """A class to represent a single exposure.
 
-    Contains 3 functions:
-    - from_line(str)
-    - as_line()
-    - info()
+    Parameters
+    ----------
+    ut_list : list of int
+        The UTs to take this exposure with.
+    exptime : float
+        The time to expose for.
 
-    Exposures contain the folowing infomation:
-    - ut_list    [lst]  -- REQUIRED --
-    - exptime     [int]  -- REQUIRED --
-    - filt        [str]  <default = None>
-    - binning     [int]  <default = 1>
-    - frametype   [str]  <default = 'normal'>
-    - target      [str]  <default = 'NA'>
-    - imgtype     [str]  <default = 'SCIENCE'>
-    - glance      [bool] <default = False>
-    - set_pos     [int]  <default = 1>
-    - set_total   [int]  <default = 1>
-    - db_id       [int]  <default = None>
+    filt : str or `None`, default=None
+        The filter to use for the exposure.
+        If a string it should be a valid filter name (by default 'L', 'R', 'G', 'B', 'C').
+        If `None` or 'X' then use whatever the current filter is.
+    binning : int, default=1
+        The binning factor to use for the exposure.
+    frametype : str, default='normal'
+        Valid frametypes are 'normal' or 'dark'
+    target : str, default='NA'
+        Exposure target name
+    imgtype : str, default='SCIENCE'
+        Exposure type
+        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK
+    glance : bool, default=False
+        If True then the exposure is a glance
+
+    set_num : int or None, default=None
+        Set number (assigned by the exq daemon)
+    set_pos : int, default=1
+        Position of this exposure in the set
+    set_tot : int, default=1
+        Total number of exposures in this set
+
+    db_id : int or None, default=None
+        The ExposureSet ID, if this exposure comes from the ObsDB
 
     """
 
     def __init__(self, ut_list, exptime,
-                 filt=None, binning=1, frametype='normal',
-                 target='NA', imgtype='SCIENCE', glance=False,
-                 set_pos=1, set_total=1, db_id=None):
-        self.creation_time = time.gmtime()
+                 filt=None, binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
+                 glance=False, set_num=None, set_pos=1, set_tot=1, db_id=None):
+        # Required arguments
         self.ut_list = ut_list
         self.ut_mask = misc.ut_list_to_mask(ut_list)
         self.ut_string = misc.ut_mask_to_string(self.ut_mask)
         self.exptime = exptime
         self.filt = filt
+
+        # Optional arguments
         self.binning = binning
         self.frametype = frametype
         self.target = target
-        self.imgtype = imgtype
+        self.imgtype = imgtype.upper()
         self.glance = glance
+
+        # Set arguments
+        self.set_num = set_num
         self.set_pos = set_pos
-        self.set_total = set_total
-        if db_id:
-            self.db_id = db_id
-        else:
-            self.db_id = 0
+        self.set_tot = set_tot
+
+        # Database arguments
+        self.db_id = db_id
+
+        # Store creation time
+        self.creation_time = time.gmtime()
 
     def __str__(self):
         return self.info()
@@ -59,7 +80,7 @@ class Exposure(object):
     @classmethod
     def from_line(cls, line):
         """Create an Exposure object from a formatted string."""
-        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1;3;126598'
+        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1000;1;3;126598'
         ls = line.split(';')
         ut_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
@@ -67,30 +88,44 @@ class Exposure(object):
         binning = int(ls[3])
         frametype = ls[4]
         target = ls[5]
-        imgtype = ls[6]
-        glance = bool(ls[7] == 'True')  # Stop the "bool('False')" problem
-        set_pos = int(ls[8])
-        set_total = int(ls[9])
-        db_id = int(ls[10])
-        exp = cls(ut_list, exptime, filt,
-                  binning, frametype, target, imgtype, glance,
-                  set_pos, set_total, db_id)
-        return exp
+        imgtype = ls[6].upper()
+        glance = bool(int(ls[7]))
+        set_num = int(ls[8]) if int(ls[8]) != -1 else None
+        set_pos = int(ls[9])
+        set_tot = int(ls[10])
+        db_id = int(ls[11]) if int(ls[8]) != -1 else None
+
+        exposure = cls(ut_list,
+                       exptime,
+                       filt,
+                       binning,
+                       frametype,
+                       target,
+                       imgtype,
+                       glance,
+                       set_num,
+                       set_pos,
+                       set_tot,
+                       db_id,
+                       )
+        return exposure
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '{};{:.1f};{};{};{};{};{};{};{};{};{}\n'.format(
-               self.ut_string,
-               self.exptime,
-               self.filt if self.filt is not None else 'X',
-               self.binning,
-               self.frametype,
-               self.target,
-               self.imgtype,
-               self.glance,
-               self.set_pos,
-               self.set_total,
-               self.db_id)
+        line = '{};{:.1f};{};{:d};{};{};{};{};{:d};{:d};{:d};{:d}\n'.format(
+            self.ut_string,
+            self.exptime,
+            self.filt if self.filt is not None else 'X',
+            self.binning,
+            self.frametype,
+            self.target,
+            self.imgtype,
+            1 if self.glance is True else 0,
+            self.set_num if self.set_num is not None else -1,
+            self.set_pos,
+            self.set_tot,
+            self.db_id if self.db_id is not None else -1,
+        )
         return line
 
     def info(self):
@@ -105,10 +140,22 @@ class Exposure(object):
         s += '  Target: {}\n'.format(self.target)
         s += '  Image type: {}\n'.format(self.imgtype)
         s += '  Glance: {}\n'.format(self.glance)
-        s += '  Position in set: {}\n'.format(self.set_pos)
-        s += '  Total in set: {}\n'.format(self.set_total)
-        s += '  ExposureSet database ID (if any): {}\n'.format(self.db_id)
+        if self.in_set:
+            s += '  Set number: {}\n'.format(self.set_num)
+            s += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
+        if self.from_db:
+            s += '  Set database ID: {}\n'.format(self.db_id)
         return s
+
+    @property
+    def in_set(self):
+        """Return True if this exposure is part of a set."""
+        return self.set_num is not None
+
+    @property
+    def from_db(self):
+        """Return True if this exposure is from the ObsDB."""
+        return self.db_id is not None
 
 
 class ExposureQueue(MutableSequence):

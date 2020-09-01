@@ -126,26 +126,27 @@ class FiltDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
+        # Get info from each UT
         for ut in self.uts:
-            # Get info from each interface
             try:
+                ut_info = {}
                 interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface_info = {}
-                interface_info['interface_id'] = interface_id
+                ut_info['interface_id'] = interface_id
 
                 with daemon_proxy(interface_id) as interface:
-                    interface_info['remaining'] = interface.get_filter_steps_remaining(ut)
-                    interface_info['current_filter_num'] = interface.get_filter_number(ut)
-                    interface_info['current_pos'] = interface.get_filter_position(ut)
-                    interface_info['serial_number'] = interface.get_filter_serial_number(ut)
-                    interface_info['homed'] = interface.get_filter_homed(ut)
+                    ut_info['serial_number'] = interface.get_filter_serial_number(ut)
+                    ut_info['hw_class'] = interface.get_filter_class(ut)
+                    ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
+                    ut_info['current_filter_num'] = interface.get_filter_number(ut)
+                    ut_info['current_pos'] = interface.get_filter_position(ut)
+                    ut_info['homed'] = interface.get_filter_homed(ut)
 
-                if interface_info['remaining'] > 0:
-                    interface_info['status'] = 'Moving'
+                if ut_info['remaining'] > 0:
+                    ut_info['status'] = 'Moving'
                 else:
-                    interface_info['status'] = 'Ready'
+                    ut_info['status'] = 'Ready'
 
-                temp_info[ut] = interface_info
+                temp_info[ut] = ut_info
             except Exception:
                 self.log.error('Failed to get filter wheel {} info'.format(ut))
                 self.log.debug('', exc_info=True)
