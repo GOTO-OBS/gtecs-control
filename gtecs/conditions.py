@@ -525,7 +525,8 @@ def get_weather():
     weather = {}
 
     # Get the weather from the local stations
-    local_sources = ['goto', 'w1m', 'superwasp']
+    # local_sources = ['goto', 'w1m', 'superwasp']  # The SuperWASP weather isn't reliable
+    local_sources = ['goto', 'w1m']
     for source in local_sources:
         try:
             weather[source] = get_local_weather(source)
