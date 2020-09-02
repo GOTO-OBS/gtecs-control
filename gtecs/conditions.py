@@ -4,7 +4,6 @@ import json
 import os
 import ssl
 import subprocess
-import time
 import traceback
 import urllib
 import warnings
@@ -31,12 +30,8 @@ def curl_data_from_url(url, outfile, encoding=None):
     """Fetch data from a URL, store it in a file and return the contents."""
     wait_time = int(params.CURL_WAIT_TIME)
     curl_command = 'curl -s -m {:.0f} -o {} {}'.format(wait_time, outfile, url)
-    try:
-        p = subprocess.Popen(curl_command, shell=True, close_fds=True)
-        p.wait()
-    except Exception:
-        print('Error fetching URL "{}"'.format(url))
-
+    p = subprocess.Popen(curl_command, shell=True, close_fds=True)
+    p.wait()
     if encoding:
         with open(outfile, 'r', encoding=encoding) as f:
             data = f.read()
@@ -102,32 +97,23 @@ def hatch_closed():
     url = params.ARDUINO_LOCATION
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
-    try:
-        indata = curl_data_from_url(url, outfile)
-        data = json.loads(indata)
-    except Exception:
-        print('Error fetching hatch data')
-        return False
+    indata = curl_data_from_url(url, outfile)
+    data = json.loads(indata)
 
-    try:
-        closed = data['switch_d']
-        if closed:
+    if data['switch_d'] is True:
+        return True
+    else:
+        if params.IGNORE_HATCH:
+            print('Hatch is open but IGNORE_HATCH is true')
+            return True
+        elif status.emergency_shutdown:
+            print('Hatch is open during emergency shutdown!')
+            return False
+        elif status.mode != 'robotic':
+            print('Hatch is open but not in robotic mode')
             return True
         else:
-            if params.IGNORE_HATCH:
-                print('Hatch is open but IGNORE_HATCH is true')
-                return True
-            elif status.emergency_shutdown:
-                print('Hatch is open during emergency shutdown!')
-                return False
-            elif status.mode != 'robotic':
-                print('Hatch is open but not in robotic mode')
-                return True
-            else:
-                return False
-    except Exception:
-        print('Error parsing hatch status')
-        return False
+            return False
 
 
 def get_roomalert(source):
@@ -135,22 +121,37 @@ def get_roomalert(source):
     url = '10.2.6.5/getData.json'
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
-    weather_dict = {'update_time': -999,
-                    'dt': -999,
-                    'int_temperature': -999,
-                    'int_humidity': -999,
-                    }
-
+    indata = curl_data_from_url(url, outfile)
     try:
-        indata = curl_data_from_url(url, outfile)
-        if len(indata) < 3:
-            time.sleep(0.2)
-            indata = curl_data_from_url(url, outfile)
         data = json.loads(indata)
     except Exception:
-        print('Error fetching RoomAlert data')
-        return weather_dict
+        print('Error reading data for {}'.format(source))
+        print(indata)
+        raise
 
+    if source == 'dome':
+        sensor_data = data['sensor'][0]
+    elif source == 'pier':
+        sensor_data = data['sensor'][1]
+    else:
+        sources = ['dome', 'pier']
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
+
+    weather_dict = {}
+
+    # temperature
+    try:
+        weather_dict['int_temperature'] = float(sensor_data['tc'])
+    except Exception:
+        weather_dict['int_temperature'] = -999
+
+    # humidity
+    try:
+        weather_dict['int_humidity'] = float(sensor_data['h'])
+    except Exception:
+        weather_dict['int_humidity'] = -999
+
+    # time
     try:
         update_date = data['date'].split()[0].split('/')
         update_date = '20{}-{}-{}'.format(update_date[2],
@@ -161,151 +162,91 @@ def get_roomalert(source):
         weather_dict['update_time'] = Time(update, precision=0).iso
         dt = Time.now() - Time(update)
         weather_dict['dt'] = int(dt.to('second').value)
-
-        if source == 'dome':
-            sensor_data = data['sensor'][0]
-        elif source == 'pier':
-            sensor_data = data['sensor'][1]
-        else:
-            sources = ['dome', 'pier']
-            raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
-
-        int_temperature = float(sensor_data['tc'])
-        int_humidity = float(sensor_data['h'])
-
-        weather_dict['int_temperature'] = int_temperature
-        weather_dict['int_humidity'] = int_humidity
-
     except Exception:
-        print('Error parsing RoomAlert page')
-        traceback.print_exc()
+        weather_dict['update_time'] = -999
+        weather_dict['dt'] = -999
 
     return weather_dict
 
 
-def get_local_weather(source):
-    """Get the current weather from the Warwick stations."""
-    source = source.lower()
-    if source == 'goto':
-        json_file = 'goto-vaisala'
-        vaisala = True
-    elif source == 'w1m':
-        json_file = 'w1m-vaisala'
-        vaisala = True
-    elif source == 'superwasp':
-        json_file = 'superwasp-log'
-        vaisala = False
-    else:
-        sources = ['goto', 'w1m', 'superwasp']
-        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
+def get_vaisala(source):
+    """Get the current weather from the Warwick Vaisala weather stations."""
+    if source not in ['goto', 'w1m']:
+        raise ValueError('Invalid weather source "{}"'.format(source))
 
-    base_url = 'http://10.2.6.100/data/raw/'
-    url = base_url + json_file
-    filename = json_file + '.json'
-    outfile = os.path.join(params.FILE_PATH, filename)
+    url = 'http://10.2.6.100/data/raw/{}-vaisala'.format(source)
+    outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
-    try:
-        indata = curl_data_from_url(url, outfile)
-        if len(indata) < 2 or '500 Internal Server Error' in indata:
-            raise IOError
-    except Exception:
-        time.sleep(0.2)
-        try:
-            indata = curl_data_from_url(url, outfile)
-        except Exception:
-            print('Error fetching JSON for {}'.format(source))
+    indata = curl_data_from_url(url, outfile)
+    if len(indata) < 2 or '500 Internal Server Error' in indata:
+        raise IOError
 
     try:
         data = json.loads(indata)
     except Exception:
         print('Error reading data for {}'.format(source))
-        traceback.print_exc()
         print(indata)
+        raise
 
-    weather_dict = {'update_time': -999,
-                    'dt': -999,
-                    'rain': -999,
-                    'temperature': -999,
-                    'pressure': -999,
-                    'winddir': -999,
-                    'windspeed': -999,
-                    'humidity': -999,
-                    'skytemp': -999,
-                    'dew_point': -999,
-                    }
+    weather_dict = {}
 
+    # temperature
     try:
-        if vaisala and data['temperature_valid']:
-            weather_dict['temperature'] = float(data['temperature'])
-        elif not vaisala:
-            weather_dict['temperature'] = float(data['ext_temperature'])
+        assert data['temperature_valid']
+        weather_dict['temperature'] = float(data['temperature'])
     except Exception:
-        print('Error parsing temperature for {}'.format(source))
+        weather_dict['temperature'] = -999
 
+    # pressure
     try:
-        if (vaisala and data['pressure_valid']) or not vaisala:
-            weather_dict['pressure'] = float(data['pressure'])
+        assert data['pressure_valid']
+        weather_dict['pressure'] = float(data['pressure'])
     except Exception:
-        print('Error parsing pressure for {}'.format(source))
+        weather_dict['pressure'] = -999
 
+    # windspeed
     try:
-        if vaisala and data['wind_speed_valid']:
-            weather_dict['windspeed'] = float(data['wind_speed'])
-        elif not vaisala:
-            # SuperWASP wind readings aren't trustworthy
-            del weather_dict['windspeed']
+        assert data['wind_speed_valid']
+        weather_dict['windspeed'] = float(data['wind_speed'])
     except Exception:
-        print('Error parsing wind speed for {}'.format(source))
+        weather_dict['windspeed'] = -999
 
+    # winddir
     try:
-        if vaisala and data['wind_direction_valid']:
-            weather_dict['winddir'] = float(data['wind_direction'])
-        elif not vaisala:
-            # SuperWASP wind readings aren't trustworthy
-            del weather_dict['winddir']
+        assert data['wind_direction_valid']
+        weather_dict['winddir'] = float(data['wind_direction'])
     except Exception:
-        print('Error parsing wind direction for {}'.format(source))
+        weather_dict['winddir'] = -999
 
+    # humidity
     try:
-        if vaisala and data['relative_humidity_valid']:
-            weather_dict['humidity'] = float(data['relative_humidity'])
-        elif not vaisala:
-            weather_dict['humidity'] = float(data['ext_humidity'])
+        assert data['relative_humidity_valid']
+        weather_dict['humidity'] = float(data['relative_humidity'])
     except Exception:
-        print('Error parsing humidity for {}'.format(source))
+        weather_dict['humidity'] = -999
 
+    # rain
     try:
-        if vaisala and data['rain_intensity_valid']:
-            if float(data['rain_intensity']) > 0:
-                weather_dict['rain'] = True
-            else:
-                weather_dict['rain'] = False
-        elif not vaisala:
-            # SuperWASP doesn't have a rain sensor
-            del weather_dict['rain']
+        assert data['rain_intensity_valid']
+        weather_dict['rain'] = float(data['rain_intensity']) > 0
     except Exception:
-        print('Error parsing rain for {}'.format(source))
+        weather_dict['rain'] = -999
 
+    # dew point
     try:
-        if vaisala:
-            del weather_dict['skytemp']
-        else:
-            weather_dict['skytemp'] = float(data['sky_temp'])
+        assert data['dew_point_delta_valid']
+        weather_dict['dew_point'] = float(data['dew_point_delta'])
     except Exception:
-        print('Error parsing sky temp for {}'.format(source))
+        weather_dict['dew_point'] = -999
 
-    try:
-        if vaisala and data['dew_point_delta_valid'] or not vaisala:
-            weather_dict['dew_point'] = float(data['dew_point_delta'])
-    except Exception:
-        print('Error parsing dew point for {}'.format(source))
-
+    # time
     try:
         weather_dict['update_time'] = Time(data['date'], precision=0).iso
         dt = Time.now() - Time(data['date'])
         weather_dict['dt'] = int(dt.to('second').value)
     except Exception:
-        print('Error parsing update time for {}'.format(source))
+        weather_dict['update_time'] = -999
+        weather_dict['dt'] = -999
 
     return weather_dict
 
@@ -316,82 +257,69 @@ def get_ing_weather():
     outfile = os.path.join(params.FILE_PATH, 'weather.html')
     indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
 
-    weather_dict = {'update_time': -999,
-                    'dt': -999,
-                    'rain': -999,
-                    'temperature': -999,
-                    'pressure': -999,
-                    'winddir': -999,
-                    'windspeed': -999,
-                    'windgust': -999,
-                    'humidity': -999,
-                    }
+    weather_dict = {}
 
-    try:
-        for line in indata.split('\n'):
-            columns = misc.remove_html_tags(line).replace(':', ' ').split()
-            if not columns:
-                continue
+    for line in indata.split('\n'):
+        columns = misc.remove_html_tags(line).replace(':', ' ').split()
+        if not columns:
+            continue
 
-            if columns[0] == 'Temperature':
-                try:
-                    weather_dict['temperature'] = float(columns[1])
-                except Exception:
-                    print('Error parsing temperature for ing:', columns[1])
+        if columns[0] == 'Temperature':
+            try:
+                weather_dict['temperature'] = float(columns[1])
+            except Exception:
+                weather_dict['temperature'] = -999
 
-            elif columns[0] == 'Pressure':
-                try:
-                    weather_dict['pressure'] = float(columns[1])
-                except Exception:
-                    print('Error parsing pressure for ing:', columns[1])
+        elif columns[0] == 'Pressure':
+            try:
+                weather_dict['pressure'] = float(columns[1])
+            except Exception:
+                weather_dict['pressure'] = -999
 
-            elif columns[0] == 'Wind' and columns[1] == 'Speed':
-                try:
-                    weather_dict['windspeed'] = float(columns[2])
-                except Exception:
-                    print('Error parsing wind speed for ing:', columns[2])
+        elif columns[0] == 'Wind' and columns[1] == 'Speed':
+            try:
+                weather_dict['windspeed'] = float(columns[2])
+            except Exception:
+                weather_dict['windspeed'] = -999
 
-            elif columns[0] == 'Wind' and columns[1] == 'Direction':
-                try:
-                    weather_dict['winddir'] = str(columns[2])
-                except Exception:
-                    print('Error parsing wind direction for ing:', columns[2])
+        elif columns[0] == 'Wind' and columns[1] == 'Direction':
+            try:
+                weather_dict['winddir'] = str(columns[2])
+            except Exception:
+                weather_dict['winddir'] = -999
 
-            elif columns[0] == 'Wind' and columns[1] == 'Gust':
-                try:
-                    weather_dict['windgust'] = float(columns[2])
-                except Exception:
-                    print('Error parsing wind gust for ing:', columns[2])
+        elif columns[0] == 'Wind' and columns[1] == 'Gust':
+            try:
+                weather_dict['windgust'] = float(columns[2])
+            except Exception:
+                weather_dict['windgust'] = -999
 
-            elif columns[0] == 'Humidity':
-                try:
-                    weather_dict['humidity'] = float(columns[1])
-                except Exception:
-                    print('Error parsing humidity for ing:', columns[1])
+        elif columns[0] == 'Humidity':
+            try:
+                weather_dict['humidity'] = float(columns[1])
+            except Exception:
+                weather_dict['humidity'] = -999
 
-            elif columns[0] == 'Rain':
-                try:
-                    if columns[1] == 'DRY':
-                        weather_dict['rain'] = False
-                    elif columns[1] == 'WET':
-                        weather_dict['rain'] = True
-                except Exception:
-                    print('Error parsing rain for ing:', columns[1])
+        elif columns[0] == 'Rain':
+            try:
+                if columns[1] == 'DRY':
+                    weather_dict['rain'] = False
+                elif columns[1] == 'WET':
+                    weather_dict['rain'] = True
+            except Exception:
+                weather_dict['rain'] = -999
 
-            elif len(columns) == 4 and columns[3] == 'UT':
-                try:
-                    update_date = columns[0].replace('/', '-')
-                    update_time = '{}:{}'.format(columns[1], columns[2])
-                    update = '{} {}'.format(update_date, update_time)
-                    weather_dict['update_time'] = Time(update, precision=0).iso
-                    dt = Time.now() - Time(update)
-                    weather_dict['dt'] = int(dt.to('second').value)
-                except Exception:
-                    print('Error parsing update time for ing:', *columns)
-
-    except Exception:
-        print('Error parsing ing weather page')
-        traceback.print_exc()
+        elif len(columns) == 4 and columns[3] == 'UT':
+            try:
+                update_date = columns[0].replace('/', '-')
+                update_time = '{}:{}'.format(columns[1], columns[2])
+                update = '{} {}'.format(update_date, update_time)
+                weather_dict['update_time'] = Time(update, precision=0).iso
+                dt = Time.now() - Time(update)
+                weather_dict['dt'] = int(dt.to('second').value)
+            except Exception:
+                weather_dict['update_time'] = -999
+                weather_dict['dt'] = -999
 
     return weather_dict
 
@@ -493,78 +421,24 @@ def get_ing_internal_weather(source):
 
 
 def get_rain():
-    """Get rain readings from the 1m boards."""
+    """Get rain readings from the W1m boards."""
     rain_daemon_uri = 'PYRO:onemetre_rain_daemon@10.2.6.202:9017'
+    with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
+        rain_daemon._pyroSerializer = 'serpent'
+        info = rain_daemon.last_measurement()
 
-    rain_dict = {'update_time': -999,
-                 'dt': -999,
-                 'rain': -999,
-                 }
+    rain_dict = {}
 
-    try:
-        with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
-            rain_daemon._pyroSerializer = 'serpent'
-            info = rain_daemon.last_measurement()
+    rain_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - rain_dict['update_time']
+    rain_dict['dt'] = int(dt.to('second').value)
 
-        rain_dict['update_time'] = Time(info['date'])
-        dt = Time.now() - rain_dict['update_time']
-        rain_dict['dt'] = int(dt.to('second').value)
-
-        if info['unsafe_boards'] > 0:
-            rain_dict['rain'] = True
-        else:
-            rain_dict['rain'] = False
-
-    except Exception:
-        print('Error reading rain boards')
-        traceback.print_exc()
+    if info['unsafe_boards'] > 0:
+        rain_dict['rain'] = True
+    else:
+        rain_dict['rain'] = False
 
     return rain_dict
-
-
-def get_weather():
-    """Get the current weather conditions."""
-    weather = {}
-
-    # Get the weather from the local stations
-    # local_sources = ['goto', 'w1m', 'superwasp']  # The SuperWASP weather isn't reliable
-    local_sources = ['goto', 'w1m']
-    for source in local_sources:
-        try:
-            weather[source] = get_local_weather(source)
-        except Exception:
-            print('Error getting weather from "{}"'.format(source))
-            traceback.print_exc()
-
-    # Get the W1m rain boards reading
-    if params.USE_W1M_RAINBOARDS:
-        try:
-            rain_info = get_rain()
-            # Replace the local rain measurements
-            weather['w1m']['rain'] = rain_info['rain']
-            del weather['goto']['rain']
-        except Exception:
-            print('Error getting weather from "rain"')
-            traceback.print_exc()
-
-    # Get the weather fron the ING webpage as a backup
-    if params.USE_ING_WEATHER:
-        try:
-            weather['ing'] = get_ing_weather()
-        except Exception:
-            print('Error getting weather from "ing"')
-            traceback.print_exc()
-
-    # Get the internal conditions from the RoomAlert
-    internal_sources = ['pier']
-    for source in internal_sources:
-        try:
-            weather[source] = get_roomalert(source)
-        except Exception:
-            print('Error getting weather from "{}"'.format(source))
-            traceback.print_exc()
-
-    return weather
 
 
 def check_ping(url, count=3, timeout=10):
@@ -624,33 +498,20 @@ def get_tng_conditions():
     url = 'https://tngweb.tng.iac.es/api/meteo/weather'
     outfile = os.path.join(params.FILE_PATH, 'tng.json')
 
-    try:
-        indata = curl_data_from_url(url, outfile)
-        if len(indata) < 2 or '500 Internal Server Error' in indata:
-            raise IOError
-    except Exception:
-        time.sleep(0.2)
-        try:
-            indata = curl_data_from_url(url, outfile)
-        except Exception:
-            print('Error fetching JSON from TNG')
+    indata = curl_data_from_url(url, outfile)
+    if len(indata) < 2 or '500 Internal Server Error' in indata:
+        raise IOError
 
     try:
         data = json.loads(indata)
     except Exception:
         print('Error reading data from TNG')
-        traceback.print_exc()
         print(indata)
+        raise
 
-    weather_dict = {'seeing': -999,
-                    'seeing_error': -999,
-                    'seeing_update_time': -999,
-                    'seeing_dt': -999,
-                    'dust': -999,
-                    'dust_update_time': -999,
-                    'dust_dt': -999,
-                    }
+    weather_dict = {}
 
+    # seeing
     try:
         weather_dict['seeing'] = float(data['seeing']['median'])
         weather_dict['seeing_error'] = float(data['seeing']['stdev'])
@@ -658,14 +519,20 @@ def get_tng_conditions():
         dt = Time.now() - Time(weather_dict['seeing_update_time'])
         weather_dict['seeing_dt'] = int(dt.to('second').value)
     except Exception:
-        print('Error parsing seeing from TNG')
+        weather_dict['seeing'] = -999
+        weather_dict['seeing_error'] = -999
+        weather_dict['seeing_update_time'] = -999
+        weather_dict['seeing_dt'] = -999
 
+    # dust
     try:
         weather_dict['dust'] = float(data['dust']['value'])
         weather_dict['dust_update_time'] = Time(data['dust']['timestamp'], precision=0).iso
         dt = Time.now() - Time(weather_dict['dust_update_time'])
         weather_dict['dust_dt'] = int(dt.to('second').value)
     except Exception:
-        print('Error parsing dust level from TNG')
+        weather_dict['dust'] = -999
+        weather_dict['dust_update_time'] = -999
+        weather_dict['dust_dt'] = -999
 
     return weather_dict

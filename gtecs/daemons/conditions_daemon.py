@@ -105,15 +105,80 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the weather masts
         try:
+            weather = {}
+
+            # Get the weather from the local stations
+            for source in ['goto', 'w1m']:
+                try:
+                    weather_dict = conditions.get_vaisala(source)
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'temperature': -999,
+                                    'pressure': -999,
+                                    'windspeed': -999,
+                                    'winddir': -999,
+                                    'humidity': -999,
+                                    'rain': -999,
+                                    'dew_point': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather[source] = weather_dict
+
+            # Get the W1m rain boards reading
+            if params.USE_W1M_RAINBOARDS:
+                try:
+                    rain = conditions.get_rain()['rain']
+                except Exception:
+                    self.log.error('Error getting weather from "rain"')
+                    self.log.debug('', exc_info=True)
+                    rain = -999
+                # Replace the local rain measurements
+                weather['w1m']['rain'] = rain
+                del weather['goto']['rain']
+
+            # Get the weather from the ING webpage as a backup
+            if params.USE_ING_WEATHER:
+                try:
+                    weather_dict = conditions.get_ing_weather()
+                except Exception:
+                    self.log.error('Error getting weather from "ing"')
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'rain': -999,
+                                    'temperature': -999,
+                                    'pressure': -999,
+                                    'winddir': -999,
+                                    'windspeed': -999,
+                                    'windgust': -999,
+                                    'humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather['ing'] = weather_dict
+
+            # Get the internal conditions from the RoomAlert
+            for source in ['pier']:
+                try:
+                    weather_dict = conditions.get_roomalert(source)
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'int_temperature': -999,
+                                    'int_humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather[source] = weather_dict
+
             temp_info['weather'] = {}
-            weather = conditions.get_weather()
             for source in weather:
                 source_info = weather[source].copy()
 
                 # check if the weather timeout has been exceded
                 dt = source_info['dt']
                 if dt >= params.WEATHER_TIMEOUT or dt == -999:
-                    source_info = {key: -999 for key in weather[source]}
+                    source_info = {key: -999 for key in source_info}
 
                 # check if the weather hasn't changed for a certain time
                 source_info['changed_time'] = self.loop_time
@@ -122,7 +187,7 @@ class ConditionsDaemon(BaseDaemon):
                     unchanged = [source_info[key] == self.info['weather'][source][key]
                                  for key in source_info]
                     if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
-                        source_info = {key: -999 for key in weather[source]}
+                        source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
 
                 # Store a history of wind so we can get gusts
@@ -134,8 +199,8 @@ class ConditionsDaemon(BaseDaemon):
                 # remove old values
                 windhist = [h for h in windhist if h[0] > self.loop_time - params.WINDGUST_PERIOD]
                 # add new value
-                if 'windspeed' in weather[source]:
-                    windhist.append((self.loop_time, weather[source]['windspeed']))
+                if 'windspeed' in source_info:
+                    windhist.append((self.loop_time, source_info['windspeed']))
                 # store history and maximum (windgust)
                 source_info['windhist'] = windhist
                 if len(windhist) > 1:
