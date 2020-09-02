@@ -205,6 +205,8 @@ class ConditionsDaemon(BaseDaemon):
                 source_info['windhist'] = windhist
                 if len(windhist) > 1:
                     source_info['windgust'] = max(h[1] for h in windhist)
+                elif 'windspeed' in source_info:
+                    source_info['windgust'] = -999
 
                 temp_info['weather'][source] = source_info
         except Exception:
