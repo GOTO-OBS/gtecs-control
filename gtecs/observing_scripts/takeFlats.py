@@ -77,7 +77,8 @@ def run(eve, alt, late=False):
 
     # Ready to go
     # Find flat field target
-    skyflat = antisun_flat(Time.now())
+    now = Time.now()
+    skyflat = antisun_flat(now)
     print('Found target', skyflat)
 
     # Slew to target
@@ -87,7 +88,10 @@ def run(eve, alt, late=False):
     slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
     # Set exposure order and check for sky brightness
-    sky_mean_target = params.FLATS_SKYMEANTARGET
+    if int(now.mjd) % 2:
+        sky_mean_target = params.FLATS_SKYMEANTARGET_ODD
+    else:
+        sky_mean_target = params.FLATS_SKYMEANTARGET_EVEN
     nflats = params.FLATS_NUM
     if eve:
         start_exptime = 3.0
