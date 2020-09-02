@@ -299,10 +299,10 @@ def print_info(info):
 
         seeing = info['seeing']
         if seeing == -999:
-            seeing_str = 'N/A'
+            seeing_str = style.rtxt('ERR')
         else:
-            seeing_str = style.boldtxt('{:>3.1f}"'.format(seeing))
-        print('  {: <12}   {}'.format('seeing (TNG)', seeing_str))
+            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+        print('  {: <12}   {}"'.format('seeing (TNG)', seeing_str))
 
         print('OTHER:')
         ups_percents = info['ups_percent']
