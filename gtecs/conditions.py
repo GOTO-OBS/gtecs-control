@@ -26,34 +26,38 @@ from .hardware.power import APCUPS, FakeUPS
 warnings.simplefilter('error', ErfaWarning)
 
 
-def curl_data_from_url(url, outfile, encoding=None):
+def curl_data_from_url(url, outfile, timeout=5, encoding=None):
     """Fetch data from a URL, store it in a file and return the contents."""
-    wait_time = int(params.CURL_WAIT_TIME)
-    curl_command = 'curl -s -m {:.0f} -o {} {}'.format(wait_time, outfile, url)
-    p = subprocess.Popen(curl_command, shell=True, close_fds=True)
-    p.wait()
-    if encoding:
-        with open(outfile, 'r', encoding=encoding) as f:
-            data = f.read()
-    else:
-        with open(outfile, 'r') as f:
-            data = f.read()
+    try:
+        curl_command = 'curl -s -m {:.0f} -o {} {}'.format(timeout, outfile, url)
+        p = subprocess.Popen(curl_command, shell=True, close_fds=True)
+        p.wait()
+    except Exception:
+        pass
+
+    with open(outfile, 'r', encoding=encoding) as f:
+        data = f.read()
 
     return data
 
 
-def download_data_from_url(url, outfile, timeout=2, encoding='utf-8', verify=True):
+def download_data_from_url(url, outfile, timeout=5, encoding='utf-8', verify=True):
     """Fetch data from a URL, store it in a file and return the contents."""
     if not verify:
         context = ssl._create_unverified_context()
     else:
         context = None
 
-    with urllib.request.urlopen(url, timeout=timeout, context=context) as r:
-        data = r.read().decode(encoding)
+    try:
+        with urllib.request.urlopen(url, timeout=timeout, context=context) as r:
+            data = r.read().decode(encoding)
+        with open(outfile, 'w', encoding=encoding) as f:
+            f.write(data)
+    except Exception:
+        pass
 
-    with open(outfile, 'w') as f:
-        f.write(data)
+    with open(outfile, 'r', encoding=encoding) as f:
+        data = f.read()
     return data
 
 
@@ -97,7 +101,7 @@ def hatch_closed():
     url = params.ARDUINO_LOCATION
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
-    indata = curl_data_from_url(url, outfile)
+    indata = download_data_from_url(url, outfile)
     data = json.loads(indata)
 
     if data['switch_d'] is True:
@@ -121,7 +125,7 @@ def get_roomalert(source):
     url = '10.2.6.5/getData.json'
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
-    indata = curl_data_from_url(url, outfile)
+    indata = download_data_from_url(url, outfile)
     try:
         data = json.loads(indata)
     except Exception:
@@ -177,7 +181,7 @@ def get_vaisala(source):
     url = 'http://10.2.6.100/data/raw/{}-vaisala'.format(source)
     outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
-    indata = curl_data_from_url(url, outfile)
+    indata = download_data_from_url(url, outfile)
     if len(indata) < 2 or '500 Internal Server Error' in indata:
         raise IOError
 
@@ -255,7 +259,7 @@ def get_ing_weather():
     """Get the current weather from the ING weather page (JKT mast)."""
     url = 'http://catserver.ing.iac.es/weather/'
     outfile = os.path.join(params.FILE_PATH, 'weather.html')
-    indata = curl_data_from_url(url, outfile, encoding='ISO-8859-1')
+    indata = download_data_from_url(url, outfile, encoding='ISO-8859-1')
 
     weather_dict = {}
 
@@ -337,7 +341,7 @@ def get_ing_internal_weather(source):
         raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
 
     outfile = os.path.join(params.FILE_PATH, 'weather.xml')
-    indata = curl_data_from_url(url, outfile)
+    indata = download_data_from_url(url, outfile)
 
     weather_dict = {'update_time': -999,
                     'dt': -999,
@@ -498,7 +502,7 @@ def get_tng_conditions():
     url = 'https://tngweb.tng.iac.es/api/meteo/weather'
     outfile = os.path.join(params.FILE_PATH, 'tng.json')
 
-    indata = curl_data_from_url(url, outfile)
+    indata = download_data_from_url(url, outfile, verify=False)
     if len(indata) < 2 or '500 Internal Server Error' in indata:
         raise IOError
 
