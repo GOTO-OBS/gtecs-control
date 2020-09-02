@@ -266,7 +266,37 @@ def print_info(info):
                 int_temperature_str, int_humidity_str, dt_str)
             print(weather_str)
 
-        dust = info['dust']
+        print('CONDITIONS:')
+
+        seeing = info['robodimm']['seeing']
+        dt = info['robodimm']['dt']
+        if seeing == -999:
+            seeing_str = style.rtxt('ERR')
+        else:
+            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+        if dt == -999:
+            dt_str = style.rtxt('ERR')
+        elif dt > params.SEEING_TIMEOUT:
+            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+        else:
+            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+        print('  seeing (ing)   {}"           dt={}'.format(seeing_str, dt_str))
+
+        seeing = info['tng']['seeing']
+        dt = info['tng']['seeing_dt']
+        if seeing == -999:
+            seeing_str = style.rtxt('ERR')
+        else:
+            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+        if dt == -999:
+            dt_str = style.rtxt('ERR')
+        elif dt > params.SEEING_TIMEOUT:
+            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+        else:
+            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+        print('  seeing (tng)   {}"           dt={}'.format(seeing_str, dt_str))
+
+        dust = info['tng']['dust']
         if dust == -999:
             dust_str = style.rtxt('  ERR')
         elif dust < params.MAX_DUSTLEVEL:
@@ -275,7 +305,14 @@ def print_info(info):
                 dust_str = style.gtxt('{:>5.1f}'.format(dust))
         else:
             dust_str = style.rtxt('{:>5.1f}'.format(dust))
-        print('  {: <10}   {} μg/m³'.format('dust_level', dust_str))
+        dt = info['tng']['dust_dt']
+        if dt == -999:
+            dt_str = style.rtxt('ERR')
+        elif dt > params.DUSTLEVEL_TIMEOUT:
+            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+        else:
+            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+        print('  dust (tng)   {} μg/m³      dt={}'.format(dust_str, dt_str))
 
         clouds = info['clouds']
         if clouds == -999:
@@ -296,13 +333,6 @@ def print_info(info):
         else:
             sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
         print('  {: <10}   {}°'.format('sunalt', sunalt_str))
-
-        seeing = info['seeing']
-        if seeing == -999:
-            seeing_str = style.rtxt('ERR')
-        else:
-            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
-        print('  {: <12}   {}"'.format('seeing (TNG)', seeing_str))
 
         print('OTHER:')
         ups_percents = info['ups_percent']

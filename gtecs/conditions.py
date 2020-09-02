@@ -255,7 +255,87 @@ def get_vaisala(source):
     return weather_dict
 
 
-def get_ing_weather():
+def get_tng():
+    """Get the seeing and dust level from the TNG."""
+    url = 'https://tngweb.tng.iac.es/api/meteo/weather'
+    outfile = os.path.join(params.FILE_PATH, 'tng.json')
+
+    indata = download_data_from_url(url, outfile, verify=False)
+    if len(indata) < 2 or '500 Internal Server Error' in indata:
+        raise IOError
+
+    try:
+        data = json.loads(indata)
+    except Exception:
+        print('Error reading data from TNG')
+        print(indata)
+        raise
+
+    weather_dict = {}
+
+    # seeing
+    try:
+        weather_dict['seeing'] = float(data['seeing']['median'])
+        weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+        weather_dict['seeing_update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['seeing_update_time'])
+        weather_dict['seeing_dt'] = int(dt.to('second').value)
+    except Exception:
+        weather_dict['seeing'] = -999
+        weather_dict['seeing_error'] = -999
+        weather_dict['seeing_update_time'] = -999
+        weather_dict['seeing_dt'] = -999
+
+    # dust
+    try:
+        weather_dict['dust'] = float(data['dust']['value'])
+        weather_dict['dust_update_time'] = Time(data['dust']['timestamp'], precision=0).iso
+        dt = Time.now() - Time(weather_dict['dust_update_time'])
+        weather_dict['dust_dt'] = int(dt.to('second').value)
+    except Exception:
+        weather_dict['dust'] = -999
+        weather_dict['dust_update_time'] = -999
+        weather_dict['dust_dt'] = -999
+
+    return weather_dict
+
+
+def get_robodimm():
+    """Get the current readings from the ING RoboDIMM."""
+    url = 'http://catserver.ing.iac.es/robodimm/robodimm.php'
+    outfile = os.path.join(params.FILE_PATH, 'dimm.php')
+    indata = download_data_from_url(url, outfile)
+
+    indata = indata.replace('>', '>\n').split('\n')
+    data = indata[-3].split()
+
+    weather_dict = {}
+
+    # seeing
+    try:
+        # seeing is estimated as the average of the three smallest values,
+        # matching the NOT weather pages
+        # (from https://github.com/warwick-one-metre/robodimmd/blob/master/robodimmd)
+        samples = sorted(float(s) for s in data[10:14])
+        weather_dict['seeing'] = round((samples[0] + samples[1] + samples[2]) / 3, 2)
+    except Exception:
+        weather_dict['seeing'] = -999
+
+    # time
+    try:
+        datestr = data[1] + ' ' + data[2][:-3]
+        date = Time.strptime(datestr, '%Y-%m-%d %H:%M:%S')
+        weather_dict['update_time'] = date.iso
+        dt = Time.now() - date
+        weather_dict['dt'] = int(dt.to('second').value)
+    except Exception:
+        weather_dict['update_time'] = -999
+        weather_dict['dt'] = -999
+
+    return weather_dict
+
+
+def get_ing():
     """Get the current weather from the ING weather page (JKT mast)."""
     url = 'http://catserver.ing.iac.es/weather/'
     outfile = os.path.join(params.FILE_PATH, 'weather.html')
@@ -328,7 +408,7 @@ def get_ing_weather():
     return weather_dict
 
 
-def get_ing_internal_weather(source):
+def get_ing_internal(source):
     """Get the current weather from the internal ING xml weather file."""
     if source == 'wht':
         url = 'http://whtmetsystem.ing.iac.es/WeatherXMLData/LocalData.xml'
@@ -495,48 +575,3 @@ def get_satellite_clouds():
     # Measure the median pixel value, and scale by the pixel range (0-255)
     median = np.median(img_av) / 255
     return median
-
-
-def get_tng_conditions():
-    """Get the seeing and dust level from the TNG."""
-    url = 'https://tngweb.tng.iac.es/api/meteo/weather'
-    outfile = os.path.join(params.FILE_PATH, 'tng.json')
-
-    indata = download_data_from_url(url, outfile, verify=False)
-    if len(indata) < 2 or '500 Internal Server Error' in indata:
-        raise IOError
-
-    try:
-        data = json.loads(indata)
-    except Exception:
-        print('Error reading data from TNG')
-        print(indata)
-        raise
-
-    weather_dict = {}
-
-    # seeing
-    try:
-        weather_dict['seeing'] = float(data['seeing']['median'])
-        weather_dict['seeing_error'] = float(data['seeing']['stdev'])
-        weather_dict['seeing_update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
-        dt = Time.now() - Time(weather_dict['seeing_update_time'])
-        weather_dict['seeing_dt'] = int(dt.to('second').value)
-    except Exception:
-        weather_dict['seeing'] = -999
-        weather_dict['seeing_error'] = -999
-        weather_dict['seeing_update_time'] = -999
-        weather_dict['seeing_dt'] = -999
-
-    # dust
-    try:
-        weather_dict['dust'] = float(data['dust']['value'])
-        weather_dict['dust_update_time'] = Time(data['dust']['timestamp'], precision=0).iso
-        dt = Time.now() - Time(weather_dict['dust_update_time'])
-        weather_dict['dust_dt'] = int(dt.to('second').value)
-    except Exception:
-        weather_dict['dust'] = -999
-        weather_dict['dust_update_time'] = -999
-        weather_dict['dust_dt'] = -999
-
-    return weather_dict

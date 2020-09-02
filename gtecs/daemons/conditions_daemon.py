@@ -141,7 +141,7 @@ class ConditionsDaemon(BaseDaemon):
             # Get the weather from the ING webpage as a backup
             if params.USE_ING_WEATHER:
                 try:
-                    weather_dict = conditions.get_ing_weather()
+                    weather_dict = conditions.get_ing()
                 except Exception:
                     self.log.error('Error getting weather from "ing"')
                     self.log.debug('', exc_info=True)
@@ -214,6 +214,38 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['weather'] = None
 
+        # Get seeing and dust from the TNG webpage
+        try:
+            tng_dict = conditions.get_tng()
+            # check if the timeouts have been exceded
+            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
+                tng_dict['seeing'] = -999
+            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
+                tng_dict['dust'] = -999
+        except Exception:
+            self.log.error('Failed to get TNG info')
+            self.log.debug('', exc_info=True)
+            tng_dict = {'seeing': -999,
+                        'seeing_dt': -999,
+                        'dust': -999,
+                        'dust_dt': -999,
+                        }
+        temp_info['tng'] = tng_dict
+
+        # Get seeing from the ING RoboDIMM
+        try:
+            dimm_dict = conditions.get_robodimm()
+            # check if the timeout has been exceded
+            if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
+                dimm_dict['seeing'] = -999
+        except Exception:
+            self.log.error('Failed to get DIMM info')
+            self.log.debug('', exc_info=True)
+            dimm_dict = {'seeing': -999,
+                         'dt': -999,
+                         }
+        temp_info['robodimm'] = dimm_dict
+
         # Get info from the UPSs
         try:
             ups_percent, ups_status = conditions.get_ups()
@@ -260,27 +292,6 @@ class ConditionsDaemon(BaseDaemon):
             self.log.error('Failed to get satellite clouds info')
             self.log.debug('', exc_info=True)
             temp_info['clouds'] = -999
-
-        # Get seeing and dust from the TNG webpage
-        # (note we don't have limits on seeing, it's just useful infomation)
-        try:
-            tng_dict = conditions.get_tng_conditions()
-
-            # check if the timeouts have been exceded
-            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
-                temp_info['seeing'] = -999
-            else:
-                temp_info['seeing'] = tng_dict['seeing']
-            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
-                temp_info['dust'] = -999
-            else:
-                temp_info['dust'] = tng_dict['dust']
-
-        except Exception:
-            self.log.error('Failed to get TNG info')
-            self.log.debug('', exc_info=True)
-            temp_info['seeing'] = -999
-            temp_info['dust'] = -999
 
         # Get current sun alt
         try:
@@ -375,7 +386,7 @@ class ConditionsDaemon(BaseDaemon):
         clouds = clouds[clouds != -999]
 
         # Dust
-        dust = np.array(self.info['dust'])
+        dust = np.array(self.info['tng']['dust'])
         dust = dust[dust != -999]
 
         # Sunalt
@@ -446,6 +457,12 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 
+        # dust flag
+        good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
+        valid['dust'] = len(dust) >= 1
+        good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
+        bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
+
         # ups flag
         good['ups'] = (np.all(ups_percent > params.MIN_UPSBATTERY) and
                        np.all(ups_status == 1))
@@ -476,12 +493,6 @@ class ConditionsDaemon(BaseDaemon):
         valid['clouds'] = len(clouds) >= 1
         good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
-
-        # dust flag
-        good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
-        valid['dust'] = len(dust) >= 1
-        good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
-        bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
