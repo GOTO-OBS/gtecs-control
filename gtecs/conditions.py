@@ -105,7 +105,7 @@ def hatch_closed():
     indata = download_data_from_url(url, outfile)
     data = json.loads(indata)
 
-    if data['switch_d'] is True:
+    if data['switch_d'] == 1:
         return True
     else:
         if params.IGNORE_HATCH:
