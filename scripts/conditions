@@ -214,9 +214,9 @@ def print_info(info):
             if dt == -999:
                 dt_str = style.rtxt('ERR')
             elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:>3.0f}'.format(dt))
+                dt_str = style.rtxt('{:.0f}'.format(dt))
             else:
-                dt_str = style.gtxt('{:>3.0f}'.format(dt))
+                dt_str = style.gtxt('{:.0f}'.format(dt))
 
             print('  {: <10}'.format(source), end='\t')
             weather_str = '{}°C  {}%  {}°C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
@@ -257,9 +257,9 @@ def print_info(info):
             if dt == -999:
                 dt_str = style.rtxt('ERR')
             elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:>3.0f}'.format(dt))
+                dt_str = style.rtxt('{:.0f}'.format(dt))
             else:
-                dt_str = style.gtxt('{:>3.0f}'.format(dt))
+                dt_str = style.gtxt('{:.0f}'.format(dt))
 
             print('  {: <10}'.format(source + '_int'), end='\t')
             weather_str = '{}°C  {}%                                    dt={}'.format(
@@ -277,9 +277,9 @@ def print_info(info):
         if dt == -999:
             dt_str = style.rtxt('ERR')
         elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+            dt_str = style.rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+            dt_str = style.gtxt('{:.0f}'.format(dt))
         print('  seeing (ing)   {}"           dt={}'.format(seeing_str, dt_str))
 
         seeing = info['tng']['seeing']
@@ -291,9 +291,9 @@ def print_info(info):
         if dt == -999:
             dt_str = style.rtxt('ERR')
         elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+            dt_str = style.rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+            dt_str = style.gtxt('{:.0f}'.format(dt))
         print('  seeing (tng)   {}"           dt={}'.format(seeing_str, dt_str))
 
         dust = info['tng']['dust']
@@ -309,9 +309,9 @@ def print_info(info):
         if dt == -999:
             dt_str = style.rtxt('ERR')
         elif dt > params.DUSTLEVEL_TIMEOUT:
-            dt_str = style.rtxt('{:>3.0f}'.format(dt))
+            dt_str = style.rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:>3.0f}'.format(dt))
+            dt_str = style.gtxt('{:.0f}'.format(dt))
         print('  dust (tng)   {} μg/m³      dt={}'.format(dust_str, dt_str))
 
         clouds = info['clouds']
