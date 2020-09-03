@@ -99,7 +99,7 @@ def get_ups():
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
     status = Status()
-    url = params.ARDUINO_LOCATION
+    url = 'http://' + params.ARDUINO_LOCATION
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
     indata = download_data_from_url(url, outfile)
@@ -123,7 +123,7 @@ def hatch_closed():
 
 def get_roomalert(source):
     """Get internal dome temperature and humidity from GOTO RoomAlert system."""
-    url = '10.2.6.5/getData.json'
+    url = 'http://10.2.6.5/getData.json'
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
     indata = download_data_from_url(url, outfile)
