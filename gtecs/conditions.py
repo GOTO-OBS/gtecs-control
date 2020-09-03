@@ -1,5 +1,6 @@
 """Conditions monitor functions."""
 
+import datetime
 import json
 import os
 import ssl
@@ -323,8 +324,10 @@ def get_robodimm():
 
     # time
     try:
-        datestr = data[1] + ' ' + data[2][:-3]
-        date = Time.strptime(datestr, '%Y-%m-%d %H:%M:%S')
+        datestr = data[1] + ' ' + data[2] + '00'
+        utc = datetime.timezone.utc
+        date = datetime.datetime.strptime(datestr, '%Y-%m-%d %H:%M:%S%z').astimezone(utc)
+        date = Time(date)
         weather_dict['update_time'] = date.iso
         dt = Time.now() - date
         weather_dict['dt'] = int(dt.to('second').value)
