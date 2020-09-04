@@ -742,8 +742,9 @@ class MntMonitor(BaseMonitor):
             if 'sitech' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
-                recovery_procedure[1] = ['power off mount_nuc', 10]
-                recovery_procedure[2] = ['power on mount_nuc', 180]
+                #             NB: This was considered a bad idea, so has been removed.
+                # recovery_procedure[1] = ['power off mount_nuc', 10]
+                # recovery_procedure[2] = ['power on mount_nuc', 180]
                 # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
                 return ERROR_HARDWARE + 'sitech', recovery_procedure
             else:
@@ -794,13 +795,11 @@ class MntMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
-            # SOLUTION 2: Maybe there's a problem with the mount.
-            recovery_procedure[2] = ['power off mount_nuc', 10]
-            recovery_procedure[3] = ['power off sitech', 10]
-            recovery_procedure[4] = ['power on sitech', 60]
-            recovery_procedure[5] = ['power on mount_nuc', 180]
+            # SOLUTION 2: Maybe there's a problem with SiTech.
+            recovery_procedure[2] = ['power off sitech', 10]
+            recovery_procedure[3] = ['power on sitech', 60]
             # SOLUTION 3: Restart the daemon.
-            recovery_procedure[6] = ['mnt restart', 10]
+            recovery_procedure[4] = ['mnt restart', 10]
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
 
