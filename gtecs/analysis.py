@@ -28,10 +28,10 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
 
     Returns
     -------
-    median : float
-        median HFD value
-    std : float
-        standard deviation of HFD measurements
+    objects : list
+        objects extracted by sep
+    data : array
+        cropped and background-subtracted data
 
     """
     # Slice the data
@@ -58,7 +58,7 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
     objects = sep.extract(data, threshold, background.globalrms,
                           filter_kernel=kernel.array, clean=True)
 
-    return objects
+    return objects, data
 
 
 def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=None, verbose=True):
@@ -83,7 +83,7 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=N
 
     """
     # Extract sources
-    objects = extract_image_sources(data, filter_width, threshold, xslice, yslice)
+    objects, data = extract_image_sources(data, filter_width, threshold, xslice, yslice)
 
     # Calculate FWHMs
     fwhms = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
@@ -122,7 +122,7 @@ def measure_image_hfd(data, filter_width=15, threshold=5, xslice=None, yslice=No
 
     """
     # Extract sources
-    objects = extract_image_sources(data, filter_width, threshold, xslice, yslice)
+    objects, data = extract_image_sources(data, filter_width, threshold, xslice, yslice)
 
     # Measure Half-Flux Radius to find HFDs
     hfrs, flags = sep.flux_radius(data, objects['x'], objects['y'],
