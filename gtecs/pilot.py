@@ -517,17 +517,18 @@ class Pilot(object):
 
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
-                 'sunalt': 9.5,
+                 'sunalt': 6,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': LoggedProtocol}
-        xdarks = {'name': 'XDARKS',
-                  'sunalt': 1,
-                  'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
-                  'args': [],
-                  'protocol': LoggedProtocol}
+        # xdarks = {'name': 'XDARKS',
+        #           'sunalt': 1,
+        #           'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
+        #           'args': [],
+        #           'protocol': LoggedProtocol}
 
-        self.daytime_tasks = [darks, xdarks]
+        # self.daytime_tasks = [darks, xdarks]
+        self.daytime_tasks = [darks]
 
         # open
         self.open_sunalt = -4
