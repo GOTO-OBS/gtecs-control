@@ -191,7 +191,7 @@ class BaseMonitor(ABC):
     def add_error(self, error, delay=0, critical=False):
         """Add the error to self.errors if it's not already there.
 
-        If a delay if given only add the error after thant many seconds.
+        If a delay if given only add the error after that many seconds.
 
         If critical=True it will overwrite self.errors with just this error.
         """
@@ -1083,7 +1083,7 @@ class OTAMonitor(BaseMonitor):
         # ERROR_OTA_NOTCLOSED
         # Set the error if the mirror covers should be closed and they're not
         if self.mode == MODE_OTA_CLOSED and self.hardware_status != STATUS_OTA_CLOSED:
-            self.add_error(ERROR_OTA_NOTCLOSED, delay=30)
+            self.add_error(ERROR_OTA_NOTCLOSED, delay=60)
         # Clear the error if the covers are closed or they shouldn't be
         if self.mode != MODE_OTA_CLOSED or self.hardware_status == STATUS_OTA_CLOSED:
             self.clear_error(ERROR_OTA_NOTCLOSED)
@@ -1091,7 +1091,7 @@ class OTAMonitor(BaseMonitor):
         # ERROR_OTA_NOTFULLOPEN
         # Set the error if the mirror covers should be open and they're not
         if self.mode == MODE_OTA_OPEN and self.hardware_status != STATUS_OTA_FULLOPEN:
-            self.add_error(ERROR_OTA_NOTFULLOPEN, delay=30)
+            self.add_error(ERROR_OTA_NOTFULLOPEN, delay=60)
         # Clear the error if the covers are open or they shouldn't be
         if self.mode != MODE_OTA_OPEN or self.hardware_status == STATUS_OTA_FULLOPEN:
             self.clear_error(ERROR_OTA_NOTFULLOPEN)
