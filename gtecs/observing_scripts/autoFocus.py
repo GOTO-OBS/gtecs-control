@@ -370,9 +370,9 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
 
     print('Taking {} focus measurements...'.format(num_exp))
     foc_data = measure_focus(num_exp, exptime, filt, target_name, active_uts)
-    bf_hfds = foc_data['hfd']
+    final_hfds = foc_data['hfd']
     if num_exp > 1:
-        print('Best HFDs:', nf_hfds.round(1).to_dict())
+        print('Best HFDs:', final_hfds.round(1).to_dict())
 
     print('Focus data at best focus position:\n', foc_data.round(1))
 
@@ -381,12 +381,12 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     print('Initial positions:', initial_positions)
     print('Best focus positions:', current_positions)
     print('Initial HFDs:', initial_hfds.round(1).to_dict())
-    print('Final HFDs:  ', bf_hfds.round(1).to_dict())
-    if np.any(bf_hfds > initial_hfds + 1):
+    print('Final HFDs:  ', final_hfds.round(1).to_dict())
+    if np.any(final_hfds > initial_hfds + 1):
         print('Final focus values are worse than initial values')
 
-        mask = bf_hfds > initial_hfds + 1
-        bad_uts = sorted(bf_hfds.index[mask])
+        mask = final_hfds > initial_hfds + 1
+        bad_uts = sorted(final_hfds.index[mask])
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
 
         # Remove bad UTs from the main list
@@ -401,8 +401,23 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Moving focusers back to initial positions...')
         new_positions = {ut: initial_positions[ut] for ut in bad_uts}
         set_focuser_positions(new_positions, timeout=60)
-        current_positions = get_focuser_positions(bad_uts)
+        current_positions = get_focuser_positions()
         print('New positions:', current_positions)
+
+        # Take final measurements again
+        print('Taking {} focus measurements...'.format(num_exp))
+        foc_data = measure_focus(num_exp, exptime, filt, target_name, uts)
+        final_hfds = foc_data['hfd']
+        if num_exp > 1:
+            print('Best HFDs:', final_hfds.round(1).to_dict())
+
+        print('Focus data at best focus position:\n', foc_data.round(1))
+
+        print('~~~~~~')
+        print('Initial positions:', initial_positions)
+        print('Final positions:', current_positions)
+        print('Initial HFDs:', initial_hfds.round(1).to_dict())
+        print('Final HFDs:  ', final_hfds.round(1).to_dict())
 
     if params.FOCUS_SLACK_REPORTS:
         # Send Slack report
@@ -410,7 +425,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Sending best focus measurements to Slack...')
         from gtecs.slack import send_slack_msg
         s = '*Autofocus results*\n'
-        s += 'Focus data at best position:\n'
+        s += 'Focus data at final position:\n'
         s += '```' + repr(foc_data.round(1)) + '```\n'
         if len(bad_uts) > 0:
             s += 'Focusing failed for UTs: {}'.format(','.join([str(ut) for ut in bad_uts]))
