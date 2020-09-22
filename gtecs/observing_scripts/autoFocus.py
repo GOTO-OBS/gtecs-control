@@ -304,14 +304,24 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     # We're on the curve, so we can estimate the focuser positions for given HFDs.
     # Keep reducing the target HFDs while we are greater than twice the near-focus HFD value.
     # Note we only move the focusers that need it, by masking.
+    # Also we limit the number of attempts, so if one gets stuck it doesn't go on forever.
     print('~~~~~~')
     print('Moving towards near-focus position...')
     hfds = in_hfds
+    attempts = 3
     while np.any(hfds > 2 * nfv):
         mask = hfds > 2 * nfv
         moving_uts = sorted(hfds.index[mask])
         moving_uts = [ut for ut in active_uts if ut in moving_uts]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
+
+        if attempts <= 0:
+            print('Number of attempts exceded')
+            # Remove bad UTs from the main list
+            active_uts = sorted(ut for ut in active_uts if ut not in moving_uts)
+            break
+        else:
+            attempts -= 1
 
         print('Moving focusers in...')
         target_hfds = (hfds / 4).where(mask, hfds)
