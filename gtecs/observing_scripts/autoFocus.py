@@ -202,6 +202,19 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     if num_exp > 1:
         print('Best HFDs:', initial_hfds.round(1).to_dict())
 
+    # The focusers should be reasonably close to best focus.
+    # If they are super far out then this method isn't going to work.
+    if np.any(initial_hfds > 5 * nfv):
+        print('~~~~~~')
+        print('Focusers are already too far from best focus')
+
+        mask = initial_hfds > 5 * nfv
+        bad_uts = sorted(initial_hfds.index[mask])
+        print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
+
+        # Remove bad UTs from the main list
+        active_uts = sorted(ut for ut in active_uts if ut not in bad_uts)
+
     # Move to the positive side of the best focus position and measure HFD.
     # Assume the starting value is close to best, and a big step should be far enough out.
     print('~~~~~~')
