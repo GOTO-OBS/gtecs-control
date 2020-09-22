@@ -202,6 +202,18 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     if num_exp > 1:
         print('Best HFDs:', initial_hfds.round(1).to_dict())
 
+    # First a simple sanity check that we're getting any measurements
+    if np.any(np.isnan(initial_hfds)):
+        print('~~~~~~')
+        print('Unable to measure image HFDs')
+
+        mask = np.isnan(initial_hfds)
+        bad_uts = sorted(initial_hfds.index[mask])
+        print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
+
+        # Remove bad UTs from the main list
+        active_uts = sorted(ut for ut in active_uts if ut not in bad_uts)
+
     # The focusers should be reasonably close to best focus.
     # If they are super far out then this method isn't going to work.
     if np.any(initial_hfds > 5 * nfv):
