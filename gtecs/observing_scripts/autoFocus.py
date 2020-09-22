@@ -136,9 +136,14 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         hfds = np.array(hfd_arrs[ut])
         stds = np.array(hfd_std_arrs[ut])
 
-        min_i = np.where(hfds == np.nanmin(hfds))[0][0]
-        best_hfd[ut] = hfds[min_i]
-        best_hfd_std[ut] = stds[min_i]
+        try:
+            min_i = np.where(hfds == np.nanmin(hfds))[0][0]
+            best_hfd[ut] = hfds[min_i]
+            best_hfd_std[ut] = stds[min_i]
+        except IndexError:
+            # This UT had no non-NaN measurements
+            best_hfd[ut] = np.nan
+            best_hfd_std[ut] = np.nan
 
     data = {'pos': pd.Series(get_focuser_positions()),
             'hfd': pd.Series(best_hfd),
