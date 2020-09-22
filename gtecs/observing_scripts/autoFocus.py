@@ -286,15 +286,15 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     if num_exp > 1:
         print('Best HFDs:', in_hfds.round(1).to_dict())
 
-    # The HDFs should have all decreased.
+    # The HFDs should have all decreased.
     # If they haven't we can't continue, because we might not be on the correct side.
-    if np.any(in_hfds > out_hfds):
+    if np.any(in_hfds > out_hfds - 1):
         print('~~~~~~')
         print('Can not be sure we are on the correct side of best focus')
         print('Far out HFDs:', out_hfds.round(1).to_dict())
         print('Back in HFDs:', in_hfds.round(1).to_dict())
 
-        mask = in_hfds > out_hfds
+        mask = in_hfds > out_hfds - 1
         bad_uts = sorted(in_hfds.index[mask])
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
 
