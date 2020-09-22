@@ -472,9 +472,7 @@ if __name__ == '__main__':
     no_slew = args.no_slew
 
     # Get the autofocus parameters
-    # TODO: Could have param keys linked to OTA serial number, not UT number?
-    #       Would probably need a conversion dict
-    uts = sorted(params.AUTOFOCUS_PARAMS.keys())
+    uts = sorted(set(params.UTS_WITH_FOCUSERS).intersection(params.AUTOFOCUS_PARAMS.keys()))
     big_step = {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in uts}
     small_step = {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in uts}
     nfv = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts})
