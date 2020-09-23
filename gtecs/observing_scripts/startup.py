@@ -78,10 +78,10 @@ def run():
     execute_command('filt info')
 
     # Set the focusers
-    execute_command('foc move 1')
-    time.sleep(1)
-    execute_command('foc move -1')
-    time.sleep(1)
+    execute_command('foc move 10')
+    time.sleep(2)
+    execute_command('foc move -10')
+    time.sleep(2)
     execute_command('foc info')
 
     # Bring the CCDs down to temperature

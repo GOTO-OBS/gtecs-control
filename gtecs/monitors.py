@@ -1369,10 +1369,10 @@ class FocMonitor(BaseMonitor):
         elif ERROR_FOC_UNSET in self.errors:
             # PROBLEM: The focusers haven't been moved (need to activate auto-correction in ASAs).
             recovery_procedure = {}
-            # SOLUTION 1: Try moving them by a single step.
-            recovery_procedure[1] = ['foc move 1', 10]
+            # SOLUTION 1: Try moving them just a little.
+            recovery_procedure[1] = ['foc move 10', 10]
             # SOLUTION 2: Odd. Try moving them back.
-            recovery_procedure[2] = ['foc move -1', 10]
+            recovery_procedure[2] = ['foc move -10', 10]
             # OUT OF SOLUTIONS: Must be a hardware issue.
             return ERROR_FOC_UNSET, recovery_procedure
 

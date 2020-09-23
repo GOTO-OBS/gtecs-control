@@ -97,9 +97,9 @@ def prepare_for_images(open_covers=True):
     # Set the focusers
     if not focusers_are_set():
         print('Setting focusers')
-        execute_command('foc move 1')
-        time.sleep(0.5)
-        execute_command('foc move -1')
+        execute_command('foc move 10')
+        time.sleep(2)
+        execute_command('foc move -10')
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
