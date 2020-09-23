@@ -152,7 +152,6 @@ INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
 ############################################################
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
-CURL_WAIT_TIME = config['CURL_WAIT_TIME']
 
 USE_ING_WEATHER = config['USE_ING_WEATHER']
 USE_W1M_RAINBOARDS = config['USE_W1M_RAINBOARDS']

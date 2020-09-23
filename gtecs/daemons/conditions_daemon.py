@@ -105,15 +105,80 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the weather masts
         try:
+            weather = {}
+
+            # Get the weather from the local stations
+            for source in ['goto', 'w1m']:
+                try:
+                    weather_dict = conditions.get_vaisala(source)
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'temperature': -999,
+                                    'pressure': -999,
+                                    'windspeed': -999,
+                                    'winddir': -999,
+                                    'humidity': -999,
+                                    'rain': -999,
+                                    'dew_point': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather[source] = weather_dict
+
+            # Get the W1m rain boards reading
+            if params.USE_W1M_RAINBOARDS:
+                try:
+                    rain = conditions.get_rain()['rain']
+                except Exception:
+                    self.log.error('Error getting weather from "rain"')
+                    self.log.debug('', exc_info=True)
+                    rain = -999
+                # Replace the local rain measurements
+                weather['w1m']['rain'] = rain
+                del weather['goto']['rain']
+
+            # Get the weather from the ING webpage as a backup
+            if params.USE_ING_WEATHER:
+                try:
+                    weather_dict = conditions.get_ing()
+                except Exception:
+                    self.log.error('Error getting weather from "ing"')
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'rain': -999,
+                                    'temperature': -999,
+                                    'pressure': -999,
+                                    'winddir': -999,
+                                    'windspeed': -999,
+                                    'windgust': -999,
+                                    'humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather['ing'] = weather_dict
+
+            # Get the internal conditions from the RoomAlert
+            for source in ['pier']:
+                try:
+                    weather_dict = conditions.get_roomalert(source)
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'int_temperature': -999,
+                                    'int_humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+                weather[source] = weather_dict
+
             temp_info['weather'] = {}
-            weather = conditions.get_weather()
             for source in weather:
                 source_info = weather[source].copy()
 
                 # check if the weather timeout has been exceded
                 dt = source_info['dt']
                 if dt >= params.WEATHER_TIMEOUT or dt == -999:
-                    source_info = {key: -999 for key in weather[source]}
+                    source_info = {key: -999 for key in source_info}
 
                 # check if the weather hasn't changed for a certain time
                 source_info['changed_time'] = self.loop_time
@@ -122,7 +187,7 @@ class ConditionsDaemon(BaseDaemon):
                     unchanged = [source_info[key] == self.info['weather'][source][key]
                                  for key in source_info]
                     if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
-                        source_info = {key: -999 for key in weather[source]}
+                        source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
 
                 # Store a history of wind so we can get gusts
@@ -134,18 +199,52 @@ class ConditionsDaemon(BaseDaemon):
                 # remove old values
                 windhist = [h for h in windhist if h[0] > self.loop_time - params.WINDGUST_PERIOD]
                 # add new value
-                if 'windspeed' in weather[source]:
-                    windhist.append((self.loop_time, weather[source]['windspeed']))
+                if 'windspeed' in source_info:
+                    windhist.append((self.loop_time, source_info['windspeed']))
                 # store history and maximum (windgust)
                 source_info['windhist'] = windhist
                 if len(windhist) > 1:
                     source_info['windgust'] = max(h[1] for h in windhist)
+                elif 'windspeed' in source_info:
+                    source_info['windgust'] = -999
 
                 temp_info['weather'][source] = source_info
         except Exception:
             self.log.error('Failed to get weather info')
             self.log.debug('', exc_info=True)
             temp_info['weather'] = None
+
+        # Get seeing and dust from the TNG webpage
+        try:
+            tng_dict = conditions.get_tng()
+            # check if the timeouts have been exceded
+            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
+                tng_dict['seeing'] = -999
+            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
+                tng_dict['dust'] = -999
+        except Exception:
+            self.log.error('Failed to get TNG info')
+            self.log.debug('', exc_info=True)
+            tng_dict = {'seeing': -999,
+                        'seeing_dt': -999,
+                        'dust': -999,
+                        'dust_dt': -999,
+                        }
+        temp_info['tng'] = tng_dict
+
+        # Get seeing from the ING RoboDIMM
+        try:
+            dimm_dict = conditions.get_robodimm()
+            # check if the timeout has been exceded
+            if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
+                dimm_dict['seeing'] = -999
+        except Exception:
+            self.log.error('Failed to get DIMM info')
+            self.log.debug('', exc_info=True)
+            dimm_dict = {'seeing': -999,
+                         'dt': -999,
+                         }
+        temp_info['robodimm'] = dimm_dict
 
         # Get info from the UPSs
         try:
@@ -193,27 +292,6 @@ class ConditionsDaemon(BaseDaemon):
             self.log.error('Failed to get satellite clouds info')
             self.log.debug('', exc_info=True)
             temp_info['clouds'] = -999
-
-        # Get seeing and dust from the TNG webpage
-        # (note we don't have limits on seeing, it's just useful infomation)
-        try:
-            tng_dict = conditions.get_tng_conditions()
-
-            # check if the timeouts have been exceded
-            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
-                temp_info['seeing'] = -999
-            else:
-                temp_info['seeing'] = tng_dict['seeing']
-            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
-                temp_info['dust'] = -999
-            else:
-                temp_info['dust'] = tng_dict['dust']
-
-        except Exception:
-            self.log.error('Failed to get TNG info')
-            self.log.debug('', exc_info=True)
-            temp_info['seeing'] = -999
-            temp_info['dust'] = -999
 
         # Get current sun alt
         try:
@@ -308,7 +386,7 @@ class ConditionsDaemon(BaseDaemon):
         clouds = clouds[clouds != -999]
 
         # Dust
-        dust = np.array(self.info['dust'])
+        dust = np.array(self.info['tng']['dust'])
         dust = dust[dust != -999]
 
         # Sunalt
@@ -379,6 +457,12 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 
+        # dust flag
+        good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
+        valid['dust'] = len(dust) >= 1
+        good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
+        bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
+
         # ups flag
         good['ups'] = (np.all(ups_percent > params.MIN_UPSBATTERY) and
                        np.all(ups_status == 1))
@@ -409,12 +493,6 @@ class ConditionsDaemon(BaseDaemon):
         valid['clouds'] = len(clouds) >= 1
         good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
-
-        # dust flag
-        good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
-        valid['dust'] = len(dust) >= 1
-        good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
-        bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
