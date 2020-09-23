@@ -276,8 +276,12 @@ def get_tng():
 
     # seeing
     try:
-        weather_dict['seeing'] = float(data['seeing']['median'])
-        weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+        try:
+            weather_dict['seeing'] = float(data['seeing']['median'])
+            weather_dict['seeing_error'] = float(data['seeing']['stdev'])
+        except Exception:
+            weather_dict['seeing'] = float(data['seeing']['value'])
+            weather_dict['seeing_error'] = None
         weather_dict['seeing_update_time'] = Time(data['seeing']['timestamp'], precision=0).iso
         dt = Time.now() - Time(weather_dict['seeing_update_time'])
         weather_dict['seeing_dt'] = int(dt.to('second').value)
