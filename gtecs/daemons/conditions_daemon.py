@@ -47,7 +47,7 @@ class ConditionsDaemon(BaseDaemon):
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
-        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         try:
             with open(self.flags_file, 'r') as f:
                 data = json.load(f)

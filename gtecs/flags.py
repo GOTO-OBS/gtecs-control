@@ -33,7 +33,7 @@ class Conditions(object):
     """A class to give easy access to the conditions flags."""
 
     def __init__(self):
-        self.conditions_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        self.conditions_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         self._load()
 
     def __repr__(self):
@@ -78,7 +78,7 @@ class Status(object):
     """A class to give easy access to the status flags."""
 
     def __init__(self):
-        self.status_file = os.path.join(params.FILE_PATH, 'status_flags')
+        self.status_file = os.path.join(params.FILE_PATH, 'status_flags.json')
         self.emergency_file = params.EMERGENCY_FILE
         self.valid_modes = ['robotic', 'manual', 'engineering']
         self._load()
