@@ -78,6 +78,32 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'update')
         print(reply)
 
+    elif command == 'override':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        # send command
+        if command.lower() == 'on':
+            reply = daemons.daemon_function(daemon_id, 'set_override')
+        else:
+            reply = daemons.daemon_function(daemon_id, 'clear_override')
+        print(reply)
+
+    elif command == 'pause':
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'set_override')
+        print(reply)
+
+    elif command in ['resume', 'unpause']:
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'clear_override')
+        print(reply)
+
     elif command == 'limits':
         # parse arguments
         if len(args) == 0:
@@ -571,6 +597,9 @@ def print_instructions():
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
           '  update                         force update the conditions',
+          '  override [on|off]              enable/disable the manual override flag',
+          '  pause                          alias for "override on"',
+          '  unpause/resume                 alias for "override off"',
           '  info/status [-f]               report current status [force-update]',
           '  limits [-f]                    report values and limits [force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
