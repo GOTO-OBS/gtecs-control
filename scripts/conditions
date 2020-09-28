@@ -511,7 +511,7 @@ def print_limits(info):
         print('OTHER:')
 
         print('  {: <10}'.format('dust_level'), end='\t')
-        dust = info['dust']
+        dust = info['tng']['dust']
         if dust == -999:
             status = style.rtxt('ERROR')
             dust_str = style.rtxt('  ERR')
