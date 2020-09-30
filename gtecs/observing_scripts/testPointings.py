@@ -6,11 +6,12 @@ from argparse import ArgumentParser
 
 from astropy.time import Time
 
-from gtecs.astronomy import radec_from_altaz
+from gtecs import params
+from gtecs.astronomy import get_moon_distance, radec_from_altaz
 from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set
 
 
-def run(n_alt, n_az):
+def run(n_alt, n_az, num_exp, exp_list, filt, min_moonsep):
     """Run test pointings routine."""
     # make sure hardware is ready
     prepare_for_images()
@@ -34,17 +35,15 @@ def run(n_alt, n_az):
     print('Generated {} AltAz pointings:'.format(len(altaz_list)))
     print(altaz_list)
 
-    exposure_list = [15, 30, 60, 120, 240, 480]
-
     print('Exposure times:')
-    print(exposure_list)
+    print(exp_list)
 
-    total_exptime = (sum(exposure_list) * len(altaz_list)) / 60.
-    print('Total exposure time: {} mins'.format(total_exptime))
+    total_exptime = (sum(exp_list) * num_exp * len(altaz_list)) / 60.
+    print('Total exposure time: {:.1f} mins'.format(total_exptime))
 
-    total_readout = 0.5 * len(exposure_list) * len(altaz_list)
+    total_readout = 0.5 * len(exp_list) * num_exp * len(altaz_list)
     total_slew = 0.5 * len(altaz_list)
-    print('Estimated total time: {} mins'.format(total_exptime + total_readout + total_slew))
+    print('Estimated total time: {:.1f} mins'.format(total_exptime + total_readout + total_slew))
 
     cont = 'na'
     while cont not in ['y', 'n']:
@@ -54,15 +53,31 @@ def run(n_alt, n_az):
 
     print('OK, starting routine...')
 
-    for altaz in altaz_list:
+    for i, altaz in altaz_list:
+        print('~~~~~~')
+        print('POINTING {} of {}'.format(i + 1, len(altaz_list)))
+
         alt, az = altaz
-        print('Slewing to Alt {}, Az {}'.format(alt, az))
+        print('Slewing to Alt {:.4f}, Az {:.4f}'.format(alt, az))
+
+        # Get coordiantes
+        t = Time.now()
+        ra, dec = radec_from_altaz(alt, az, t)
+
+        # Check the moon distance
+        moonsep = get_moon_distance(ra, dec, t)
+        if moonsep < min_moonsep:
+            print('Too close to the Moon ({.1f} deg < {:.1f} deg)!'.format(moonsep, min_moonsep))
+            continue
 
         # Slew to position
-        ra, dec = radec_from_altaz(alt, az, Time.now())
         slew_to_radec(ra, dec, timeout=120)
 
-        take_image_set(exposure_list, 'L', 'Test Pointing')
+        # Take images
+        for i in range(num_exp):
+            if num_exp > 1:
+                print('Taking exposure {} of {}'.format(i + 1, num_exp))
+            take_image_set(exp_list, 'L', 'Test Pointing')
 
     print('Done')
 
@@ -73,6 +88,26 @@ if __name__ == '__main__':
                         help='number of altitude rows (default=2)')
     parser.add_argument('n_az', type=int, nargs='?', default=2,
                         help='number of aximuth rows (default=2)')
+    parser.add_argument('-n', '--numexp', type=int, default=1,
+                        help=('number of exposures to take for each exposure time (default=1)')
+                        )
+    parser.add_argument('-t', '--exptime', type=str, default='30,60,90',
+                        help=('exposure time(s) to use (comma-separated, default=30,60,90)')
+                        )
+    parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
+                        help=('filter to use (default=L)')
+                        )
+    parser.add_argument('-m', '--minmoonsep', type=float, default=30,
+                        help=('minimum distance to stay from the Moon (default=30 deg)')
+                        )
+
     args = parser.parse_args()
 
-    run(args.n_alt, args.n_az)
+    n_alt = args.n_alt
+    n_az = args.n_az
+    num_exp = args.numexp
+    exp_list = [float(i) for i in args.exptime.split(',')]
+    filt = args.filter
+    min_moonsep = args.minmoonsep
+
+    run(n_alt, n_az, num_exp, exp_list, filt, min_moonsep)

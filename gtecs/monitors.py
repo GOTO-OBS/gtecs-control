@@ -191,7 +191,7 @@ class BaseMonitor(ABC):
     def add_error(self, error, delay=0, critical=False):
         """Add the error to self.errors if it's not already there.
 
-        If a delay if given only add the error after thant many seconds.
+        If a delay if given only add the error after that many seconds.
 
         If critical=True it will overwrite self.errors with just this error.
         """
@@ -742,8 +742,9 @@ class MntMonitor(BaseMonitor):
             if 'sitech' in self.bad_hardware:
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
-                recovery_procedure[1] = ['power off mount_nuc', 10]
-                recovery_procedure[2] = ['power on mount_nuc', 180]
+                #             NB: This was considered a bad idea, so has been removed.
+                # recovery_procedure[1] = ['power off mount_nuc', 10]
+                # recovery_procedure[2] = ['power on mount_nuc', 180]
                 # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
                 return ERROR_HARDWARE + 'sitech', recovery_procedure
             else:
@@ -794,13 +795,11 @@ class MntMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
-            # SOLUTION 2: Maybe there's a problem with the mount.
-            recovery_procedure[2] = ['power off mount_nuc', 10]
-            recovery_procedure[3] = ['power off sitech', 10]
-            recovery_procedure[4] = ['power on sitech', 60]
-            recovery_procedure[5] = ['power on mount_nuc', 180]
+            # SOLUTION 2: Maybe there's a problem with SiTech.
+            recovery_procedure[2] = ['power off sitech', 10]
+            recovery_procedure[3] = ['power on sitech', 60]
             # SOLUTION 3: Restart the daemon.
-            recovery_procedure[6] = ['mnt restart', 10]
+            recovery_procedure[4] = ['mnt restart', 10]
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
 
@@ -1083,7 +1082,7 @@ class OTAMonitor(BaseMonitor):
         # ERROR_OTA_NOTCLOSED
         # Set the error if the mirror covers should be closed and they're not
         if self.mode == MODE_OTA_CLOSED and self.hardware_status != STATUS_OTA_CLOSED:
-            self.add_error(ERROR_OTA_NOTCLOSED, delay=30)
+            self.add_error(ERROR_OTA_NOTCLOSED, delay=60)
         # Clear the error if the covers are closed or they shouldn't be
         if self.mode != MODE_OTA_CLOSED or self.hardware_status == STATUS_OTA_CLOSED:
             self.clear_error(ERROR_OTA_NOTCLOSED)
@@ -1091,7 +1090,7 @@ class OTAMonitor(BaseMonitor):
         # ERROR_OTA_NOTFULLOPEN
         # Set the error if the mirror covers should be open and they're not
         if self.mode == MODE_OTA_OPEN and self.hardware_status != STATUS_OTA_FULLOPEN:
-            self.add_error(ERROR_OTA_NOTFULLOPEN, delay=30)
+            self.add_error(ERROR_OTA_NOTFULLOPEN, delay=60)
         # Clear the error if the covers are open or they shouldn't be
         if self.mode != MODE_OTA_OPEN or self.hardware_status == STATUS_OTA_FULLOPEN:
             self.clear_error(ERROR_OTA_NOTFULLOPEN)
@@ -1370,10 +1369,10 @@ class FocMonitor(BaseMonitor):
         elif ERROR_FOC_UNSET in self.errors:
             # PROBLEM: The focusers haven't been moved (need to activate auto-correction in ASAs).
             recovery_procedure = {}
-            # SOLUTION 1: Try moving them by a single step.
-            recovery_procedure[1] = ['foc move 1', 10]
+            # SOLUTION 1: Try moving them just a little.
+            recovery_procedure[1] = ['foc move 10', 10]
             # SOLUTION 2: Odd. Try moving them back.
-            recovery_procedure[2] = ['foc move -1', 10]
+            recovery_procedure[2] = ['foc move -10', 10]
             # OUT OF SOLUTIONS: Must be a hardware issue.
             return ERROR_FOC_UNSET, recovery_procedure
 

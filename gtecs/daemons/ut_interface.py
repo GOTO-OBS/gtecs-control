@@ -114,6 +114,7 @@ class UTInterfaceDaemon(BaseDaemon):
                             self.log.info('Creating a fake Camera')
                             camera = FakeCamera('/dev/fake', 'FakeCamera')
                             camera.serial_number = hw_params['SERIAL']
+                            camera.connected = True
                         if camera is None:
                             raise ValueError('Could not locate hardware')
 
@@ -158,6 +159,7 @@ class UTInterfaceDaemon(BaseDaemon):
                             self.log.info('Creating a fake Focuser')
                             focuser = FakeFocuser('/dev/fake', 'FakeCamera')
                             focuser.serial_number = hw_params['SERIAL']
+                            focuser.connected = True
                         if focuser is None:
                             raise ValueError('Could not locate hardware')
 
@@ -244,6 +246,7 @@ class UTInterfaceDaemon(BaseDaemon):
                             self.log.info('Creating a fake Filter Wheel')
                             filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
                             filterwheel.serial_number = hw_params['SERIAL']
+                            filterwheel.connected = True
                         if filterwheel is None:
                             raise ValueError('Could not locate hardware')
 
