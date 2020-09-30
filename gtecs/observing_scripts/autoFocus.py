@@ -436,9 +436,10 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         s += 'Focus data at final position:\n'
         s += '```' + repr(foc_data.round(1)) + '```\n'
         if len(failed_uts) > 0:
-            s += 'Focusing failed for UTs:'
+            s += 'Routine failed for {} UT{}:\n'.format(len(failed_uts),
+                                                        's' if len(failed_uts) > 1 else '')
             for ut in sorted(failed_uts):
-                s += ' UT{} ("{}")'.format(ut, failed_uts[ut])
+                s += ' UT{}: {}\n'.format(ut, failed_uts[ut])
         send_slack_msg(s)
 
     # Store the best focus data in a database
