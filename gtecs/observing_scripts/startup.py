@@ -14,7 +14,7 @@ import time
 
 from gtecs import params
 from gtecs.misc import execute_command
-from gtecs.observing import cameras_are_cool, filters_are_homed
+from gtecs.observing import cameras_are_cool, filters_are_homed, focusers_are_set
 
 
 def run():
@@ -64,7 +64,7 @@ def run():
     # execute_command('mnt dec {}'.format(dec))
     # execute_command('mnt slew')
     # time.sleep(20)
-    # execute_command('mnt info')
+    # execute_command('mnt info -f')
 
     # Clean up any persistent queue from previous night
     execute_command('exq clear')
@@ -75,26 +75,27 @@ def run():
     execute_command('filt home')
     while not filters_are_homed():
         time.sleep(1)
-    execute_command('filt info')
+    execute_command('filt info -f')
 
     # Set the focusers
     execute_command('foc move 10')
     time.sleep(2)
     execute_command('foc move -10')
-    time.sleep(2)
-    execute_command('foc info')
+    while not focusers_are_set():
+        time.sleep(1)
+    execute_command('foc info -f')
 
     # Bring the CCDs down to temperature
     execute_command('cam temp {}'.format(params.CCD_TEMP))
     while not cameras_are_cool():
         time.sleep(1)
-    execute_command('cam info')
+    execute_command('cam info -f')
 
     # Don't open the mirror covers, because we want to do darks first
     # execute_command('ota open')
     # while not mirror_covers_are_open():
     #     time.sleep(1)
-    # execute_command('ota info')
+    # execute_command('ota info -f')
 
     print('Startup tasks done')
 
