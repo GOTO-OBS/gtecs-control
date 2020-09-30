@@ -105,6 +105,7 @@ class Pilot(object):
                          'sentinel': monitors.SentinelMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
+        self.bad_hardware = None
 
         # store system mode
         self.system_mode = 'robotic'
@@ -202,6 +203,10 @@ class Pilot(object):
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
+                self.bad_hardware = ', '.join([daemon_id for daemon_id in self.current_errors
+                                               if len(self.current_errors[daemon_id]) > 0])
+                self.log.warning('Bad hardware: ({})'.format(self.bad_hardware))
+
                 await self.handle_pause('hardware', True)
 
                 # check more frequently untill fixed, and save time for delay afterwards
@@ -209,6 +214,8 @@ class Pilot(object):
                 bad_timestamp = time.time()
             else:
                 self.log.debug('hardware status AOK')
+                self.bad_hardware = None
+
                 await self.handle_pause('hardware', False)
 
                 # only allow the night marshal to open after a
@@ -225,7 +232,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
     async def check_flags(self):
-        """Check the conditions and override flags."""
+        """Check the conditions and status flags."""
         self.log.info('flags check routine initialised')
 
         sleep_time = 10
@@ -253,17 +260,17 @@ class Pilot(object):
                     # The file has appeared while we're running, shut down now!
                     asyncio.ensure_future(self.emergency_shutdown(reasons))
 
-            # handle manual override
+            # pause if system is in manual mode
             if self.system_mode == 'manual':
                 await self.handle_pause('manual', True)
             else:
                 await self.handle_pause('manual', False)
 
-            # handle conditions
+            # pause if conditions are bad
             conditions = Conditions()
             if conditions.bad:
                 self.bad_flags = ', '.join(conditions.bad_flags)
-                self.log.warning('Conditions bad: ({})'.format(self.bad_flags))
+                self.log.warning('Bad conditions flags: ({})'.format(self.bad_flags))
                 await self.handle_pause('conditions', True)
             else:
                 self.bad_flags = None
@@ -871,25 +878,23 @@ class Pilot(object):
             self.whypause[reason] = True
 
             if reason == 'conditions':
-                msg = 'Pausing due to bad conditions'
-                self.log.warning(msg)
-                send_slack_msg('Pilot is pausing due to bad conditions ({})'.format(self.bad_flags))
+                self.log.warning('Pausing (bad conditions: {})'.format(self.bad_flags))
+                send_slack_msg('Pilot is pausing (bad conditions: {})'.format(self.bad_flags))
 
                 if self.night_operations:
                     # only need to stop scripts if the dome is open
                     # (this way we don't kill darks if the weather goes bad)
                     execute_command('exq pause')
                     execute_command('cam abort')
-                    await self.cancel_running_script('conditions bad')
+                    await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
                 self.close_dome()
                 self.park_mount()
 
             elif reason == 'hardware':
-                msg = 'Pausing operations due to hardware fault'
-                self.log.warning(msg)
-                send_slack_msg('Pilot is pausing due to hardware fault')
+                self.log.warning('Pausing (hardware fault: {})'.format(self.bad_hardware))
+                send_slack_msg('Pilot is pausing (hardware fault: {})'.format(self.bad_hardware))
 
                 if self.running_script == 'STARTUP':
                     # don't cancel startup due to hardware issue
@@ -905,13 +910,11 @@ class Pilot(object):
                     await self.cancel_running_script('hardware fault')
 
             elif reason == 'manual':
-                msg = 'Pausing operations due to manual override'
-                self.log.warning(msg)
-                send_slack_msg('Pilot is pausing due to manual override')
+                self.log.warning('Pausing (system in manual mode)')
+                send_slack_msg('Pilot is pausing (system in manual mode)')
 
                 # don't actually kill anything, coroutines will pause themselves
-                self.log.info('pausing for pilot for manual override')
-                self.log.info('current task will continue')
+                self.log.info('The current task will continue')
 
         # does this change suggest a global unpause?
         unpause = (not any(self.whypause[key] for key in self.whypause if key != reason) and
@@ -1233,7 +1236,7 @@ def run(test=False, restart=False, late=False):
     pilot.running_tasks.extend([
         asyncio.ensure_future(pilot.check_hardware()),  # periodically check hardware
         asyncio.ensure_future(pilot.check_time_paused()),  # keep track of time paused
-        asyncio.ensure_future(pilot.check_flags()),  # check flags for bad weather or override
+        asyncio.ensure_future(pilot.check_flags()),  # check conditions and system flags
         asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
         asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
         asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled tasks
