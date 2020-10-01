@@ -20,7 +20,6 @@ DAEMON_ERROR_PING = 'ping_error'
 # Hardware statuses
 STATUS_UNKNOWN = 'unknown'
 STATUS_ACTIVE = 'active'
-STATUS_DOME_LOCKDOWN = 'in_lockdown'
 STATUS_DOME_CLOSED = 'closed'
 STATUS_DOME_FULLOPEN = 'full_open'
 STATUS_DOME_PARTOPEN = 'part_open'
@@ -443,11 +442,8 @@ class DomeMonitor(BaseMonitor):
 
         north = info['north']
         south = info['south']
-        lockdown = info['lockdown']
 
-        if lockdown:
-            hardware_status = STATUS_DOME_LOCKDOWN
-        elif north == 'closed' and south == 'closed':
+        if north == 'closed' and south == 'closed':
             hardware_status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
             hardware_status = STATUS_DOME_FULLOPEN
@@ -477,10 +473,8 @@ class DomeMonitor(BaseMonitor):
             self.add_error(ERROR_DOME_PARTOPENTIMEOUT, delay=60)
         # Clear the error if the dome is where it's supposed to be
         # Note this keeps the error set while it's moving
-        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
         if ((self.mode == MODE_DOME_OPEN and self.hardware_status == STATUS_DOME_FULLOPEN) or
-            (self.mode == MODE_DOME_CLOSED and self.hardware_status == STATUS_DOME_CLOSED) or
-                (self.hardware_status == STATUS_DOME_LOCKDOWN)):
+                (self.mode == MODE_DOME_CLOSED and self.hardware_status == STATUS_DOME_CLOSED)):
             self.clear_error(ERROR_DOME_PARTOPENTIMEOUT)
 
         # ERROR_DOME_NOTFULLOPEN
@@ -493,9 +487,7 @@ class DomeMonitor(BaseMonitor):
             self.add_error(ERROR_DOME_NOTFULLOPEN, delay=30)
         # Clear the error if the dome's fully open, or it shouldn't be any more
         # Note this keeps the error set while the dome's moving
-        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
-        if self.mode != MODE_DOME_OPEN or self.hardware_status in [STATUS_DOME_FULLOPEN,
-                                                                   STATUS_DOME_LOCKDOWN]:
+        if self.mode != MODE_DOME_OPEN or self.hardware_status in STATUS_DOME_FULLOPEN:
             self.clear_error(ERROR_DOME_NOTFULLOPEN)
 
         # ERROR_DOME_NOTCLOSED
@@ -504,14 +496,11 @@ class DomeMonitor(BaseMonitor):
         # Also note that part_open is delt with above
         if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
                                                                           STATUS_DOME_PARTOPEN,
-                                                                          STATUS_DOME_MOVING,
-                                                                          STATUS_DOME_LOCKDOWN]:
+                                                                          STATUS_DOME_MOVING]:
             self.add_error(ERROR_DOME_NOTCLOSED, delay=30)
         # Clear the error if the dome's fully closed, or it shouldn't be any more
         # Note this keeps the error set while the dome's moving
-        # Also note we clear the error if the dome's in lockdown, because we can't move anyway
-        if self.mode != MODE_DOME_CLOSED or self.hardware_status in [STATUS_DOME_CLOSED,
-                                                                     STATUS_DOME_LOCKDOWN]:
+        if self.mode != MODE_DOME_CLOSED or self.hardware_status == STATUS_DOME_CLOSED:
             self.clear_error(ERROR_DOME_NOTCLOSED)
 
     def _recovery_procedure(self):
@@ -618,8 +607,8 @@ class DomeMonitor(BaseMonitor):
             recovery_procedure[1] = ['dome open', 90]
             recovery_procedure[2] = ['dome open', 90]
             recovery_procedure[3] = ['dome open', 90]
-            # OUT OF SOLUTIONS: It's not opening, either it's stuck or it's in lockdown and the
-            #                   pilot hasn't realised yet. At least it's safe.
+            # OUT OF SOLUTIONS: It's not opening, either it's physically stuck or it's in lockdown
+            #                   and refuses to open. At least it's safe.
             return ERROR_DOME_NOTFULLOPEN, recovery_procedure
 
         else:
