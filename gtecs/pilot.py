@@ -525,11 +525,13 @@ class Pilot(object):
         # daytime tasks: done before opening the dome
         darks = {'name': 'DARKS',
                  'sunalt': 6,
+                 'late_sunalt': 0,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
                  'protocol': LoggedProtocol}
         # xdarks = {'name': 'XDARKS',
         #           'sunalt': 1,
+        #           'late_sunalt': 0,
         #           'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
         #           'args': [],
         #           'protocol': LoggedProtocol}
@@ -543,11 +545,13 @@ class Pilot(object):
         # evening tasks: done after opening the dome, before observing starts
         flats_e = {'name': 'FLATS',
                    'sunalt': -4.5,
+                   'late_sunalt': -7,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
                    'protocol': LoggedProtocol}
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
+                   'late_sunalt': None,  # Always autofocus if opening late
                    'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
                    'args': ['-n', '1', '-t', '5'],
                    'protocol': LoggedProtocol}
@@ -565,11 +569,13 @@ class Pilot(object):
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
         #           'sunalt': -14.5,
+        #           'late_sunalt': -13,
         #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
         #           'args': ['1000', '100', 'n'],
         #           'protocol': LoggedProtocol}
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
+                   'late_sunalt': -7.55,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['MORN'],
                    'protocol': LoggedProtocol}
@@ -586,13 +592,15 @@ class Pilot(object):
             task = task_list.pop(0)
             name = task['name']
             sunalt = task['sunalt']
+            late_sunalt = task['late_sunalt']
             cmd = [task['script'], *task['args']]
             protocol = task['protocol']
 
             self.log.info('next task: {}'.format(name))
 
             # wait for the right sun altitude
-            can_start = await self.wait_for_sunalt(sunalt, name, rising, ignore_late)
+            can_start = await self.wait_for_sunalt(sunalt, name, rising,
+                                                   late_sunalt if not ignore_late else None)
 
             if not can_start:
                 # too late
@@ -630,7 +638,7 @@ class Pilot(object):
         return True
 
     async def wait_for_sunalt(self, sunalt, why,
-                              rising=False, ignore_late=False):
+                              rising=False, late_sunalt=None):
         """Return when the sun reaches the given altitude.
 
         Parameters
@@ -641,9 +649,8 @@ class Pilot(object):
             a brief reason why we're waiting, helpful for the log
         rising : bool
             whether the sun is rising or setting
-        ignore_late : bool, optional
-            if true, will ignore checks for if you're too late
-            (will still wait if you're too early)
+        late_sunalt : float, optional (default=None)
+            if given, return False if the sun is already past the given altitude
 
         Returns
         --------
@@ -659,22 +666,28 @@ class Pilot(object):
         self.log.info('waiting for {}'.format(why))
         now = Time.now()
 
-        # check if we're on the wrong side of midnight
-        midnight = local_midnight(night_startdate())
-        if not rising and now > midnight and not ignore_late:
-            # wow, you're really late
-            return False
-        elif rising and now < midnight:
-            return False
-
-        # check if we've missed the sun (with a 5 degree margin)
-        if not ignore_late:
+        # check if we're too late
+        if late_sunalt is not None:
             sunalt_now = get_sunalt(now)
-            if not rising and sunalt_now < (sunalt - 5):
-                # missed your chance
-                return False
-            elif rising and sunalt_now > (sunalt + 5):
-                return False
+            too_late = False
+
+            # check if we're on the wrong side of midnight
+            midnight = local_midnight(night_startdate())
+            if not rising and now > midnight:
+                too_late = True
+            elif rising and now < midnight:
+                too_late = True
+
+            # check if we've missed the late sunalt
+            if not rising and sunalt_now < late_sunalt:
+                too_late = True
+            elif rising and sunalt_now > late_sunalt:
+                too_late = True
+
+            if too_late:
+                self.log.info('sunalt={:.1f}, after {:.1f}: too late to start {}'.format(
+                    sunalt_now, late_sunalt, why))
+            return False
 
         # we're on time, so wait until the sun is in the right position
         sleep_time = 60
