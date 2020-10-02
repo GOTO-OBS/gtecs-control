@@ -36,7 +36,7 @@ def send_dome_report(msg, confirmed_closed):
     conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
                                                          bad=':exclamation:')
     if conditions.bad:
-        msg2 = 'Conditions are bad'
+        msg2 = ':warning: Conditions are bad! :warning:'
     else:
         msg2 = 'Conditions are good'
     attach_conds = {'fallback': 'Conditions summary',
@@ -173,21 +173,20 @@ def run(test=False):
         time.sleep(2)
 
     # Check the dome status
-    msg = ''
     confirmed_closed = False
     try:
         dome_info = daemon_info('dome')
         dome_status = dome_info['dome']
         if dome_status == 'closed':
-            msg = 'Day marshal confirmed dome is closed'
+            msg = '*Day marshal confirmed dome is closed*'
             log.info('Dome confirmed closed')
             confirmed_closed = True
         else:
             # Uh-oh
-            msg = ':warning: WARNING: Day marshal could not confirm dome is closed :warning:'
+            msg = ':warning: *WARNING: Day marshal could not confirm dome is closed* :warning:'
             log.warning('The dome is not closed!')
     except Exception:
-        msg = ':warning: WARNING: Day marshal dome status check failed :warning:'
+        msg = ':warning: *WARNING: Day marshal dome status check failed* :warning:'
         log.error('Error checking the dome', exc_info=True)
 
     # Send the report to Slack
@@ -211,17 +210,17 @@ def run(test=False):
             dome_info = daemon_info('dome')
             dome_status = dome_info['dome']
             if dome_status == 'closed':
-                msg = 'Day marshal has closed the dome'
+                msg = '*Day marshal has closed the dome*'
                 log.info('Dome confirmed closed')
                 confirmed_closed = True
             else:
                 # UH-OH
-                msg = ':warning: CRITICAL: Day marshal could not close the dome! :warning:'
+                msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
                 log.warning('The dome is still not closed!')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
-            msg = ':warning: CRITICAL: Day marshal could not close the dome! :warning:'
+            msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)

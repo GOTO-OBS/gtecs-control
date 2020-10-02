@@ -1187,7 +1187,7 @@ class Pilot(object):
 
     def send_startup_report(self):
         """Format and send a Slack message with a summery of the current conditions."""
-        msg = 'Pilot reports startup complete'
+        msg = '*Pilot reports startup complete*'
         conditions = Conditions()
         conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
                                                              bad=':exclamation:')
