@@ -28,9 +28,9 @@ import obsdb as db
 def send_dome_report(msg, confirmed_closed):
     """Send Slack message with webcams attached."""
     if confirmed_closed:
-        color = 'good'
+        colour = 'good'
     else:
-        color = 'danger'
+        colour = 'danger'
 
     conditions = Conditions()
     conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
@@ -42,9 +42,15 @@ def send_dome_report(msg, confirmed_closed):
     attach_conds = {'fallback': 'Conditions summary',
                     'title': msg2,
                     'text': conditions_summary,
-                    'color': color,
+                    'color': colour,
                     'ts': conditions.current_time.unix,
                     }
+
+    status = Status()
+    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
+                     'text': 'System is in "*{}*" mode'.format(status.mode),
+                     'color': colour,
+                     }
 
     ts = '{:.0f}'.format(time.time())
     ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
@@ -53,7 +59,7 @@ def send_dome_report(msg, confirmed_closed):
                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
                   'text': 'Image attached:',
                   'image_url': ext_url,
-                  'color': color,
+                  'color': colour,
                   }
     int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
     attach_int = {'fallback': 'Internal webcam view',
@@ -61,10 +67,10 @@ def send_dome_report(msg, confirmed_closed):
                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
                   'text': 'Image attached:',
                   'image_url': int_url,
-                  'color': color,
+                  'color': colour,
                   }
 
-    attachments = [attach_conds, attach_ext, attach_int]
+    attachments = [attach_conds, attach_status, attach_ext, attach_int]
     send_slack_msg(msg, attachments=attachments)
 
 

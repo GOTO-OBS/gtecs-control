@@ -1197,13 +1197,18 @@ class Pilot(object):
         else:
             msg2 = 'Conditions are good'
             colour = 'good'
-
         attach_conds = {'fallback': 'Conditions summary',
                         'title': msg2,
                         'text': conditions_summary,
                         'color': colour,
                         'ts': conditions.current_time.unix,
                         }
+
+        status = Status()
+        attach_status = {'fallback': 'System mode: {}'.format(status.mode),
+                         'text': 'System is in "*{}*" mode'.format(status.mode),
+                         'color': colour,
+                         }
 
         env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
         mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
@@ -1240,7 +1245,7 @@ class Pilot(object):
                         'color': colour,
                         }
 
-        attachments = [attach_conds, attach_links, attach_webcm, attach_irsat]
+        attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
         send_slack_msg(msg, attachments=attachments)
 
 
