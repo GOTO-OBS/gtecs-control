@@ -357,9 +357,11 @@ class Pilot(object):
         if not restart:
             if not self.startup_complete:
                 await self.startup()
+        else:
+            # Need to mark startup complete here, since the startup function won't
+            self.startup_complete = True
         self.log.info('startup complete')
         self.send_startup_report()
-        self.startup_complete = True
 
         # Wait for first successful hardware check
         while not self.initial_hardware_check_complete:
@@ -911,6 +913,8 @@ class Pilot(object):
 
                 if self.running_script == 'STARTUP':
                     # don't cancel startup due to hardware issue
+                    # (this shouldn't happen anyway, since hardware checks don't start until after
+                    #  the startup script has been run)
                     pass
                 elif self.running_script == 'OBS':
                     # just pause the queue until fixed
@@ -1009,10 +1013,13 @@ class Pilot(object):
 
         Runs the startup script, and sets the startup_complete flag
         """
-        # start startup script
+        # run startup script
         self.log.debug('running startup script')
         cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
         await self.start_script('STARTUP', LoggedProtocol, cmd)
+
+        # flag that startup has finished
+        self.startup_complete = True
 
         self.log.debug('startup script complete')
 
@@ -1033,10 +1040,13 @@ class Pilot(object):
         # then cancel any currently running script
         await self.cancel_running_script(why='shutdown')
 
-        # start shutdown script
+        # run shutdown script
         self.log.info('running shutdown script')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
         await self.start_script('SHUTDOWN', LoggedProtocol, cmd)
+
+        # flag that the shutdown script has been run, by un-flagging startup
+        self.startup_complete = False
 
         # next and most important.
         # NEVER STOP WITHOUT CLOSING THE DOME!
@@ -1076,24 +1086,30 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
         self.log.info('dome confirmed open')
 
-        self.log.info('opening mirror covers')
-        execute_command('ota open')
-        self.hardware['ota'].mode = 'open'
-        # wait for mirror covers to open
-        sleep_time = 1
-        while True:
-            cover_status = self.hardware['ota'].get_hardware_status()
-            self.log.debug('covers are {}'.format(cover_status))
-            if cover_status == 'full_open':
-                break
-            await asyncio.sleep(sleep_time)
-        self.log.info('mirror covers confirmed open')
+        if self.startup_complete:
+            # If we haven't started then we can't move the covers,
+            # because the interfaces are disabled if the cameras are powered down.
+            self.log.info('opening mirror covers')
+            execute_command('ota open')
+            self.hardware['ota'].mode = 'open'
+            # wait for mirror covers to open
+            sleep_time = 1
+            while True:
+                cover_status = self.hardware['ota'].get_hardware_status()
+                self.log.debug('covers are {}'.format(cover_status))
+                if cover_status == 'full_open':
+                    break
+                await asyncio.sleep(sleep_time)
+            self.log.info('mirror covers confirmed open')
 
     def close_dome(self):
         """Send the dome close command and return immediately."""
-        self.log.info('closing mirror covers')
-        execute_command('ota close')
-        self.hardware['ota'].mode = 'closed'
+        if self.startup_complete:
+            # See above: if we haven't started (or, more likely here, have already shutdown)
+            # then we can't move the covers.
+            self.log.info('closing mirror covers')
+            execute_command('ota close')
+            self.hardware['ota'].mode = 'closed'
 
         self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
