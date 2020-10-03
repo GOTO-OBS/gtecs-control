@@ -1206,7 +1206,7 @@ class Pilot(object):
 
         status = Status()
         attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                         'text': 'System is in "*{}*" mode'.format(status.mode),
+                         'text': 'System is in *{}* mode'.format(status.mode),
                          'color': colour,
                          }
 
