@@ -689,7 +689,7 @@ class Pilot(object):
             if too_late:
                 self.log.info('sunalt={:.1f}, after {:.1f}: too late to start {}'.format(
                     sunalt_now, late_sunalt, why))
-            return False
+                return False
 
         # we're on time, so wait until the sun is in the right position
         sleep_time = 60
