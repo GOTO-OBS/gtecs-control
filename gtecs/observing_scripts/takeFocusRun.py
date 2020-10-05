@@ -15,9 +15,10 @@ from astropy.time import Time
 
 from gtecs import params
 from gtecs.catalogs import focus_star
+from gtecs.focusing import get_best_focus_position, measure_focus
+from gtecs.misc import NeatCloser
 from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
                              set_focuser_positions, slew_to_radec)
-from gtecs.observing_scripts.autoFocus import (RestoreFocus, get_best_focus_position, measure_focus)
 
 from matplotlib import pyplot as plt
 
@@ -29,6 +30,19 @@ from scipy.optimize import curve_fit
 
 
 DEFAULT_NFV = 4
+
+
+class RestoreFocus(NeatCloser):
+    """Restore the origional focus positions if anything goes wrong."""
+
+    def __init__(self, positions):
+        super(RestoreFocus, self).__init__('Script')
+        self.positions = positions
+
+    def tidy_up(self):
+        """Restore the original focus."""
+        print('Interrupt caught: Restoring original focus positions...')
+        set_focuser_positions(self.positions)
 
 
 def calculate_positions(fraction, steps):
@@ -134,7 +148,7 @@ def fit_to_data(df, nfvs=None):
 
                 # Find meeting point by picking a point on the line and using the autofocus function
                 point = (pivot_pos, lin_func(pivot_pos, m_r, c_r))
-                cross_pos = int(get_best_focus_position(m_l, m_r, delta_x, point[0], point[1]))
+                cross_pos = int(get_best_focus_position(point[0], point[1], m_l, m_r, delta_x))
             else:
                 delta_x, cross_pos = None, None
 

@@ -19,11 +19,11 @@ from argparse import ArgumentParser
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.analysis import measure_image_hfd
 from gtecs.catalogs import focus_star
+from gtecs.focusing import get_best_focus_position, get_hfd_position, measure_focus
 from gtecs.misc import NeatCloser
-from gtecs.observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
-                             prepare_for_images, set_focuser_positions, slew_to_radec)
+from gtecs.observing import (get_focuser_positions, prepare_for_images, set_focuser_positions,
+                             slew_to_radec)
 
 import numpy as np
 
@@ -43,126 +43,7 @@ class RestoreFocus(NeatCloser):
         set_focuser_positions(self.positions)
 
 
-def get_best_focus_position(m_l, m_r, delta_x, xval, yval):
-    """Find the best focus position by fitting to the V-curve.
-
-    Given two lines with gradients m_l and m_r (left and right halves of the V-curve) with
-    x-intercepts that differ by delta_x, find the point where the lines cross,
-    given a location xval, yval on the right-hand line.
-    """
-    c2 = yval - m_r * xval
-    c1 = m_l * (-delta_x + c2 / m_r)
-    meeting_point = ((c1 - c2) / (m_r - m_l))
-    return meeting_point
-
-
-def get_hfd_position(target_hfd, current_hfd, current_position, slope):
-    """Estimate the focuser position producing the target HFD."""
-    return current_position + (target_hfd - current_hfd) / slope
-
-
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None):
-    """Take a set of images and measure the median half-flux diameters.
-
-    Parameters
-    ----------
-    num_exp : int, default=1
-        Number of exposures to take.
-        If > 1 the smallest of the measured HFD values will be returned for each UT.
-    exptime : float, default=30
-        Image exposure time.
-    filt : str, default='L'
-       Filter to use for the exposures.
-    target_name : str, default='Focus test image'
-        Name of the target being observed.
-    uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
-        UTs to measure focus for.
-
-    Returns
-    -------
-    foc_data : `pandas.DataFrame`
-        A Pandas dataframe with an index of unit telescope ID.
-
-    """
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
-    else:
-        uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
-
-    hfd_arrs = {}
-    hfd_std_arrs = {}
-    for i in range(num_exp):
-        print('Taking exposure {}/{}...'.format(i + 1, num_exp))
-        # Take a set of images
-        image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False, uts=uts)
-
-        # Measure the median HFDs in each image
-        for ut in image_data:
-            try:
-                # Extract median HFD and std values from the image data
-                # Note filter_width is 15, this deals much better with out-of-focus images
-                hfd, hfd_std = measure_image_hfd(image_data[ut], filter_width=15)
-
-                # Check for invalid values
-                if hfd_std <= 0.0 <= 0.0:
-                    raise ValueError
-
-            except Exception as err:
-                print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
-                hfd = np.nan
-                hfd_std = np.nan
-
-            # Add to main arrays
-            if ut in hfd_arrs:
-                hfd_arrs[ut].append(hfd)
-                hfd_std_arrs[ut].append(hfd_std)
-            else:
-                hfd_arrs[ut] = [hfd]
-                hfd_std_arrs[ut] = [hfd_std]
-
-        # Delete the image data for good measure, to save memory
-        del image_data
-
-        print('HFDs:', {ut: np.round(hfd_arrs[ut][i], 1) for ut in hfd_arrs})
-
-    # Take the smallest of the HFD values measured as the best estimate for this position.
-    # The reasoning is that we already average the HFD over many stars in each frame,
-    # so across multiple frames we only sample external fluctuations, usually windshake,
-    # which will always make the HFD worse, never better.
-    # We also want to make sure we get the std associated with that image.
-    best_hfd = {}
-    best_hfd_std = {}
-    for ut in hfd_arrs:
-        hfds = np.array(hfd_arrs[ut])
-        stds = np.array(hfd_std_arrs[ut])
-
-        try:
-            min_i = np.where(hfds == np.nanmin(hfds))[0][0]
-            best_hfd[ut] = hfds[min_i]
-            best_hfd_std[ut] = stds[min_i]
-        except IndexError:
-            # This UT had no non-NaN measurements
-            best_hfd[ut] = np.nan
-            best_hfd_std[ut] = np.nan
-
-    data = {'pos': pd.Series(get_focuser_positions()),
-            'hfd': pd.Series(best_hfd),
-            'hfd_std': pd.Series(best_hfd_std),
-            }
-
-    # Also store the temperatures of the last focuser move
-    _, temp = get_focuser_temperatures()
-    data['temp'] = pd.Series(temp)
-
-    # Make into a dataframe
-    df = pd.DataFrame(data)
-    df.index.name = 'UT'
-
-    return df
-
-
-def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30, filt='L',
-        no_slew=False):
+def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
     """Run the autofocus routine.
 
     This routine is based on the HFD V-curve method used by FocusMax,
@@ -186,8 +67,8 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     else:
         target_name = 'Autofocus'
 
-    # Try to focus all given UTs that have focusers
-    uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
+    # Try to focus all UTs that have focusers, as long as they have params
+    uts = [ut for ut in params.UTS_WITH_FOCUSERS if ut in foc_params.index]
     active_uts = uts.copy()
     failed_uts = {}
 
@@ -208,19 +89,19 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Unable to measure image HFDs')
 
         mask = np.isnan(initial_hfds)
-        bad_uts = sorted(initial_hfds.index[mask])
+        bad_uts = sorted(initial_hfds[mask].index)
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Unable to measure image HFDs' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
 
     # The focusers should be reasonably close to best focus.
     # If they are super far out then this method isn't going to work.
-    if np.any(initial_hfds > 5 * nfv):
+    if np.any(initial_hfds > 5 * foc_params['nfv']):
         print('~~~~~~')
         print('Focusers are already too far from best focus')
 
-        mask = initial_hfds > 5 * nfv
-        bad_uts = sorted(initial_hfds.index[mask])
+        mask = initial_hfds > 5 * foc_params['nfv']
+        bad_uts = sorted(initial_hfds[mask].index)
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Started too far from best focus' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
@@ -229,7 +110,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     # Assume the starting value is close to best, and a big step should be far enough out.
     print('~~~~~~')
     print('Moving focusers out...')
-    new_positions = {ut: initial_positions[ut] + big_step[ut] for ut in active_uts}
+    new_positions = {ut: initial_positions[ut] + foc_params['big_step'][ut] for ut in active_uts}
     set_focuser_positions(new_positions, timeout=120)  # longer timeout for big step
     current_positions = get_focuser_positions(active_uts)
     print('New positions:', current_positions)
@@ -250,12 +131,13 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Current HFDs:', out_hfds.round(1).to_dict())
 
         mask = out_hfds < initial_hfds + 2  # stricter mask
-        moving_uts = sorted(initial_hfds.index[mask])
+        moving_uts = sorted(initial_hfds[mask].index)
         moving_uts = [ut for ut in active_uts if ut in moving_uts]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
 
         print('Moving focusers out again...')
-        new_positions = {ut: current_positions[ut] + big_step[ut] / 2 for ut in moving_uts}
+        new_positions = {ut: current_positions[ut] + foc_params['big_step'][ut] / 2
+                         for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         current_positions = get_focuser_positions(active_uts)
         print('New positions:', current_positions)
@@ -275,7 +157,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
             print('Current HFDs:', out_hfds.round(1).to_dict())
 
             mask = out_hfds < initial_hfds + 1
-            bad_uts = sorted(initial_hfds.index[mask])
+            bad_uts = sorted(initial_hfds[mask].index)
             print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
             failed_uts.update({ut: 'HFDs did not change with focuser position' for ut in bad_uts})
             active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
@@ -284,7 +166,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     # This should confirm we're actually on the right-hand (positive) side of the V-curve.
     print('~~~~~~')
     print('Moving focusers back in...')
-    new_positions = {ut: current_positions[ut] - small_step[ut] for ut in active_uts}
+    new_positions = {ut: current_positions[ut] - foc_params['small_step'][ut] for ut in active_uts}
     set_focuser_positions(new_positions, timeout=60)
     current_positions = get_focuser_positions(active_uts)
     print('New positions:', current_positions)
@@ -304,7 +186,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Back in HFDs:', in_hfds.round(1).to_dict())
 
         mask = in_hfds > out_hfds - 1
-        bad_uts = sorted(in_hfds.index[mask])
+        bad_uts = sorted(in_hfds[mask].index)
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'HFDs did not decrease as expected' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
@@ -315,11 +197,11 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     # Also we limit the number of attempts, so if one gets stuck it doesn't go on forever.
     print('~~~~~~')
     print('Moving towards near-focus position...')
-    hfds = in_hfds
+    current_hfds = in_hfds
     attempts = 3
-    while np.any(hfds > 2 * nfv):
-        mask = hfds > 2 * nfv
-        moving_uts = sorted(hfds.index[mask])
+    while np.any(current_hfds > 2 * foc_params['nfv']):
+        mask = current_hfds > 2 * foc_params['nfv']
+        moving_uts = sorted(current_hfds[mask].index)
         moving_uts = [ut for ut in active_uts if ut in moving_uts]
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
 
@@ -332,8 +214,12 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
             attempts -= 1
 
         print('Moving focusers in...')
-        target_hfds = (hfds / 4).where(mask, hfds)
-        new_positions = get_hfd_position(target_hfds, hfds, pd.Series(current_positions), m_r)
+        target_hfds = (current_hfds / 4).where(mask, current_hfds)
+        new_positions = get_hfd_position(target_hfds,
+                                         pd.Series(current_positions),
+                                         current_hfds,
+                                         foc_params['m_r'],
+                                         )
         new_positions = {ut: int(new_positions.to_dict()[ut]) for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         current_positions = get_focuser_positions(active_uts)
@@ -341,15 +227,19 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
 
         print('Taking {} focus measurements...'.format(num_exp))
         foc_data = measure_focus(num_exp, exptime, filt, target_name, active_uts)
-        hfds = foc_data['hfd']
+        current_hfds = foc_data['hfd']
         if num_exp > 1:
-            print('Best HFDs:', hfds.round(1).to_dict())
+            print('Best HFDs:', current_hfds.round(1).to_dict())
 
     # We're close enough to the near-focus HFD to estimate the distance
     # and move directly to that position.
     print('~~~~~~')
     print('Calculating near-focus positions...')
-    nf_positions = get_hfd_position(nfv, hfds, pd.Series(current_positions), m_r)
+    nf_positions = get_hfd_position(foc_params['nfv'],
+                                    pd.Series(current_positions),
+                                    current_hfds,
+                                    foc_params['m_r'],
+                                    )
     nf_positions_dict = {ut: int(nf_positions.to_dict()[ut]) for ut in active_uts}
     print('Near-focus positions:', nf_positions_dict)
 
@@ -367,7 +257,12 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
     # Now we have the near-focus HFDs, find the best focus position and move there.
     print('~~~~~~')
     print('Calculating best focus positions...')
-    bf_positions = get_best_focus_position(m_l, m_r, delta_x, nf_positions, nf_hfds)
+    bf_positions = get_best_focus_position(nf_positions,
+                                           nf_hfds,
+                                           foc_params['m_l'],
+                                           foc_params['m_r'],
+                                           foc_params['delta_x'],
+                                           )
     bf_positions_dict = {ut: int(bf_positions.to_dict()[ut]) for ut in active_uts}
     print('Best focus positions:', bf_positions_dict)
 
@@ -394,7 +289,7 @@ def run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp=3, exptime=30
         print('Final HFDs are worse than initial values')
 
         mask = final_hfds > initial_hfds + 1
-        bad_uts = sorted(final_hfds.index[mask])
+        bad_uts = sorted(final_hfds[mask].index)
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Final HFDs were worse than initial values' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
@@ -474,18 +369,20 @@ if __name__ == '__main__':
 
     # Get the autofocus parameters
     uts = sorted(set(params.UTS_WITH_FOCUSERS).intersection(params.AUTOFOCUS_PARAMS.keys()))
-    big_step = {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in uts}
-    small_step = {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in uts}
-    nfv = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts})
-    m_l = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in uts})
-    m_r = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in uts})
-    delta_x = pd.Series({ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts})
+    foc_params = {'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in uts},
+                  'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in uts},
+                  'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts},
+                  'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in uts},
+                  'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in uts},
+                  'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts},
+                  }
+    foc_params = pd.DataFrame(foc_params)
 
     # If something goes wrong we need to restore the origional focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
-        run(uts, big_step, small_step, nfv, m_l, m_r, delta_x, num_exp, exptime, filt, no_slew)
+        run(foc_params, num_exp, exptime, filt, no_slew)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
