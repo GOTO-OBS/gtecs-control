@@ -134,7 +134,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     return df
 
 
-def refocus():
+def refocus(take_images=False):
     """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()
@@ -161,4 +161,13 @@ def refocus():
 
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
+
+        if take_images:
+            before_data = measure_focus(exptime=5)
+            print('Before HFDs:', before_data['hfd'].round(1).to_dict())
+
         move_focusers(offsets, timeout=None)
+
+        if take_images:
+            after_data = measure_focus(exptime=5)
+            print('After HFDs:', after_data['hfd'].round(1).to_dict())

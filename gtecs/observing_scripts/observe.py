@@ -4,6 +4,7 @@
 import sys
 from argparse import ArgumentParser
 
+from gtecs import params
 from gtecs.focusing import refocus
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
 from gtecs.observing import (prepare_for_images, slew_to_radec, wait_for_exposure_queue,
@@ -79,7 +80,7 @@ def run(db_id):
     try:
         # make sure hardware is ready
         prepare_for_images()
-        refocus()
+        refocus(params.FOCUS_TEST_COMPENSATION)
 
         print('Observing pointing ID: ', db_id)
         mark_running(db_id)
