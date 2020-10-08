@@ -358,6 +358,7 @@ IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
 ############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
+BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 
 ############################################################
 # Slack bot parameters

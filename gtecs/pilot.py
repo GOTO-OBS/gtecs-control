@@ -84,12 +84,16 @@ class Pilot(object):
         self.assign_tasks()
 
         # status flags, set during the night
+        self.initial_hardware_check_complete = False
+        self.initial_flags_check_complete = False
+        self.initial_scheduler_check_complete = False
         self.startup_complete = False
         self.night_operations = False
         self.tasks_pending = False
         self.observing = False
         self.mount_is_tracking = False   # should the mount be tracking?
         self.dome_is_open = False        # should the dome be open?
+        self.shutdown_now = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
@@ -105,29 +109,25 @@ class Pilot(object):
                          'sentinel': monitors.SentinelMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
-        self.bad_hardware = None
 
         # store system mode
         self.system_mode = 'robotic'
 
-        # dictionary of reasons to pause
+        # reasons to pause and timers
         self.whypause = {'hardware': False, 'conditions': False, 'manual': False}
-        self.time_paused = 0
+        self.time_paused = {'hardware': 0, 'conditions': 0, 'manual': 0}
+        self.time_lost = 0
+        self.bad_conditions_tasks_timer = 0
+        self.bad_hardware = None
         self.bad_flags = None
 
         # dome check flags
         self.dome_confirmed_closed = False
         self.close_command_time = 0.
 
-        self.initial_hardware_check_complete = False
-        self.initial_flags_check_complete = False
-
+        # scheduler check flags
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
-        self.initial_scheduler_check_complete = False
-
-        # flag to shutdown early
-        self.shutdown_now = False
 
     # Check routines
     async def check_scheduler(self):
@@ -276,11 +276,6 @@ class Pilot(object):
                 self.bad_flags = None
                 await self.handle_pause('conditions', False)
 
-            # print if we're paused
-            if self.paused:
-                reasons = [k for k in self.whypause if self.whypause[k]]
-                self.log.info('pilot paused ({})'.format(', '.join(reasons)))
-
             # only allow the night marshal to start after a
             # successful flags check
             self.initial_flags_check_complete = True
@@ -313,10 +308,43 @@ class Pilot(object):
         """Keep track of the time the pilot has been paused."""
         self.log.info('pause check routine initialised')
 
-        sleep_time = 60
+        sleep_time = 10
         while True:
             if self.paused:
-                self.time_paused += sleep_time
+                reasons = [k for k in self.whypause if self.whypause[k]]
+
+                # log why we're paused
+                self.log.info('pilot paused ({})'.format(', '.join(reasons)))
+                self.log.debug('pause times: {}'.format(self.time_paused))
+
+                # track the observing time lost (this is reset whenever a new observation starts)
+                self.time_lost += sleep_time
+
+                # track the time paused for each reason (this is reset whenever the system unpauses)
+                for reason in reasons:
+                    self.time_paused[reason] += sleep_time
+
+                # check if we're ONLY paused due to bad conditions
+                # this means the script won't run if there's a hardware error or we're in manual
+                if not self.whypause['hardware'] and not self.whypause['manual']:
+                    # only start checking after the sun has set and we've finished normal darks
+                    if (self.startup_complete and get_sunalt(Time.now()) < 0 and
+                            not (self.tasks_pending or self.running_script)):
+                        # check the time since the script last ran
+                        delta = self.time_paused['conditions'] - self.bad_conditions_tasks_timer
+                        if delta > params.BAD_CONDITIONS_TASKS_PERIOD:
+                            paused_hours = self.time_paused['conditions'] / (60 * 60)
+                            self.log.debug('bad conditions timer: {:.2f}h'.format(paused_hours))
+
+                            # here we can run an obs script during poor weather
+                            self.log.info('running bad conditions tasks')
+                            # TODO: for now just take some extra darks
+                            cmd = [os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3']
+                            asyncio.ensure_future(self.start_script('BADCOND', LoggedProtocol, cmd))
+
+                            # save the counter
+                            self.bad_conditions_tasks_timer = self.time_paused['conditions']
+
             await asyncio.sleep(sleep_time)
 
     # Night marshal
@@ -806,9 +834,9 @@ class Pilot(object):
                         # cancel the script first (will mark as aborted)
                         await self.cancel_running_script(why='new pointing')
 
-                        # now correctly mark it as completed or interupted
-                        now = time.time()
-                        elapsed = now - self.current_start_time - self.time_paused
+                        # now correctly mark it as completed or interupted,
+                        # accounting for time lost due to being paused
+                        elapsed = time.time() - self.current_start_time - self.time_lost
 
                         self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
                                        self.current_mintime, elapsed))
@@ -837,7 +865,7 @@ class Pilot(object):
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
                 self.current_mintime = self.new_mintime
-                self.time_paused = 0
+                self.time_lost = 0
 
             else:
                 self.log.info('nothing to do, parking mount')
@@ -896,7 +924,7 @@ class Pilot(object):
                 self.log.warning('Pausing (bad conditions: {})'.format(self.bad_flags))
                 send_slack_msg('Pilot is pausing (bad conditions: {})'.format(self.bad_flags))
 
-                if self.night_operations:
+                if self.dome_is_open:
                     # only need to stop scripts if the dome is open
                     # (this way we don't kill darks if the weather goes bad)
                     execute_command('exq pause')
@@ -906,6 +934,9 @@ class Pilot(object):
                 # always make sure we're closed and parked
                 self.close_dome()
                 self.park_mount()
+
+                # reset the timer for bad conditions tasks to zero
+                self.bad_conditions_tasks_timer = 0
 
             elif reason == 'hardware':
                 self.log.warning('Pausing (hardware fault: {})'.format(self.bad_hardware))
@@ -933,24 +964,29 @@ class Pilot(object):
                 # don't actually kill anything, coroutines will pause themselves
                 self.log.info('The current task will continue')
 
-        # does this change suggest a global unpause?
-        unpause = (not any(self.whypause[key] for key in self.whypause if key != reason) and
-                   not pause)
-        if unpause and self.paused:
-            # OK, we can resume
-            self.log.info('resuming operations')
-            send_slack_msg('Pilot is resuming operations')
-            if self.night_operations:
-                if not self.dome_is_open:
-                    # open the dome if it's closed
-                    # this way wait and don't resume until the dome is open
-                    await self.open_dome()
-                if not self.mount_is_tracking:
-                    # unpark the mount if it's parked
-                    # this way we don't unpark if we're still observing,
-                    # which can happen if we paused manually
-                    await self.unpark_mount()
-                execute_command('exq resume')
+        if not pause:
+            if self.time_paused[reason] > 0:
+                # reset the counter if we are no longer paused
+                self.time_paused[reason] = 0
+
+            # does this change suggest a global unpause?
+            # (i.e. we're not paused for any other reason)
+            unpause = not any(self.whypause[key] for key in self.whypause if key != reason)
+            if unpause and self.paused:
+                # OK, we can resume
+                self.log.info('resuming operations')
+                send_slack_msg('Pilot is resuming operations')
+                if self.night_operations:
+                    if not self.dome_is_open:
+                        # open the dome if it's closed
+                        # this way wait and don't resume until the dome is open
+                        await self.open_dome()
+                    if not self.mount_is_tracking:
+                        # unpark the mount if it's parked
+                        # this way we don't unpark if we're still observing,
+                        # which can happen if we paused manually
+                        await self.unpark_mount()
+                    execute_command('exq resume')
 
         # finally, change global pause status by updating flag
         # by putting this last, we dont unpause until the dome
