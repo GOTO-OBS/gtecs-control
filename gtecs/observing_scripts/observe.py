@@ -80,7 +80,7 @@ def run(db_id):
     try:
         # make sure hardware is ready
         prepare_for_images()
-        refocus(params.FOCUS_TEST_COMPENSATION)
+        refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
 
         print('Observing pointing ID: ', db_id)
         mark_running(db_id)

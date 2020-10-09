@@ -134,13 +134,18 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     return df
 
 
-def refocus(take_images=False):
+def refocus(take_images=False, verbose=False):
     """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()
     deltas = {ut: curr_temp[ut] - prev_temp[ut]
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
               for ut in params.UTS_WITH_FOCUSERS}
+    if verbose:
+        print('Checking focuser temperatures...')
+        print('Current temp: {}'.format(curr_temp))
+        print('Previous temp: {}'.format(prev_temp))
+        print('Difference: {}'.format(deltas))
 
     # Check if the change is greater than the minimum to refocus
     min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
@@ -155,6 +160,8 @@ def refocus(take_images=False):
 
     # Calculate the focus offset
     offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
+    if verbose:
+        print('Offsets: {}'.format(offsets))
 
     # Ignore any UTs which do not need changing
     offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
