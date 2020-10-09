@@ -143,9 +143,9 @@ def refocus(take_images=False, verbose=False):
               for ut in params.UTS_WITH_FOCUSERS}
     if verbose:
         print('Checking focuser temperatures...')
-        print('Current temp: {}'.format(curr_temp))
-        print('Previous temp: {}'.format(prev_temp))
-        print('Difference: {}'.format(deltas))
+        print('Current temp:', curr_temp)
+        print('Previous temp:', prev_temp)
+        print('Difference:', deltas)
 
     # Check if the change is greater than the minimum to refocus
     min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
@@ -161,7 +161,7 @@ def refocus(take_images=False, verbose=False):
     # Calculate the focus offset
     offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
     if verbose:
-        print('Offsets: {}'.format(offsets))
+        print('Offsets:', offsets)
 
     # Ignore any UTs which do not need changing
     offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
@@ -169,12 +169,19 @@ def refocus(take_images=False, verbose=False):
     if len(offsets) > 0:
         print('Applying temperature compensation to focusers')
 
-        if take_images:
+        if not take_images:
+            # Just move
+            move_focusers(offsets, timeout=None)
+        else:
             before_data = measure_focus(exptime=5)
-            print('Before HFDs:', before_data['hfd'].round(1).to_dict())
+            if verbose:
+                print('Before HFDs:', before_data['hfd'].round(1).to_dict())
 
-        move_focusers(offsets, timeout=None)
+            move_focusers(offsets, timeout=None)
 
-        if take_images:
             after_data = measure_focus(exptime=5)
-            print('After HFDs:', after_data['hfd'].round(1).to_dict())
+            if verbose:
+                print('After HFDs:', after_data['hfd'].round(1).to_dict())
+
+            diff = {ut: after_data[ut].round(1) - before_data[ut].round(1) for ut in after_data}
+            print('Difference:', diff)
