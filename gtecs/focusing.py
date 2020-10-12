@@ -183,5 +183,5 @@ def refocus(take_images=False, verbose=False):
             if verbose:
                 print('After HFDs:', after_data['hfd'].round(1).to_dict())
 
-            diff = {ut: after_data[ut].round(1) - before_data[ut].round(1) for ut in after_data}
+            diff = {ut: after_data['hfd'][ut] - before_data['hfd'][ut] for ut in after_data}
             print('Difference:', diff)
