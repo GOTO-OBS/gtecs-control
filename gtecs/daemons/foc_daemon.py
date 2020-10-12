@@ -12,6 +12,8 @@ from gtecs import params
 from gtecs.conditions import get_roomalert
 from gtecs.daemons import BaseDaemon, daemon_proxy
 
+import numpy as np
+
 
 class FocDaemon(BaseDaemon):
     """Focuser hardware daemon class."""
@@ -204,11 +206,20 @@ class FocDaemon(BaseDaemon):
         try:
             dome_temp = get_roomalert('pier')['int_temperature']
             # We need a check here because the sensor occasionally has glitches
-            if abs(dome_temp - temp_info['dome_temp']) > 1:
-                # It's very unlikly to have changed by more than 1 degree in 5 seconds...
-                # Just keep the previous value
-                dome_temp = temp_info['dome_temp']
+            # We could just compare to the previous value, but if the first measurement is a glitch
+            # then we'd never get anywhere.
+            # Instead, we need to store multiple readings, since the glitches are very short.
+            if self.info is None or 'dome_temp_history' not in self.info:
+                dome_temp_history = [dome_temp]
+            else:
+                # Take the last 12 readings, which should be a minute if we check every 5 seconds.
+                dome_temp_history = self.info['dome_temp_history'][-12:] + [dome_temp]
+                if abs(dome_temp - np.median(dome_temp_history)) > 1:
+                    # It's very unlikly to have changed by more than 1 degree that quickly...
+                    # If so then just keep the previous value
+                    dome_temp = self.info['dome_temp']
             temp_info['dome_temp'] = dome_temp
+            temp_info['dome_temp_history'] = dome_temp_history
         except Exception:
             self.log.error('Failed to get dome internal temperature')
             self.log.debug('', exc_info=True)
