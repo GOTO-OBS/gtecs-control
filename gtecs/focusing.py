@@ -175,14 +175,14 @@ def refocus(take_images=False, verbose=False):
         else:
             before_data = measure_focus(exptime=5)
             if verbose:
-                print('Before HFDs:', before_data['hfd'].round(1).to_dict())
+                print('Before data:\n', before_data.round(1))
 
             move_focusers(offsets, timeout=None)
 
             after_data = measure_focus(exptime=5)
             if verbose:
-                print('After HFDs:', after_data['hfd'].round(1).to_dict())
+                print('After data:\n', after_data.round(1))
 
-            diff = {ut: np.round(after_data['hfd'][ut] - before_data['hfd'][ut])
+            diff = {ut: np.round(after_data['hfd'][ut] - before_data['hfd'][ut], 1)
                     for ut in after_data}
-            print('Difference:', diff)
+            print('Change in HFDs:', diff)
