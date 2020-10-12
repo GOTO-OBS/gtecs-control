@@ -203,6 +203,11 @@ class FocDaemon(BaseDaemon):
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
             dome_temp = get_roomalert('pier')['int_temperature']
+            # We need a check here because the sensor occasionally has glitches
+            if abs(dome_temp - temp_info['dome_temp']) > 1:
+                # It's very unlikly to have changed by more than 1 degree in 5 seconds...
+                # Just keep the previous value
+                dome_temp = temp_info['dome_temp']
             temp_info['dome_temp'] = dome_temp
         except Exception:
             self.log.error('Failed to get dome internal temperature')
