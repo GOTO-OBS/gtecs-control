@@ -311,11 +311,11 @@ class FocDaemon(BaseDaemon):
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
 
-            # Check the new position is different from the current position
-            if new_pos == self.info[ut]['current_pos']:
-                s = 'Focuser is already at position {}'.format(new_pos)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
-                continue
+            # # Check the new position is different from the current position
+            # if new_pos == self.info[ut]['current_pos']:
+            #     s = 'Focuser is already at position {}'.format(new_pos)
+            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
@@ -372,11 +372,11 @@ class FocDaemon(BaseDaemon):
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
 
-            # Check the new position is different from the current position
-            if new_pos == self.info[ut]['current_pos']:
-                s = 'Focuser is already at position {}'.format(new_pos)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
-                continue
+            # # Check the new position is different from the current position
+            # if new_pos == self.info[ut]['current_pos']:
+            #     s = 'Focuser is already at position {}'.format(new_pos)
+            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
