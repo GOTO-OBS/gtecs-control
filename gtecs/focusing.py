@@ -138,7 +138,7 @@ def refocus(take_images=False, verbose=False):
     """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()
-    deltas = {ut: curr_temp[ut] - prev_temp[ut]
+    deltas = {ut: np.round(curr_temp[ut] - prev_temp[ut], 1)
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
               for ut in params.UTS_WITH_FOCUSERS}
     if verbose:
@@ -183,5 +183,6 @@ def refocus(take_images=False, verbose=False):
             if verbose:
                 print('After HFDs:', after_data['hfd'].round(1).to_dict())
 
-            diff = {ut: after_data['hfd'][ut] - before_data['hfd'][ut] for ut in after_data}
+            diff = {ut: np.round(after_data['hfd'][ut] - before_data['hfd'][ut])
+                    for ut in after_data}
             print('Difference:', diff)
