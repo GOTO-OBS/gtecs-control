@@ -348,11 +348,11 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Autofocus the telescopes.')
-    parser.add_argument('-n', '--numexp', type=int, default=3,
+    parser.add_argument('-n', '--numexp', type=int, default=1,
                         help=('number of exposures to take at each position (default=3)')
                         )
-    parser.add_argument('-t', '--exptime', type=float, default=30,
-                        help=('exposure time to use (default=30s)')
+    parser.add_argument('-t', '--exptime', type=float, default=5,
+                        help=('exposure time to use (default=5s)')
                         )
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
