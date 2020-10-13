@@ -432,6 +432,9 @@ if __name__ == '__main__':
 
     # Get the near-focus values for each UT
     nfvs = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in params.AUTOFOCUS_PARAMS}
+    for ut in params.UTS_WITH_FOCUSERS:
+        if ut not in nfvs:
+            nfvs[ut] = DEFAULT_NFV
 
     # If something goes wrong we need to restore the origional focus
     initial_positions = get_focuser_positions()

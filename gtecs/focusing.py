@@ -140,7 +140,7 @@ def refocus(take_images=False, verbose=False):
     curr_temp, prev_temp = get_focuser_temperatures()
     deltas = {ut: np.round(curr_temp[ut] - prev_temp[ut], 1)
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
-              for ut in params.UTS_WITH_FOCUSERS}
+              for ut in params.AUTOFOCUS_PARAMS}
     if verbose:
         print('Checking focuser temperatures...')
         print('Current temp:', curr_temp)
@@ -149,17 +149,17 @@ def refocus(take_images=False, verbose=False):
 
     # Check if the change is greater than the minimum to refocus
     min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
-                  for ut in params.UTS_WITH_FOCUSERS}
+                  for ut in params.AUTOFOCUS_PARAMS}
     deltas = {ut: deltas[ut]
               if abs(deltas[ut]) > min_change[ut] else 0
               for ut in deltas}
 
     # Find the gradients (in steps/degree C)
     gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
-                 for ut in params.UTS_WITH_FOCUSERS}
+                 for ut in params.AUTOFOCUS_PARAMS}
 
     # Calculate the focus offset
-    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
+    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.AUTOFOCUS_PARAMS}
     if verbose:
         print('Offsets:', offsets)
 

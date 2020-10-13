@@ -256,12 +256,11 @@ FILTER_LIST = config['FILTER_LIST']
 ############################################################
 # Focuser parameters
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
-for ut in UTS_WITH_FOCUSERS:
-    # Each focuser should have params here
-    if str(ut) not in AUTOFOCUS_PARAMS:
-        AUTOFOCUS_PARAMS[str(ut)] = {}
-# It complains about types, I don't know why
-AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[str(ut)] for ut in AUTOFOCUS_PARAMS}
+# Only UTs with focusers should have params here, but not necessarily all of them
+# Also we need to be careful with types
+AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
+                    for ut in AUTOFOCUS_PARAMS
+                    if int(ut) in UTS_WITH_FOCUSERS}
 for ut in AUTOFOCUS_PARAMS:
     # Use default params if they're not given (not perfect, they really need to be defined per UT)
     if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:

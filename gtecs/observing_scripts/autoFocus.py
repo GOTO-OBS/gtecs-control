@@ -68,8 +68,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
         target_name = 'Autofocus'
 
     # Try to focus all UTs that have focusers, as long as they have params
-    uts = [ut for ut in params.UTS_WITH_FOCUSERS if ut in foc_params.index]
-    active_uts = uts.copy()
+    all_uts = sorted(foc_params.index)
+    active_uts = all_uts.copy()
     failed_uts = {}
 
     # With the focusers where they are now, take images to get a baseline HFD.
@@ -309,7 +309,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
 
         # Take final measurements again
         print('Taking {} focus measurements...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, target_name, uts)
+        foc_data = measure_focus(num_exp, exptime, filt, target_name, all_uts)
         final_hfds = foc_data['hfd']
         if num_exp > 1:
             print('Best HFDs:', final_hfds.round(1).to_dict())
@@ -368,13 +368,13 @@ if __name__ == '__main__':
     no_slew = args.no_slew
 
     # Get the autofocus parameters
-    uts = sorted(set(params.UTS_WITH_FOCUSERS).intersection(params.AUTOFOCUS_PARAMS.keys()))
-    foc_params = {'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in uts},
-                  'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in uts},
-                  'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in uts},
-                  'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in uts},
-                  'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in uts},
-                  'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in uts},
+    all_uts = sorted(params.AUTOFOCUS_PARAMS.keys())
+    foc_params = {'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in all_uts},
+                  'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in all_uts},
+                  'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in all_uts},
+                  'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in all_uts},
+                  'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in all_uts},
+                  'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in all_uts},
                   }
     foc_params = pd.DataFrame(foc_params)
 
