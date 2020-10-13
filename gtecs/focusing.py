@@ -184,5 +184,5 @@ def refocus(take_images=False, verbose=False):
                 print('After data:\n', after_data.round(1))
 
             diff = {ut: np.round(after_data['hfd'][ut] - before_data['hfd'][ut], 1)
-                    for ut in after_data}
+                    for ut in after_data.index}
             print('Change in HFDs:', diff)
