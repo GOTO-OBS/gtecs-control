@@ -342,7 +342,9 @@ class Pilot(object):
                             # monitor status to 'tracking' here.
                             # this means we can't park during the darks, which is annoying
                             # (because that would count as a hardware error).
-                            self.unpark_mount()
+                            if not self.mount_is_tracking:
+                                await self.unpark_mount()
+
                             cmd = [os.path.join(SCRIPT_PATH, 'badConditionsTasks.py'), '3']
                             asyncio.ensure_future(self.start_script('BADCOND', LoggedProtocol, cmd))
 
