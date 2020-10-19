@@ -42,8 +42,8 @@ class MntDaemon(BaseDaemon):
         # mount variables
         self.target_ra = None
         self.target_dec = None
-        self.temp_alt = None
-        self.temp_az = None
+        self.target_alt = None
+        self.target_az = None
         self.set_blinky = False
         self.offset_direction = None
         self.offset_distance = None
@@ -113,19 +113,17 @@ class MntDaemon(BaseDaemon):
                     now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
                     now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
                                                                      now_alt, now_az)
-                    new_alt, new_az = self.temp_alt, self.temp_az
-                    new_ra, new_dec = radec_from_altaz(self.temp_alt, self.temp_az)
+                    new_alt, new_az = self.target_alt, self.target_az
+                    new_ra, new_dec = radec_from_altaz(self.target_alt, self.target_az)
                     new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
                                                                      new_alt, new_az)
                     self.log.info('Slewing from {} to {}'.format(now_str, new_str))
-                    c = self.sitech.slew_to_altaz(self.temp_alt, self.temp_az)
+                    c = self.sitech.slew_to_altaz(self.target_alt, self.target_az)
                     if c:
                         self.log.info(c)
                 except Exception:
                     self.log.error('slew_altaz command failed')
                     self.log.debug('', exc_info=True)
-                self.temp_alt = None
-                self.temp_az = None
                 self.slew_altaz_flag = 0
                 self.force_check_flag = True
 
@@ -217,6 +215,8 @@ class MntDaemon(BaseDaemon):
                 # clear the stored coordinates
                 self.target_ra = None
                 self.target_dec = None
+                self.target_alt = None
+                self.target_az = None
                 self.park_flag = 0
                 self.force_check_flag = True
 
@@ -321,6 +321,8 @@ class MntDaemon(BaseDaemon):
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
         temp_info['target_dist'] = self._get_target_distance()
+        temp_info['target_alt'] = self.target_alt
+        temp_info['target_az'] = self.target_az
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
 
@@ -384,6 +386,8 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = ra
         self.target_dec = dec
+        self.target_alt = None
+        self.target_az = None
 
         # Set flag
         self.force_check_flag = True
@@ -411,9 +415,9 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
-        self.temp_alt = alt
-        self.temp_az = az
-        ra, dec = radec_from_altaz(alt, az, Time.now())
+        self.target_alt = alt
+        self.target_az = az
+        ra, dec = radec_from_altaz(alt, az, Time.now())  # needed for _get_target_distance()
         self.target_ra = ra * 24 / 360.
         self.target_dec = dec
 
@@ -603,6 +607,8 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = None
         self.target_dec = None
+        self.target_alt = None
+        self.target_az = None
 
         self.log.info('Cleared target')
         return 'Cleared target'
