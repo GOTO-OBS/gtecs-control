@@ -26,6 +26,7 @@ def run(nexp=3):
     for az in [0, 90, 180, 270, 0]:
         slew_to_altaz(50, az, timeout=120)
         time.sleep(2)
+    print('Mount tests complete')
 
     # take extra biases and darks
     execute_command('exq multbias {} 1'.format(nexp))
@@ -45,7 +46,6 @@ def run(nexp=3):
                   ) * nexp
     total_time *= 1.5
     wait_for_exposure_queue(total_time)
-
     print('Biases and darks complete')
 
     print('Bad conditions tasks done')
