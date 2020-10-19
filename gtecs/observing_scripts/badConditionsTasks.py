@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Script to run during the night while the dome is closed."""
 
-from argparse import ArgumentParser
-
 import time
+from argparse import ArgumentParser
 
 from gtecs.misc import execute_command
 from gtecs.observing import prepare_for_images, slew_to_altaz, wait_for_exposure_queue
