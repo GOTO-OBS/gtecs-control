@@ -338,8 +338,7 @@ class Pilot(object):
 
                             # here we can run an obs script during poor weather
                             self.log.info('running bad conditions tasks')
-                            # TODO: for now just take some extra darks
-                            cmd = [os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'), '3']
+                            cmd = [os.path.join(SCRIPT_PATH, 'badConditionsTasks.py'), '3']
                             asyncio.ensure_future(self.start_script('BADCOND', LoggedProtocol, cmd))
 
                             # save the counter
