@@ -338,6 +338,12 @@ class Pilot(object):
 
                             # here we can run an obs script during poor weather
                             self.log.info('running bad conditions tasks')
+                            if not self.mount_is_tracking:
+                                # note we want to be able to move the mount, so we have to set the
+                                # monitor status to 'tracking' here.
+                                # this means we can't park during the darks, which is annoying
+                                # (because that would count as a hardware error).
+                                self.unpark_mount()
                             cmd = [os.path.join(SCRIPT_PATH, 'badConditionsTasks.py'), '3']
                             asyncio.ensure_future(self.start_script('BADCOND', LoggedProtocol, cmd))
 
@@ -1108,6 +1114,9 @@ class Pilot(object):
     # Hardware commands
     async def open_dome(self):
         """Open the dome and await until it is finished."""
+        # make sure we are parked before opening
+        if self.mount_is_tracking:
+            self.park_mount()
         self.log.info('opening dome')
         send_slack_msg('Pilot is opening the dome')
         execute_command('dome open')

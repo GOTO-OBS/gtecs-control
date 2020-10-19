@@ -3,8 +3,10 @@
 
 from argparse import ArgumentParser
 
+import time
+
 from gtecs.misc import execute_command
-from gtecs.observing import prepare_for_images, wait_for_exposure_queue
+from gtecs.observing import prepare_for_images, slew_to_altaz, wait_for_exposure_queue
 
 
 def run(nexp=3):
@@ -20,6 +22,11 @@ def run(nexp=3):
 
     # make sure hardware is ready
     prepare_for_images(open_covers=False)
+
+    # move the mount around
+    for az in [0, 90, 180, 270, 0]:
+        slew_to_altaz(50, az, timeout=120)
+        time.sleep(2)
 
     # take extra biases and darks
     execute_command('exq multbias {} 1'.format(nexp))
