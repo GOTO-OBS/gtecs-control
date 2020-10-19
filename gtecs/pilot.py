@@ -56,7 +56,6 @@ class Pilot(object):
                                      log_to_file=params.FILE_LOGGING,
                                      log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Pilot started')
-        send_slack_msg('Pilot started')
 
         # flag for daytime testing
         self.testing = testing
@@ -1312,6 +1311,12 @@ def run(test=False, restart=False, late=False):
         run the evening tasks even if it's too late
 
     """
+    print('Pilot started')
+    if not restart:
+        send_slack_msg('Pilot started')
+    else:
+        send_slack_msg('Pilot restarted')
+
     loop = asyncio.get_event_loop()
     loop.set_debug(False)
     pilot = Pilot(testing=test)
