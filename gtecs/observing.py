@@ -371,7 +371,7 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
         wait_for_mount(ra, dec, timeout)
 
 
-def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
+def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
     """Wait for mount to be in target position.
 
     Parameters
@@ -383,8 +383,8 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
     timeout : float
         time in seconds after which to timeout, None to wait forever
     targ_dist : float
-        distance in degrees from the target to consider returning after
-        default is 0.003 degrees
+        distance in arcseconds from the target to consider returning after
+        default is 30 arcsec
 
     """
     start_time = time.time()
@@ -399,7 +399,7 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
             done = (mnt_info['status'] == 'Tracking' and
                     np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
                     np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist)
+                    mnt_info['target_dist'] < targ_dist / (60 * 60))
             if done:
                 reached_position = True
         except Exception:
@@ -443,7 +443,7 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
         wait_for_mount_altaz(alt, az, timeout)
 
 
-def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=0.003):
+def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
     """Wait for mount to be in target position.
 
     Parameters
@@ -455,8 +455,8 @@ def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=0.003):
     timeout : float
         time in seconds after which to timeout, None to wait forever
     targ_dist : float
-        distance in degrees from the target to consider returning after
-        default is 0.003 degrees
+        distance in arcseconds from the target to consider returning after
+        default is 30 arcsec
 
     """
     start_time = time.time()
@@ -471,7 +471,7 @@ def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=0.003):
             done = (mnt_info['status'] == 'Tracking' and
                     np.isclose(mnt_info['target_alt'], target_alt, atol=0.0001) and
                     np.isclose(mnt_info['target_az'], target_az, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist)
+                    mnt_info['target_dist'] < targ_dist / (60 * 60))
             if done:
                 reached_position = True
         except Exception:
