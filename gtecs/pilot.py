@@ -523,7 +523,7 @@ class Pilot(object):
                 self.running_script_transport is not None and
                 self.running_script_transport.get_returncode() is None):
             self.log.info('killing {}, reason: "{}"'.format(self.running_script, why))
-            if self.running_script != 'OBS':
+            if self.running_script not in ['OBS', 'BADCOND']:
                 msg = 'Pilot killing {} task early ("{}")'.format(self.running_script, why)
                 send_slack_msg(msg)
 
@@ -977,6 +977,9 @@ class Pilot(object):
                 self.log.info('resuming operations')
                 send_slack_msg('Pilot is resuming operations')
                 if self.night_operations:
+                    if self.running_script == 'BADCOND':
+                        # Cancel the BADCOND script when unpausing
+                        await self.cancel_running_script('unpausing')
                     if not self.dome_is_open:
                         # open the dome if it's closed
                         # this way wait and don't resume until the dome is open
