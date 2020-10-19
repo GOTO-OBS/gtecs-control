@@ -395,7 +395,6 @@ class Pilot(object):
             # Need to mark startup complete here, since the startup function won't
             self.startup_complete = True
         self.log.info('startup complete')
-        self.send_startup_report()
 
         # Wait for first successful hardware check
         while not self.initial_hardware_check_complete:
@@ -1056,7 +1055,7 @@ class Pilot(object):
     async def startup(self):
         """Start up the system.
 
-        Runs the startup script, and sets the startup_complete flag
+        Runs the startup script, sets the startup_complete flag and sends the startup report
         """
         # run startup script
         self.log.debug('running startup script')
@@ -1066,7 +1065,10 @@ class Pilot(object):
         # flag that startup has finished
         self.startup_complete = True
 
-        self.log.debug('startup script complete')
+        # send the startup report
+        self.send_startup_report()
+
+        self.log.debug('startup process complete')
 
     async def shutdown(self):
         """Shut down the system.
