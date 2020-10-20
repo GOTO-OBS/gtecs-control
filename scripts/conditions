@@ -201,7 +201,7 @@ def print_info(info):
                 humidity_str = style.rtxt('  ERR')
             elif (humidity < params.MAX_HUMIDITY):
                 humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY * 0.9):
+                if (humidity < params.MAX_HUMIDITY - 5):
                     humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
@@ -212,7 +212,7 @@ def print_info(info):
                 windspeed_str = ' N/A'
             elif (windspeed < params.MAX_WINDSPEED):
                 windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED * 0.9):
+                if (windspeed < params.MAX_WINDSPEED - 5):
                     windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
             else:
                 windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
@@ -223,7 +223,7 @@ def print_info(info):
                 windgust_str = ' N/A'
             elif (windgust < params.MAX_WINDGUST):
                 windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDGUST * 0.9):
+                if (windgust < params.MAX_WINDGUST - 5):
                     windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
             else:
                 windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
@@ -275,7 +275,7 @@ def print_info(info):
                 int_humidity_str = style.rtxt('  ERR')
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
                 int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.MAX_INTERNAL_HUMIDITY * 0.9):
+                if (int_humidity < params.MAX_INTERNAL_HUMIDITY - 5):
                     int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
                 int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
@@ -443,7 +443,7 @@ def print_limits(info):
             elif (humidity < params.MAX_HUMIDITY):
                 status = style.gtxt('Good')
                 humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY * 0.9):
+                if (humidity < params.MAX_HUMIDITY - 5):
                     humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = style.rtxt('Bad')
@@ -462,7 +462,7 @@ def print_limits(info):
             elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
                 status = style.gtxt('Good')
                 int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.MAX_INTERNAL_HUMIDITY * 0.9):
+                if (int_humidity < params.MAX_INTERNAL_HUMIDITY - 5):
                     int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
                 status = style.rtxt('Bad')
@@ -503,7 +503,7 @@ def print_limits(info):
             elif (windspeed < params.MAX_WINDSPEED):
                 status = style.gtxt('Good')
                 windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED * 0.9):
+                if (windspeed < params.MAX_WINDSPEED - 5):
                     windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
             else:
                 status = style.rtxt('Bad')
@@ -523,7 +523,7 @@ def print_limits(info):
             elif (windgust < params.MAX_WINDGUST):
                 status = style.gtxt('Good')
                 windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDGUST * 0.9):
+                if (windgust < params.MAX_WINDGUST - 5):
                     windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
             else:
                 status = style.rtxt('Bad')
@@ -561,7 +561,7 @@ def print_limits(info):
             elif (int_humidity < params.CRITICAL_INTERNAL_HUMIDITY):
                 status = style.gtxt('Good')
                 int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.CRITICAL_INTERNAL_HUMIDITY * 0.9):
+                if (int_humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
                     int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
             else:
                 status = style.rtxt('Bad')
