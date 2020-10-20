@@ -119,6 +119,8 @@ class FakeDome(object):
             side = 0
         elif self.side == 'south':
             side = 1
+        else:
+            raise ValueError('Invalid side: {}'.format(self.side))
         frac = self.frac
         command = self.command
         timeout = self.timeout

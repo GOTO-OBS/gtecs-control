@@ -111,9 +111,12 @@ class DomeDaemon(BaseDaemon):
                         side = 'south'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is open')
+                        side = None
                         self.move_frac = 1
                         self.open_flag = 0
                         self.force_check_flag = True
+                    else:
+                        raise ValueError('Invalid side: {}'.format(self.move_side))
 
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
@@ -180,9 +183,12 @@ class DomeDaemon(BaseDaemon):
                         side = 'north'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is closed')
+                        side = None
                         self.move_frac = 1
                         self.close_flag = 0
                         self.force_check_flag = True
+                    else:
+                        raise ValueError('Invalid side: {}'.format(self.move_side))
 
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
