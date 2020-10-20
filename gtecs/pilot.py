@@ -497,11 +497,12 @@ class Pilot(object):
         if retcode != 0:
             # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
-            if name != 'OBS':
-                if ('Error' in result) or ('Exception' in result):
-                    msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
-                else:
-                    msg = 'Pilot {} task ended abnormally'.format(name)
+            if ('Error' in result) or ('Exception' in result):
+                msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
+                send_slack_msg(msg)
+            elif name not in ['OBS', 'BADCOND']:
+                # It's not uncommon for OBS and BADCOND to be canceled early
+                msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
             # if we were observing, mark as aborted
