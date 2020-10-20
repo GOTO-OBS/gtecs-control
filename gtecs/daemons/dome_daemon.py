@@ -51,6 +51,7 @@ class DomeDaemon(BaseDaemon):
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
+        self.autodehum = True
         self.autoclose = True
         self.alarm = True
         self.heartbeat = True
