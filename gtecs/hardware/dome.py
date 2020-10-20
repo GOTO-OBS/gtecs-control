@@ -10,7 +10,6 @@ import serial
 
 from .power import ETH002
 from .. import params
-from ..conditions import get_roomalert
 
 
 class FakeDome(object):
@@ -688,16 +687,6 @@ class FakeDehumidifier(object):
         """Get the dehumidifier status."""
         return self._status
 
-    @property
-    def conditions():
-        """Get the current dome conditions."""
-        pier_conditions = get_roomalert('pier')
-        pier_hum = pier_conditions['int_humidity']
-        pier_temp = pier_conditions['int_temperature']
-
-        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
-        return conditions
-
 
 class Dehumidifier(object):
     """Dehumidifier class (using a ETH002 relay)."""
@@ -719,13 +708,3 @@ class Dehumidifier(object):
     def status(self):
         """Get the dehumidifier status."""
         return self.power.status()[0]
-
-    @property
-    def conditions():
-        """Get the current dome conditions."""
-        pier_conditions = get_roomalert('pier')
-        pier_hum = pier_conditions['int_humidity']
-        pier_temp = pier_conditions['int_temperature']
-
-        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
-        return conditions
