@@ -532,7 +532,7 @@ def print_limits(info):
             print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
                 windgust_str, params.MAX_WINDGUST, status))
 
-        print('INTERNAL:')
+        print('INTERNAL (critical limits):')
         for source in ['pier']:
             print('  {: <10}'.format('temperature'), end='\t')
 
@@ -549,7 +549,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
 
-            print(' {}°C       (crit={:.1f}°C          \t : {}'.format(
+            print(' {}°C       (min={:.1f}°C          \t : {}'.format(
                 int_temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status))
 
             print('  {: <10}'.format('humidity'), end='\t')
@@ -567,7 +567,7 @@ def print_limits(info):
                 status = style.rtxt('Bad')
                 int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
 
-            print('{}%        (crit={:.1f}%)           \t : {}'.format(
+            print('{}%        (max={:.1f}%)           \t : {}'.format(
                 int_humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status))
 
         print('OTHER:')
