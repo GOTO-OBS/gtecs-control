@@ -683,11 +683,13 @@ class FakeDehumidifier(object):
         """Turn off the dehumidifier."""
         self._status = '0'
 
+    @property
     def status(self):
         """Get the dehumidifier status."""
         return self._status
 
-    def conditions(self):
+    @property
+    def conditions():
         """Get the current dome conditions."""
         pier_conditions = get_roomalert('pier')
         pier_hum = pier_conditions['int_humidity']
