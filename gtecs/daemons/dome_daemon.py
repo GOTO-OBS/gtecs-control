@@ -811,7 +811,7 @@ class DomeDaemon(BaseDaemon):
                 s += '(autodehum is enabled, so the daemon may turn it off again)'
             return s
         elif command == 'off':
-            s = 'Turning off dehumidifier (the daemon may turn it on again)'
+            s = 'Turning off dehumidifier'
             if self.autodehum:
                 s += '(autodehum is enabled, so the daemon may turn it on again)'
             return s
