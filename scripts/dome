@@ -148,6 +148,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'override_dehumidifier', [command])
         print(reply)
 
+    elif command == 'autodehum':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_autodehum', [command])
+        print(reply)
+
     elif command == 'autoclose':
         # parse arguments
         if len(args) == 1:
@@ -196,6 +208,9 @@ def print_info(info):
     print('South:        {}'.format(info['south'].capitalize()))
     print('Hatch:        {}'.format(info['hatch'].capitalize()))
     print('Dehumidifier: {}'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('Autodehum:    {}'.format(style.rtxt('Disabled')
+                                    if not info['autodehum_enabled']
+                                    else 'Enabled'))
     print('Autoclose:    {}'.format(style.rtxt('Disabled')
                                     if not info['autoclose_enabled']
                                     else 'Enabled'))
@@ -223,6 +238,9 @@ def print_info_s(info):
         print(style.rtxt('                    LOCKDOWN ACTIVE'))
     print('   Hatch:           [{}]'.format(info['hatch'].capitalize()))
     print('   Dehumidifier:    [{}]'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('   Autodehum:       [{}]'.format(style.rtxt('Disabled')
+                                            if not info['autodehum_enabled']
+                                            else 'Enabled'))
     print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
                                             if not info['autoclose_enabled']
                                             else 'Enabled'))
@@ -250,9 +268,10 @@ def print_instructions():
           '  open [north|south]             open the dome',
           '  close [north|south]            close the dome',
           '  stop/halt/abort                stop the dome moving',
-          '  dehumidifier [on|off]          force dehumidifier on/off',
-          '  alarm [on|off]                 sound the alarm when moving?',
+          '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
+          '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
           '  autoclose [on|off]             automatically close in bad weather?',
+          '  alarm [on|off]                 automatically sound the alarm when moving?',
           '  heartbeat [on|off]             automatically close if the daemon fails?',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log/status [stdout]            print daemon log (tail alias)',

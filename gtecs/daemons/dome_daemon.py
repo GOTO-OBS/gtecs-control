@@ -505,6 +505,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
+        temp_info['autodehum_enabled'] = self.autodehum
         temp_info['autoclose_enabled'] = self.autoclose
         temp_info['alarm_enabled'] = self.alarm
         temp_info['heartbeat_enabled'] = self.heartbeat
@@ -528,6 +529,9 @@ class DomeDaemon(BaseDaemon):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
             # In robotic everything should always be enabled
+            if not self.autodehum:
+                self.log.info('System is in robotic mode, enabling autodehum')
+                self.autodehum = True
             if not self.autoclose:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose = True
@@ -548,6 +552,9 @@ class DomeDaemon(BaseDaemon):
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
+            if self.autodehum:
+                self.log.info('System is in engineering mode, disabling autodehum')
+                self.autodehum = False
             if self.autoclose:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose = False
@@ -635,8 +642,8 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
             return
 
-        # Return if in engineering mode
-        if self.info['mode'] == 'engineering':
+        # Return if autodehum disabled
+        if not self.autodehum:
             return
 
         # Check if the dehumidifier should be on or off
@@ -772,6 +779,74 @@ class DomeDaemon(BaseDaemon):
 
         return 'Halting dome'
 
+    def override_dehumidifier(self, command):
+        """Turn the dehumidifier on or off manually."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        dehumidifier_on = self.info['dehumidifier_on']
+        currently_open = self.info['dome'] != 'closed'
+        if command == 'on' and currently_open:
+            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
+        elif command == 'on' and dehumidifier_on:
+            return 'Dehumidifier is already on'
+        elif command == 'off' and not dehumidifier_on:
+            return 'Dehumidifier is already off'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Turning on dehumidifier (manual command)')
+            self.dehumidifier_on_flag = 1
+        elif command == 'off':
+            self.log.info('Turning off dehumidifier (manual command)')
+            self.dehumidifier_off_flag = 1
+
+        if command == 'on':
+            s = 'Turning on dehumidifier'
+            if self.autodehum:
+                s += '(autodehum is enabled, so the daemon may turn it off again)'
+            return s
+        elif command == 'off':
+            s = 'Turning off dehumidifier (the daemon may turn it on again)'
+            if self.autodehum:
+                s += '(autodehum is enabled, so the daemon may turn it on again)'
+            return s
+
+    def set_autodehum(self, command):
+        """Enable or disable the dome automatically turning the dehumidifier on and off."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
+            elif self.autodehum:
+                return 'Autodehum is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
+            elif not self.autodehum:
+                return 'Autodehum is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling autodehum')
+            self.autodehum = True
+        elif command == 'off':
+            self.log.info('Disabling autodehum')
+            self.autodehum = False
+
+        if command == 'on':
+            return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
+        elif command == 'off':
+            return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
+
     def set_autoclose(self, command):
         """Enable or disable the dome autoclosing in bad conditions."""
         # Check input
@@ -861,36 +936,6 @@ class DomeDaemon(BaseDaemon):
             return 'Enabling dome heartbeat'
         elif command == 'off':
             return 'Disabling dome heartbeat'
-
-    def override_dehumidifier(self, command):
-        """Turn the dehumidifier on or off before the automatic command."""
-        # Check input
-        if command not in ['on', 'off']:
-            raise ValueError("Command must be 'on' or 'off'")
-
-        # Check current status
-        self.wait_for_info()
-        dehumidifier_on = self.info['dehumidifier_on']
-        currently_open = self.info['dome'] != 'closed'
-        if command == 'on' and currently_open:
-            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
-        elif command == 'on' and dehumidifier_on:
-            return 'Dehumidifier is already on'
-        elif command == 'off' and not dehumidifier_on:
-            return 'Dehumidifier is already off'
-
-        # Set flag
-        if command == 'on':
-            self.log.info('Turning on dehumidifier (manual command)')
-            self.dehumidifier_on_flag = 1
-        elif command == 'off':
-            self.log.info('Turning off dehumidifier (manual command)')
-            self.dehumidifier_off_flag = 1
-
-        if command == 'on':
-            return 'Turning on dehumidifier (the daemon may turn it off again)'
-        elif command == 'off':
-            return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
 if __name__ == '__main__':
