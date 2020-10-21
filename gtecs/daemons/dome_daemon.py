@@ -434,8 +434,8 @@ class DomeDaemon(BaseDaemon):
             if self.info is None or 'temperature_history' not in self.info:
                 temperature_history = [temperature]
             else:
-                # Take the last 12 readings, which should be a minute if we check every 5 seconds.
-                temperature_history = self.info['temperature_history'][-12:] + [temperature]
+                # Compare to the most recent readings
+                temperature_history = self.info['temperature_history'][-60:] + [temperature]
                 if abs(temperature - np.median(temperature_history)) > 1:
                     # It's very unlikly to have changed by more than 1 degree that quickly...
                     # If so then just keep the previous value
@@ -454,8 +454,8 @@ class DomeDaemon(BaseDaemon):
             if self.info is None or 'humidity_history' not in self.info:
                 humidity_history = [humidity]
             else:
-                # Take the last 12 readings, which should be a minute if we check every 5 seconds.
-                humidity_history = self.info['humidity_history'][-12:] + [humidity]
+                # Compare to the most recent readings
+                humidity_history = self.info['humidity_history'][-60:] + [humidity]
                 if abs(humidity - np.median(humidity_history)) > 20:
                     # It's very unlikly to have changed by more than 20% that quickly...
                     # If so then just keep the previous value

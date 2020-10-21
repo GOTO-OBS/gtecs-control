@@ -212,8 +212,8 @@ class FocDaemon(BaseDaemon):
             if self.info is None or 'dome_temp_history' not in self.info:
                 dome_temp_history = [dome_temp]
             else:
-                # Take the last 12 readings, which should be a minute if we check every 5 seconds.
-                dome_temp_history = self.info['dome_temp_history'][-12:] + [dome_temp]
+                # Compare to the most recent readings
+                dome_temp_history = self.info['dome_temp_history'][-60:] + [dome_temp]
                 if abs(dome_temp - np.median(dome_temp_history)) > 1:
                     # It's very unlikly to have changed by more than 1 degree that quickly...
                     # If so then just keep the previous value
