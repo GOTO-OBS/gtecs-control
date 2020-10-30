@@ -11,7 +11,7 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.astronomy import altaz_from_radec, check_alt_limit, find_ha, radec_from_altaz
+from gtecs.astronomy import altaz_from_radec, check_alt_limit, get_ha, radec_from_altaz
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
 
@@ -307,7 +307,7 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_dec'] = self.sitech.dec
             temp_info['nonsidereal'] = self.sitech.nonsidereal
             temp_info['lst'] = self.sitech.sidereal_time
-            temp_info['ha'] = find_ha(temp_info['mount_ra'], temp_info['lst'])
+            temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
         except Exception:
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)

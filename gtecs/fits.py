@@ -322,7 +322,7 @@ def update_header(header, ut, all_info, log):
     mid_jd = mid_time.jd
     header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
 
-    lst = astronomy.find_lst(mid_time)
+    lst = astronomy.get_lst(mid_time)
     lst_m, lst_s = divmod(abs(lst) * 3600, 60)
     lst_h, lst_m = divmod(lst_m, 60)
     if lst < 0:

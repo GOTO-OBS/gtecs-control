@@ -385,8 +385,8 @@ def airmass(alt):
     return 1 / math.cos((math.pi) / 2) - alt
 
 
-def find_ha(ra_hrs, lst):
-    """Find Hour Angle of given RA.
+def get_ha(ra_hrs, lst):
+    """Return Hour Angle of given RA.
 
     Parameters
     -----------
@@ -405,7 +405,7 @@ def find_ha(ra_hrs, lst):
     return ha_hrs
 
 
-def find_lst(now):
+def get_lst(now):
     """Return Local Apparent Sidereal Time at observatory.
 
     Parameters

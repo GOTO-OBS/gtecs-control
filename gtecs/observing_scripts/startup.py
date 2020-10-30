@@ -56,7 +56,7 @@ def run():
     # Don't unpark the mount or set a target, we want to stay parked while opening
     # execute_command('mnt unpark')
     # print('Setting target to Zenith')
-    # lst = find_lst(Time.now()) * u.hourangle
+    # lst = get_lst(Time.now()) * u.hourangle
     # obs = observatory_location()
     # ra = lst.to(u.deg)
     # dec = obs.lat.value
