@@ -297,9 +297,9 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
     # Reset any bad UTs to initial positions
     if len(failed_uts) > 0:
         print('~~~~~~')
-        print('Focusing failed for UTs:')
+        print('Failed to focus:')
         for ut in sorted(failed_uts):
-            print(' UT{} ("{}")'.format(ut, failed_uts[ut]))
+            print('- UT{} ("{}")'.format(ut, failed_uts[ut]))
 
         print('Moving focusers back to initial positions...')
         new_positions = {ut: initial_positions[ut] for ut in failed_uts}
@@ -331,10 +331,9 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
         s += 'Focus data at final position:\n'
         s += '```' + repr(foc_data.round(1)) + '```\n'
         if len(failed_uts) > 0:
-            s += 'Routine failed for {} UT{}:\n'.format(len(failed_uts),
-                                                        's' if len(failed_uts) > 1 else '')
+            s += 'Failed to focus:\n'
             for ut in sorted(failed_uts):
-                s += ' UT{}: {}\n'.format(ut, failed_uts[ut])
+                s += '- UT{}: {}\n'.format(ut, failed_uts[ut])
         send_slack_msg(s)
 
     # Store the best focus data in a database
