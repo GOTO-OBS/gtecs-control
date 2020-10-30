@@ -585,6 +585,8 @@ def update_header(header, ut, all_info, log):
                 cover_move_time = Time(cover_move_time, format='unix')
                 cover_move_time.precision = 0
                 cover_move_time = cover_move_time.isot
+            else:
+                cover_move_time = 'NA'
     except Exception:
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
@@ -623,6 +625,8 @@ def update_header(header, ut, all_info, log):
                 foc_move_time = Time(foc_move_time, format='unix')
                 foc_move_time.precision = 0
                 foc_move_time = foc_move_time.isot
+            else:
+                foc_move_time = 'NA'
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
@@ -673,6 +677,8 @@ def update_header(header, ut, all_info, log):
                 filt_move_time = Time(filt_move_time, format='unix')
                 filt_move_time.precision = 0
                 filt_move_time = filt_move_time.isot
+            else:
+                filt_move_time = 'NA'
     except Exception:
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
@@ -718,6 +724,8 @@ def update_header(header, ut, all_info, log):
             dome_move_time = Time(dome_move_time, format='unix')
             dome_move_time.precision = 0
             dome_move_time = dome_move_time.isot
+        else:
+            dome_move_time = 'NA'
 
     except Exception:
         log.error('Failed to write dome info to header')
@@ -770,6 +778,8 @@ def update_header(header, ut, all_info, log):
             mnt_move_time = Time(mnt_move_time, format='unix')
             mnt_move_time.precision = 0
             mnt_move_time = mnt_move_time.isot
+        else:
+            mnt_move_time = 'NA'
 
         mount_tracking = info['status'] == 'Tracking'
         sidereal = not info['nonsidereal']
