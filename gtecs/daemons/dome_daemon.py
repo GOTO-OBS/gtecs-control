@@ -46,6 +46,7 @@ class DomeDaemon(BaseDaemon):
         self.move_frac = 1
         self.move_started = 0
         self.move_start_time = 0
+        self.last_move_time = None
 
         self.lockdown = False
         self.lockdown_reasons = []
@@ -115,6 +116,7 @@ class DomeDaemon(BaseDaemon):
                         side = 'south'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is open')
+                        self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
                         self.open_flag = 0
@@ -187,6 +189,7 @@ class DomeDaemon(BaseDaemon):
                         side = 'north'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is closed')
+                        self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
                         self.close_flag = 0
@@ -258,6 +261,8 @@ class DomeDaemon(BaseDaemon):
                     except Exception:
                         self.log.error('Failed to halt dome')
                         self.log.debug('', exc_info=True)
+                    # set move time now, since it's usually set when moving stops
+                    self.last_move_time = self.loop_time
                     # reset everything
                     self.open_flag = 0
                     self.close_flag = 0
@@ -503,6 +508,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['mode'] = None
 
         # Get other internal info
+        temp_info['last_move_time'] = self.last_move_time
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown

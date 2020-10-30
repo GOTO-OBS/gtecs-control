@@ -44,6 +44,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = None
         self.target_alt = None
         self.target_az = None
+        self.last_move_time = None
         self.set_blinky = False
         self.offset_direction = None
         self.offset_distance = None
@@ -100,6 +101,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('slew_target command failed')
                     self.log.debug('', exc_info=True)
@@ -121,6 +123,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.slew_to_altaz(self.target_alt, self.target_az)
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('slew_altaz command failed')
                     self.log.debug('', exc_info=True)
@@ -138,6 +141,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.track()
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('start_tracking command failed')
                     self.log.debug('', exc_info=True)
@@ -173,6 +177,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.set_trackrate(self.trackrate_ra, self.trackrate_dec)
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('set_trackrate command failed')
                     self.log.debug('', exc_info=True)
@@ -209,6 +214,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.park()
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('park command failed')
                     self.log.debug('', exc_info=True)
@@ -249,6 +255,7 @@ class MntDaemon(BaseDaemon):
                     c = self.sitech.offset(self.offset_direction, self.offset_distance)
                     if c:
                         self.log.info(c)
+                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('offset command failed')
                     self.log.debug('', exc_info=True)
@@ -323,6 +330,7 @@ class MntDaemon(BaseDaemon):
         temp_info['target_dist'] = self._get_target_distance()
         temp_info['target_alt'] = self.target_alt
         temp_info['target_az'] = self.target_az
+        temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
 

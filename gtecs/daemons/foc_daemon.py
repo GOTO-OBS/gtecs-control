@@ -36,6 +36,8 @@ class FocDaemon(BaseDaemon):
         self.active_uts = []
         self.move_steps = {ut: 0 for ut in self.uts}
         self.sync_position = {ut: 0 for ut in self.uts}
+
+        self.last_move_time = {ut: None for ut in self.uts}
         self.last_move_temp = {ut: None for ut in self.uts}
 
         # start control thread
@@ -84,9 +86,8 @@ class FocDaemon(BaseDaemon):
                                 c = interface.step_focuser_motor(move_steps, ut)
                                 if c:
                                     self.log.info(c)
-
-                                # store the temperature at the time it moved
-                                self.last_move_temp[ut] = self.info[ut]['current_temp']
+                            self.last_move_time[ut] = self.loop_time
+                            self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -112,6 +113,7 @@ class FocDaemon(BaseDaemon):
                                 c = interface.home_focuser(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                             # mark that it's homing
                             self.move_steps[ut] = 0
@@ -141,6 +143,7 @@ class FocDaemon(BaseDaemon):
                                 c = interface.stop_focuser(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                             # mark that it's stopped
                             self.move_steps[ut] = 0
@@ -263,6 +266,7 @@ class FocDaemon(BaseDaemon):
                         else:
                             ut_info['status'] = 'Ready'
 
+                ut_info['last_move_time'] = self.last_move_time[ut]
                 ut_info['current_temp'] = temp_info['dome_temp']
                 ut_info['last_move_temp'] = self.last_move_temp[ut]
 

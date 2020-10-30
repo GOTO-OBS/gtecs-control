@@ -31,6 +31,8 @@ class FiltDaemon(BaseDaemon):
         self.active_uts = []
         self.new_filter = {ut: '' for ut in self.uts}
 
+        self.last_move_time = {ut: None for ut in self.uts}
+
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -76,6 +78,7 @@ class FiltDaemon(BaseDaemon):
                                 c = interface.set_filter_pos(new_filter_num, ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
@@ -100,6 +103,7 @@ class FiltDaemon(BaseDaemon):
                                 c = interface.home_filter(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
@@ -145,6 +149,8 @@ class FiltDaemon(BaseDaemon):
                     ut_info['status'] = 'Moving'
                 else:
                     ut_info['status'] = 'Ready'
+
+                ut_info['last_move_time'] = self.last_move_time[ut]
 
                 temp_info[ut] = ut_info
             except Exception:
