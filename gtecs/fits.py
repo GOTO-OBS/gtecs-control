@@ -732,6 +732,7 @@ def update_header(header, ut, all_info, log):
 
         mnt_alt = numpy.around(info['mount_alt'], decimals=2)
         mnt_az = numpy.around(info['mount_az'], decimals=2)
+        ha = astronomy.get_ha(info['mount_ra'], lst)  # LST is found under exposure data
 
         mount_tracking = info['status'] == 'Tracking'
         sidereal = not info['nonsidereal']
@@ -757,6 +758,7 @@ def update_header(header, ut, all_info, log):
         mnt_dec_str = 'NA'
         mnt_alt = 'NA'
         mnt_az = 'NA'
+        ha = 'NA'
         mount_tracking = 'NA'
         sidereal = 'NA'
         trackrate_ra = 'NA'
@@ -778,6 +780,7 @@ def update_header(header, ut, all_info, log):
 
     header['ALT     '] = (mnt_alt, 'Mount altitude')
     header['AZ      '] = (mnt_az, 'Mount azimuth')
+    header['HA      '] = (ha, 'Hour angle')
 
     header['TRACKING'] = (mount_tracking, 'Mount is tracking')
     header['SIDEREAL'] = (sidereal, 'Mount is tracking at sidereal rate')
