@@ -194,6 +194,7 @@ class Pilot(object):
                     send_slack_msg(msg)
                 error_count += num_errs
                 if num_errs > 0:
+                    self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
                     try:
                         monitor.recover()  # Will log recovery commands
                     except RecoveryError as err:
