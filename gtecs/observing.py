@@ -322,36 +322,6 @@ def get_focuser_temperatures():
     return curr_temp, prev_temp
 
 
-def refocus():
-    """Apply any needed temperature compensation to the focusers."""
-    # Find the change in temperature since the last move
-    curr_temp, prev_temp = get_focuser_temperatures()
-    deltas = {ut: curr_temp[ut] - prev_temp[ut]
-              if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
-              for ut in params.UTS_WITH_FOCUSERS}
-
-    # Check if the change is greater than the minimum to refocus
-    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
-                  for ut in params.UTS_WITH_FOCUSERS}
-    deltas = {ut: deltas[ut]
-              if abs(deltas[ut]) > min_change[ut] else 0
-              for ut in deltas}
-
-    # Find the gradients (in steps/degree C)
-    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
-                 for ut in params.UTS_WITH_FOCUSERS}
-
-    # Calculate the focus offset
-    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.UTS_WITH_FOCUSERS}
-
-    # Ignore any UTs which do not need changing
-    offsets = {ut: offsets[ut] for ut in offsets if offsets[ut] != 0}
-
-    if len(offsets) > 0:
-        print('Applying temperature compensation to focusers')
-        move_focusers(offsets, timeout=None)
-
-
 def get_mount_position():
     """Find the current mount position.
 
@@ -401,29 +371,7 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
         wait_for_mount(ra, dec, timeout)
 
 
-def slew_to_altaz(alt, az):
-    """Move mount to given Alt/Az.
-
-    Parameters
-    ----------
-    alt : float
-        altitude in decimal degrees
-    az : float
-        azimuth in decimal degrees
-
-    """
-    if alt < params.MIN_ELEVATION:
-        raise ValueError('target too low, cannot set target')
-
-    mnt_info = daemon_info('mnt')
-    if mnt_info['status'] == 'Slewing':
-        execute_command('mnt stop')
-        time.sleep(2)
-
-    execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
-
-
-def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
+def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
     """Wait for mount to be in target position.
 
     Parameters
@@ -435,8 +383,8 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
     timeout : float
         time in seconds after which to timeout, None to wait forever
     targ_dist : float
-        distance in degrees from the target to consider returning after
-        default is 0.003 degrees
+        distance in arcseconds from the target to consider returning after
+        default is 30 arcsec
 
     """
     start_time = time.time()
@@ -451,7 +399,79 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=0.003):
             done = (mnt_info['status'] == 'Tracking' and
                     np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
                     np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist)
+                    mnt_info['target_dist'] < targ_dist / (60 * 60))
+            if done:
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Mount timed out')
+
+
+def slew_to_altaz(alt, az, wait=False, timeout=None):
+    """Move mount to given Alt/Az.
+
+    Parameters
+    ----------
+    alt : float
+        altitude in decimal degrees
+    az : float
+        azimuth in decimal degrees
+
+    wait: bool, default=False
+        wait for the mount to complete the move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
+
+    """
+    if alt < params.MIN_ELEVATION:
+        raise ValueError('target too low, cannot set target')
+
+    mnt_info = daemon_info('mnt')
+    if mnt_info['status'] == 'Slewing':
+        execute_command('mnt stop')
+        time.sleep(2)
+
+    execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
+
+    if wait or timeout is not None:
+        wait_for_mount_altaz(alt, az, timeout)
+
+
+def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
+    """Wait for mount to be in target position.
+
+    Parameters
+    ----------
+    target_alt : float
+        target alt in decimal degrees
+    target_az : float
+        target az in decimal degrees
+    timeout : float
+        time in seconds after which to timeout, None to wait forever
+    targ_dist : float
+        distance in arcseconds from the target to consider returning after
+        default is 30 arcsec
+
+    """
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            mnt_info = daemon_info('mnt', force_update=True)
+
+            done = (mnt_info['status'] == 'Tracking' and
+                    np.isclose(mnt_info['target_alt'], target_alt, atol=0.0001) and
+                    np.isclose(mnt_info['target_az'], target_az, atol=0.0001) and
+                    mnt_info['target_dist'] < targ_dist / (60 * 60))
             if done:
                 reached_position = True
         except Exception:

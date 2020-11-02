@@ -12,19 +12,20 @@ from .slack import send_slack_msg
 
 def load_json(fname):
     """Attempt to load a JSON file, with multiple tries."""
+    data = None
     attempts_remaining = 3
     while attempts_remaining:
         try:
             with open(fname, 'r') as fh:
-                data_dict = json.load(fh)
-            assert len(data_dict) != 0
+                data = json.load(fh)
+            assert len(data) != 0
             break
         except Exception:
             time.sleep(0.001)
             attempts_remaining -= 1
             pass
-    if attempts_remaining:
-        return data_dict
+    if attempts_remaining and data is not None:
+        return data
     else:
         raise IOError('cannot read {}'.format(fname))
 
@@ -33,7 +34,7 @@ class Conditions(object):
     """A class to give easy access to the conditions flags."""
 
     def __init__(self):
-        self.conditions_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        self.conditions_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         self._load()
 
     def __repr__(self):
@@ -78,7 +79,7 @@ class Status(object):
     """A class to give easy access to the status flags."""
 
     def __init__(self):
-        self.status_file = os.path.join(params.FILE_PATH, 'status_flags')
+        self.status_file = os.path.join(params.FILE_PATH, 'status_flags.json')
         self.emergency_file = params.EMERGENCY_FILE
         self.valid_modes = ['robotic', 'manual', 'engineering']
         self._load()
@@ -87,11 +88,12 @@ class Status(object):
         self._load()
         repr_str = "mode='{}', ".format(self._mode)
         repr_str += "observer='{}', ".format(self._observer)
-        repr_str += "emergency_shutdown={}".format(self.emergency_shutdown)
-        return "Status({})".format(repr_str)
+        repr_str += 'emergency_shutdown={}'.format(self.emergency_shutdown)
+        return 'Status({})'.format(repr_str)
 
     def _load(self):
         """Load the status flags file and emergency shutdown file."""
+        data = None
         try:
             # Read the status file
             data = load_json(self.status_file)
@@ -102,10 +104,8 @@ class Status(object):
         except Exception:
             # Rewrite the file ourselves with defaults
             print('Status file corrupted')
-            try:
+            if data is not None:
                 print(data)
-            except Exception:
-                pass
             self._mode = 'robotic'
             self._observer = params.ROBOTIC_OBSERVER
             with open(self.status_file, 'w') as f:
@@ -143,8 +143,8 @@ class Status(object):
     @property
     def _status_dict(self):
         """Get the current system status values."""
-        status_dict = {"mode": self._mode,
-                       "observer": self._observer}
+        status_dict = {'mode': self._mode,
+                       'observer': self._observer}
         return status_dict
 
     @property

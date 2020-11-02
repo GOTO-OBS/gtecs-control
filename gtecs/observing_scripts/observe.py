@@ -4,9 +4,11 @@
 import sys
 from argparse import ArgumentParser
 
+from gtecs import params
+from gtecs.focusing import refocus
 from gtecs.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
-from gtecs.observing import (prepare_for_images, refocus, slew_to_radec,
-                             wait_for_exposure_queue, wait_for_mount)
+from gtecs.observing import (prepare_for_images, slew_to_radec, wait_for_exposure_queue,
+                             wait_for_mount)
 
 from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running, open_session
 
@@ -78,7 +80,7 @@ def run(db_id):
     try:
         # make sure hardware is ready
         prepare_for_images()
-        refocus()
+        refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
 
         print('Observing pointing ID: ', db_id)
         mark_running(db_id)

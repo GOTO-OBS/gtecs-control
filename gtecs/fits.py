@@ -322,7 +322,7 @@ def update_header(header, ut, all_info, log):
     mid_jd = mid_time.jd
     header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
 
-    lst = astronomy.find_lst(mid_time)
+    lst = astronomy.get_lst(mid_time)
     lst_m, lst_s = divmod(abs(lst) * 3600, 60)
     lst_h, lst_m = divmod(lst_m, 60)
     if lst < 0:
@@ -576,9 +576,17 @@ def update_header(header, ut, all_info, log):
         if ut not in params.UTS_WITH_COVERS:
             cover_position = 'NA'
             cover_open = 'NA'
+            cover_move_time = 'NA'
         else:
             cover_position = info['position']
             cover_open = info['position'] == 'full_open'
+            cover_move_time = info['last_move_time']
+            if cover_move_time is not None:
+                cover_move_time = Time(cover_move_time, format='unix')
+                cover_move_time.precision = 0
+                cover_move_time = cover_move_time.isot
+            else:
+                cover_move_time = 'NA'
     except Exception:
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
@@ -586,11 +594,13 @@ def update_header(header, ut, all_info, log):
         ota_class = 'NA'
         cover_position = 'NA'
         cover_open = 'NA'
+        cover_move_time = 'NA'
 
     header['OTA     '] = (ota_serial, 'OTA serial number')
     header['OTACLS  '] = (ota_class, 'OTA hardware class')
     header['COVSTAT '] = (cover_position, 'Mirror cover position')
     header['COVOPEN '] = (cover_open, 'Mirror cover is open')
+    header['COVMVT  '] = (cover_move_time, 'Mirror cover latest move time')
 
     # Focuser info
     try:
@@ -601,6 +611,7 @@ def update_header(header, ut, all_info, log):
             foc_serial = 'None'
             foc_class = 'NA'
             foc_pos = 'NA'
+            foc_move_time = 'NA'
             foc_temp_int = 'NA'
             foc_temp_ext = 'NA'
         else:
@@ -609,6 +620,13 @@ def update_header(header, ut, all_info, log):
             foc_serial = info['serial_number']
             foc_class = info['hw_class']
             foc_pos = info['current_pos']
+            foc_move_time = info['last_move_time']
+            if foc_move_time is not None:
+                foc_move_time = Time(foc_move_time, format='unix')
+                foc_move_time.precision = 0
+                foc_move_time = foc_move_time.isot
+            else:
+                foc_move_time = 'NA'
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
@@ -617,12 +635,14 @@ def update_header(header, ut, all_info, log):
         foc_serial = 'NA'
         foc_class = 'NA'
         foc_pos = 'NA'
+        foc_move_time = 'NA'
         foc_temp_int = 'NA'
         foc_temp_ext = 'NA'
 
     header['FOCUSER '] = (foc_serial, 'Focuser serial number')
     header['FOCCLS  '] = (foc_class, 'Focuser hardware class')
     header['FOCPOS  '] = (foc_pos, 'Focuser motor position')
+    header['FOCMVT  '] = (foc_move_time, 'Focuser latest move time')
     header['FOCTEMPI'] = (foc_temp_int, 'Focuser internal temperature, C')
     header['FOCTEMPX'] = (foc_temp_ext, 'Focuser external temperature, C')
 
@@ -638,6 +658,7 @@ def update_header(header, ut, all_info, log):
             filt_filters = 'C'
             filt_num = 'NA'
             filt_pos = 'NA'
+            filt_move_time = 'NA'
         else:
             info = all_info['filt'][ut]
 
@@ -651,6 +672,13 @@ def update_header(header, ut, all_info, log):
             filt_filters = ','.join(params.FILTER_LIST)
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
+            filt_move_time = info['last_move_time']
+            if filt_move_time is not None:
+                filt_move_time = Time(filt_move_time, format='unix')
+                filt_move_time.precision = 0
+                filt_move_time = filt_move_time.isot
+            else:
+                filt_move_time = 'NA'
     except Exception:
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
@@ -660,6 +688,7 @@ def update_header(header, ut, all_info, log):
         filt_filters = 'NA'
         filt_num = 'NA'
         filt_pos = 'NA'
+        filt_move_time = 'NA'
 
     header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
     header['FILTCLS '] = (filt_class, 'Filter wheel hardware class')
@@ -667,6 +696,7 @@ def update_header(header, ut, all_info, log):
     header['FILTERS '] = (filt_filters, 'Filters in filter wheel')
     header['FILTNUM '] = (filt_num, 'Filter wheel position number')
     header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')
+    header['FILTMVT '] = (filt_move_time, 'Filter wheel latest move time')
 
     # Dome info
     try:
@@ -689,15 +719,24 @@ def update_header(header, ut, all_info, log):
             dome_status = 'ERROR'
 
         dome_open = info['dome'] == 'open'
+        dome_move_time = info['last_move_time']
+        if dome_move_time is not None:
+            dome_move_time = Time(dome_move_time, format='unix')
+            dome_move_time.precision = 0
+            dome_move_time = dome_move_time.isot
+        else:
+            dome_move_time = 'NA'
 
     except Exception:
         log.error('Failed to write dome info to header')
         log.debug('', exc_info=True)
         dome_status = 'NA'
         dome_open = 'NA'
+        dome_move_time = 'NA'
 
     header['DOMESTAT'] = (dome_status, 'Dome status')
     header['DOMEOPEN'] = (dome_open, 'Dome is open')
+    header['DOMEMVT '] = (dome_move_time, 'Dome latest move time')
 
     # Mount info
     try:
@@ -732,6 +771,15 @@ def update_header(header, ut, all_info, log):
 
         mnt_alt = numpy.around(info['mount_alt'], decimals=2)
         mnt_az = numpy.around(info['mount_az'], decimals=2)
+        ha = astronomy.get_ha(info['mount_ra'], lst)  # LST is found under exposure data
+
+        mnt_move_time = info['last_move_time']
+        if mnt_move_time is not None:
+            mnt_move_time = Time(mnt_move_time, format='unix')
+            mnt_move_time.precision = 0
+            mnt_move_time = mnt_move_time.isot
+        else:
+            mnt_move_time = 'NA'
 
         mount_tracking = info['status'] == 'Tracking'
         sidereal = not info['nonsidereal']
@@ -757,6 +805,8 @@ def update_header(header, ut, all_info, log):
         mnt_dec_str = 'NA'
         mnt_alt = 'NA'
         mnt_az = 'NA'
+        ha = 'NA'
+        mnt_move_time = 'NA'
         mount_tracking = 'NA'
         sidereal = 'NA'
         trackrate_ra = 'NA'
@@ -778,7 +828,9 @@ def update_header(header, ut, all_info, log):
 
     header['ALT     '] = (mnt_alt, 'Mount altitude')
     header['AZ      '] = (mnt_az, 'Mount azimuth')
+    header['HA      '] = (ha, 'Hour angle')
 
+    header['SLEWTIME'] = (mnt_move_time, 'Mount latest move time')
     header['TRACKING'] = (mount_tracking, 'Mount is tracking')
     header['SIDEREAL'] = (sidereal, 'Mount is tracking at sidereal rate')
     header['RA-TRKR '] = (trackrate_ra, 'RA tracking rate (0=sidereal)')

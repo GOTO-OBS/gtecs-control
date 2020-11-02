@@ -10,7 +10,6 @@ import serial
 
 from .power import ETH002
 from .. import params
-from ..conditions import get_roomalert
 
 
 class FakeDome(object):
@@ -119,6 +118,8 @@ class FakeDome(object):
             side = 0
         elif self.side == 'south':
             side = 1
+        else:
+            raise ValueError('Invalid side: {}'.format(self.side))
         frac = self.frac
         command = self.command
         timeout = self.timeout
@@ -681,18 +682,10 @@ class FakeDehumidifier(object):
         """Turn off the dehumidifier."""
         self._status = '0'
 
+    @property
     def status(self):
         """Get the dehumidifier status."""
         return self._status
-
-    def conditions(self):
-        """Get the current dome conditions."""
-        pier_conditions = get_roomalert('pier')
-        pier_hum = pier_conditions['int_humidity']
-        pier_temp = pier_conditions['int_temperature']
-
-        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
-        return conditions
 
 
 class Dehumidifier(object):
@@ -711,15 +704,7 @@ class Dehumidifier(object):
         """Turn off the dehumidifier."""
         self.power.off(1)
 
+    @property
     def status(self):
         """Get the dehumidifier status."""
         return self.power.status()[0]
-
-    def conditions(self):
-        """Get the current dome conditions."""
-        pier_conditions = get_roomalert('pier')
-        pier_hum = pier_conditions['int_humidity']
-        pier_temp = pier_conditions['int_temperature']
-
-        conditions = {'humidity': pier_hum, 'temperature': pier_temp}
-        return conditions

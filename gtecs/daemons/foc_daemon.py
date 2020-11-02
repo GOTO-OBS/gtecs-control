@@ -12,6 +12,8 @@ from gtecs import params
 from gtecs.conditions import get_roomalert
 from gtecs.daemons import BaseDaemon, daemon_proxy
 
+import numpy as np
+
 
 class FocDaemon(BaseDaemon):
     """Focuser hardware daemon class."""
@@ -34,6 +36,8 @@ class FocDaemon(BaseDaemon):
         self.active_uts = []
         self.move_steps = {ut: 0 for ut in self.uts}
         self.sync_position = {ut: 0 for ut in self.uts}
+
+        self.last_move_time = {ut: None for ut in self.uts}
         self.last_move_temp = {ut: None for ut in self.uts}
 
         # start control thread
@@ -82,9 +86,8 @@ class FocDaemon(BaseDaemon):
                                 c = interface.step_focuser_motor(move_steps, ut)
                                 if c:
                                     self.log.info(c)
-
-                                # store the temperature at the time it moved
-                                self.last_move_temp[ut] = self.info[ut]['current_temp']
+                            self.last_move_time[ut] = self.loop_time
+                            self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -110,6 +113,7 @@ class FocDaemon(BaseDaemon):
                                 c = interface.home_focuser(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                             # mark that it's homing
                             self.move_steps[ut] = 0
@@ -139,6 +143,7 @@ class FocDaemon(BaseDaemon):
                                 c = interface.stop_focuser(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                             # mark that it's stopped
                             self.move_steps[ut] = 0
@@ -203,7 +208,21 @@ class FocDaemon(BaseDaemon):
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
             dome_temp = get_roomalert('pier')['int_temperature']
+            # We need a check here because the sensor occasionally has glitches
+            # We could just compare to the previous value, but if the first measurement is a glitch
+            # then we'd never get anywhere.
+            # Instead, we need to store multiple readings, since the glitches are very short.
+            if self.info is None or 'dome_temp_history' not in self.info:
+                dome_temp_history = [dome_temp]
+            else:
+                # Compare to the most recent readings
+                dome_temp_history = self.info['dome_temp_history'][-60:] + [dome_temp]
+                if abs(dome_temp - np.median(dome_temp_history)) > 1:
+                    # It's very unlikly to have changed by more than 1 degree that quickly...
+                    # If so then just keep the previous value
+                    dome_temp = self.info['dome_temp']
             temp_info['dome_temp'] = dome_temp
+            temp_info['dome_temp_history'] = dome_temp_history
         except Exception:
             self.log.error('Failed to get dome internal temperature')
             self.log.debug('', exc_info=True)
@@ -247,6 +266,7 @@ class FocDaemon(BaseDaemon):
                         else:
                             ut_info['status'] = 'Ready'
 
+                ut_info['last_move_time'] = self.last_move_time[ut]
                 ut_info['current_temp'] = temp_info['dome_temp']
                 ut_info['last_move_temp'] = self.last_move_temp[ut]
 
@@ -311,11 +331,11 @@ class FocDaemon(BaseDaemon):
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
 
-            # Check the new position is different from the current position
-            if new_pos == self.info[ut]['current_pos']:
-                s = 'Focuser is already at position {}'.format(new_pos)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
-                continue
+            # # Check the new position is different from the current position
+            # if new_pos == self.info[ut]['current_pos']:
+            #     s = 'Focuser is already at position {}'.format(new_pos)
+            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
@@ -372,11 +392,11 @@ class FocDaemon(BaseDaemon):
                 retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
                 continue
 
-            # Check the new position is different from the current position
-            if new_pos == self.info[ut]['current_pos']:
-                s = 'Focuser is already at position {}'.format(new_pos)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
-                continue
+            # # Check the new position is different from the current position
+            # if new_pos == self.info[ut]['current_pos']:
+            #     s = 'Focuser is already at position {}'.format(new_pos)
+            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':

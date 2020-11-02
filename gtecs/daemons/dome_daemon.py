@@ -9,11 +9,14 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
+from gtecs.conditions import get_roomalert
 from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
 from gtecs.slack import send_slack_msg
+
+import numpy as np
 
 import serial
 
@@ -43,11 +46,13 @@ class DomeDaemon(BaseDaemon):
         self.move_frac = 1
         self.move_started = 0
         self.move_start_time = 0
+        self.last_move_time = None
 
         self.lockdown = False
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
+        self.autodehum = True
         self.autoclose = True
         self.alarm = True
         self.heartbeat = True
@@ -111,9 +116,13 @@ class DomeDaemon(BaseDaemon):
                         side = 'south'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is open')
+                        self.last_move_time = self.loop_time
+                        side = None
                         self.move_frac = 1
                         self.open_flag = 0
                         self.force_check_flag = True
+                    else:
+                        raise ValueError('Invalid side: {}'.format(self.move_side))
 
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
@@ -180,9 +189,13 @@ class DomeDaemon(BaseDaemon):
                         side = 'north'
                     elif self.move_side == 'none':
                         self.log.info('Finished: Dome is closed')
+                        self.last_move_time = self.loop_time
+                        side = None
                         self.move_frac = 1
                         self.close_flag = 0
                         self.force_check_flag = True
+                    else:
+                        raise ValueError('Invalid side: {}'.format(self.move_side))
 
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
@@ -248,6 +261,8 @@ class DomeDaemon(BaseDaemon):
                     except Exception:
                         self.log.error('Failed to halt dome')
                         self.log.debug('', exc_info=True)
+                    # set move time now, since it's usually set when moving stops
+                    self.last_move_time = self.loop_time
                     # reset everything
                     self.open_flag = 0
                     self.close_flag = 0
@@ -397,29 +412,65 @@ class DomeDaemon(BaseDaemon):
 
         # Get dehumidifier info
         try:
-            dehumidifier_status = self.dehumidifier.status()
+            dehumidifier_status = self.dehumidifier.status
             temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
-            dome_conditions = self.dehumidifier.conditions()
-            temp_info['humidity'] = dome_conditions['humidity']
             temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
             temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
-            temp_info['temperature'] = dome_conditions['temperature']
             temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
             temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
         except Exception:
             self.log.error('Failed to get dehumidifier info')
             self.log.debug('', exc_info=True)
             temp_info['dehumidifier_on'] = None
-            temp_info['humidity'] = None
             temp_info['humidity_upper'] = None
             temp_info['humidity_lower'] = None
-            temp_info['temperature'] = None
             temp_info['temperature_lower'] = None
             temp_info['temperature_upper'] = None
             # Report the connection as failed
             self.dehumidifier = None
             if 'dehumidifier' not in self.bad_hardware:
                 self.bad_hardware.add('dehumidifier')
+
+        # Get the dome internal temperature
+        try:
+            temperature = get_roomalert('pier')['int_temperature']
+            # We need a check here because the sensor occasionally has glitches
+            # (see also the same code in the foc daemon)
+            if self.info is None or 'temperature_history' not in self.info:
+                temperature_history = [temperature]
+            else:
+                # Compare to the most recent readings
+                temperature_history = self.info['temperature_history'][-60:] + [temperature]
+                if abs(temperature - np.median(temperature_history)) > 1:
+                    # It's very unlikly to have changed by more than 1 degree that quickly...
+                    # If so then just keep the previous value
+                    temperature = self.info['temperature']
+            temp_info['temperature'] = temperature
+            temp_info['temperature_history'] = temperature_history
+        except Exception:
+            self.log.error('Failed to get dome internal temperature')
+            self.log.debug('', exc_info=True)
+            temp_info['temperature'] = None
+
+        # Get the dome internal humidity
+        try:
+            humidity = get_roomalert('pier')['int_humidity']
+            # The humidity sensor glitches even worse!
+            if self.info is None or 'humidity_history' not in self.info:
+                humidity_history = [humidity]
+            else:
+                # Compare to the most recent readings
+                humidity_history = self.info['humidity_history'][-60:] + [humidity]
+                if abs(humidity - np.median(humidity_history)) > 20:
+                    # It's very unlikly to have changed by more than 20% that quickly...
+                    # If so then just keep the previous value
+                    humidity = self.info['humidity']
+            temp_info['humidity'] = humidity
+            temp_info['humidity_history'] = humidity_history
+        except Exception:
+            self.log.error('Failed to get dome internal temperature')
+            self.log.debug('', exc_info=True)
+            temp_info['humidity'] = None
 
         # Get button info
         try:
@@ -457,9 +508,11 @@ class DomeDaemon(BaseDaemon):
             temp_info['mode'] = None
 
         # Get other internal info
+        temp_info['last_move_time'] = self.last_move_time
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
+        temp_info['autodehum_enabled'] = self.autodehum
         temp_info['autoclose_enabled'] = self.autoclose
         temp_info['alarm_enabled'] = self.alarm
         temp_info['heartbeat_enabled'] = self.heartbeat
@@ -483,6 +536,9 @@ class DomeDaemon(BaseDaemon):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
             # In robotic everything should always be enabled
+            if not self.autodehum:
+                self.log.info('System is in robotic mode, enabling autodehum')
+                self.autodehum = True
             if not self.autoclose:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose = True
@@ -503,6 +559,9 @@ class DomeDaemon(BaseDaemon):
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
+            if self.autodehum:
+                self.log.info('System is in engineering mode, disabling autodehum')
+                self.autodehum = False
             if self.autoclose:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose = False
@@ -590,8 +649,8 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
             return
 
-        # Return if in engineering mode
-        if self.info['mode'] == 'engineering':
+        # Return if autodehum disabled
+        if not self.autodehum:
             return
 
         # Check if the dehumidifier should be on or off
@@ -727,6 +786,74 @@ class DomeDaemon(BaseDaemon):
 
         return 'Halting dome'
 
+    def override_dehumidifier(self, command):
+        """Turn the dehumidifier on or off manually."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        dehumidifier_on = self.info['dehumidifier_on']
+        currently_open = self.info['dome'] != 'closed'
+        if command == 'on' and currently_open:
+            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
+        elif command == 'on' and dehumidifier_on:
+            return 'Dehumidifier is already on'
+        elif command == 'off' and not dehumidifier_on:
+            return 'Dehumidifier is already off'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Turning on dehumidifier (manual command)')
+            self.dehumidifier_on_flag = 1
+        elif command == 'off':
+            self.log.info('Turning off dehumidifier (manual command)')
+            self.dehumidifier_off_flag = 1
+
+        if command == 'on':
+            s = 'Turning on dehumidifier'
+            if self.autodehum:
+                s += ' (autodehum is enabled, so the daemon may turn it off again)'
+            return s
+        elif command == 'off':
+            s = 'Turning off dehumidifier'
+            if self.autodehum:
+                s += ' (autodehum is enabled, so the daemon may turn it on again)'
+            return s
+
+    def set_autodehum(self, command):
+        """Enable or disable the dome automatically turning the dehumidifier on and off."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
+            elif self.autodehum:
+                return 'Autodehum is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
+            elif not self.autodehum:
+                return 'Autodehum is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling autodehum')
+            self.autodehum = True
+        elif command == 'off':
+            self.log.info('Disabling autodehum')
+            self.autodehum = False
+
+        if command == 'on':
+            return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
+        elif command == 'off':
+            return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
+
     def set_autoclose(self, command):
         """Enable or disable the dome autoclosing in bad conditions."""
         # Check input
@@ -816,36 +943,6 @@ class DomeDaemon(BaseDaemon):
             return 'Enabling dome heartbeat'
         elif command == 'off':
             return 'Disabling dome heartbeat'
-
-    def override_dehumidifier(self, command):
-        """Turn the dehumidifier on or off before the automatic command."""
-        # Check input
-        if command not in ['on', 'off']:
-            raise ValueError("Command must be 'on' or 'off'")
-
-        # Check current status
-        self.wait_for_info()
-        dehumidifier_on = self.info['dehumidifier_on']
-        currently_open = self.info['dome'] != 'closed'
-        if command == 'on' and currently_open:
-            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
-        elif command == 'on' and dehumidifier_on:
-            return 'Dehumidifier is already on'
-        elif command == 'off' and not dehumidifier_on:
-            return 'Dehumidifier is already off'
-
-        # Set flag
-        if command == 'on':
-            self.log.info('Turning on dehumidifier (manual command)')
-            self.dehumidifier_on_flag = 1
-        elif command == 'off':
-            self.log.info('Turning off dehumidifier (manual command)')
-            self.dehumidifier_off_flag = 1
-
-        if command == 'on':
-            return 'Turning on dehumidifier (the daemon may turn it off again)'
-        elif command == 'off':
-            return 'Turning off dehumidifier (the daemon may turn it on again)'
 
 
 if __name__ == '__main__':

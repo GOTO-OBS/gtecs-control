@@ -42,7 +42,7 @@ class UTInterfaceDaemon(BaseDaemon):
         # Extra dictionary for RASA focuser hubs
         self.focuser_hubs = {}
         for ut in self.foc_params:
-            if self.foc_params[ut]['CLASS'] == 'RASA':
+            if self.foc_params[ut] is not None and self.foc_params[ut]['CLASS'] == 'RASA':
                 port = self.foc_params[ut]['PORT']
                 if port not in self.focuser_hubs:
                     self.focuser_hubs[port] = [ut]

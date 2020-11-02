@@ -44,10 +44,11 @@ class ConditionsDaemon(BaseDaemon):
                                     'hatch',
                                     'internal',
                                     'ice',
+                                    'override',
                                     ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
 
-        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags')
+        self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         try:
             with open(self.flags_file, 'r') as f:
                 data = json.load(f)
@@ -57,6 +58,11 @@ class ConditionsDaemon(BaseDaemon):
         except Exception:
             self.flags = {flag: 2 for flag in self.flag_names}
             self.update_times = {flag: 0 for flag in self.flag_names}
+
+        if 'override' in self.flags and self.flags['override'] == 1:
+            self.manual_override = True
+        else:
+            self.manual_override = False
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -307,6 +313,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
         temp_info['critical_flags'] = sorted(self.critical_flag_names)
+        temp_info['manual_override'] = self.manual_override
 
         # Write debug log line
         try:
@@ -500,6 +507,12 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['dark'] = 0
         bad_delay['dark'] = 0
 
+        # override flag
+        good['override'] = not self.manual_override
+        valid['override'] = isinstance(self.manual_override, bool)
+        good_delay['override'] = 0
+        bad_delay['override'] = 0
+
         # ~~~~~~~~~~~~~~
         # Set each flag
         old_flags = self.flags.copy()
@@ -579,6 +592,30 @@ class ConditionsDaemon(BaseDaemon):
         self.force_check_flag = 1
 
         return 'Updating conditions'
+
+    def set_override(self):
+        """Activate the manual override flag."""
+        # Check current status
+        if self.manual_override:
+            return 'Manual override is already enabled'
+
+        # Set flag
+        self.log.info('Enabling manual override')
+        self.manual_override = True
+
+        return 'Enabling conditions override flag'
+
+    def clear_override(self):
+        """Deactivate the manual override flag."""
+        # Check current status
+        if not self.manual_override:
+            return 'Manual override is already disabled'
+
+        # Set flag
+        self.log.info('Disabling manual override')
+        self.manual_override = False
+
+        return 'Disabling conditions override flag'
 
 
 if __name__ == '__main__':

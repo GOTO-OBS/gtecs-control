@@ -15,7 +15,7 @@ from gtecs import logger
 from gtecs import params
 from gtecs.astronomy import night_startdate, observatory_location, sunalt_time
 from gtecs.daemons import daemon_info
-from gtecs.flags import Status
+from gtecs.flags import Conditions, Status
 from gtecs.misc import execute_command, get_pid, make_pid_file
 from gtecs.observing import wait_for_dome
 from gtecs.slack import send_slack_msg
@@ -27,6 +27,31 @@ import obsdb as db
 
 def send_dome_report(msg, confirmed_closed):
     """Send Slack message with webcams attached."""
+    if confirmed_closed:
+        colour = 'good'
+    else:
+        colour = 'danger'
+
+    conditions = Conditions()
+    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                                         bad=':exclamation:')
+    if conditions.bad:
+        msg2 = ':warning: Conditions are bad! :warning:'
+    else:
+        msg2 = 'Conditions are good'
+    attach_conds = {'fallback': 'Conditions summary',
+                    'title': msg2,
+                    'text': conditions_summary,
+                    'color': colour,
+                    'ts': conditions.current_time.unix,
+                    }
+
+    status = Status()
+    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
+                     'text': 'System is in *{}* mode'.format(status.mode),
+                     'color': colour,
+                     }
+
     ts = '{:.0f}'.format(time.time())
     ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
     attach_ext = {'fallback': 'External webcam view',
@@ -34,7 +59,7 @@ def send_dome_report(msg, confirmed_closed):
                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
                   'text': 'Image attached:',
                   'image_url': ext_url,
-                  'color': 'good' if confirmed_closed else 'danger',
+                  'color': colour,
                   }
     int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
     attach_int = {'fallback': 'Internal webcam view',
@@ -42,10 +67,10 @@ def send_dome_report(msg, confirmed_closed):
                   'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
                   'text': 'Image attached:',
                   'image_url': int_url,
-                  'color': 'good' if confirmed_closed else 'danger',
+                  'color': colour,
                   }
 
-    attachments = [attach_ext, attach_int]
+    attachments = [attach_conds, attach_status, attach_ext, attach_int]
     send_slack_msg(msg, attachments=attachments)
 
 
@@ -148,21 +173,20 @@ def run(test=False):
         time.sleep(2)
 
     # Check the dome status
-    msg = ''
     confirmed_closed = False
     try:
         dome_info = daemon_info('dome')
         dome_status = dome_info['dome']
         if dome_status == 'closed':
-            msg = 'Day marshal confirmed dome is closed'
+            msg = '*Day marshal confirmed dome is closed*'
             log.info('Dome confirmed closed')
             confirmed_closed = True
         else:
             # Uh-oh
-            msg = 'WARNING: Day marshal could not confirm dome is closed'
+            msg = ':warning: *WARNING: Day marshal could not confirm dome is closed* :warning:'
             log.warning('The dome is not closed!')
     except Exception:
-        msg = 'WARNING: Day marshal dome status check failed'
+        msg = ':warning: *WARNING: Day marshal dome status check failed* :warning:'
         log.error('Error checking the dome', exc_info=True)
 
     # Send the report to Slack
@@ -186,17 +210,17 @@ def run(test=False):
             dome_info = daemon_info('dome')
             dome_status = dome_info['dome']
             if dome_status == 'closed':
-                msg = 'Day marshal has closed the dome'
+                msg = '*Day marshal has closed the dome*'
                 log.info('Dome confirmed closed')
                 confirmed_closed = True
             else:
                 # UH-OH
-                msg = 'CRITICAL: Day marshal could not close the dome!'
+                msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
                 log.warning('The dome is still not closed!')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
-            msg = 'CRITICAL: Day marshal could not close the dome!'
+            msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)

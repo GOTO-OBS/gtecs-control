@@ -32,6 +32,8 @@ class OTADaemon(BaseDaemon):
         self.uts_with_covers = params.UTS_WITH_COVERS.copy()
         self.active_uts = []
 
+        self.last_move_time = {ut: None for ut in self.uts}
+
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -75,6 +77,7 @@ class OTADaemon(BaseDaemon):
                                 c = interface.open_mirror_cover(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -99,6 +102,7 @@ class OTADaemon(BaseDaemon):
                                 c = interface.close_mirror_cover(ut)
                                 if c:
                                     self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
 
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
@@ -165,6 +169,8 @@ class OTADaemon(BaseDaemon):
                         # See `H400.get_cover_position`
                     else:
                         ut_info['position'] = 'NA'
+
+                ut_info['last_move_time'] = self.last_move_time[ut]
 
                 temp_info[ut] = ut_info
             except Exception:
