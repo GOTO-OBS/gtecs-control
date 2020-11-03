@@ -238,8 +238,6 @@ def print_info(info):
                 print('Binning:            {:.0f}'.format(current_exposure['binning']))
                 print('Frame type:         {}'.format(current_exposure['frametype']))
         print('Image window:       {}'.format(info[ut]['window_area']))
-        print('Image size:         {}x{}'.format(info[ut]['image_size'][0],
-                                                 info[ut]['image_size'][1]))
         print('CCD Temperature:    {:.2f}C'.format(info[ut]['ccd_temp']))
         print('Target Temperature: {:.2f}C'.format(info[ut]['target_temp']))
         print('Base Temperature:   {:.2f}C'.format(info[ut]['base_temp']))
