@@ -330,10 +330,10 @@ class CamDaemon(BaseDaemon):
                     ut_info['cam_info'] = cam_info
                     ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
                     ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
-                    ut_info['image_size'] = interface.get_camera_image_size()
-                    ut_info['window_area'] = interface.get_camera_window()
-                    ut_info['active_area'] = interface.get_camera_active_area()
-                    ut_info['full_area'] = interface.get_camera_full_area()
+                    ut_info['image_size'] = interface.get_camera_image_size(ut)
+                    ut_info['window_area'] = interface.get_camera_window(ut)
+                    ut_info['active_area'] = interface.get_camera_active_area(ut)
+                    ut_info['full_area'] = interface.get_camera_full_area(ut)
 
                 temp_info[ut] = ut_info
             except Exception:
