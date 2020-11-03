@@ -85,6 +85,10 @@ def run():
         time.sleep(1)
     execute_command('foc info -f')
 
+    # Set the cameras to full-frame
+    execute_command('cam window full')
+    time.sleep(1)
+
     # Bring the CCDs down to temperature
     execute_command('cam temp {}'.format(params.CCD_TEMP))
     while not cameras_are_cool():
