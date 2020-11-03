@@ -29,6 +29,7 @@ class CamDaemon(BaseDaemon):
         # command flags
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
+        self.set_window_flag = 0
         self.set_temp_flag = 0
 
         # camera variables
@@ -53,6 +54,7 @@ class CamDaemon(BaseDaemon):
         self.image_ready = {ut: 0 for ut in self.uts}
         self.image_saving = {ut: 0 for ut in self.uts}
 
+        self.target_window = {ut: None for ut in self.uts}
         self.target_temp = {ut: 0 for ut in self.uts}
 
         # start control thread
@@ -114,8 +116,17 @@ class CamDaemon(BaseDaemon):
                                 c = interface.set_camera_binning(binning, binning, ut)
                                 if c:
                                     self.log.info(c)
-                                # set area (always full-frame)
-                                c = interface.set_camera_window_full(ut)
+                                # set window
+                                if self.target_window[ut] is None:
+                                    # we need to set the default to full-frame here, since on
+                                    # startup the cameras default to the active area only
+                                    c = interface.set_camera_window_full(ut)
+                                else:
+                                    # if the area isn't None then it should have been set by the
+                                    # set_window function, however it could be forgotten
+                                    # if the cameras are rebooted
+                                    x, y, dx, dy = self.target_window[ut]
+                                    c = interface.set_camera_window(x, y, dx, dy, ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
@@ -220,6 +231,38 @@ class CamDaemon(BaseDaemon):
                 self.abort_exposure_flag = 0
                 self.force_check_flag = True
 
+            # set camera window
+            if self.set_window_flag:
+                try:
+                    for ut in self.active_uts:
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
+                        camstr = 'camera {} ({})'.format(ut, interface_id)
+                        if self.target_window[ut] is None:
+                            # reset to full
+                            areastr = 'full-frame'
+                        else:
+                            x, y, dx, dy = self.target_window[ut]
+                            areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
+                        self.log.info('Setting window on {} to {}'.format(camstr, areastr))
+                        try:
+                            with daemon_proxy(interface_id) as interface:
+                                if self.target_window[ut] is None:
+                                    c = interface.set_camera_window_full(ut)
+                                else:
+                                    x, y, dx, dy = self.target_window[ut]
+                                    c = interface.set_camera_window(x, y, dx, dy, ut)
+                                if c:
+                                    self.log.info(c)
+                        except Exception:
+                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('set_window command failed')
+                    self.log.debug('', exc_info=True)
+                self.active_uts = []
+                self.set_window_flag = 0
+                self.force_check_flag = True
+
             # set camera temperature
             if self.set_temp_flag:
                 try:
@@ -284,8 +327,13 @@ class CamDaemon(BaseDaemon):
                     ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
                     ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
                     cam_info = interface.get_camera_info(ut)
+                    ut_info['cam_info'] = cam_info
                     ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
                     ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
+                    ut_info['image_size'] = interface.get_camera_image_size()
+                    ut_info['window_area'] = interface.get_camera_window()
+                    ut_info['active_area'] = interface.get_camera_active_area()
+                    ut_info['full_area'] = interface.get_camera_full_area()
 
                 temp_info[ut] = ut_info
             except Exception:
@@ -524,6 +572,59 @@ class CamDaemon(BaseDaemon):
                 s += 'Aborting exposure on camera {}'.format(ut)
         return s
 
+    def set_window(self, x, y, dx, dy, ut_list):
+        """Set the camera's image window area."""
+        # Check restrictions
+        if self.dependency_error:
+            raise errors.DaemonStatusError('Dependencies are not running')
+
+        # Check input
+        for ut in ut_list:
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+
+        # Set values
+        for ut in ut_list:
+            self.target_window[ut] = (x, y, dx, dy)
+            self.active_uts += [ut]
+
+        # Set flag
+        self.set_window_flag = 1
+
+        # Format return string
+        s = 'Setting:'
+        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
+        for ut in ut_list:
+            s += '\n  '
+            s += 'Setting window on camera {} to {}'.format(ut, areastr)
+        return s
+
+    def remove_window(self, ut_list):
+        """Set the camera's image window area to full-frame."""
+        # Check restrictions
+        if self.dependency_error:
+            raise errors.DaemonStatusError('Dependencies are not running')
+
+        # Check input
+        for ut in ut_list:
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+
+        # Set values
+        for ut in ut_list:
+            self.target_window[ut] = None
+            self.active_uts += [ut]
+
+        # Set flag
+        self.set_window_flag = 1
+
+        # Format return string
+        s = 'Setting:'
+        for ut in ut_list:
+            s += '\n  '
+            s += 'Setting window on camera {} to full-frame'.format(ut)
+        return s
+
     def set_temperature(self, target_temp, ut_list):
         """Set the camera's temperature."""
         # Check restrictions
@@ -549,7 +650,7 @@ class CamDaemon(BaseDaemon):
         s = 'Setting:'
         for ut in ut_list:
             s += '\n  '
-            s += 'Setting temperature on camera {}'.format(ut)
+            s += 'Setting temperature on camera {} to {}'.format(ut, target_temp)
         return s
 
     def is_exposing(self):
