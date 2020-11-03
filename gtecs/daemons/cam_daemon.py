@@ -579,13 +579,17 @@ class CamDaemon(BaseDaemon):
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
+        if x < 0 or y < 0:
+            raise ValueError('Coordinates must be >= 0')
+        if dx < 1 or dy < 1:
+            raise ValueError('Width./height must be >= 1')
         for ut in ut_list:
             if ut not in self.uts:
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
         for ut in ut_list:
-            self.target_window[ut] = (x, y, dx, dy)
+            self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
             self.active_uts += [ut]
 
         # Set flag
