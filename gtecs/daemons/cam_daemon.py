@@ -115,7 +115,7 @@ class CamDaemon(BaseDaemon):
                                 if c:
                                     self.log.info(c)
                                 # set area (always full-frame)
-                                c = interface.set_camera_area(0, 0, 8304, 6220, ut)
+                                c = interface.set_camera_window_full(ut)
                                 if c:
                                     self.log.info(c)
                         except Exception:
