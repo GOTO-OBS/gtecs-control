@@ -160,7 +160,9 @@ class CamDaemon(BaseDaemon):
                     # get daemon info (once, for all images)
                     # do it here so we know the cam info has been updated
                     if self.all_info is None:
+                        self.log.info('Fetching daemon info')
                         self.all_info = get_all_info(self.info, self.log)
+                        self.log.info('Fetched daemon info')
 
                     # check if exposures are complete
                     for ut in self.active_uts:
@@ -168,11 +170,11 @@ class CamDaemon(BaseDaemon):
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 ready = interface.exposure_ready(ut)
-                                if ready and self.image_ready[ut] == 0:
-                                    expstr = self.current_exposure.expstr.capitalize()
-                                    camstr = 'camera {} ({})'.format(ut, interface_id)
-                                    self.log.info('{} finished on {}'.format(expstr, camstr))
-                                    self.image_ready[ut] = 1
+                            if ready and self.image_ready[ut] == 0:
+                                expstr = self.current_exposure.expstr.capitalize()
+                                camstr = 'camera {} ({})'.format(ut, interface_id)
+                                self.log.info('{} finished on {}'.format(expstr, camstr))
+                                self.image_ready[ut] = 1
                         except Exception:
                             self.log.error('No response from interface {}'.format(interface_id))
                             self.log.debug('', exc_info=True)
