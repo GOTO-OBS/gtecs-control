@@ -102,7 +102,9 @@ class CamDaemon(BaseDaemon):
                     # set exposure info
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
+                        argstr = '{:.1f}s, {:.0f}x{:.0f}, {}'.format(exptime,
+                                                                     binning, binning,
+                                                                     frametype)
                         camstr = 'camera {} ({})'.format(ut, interface_id)
                         self.log.info('Taking {} ({}) on {}'.format(expstr, argstr, camstr))
                         try:
@@ -534,7 +536,7 @@ class CamDaemon(BaseDaemon):
         # Format return string
         s = 'Taking {}:'.format(exposure.expstr)
         for ut in ut_list:
-            argstr = '{:.1f}s, {}x{}, {}'.format(exptime, binning, binning, frametype)
+            argstr = '{:.1f}s, {:.0f}x{:.0f}, {}'.format(exptime, binning, binning, frametype)
             s += '\n  '
             s += 'Taking exposure {} on camera {}'.format(argstr, ut)
         return s
