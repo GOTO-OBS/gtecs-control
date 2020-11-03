@@ -160,9 +160,9 @@ class CamDaemon(BaseDaemon):
                     # get daemon info (once, for all images)
                     # do it here so we know the cam info has been updated
                     if self.all_info is None:
-                        self.log.info('Fetching daemon info')
+                        self.log.info('Fetching info from other daemons')
                         self.all_info = get_all_info(self.info, self.log)
-                        self.log.info('Fetched daemon info')
+                        self.log.info('Fetched info from other daemons')
 
                     # check if exposures are complete
                     for ut in self.active_uts:

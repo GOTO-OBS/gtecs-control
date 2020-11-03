@@ -94,7 +94,9 @@ def get_all_info(cam_info, log):
 
     # OTA info
     try:
+        # log.debug('Fetching OTA info')
         all_info['ota'] = daemon_info('ota')
+        # log.debug('Fetched OTA info')
     except Exception:
         log.error('Failed to fetch OTA info')
         log.debug('', exc_info=True)
@@ -102,7 +104,9 @@ def get_all_info(cam_info, log):
 
     # Focuser info
     try:
+        # log.debug('Fetching focuser info')
         all_info['foc'] = daemon_info('foc')
+        # log.debug('Fetched focuser info')
     except Exception:
         log.error('Failed to fetch focuser info')
         log.debug('', exc_info=True)
@@ -110,7 +114,9 @@ def get_all_info(cam_info, log):
 
     # Filter wheel info
     try:
+        # log.debug('Fetching filter wheel info')
         all_info['filt'] = daemon_info('filt')
+        # log.debug('Fetched filter wheel info')
     except Exception:
         log.error('Failed to fetch filter wheel info')
         log.debug('', exc_info=True)
@@ -118,7 +124,9 @@ def get_all_info(cam_info, log):
 
     # Dome info
     try:
+        # log.debug('Fetching dome info')
         all_info['dome'] = daemon_info('dome')
+        # log.debug('Fetched dome info')
     except Exception:
         log.error('Failed to fetch dome info')
         log.debug('', exc_info=True)
@@ -126,7 +134,9 @@ def get_all_info(cam_info, log):
 
     # Mount info
     try:
+        # log.debug('Fetching mount info')
         all_info['mnt'] = daemon_info('mnt')
+        # log.debug('Fetched mount info')
     except Exception:
         log.error('Failed to fetch mount info')
         log.debug('', exc_info=True)
@@ -134,18 +144,27 @@ def get_all_info(cam_info, log):
 
     # Conditions info
     try:
+        # log.debug('Fetching conditions info')
         all_info['conditions'] = daemon_info('conditions')
+        # log.debug('Fetched conditions info')
     except Exception:
         log.error('Failed to fetch conditions info')
         log.debug('', exc_info=True)
         all_info['conditions'] = None
 
     # Astronomy
-    now = Time.now()
-    astro = {}
-    astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
-    astro['sun_alt'] = astronomy.get_sunalt(Time.now())
-    all_info['astro'] = astro
+    try:
+        # log.debug('Fetching astronomy info')
+        now = Time.now()
+        astro = {}
+        astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
+        astro['sun_alt'] = astronomy.get_sunalt(Time.now())
+        all_info['astro'] = astro
+        # log.debug('Fetched astronomy info')
+    except Exception:
+        log.error('Failed to fetch astronomy info')
+        log.debug('', exc_info=True)
+        all_info['astro'] = None
 
     # Database
     db_info = {}
@@ -154,6 +173,7 @@ def get_all_info(cam_info, log):
     else:
         db_info['from_db'] = True
 
+        # log.debug('Fetching database info')
         with db.open_session() as session:
             try:
                 expset_id = cam_info['current_exposure']['db_id']
@@ -232,6 +252,7 @@ def get_all_info(cam_info, log):
                 except Exception:
                     log.error('Failed to fetch database info')
                     log.debug('', exc_info=True)
+        # log.debug('Fetched database info')
 
     all_info['db'] = db_info
 
