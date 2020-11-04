@@ -356,11 +356,9 @@ def update_header(header, ut, all_info, log):
     header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
     header['GLANCE  '] = (current_exposure['glance'], 'Is this a glance frame?')
 
+    # (Depreciated section cards)
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
     header['TRIMSEC '] = ('[65:8240,46:6177]', 'Central data region (both channels)')
-
-    header['CHANNELS'] = (2, 'Number of CCD channels')
-
     header['TRIMSEC1'] = ('[65:4152,46:6177]', 'Data section for left channel')
     header['TRIMSEC2'] = ('[4153:8240,46:6177]', 'Data section for right channel')
     header['BIASSEC1'] = ('[3:10,3:6218]', 'Recommended bias section for left channel')
@@ -581,6 +579,15 @@ def update_header(header, ut, all_info, log):
     y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
     header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, microns')
     header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, microns')
+
+    full_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['full_area'])
+    active_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['active_area'])
+    window_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['window_area'])
+    header['FULLAREA'] = (full_area, 'Full frame area in unbinned pixels (x,y,dx,dy)')
+    header['ACTVAREA'] = (active_area, 'Active area in unbinned pixels (x,y,dx,dy)')
+    header['WINDOW  '] = (window_area, 'Windowed region in unbinned pixels (x,y,dx,dy)')
+
+    header['CHANNELS'] = (2, 'Number of CCD channels')  # TODO: this should come from the camera
 
     header['CCDTEMP '] = (cam_info['ccd_temp'], 'CCD temperature, C')
     header['CCDTEMPS'] = (cam_info['target_temp'], 'Requested CCD temperature, C')
