@@ -79,7 +79,7 @@ def run():
 
     # Set the focusers
     execute_command('foc move 10')
-    time.sleep(2)
+    time.sleep(4)
     execute_command('foc move -10')
     while not focusers_are_set():
         time.sleep(1)
@@ -87,7 +87,7 @@ def run():
 
     # Set the cameras to full-frame
     execute_command('cam window full')
-    time.sleep(1)
+    time.sleep(4)  # need a long sleep or the commands will interfere?
 
     # Bring the CCDs down to temperature
     execute_command('cam temp {}'.format(params.CCD_TEMP))

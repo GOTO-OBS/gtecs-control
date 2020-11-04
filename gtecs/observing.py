@@ -99,14 +99,14 @@ def prepare_for_images(open_covers=True):
     if not focusers_are_set():
         print('Setting focusers')
         execute_command('foc move 10')
-        time.sleep(2)
+        time.sleep(4)
         execute_command('foc move -10')
 
     # Reset the cameras to full-frame exposures
     if not cameras_are_fullframe():
         print('Setting cameras to full-frame')
         execute_command('cam window full')
-        time.sleep(2)
+        time.sleep(4)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
