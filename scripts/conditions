@@ -163,9 +163,6 @@ def print_info(info):
 
         print('WEATHER:          temp   humid    dewpt  wind (gust)        rain')
         weather = info['weather']
-        # If we're using thr W1m boards then we're ignoring the GOTO rain sensors
-        if params.USE_W1M_RAINBOARDS:
-            weather['goto']['rain'] = 'NA'
 
         for source in weather:
             if weather[source]['type'] == 'external':

@@ -114,7 +114,7 @@ class ConditionsDaemon(BaseDaemon):
             weather = {}
 
             # Get the weather from the local stations
-            for source in ['goto', 'w1m']:
+            for source in params.EXTERNAL_WEATHER_SOURCES:
                 try:
                     weather_dict = conditions.get_vaisala(source)
                 except Exception:
@@ -131,7 +131,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'dt': -999,
                                     }
                 weather_dict['type'] = 'external'
-                weather[source] = weather_dict
+                weather[source.lower()] = weather_dict
 
             # Get the W1m rain boards reading
             if params.USE_W1M_RAINBOARDS:
@@ -142,31 +142,14 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                     rain = -999
                 # Replace the local rain measurements
-                weather['w1m']['rain'] = rain
-                del weather['goto']['rain']
-
-            # Get the weather from the ING webpage as a backup
-            if params.USE_ING_WEATHER:
-                try:
-                    weather_dict = conditions.get_ing()
-                except Exception:
-                    self.log.error('Error getting weather from "ing"')
-                    self.log.debug('', exc_info=True)
-                    weather_dict = {'rain': -999,
-                                    'temperature': -999,
-                                    'pressure': -999,
-                                    'winddir': -999,
-                                    'windspeed': -999,
-                                    'windgust': -999,
-                                    'humidity': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
-                weather_dict['type'] = 'external'
-                weather['ing'] = weather_dict
+                for source in weather:
+                    if source == 'w1m':
+                        weather[source]['rain'] = rain
+                    elif 'rain' in weather[source]:
+                        del weather[source]['rain']
 
             # Get the internal conditions from the RoomAlert
-            for source in ['pier']:
+            for source in params.INTERNAL_WEATHER_SOURCES:
                 try:
                     weather_dict = conditions.get_roomalert(source)
                 except Exception:
@@ -178,7 +161,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'dt': -999,
                                     }
                 weather_dict['type'] = 'internal'
-                weather[source] = weather_dict
+                weather[source.lower()] = weather_dict
 
             temp_info['weather'] = {}
             for source in weather:

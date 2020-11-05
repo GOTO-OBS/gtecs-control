@@ -134,13 +134,10 @@ def get_roomalert(source):
         print(indata)
         raise
 
-    if source == 'dome':
-        sensor_data = data['sensor'][0]
-    elif source == 'pier':
-        sensor_data = data['sensor'][1]
-    else:
-        sources = ['dome', 'pier']
-        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
+    sensors = [sensor_dict['lab'] for sensor_dict in data['sensor']]
+    if source not in sensors:
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sensors))
+    sensor_data = [sensor_dict for sensor_dict in data['sensor'] if sensor_dict['lab'] == source][0]
 
     weather_dict = {}
 
@@ -174,11 +171,18 @@ def get_roomalert(source):
     return weather_dict
 
 
+def get_internal():
+    """Get the dome internal temperature and humidity.
+
+    If more than one source is defined in params.INTERNAL_WEATHER_SOURCES then this function
+    only returns values from the first in the list.
+
+    """
+    return get_roomalert(params.INTERNAL_WEATHER_SOURCES[0])
+
+
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
-    if source not in ['goto', 'w1m']:
-        raise ValueError('Invalid weather source "{}"'.format(source))
-
     url = 'http://10.2.6.100/data/raw/{}-vaisala'.format(source)
     outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
