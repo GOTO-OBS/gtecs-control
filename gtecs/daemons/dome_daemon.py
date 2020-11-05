@@ -433,7 +433,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get the dome internal temperature
         try:
-            temperature = get_roomalert('pier')['int_temperature']
+            temperature = get_roomalert('pier')['temperature']
             # We need a check here because the sensor occasionally has glitches
             # (see also the same code in the foc daemon)
             if self.info is None or 'temperature_history' not in self.info:
@@ -454,7 +454,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get the dome internal humidity
         try:
-            humidity = get_roomalert('pier')['int_humidity']
+            humidity = get_roomalert('pier')['humidity']
             # The humidity sensor glitches even worse!
             if self.info is None or 'humidity_history' not in self.info:
                 humidity_history = [humidity]

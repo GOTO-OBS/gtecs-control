@@ -130,6 +130,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+                weather_dict['type'] = 'external'
                 weather[source] = weather_dict
 
             # Get the W1m rain boards reading
@@ -161,6 +162,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+                weather_dict['type'] = 'external'
                 weather['ing'] = weather_dict
 
             # Get the internal conditions from the RoomAlert
@@ -170,11 +172,12 @@ class ConditionsDaemon(BaseDaemon):
                 except Exception:
                     self.log.error('Error getting weather from "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict = {'int_temperature': -999,
-                                    'int_humidity': -999,
+                    weather_dict = {'temperature': -999,
+                                    'humidity': -999,
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+                weather_dict['type'] = 'internal'
                 weather[source] = weather_dict
 
             temp_info['weather'] = {}
@@ -349,24 +352,28 @@ class ConditionsDaemon(BaseDaemon):
                               if 'windspeed' in weather[source]])
         windgust = np.array([weather[source]['windgust'] for source in weather
                              if 'windgust' in weather[source]])
-        temp = np.array([weather[source]['temperature'] for source in weather
-                         if 'temperature' in weather[source]])
-        humidity = np.array([weather[source]['humidity'] for source in weather
-                             if 'humidity' in weather[source]])
+        ext_temperature = np.array([weather[source]['temperature'] for source in weather
+                                    if ('temperature' in weather[source] and
+                                        weather[source]['type'] == 'external')])
+        ext_humidity = np.array([weather[source]['humidity'] for source in weather
+                                if ('humidity' in weather[source] and
+                                    weather[source]['type'] == 'external')])
         dew_point = np.array([weather[source]['dew_point'] for source in weather
                              if 'dew_point' in weather[source]])
-        int_temp = np.array([weather[source]['int_temperature'] for source in weather
-                             if 'int_temperature' in weather[source]])
-        int_humidity = np.array([weather[source]['int_humidity'] for source in weather
-                                 if 'int_humidity' in weather[source]])
+        int_temperature = np.array([weather[source]['temperature'] for source in weather
+                                    if ('temperature' in weather[source] and
+                                        weather[source]['type'] == 'internal')])
+        int_humidity = np.array([weather[source]['humidity'] for source in weather
+                                 if ('humidity' in weather[source] and
+                                     weather[source]['type'] == 'internal')])
 
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
         windgust = windgust[windgust != -999]
-        temp = temp[temp != -999]
-        humidity = humidity[humidity != -999]
+        ext_temperature = ext_temperature[ext_temperature != -999]
+        ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
-        int_temp = int_temp[int_temp != -999]
+        int_temperature = int_temperature[int_temperature != -999]
         int_humidity = int_humidity[int_humidity != -999]
 
         # UPSs
@@ -430,24 +437,24 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
 
         # temperature flag
-        good['temperature'] = (np.all(temp > params.MIN_TEMPERATURE) and
-                               np.all(temp < params.MAX_TEMPERATURE) and
-                               np.all(int_temp > params.MIN_INTERNAL_TEMPERATURE) and
-                               np.all(int_temp < params.MAX_INTERNAL_TEMPERATURE))
-        valid['temperature'] = len(temp) >= 1 and len(int_temp) >= 1
+        good['temperature'] = (np.all(ext_temperature > params.MIN_TEMPERATURE) and
+                               np.all(ext_temperature < params.MAX_TEMPERATURE) and
+                               np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE) and
+                               np.all(int_temperature < params.MAX_INTERNAL_TEMPERATURE))
+        valid['temperature'] = len(ext_temperature) >= 1 and len(int_temperature) >= 1
         good_delay['temperature'] = params.TEMPERATURE_GOODDELAY
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
-        good['ice'] = np.all(temp > 0)
-        valid['ice'] = len(temp) >= 1
+        good['ice'] = np.all(ext_temperature > 0)
+        valid['ice'] = len(ext_temperature) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
 
         # humidity flag
-        good['humidity'] = (np.all(humidity < params.MAX_HUMIDITY) and
+        good['humidity'] = (np.all(ext_humidity < params.MAX_HUMIDITY) and
                             np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY))
-        valid['humidity'] = len(humidity) >= 1 and len(int_humidity) >= 1
+        valid['humidity'] = len(ext_humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
 
@@ -459,8 +466,8 @@ class ConditionsDaemon(BaseDaemon):
 
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
-                            np.all(int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
-        valid['internal'] = len(int_humidity) >= 1 and len(int_temp) >= 1
+                            np.all(int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE))
+        valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 

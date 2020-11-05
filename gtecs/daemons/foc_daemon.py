@@ -207,7 +207,7 @@ class FocDaemon(BaseDaemon):
         # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
-            dome_temp = get_roomalert('pier')['int_temperature']
+            dome_temp = get_roomalert('pier')['temperature']
             # We need a check here because the sensor occasionally has glitches
             # We could just compare to the previous value, but if the first measurement is a glitch
             # then we'd never get anywhere.

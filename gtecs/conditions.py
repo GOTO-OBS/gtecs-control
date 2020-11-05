@@ -146,15 +146,15 @@ def get_roomalert(source):
 
     # temperature
     try:
-        weather_dict['int_temperature'] = float(sensor_data['tc'])
+        weather_dict['temperature'] = float(sensor_data['tc'])
     except Exception:
-        weather_dict['int_temperature'] = -999
+        weather_dict['temperature'] = -999
 
     # humidity
     try:
-        weather_dict['int_humidity'] = float(sensor_data['h'])
+        weather_dict['humidity'] = float(sensor_data['h'])
     except Exception:
-        weather_dict['int_humidity'] = -999
+        weather_dict['humidity'] = -999
 
     # time
     try:

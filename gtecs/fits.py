@@ -954,13 +954,13 @@ def update_header(header, ut, all_info, log):
 
         int_weather = info['weather']['pier']
 
-        int_temp = int_weather['int_temperature']
+        int_temp = int_weather['temperature']
         if int_temp == -999:
             int_temp = 'NA'
         else:
             int_temp = numpy.around(int_temp, decimals=1)
 
-        int_hum = int_weather['int_humidity']
+        int_hum = int_weather['humidity']
         if int_hum == -999:
             int_hum = 'NA'
         else:
