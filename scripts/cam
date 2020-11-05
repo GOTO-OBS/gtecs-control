@@ -174,6 +174,31 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'abort_exposure', [ut_list])
         print(reply)
 
+    elif command == 'window':
+        # parse arguments
+        if len(args) == 1 and args[0] in ['full', 'reset', 'clear']:
+            ut_list = params.UTS_WITH_CAMERAS
+            target_window = None
+        elif len(args) == 2 and args[1] in ['full', 'reset', 'clear']:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            target_window = None
+        elif len(args) == 4 and (misc.is_num(args[0]) and misc.is_num(args[1]) and
+                                 misc.is_num(args[2]) and misc.is_num(args[3])):
+            ut_list = params.UTS_WITH_CAMERAS
+            target_window = (int(args[0]), int(args[1]), int(args[2]), int(args[3]))
+        elif len(args) == 5 and (misc.is_num(args[1]) and misc.is_num(args[2]) and
+                                 misc.is_num(args[3]) and misc.is_num(args[4])):
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            target_window = (int(args[1]), int(args[2]), int(args[3]), int(args[4]))
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        if target_window is not None:
+            reply = daemons.daemon_function(daemon_id, 'set_window', [*target_window, ut_list])
+        else:
+            reply = daemons.daemon_function(daemon_id, 'remove_window', [ut_list])
+        print(reply)
+
     elif command == 'temp':
         # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
@@ -212,6 +237,7 @@ def print_info(info):
                 print('Exposure time:      {:.2f}s'.format(current_exposure['exptime']))
                 print('Binning:            {:.0f}'.format(current_exposure['binning']))
                 print('Frame type:         {}'.format(current_exposure['frametype']))
+        print('Image window:       {}'.format(info[ut]['window_area']))
         print('CCD Temperature:    {:.2f}C'.format(info[ut]['ccd_temp']))
         print('Target Temperature: {:.2f}C'.format(info[ut]['target_temp']))
         print('Base Temperature:   {:.2f}C'.format(info[ut]['base_temp']))
@@ -259,6 +285,8 @@ def print_instructions():
           '  dark [uts] exptime binning     take a dark frame',
           '  bias [uts] binning             take a bias frame',
           '  abort [uts]                    abort current exposure',
+          '  window [uts] x y dx dy         set camera image window',
+          '  window [uts] full|reset|clear  reset camera image window to full-frame',
           '  temp [uts] temp                set camera temperature',
           '  info/status [-v] [-f]          report current status [verbose/force-update]',
           '  log [stdout]                   print daemon log (alias for tail)',

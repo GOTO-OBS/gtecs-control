@@ -577,11 +577,25 @@ class UTInterfaceDaemon(BaseDaemon):
         self.log.info('Camera {} setting binning factor to ({},{})'.format(ut, hbin, vbin))
         self.cameras[ut].set_image_binning(hbin, vbin)
 
-    def set_camera_area(self, ul_x, ul_y, lr_x, lr_y, ut):
-        """Set the active image area."""
-        areastr = '({},{},{},{})'.format(ul_x, ul_y, lr_x, lr_y)
-        self.log.info('Camera {} setting active area to {}'.format(ut, areastr))
-        self.cameras[ut].set_image_size(ul_x, ul_y, lr_x, lr_y)
+    def set_camera_window(self, x, y, dx, dy, ut):
+        """Set the image window area in unbinned pixels."""
+        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
+        self.log.info('Camera {} setting image window to {}'.format(ut, areastr))
+        self.cameras[ut].set_image_size(x, y, dx, dy)
+
+    def set_camera_window_active(self, ut):
+        """Set the image window to the active area (excluding overscan)."""
+        x, y, dx, dy = self.get_camera_active_area(ut)
+        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
+        self.log.info('Camera {} setting image window to active {}'.format(ut, areastr))
+        self.cameras[ut].set_image_size(x, y, dx, dy)
+
+    def set_camera_window_full(self, ut):
+        """Set the image window to the full frame (including overscan)."""
+        x, y, dx, dy = self.get_camera_full_area(ut)
+        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
+        self.log.info('Camera {} setting image window to full {}'.format(ut, areastr))
+        self.cameras[ut].set_image_size(x, y, dx, dy)
 
     def get_camera_info(self, ut):
         """Return camera infomation dictionary."""
@@ -606,6 +620,37 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_camera_cooler_power(self, ut):
         """Return peltier cooler power."""
         return self.cameras[ut].get_cooler_power()
+
+    def get_camera_image_size(self, ut):
+        """Return the image size in binned pixels."""
+        return self.cameras[ut].get_image_size()
+
+    def get_camera_window(self, ut):
+        """Return the current image area in unbinned pixels."""
+        info = self.cameras[ut].get_info()['readout_pars']
+        x = info['xstart']
+        y = info['ystart']
+        dx = info['nx'] * info['xbin']
+        dy = info['ny'] * info['ybin']
+        return (x, y, dx, dy)
+
+    def get_camera_active_area(self, ut):
+        """Return the active image area (excluding overscan) in unbinned pixels."""
+        info = self.cameras[ut].get_info()['active_area']
+        x = info[0]
+        y = info[1]
+        dx = info[2] - info[0]
+        dy = info[3] - info[1]
+        return (x, y, dx, dy)
+
+    def get_camera_full_area(self, ut):
+        """Return the full frame image area (including overscan) in unbinned pixels."""
+        info = self.cameras[ut].get_info()['array_area']
+        x = info[0]
+        y = info[1]
+        dx = info[2] - info[0]
+        dy = info[3] - info[1]
+        return (x, y, dx, dy)
 
     def get_camera_serial_number(self, ut):
         """Return camera unique serial number."""

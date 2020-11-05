@@ -77,6 +77,7 @@ def prepare_for_images(open_covers=True):
 
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
+    - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
@@ -98,8 +99,14 @@ def prepare_for_images(open_covers=True):
     if not focusers_are_set():
         print('Setting focusers')
         execute_command('foc move 10')
-        time.sleep(2)
+        time.sleep(4)
         execute_command('foc move -10')
+
+    # Reset the cameras to full-frame exposures
+    if not cameras_are_fullframe():
+        print('Setting cameras to full-frame')
+        execute_command('cam window full')
+        time.sleep(4)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
@@ -732,6 +739,13 @@ def cameras_are_cool():
     target_temp = params.CCD_TEMP
     cam_info = daemon_info('cam', force_update=False)
     return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
+
+
+def cameras_are_fullframe():
+    """Check if all the cameras are set to take full-frame exposures."""
+    cam_info = daemon_info('cam', force_update=False)
+    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area']
+               for ut in params.UTS_WITH_CAMERAS)
 
 
 def wait_for_exposure_queue(timeout=None):
