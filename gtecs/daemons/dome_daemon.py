@@ -9,11 +9,11 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.conditions import get_internal
 from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
+from gtecs.observing import get_internal_conditions
 from gtecs.slack import send_slack_msg
 
 import numpy as np
@@ -433,7 +433,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get the dome internal temperature
         try:
-            temperature = get_internal()['temperature']
+            temperature = get_internal_conditions()['temperature']
             # We need a check here because the sensor occasionally has glitches
             # (see also the same code in the foc daemon)
             if self.info is None or 'temperature_history' not in self.info:
@@ -454,7 +454,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get the dome internal humidity
         try:
-            humidity = get_internal()['humidity']
+            humidity = get_internal_conditions()['humidity']
             # The humidity sensor glitches even worse!
             if self.info is None or 'humidity_history' not in self.info:
                 humidity_history = [humidity]

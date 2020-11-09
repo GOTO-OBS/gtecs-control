@@ -838,3 +838,18 @@ def get_pointing_status(db_id):
         pointing = get_pointing_by_id(session, db_id)
         status = pointing.status
     return status
+
+
+def get_internal_conditions():
+    """Get the current internal conditions (temperature and humidity).
+
+    If there are more than one internal sensors then this function
+    returns the mean temperature and humidity values.
+
+    """
+    conditions_info = daemon_info('conditions', force_update=True)
+    weather = conditions_info['weather']
+    int_sources = [source for source in weather if weather[source]['type'] == 'internal']
+    int_temperature = np.mean([weather[source]['temperature'] for source in int_sources])
+    int_humidity = np.mean([weather[source]['humidity'] for source in int_sources])
+    return {'temperature': int_temperature, 'humidity': int_humidity}
