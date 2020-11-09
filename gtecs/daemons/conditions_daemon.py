@@ -137,16 +137,16 @@ class ConditionsDaemon(BaseDaemon):
             if params.USE_W1M_RAINBOARDS:
                 try:
                     rain = conditions.get_rain()['rain']
+                    # Replace the local rain measurements
+                    for source in weather:
+                        if source == 'w1m':
+                            weather[source]['rain'] = rain
+                        elif 'rain' in weather[source]:
+                            del weather[source]['rain']
                 except Exception:
                     self.log.error('Error getting weather from "rain"')
                     self.log.debug('', exc_info=True)
-                    rain = -999
-                # Replace the local rain measurements
-                for source in weather:
-                    if source == 'w1m':
-                        weather[source]['rain'] = rain
-                    elif 'rain' in weather[source]:
-                        del weather[source]['rain']
+                    self.log.warning('Using vaisala station rain measurements')
 
             # Get the internal conditions from the RoomAlert
             for source in params.INTERNAL_WEATHER_SOURCES:
