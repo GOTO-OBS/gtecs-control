@@ -123,7 +123,7 @@ def hatch_closed():
 
 def get_roomalert(source):
     """Get internal dome temperature and humidity from GOTO RoomAlert system."""
-    url = 'http://{}/getData.json'.format(params.ROOMALERT_LOCATION)
+    url = 'http://{}/getData.json'.format(params.ROOMALERT_IP)
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
     indata = download_data_from_url(url, outfile)
@@ -171,19 +171,51 @@ def get_roomalert(source):
     return weather_dict
 
 
-def get_internal():
-    """Get the dome internal temperature and humidity.
+def get_internal(source):
+    """Get the internal conditions from the RoomAlert system."""
+    url = 'http://{}/{}-roomalert'.format(params.CONDITIONS_JSON_LOCATION, source)
+    outfile = os.path.join(params.FILE_PATH, '{}-roomalert.json'.format(source))
 
-    If more than one source is defined in params.INTERNAL_WEATHER_SOURCES then this function
-    only returns values from the first in the list.
+    indata = download_data_from_url(url, outfile)
+    if len(indata) < 2 or '500 Internal Server Error' in indata:
+        raise IOError
 
-    """
-    return get_roomalert(params.INTERNAL_WEATHER_SOURCES[0])
+    try:
+        data = json.loads(indata)
+    except Exception:
+        print('Error reading data for {}'.format(source))
+        print(indata)
+        raise
+
+    weather_dict = {}
+
+    # temperature
+    try:
+        weather_dict['temperature'] = float(data['internal_temp'])
+    except Exception:
+        weather_dict['temperature'] = -999
+
+    # humidity
+    try:
+        weather_dict['humidity'] = float(data['internal_humidity'])
+    except Exception:
+        weather_dict['humidity'] = -999
+
+    # time
+    try:
+        weather_dict['update_time'] = Time(data['date'], precision=0).iso
+        dt = Time.now() - Time(data['date'])
+        weather_dict['dt'] = int(dt.to('second').value)
+    except Exception:
+        weather_dict['update_time'] = -999
+        weather_dict['dt'] = -999
+
+    return weather_dict
 
 
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
-    url = 'http://{}/data/raw/{}-vaisala'.format(params.VAISALA_LOCATION, source)
+    url = 'http://{}/{}-vaisala'.format(params.CONDITIONS_JSON_LOCATION, source)
     outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
     indata = download_data_from_url(url, outfile)
@@ -518,7 +550,7 @@ def get_ing_internal(source):
 def get_rain():
     """Get rain readings from the W1m boards."""
     rain_daemon_uri = 'PYRO:{}@{}:{}'.format(params.RAINDAEMON_NAME,
-                                             params.RAINDAEMON_LOCATION,
+                                             params.RAINDAEMON_IP,
                                              params.RAINDAEMON_PORT)
     with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
         rain_daemon._pyroSerializer = 'serpent'
