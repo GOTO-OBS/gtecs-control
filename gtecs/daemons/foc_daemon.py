@@ -12,8 +12,6 @@ from gtecs import params
 from gtecs.daemons import BaseDaemon, daemon_proxy
 from gtecs.observing import get_internal_conditions
 
-import numpy as np
-
 
 class FocDaemon(BaseDaemon):
     """Focuser hardware daemon class."""
@@ -207,22 +205,8 @@ class FocDaemon(BaseDaemon):
         # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
-            dome_temp = get_internal_conditions()['temperature']
-            # We need a check here because the sensor occasionally has glitches
-            # We could just compare to the previous value, but if the first measurement is a glitch
-            # then we'd never get anywhere.
-            # Instead, we need to store multiple readings, since the glitches are very short.
-            if self.info is None or 'dome_temp_history' not in self.info:
-                dome_temp_history = [dome_temp]
-            else:
-                # Compare to the most recent readings
-                dome_temp_history = self.info['dome_temp_history'][-60:] + [dome_temp]
-                if abs(dome_temp - np.median(dome_temp_history)) > 1:
-                    # It's very unlikly to have changed by more than 1 degree that quickly...
-                    # If so then just keep the previous value
-                    dome_temp = self.info['dome_temp']
-            temp_info['dome_temp'] = dome_temp
-            temp_info['dome_temp_history'] = dome_temp_history
+            int_conditions = get_internal_conditions()
+            temp_info['dome_temp'] = int_conditions['temperature']
         except Exception:
             self.log.error('Failed to get dome internal temperature')
             self.log.debug('', exc_info=True)

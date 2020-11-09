@@ -130,8 +130,35 @@ class ConditionsDaemon(BaseDaemon):
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+
+                # Format source key
+                source = source.lower()
+
+                try:
+                    # Save a history of windspeed so we can detect gusts
+                    if (self.info and source in self.info['weather'] and
+                            'windspeed_history' in self.info['weather'][source]):
+                        windspeed_history = self.info['weather'][source]['windspeed_history']
+                    else:
+                        windspeed_history = []
+                    # remove old values and add the latest value
+                    windspeed_history = [hist for hist in windspeed_history
+                                         if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    windspeed_history.append((self.loop_time, weather_dict['windspeed']))
+                    weather_dict['windspeed_history'] = windspeed_history
+                    # store maximum (windgust)
+                    if len(windspeed_history) > 1:
+                        weather_dict['windgust'] = max(hist[1] for hist in windspeed_history)
+                    else:
+                        weather_dict['windgust'] = -999
+                except Exception:
+                    self.log.error('Error getting windgust for "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict['windgust'] = -999
+
+                # Store the dict
                 weather_dict['type'] = 'external'
-                weather[source.lower()] = weather_dict
+                weather[source] = weather_dict
 
             # Get the W1m rain boards reading
             if params.USE_W1M_RAINBOARDS:
@@ -160,8 +187,57 @@ class ConditionsDaemon(BaseDaemon):
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+
+                # Format source key
+                source = source.lower() + '_int'
+
+                try:
+                    # Save a history of temperature so we can detect glitches
+                    if (self.info and source in self.info['weather'] and
+                            'temperature_history' in self.info['weather'][source]):
+                        temperature_history = self.info['weather'][source]['temperature_history']
+                    else:
+                        temperature_history = []
+                    # remove old values and add the latest value (use same period as windgust)
+                    temperature_history = [hist for hist in temperature_history
+                                           if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    temperature_history.append((self.loop_time, weather_dict['temperature']))
+                    weather_dict['temperature_history'] = temperature_history
+                    # compare to the most recent readings
+                    if abs(weather_dict['temperature'] - np.median(temperature_history)) > 1:
+                        # It's very unlikly to have changed by more than 1 degree that quickly...
+                        # If so then just keep the previous value
+                        weather_dict['temperature'] = self.info['weather']['temperature']
+                        self.log.debug(weather_dict['temperature'], temperature_history)
+                except Exception:
+                    self.log.error('Error checking temperature for "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+
+                try:
+                    # Save a history of humidity so we can detect glitches
+                    if (self.info and source in self.info['weather'] and
+                            'humidity_history' in self.info['weather'][source]):
+                        humidity_history = self.info['weather'][source]['humidity_history']
+                    else:
+                        humidity_history = []
+                    # remove old values and add the latest value (use same period as windgust)
+                    humidity_history = [hist for hist in humidity_history
+                                        if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    humidity_history.append((self.loop_time, weather_dict['humidity']))
+                    weather_dict['humidity_history'] = humidity_history
+                    # compare to the most recent readings
+                    if abs(weather_dict['humidity'] - np.median(humidity_history)) > 20:
+                        # It's very unlikly to have changed by more than 20% that quickly...
+                        # If so then just keep the previous value
+                        weather_dict['humidity'] = self.info['weather']['humidity']
+                        self.log.debug(weather_dict['humidity'], humidity_history)
+                except Exception:
+                    self.log.error('Error checking humidity for "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+
+                # Store the dict
                 weather_dict['type'] = 'internal'
-                weather[source.lower() + '_int'] = weather_dict
+                weather[source] = weather_dict
 
             temp_info['weather'] = {}
             for source in weather:
@@ -181,24 +257,6 @@ class ConditionsDaemon(BaseDaemon):
                     if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
                         source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
-
-                # Store a history of wind so we can get gusts
-                if (self.info and self.info['weather'][source] and
-                        'windhist' in self.info['weather'][source]):
-                    windhist = self.info['weather'][source]['windhist']
-                else:
-                    windhist = []
-                # remove old values
-                windhist = [h for h in windhist if h[0] > self.loop_time - params.WINDGUST_PERIOD]
-                # add new value
-                if 'windspeed' in source_info:
-                    windhist.append((self.loop_time, source_info['windspeed']))
-                # store history and maximum (windgust)
-                source_info['windhist'] = windhist
-                if len(windhist) > 1:
-                    source_info['windgust'] = max(h[1] for h in windhist)
-                elif 'windspeed' in source_info:
-                    source_info['windgust'] = -999
 
                 temp_info['weather'][source] = source_info
         except Exception:
