@@ -99,7 +99,7 @@ def get_ups():
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
     status = Status()
-    url = 'http://' + params.ARDUINO_LOCATION
+    url = 'http://{}'.format(params.ARDUINO_LOCATION)
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
     indata = download_data_from_url(url, outfile)
@@ -123,7 +123,7 @@ def hatch_closed():
 
 def get_roomalert(source):
     """Get internal dome temperature and humidity from GOTO RoomAlert system."""
-    url = 'http://10.2.6.5/getData.json'
+    url = 'http://{}/getData.json'.format(params.ROOMALERT_LOCATION)
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
     indata = download_data_from_url(url, outfile)
@@ -183,7 +183,7 @@ def get_internal():
 
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
-    url = 'http://10.2.6.100/data/raw/{}-vaisala'.format(source)
+    url = 'http://{}/data/raw/{}-vaisala'.format(params.VAISALA_LOCATION, source)
     outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
     indata = download_data_from_url(url, outfile)
@@ -517,7 +517,9 @@ def get_ing_internal(source):
 
 def get_rain():
     """Get rain readings from the W1m boards."""
-    rain_daemon_uri = 'PYRO:onemetre_rain_daemon@10.2.6.202:9017'
+    rain_daemon_uri = 'PYRO:{}@{}:{}'.format(params.RAINDAEMON_NAME,
+                                             params.RAINDAEMON_LOCATION,
+                                             params.RAINDAEMON_PORT)
     with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
         rain_daemon._pyroSerializer = 'serpent'
         info = rain_daemon.last_measurement()
