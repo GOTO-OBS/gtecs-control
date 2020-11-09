@@ -161,7 +161,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'dt': -999,
                                     }
                 weather_dict['type'] = 'internal'
-                weather[source.lower()] = weather_dict
+                weather[source.lower() + '_int'] = weather_dict
 
             temp_info['weather'] = {}
             for source in weather:

@@ -277,7 +277,7 @@ def print_info(info):
                 else:
                     dt_str = style.gtxt('{:.0f}'.format(dt))
 
-                print('  {: <10}'.format(source + '_int'), end='\t')
+                print('  {: <10}'.format(source), end='\t')
                 weather_str = '{}°C  {}%                                    dt={}'.format(
                     temperature_str, humidity_str, dt_str)
                 print(weather_str)
@@ -390,7 +390,7 @@ def print_limits(info):
                 max_temp = params.MAX_TEMPERATURE
             else:
                 # internal sensors
-                print('  {: <10}'.format(source + '_int'), end='\t')
+                print('  {: <10}'.format(source), end='\t')
                 min_temp = params.MIN_INTERNAL_TEMPERATURE
                 max_temp = params.MAX_INTERNAL_TEMPERATURE
 
@@ -421,7 +421,7 @@ def print_limits(info):
                 max_hum = params.MAX_HUMIDITY
             else:
                 # internal sensors
-                print('  {: <10}'.format(source + '_int'), end='\t')
+                print('  {: <10}'.format(source), end='\t')
                 max_hum = params.MAX_INTERNAL_HUMIDITY
 
             humidity = weather[source]['humidity']
