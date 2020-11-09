@@ -204,14 +204,17 @@ class ConditionsDaemon(BaseDaemon):
                     temperature_history.append((self.loop_time, weather_dict['temperature']))
                     weather_dict['temperature_history'] = temperature_history
                     # compare to the most recent readings
-                    if abs(weather_dict['temperature'] - np.median(temperature_history)) > 1:
+                    median = np.median([hist[1] for hist in temperature_history])
+                    if abs(weather_dict['temperature'] - median) > 1:
                         # It's very unlikly to have changed by more than 1 degree that quickly...
                         # If so then just keep the last good value (if there is one)
                         if (self.info and source in self.info['weather'] and
                                 'temperature' in self.info['weather'][source]):
                             old_temperature = self.info['weather'][source]['temperature']
                             weather_dict['temperature'] = old_temperature
-                        self.log.debug(weather_dict['temperature'], temperature_history)
+                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['temperature'],
+                                                                      median,
+                                                                      temperature_history))
                 except Exception:
                     self.log.error('Error checking temperature for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
@@ -229,14 +232,17 @@ class ConditionsDaemon(BaseDaemon):
                     humidity_history.append((self.loop_time, weather_dict['humidity']))
                     weather_dict['humidity_history'] = humidity_history
                     # compare to the most recent readings
-                    if abs(weather_dict['humidity'] - np.median(humidity_history)) > 20:
+                    median = np.median([hist[1] for hist in humidity_history])
+                    if abs(weather_dict['humidity'] - median) > 20:
                         # It's very unlikly to have changed by more than 20% that quickly...
                         # If so then just keep the previous value, if there is one
                         if (self.info and source in self.info['weather'] and
                                 'humidity' in self.info['weather'][source]):
                             old_humidity = self.info['weather'][source]['humidity']
                             weather_dict['humidity'] = old_humidity
-                        self.log.debug(weather_dict['humidity'], humidity_history)
+                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['humidity'],
+                                                                      median,
+                                                                      humidity_history))
                 except Exception:
                     self.log.error('Error checking humidity for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
