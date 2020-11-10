@@ -847,7 +847,7 @@ def get_internal_conditions():
     returns the mean temperature and humidity values.
 
     """
-    conditions_info = daemon_info('conditions', force_update=True)
+    conditions_info = daemon_info('conditions', force_update=False)
     weather = conditions_info['weather']
     int_sources = [source for source in weather if weather[source]['type'] == 'internal']
     int_temperature = np.mean([weather[source]['temperature'] for source in int_sources])
