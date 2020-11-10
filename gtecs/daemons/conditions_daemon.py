@@ -198,9 +198,9 @@ class ConditionsDaemon(BaseDaemon):
                         temperature_history = self.info['weather'][source]['temperature_history']
                     else:
                         temperature_history = []
-                    # remove old values and add the latest value (use same period as windgust)
+                    # remove old values and add the latest value (limit to 5 mins)
                     temperature_history = [hist for hist in temperature_history
-                                           if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                                           if hist[0] > self.loop_time - 300]
                     temperature_history.append((self.loop_time, weather_dict['temperature']))
                     weather_dict['temperature_history'] = temperature_history
                     # compare to the most recent readings
@@ -226,9 +226,9 @@ class ConditionsDaemon(BaseDaemon):
                         humidity_history = self.info['weather'][source]['humidity_history']
                     else:
                         humidity_history = []
-                    # remove old values and add the latest value (use same period as windgust)
+                    # remove old values and add the latest value (limit to 5 mins)
                     humidity_history = [hist for hist in humidity_history
-                                        if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                                        if hist[0] > self.loop_time - 300]
                     humidity_history.append((self.loop_time, weather_dict['humidity']))
                     weather_dict['humidity_history'] = humidity_history
                     # compare to the most recent readings
