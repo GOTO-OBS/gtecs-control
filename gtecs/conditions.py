@@ -99,7 +99,7 @@ def get_ups():
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
     status = Status()
-    url = 'http://' + params.ARDUINO_LOCATION
+    url = 'http://{}'.format(params.ARDUINO_LOCATION)
     outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
     indata = download_data_from_url(url, outfile)
@@ -123,7 +123,7 @@ def hatch_closed():
 
 def get_roomalert(source):
     """Get internal dome temperature and humidity from GOTO RoomAlert system."""
-    url = 'http://10.2.6.5/getData.json'
+    url = 'http://{}/getData.json'.format(params.ROOMALERT_IP)
     outfile = os.path.join(params.FILE_PATH, 'roomalert.json')
 
     indata = download_data_from_url(url, outfile)
@@ -134,27 +134,24 @@ def get_roomalert(source):
         print(indata)
         raise
 
-    if source == 'dome':
-        sensor_data = data['sensor'][0]
-    elif source == 'pier':
-        sensor_data = data['sensor'][1]
-    else:
-        sources = ['dome', 'pier']
-        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sources))
+    sensors = [sensor_dict['lab'] for sensor_dict in data['sensor']]
+    if source not in sensors:
+        raise ValueError('Invalid weather source "{}", must be in {}'.format(source, sensors))
+    sensor_data = [sensor_dict for sensor_dict in data['sensor'] if sensor_dict['lab'] == source][0]
 
     weather_dict = {}
 
     # temperature
     try:
-        weather_dict['int_temperature'] = float(sensor_data['tc'])
+        weather_dict['temperature'] = float(sensor_data['tc'])
     except Exception:
-        weather_dict['int_temperature'] = -999
+        weather_dict['temperature'] = -999
 
     # humidity
     try:
-        weather_dict['int_humidity'] = float(sensor_data['h'])
+        weather_dict['humidity'] = float(sensor_data['h'])
     except Exception:
-        weather_dict['int_humidity'] = -999
+        weather_dict['humidity'] = -999
 
     # time
     try:
@@ -174,12 +171,51 @@ def get_roomalert(source):
     return weather_dict
 
 
+def get_internal(source):
+    """Get the internal conditions from the RoomAlert system."""
+    url = 'http://{}/{}-roomalert'.format(params.CONDITIONS_JSON_LOCATION, source)
+    outfile = os.path.join(params.FILE_PATH, '{}-roomalert.json'.format(source))
+
+    indata = download_data_from_url(url, outfile)
+    if len(indata) < 2 or '500 Internal Server Error' in indata:
+        raise IOError
+
+    try:
+        data = json.loads(indata)
+    except Exception:
+        print('Error reading data for {}'.format(source))
+        print(indata)
+        raise
+
+    weather_dict = {}
+
+    # temperature
+    try:
+        weather_dict['temperature'] = float(data['internal_temp'])
+    except Exception:
+        weather_dict['temperature'] = -999
+
+    # humidity
+    try:
+        weather_dict['humidity'] = float(data['internal_humidity'])
+    except Exception:
+        weather_dict['humidity'] = -999
+
+    # time
+    try:
+        weather_dict['update_time'] = Time(data['date'], precision=0).iso
+        dt = Time.now() - Time(data['date'])
+        weather_dict['dt'] = int(dt.to('second').value)
+    except Exception:
+        weather_dict['update_time'] = -999
+        weather_dict['dt'] = -999
+
+    return weather_dict
+
+
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
-    if source not in ['goto', 'w1m']:
-        raise ValueError('Invalid weather source "{}"'.format(source))
-
-    url = 'http://10.2.6.100/data/raw/{}-vaisala'.format(source)
+    url = 'http://{}/{}-vaisala'.format(params.CONDITIONS_JSON_LOCATION, source)
     outfile = os.path.join(params.FILE_PATH, '{}-vaisala.json'.format(source))
 
     indata = download_data_from_url(url, outfile)
@@ -513,7 +549,9 @@ def get_ing_internal(source):
 
 def get_rain():
     """Get rain readings from the W1m boards."""
-    rain_daemon_uri = 'PYRO:onemetre_rain_daemon@10.2.6.202:9017'
+    rain_daemon_uri = 'PYRO:{}@{}:{}'.format(params.RAINDAEMON_NAME,
+                                             params.RAINDAEMON_IP,
+                                             params.RAINDAEMON_PORT)
     with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
         rain_daemon._pyroSerializer = 'serpent'
         info = rain_daemon.last_measurement()

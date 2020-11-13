@@ -926,7 +926,8 @@ def update_header(header, ut, all_info, log):
         else:
             dust = numpy.around(dust, decimals=1)
 
-        ext_weather = info['weather']['goto']
+        ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
+        ext_weather = info['weather'][ext_source]
 
         ext_temp = ext_weather['temperature']
         if ext_temp == -999:
@@ -952,15 +953,16 @@ def update_header(header, ut, all_info, log):
         else:
             ext_gust = numpy.around(ext_gust, decimals=1)
 
-        int_weather = info['weather']['pier']
+        int_source = params.INTERNAL_WEATHER_SOURCES[0]
+        int_weather = info['weather'][int_source]
 
-        int_temp = int_weather['int_temperature']
+        int_temp = int_weather['temperature']
         if int_temp == -999:
             int_temp = 'NA'
         else:
             int_temp = numpy.around(int_temp, decimals=1)
 
-        int_hum = int_weather['int_humidity']
+        int_hum = int_weather['humidity']
         if int_hum == -999:
             int_hum = 'NA'
         else:

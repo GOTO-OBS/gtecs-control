@@ -114,7 +114,7 @@ class ConditionsDaemon(BaseDaemon):
             weather = {}
 
             # Get the weather from the local stations
-            for source in ['goto', 'w1m']:
+            for source in params.EXTERNAL_WEATHER_SOURCES:
                 try:
                     weather_dict = conditions.get_vaisala(source)
                 except Exception:
@@ -130,51 +130,126 @@ class ConditionsDaemon(BaseDaemon):
                                     'update_time': -999,
                                     'dt': -999,
                                     }
+
+                # Format source key
+                source = source.lower()
+
+                try:
+                    # Save a history of windspeed so we can detect gusts
+                    if (self.info and source in self.info['weather'] and
+                            'windspeed_history' in self.info['weather'][source]):
+                        windspeed_history = self.info['weather'][source]['windspeed_history']
+                    else:
+                        windspeed_history = []
+                    # remove old values and add the latest value
+                    windspeed_history = [hist for hist in windspeed_history
+                                         if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    windspeed_history.append((self.loop_time, weather_dict['windspeed']))
+                    weather_dict['windspeed_history'] = windspeed_history
+                    # store maximum (windgust)
+                    if len(windspeed_history) > 1:
+                        weather_dict['windgust'] = max(hist[1] for hist in windspeed_history)
+                    else:
+                        weather_dict['windgust'] = -999
+                except Exception:
+                    self.log.error('Error getting windgust for "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict['windgust'] = -999
+
+                # Store the dict
+                weather_dict['type'] = 'external'
                 weather[source] = weather_dict
 
             # Get the W1m rain boards reading
             if params.USE_W1M_RAINBOARDS:
                 try:
                     rain = conditions.get_rain()['rain']
+                    # Replace the local rain measurements
+                    for source in weather:
+                        if source == 'w1m':
+                            weather[source]['rain'] = rain
+                        elif 'rain' in weather[source]:
+                            del weather[source]['rain']
                 except Exception:
                     self.log.error('Error getting weather from "rain"')
                     self.log.debug('', exc_info=True)
-                    rain = -999
-                # Replace the local rain measurements
-                weather['w1m']['rain'] = rain
-                del weather['goto']['rain']
+                    self.log.warning('Using vaisala station rain measurements')
 
-            # Get the weather from the ING webpage as a backup
-            if params.USE_ING_WEATHER:
+            # Get the internal conditions from the RoomAlert
+            for source in params.INTERNAL_WEATHER_SOURCES:
                 try:
-                    weather_dict = conditions.get_ing()
+                    weather_dict = conditions.get_internal(source)
                 except Exception:
-                    self.log.error('Error getting weather from "ing"')
+                    self.log.error('Error getting weather from "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict = {'rain': -999,
-                                    'temperature': -999,
-                                    'pressure': -999,
-                                    'winddir': -999,
-                                    'windspeed': -999,
-                                    'windgust': -999,
+                    weather_dict = {'temperature': -999,
                                     'humidity': -999,
                                     'update_time': -999,
                                     'dt': -999,
                                     }
-                weather['ing'] = weather_dict
 
-            # Get the internal conditions from the RoomAlert
-            for source in ['pier']:
+                # Format source key
+                source = source.lower() + '_int'
+
                 try:
-                    weather_dict = conditions.get_roomalert(source)
+                    # Save a history of temperature so we can detect glitches
+                    if (self.info and source in self.info['weather'] and
+                            'temperature_history' in self.info['weather'][source]):
+                        temperature_history = self.info['weather'][source]['temperature_history']
+                    else:
+                        temperature_history = []
+                    # remove old values and add the latest value (limit to 5 mins)
+                    temperature_history = [hist for hist in temperature_history
+                                           if hist[0] > self.loop_time - 300]
+                    temperature_history.append((self.loop_time, weather_dict['temperature']))
+                    weather_dict['temperature_history'] = temperature_history
+                    # compare to the most recent readings
+                    median = np.median([hist[1] for hist in temperature_history])
+                    if abs(weather_dict['temperature'] - median) > 1:
+                        # It's very unlikly to have changed by more than 1 degree that quickly...
+                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['temperature'],
+                                                                      median,
+                                                                      temperature_history))
+                        # Just keep the last good value (if there is one)
+                        if (self.info and source in self.info['weather'] and
+                                'temperature' in self.info['weather'][source]):
+                            old_temperature = self.info['weather'][source]['temperature']
+                            weather_dict['temperature'] = old_temperature
                 except Exception:
-                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.error('Error checking temperature for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict = {'int_temperature': -999,
-                                    'int_humidity': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
+
+                try:
+                    # Save a history of humidity so we can detect glitches
+                    if (self.info and source in self.info['weather'] and
+                            'humidity_history' in self.info['weather'][source]):
+                        humidity_history = self.info['weather'][source]['humidity_history']
+                    else:
+                        humidity_history = []
+                    # remove old values and add the latest value (limit to 5 mins)
+                    humidity_history = [hist for hist in humidity_history
+                                        if hist[0] > self.loop_time - 300]
+                    humidity_history.append((self.loop_time, weather_dict['humidity']))
+                    weather_dict['humidity_history'] = humidity_history
+                    # compare to the most recent readings
+                    median = np.median([hist[1] for hist in humidity_history])
+                    if abs(weather_dict['humidity'] - median) > 20:
+                        # It's very unlikly to have changed by more than 20% that quickly...
+                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['humidity'],
+                                                                      median,
+                                                                      humidity_history))
+                        # Just keep the previous value, if there is one
+                        if (self.info and source in self.info['weather'] and
+                                'humidity' in self.info['weather'][source]):
+                            old_humidity = self.info['weather'][source]['humidity']
+                            weather_dict['humidity'] = old_humidity
+
+                except Exception:
+                    self.log.error('Error checking humidity for "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+
+                # Store the dict
+                weather_dict['type'] = 'internal'
                 weather[source] = weather_dict
 
             temp_info['weather'] = {}
@@ -195,24 +270,6 @@ class ConditionsDaemon(BaseDaemon):
                     if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
                         source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
-
-                # Store a history of wind so we can get gusts
-                if (self.info and self.info['weather'][source] and
-                        'windhist' in self.info['weather'][source]):
-                    windhist = self.info['weather'][source]['windhist']
-                else:
-                    windhist = []
-                # remove old values
-                windhist = [h for h in windhist if h[0] > self.loop_time - params.WINDGUST_PERIOD]
-                # add new value
-                if 'windspeed' in source_info:
-                    windhist.append((self.loop_time, source_info['windspeed']))
-                # store history and maximum (windgust)
-                source_info['windhist'] = windhist
-                if len(windhist) > 1:
-                    source_info['windgust'] = max(h[1] for h in windhist)
-                elif 'windspeed' in source_info:
-                    source_info['windgust'] = -999
 
                 temp_info['weather'][source] = source_info
         except Exception:
@@ -349,24 +406,28 @@ class ConditionsDaemon(BaseDaemon):
                               if 'windspeed' in weather[source]])
         windgust = np.array([weather[source]['windgust'] for source in weather
                              if 'windgust' in weather[source]])
-        temp = np.array([weather[source]['temperature'] for source in weather
-                         if 'temperature' in weather[source]])
-        humidity = np.array([weather[source]['humidity'] for source in weather
-                             if 'humidity' in weather[source]])
+        ext_temperature = np.array([weather[source]['temperature'] for source in weather
+                                    if ('temperature' in weather[source] and
+                                        weather[source]['type'] == 'external')])
+        ext_humidity = np.array([weather[source]['humidity'] for source in weather
+                                if ('humidity' in weather[source] and
+                                    weather[source]['type'] == 'external')])
         dew_point = np.array([weather[source]['dew_point'] for source in weather
                              if 'dew_point' in weather[source]])
-        int_temp = np.array([weather[source]['int_temperature'] for source in weather
-                             if 'int_temperature' in weather[source]])
-        int_humidity = np.array([weather[source]['int_humidity'] for source in weather
-                                 if 'int_humidity' in weather[source]])
+        int_temperature = np.array([weather[source]['temperature'] for source in weather
+                                    if ('temperature' in weather[source] and
+                                        weather[source]['type'] == 'internal')])
+        int_humidity = np.array([weather[source]['humidity'] for source in weather
+                                 if ('humidity' in weather[source] and
+                                     weather[source]['type'] == 'internal')])
 
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
         windgust = windgust[windgust != -999]
-        temp = temp[temp != -999]
-        humidity = humidity[humidity != -999]
+        ext_temperature = ext_temperature[ext_temperature != -999]
+        ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
-        int_temp = int_temp[int_temp != -999]
+        int_temperature = int_temperature[int_temperature != -999]
         int_humidity = int_humidity[int_humidity != -999]
 
         # UPSs
@@ -430,24 +491,24 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
 
         # temperature flag
-        good['temperature'] = (np.all(temp > params.MIN_TEMPERATURE) and
-                               np.all(temp < params.MAX_TEMPERATURE) and
-                               np.all(int_temp > params.MIN_INTERNAL_TEMPERATURE) and
-                               np.all(int_temp < params.MAX_INTERNAL_TEMPERATURE))
-        valid['temperature'] = len(temp) >= 1 and len(int_temp) >= 1
+        good['temperature'] = (np.all(ext_temperature > params.MIN_TEMPERATURE) and
+                               np.all(ext_temperature < params.MAX_TEMPERATURE) and
+                               np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE) and
+                               np.all(int_temperature < params.MAX_INTERNAL_TEMPERATURE))
+        valid['temperature'] = len(ext_temperature) >= 1 and len(int_temperature) >= 1
         good_delay['temperature'] = params.TEMPERATURE_GOODDELAY
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
-        good['ice'] = np.all(temp > 0)
-        valid['ice'] = len(temp) >= 1
+        good['ice'] = np.all(ext_temperature > 0)
+        valid['ice'] = len(ext_temperature) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
 
         # humidity flag
-        good['humidity'] = (np.all(humidity < params.MAX_HUMIDITY) and
+        good['humidity'] = (np.all(ext_humidity < params.MAX_HUMIDITY) and
                             np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY))
-        valid['humidity'] = len(humidity) >= 1 and len(int_humidity) >= 1
+        valid['humidity'] = len(ext_humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
 
@@ -459,8 +520,8 @@ class ConditionsDaemon(BaseDaemon):
 
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
-                            np.all(int_temp > params.CRITICAL_INTERNAL_TEMPERATURE))
-        valid['internal'] = len(int_humidity) >= 1 and len(int_temp) >= 1
+                            np.all(int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE))
+        valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 

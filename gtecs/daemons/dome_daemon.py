@@ -9,14 +9,12 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.conditions import get_roomalert
 from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
+from gtecs.observing import get_internal_conditions
 from gtecs.slack import send_slack_msg
-
-import numpy as np
 
 import serial
 
@@ -431,46 +429,15 @@ class DomeDaemon(BaseDaemon):
             if 'dehumidifier' not in self.bad_hardware:
                 self.bad_hardware.add('dehumidifier')
 
-        # Get the dome internal temperature
+        # Get the dome internal conditions
         try:
-            temperature = get_roomalert('pier')['int_temperature']
-            # We need a check here because the sensor occasionally has glitches
-            # (see also the same code in the foc daemon)
-            if self.info is None or 'temperature_history' not in self.info:
-                temperature_history = [temperature]
-            else:
-                # Compare to the most recent readings
-                temperature_history = self.info['temperature_history'][-60:] + [temperature]
-                if abs(temperature - np.median(temperature_history)) > 1:
-                    # It's very unlikly to have changed by more than 1 degree that quickly...
-                    # If so then just keep the previous value
-                    temperature = self.info['temperature']
-            temp_info['temperature'] = temperature
-            temp_info['temperature_history'] = temperature_history
+            int_conditions = get_internal_conditions()
+            temp_info['temperature'] = int_conditions['temperature']
+            temp_info['humidity'] = int_conditions['humidity']
         except Exception:
-            self.log.error('Failed to get dome internal temperature')
+            self.log.error('Failed to get dome internal conditions')
             self.log.debug('', exc_info=True)
             temp_info['temperature'] = None
-
-        # Get the dome internal humidity
-        try:
-            humidity = get_roomalert('pier')['int_humidity']
-            # The humidity sensor glitches even worse!
-            if self.info is None or 'humidity_history' not in self.info:
-                humidity_history = [humidity]
-            else:
-                # Compare to the most recent readings
-                humidity_history = self.info['humidity_history'][-60:] + [humidity]
-                if abs(humidity - np.median(humidity_history)) > 20:
-                    # It's very unlikly to have changed by more than 20% that quickly...
-                    # If so then just keep the previous value
-                    humidity = self.info['humidity']
-            temp_info['humidity'] = humidity
-            temp_info['humidity_history'] = humidity_history
-        except Exception:
-            self.log.error('Failed to get dome internal temperature')
-            self.log.debug('', exc_info=True)
-            temp_info['humidity'] = None
 
         # Get button info
         try:

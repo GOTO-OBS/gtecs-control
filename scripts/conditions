@@ -163,134 +163,124 @@ def print_info(info):
 
         print('WEATHER:          temp   humid    dewpt  wind (gust)        rain')
         weather = info['weather']
-        # If we're using thr W1m boards then we're ignoring the GOTO rain sensors
-        if params.USE_W1M_RAINBOARDS:
-            weather['goto']['rain'] = 'NA'
 
-        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
-        for source in ['goto', 'w1m']:
-            temperature = weather[source]['temperature']
-            humidity = weather[source]['humidity']
-            dewpoint = weather[source]['dew_point']
-            windspeed = weather[source]['windspeed']
-            windgust = weather[source]['windgust']
-            rain = weather[source]['rain']
-            dt = weather[source]['dt']
+        for source in weather:
+            if weather[source]['type'] == 'external':
+                temperature = weather[source]['temperature']
+                if temperature == -999:
+                    temperature_str = style.rtxt(' ERR')
+                elif (temperature < params.MAX_TEMPERATURE and
+                        temperature > params.MIN_TEMPERATURE):
+                    temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                    if (temperature < params.MAX_TEMPERATURE - 1 and
+                            temperature > params.MIN_TEMPERATURE + 1):
+                        temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                else:
+                    temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
-            if temperature == -999:
-                temperature_str = style.rtxt(' ERR')
-            elif (temperature < params.MAX_TEMPERATURE and
-                  temperature > params.MIN_TEMPERATURE):
-                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-                if (temperature < params.MAX_TEMPERATURE - 1 and
-                        temperature > params.MIN_TEMPERATURE + 1):
-                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-            else:
-                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+                dewpoint = weather[source]['dew_point']
+                if dewpoint == -999:
+                    dewpoint_str = style.rtxt('  ERR')
+                elif (dewpoint > params.MIN_DEWPOINT):
+                    dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
+                    if (dewpoint > params.MIN_DEWPOINT + 1):
+                        dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
+                else:
+                    dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
 
-            if dewpoint == -999:
-                dewpoint_str = style.rtxt('  ERR')
-            elif (dewpoint > params.MIN_DEWPOINT):
-                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
-                if (dewpoint > params.MIN_DEWPOINT + 1):
-                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
-            else:
-                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
+                humidity = weather[source]['humidity']
+                if humidity == -999:
+                    humidity_str = style.rtxt('  ERR')
+                elif (humidity < params.MAX_HUMIDITY):
+                    humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                    if (humidity < params.MAX_HUMIDITY - 5):
+                        humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                else:
+                    humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
-            if humidity == -999:
-                humidity_str = style.rtxt('  ERR')
-            elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY - 5):
-                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-            else:
-                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+                windspeed = weather[source]['windspeed']
+                if windspeed == -999:
+                    windspeed_str = style.rtxt(' ERR')
+                elif (windspeed < params.MAX_WINDSPEED):
+                    windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
+                    if (windspeed < params.MAX_WINDSPEED - 5):
+                        windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
+                else:
+                    windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
 
-            if windspeed == -999:
-                windspeed_str = style.rtxt(' ERR')
-            elif windspeed == 'NA':
-                windspeed_str = ' N/A'
-            elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED - 5):
-                    windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
-            else:
-                windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
+                windgust = weather[source]['windgust']
+                if windgust == -999:
+                    windgust_str = style.rtxt(' ERR')
+                elif (windgust < params.MAX_WINDGUST):
+                    windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
+                    if (windgust < params.MAX_WINDGUST - 5):
+                        windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
+                else:
+                    windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
 
-            if windgust == -999:
-                windgust_str = style.rtxt(' ERR')
-            elif windgust == 'NA':
-                windgust_str = ' N/A'
-            elif (windgust < params.MAX_WINDGUST):
-                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDGUST - 5):
-                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
-            else:
-                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
+                rain = weather[source]['rain'] if 'rain' in weather[source] else None
+                if rain is None:
+                    rain_str = '  N/A'
+                elif rain == -999:
+                    rain_str = style.rtxt('  ERR')
+                elif rain:
+                    rain_str = style.rtxt(' True')
+                else:
+                    rain_str = style.gtxt('False')
 
-            if rain == -999:
-                rain_str = style.rtxt('  ERR')
-            elif rain == 'NA':
-                rain_str = '  N/A'
-            elif rain:
-                rain_str = style.rtxt(' True')
-            else:
-                rain_str = style.gtxt('False')
+                dt = weather[source]['dt']
+                if dt == -999:
+                    dt_str = style.rtxt('ERR')
+                elif dt > params.WEATHER_TIMEOUT:
+                    dt_str = style.rtxt('{:.0f}'.format(dt))
+                else:
+                    dt_str = style.gtxt('{:.0f}'.format(dt))
 
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
+                print('  {: <10}'.format(source), end='\t')
+                weather_str = '{}°C  {}%  {}°C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
+                                                                                humidity_str,
+                                                                                dewpoint_str,
+                                                                                windspeed_str,
+                                                                                windgust_str,
+                                                                                rain_str,
+                                                                                dt_str)
+                print(weather_str)
 
-            print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}°C  {}%  {}°C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
-                                                                            humidity_str,
-                                                                            dewpoint_str,
-                                                                            windspeed_str,
-                                                                            windgust_str,
-                                                                            rain_str,
-                                                                            dt_str)
-            print(weather_str)
+            elif weather[source]['type'] == 'internal':
+                temperature = weather[source]['temperature']
+                if temperature == -999:
+                    temperature_str = style.rtxt(' ERR')
+                elif (temperature < params.MAX_INTERNAL_TEMPERATURE and
+                        temperature > params.MIN_INTERNAL_TEMPERATURE):
+                    temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                    if (temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
+                            temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
+                        temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                else:
+                    temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
-        # for source in ['dome', 'pier']:  # Disable dome sensor for dome 2
-        for source in ['pier']:
-            int_temperature = weather[source]['int_temperature']
-            int_humidity = weather[source]['int_humidity']
-            dt = weather[source]['dt']
+                humidity = weather[source]['humidity']
+                if humidity == -999:
+                    humidity_str = style.rtxt('  ERR')
+                elif (humidity < params.MAX_INTERNAL_HUMIDITY):
+                    humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                    if (humidity < params.MAX_INTERNAL_HUMIDITY - 5):
+                        humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                else:
+                    humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
-            if int_temperature == -999:
-                int_temperature_str = style.rtxt(' ERR')
-            elif (int_temperature < params.MAX_INTERNAL_TEMPERATURE and
-                  int_temperature > params.MIN_INTERNAL_TEMPERATURE):
-                int_temperature_str = style.ytxt('{:>4.1f}'.format(int_temperature))
-                if (int_temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
-                        int_temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                    int_temperature_str = style.gtxt('{:>4.1f}'.format(int_temperature))
-            else:
-                int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
+                dt = weather[source]['dt']
+                if dt == -999:
+                    dt_str = style.rtxt('ERR')
+                elif dt > params.WEATHER_TIMEOUT:
+                    dt_str = style.rtxt('{:.0f}'.format(dt))
+                else:
+                    dt_str = style.gtxt('{:.0f}'.format(dt))
 
-            if int_humidity == -999:
-                int_humidity_str = style.rtxt('  ERR')
-            elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.MAX_INTERNAL_HUMIDITY - 5):
-                    int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
-            else:
-                int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
-
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
-
-            print('  {: <10}'.format(source + '_int'), end='\t')
-            weather_str = '{}°C  {}%                                    dt={}'.format(
-                int_temperature_str, int_humidity_str, dt_str)
-            print(weather_str)
+                print('  {: <10}'.format(source), end='\t')
+                weather_str = '{}°C  {}%                                    dt={}'.format(
+                    temperature_str, humidity_str, dt_str)
+                print(weather_str)
 
         print('CONDITIONS:')
 
@@ -389,91 +379,72 @@ def print_limits(info):
         weather = info['weather']
 
         print('TEMPERATURE:')
-        for source in ['goto', 'w1m']:  # external
-            print('  {: <10}'.format(source), end='\t')
+        for source in weather:
+            if 'temperature' not in weather[source]:
+                continue
+
+            if weather[source]['type'] == 'external':
+                # external masts
+                print('  {: <10}'.format(source), end='\t')
+                min_temp = params.MIN_TEMPERATURE
+                max_temp = params.MAX_TEMPERATURE
+            else:
+                # internal sensors
+                print('  {: <10}'.format(source), end='\t')
+                min_temp = params.MIN_INTERNAL_TEMPERATURE
+                max_temp = params.MAX_INTERNAL_TEMPERATURE
 
             temperature = weather[source]['temperature']
             if temperature == -999:
                 status = style.rtxt('ERROR')
                 temperature_str = style.rtxt(' ERR')
-            elif (temperature < params.MAX_TEMPERATURE and
-                  temperature > params.MIN_TEMPERATURE):
+            elif (temperature < max_temp and temperature > min_temp):
                 status = style.gtxt('Good')
                 temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-                if (temperature < params.MAX_TEMPERATURE - 1 and
-                        temperature > params.MIN_TEMPERATURE + 1):
+                if temperature < max_temp - 1 and temperature > min_temp + 1:
                     temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
                 status = style.rtxt('Bad')
                 temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
             print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
-                temperature_str, params.MIN_TEMPERATURE, params.MAX_TEMPERATURE, status))
-
-        for source in ['pier']:   # internal
-            print('  {: <10}'.format(source + '_int'), end='\t')
-
-            int_temperature = weather[source]['int_temperature']
-            if int_temperature == -999:
-                status = style.rtxt('ERROR')
-                int_temperature_str = style.rtxt(' ERR')
-            elif (int_temperature < params.MAX_INTERNAL_TEMPERATURE and
-                  int_temperature > params.MIN_INTERNAL_TEMPERATURE):
-                status = style.gtxt('Good')
-                int_temperature_str = style.ytxt('{:>4.1f}'.format(int_temperature))
-                if (int_temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
-                        int_temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                    int_temperature_str = style.gtxt('{:>4.1f}'.format(int_temperature))
-            else:
-                status = style.rtxt('Bad')
-                int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
-
-            print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
-                int_temperature_str, params.MIN_INTERNAL_TEMPERATURE,
-                params.MAX_INTERNAL_TEMPERATURE, status))
+                temperature_str, min_temp, max_temp, status))
 
         print('HUMIDITY:')
-        for source in ['goto', 'w1m']:  # external
-            print('  {: <10}'.format(source), end='\t')
+        for source in weather:
+            if 'humidity' not in weather[source]:
+                continue
+
+            if weather[source]['type'] == 'external':
+                # external masts
+                print('  {: <10}'.format(source), end='\t')
+                max_hum = params.MAX_HUMIDITY
+            else:
+                # internal sensors
+                print('  {: <10}'.format(source), end='\t')
+                max_hum = params.MAX_INTERNAL_HUMIDITY
 
             humidity = weather[source]['humidity']
             if humidity == -999:
                 status = style.rtxt('ERROR')
                 humidity_str = style.rtxt('  ERR')
-            elif (humidity < params.MAX_HUMIDITY):
+            elif (humidity < max_hum):
                 status = style.gtxt('Good')
                 humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY - 5):
+                if (humidity < max_hum - 5):
                     humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = style.rtxt('Bad')
                 humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
             print('{}%        (max={:.1f}%)            \t : {}'.format(
-                humidity_str, params.MAX_HUMIDITY, status))
-
-        for source in ['pier']:   # internal
-            print('  {: <10}'.format(source + '_int'), end='\t')
-
-            int_humidity = weather[source]['int_humidity']
-            if int_humidity == -999:
-                status = style.rtxt('ERROR')
-                int_humidity_str = style.rtxt('  ERR')
-            elif (int_humidity < params.MAX_INTERNAL_HUMIDITY):
-                status = style.gtxt('Good')
-                int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.MAX_INTERNAL_HUMIDITY - 5):
-                    int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
-            else:
-                status = style.rtxt('Bad')
-                int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
-
-            print('{}%        (max={:.1f}%)            \t : {}'.format(
-                int_humidity_str, params.MAX_INTERNAL_HUMIDITY, status))
+                humidity_str, max_hum, status))
 
         print('DEW POINT:')
-        # for source in ['goto', 'w1m', 'superwasp']:  # The SuperWASP weather isn't reliable
-        for source in ['goto', 'w1m']:
+        for source in weather:
+            if 'dew_point' not in weather[source]:
+                continue
+
             print('  {: <10}'.format(source), end='\t')
 
             dewpoint = weather[source]['dew_point']
@@ -493,7 +464,10 @@ def print_limits(info):
                 dewpoint_str, params.MIN_DEWPOINT, status))
 
         print('WIND SPEED:')
-        for source in ['goto', 'w1m']:
+        for source in weather:
+            if 'windspeed' not in weather[source]:
+                continue
+
             print('  {: <10}'.format(source), end='\t')
 
             windspeed = weather[source]['windspeed']
@@ -513,7 +487,10 @@ def print_limits(info):
                 windspeed_str, params.MAX_WINDSPEED, status))
 
         print('WIND GUST ({:.0f} min maximum):'.format(params.WINDGUST_PERIOD / 60))
-        for source in ['goto', 'w1m']:
+        for source in weather:
+            if 'windgust' not in weather[source]:
+                continue
+
             print('  {: <10}'.format(source), end='\t')
 
             windgust = weather[source]['windgust']
@@ -533,42 +510,45 @@ def print_limits(info):
                 windgust_str, params.MAX_WINDGUST, status))
 
         print('INTERNAL (critical limits):')
-        for source in ['pier']:
+        for source in weather:
+            if weather[source]['type'] != 'internal':
+                continue
+
             print('  {: <10}'.format('temperature'), end='\t')
 
-            int_temperature = weather[source]['int_temperature']
-            if int_temperature == -999:
+            temperature = weather[source]['temperature']
+            if temperature == -999:
                 status = style.rtxt('ERROR')
-                int_temperature_str = style.rtxt(' ERR')
-            elif (int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
+                temperature_str = style.rtxt(' ERR')
+            elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
                 status = style.gtxt('Good')
-                int_temperature_str = style.ytxt('{:>4.1f}'.format(int_temperature))
-                if (int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
-                    int_temperature_str = style.gtxt('{:>4.1f}'.format(int_temperature))
+                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
+                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
             else:
                 status = style.rtxt('Bad')
-                int_temperature_str = style.rtxt('{:>4.1f}'.format(int_temperature))
+                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
 
             print(' {}°C       (min={:.1f}°C          \t : {}'.format(
-                int_temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status))
+                temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status))
 
             print('  {: <10}'.format('humidity'), end='\t')
 
-            int_humidity = weather[source]['int_humidity']
-            if int_humidity == -999:
+            humidity = weather[source]['humidity']
+            if humidity == -999:
                 status = style.rtxt('ERROR')
-                int_humidity_str = style.rtxt('  ERR')
-            elif (int_humidity < params.CRITICAL_INTERNAL_HUMIDITY):
+                humidity_str = style.rtxt('  ERR')
+            elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
                 status = style.gtxt('Good')
-                int_humidity_str = style.ytxt('{:>5.1f}'.format(int_humidity))
-                if (int_humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
-                    int_humidity_str = style.gtxt('{:>5.1f}'.format(int_humidity))
+                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
+                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = style.rtxt('Bad')
-                int_humidity_str = style.rtxt('{:>5.1f}'.format(int_humidity))
+                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
 
             print('{}%        (max={:.1f}%)           \t : {}'.format(
-                int_humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status))
+                humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status))
 
         print('OTHER:')
 
