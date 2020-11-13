@@ -45,8 +45,6 @@ class CamDaemon(BaseDaemon):
             self.latest_run_number = 0
         self.num_taken = 0
 
-        self.pool = ThreadPoolExecutor(max_workers=len(self.uts))
-
         self.current_exposure = None
         self.exposing = False
         self.exposure_start_time = 0
