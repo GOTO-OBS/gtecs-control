@@ -431,7 +431,7 @@ class DomeDaemon(BaseDaemon):
 
         # Get the dome internal conditions
         try:
-            int_conditions = get_internal_conditions()
+            int_conditions = get_internal_conditions(timeout=10)
             temp_info['temperature'] = int_conditions['temperature']
             temp_info['humidity'] = int_conditions['humidity']
         except Exception:

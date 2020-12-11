@@ -282,7 +282,7 @@ def check_daemon(daemon_id):
     raise errors.DaemonStatusError(errstr)
 
 
-def daemon_function(daemon_id, function_name, args=None, timeout=0.):
+def daemon_function(daemon_id, function_name, args=None, timeout=30):
     """Run a given function on a daemon."""
     check_daemon(daemon_id)  # Will raise an error if one occurs
 
@@ -296,9 +296,9 @@ def daemon_function(daemon_id, function_name, args=None, timeout=0.):
         return function(*args)
 
 
-def daemon_info(daemon_id, force_update=True):
+def daemon_info(daemon_id, force_update=True, timeout=30):
     """Get a daemon's info dict."""
-    return daemon_function(daemon_id, 'get_info', args=[force_update])
+    return daemon_function(daemon_id, 'get_info', args=[force_update], timeout=timeout)
 
 
 def start_daemon(daemon_id, args=None):
