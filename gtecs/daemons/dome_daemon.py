@@ -438,6 +438,7 @@ class DomeDaemon(BaseDaemon):
             self.log.error('Failed to get dome internal conditions')
             self.log.debug('', exc_info=True)
             temp_info['temperature'] = None
+            temp_info['humidity'] = None
 
         # Get button info
         try:
@@ -614,6 +615,12 @@ class DomeDaemon(BaseDaemon):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
         if not self.dehumidifier:
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
+            return
+
+        if (isinstance(self.info, dict) and
+                (self.info.get('humidity') is None or self.info.get('temperature') is None)):
+            # Note dict.get() returns None if it is not in the dictionary
+            self.log.warning('No internal conditions readings: auto humidity control unavailable')
             return
 
         # Return if autodehum disabled
