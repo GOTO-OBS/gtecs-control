@@ -2,6 +2,7 @@
 
 import math
 import os
+import threading
 
 import astropy.io.fits as pyfits
 import astropy.units as u
@@ -92,65 +93,24 @@ def get_all_info(cam_info, log):
     # Camera daemon
     all_info['cam'] = cam_info
 
-    # OTA info
-    try:
-        # log.debug('Fetching OTA info')
-        all_info['ota'] = daemon_info('ota')
-        # log.debug('Fetched OTA info')
-    except Exception:
-        log.error('Failed to fetch OTA info')
-        log.debug('', exc_info=True)
-        all_info['ota'] = None
+    # Get the info from the other daemons in parallel to save time
+    def daemon_info_thread(daemon_id, log):
+        try:
+            # log.debug(f'Fetching "{daemon_id}" info')
+            force_update = True if daemon_id != 'conditions' else False
+            all_info[daemon_id] = daemon_info(daemon_id, force_update)
+            # log.debug(f'Fetched "{daemon_id}" info')
+        except Exception:
+            log.error(f'Failed to fetch "{daemon_id}" info')
+            log.debug('', exc_info=True)
+            all_info[daemon_id] = None
 
-    # Focuser info
-    try:
-        # log.debug('Fetching focuser info')
-        all_info['foc'] = daemon_info('foc')
-        # log.debug('Fetched focuser info')
-    except Exception:
-        log.error('Failed to fetch focuser info')
-        log.debug('', exc_info=True)
-        all_info['foc'] = None
-
-    # Filter wheel info
-    try:
-        # log.debug('Fetching filter wheel info')
-        all_info['filt'] = daemon_info('filt')
-        # log.debug('Fetched filter wheel info')
-    except Exception:
-        log.error('Failed to fetch filter wheel info')
-        log.debug('', exc_info=True)
-        all_info['filt'] = None
-
-    # Dome info
-    try:
-        # log.debug('Fetching dome info')
-        all_info['dome'] = daemon_info('dome')
-        # log.debug('Fetched dome info')
-    except Exception:
-        log.error('Failed to fetch dome info')
-        log.debug('', exc_info=True)
-        all_info['dome'] = None
-
-    # Mount info
-    try:
-        # log.debug('Fetching mount info')
-        all_info['mnt'] = daemon_info('mnt')
-        # log.debug('Fetched mount info')
-    except Exception:
-        log.error('Failed to fetch mount info')
-        log.debug('', exc_info=True)
-        all_info['mnt'] = None
-
-    # Conditions info
-    try:
-        # log.debug('Fetching conditions info')
-        all_info['conditions'] = daemon_info('conditions')
-        # log.debug('Fetched conditions info')
-    except Exception:
-        log.error('Failed to fetch conditions info')
-        log.debug('', exc_info=True)
-        all_info['conditions'] = None
+    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log))
+               for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
 
     # Astronomy
     try:
