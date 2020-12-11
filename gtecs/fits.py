@@ -98,7 +98,7 @@ def get_all_info(cam_info, log):
         try:
             # log.debug(f'Fetching "{daemon_id}" info')
             force_update = True if daemon_id != 'conditions' else False
-            all_info[daemon_id] = daemon_info(daemon_id, force_update)
+            all_info[daemon_id] = daemon_info(daemon_id, force_update, timeout=60)
             # log.debug(f'Fetched "{daemon_id}" info')
         except Exception:
             log.error(f'Failed to fetch "{daemon_id}" info')
