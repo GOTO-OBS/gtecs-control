@@ -62,8 +62,11 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     else:
         uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
 
-    hfd_arrs = {}
-    hfd_std_arrs = {}
+    # Get the current focuser positions and the temperature the last time they moved
+    current_focus = get_focuser_positions()
+    _, last_temps = get_focuser_temperatures()
+
+    all_data = {ut: [] for ut in uts}
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
@@ -86,51 +89,35 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
                 hfd_std = np.nan
 
             # Add to main arrays
-            if ut in hfd_arrs:
-                hfd_arrs[ut].append(hfd)
-                hfd_std_arrs[ut].append(hfd_std)
-            else:
-                hfd_arrs[ut] = [hfd]
-                hfd_std_arrs[ut] = [hfd_std]
+            data_dict = {'UT': ut,
+                         'pos': current_focus[ut],
+                         'hfd': hfd,
+                         'hfd_std': hfd_std,
+                         'temp': last_temps[ut],
+                         }
+            all_data[ut].append(data_dict)
 
         # Delete the image data for good measure, to save memory
         del image_data
 
-        print('HFDs:', {ut: np.round(hfd_arrs[ut][i], 1) for ut in hfd_arrs})
+        print('HFDs:', {ut: np.round(all_data[ut][i]['hfd'], 1) for ut in all_data})
+
+    # Make into dataframes
+    all_dfs = {ut: pd.DataFrame(all_data[ut]) for ut in all_data}
 
     # Take the smallest of the HFD values measured as the best estimate for this position.
     # The reasoning is that we already average the HFD over many stars in each frame,
     # so across multiple frames we only sample external fluctuations, usually windshake,
     # which will always make the HFD worse, never better.
     # We also want to make sure we get the std associated with that image.
-    best_hfd = {}
-    best_hfd_std = {}
-    for ut in hfd_arrs:
-        hfds = np.array(hfd_arrs[ut])
-        stds = np.array(hfd_std_arrs[ut])
+    best_dfs = [all_dfs[ut][all_dfs[ut]['hfd'] == all_dfs[ut]['hfd'].min()]
+                if not np.isnan(all_dfs[ut]['hfd'].min())   # min() returns NaN if they are all NaNs
+                else all_dfs[ut].iloc[[0]]                  # in that case just take the first row
+                for ut in all_dfs]
 
-        try:
-            min_i = np.where(hfds == np.nanmin(hfds))[0][0]
-            best_hfd[ut] = hfds[min_i]
-            best_hfd_std[ut] = stds[min_i]
-        except IndexError:
-            # This UT had no non-NaN measurements
-            best_hfd[ut] = np.nan
-            best_hfd_std[ut] = np.nan
-
-    data = {'pos': pd.Series(get_focuser_positions()),
-            'hfd': pd.Series(best_hfd),
-            'hfd_std': pd.Series(best_hfd_std),
-            }
-
-    # Also store the temperatures of the last focuser move
-    _, temp = get_focuser_temperatures()
-    data['temp'] = pd.Series(temp)
-
-    # Make into a dataframe
-    df = pd.DataFrame(data)
-    df.index.name = 'UT'
-
+    # Make into a single dataframe
+    df = pd.concat(best_dfs)
+    df.set_index('UT', inplace=True)
     return df
 
 
