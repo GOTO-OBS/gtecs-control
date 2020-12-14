@@ -9,7 +9,7 @@ import numpy as np
 import sep
 
 
-def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslice=None):
+def extract_image_sources(data, filter_width=15, threshold=5, region=None):
     """Extract sources from an image using `sep.extract`.
 
     Parameters
@@ -21,10 +21,8 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
         For optimal source detection, this should roughly match the expected FWHM
     threshold : float, default=5
         if set to, e.g. 5, objects 5sigma above the background are detected
-    xslice : `slice`, default=slice(2500, 6000)
-        slice in x axis
-    yslice : `slice`, default=slice(1500, 4500)
-        slice in y axis
+    region : 2-tuple of slice, default=(slice(2500, 6000), slice(1500, 4500))
+        region slices in x/y axes
 
     Returns
     -------
@@ -35,10 +33,10 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
 
     """
     # Slice the data
-    if xslice is None:
-        xslice = slice(2500, 6000)
-    if yslice is None:
-        yslice = slice(1500, 4500)
+    if region is None:
+        region = (slice(2500, 6000), slice(1500, 4500))
+    xslice = region[0]
+    yslice = region[1]
     data = np.ascontiguousarray(data[yslice, xslice])
 
     # Measure spatially varying background and subtract from the data
@@ -61,7 +59,7 @@ def extract_image_sources(data, filter_width=15, threshold=5, xslice=None, yslic
     return objects, data
 
 
-def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=None, verbose=True):
+def measure_image_fwhm(data, filter_width=15, threshold=5, region=None, verbose=True):
     """Measure the median FWHM of sources in an image.
 
     NOTE this is just an estimate, since `sep` doesn't currently include FWHM measurement.
@@ -83,7 +81,7 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=N
 
     """
     # Extract sources
-    objects, data = extract_image_sources(data, filter_width, threshold, xslice, yslice)
+    objects, data = extract_image_sources(data, filter_width, threshold, region)
 
     # Calculate FWHMs
     fwhms = 2 * np.sqrt(np.log(2) * (objects['a']**2 + objects['b']**2))
@@ -103,7 +101,7 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, xslice=None, yslice=N
     return median_fwhm, std_fwhm
 
 
-def measure_image_hfd(data, filter_width=15, threshold=5, xslice=None, yslice=None, verbose=True):
+def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=True):
     """Measure the median half-flux-diameter of sources in an image.
 
     Parameters
@@ -122,7 +120,7 @@ def measure_image_hfd(data, filter_width=15, threshold=5, xslice=None, yslice=No
 
     """
     # Extract sources
-    objects, data = extract_image_sources(data, filter_width, threshold, xslice, yslice)
+    objects, data = extract_image_sources(data, filter_width, threshold, region)
 
     # Measure Half-Flux Radius to find HFDs
     hfrs, flags = sep.flux_radius(data, objects['x'], objects['y'],
