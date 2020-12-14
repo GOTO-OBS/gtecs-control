@@ -34,7 +34,8 @@ def get_best_focus_position(xval, yval, m_l, m_r, delta_x):
     return meeting_point
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None):
+def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None,
+                  regions=None):
     """Take a set of images and measure the median half-flux diameters.
 
     Parameters
@@ -50,17 +51,25 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         Name of the target being observed.
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
         UTs to measure focus for.
+    regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
+        image region(s) to measure the focus within
+        if None then use the default central region from `gtecs.analysis.extract_image_sources()`
 
     Returns
     -------
-    foc_data : `pandas.DataFrame`
+    foc_data : `pandas.DataFrame` or list of `pandas.DataFrame`s
         A Pandas dataframe with an index of unit telescope ID.
+        If more than one region is given then the list will be len(regions)
 
     """
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
     else:
         uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
+    if regions is None:
+        regions = [None]
+    elif len(regions) == 2 and isinstance(regions[0], slice):
+        regions = [regions]
 
     # Get the current focuser positions and the temperature the last time they moved
     current_focus = get_focuser_positions()
@@ -74,51 +83,74 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
 
         # Measure the median HFDs in each image
         for ut in image_data:
-            try:
-                # Extract median HFD and std values from the image data
-                # Note filter_width is 15, this deals much better with out-of-focus images
-                hfd, hfd_std = measure_image_hfd(image_data[ut], filter_width=15)
+            for j, region in enumerate(regions):
+                # Measure focus within each given region
+                try:
+                    # Extract median HFD and std values from the image data
+                    # Note filter_width is 15, this deals much better with out-of-focus images
+                    hfd, hfd_std = measure_image_hfd(image_data[ut],
+                                                     filter_width=15,
+                                                     region=region,
+                                                     verbose=False)
 
-                # Check for invalid values
-                if hfd_std <= 0.0 <= 0.0:
-                    raise ValueError
+                    # Check for invalid values
+                    if hfd_std <= 0.0 <= 0.0:
+                        raise ValueError
 
-            except Exception as err:
-                print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
-                hfd = np.nan
-                hfd_std = np.nan
+                except Exception as err:
+                    print('HFD measurement for UT{}{} errored: {}'.format(ut,
+                          ' region {}'.format(j) if len(regions) > 1 else '', str(err)))
+                    hfd = np.nan
+                    hfd_std = np.nan
 
-            # Add to main arrays
-            data_dict = {'UT': ut,
-                         'pos': current_focus[ut],
-                         'hfd': hfd,
-                         'hfd_std': hfd_std,
-                         'temp': last_temps[ut],
-                         }
-            all_data[ut].append(data_dict)
+                # Add to main arrays
+                data_dict = {'UT': ut,
+                             # 'exposure': i,
+                             'pos': current_focus[ut],
+                             # 'region': j,
+                             'hfd': hfd,
+                             'hfd_std': hfd_std,
+                             'temp': last_temps[ut],
+                             }
+                all_data[j][ut].append(data_dict)
 
         # Delete the image data for good measure, to save memory
         del image_data
 
-        print('HFDs:', {ut: np.round(all_data[ut][i]['hfd'], 1) for ut in all_data})
+        if len(regions) == 1:
+            print('HFDs:', {ut: np.round(all_data[0][ut][i]['hfd'], 1) for ut in all_data[0]})
+        else:
+            s = 'HFDs:\n'
+            for j, data in enumerate(all_data):
+                s += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
+                                                  for ut in data})
+            print(s)
 
-    # Make into dataframes
-    all_dfs = {ut: pd.DataFrame(all_data[ut]) for ut in all_data}
+    all_region_dfs = []
+    for data in all_data:
+        # Make into dataframes
+        all_dfs = {ut: pd.DataFrame(data[ut]) for ut in data}
 
-    # Take the smallest of the HFD values measured as the best estimate for this position.
-    # The reasoning is that we already average the HFD over many stars in each frame,
-    # so across multiple frames we only sample external fluctuations, usually windshake,
-    # which will always make the HFD worse, never better.
-    # We also want to make sure we get the std associated with that image.
-    best_dfs = [all_dfs[ut][all_dfs[ut]['hfd'] == all_dfs[ut]['hfd'].min()]
-                if not np.isnan(all_dfs[ut]['hfd'].min())   # min() returns NaN if they are all NaNs
-                else all_dfs[ut].iloc[[0]]                  # in that case just take the first row
-                for ut in all_dfs]
+        # Take the smallest of the HFD values measured as the best estimate for this position.
+        # The reasoning is that we already average the HFD over many stars in each frame,
+        # so across multiple frames we only sample external fluctuations, usually windshake,
+        # which will always make the HFD worse, never better.
+        # We also want to make sure we get the std associated with that image.
+        best_dfs = [all_dfs[ut][all_dfs[ut]['hfd'] == all_dfs[ut]['hfd'].min()]
+                    if not np.isnan(all_dfs[ut]['hfd'].min())  # will return NaN if are all NaNs
+                    else all_dfs[ut].iloc[[0]]                 # therefore just take the first row
+                    for ut in all_dfs]
 
-    # Make into a single dataframe
-    df = pd.concat(best_dfs)
-    df.set_index('UT', inplace=True)
-    return df
+        # Make into a single dataframe
+        df = pd.concat(best_dfs)
+        df.set_index('UT', inplace=True)
+
+        all_region_dfs.append(df)
+
+    if len(all_region_dfs) == 1:
+        # backwards compatability if there's only one region
+        return all_region_dfs[0]
+    return all_region_dfs
 
 
 def refocus(take_images=False, verbose=False):
