@@ -124,35 +124,43 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
             for j, data in enumerate(all_data):
                 s += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
                                                   for ut in data})
-            print(s)
+            print(s[:-1])
 
-    all_region_dfs = []
-    for data in all_data:
+    all_dfs = []
+    s = 'Best HFDs:{}'.format('\n' if len(all_data) > 1 else ' ')
+    for j, region_data in enumerate(all_data):
         # Make into dataframes
-        all_dfs = {ut: pd.DataFrame(data[ut]) for ut in data}
+        region_dfs = {ut: pd.DataFrame(region_data[ut]) for ut in region_data}
 
         # Take the smallest of the HFD values measured as the best estimate for this position.
         # The reasoning is that we already average the HFD over many stars in each frame,
         # so across multiple frames we only sample external fluctuations, usually windshake,
         # which will always make the HFD worse, never better.
         # We also want to make sure we get the std associated with that image.
-        best_dfs = [all_dfs[ut][all_dfs[ut]['hfd'] == all_dfs[ut]['hfd'].min()]
-                    if not np.isnan(all_dfs[ut]['hfd'].min())  # will return NaN if are all NaNs
-                    else all_dfs[ut].iloc[[0]]                 # therefore just take the first row
-                    for ut in all_dfs]
+        best_dfs = [region_dfs[ut][region_dfs[ut]['hfd'] == region_dfs[ut]['hfd'].min()]
+                    if not np.isnan(region_dfs[ut]['hfd'].min())  # will return NaN if are all NaNs
+                    else region_dfs[ut].iloc[[0]]                 # just take the first row
+                    for ut in region_dfs]
 
         # Make into a single dataframe
         df = pd.concat(best_dfs)
         df.set_index('UT', inplace=True)
+        all_dfs.append(df)
 
-        all_region_dfs.append(df)
+        # Print best HFDs if more than one exp was taken
+        if len(all_data) > 1:
+            s += 'region {}: '.format(j)
+        s += '{}\n'.format(df['hfd'].round(1).to_dict())
 
-    if len(all_region_dfs) == 1:
+    if num_exp > 1:
+        print(s[:-1])
+
+    if len(all_dfs) == 1:
         # backwards compatability if there's only one region
-        df = all_region_dfs[0]
+        df = all_dfs[0]
         df.drop('region', axis=1, inplace=True)
         return df
-    return all_region_dfs
+    return all_dfs
 
 
 def refocus(take_images=False, verbose=False):
