@@ -75,7 +75,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     current_focus = get_focuser_positions()
     _, last_temps = get_focuser_temperatures()
 
-    all_data = {ut: [] for ut in uts}
+    all_data = [{ut: [] for ut in uts} for _ in range(len(regions))]
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
@@ -107,7 +107,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
                 data_dict = {'UT': ut,
                              # 'exposure': i,
                              'pos': current_focus[ut],
-                             # 'region': j,
+                             'region': j,
                              'hfd': hfd,
                              'hfd_std': hfd_std,
                              'temp': last_temps[ut],
@@ -149,7 +149,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
 
     if len(all_region_dfs) == 1:
         # backwards compatability if there's only one region
-        return all_region_dfs[0]
+        df = all_region_dfs[0]
+        df.drop('region', axis=1, inplace=True)
+        return df
     return all_region_dfs
 
 
