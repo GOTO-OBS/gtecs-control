@@ -87,9 +87,10 @@ def lin_func(x, m, c):
 def fit_to_data(df, nfvs=None):
     """Fit to a series of HFD measurements."""
     uts = list(set(list(df.index)))
-    fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r', 'm_l', 'm_r', 'delta_x', 'cross_pos'],
+    fit_df = pd.DataFrame(columns=['pivot_pos', 'n_l', 'n_r',
+                                   'm_l', 'm_r', 'c_l', 'c_r',
+                                   'delta_x', 'cross_pos'],
                           index=uts)
-    fit_coeffs = {ut: [None, None] for ut in uts}
     if nfvs is None:
         nfvs = {ut: DEFAULT_NFV for ut in uts}
 
@@ -129,7 +130,6 @@ def fit_to_data(df, nfvs=None):
             if n_l > 1:
                 coeffs_l, _ = curve_fit(lin_func, pos[mask_l], hfd[mask_l], sigma=hfd_std[mask_l])
                 m_l, c_l = coeffs_l
-                fit_coeffs[ut][0] = (m_l, c_l)
             else:
                 print('UT{}: Can not fit to left side of V-curve (n_l={})'.format(ut, n_l))
                 m_l, c_l = None, None
@@ -137,7 +137,6 @@ def fit_to_data(df, nfvs=None):
             if n_r > 1:
                 coeffs_r, _ = curve_fit(lin_func, pos[mask_r], hfd[mask_r], sigma=hfd_std[mask_r])
                 m_r, c_r = coeffs_r
-                fit_coeffs[ut][1] = (m_r, c_r)
             else:
                 print('UT{}: Can not fit to right side of V-curve (n_r={})'.format(ut, n_r))
                 m_r, c_r = None, None
@@ -158,6 +157,8 @@ def fit_to_data(df, nfvs=None):
                                         'n_r': n_r,
                                         'm_l': m_l,
                                         'm_r': m_r,
+                                        'c_l': c_l,
+                                        'c_r': c_r,
                                         'delta_x': delta_x,
                                         'cross_pos': cross_pos})
 
@@ -165,10 +166,10 @@ def fit_to_data(df, nfvs=None):
             print('UT{}: Error fitting to HFD data'.format(ut))
             print(traceback.format_exc())
 
-    return fit_df, fit_coeffs
+    return fit_df
 
 
-def plot_results(df, fit_df, fit_coeffs, nfvs=None, finish_time=None, save_plot=True):
+def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
     if finish_time is None:
@@ -213,11 +214,11 @@ def plot_results(df, fit_df, fit_coeffs, nfvs=None, finish_time=None, save_plot=
 
             # Plot fits (if they worked)
             test_range = np.arange(min(ut_data['pos']) * 0.9, max(ut_data['pos']) * 1.1, 50)
-            if fit_coeffs[ut][0] is not None:
-                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][0]),
+            if fit_data['m_l'] is not None and fit_data['c_l'] is not None:
+                ax.plot(test_range, lin_func(test_range, fit_data['m_l'], fit_data['c_l']),
                         color='tab:blue', ls='dashed', zorder=-1, alpha=0.5)
-            if fit_coeffs[ut][1] is not None:
-                ax.plot(test_range, lin_func(test_range, *fit_coeffs[ut][1]),
+            if fit_data['m_r'] is not None and fit_data['c_r'] is not None:
+                ax.plot(test_range, lin_func(test_range, fit_data['m_r'], fit_data['c_r']),
                         color='tab:orange', ls='dashed', zorder=-1, alpha=0.5)
             if not np.isnan(fit_data['cross_pos']):
                 ax.axvline(fit_data['cross_pos'], c='tab:green', ls='dotted', zorder=-1)
@@ -332,11 +333,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
-    all_uts = sorted(set(df.index))
     if nfvs is None:
-        nfvs = {ut: DEFAULT_NFV for ut in all_uts}
-    fit_df, fit_coeffs = fit_to_data(df, nfvs)
+        nfvs = {ut: DEFAULT_NFV for ut in sorted(set(df.index))}
     print('Fit results:')
+    fit_df = fit_to_data(df, nfvs)
     print(fit_df)
     ofname = 'focusfit_{}.csv'.format(finish_time)
     fit_df.to_csv(os.path.join(path, ofname))
@@ -346,7 +346,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, fit_df, fit_coeffs, nfvs, finish_time)
+        plot_results(df, fit_df, nfvs, finish_time)
 
     # Get best positions
     best_focus = fit_df['cross_pos'].to_dict()
