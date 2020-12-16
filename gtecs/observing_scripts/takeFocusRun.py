@@ -21,11 +21,16 @@ from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_
                              set_focuser_positions, slew_to_radec)
 
 from matplotlib import pyplot as plt
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Rectangle
+
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 import numpy as np
 
 import pandas as pd
 
+from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
 
@@ -179,15 +184,17 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
 
     fig, axes = plt.subplots(nrows=math.ceil(len(uts) / 4), ncols=4, figsize=(16, 6), dpi=100)
     plt.subplots_adjust(hspace=0.15, wspace=0.2)
+    axes = axes.flatten()
 
     fig.suptitle('Focus run results - {}'.format(finish_time), x=0.5, y=0.92)
+    fig.patch.set_facecolor('w')
+
     for i, ut in enumerate(uts):
         ut_data = df.loc[ut]
         fit_data = fit_df.loc[ut]
 
-        # HFD plot
         try:
-            ax = axes.flatten()[i]
+            ax = axes[i]
 
             # Plot data
             mask = (np.array(ut_data['hfd']) > nfvs[ut]) & (np.array(ut_data['hfd']) < 2 * nfvs[ut])
@@ -232,7 +239,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
             # Set labels
             if i % 4 == 0:
                 ax.set_ylabel('HFD')
-            if i >= len(axes.flatten()) - 4:
+            if i >= len(axes) - 4:
                 ax.set_xlabel('Focus position')
             ax.text(0.02, 0.915, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
@@ -255,8 +262,175 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     plt.show()
 
 
+def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_plot=True):
+    """Plot the results of the focus run with measure_corners=True."""
+    uts = list(set(list(df.index)))
+    if finish_time is None:
+        finish_time = Time.now()
+    if nfvs is None:
+        nfvs = {ut: DEFAULT_NFV for ut in uts}
+
+    region_name = {0: 'centre',
+                   1: 'lower-left',
+                   2: 'lower-right',
+                   3: 'upper-left',
+                   4: 'upper-right',
+                   }
+
+    region_colour = {0: 'tab:blue',
+                     1: 'tab:orange',
+                     2: 'tab:green',
+                     3: 'tab:red',
+                     4: 'tab:purple',
+                     }
+
+    region_to_subplot = {0: 1,
+                         1: 3,
+                         2: 5,
+                         3: 0,
+                         4: 2,
+                         }
+
+    for ut in uts:
+        ut_data = df.loc[ut]
+
+        fig, axes = plt.subplots(2, 3, figsize=(12, 6), dpi=100)
+        plt.subplots_adjust(hspace=0.2, wspace=0.15)
+
+        fig.suptitle('Focus run results - UT{} - {}'.format(ut, finish_time), x=0.5, y=0.92)
+        fig.patch.set_facecolor('w')
+        axes = axes.flatten()
+
+        # Region V-curve plots
+        for i in range(5):
+            try:
+                region_data = ut_data[ut_data['region'] == i]
+                fit_data = fit_df[fit_df['region'] == i].loc[ut]
+
+                ax = axes[region_to_subplot[i]]
+                colour = region_colour[i]
+
+                # Plot data
+                mask = ((np.array(region_data['hfd']) > nfvs[ut]) &
+                        (np.array(region_data['hfd']) < 2 * nfvs[ut]))
+                mask_l = mask & (np.array(region_data['pos']) < fit_data['pivot_pos'])
+                mask_m = np.invert(mask) | (np.array(region_data['pos']) == fit_data['pivot_pos'])
+                mask_r = mask & (np.array(region_data['pos']) > fit_data['pivot_pos'])
+                ax.errorbar(region_data['pos'][mask_l], region_data['hfd'][mask_l],
+                            yerr=region_data['hfd_std'][mask_l],
+                            color=colour, fmt='.', ms=7, zorder=1)
+                ax.errorbar(region_data['pos'][mask_m], region_data['hfd'][mask_m],
+                            yerr=region_data['hfd_std'][mask_m],
+                            color='0.7', fmt='.', ms=7, zorder=1)
+                ax.errorbar(region_data['pos'][mask_r], region_data['hfd'][mask_r],
+                            yerr=region_data['hfd_std'][mask_r],
+                            color=colour, fmt='.', ms=7, zorder=1)
+                # ax.axvline(fit_data['pivot_pos'], c='0.7', ls='dotted', zorder=-1)
+                ax.axhline(nfvs[ut], c='0.8', ls='dashed', lw=1, zorder=-1)
+                ax.axhline(2 * nfvs[ut], c='0.8', ls='dashed', lw=1, zorder=-1)
+
+                # Set limits (lock the x-limit before we add the fit lines)
+                x_lim = ax.get_xlim()
+                ax.set_xlim(*x_lim)
+                ax.set_ylim(bottom=0, top=14)
+
+                # Plot fits (if they worked)
+                test_range = np.arange(min(region_data['pos']) * 0.9,
+                                       max(region_data['pos']) * 1.1,
+                                       50)
+                if fit_data['m_l'] is not None and fit_data['c_l'] is not None:
+                    ax.plot(test_range, lin_func(test_range, fit_data['m_l'], fit_data['c_l']),
+                            color=colour, ls='dashed', zorder=-1, alpha=0.5)
+                if fit_data['m_r'] is not None and fit_data['c_r'] is not None:
+                    ax.plot(test_range, lin_func(test_range, fit_data['m_r'], fit_data['c_r']),
+                            color=colour, ls='dashed', zorder=-1, alpha=0.5)
+                if not np.isnan(fit_data['cross_pos']):
+                    ax.axvline(fit_data['cross_pos'], c=colour, ls='dashed', zorder=-1)
+                else:
+                    txt = 'Fit failed ($n_L={:.0f}$, $n_R={:.0f}$)'.format(
+                        fit_data['n_l'], fit_data['n_r'])
+                    ax.text(0.02, 0.8, txt, fontweight='normal', c='tab:red',
+                            transform=ax.transAxes, ha='left', zorder=2.1,
+                            bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9})
+
+                # Plot crossing point for other subplots
+                for j in region_to_subplot.values():
+                    if j == region_to_subplot[i]:
+                        continue
+                    if not np.isnan(fit_data['cross_pos']):
+                        axes[j].axvline(fit_data['cross_pos'], c=colour, ls='dotted', alpha=0.5,
+                                        zorder=-2)
+
+                # Set labels
+                if region_to_subplot[i] % 3 == 0:
+                    ax.set_ylabel('HFD')
+                if region_to_subplot[i] >= len(axes) - 3:
+                    ax.set_xlabel('Focus position')
+                ax.text(0.5, 0.98, region_name[i], fontweight='bold', color=colour,
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.5},
+                        transform=ax.transAxes, ha='center', va='top', zorder=2)
+
+            except Exception:
+                print('UT{}: Error making region {} plot'.format(ut, i))
+                print(traceback.format_exc())
+
+        # Tilt plot
+        try:
+            ax = axes[4]
+
+            # Plot points
+            region_x = [xs.start + (xs.stop - xs.start) / 2 for xs, ys in region_slices]
+            region_y = [ys.start + (ys.stop - ys.start) / 2 for xs, ys in region_slices]
+            cross_pos = np.array([fit_df[fit_df['region'] == i].loc[ut]['cross_pos']
+                                  for i in range(5)])
+            cross_pos_relative = cross_pos - cross_pos[0]
+            ax.scatter(region_x, region_y, c=cross_pos_relative)
+
+            # Plot region patches
+            patches = [Rectangle((xs.start, ys.start), xs.stop - xs.start, ys.stop - ys.start)
+                       for xs, ys in region_slices]
+            pc = PatchCollection(patches)
+            pc.set_edgecolor([region_colour[i] for i in range(5)])
+            pc.set_facecolor('none')
+            pc.set_linewidth(1.5)
+            pc.set_linestyle('dotted')
+            ax.add_collection(pc)
+
+            # Plot contour
+            points_x = [8304 / 2, 0, 8304, 0, 8304]
+            points_y = [6220 / 2, 0, 0, 6220, 6220]
+            grid_x, grid_y = np.meshgrid(np.linspace(0, 8304, 20), np.linspace(0, 6220, 20))
+            cross_pos_fit = griddata((points_x, points_y), cross_pos_relative, (grid_x, grid_y),
+                                     method='cubic')
+            pcm = ax.contourf(grid_x, grid_y, cross_pos_fit, zorder=-2, alpha=0.3, levels=6)
+
+            # Plot colorbar
+            axi = inset_axes(ax, width='100%', height='7%', loc='center',
+                             bbox_to_anchor=(0, -0.57, 1, 1), bbox_transform=ax.transAxes,)
+            cb = fig.colorbar(pcm, cax=axi, orientation='horizontal', pad=0.3)
+            cb.ax.tick_params(labelsize=7)
+
+            # Set limits & labels
+            ax.set_xlim(0, 8304)
+            ax.set_ylim(0, 6220)
+            ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+
+        except Exception:
+            print('UT{}: Error making tilt plot'.format(ut))
+            print(traceback.format_exc())
+
+        # Save the plot
+        if save_plot:
+            path = os.path.join(params.FILE_PATH, 'focus_data')
+            ofname = 'focusplot_{}_UT{}.png'.format(finish_time, ut)
+            plt.savefig(os.path.join(path, ofname))
+            print('Saved to {}'.format(os.path.join(path, ofname)))
+
+        plt.show()
+
+
 def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
-        go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
+        measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -289,10 +463,21 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     else:
         target_name = 'Focus run'
 
-    # Store the current focus
+    # Store the starting focus
     print('~~~~~~')
     initial_positions = get_focuser_positions()
     print('Initial positions:', initial_positions)
+
+    # Define measurement regions
+    if measure_corners:
+        regions = [(slice(2500, 6000), slice(1500, 4500)),  # centre (default)
+                   (slice(200, 2500), slice(100, 1500)),    # bottom-left
+                   (slice(6000, 8000), slice(100, 1500)),   # bottom-right
+                   (slice(200, 2500), slice(4500, 6000)),   # top-left
+                   (slice(6000, 8000), slice(4500, 6000)),  # top-right
+                   ]
+    else:
+        regions = None
 
     # Measure the HFDs at each position calculated earlier
     all_data = []
@@ -303,12 +488,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
         set_focuser_positions(new_positions.to_dict(), timeout=120)
         print('New positions:', get_focuser_positions())
         print('Taking {} measurements at new focus position...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, target_name)
-        hfds = foc_data['hfd']
-        if num_exp > 1:
-            print('Best HFDs:', hfds.round(1).to_dict())
-
-        # Save data in list
+        foc_data = measure_focus(num_exp, exptime, filt, target_name, regions=regions)
+        if not isinstance(foc_data, pd.DataFrame):
+            # Concat region list
+            foc_data = pd.concat(foc_data)
         all_data.append(foc_data)
     df = pd.concat(all_data)
 
@@ -336,8 +519,20 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     if nfvs is None:
         nfvs = {ut: DEFAULT_NFV for ut in sorted(set(df.index))}
     print('Fit results:')
-    fit_df = fit_to_data(df, nfvs)
-    print(fit_df)
+    if not measure_corners:
+        fit_df = fit_to_data(df, nfvs)
+        print(fit_df)
+    else:
+        fit_df = []
+        for i in range(len(regions)):
+            region_df = df[df['region'] == i]
+            region_fit_df = fit_to_data(region_df, nfvs)
+            print('region {}:'.format(i))
+            print(region_fit_df)
+            region_fit_df.insert(0, 'region', i)
+            fit_df.append(region_fit_df)
+        fit_df = pd.concat(fit_df)
+
     ofname = 'focusfit_{}.csv'.format(finish_time)
     fit_df.to_csv(os.path.join(path, ofname))
     print('Saved to {}'.format(os.path.join(path, ofname)))
@@ -346,10 +541,20 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        plot_results(df, fit_df, nfvs, finish_time)
+        if not measure_corners:
+            plot_results(df, fit_df, nfvs, finish_time)
+        else:
+            # Still make both plots
+            plot_results(df[df['region'] == 0], fit_df[fit_df['region'] == 0], nfvs, finish_time)
+            plot_corners(df, fit_df, nfvs, finish_time)
 
     # Get best positions
-    best_focus = fit_df['cross_pos'].to_dict()
+    if not measure_corners:
+        best_focus = fit_df['cross_pos'].to_dict()
+    else:
+        # for now take the best position in the central region (region 0)
+        best_focus = fit_df['cross_pos'].to_dict()
+
     best_focus = {ut: int(focus) for ut, focus in best_focus.items() if not np.isnan(focus)}
     for ut in fit_df.index:
         if ut not in best_focus:
@@ -406,6 +611,9 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
+    parser.add_argument('--corners', action='store_true',
+                        help=('measure focus position in the corners as well as the centre')
+                        )
     parser.add_argument('--go-to-best', action='store_true',
                         help=('when the run is complete move to the best focus position')
                         )
@@ -425,6 +633,7 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
+    measure_corners = args.corners
     go_to_best = args.go_to_best
     no_slew = args.no_slew
     no_plot = args.no_plot
@@ -440,7 +649,8 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt, nfvs, go_to_best, no_slew, no_plot, no_confirm)
+        run(fraction, steps, num_exp, exptime, filt, nfvs,
+            measure_corners, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
