@@ -59,8 +59,14 @@ def calculate_positions(fraction, steps):
     all_positions = {}
     for ut in limits:
         print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
+        # Fudge for RASAs having wider ranges
+        if params.UT_DICT[ut]['FOCUSER']['CLASS'] == 'RASA':
+            ut_fraction = fraction * 2.5
+        else:
+            ut_fraction = fraction
+
         # Calculate the deltas
-        width = int((limits[ut] * fraction) / 2)
+        width = int((limits[ut] * ut_fraction) / 2)
         upper_deltas = np.arange(0, width + 1, width // steps)
         lower_deltas = upper_deltas[::-1] * -1
         deltas = np.append(lower_deltas[:-1], upper_deltas)
