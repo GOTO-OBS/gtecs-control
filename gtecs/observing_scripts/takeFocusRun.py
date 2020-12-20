@@ -303,7 +303,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
         fig, axes = plt.subplots(2, 3, figsize=(12, 6), dpi=100)
         plt.subplots_adjust(hspace=0.2, wspace=0.15)
 
-        fig.suptitle('Focus run results - UT{} - {}'.format(ut, finish_time), x=0.5, y=0.92)
+        fig.suptitle('Focus run results - {} - UT{}'.format(finish_time, ut), x=0.5, y=0.92)
         fig.patch.set_facecolor('w')
         axes = axes.flatten()
 
@@ -552,7 +552,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
         else:
             # Still make both plots
             plot_results(df[df['region'] == 0], fit_df[fit_df['region'] == 0], nfvs, finish_time)
-            plot_corners(df, fit_df, nfvs, finish_time)
+            plot_corners(df, fit_df, regions, nfvs, finish_time)
 
     # Get best positions
     if not measure_corners:
