@@ -50,23 +50,22 @@ class RestoreFocus(NeatCloser):
         set_focuser_positions(self.positions)
 
 
-def calculate_positions(fraction, steps):
+def calculate_positions(fraction, steps, scale_factors=None):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
     current = get_focuser_positions()
     limits = get_focuser_limits()
+    if scale_factors is None:
+        scale_factors = {ut: 1 for ut in current}
+    else:
+        scale_factors = {ut: scale_factors[ut] if ut in scale_factors else 1 for ut in current}
 
     all_positions = {}
-    for ut in limits:
+    for ut in current:
         print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
-        # Fudge for RASAs having wider ranges
-        if params.UT_DICT[ut]['FOCUSER']['CLASS'] == 'RASA':
-            ut_fraction = fraction * 2.5
-        else:
-            ut_fraction = fraction
 
         # Calculate the deltas
-        width = int((limits[ut] * ut_fraction) / 2)
+        width = int((limits[ut] * fraction * scale_factors[ut]) / 2)
         upper_deltas = np.arange(0, width + 1, width // steps)
         lower_deltas = upper_deltas[::-1] * -1
         deltas = np.append(lower_deltas[:-1], upper_deltas)
@@ -435,13 +434,15 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
         plt.show()
 
 
-def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
+def run(fraction, steps, num_exp=3, exptime=30, filt='L',
         measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
     print('Calculating positions...')
-    positions = calculate_positions(fraction, steps)
+    scale_factors = {ut: params.AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE']
+                     for ut in params.AUTOFOCUS_PARAMS}
+    positions = calculate_positions(fraction, steps, scale_factors)
 
     # Confirm
     if not no_confirm:
@@ -522,8 +523,10 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L', nfvs=None,
     # Fit to data
     print('~~~~~~')
     print('Fitting to data...')
-    if nfvs is None:
-        nfvs = {ut: DEFAULT_NFV for ut in sorted(set(df.index))}
+    nfvs = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE']
+            if ut in params.AUTOFOCUS_PARAMS else DEFAULT_NFV
+            for ut in sorted(set(df.index))
+            }
     print('Fit results:')
     if not measure_corners:
         fit_df = fit_to_data(df, nfvs)
@@ -645,17 +648,11 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    # Get the near-focus values for each UT
-    nfvs = {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in params.AUTOFOCUS_PARAMS}
-    for ut in params.UTS_WITH_FOCUSERS:
-        if ut not in nfvs:
-            nfvs[ut] = DEFAULT_NFV
-
     # If something goes wrong we need to restore the origional focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt, nfvs,
+        run(fraction, steps, num_exp, exptime, filt,
             measure_corners, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
