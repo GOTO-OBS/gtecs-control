@@ -184,7 +184,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run."""
     uts = list(set(list(df.index)))
     if finish_time is None:
-        finish_time = Time.now()
+        finish_time = Time.now().isot
     if nfvs is None:
         nfvs = {ut: DEFAULT_NFV for ut in uts}
 
@@ -272,7 +272,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
     """Plot the results of the focus run with measure_corners=True."""
     uts = list(set(list(df.index)))
     if finish_time is None:
-        finish_time = Time.now()
+        finish_time = Time.now().isot
     if nfvs is None:
         nfvs = {ut: DEFAULT_NFV for ut in uts}
 
