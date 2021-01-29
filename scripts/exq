@@ -94,7 +94,7 @@ def query(command, args, daemon_id):
             # exptime filter binning [object] [imgtype]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[2])
             if len(args) == 3:
                 target = 'NA'
@@ -111,7 +111,7 @@ def query(command, args, daemon_id):
             # uts exptime filter binning [object] [imgtype]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -147,7 +147,7 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -172,7 +172,7 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[4])
             if len(args) == 5:
                 target = 'NA'
@@ -213,7 +213,7 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -234,7 +234,7 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[4])
             if len(args) == 5:
                 target = 'NA'
@@ -272,7 +272,7 @@ def query(command, args, daemon_id):
             # exptime filter binning [object]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[2])
             if len(args) == 3:
                 target = 'NA'
@@ -284,7 +284,7 @@ def query(command, args, daemon_id):
             # uts exptime filter binning [object]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'

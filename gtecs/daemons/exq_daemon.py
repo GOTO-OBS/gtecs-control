@@ -299,6 +299,8 @@ class ExqDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
+        if filt and filt.upper() == 'X':
+            filt = None
         if filt and filt.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
