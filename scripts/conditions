@@ -47,8 +47,20 @@ def query(command, args, daemon_id):
     elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
+            info_type = 'verbose'
             force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
+            info_type = 'verbose'
+            force = True
+        elif len(args) == 1 and args[0] in ['r', 'R', '-r', '-R', '--raw']:
+            info_type = 'raw'
+            force = False
+        elif (len(args) == 2 and
+              ((args[0] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
+               (args[1] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
+            info_type = 'raw'
             force = True
         else:
             raise errors.InputError('Invalid arguments')
@@ -57,8 +69,10 @@ def query(command, args, daemon_id):
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
-        else:
+        elif info_type == 'verbose':
             print_info(reply)
+        elif info_type == 'raw':
+            print(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -616,7 +630,7 @@ def print_instructions():
           '  override [on|off]              enable/disable the manual override flag',
           '  pause                          alias for "override on"',
           '  unpause/resume                 alias for "override off"',
-          '  info/status [-f]               report current status [force-update]',
+          '  info/status [-r] [-f]          report current status [raw/force-update]',
           '  limits [-f]                    report values and limits [force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

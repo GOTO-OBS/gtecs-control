@@ -48,18 +48,28 @@ def query(command, args, daemon_id):
         if len(args) == 0:
             info_type = 'simple'
             force = False
-        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V', '--verbose']:
-            info_type = 'verbose'
-            force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
             info_type = 'simple'
             force = True
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V', '--verbose']:
+            info_type = 'verbose'
+            force = False
+        elif len(args) == 1 and args[0] in ['r', 'R', '-r', '-R', '--raw']:
+            info_type = 'raw'
+            force = False
         elif (len(args) == 2 and
               ((args[0] in ['v', 'V', '-v', '-V', '--verbose'] and
                 args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
                (args[1] in ['v', 'V', '-v', '-V', '--verbose'] and
                 args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
             info_type = 'verbose'
+            force = True
+        elif (len(args) == 2 and
+              ((args[0] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
+               (args[1] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
+            info_type = 'raw'
             force = True
         else:
             raise errors.InputError('Invalid arguments')
@@ -72,6 +82,8 @@ def query(command, args, daemon_id):
             print_info_s(reply)
         elif info_type == 'verbose':
             print_info(reply)
+        elif info_type == 'raw':
+            print(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -187,7 +199,7 @@ def print_instructions():
           '  set [uts] filter               set wheel to given filter',
           '  home [uts]                     home given filter',
           '  list                           lists the possible filters',
-          '  info/status [-v] [-f]          report current status [verbose/force-update]',
+          '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',

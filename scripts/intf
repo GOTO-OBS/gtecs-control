@@ -110,21 +110,37 @@ def query(command, args, daemon_ids):
     elif command in ['info', 'status']:
         # parse arguments
         if len(args) == 0:
+            info_type = 'verbose'
             force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
+            info_type = 'verbose'
+            force = True
+        elif len(args) == 1 and args[0] in ['r', 'R', '-r', '-R', '--raw']:
+            info_type = 'raw'
+            force = False
+        elif (len(args) == 2 and
+              ((args[0] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
+               (args[1] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
+            info_type = 'raw'
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-
+        # send command
+        reply_list = []
         for daemon_id in daemon_ids:
             with misc.print_errors():
-                # send command
                 reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
-                # print response
                 if not reply:
                     raise ValueError('No info returned, check daemon')
-                else:
-                    print_info(reply)
+                reply_list.append(reply)
+        # print response
+        if info_type == 'verbose':
+            for reply in reply_list:
+                print_info(reply)
+        elif info_type == 'raw':
+            print(reply_list)
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
@@ -195,7 +211,7 @@ def print_instructions():
           '  kill                           kill the interfaces',
           '  check/ping                     check the interfaces for errors',
           'Interface commands:',
-          '  info/status [-f]               report current status [force-update]',
+          '  info/status [-r] [-f]          report current status [raw/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',
