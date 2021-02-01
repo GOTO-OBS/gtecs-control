@@ -284,10 +284,11 @@ class ExqDaemon(BaseDaemon):
         self.log.info('Camera exposure complete')
 
     # Control functions
-    def add(self, ut_list, exptime,
+    def add(self, ut_list, exptime, nexp=1,
             filt=None, binning=1, frametype='normal',
-            target='NA', imgtype='SCIENCE', glance=False):
-        """Add an exposure to the queue."""
+            target='NA', imgtype='SCIENCE', glance=False,
+            db_id=None):
+        """Add exposures to the queue."""
         # Check restrictions
         if self.dependency_error:
             raise errors.DaemonStatusError('Dependencies are not running')
@@ -298,67 +299,8 @@ class ExqDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt and filt.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
-        if int(binning) < 1 or (int(binning) - binning) != 0:
-            raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
-
-        # Find and update set number
-        with open(self.set_number_file, 'r') as f:
-            old_set_number = int(f.read())
-        new_set_number = old_set_number + 1
-        with open(self.set_number_file, 'w') as f:
-            f.write('{:d}'.format(new_set_number))
-        self.latest_set_number = new_set_number
-
-        # Call the command
-        exposure = Exposure(ut_list,
-                            exptime,
-                            filt.upper() if filt else None,
-                            binning,
-                            frametype,
-                            target.replace(';', ''),
-                            imgtype.replace(';', '').upper(),
-                            glance,
-                            set_num=new_set_number,
-                            set_pos=1,
-                            set_tot=1,
-                            )
-        self.exp_queue.append(exposure)
-        if not glance:
-            self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
-                          exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
-        else:
-            self.log.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
-                          exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
-
-        # Format return string
-        if not glance:
-            s = 'Added {:.0f}s {} exposure,'.format(exptime, filt.upper() if filt else 'X')
-        else:
-            s = 'Added {:.0f}s {} glance,'.format(exptime, filt.upper() if filt else 'X')
-        s += ' now {} items in queue'.format(len(self.exp_queue))
-        if self.paused:
-            s += ' [paused]'
-        return s
-
-    def add_multi(self, nexp, ut_list, exptime,
-                  filt=None, binning=1, frametype='normal',
-                  target='NA', imgtype='SCIENCE',
-                  db_id=None):
-        """Add multiple exposures to the queue as a set."""
-        # Check restrictions
-        if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in params.UTS_WITH_CAMERAS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
-        if int(exptime) < 0:
-            raise ValueError('Exposure time must be > 0')
+        if filt and filt.upper() == 'X':
+            filt = None
         if filt and filt.upper() not in params.FILTER_LIST:
             raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
         if int(binning) < 1 or (int(binning) - binning) != 0:
@@ -379,22 +321,31 @@ class ExqDaemon(BaseDaemon):
             exposure = Exposure(ut_list,
                                 exptime,
                                 filt.upper() if filt else None,
-                                binning, frametype,
+                                binning,
+                                frametype,
                                 target.replace(';', ''),
                                 imgtype.replace(';', '').upper(),
-                                glance=False,
+                                glance,
                                 set_num=new_set_number,
                                 set_pos=i,
                                 set_tot=nexp,
                                 db_id=db_id,
                                 )
             self.exp_queue.append(exposure)
-            self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
-                          exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+            if not glance:
+                self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
+                              exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+            else:
+                self.log.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
+                              exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
 
         # Format return string
-        s = 'Added {}x {:.0f}s {} exposure(s),'.format(nexp, exptime,
-                                                       filt.upper() if filt else 'X')
+        s = 'Added {}{:.0f}s {} {}{},'.format('{}x '.format(nexp) if nexp > 1 else '',
+                                              exptime,
+                                              filt.upper() if filt else 'X',
+                                              'exposure' if not glance else 'glance',
+                                              's' if nexp > 1 else '',
+                                              )
         s += ' now {} items in queue'.format(len(self.exp_queue))
         if self.paused:
             s += ' [paused]'

@@ -29,6 +29,7 @@ STATUS_MNT_OFFTARGET = 'off_target'
 STATUS_MNT_MOVING = 'moving'
 STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
+STATUS_MNT_NONSIDEREAL = 'tracking_nonsidereal'
 STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_CAM_COOL = 'cool'
@@ -66,6 +67,7 @@ ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
 ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
+ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
 ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
@@ -634,15 +636,16 @@ class MntMonitor(BaseMonitor):
             return STATUS_UNKNOWN
 
         mount = info['status']
+        nonsidereal = info['nonsidereal']
         target_dist = info['target_dist']
 
         if mount == 'Tracking':
-            if not target_dist:
-                hardware_status = STATUS_MNT_TRACKING
-            elif float(target_dist) < 0.01:
-                hardware_status = STATUS_MNT_TRACKING
-            else:
+            if nonsidereal:
+                hardware_status = STATUS_MNT_NONSIDEREAL
+            elif target_dist and float(target_dist) > 0.01:
                 hardware_status = STATUS_MNT_OFFTARGET
+            else:
+                hardware_status = STATUS_MNT_TRACKING
         elif mount in ['Slewing', 'Parking']:
             hardware_status = STATUS_MNT_MOVING
         elif mount == 'Parked':
@@ -700,6 +703,14 @@ class MntMonitor(BaseMonitor):
         # Clear the error if the mount is tracking or it shouldn't be any more
         if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
             self.clear_error(ERROR_MNT_STOPPED)
+
+        # ERROR_MNT_NONSIDEREAL
+        # Set the error if the mount is should be tracking but has a non-sidereal tracking rate set
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_NONSIDEREAL:
+            self.add_error(ERROR_MNT_NONSIDEREAL, delay=30)
+        # Clear the error if the mount is tracking at the correct rate or it shouldn't be any more
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_NONSIDEREAL:
+            self.clear_error(ERROR_MNT_NONSIDEREAL)
 
         # ERROR_MNT_PARKED
         # Set the error if the mount is parked and it should be tracking
@@ -830,6 +841,18 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[4] = ['mnt altaz 50 0', 60]
             # OUT OF SOLUTIONS: There must be a problem that's not letting it track.
             return ERROR_MNT_STOPPED, recovery_procedure
+
+        elif ERROR_MNT_NONSIDEREAL in self.errors:
+            # PROBLEM: The mount is in tracking mode but it's not tracking at the correct rate.
+            recovery_procedure = {}
+            # SOLUTION 1: Try resettign the track rate.
+            recovery_procedure[1] = ['mnt trackrate reset', 30]
+            recovery_procedure[2] = ['mnt track', 30]
+            # SOLUTION 2: Try again.
+            recovery_procedure[3] = ['mnt trackrate 0 0', 30]
+            recovery_procedure[4] = ['mnt track', 60]
+            # OUT OF SOLUTIONS: There must be a problem resetting the track rate.
+            return ERROR_MNT_NONSIDEREAL, recovery_procedure
 
         elif ERROR_MNT_PARKED in self.errors:
             # PROBLEM: The mount is in tracking mode but it's parked.

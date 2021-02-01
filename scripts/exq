@@ -48,18 +48,28 @@ def query(command, args, daemon_id):
         if len(args) == 0:
             info_type = 'simple'
             force = False
-        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V', '--verbose']:
-            info_type = 'verbose'
-            force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
             info_type = 'simple'
             force = True
+        elif len(args) == 1 and args[0] in ['v', 'V', '-v', '-V', '--verbose']:
+            info_type = 'verbose'
+            force = False
+        elif len(args) == 1 and args[0] in ['r', 'R', '-r', '-R', '--raw']:
+            info_type = 'raw'
+            force = False
         elif (len(args) == 2 and
               ((args[0] in ['v', 'V', '-v', '-V', '--verbose'] and
                 args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
                (args[1] in ['v', 'V', '-v', '-V', '--verbose'] and
                 args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
             info_type = 'verbose'
+            force = True
+        elif (len(args) == 2 and
+              ((args[0] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[1] in ['f', 'F', '-f', '-F', '--force-update']) or
+               (args[1] in ['r', 'R', '-r', '-R', '--raw'] and
+                args[0] in ['f', 'F', '-f', '-F', '--force-update']))):
+            info_type = 'raw'
             force = True
         else:
             raise errors.InputError('Invalid arguments')
@@ -72,6 +82,8 @@ def query(command, args, daemon_id):
             print_info_s(reply)
         elif info_type == 'verbose':
             print_info(reply)
+        elif info_type == 'raw':
+            print(reply)
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -94,9 +106,8 @@ def query(command, args, daemon_id):
             # exptime filter binning [object] [imgtype]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[2])
-            frametype = 'normal'
             if len(args) == 3:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -112,9 +123,8 @@ def query(command, args, daemon_id):
             # uts exptime filter binning [object] [imgtype]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
-            frametype = 'normal'
             if len(args) == 4:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -128,9 +138,15 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        nexp = 1
+        frametype = 'normal'
+        glance = False
+        db_id = None
         # send command
         for filt in filt_list:
-            arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
+            arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                        target, imgtype, glance, db_id]
             reply = daemons.daemon_function(daemon_id, 'add', arg_list)
             print(reply)
 
@@ -143,9 +159,8 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
-            frametype = 'normal'
             if len(args) == 4:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -169,9 +184,8 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[4])
-            frametype = 'normal'
             if len(args) == 5:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -192,10 +206,14 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        frametype = 'normal'
+        glance = False
         # send command
         for filt in filt_list:
-            arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
-            reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
+            arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                        target, imgtype, glance, db_id]
+            reply = daemons.daemon_function(daemon_id, 'add', arg_list)
             print(reply)
 
     elif command in ['multcolimage', 'multicolimage', 'mcolimage', 'mcimage']:
@@ -207,9 +225,8 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
-            frametype = 'normal'
             if len(args) == 4:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -229,9 +246,8 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[4])
-            frametype = 'normal'
             if len(args) == 5:
                 target = 'NA'
                 imgtype = 'SCIENCE'
@@ -248,10 +264,15 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        frametype = 'normal'
+        glance = False
+        db_id = None
         # send command
         for _ in range(nexp):
             for filt in filt_list:
-                arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
+                arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                            target, imgtype, glance, db_id]
                 reply = daemons.daemon_function(daemon_id, 'add', arg_list)
                 print(reply)
 
@@ -263,10 +284,8 @@ def query(command, args, daemon_id):
             # exptime filter binning [object]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[2])
-            frametype = 'normal'
-            imgtype = 'GLANCE'
             if len(args) == 3:
                 target = 'NA'
             elif len(args) == 4:
@@ -277,10 +296,8 @@ def query(command, args, daemon_id):
             # uts exptime filter binning [object]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST)
+            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
             binning = int(args[3])
-            frametype = 'normal'
-            imgtype = 'GLANCE'
             if len(args) == 4:
                 target = 'NA'
             elif len(args) == 5:
@@ -289,9 +306,16 @@ def query(command, args, daemon_id):
                 raise errors.InputError('Invalid arguments')
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        nexp = 1
+        frametype = 'normal'
+        imgtype = 'GLANCE'
+        glance = True
+        db_id = None
         # send command
         for filt in filt_list:
-            arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, True]
+            arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                        target, imgtype, glance, db_id]
             reply = daemons.daemon_function(daemon_id, 'add', arg_list)
             print(reply)
 
@@ -303,24 +327,25 @@ def query(command, args, daemon_id):
             # exptime binning
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt = None  # Dark
             binning = int(args[1])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'DARK'
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # uts exptime binning
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt = None  # Dark
             binning = int(args[2])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'DARK'
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        nexp = 1
+        filt = None
+        frametype = 'dark'
+        target = 'NA'
+        imgtype = 'DARK'
+        glance = False
+        db_id = None
         # send command
-        arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
+        arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                    target, imgtype, glance, db_id]
         reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
@@ -333,11 +358,7 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt = None  # Dark
             binning = int(args[2])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'DARK'
             if len(args) == 3:
                 db_id = None
             else:
@@ -347,20 +368,23 @@ def query(command, args, daemon_id):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt = None  # Dark
             binning = int(args[3])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'DARK'
             if len(args) == 4:
                 db_id = None
             else:
                 db_id = int(args[4])
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        filt = None
+        frametype = 'dark'
+        target = 'NA'
+        imgtype = 'DARK'
+        glance = False
         # send command
-        arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
-        reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
+        arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                    target, imgtype, glance, db_id]
+        reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
     elif command == 'bias':
@@ -370,25 +394,25 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and len(args) == 1:
             # binning
             ut_list = params.UTS_WITH_CAMERAS
-            exptime = 0.0
-            filt = None  # Dark
             binning = int(args[0])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'BIAS'
         elif misc.is_num(args[1]) and len(args) == 2:
             # uts binning
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
-            exptime = 0.0
-            filt = None  # Dark
             binning = int(args[1])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'BIAS'
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        exptime = 0.0
+        nexp = 1
+        filt = None
+        frametype = 'dark'
+        target = 'NA'
+        imgtype = 'BIAS'
+        glance = False
+        db_id = None
         # send command
-        arg_list = [ut_list, exptime, filt, binning, frametype, target, imgtype, False]
+        arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                    target, imgtype, glance, db_id]
         reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
@@ -400,12 +424,7 @@ def query(command, args, daemon_id):
             # nexp binning [db_id]
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
-            exptime = 0.0
-            filt = None  # Dark
             binning = int(args[1])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'BIAS'
             if len(args) == 2:
                 db_id = None
             else:
@@ -414,21 +433,24 @@ def query(command, args, daemon_id):
             # nexp uts binning [db_id]
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
-            exptime = 0.0
-            filt = None  # Dark
             binning = int(args[2])
-            frametype = 'dark'
-            target = 'NA'
-            imgtype = 'BIAS'
             if len(args) == 3:
                 db_id = None
             else:
                 db_id = int(args[3])
         else:
             raise errors.InputError('Invalid arguments')
+        # preset arguments
+        exptime = 0.0
+        filt = None
+        frametype = 'dark'
+        target = 'NA'
+        imgtype = 'BIAS'
+        glance = False
         # send command
-        arg_list = [nexp, ut_list, exptime, filt, binning, frametype, target, imgtype, db_id]
-        reply = daemons.daemon_function(daemon_id, 'add_multi', arg_list)
+        arg_list = [ut_list, exptime, nexp, filt, binning, frametype,
+                    target, imgtype, glance, db_id]
+        reply = daemons.daemon_function(daemon_id, 'add', arg_list)
         print(reply)
 
     elif command == 'pause':
@@ -452,6 +474,8 @@ def query(command, args, daemon_id):
             reply = daemons.daemon_function(daemon_id, 'get_simple')
         elif list_type == 'verbose':
             reply = daemons.daemon_function(daemon_id, 'get')
+        else:
+            raise errors.InputError('Invalid arguments')
         print(reply)
 
     elif command == 'clear':
@@ -532,7 +556,7 @@ def print_instructions():
           '  unpause/resume                 resumes taking exposures',
           '  list [-v]                      lists the current queue',
           '  clear                          empty the queue',
-          '  info/status [-v] [-f]          report current status [verbose/force-update]',
+          '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',
           '  i                              enter interactive mode',
