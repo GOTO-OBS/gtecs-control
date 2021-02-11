@@ -728,13 +728,13 @@ def update_header(header, ut, all_info, log):
 
         targ_ra = info['target_ra']
         if targ_ra is not None:
-            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
+            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
         else:
             targ_ra_str = 'NA'
 
         targ_dec = info['target_dec']
         if targ_dec is not None:
-            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
+            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
@@ -743,10 +743,10 @@ def update_header(header, ut, all_info, log):
             targ_dist = 'NA'
 
         mnt_ra = info['mount_ra']
-        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
 
         mnt_dec = info['mount_dec']
-        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
 
         mnt_alt = info['mount_alt']
         mnt_az = info['mount_az']
@@ -755,7 +755,6 @@ def update_header(header, ut, all_info, log):
         mnt_move_time = info['last_move_time']
         if mnt_move_time is not None:
             mnt_move_time = Time(mnt_move_time, format='unix')
-            mnt_move_time.precision = 0
             mnt_move_time = mnt_move_time.isot
         else:
             mnt_move_time = 'NA'
