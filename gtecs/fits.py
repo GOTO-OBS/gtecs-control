@@ -235,11 +235,11 @@ def update_header(header, ut, all_info, log):
 
     # Observation info
     cam_info = all_info['cam']
-
-    current_exposure = cam_info['current_exposure']
-    glance = current_exposure['glance']
+    exposure_info = cam_info['current_exposure']
+    cam_info = cam_info[ut]
+    glance = exposure_info['glance']
     if not glance:
-        run_number = current_exposure['run_number']
+        run_number = exposure_info['run_number']
         run_number_str = 'r{:07d}'.format(run_number)
     else:
         run_number = 'NA'
@@ -270,7 +270,7 @@ def update_header(header, ut, all_info, log):
         ut_hw_version = 'NA'
     header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
 
-    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
+    ut_mask = misc.ut_list_to_mask(exposure_info['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
     header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
     header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
@@ -284,21 +284,21 @@ def update_header(header, ut, all_info, log):
     header['SYS-MODE'] = (status.mode, 'Current telescope system mode')
     header['OBSERVER'] = (status.observer, 'Who started the exposure')
 
-    header['OBJECT  '] = (current_exposure['target'], 'Observed object name')
+    header['OBJECT  '] = (exposure_info['target'], 'Observed object name')
 
-    set_number = current_exposure['set_num']
+    set_number = exposure_info['set_num']
     if set_number is None:
         set_number = 'NA'
     header['SET     '] = (set_number, 'GOTO set number')
-    header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
-    header['SET-TOT '] = (current_exposure['set_tot'], 'Total number of exposures in this set')
+    header['SET-POS '] = (exposure_info['set_pos'], 'Position of this exposure in this set')
+    header['SET-TOT '] = (exposure_info['set_tot'], 'Total number of exposures in this set')
 
     # Exposure data
-    header['EXPTIME '] = (current_exposure['exptime'], 'Exposure time, seconds')
+    header['EXPTIME '] = (exposure_info['exptime'], 'Exposure time, seconds')
 
     start_time = Time(cam_info['exposure_start_time'], format='unix')
     start_time.precision = 0
-    mid_time = start_time + (current_exposure['exptime'] * u.second) / 2.
+    mid_time = start_time + (exposure_info['exptime'] * u.second) / 2.
     header['DATE-OBS'] = (start_time.isot, 'Exposure start time, UTC')
     header['DATE-MID'] = (mid_time.isot, 'Exposure midpoint, UTC')
 
@@ -314,9 +314,9 @@ def update_header(header, ut, all_info, log):
     header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
 
     # Frame info
-    header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
-    header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
-    header['GLANCE  '] = (current_exposure['glance'], 'Is this a glance frame?')
+    header['FRMTYPE '] = (exposure_info['frametype'], 'Frame type (shutter open/closed)')
+    header['IMGTYPE '] = (exposure_info['imgtype'], 'Image type')
+    header['GLANCE  '] = (exposure_info['glance'], 'Is this a glance frame?')
 
     # (Depreciated section cards)
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
@@ -528,17 +528,16 @@ def update_header(header, ut, all_info, log):
     header['SKYMAP  '] = (event_skymap, 'Skymap URL for this event')
 
     # Camera info
-    cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
     cam_class = cam_info['hw_class']
     header['CAMERA  '] = (cam_serial, 'Camera serial number')
     header['CAMCLS  '] = (cam_class, 'Camera hardware class')
 
-    header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
-    header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
+    header['XBINNING'] = (exposure_info['binning'], 'CCD x binning factor')
+    header['YBINNING'] = (exposure_info['binning'], 'CCD y binning factor')
 
-    x_pixel_size = cam_info['x_pixel_size'] * current_exposure['binning']
-    y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
+    x_pixel_size = cam_info['x_pixel_size'] * exposure_info['binning']
+    y_pixel_size = cam_info['y_pixel_size'] * exposure_info['binning']
     header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, microns')
     header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, microns')
 

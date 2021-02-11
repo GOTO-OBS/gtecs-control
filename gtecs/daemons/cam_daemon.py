@@ -47,8 +47,9 @@ class CamDaemon(BaseDaemon):
 
         self.current_exposure = None
         self.exposing = False
-        self.exposure_start_time = 0
+        self.exposing_start_time = 0
         self.all_info = None
+        self.exposure_start_time = {ut: 0 for ut in self.uts}
         self.image_ready = {ut: 0 for ut in self.uts}
         self.image_saving = {ut: 0 for ut in self.uts}
 
@@ -135,14 +136,16 @@ class CamDaemon(BaseDaemon):
 
                     # start exposure
                     # (seperate from the above, so they all start closer together)
+                    self.exposing_start_time = self.loop_time
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
                         self.log.info('{}: Starting exposure on camera {} ({})'.format(
                                       expstr, ut, interface_id))
                         try:
                             with daemon_proxy(interface_id) as interface:
+                                # save the exact start time for each camera
+                                self.exposure_start_time[ut] = time.time()
                                 # start the exposure
-                                self.exposure_start_time = self.loop_time
                                 c = interface.start_exposure(ut)
                                 if c:
                                     self.log.info(c)
@@ -156,7 +159,7 @@ class CamDaemon(BaseDaemon):
 
                 # wait for exposures to finish
                 # need to wait for at least a single check to update the info dict
-                elif self.exposing and self.info['time'] > self.exposure_start_time:
+                elif self.exposing and self.info['time'] > self.exposing_start_time:
                     expstr = self.current_exposure.expstr.capitalize()
 
                     # get daemon info (once, for all images)
@@ -192,8 +195,9 @@ class CamDaemon(BaseDaemon):
 
                         # clear tags, ready for next exposure
                         self.exposing = False
+                        self.exposing_start_time = 0
                         self.current_exposure = None
-                        self.exposure_start_time = 0
+                        self.exposure_start_time = {ut: 0 for ut in self.uts}
                         self.image_ready = {ut: 0 for ut in self.uts}
                         self.active_uts = []
                         self.all_info = None
@@ -320,6 +324,7 @@ class CamDaemon(BaseDaemon):
                     ut_info['status'] = 'Reading'
                 else:
                     ut_info['status'] = 'Ready'
+                ut_info['exposure_start_time'] = self.exposure_start_time[ut]
                 ut_info['image_ready'] = self.image_ready[ut]
                 ut_info['image_saving'] = self.image_saving[ut]
                 ut_info['target_temp'] = self.target_temp[ut]
@@ -348,7 +353,7 @@ class CamDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['exposing'] = self.exposing
-        temp_info['exposure_start_time'] = self.exposure_start_time
+        temp_info['exposing_start_time'] = self.exposing_start_time
         if self.current_exposure is not None:
             current_info = {}
             current_info['expstr'] = self.current_exposure.expstr
