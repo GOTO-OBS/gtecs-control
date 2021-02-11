@@ -82,8 +82,10 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.utime(done_file, None)
 
     if log:
+        interface_id = params.UT_DICT[ut]['INTERFACE']
         expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-        log.info('{} saved'.format(expstr))
+        log.info('{}: Saved exposure from camera {} ({})'.format(
+                 expstr, ut, interface_id))
 
 
 def get_all_info(cam_info, log):
