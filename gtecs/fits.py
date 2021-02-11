@@ -534,8 +534,8 @@ def update_header(header, ut, all_info, log):
 
     x_pixel_size = cam_info['x_pixel_size'] * exposure_info['binning']
     y_pixel_size = cam_info['y_pixel_size'] * exposure_info['binning']
-    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, microns')
-    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, microns')
+    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, m')
+    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, m')
 
     full_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['full_area'])
     active_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['active_area'])
