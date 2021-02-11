@@ -9,8 +9,6 @@ import astropy.units as u
 from astropy.coordinates import Angle
 from astropy.time import Time
 
-import numpy
-
 import obsdb as db
 
 from . import astronomy
@@ -752,7 +750,7 @@ def update_header(header, ut, all_info, log):
 
         mnt_alt = info['mount_alt']
         mnt_az = info['mount_az']
-        ha = astronomy.get_ha(info['mount_ra'], lst)  # LST is found under exposure data
+        ha = astronomy.get_ha(info['mount_ra'], lst.hour)  # LST is found under exposure data
 
         mnt_move_time = info['last_move_time']
         if mnt_move_time is not None:
