@@ -149,6 +149,8 @@ INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
               if 'UTS' in DAEMONS[interface_id]}
 
+DASHBOARD_IP = config['DASHBOARD_IP']
+
 ############################################################
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
@@ -315,6 +317,7 @@ POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
 POWER_CHECK_SCRIPT = '_power_status'
 POWER_UNITS = config['POWER_UNITS']
 POWER_GROUPS = config['POWER_GROUPS']
+DASHBOARD_ALLOWED_OUTLETS = config['DASHBOARD_ALLOWED_OUTLETS']
 
 ############################################################
 # Dome parameters

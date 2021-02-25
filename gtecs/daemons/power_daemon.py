@@ -408,6 +408,40 @@ class PowerDaemon(BaseDaemon):
 
         return 'Rebooting power'
 
+    def dashboard_switch(self, outlet_name, enable, dashboard_username):
+        """Switch a named switch parameter on or off from the web dashboard.
+
+        This function is restricted to only the dashboard IP for specific outlets,
+        and also has extra logging.
+        See https://github.com/GOTO-OBS/g-tecs/issues/535 for details.
+        """
+        # Check IP
+        client_ip = self._get_clent_ip()
+        if client_ip != params.DASHBOARD_IP:
+            return False
+
+        # Check input
+        if outlet_name not in params.DASHBOARD_ALLOWED_OUTLETS:
+            return False
+        outlets, units = self._parse_input([outlet_name])
+        if len(outlets) == 0:
+            return False
+
+        # Set values
+        self.current_outlets = outlets
+        self.current_units = units
+
+        # Set flag
+        if enable:
+            self.on_flag = 1
+        else:
+            self.off_flag = 1
+
+        logstr = 'Web dashboard user {} turning {} "{}" (unit {} outlet {})'.format(
+            dashboard_username, 'on' if enable else 'off', outlet_name, units[0], outlets[0])
+        self.log.info(logstr)
+        return logstr
+
 
 if __name__ == '__main__':
     daemon_id = 'power'
