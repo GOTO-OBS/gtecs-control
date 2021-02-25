@@ -75,12 +75,20 @@ def wait_for_dome(target_position, timeout=None):
 def prepare_for_images(open_covers=True):
     """Make sure the hardware is set up for taking images.
 
+    - ensure any lights in the dome are turned off
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
     - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
+    # Turn off any lights in the dome
+    print('Turning off dome lights')
+    execute_command('power off leds')
+    time.sleep(0.5)
+    execute_command('power off monitor')
+    time.sleep(0.5)
+
     # Empty the exposure queue
     if not exposure_queue_is_empty():
         print('Clearing exposure queue')
