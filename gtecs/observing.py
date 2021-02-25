@@ -82,12 +82,13 @@ def prepare_for_images(open_covers=True):
     - ensure the cameras are at operating temperature
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
-    # Turn off any lights in the dome
-    print('Turning off dome lights')
-    execute_command('power off leds')
-    time.sleep(0.5)
-    execute_command('power off monitor')
-    time.sleep(0.5)
+    # Turn off any sources of light in the dome
+    outlets = ['leds1', 'leds2', 'monitor']
+    if not outlets_are_off(outlets):
+        print('Turning off dome lights')
+        for outlet in outlets:
+            execute_command('power off {}'.format(outlet))
+            time.sleep(0.5)
 
     # Empty the exposure queue
     if not exposure_queue_is_empty():
@@ -722,6 +723,15 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
     total_exp = sum(exp_list) * len(filt_list)
     total_time = 1.5 * (readout + total_exp)
     wait_for_exposure_queue(total_time)
+
+
+def outlets_are_off(outlets):
+    """Check if the given power outlets are off."""
+    power_info = daemon_info('power', force_update=False)
+    all_status = {outlet: power_info[unit][outlet]
+                  for unit in power_info if 'status' in unit
+                  for outlet in power_info[unit]}
+    return all([all_status[outlet] == 'off' for outlet in outlets])
 
 
 def exposure_queue_is_empty():
