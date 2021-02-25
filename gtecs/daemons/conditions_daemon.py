@@ -686,7 +686,7 @@ class ConditionsDaemon(BaseDaemon):
         See https://github.com/GOTO-OBS/g-tecs/issues/535 for details.
         """
         # Check IP
-        client_ip = self._get_clent_ip()
+        client_ip = self._get_client_ip()
         if client_ip != params.DASHBOARD_IP:
             return False
 

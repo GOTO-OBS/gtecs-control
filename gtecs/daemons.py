@@ -169,7 +169,7 @@ class BaseDaemon(ABC):
         """
         return
 
-    def _get_clent_ip(self):
+    def _get_client_ip(self):
         """Get the current Pyro client IP."""
         return Pyro4.current_context.client.sock.getpeername()[0]
 
