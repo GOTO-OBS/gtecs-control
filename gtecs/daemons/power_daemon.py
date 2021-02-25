@@ -437,8 +437,8 @@ class PowerDaemon(BaseDaemon):
         else:
             self.off_flag = 1
 
-        logstr = 'Web dashboard user {} turning {} "{}" (unit {} outlet {})'.format(
-            dashboard_username, 'on' if enable else 'off', outlet_name, units[0], outlets[0])
+        logstr = 'Web dashboard user {} turning {} "{}"'.format(
+            dashboard_username, 'on' if enable else 'off', outlet_name)
         self.log.info(logstr)
         return logstr
 
