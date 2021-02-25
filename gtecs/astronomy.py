@@ -420,7 +420,7 @@ def get_lst(now):
 
     """
     now.location = observatory_location()
-    return now.sidereal_time(kind='apparent').hour
+    return now.sidereal_time(kind='apparent')
 
 
 def check_alt_limit(targ_ra, targ_dec, now):

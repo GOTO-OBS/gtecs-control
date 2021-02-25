@@ -9,8 +9,6 @@ import astropy.units as u
 from astropy.coordinates import Angle
 from astropy.time import Time
 
-import numpy
-
 import obsdb as db
 
 from . import astronomy
@@ -56,7 +54,11 @@ def write_fits(image, filename, ut, all_info, log=None):
         hdu = pyfits.PrimaryHDU(image)
 
     # update the image header
-    update_header(hdu.header, ut, all_info, log)
+    try:
+        update_header(hdu.header, ut, all_info, log)
+    except Exception:
+        log.error('Failed to update FITS header')
+        log.debug('', exc_info=True)
 
     # write the image log to the database
     if not all_info['cam']['current_exposure']['glance']:
@@ -82,8 +84,10 @@ def write_fits(image, filename, ut, all_info, log=None):
         os.utime(done_file, None)
 
     if log:
+        interface_id = params.UT_DICT[ut]['INTERFACE']
         expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-        log.info('{} saved'.format(expstr))
+        log.info('{}: Saved exposure from camera {} ({})'.format(
+                 expstr, ut, interface_id))
 
 
 def get_all_info(cam_info, log):
@@ -233,11 +237,11 @@ def update_header(header, ut, all_info, log):
 
     # Observation info
     cam_info = all_info['cam']
-
-    current_exposure = cam_info['current_exposure']
-    glance = current_exposure['glance']
+    exposure_info = cam_info['current_exposure']
+    cam_info = cam_info[ut]
+    glance = exposure_info['glance']
     if not glance:
-        run_number = current_exposure['run_number']
+        run_number = exposure_info['run_number']
         run_number_str = 'r{:07d}'.format(run_number)
     else:
         run_number = 'NA'
@@ -246,7 +250,6 @@ def update_header(header, ut, all_info, log):
     header['RUN-ID  '] = (run_number_str, 'Padded run ID string')
 
     write_time = Time.now()
-    write_time.precision = 0
     header['DATE    '] = (write_time.isot, 'Date HDU created')
 
     header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
@@ -268,7 +271,7 @@ def update_header(header, ut, all_info, log):
         ut_hw_version = 'NA'
     header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
 
-    ut_mask = misc.ut_list_to_mask(current_exposure['ut_list'])
+    ut_mask = misc.ut_list_to_mask(exposure_info['ut_list'])
     ut_string = misc.ut_mask_to_string(ut_mask)
     header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
     header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
@@ -282,21 +285,20 @@ def update_header(header, ut, all_info, log):
     header['SYS-MODE'] = (status.mode, 'Current telescope system mode')
     header['OBSERVER'] = (status.observer, 'Who started the exposure')
 
-    header['OBJECT  '] = (current_exposure['target'], 'Observed object name')
+    header['OBJECT  '] = (exposure_info['target'], 'Observed object name')
 
-    set_number = current_exposure['set_num']
+    set_number = exposure_info['set_num']
     if set_number is None:
         set_number = 'NA'
     header['SET     '] = (set_number, 'GOTO set number')
-    header['SET-POS '] = (current_exposure['set_pos'], 'Position of this exposure in this set')
-    header['SET-TOT '] = (current_exposure['set_tot'], 'Total number of exposures in this set')
+    header['SET-POS '] = (exposure_info['set_pos'], 'Position of this exposure in this set')
+    header['SET-TOT '] = (exposure_info['set_tot'], 'Total number of exposures in this set')
 
     # Exposure data
-    header['EXPTIME '] = (current_exposure['exptime'], 'Exposure time, seconds')
+    header['EXPTIME '] = (exposure_info['exptime'], 'Exposure time, seconds')
 
     start_time = Time(cam_info['exposure_start_time'], format='unix')
-    start_time.precision = 0
-    mid_time = start_time + (current_exposure['exptime'] * u.second) / 2.
+    mid_time = start_time + (exposure_info['exptime'] * u.second) / 2.
     header['DATE-OBS'] = (start_time.isot, 'Exposure start time, UTC')
     header['DATE-MID'] = (mid_time.isot, 'Exposure midpoint, UTC')
 
@@ -304,17 +306,13 @@ def update_header(header, ut, all_info, log):
     header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
 
     lst = astronomy.get_lst(mid_time)
-    lst_m, lst_s = divmod(abs(lst) * 3600, 60)
-    lst_h, lst_m = divmod(lst_m, 60)
-    if lst < 0:
-        lst_h = -lst_h
-    mid_lst = '{:02.0f}:{:02.0f}:{:02.0f}'.format(lst_h, lst_m, lst_s)
+    mid_lst = '{:02.0f}:{:02.0f}:{:06.3f}'.format(*lst.hms)
     header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
 
     # Frame info
-    header['FRMTYPE '] = (current_exposure['frametype'], 'Frame type (shutter open/closed)')
-    header['IMGTYPE '] = (current_exposure['imgtype'], 'Image type')
-    header['GLANCE  '] = (current_exposure['glance'], 'Is this a glance frame?')
+    header['FRMTYPE '] = (exposure_info['frametype'], 'Frame type (shutter open/closed)')
+    header['IMGTYPE '] = (exposure_info['imgtype'], 'Image type')
+    header['GLANCE  '] = (exposure_info['glance'], 'Is this a glance frame?')
 
     # (Depreciated section cards)
     header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
@@ -526,19 +524,18 @@ def update_header(header, ut, all_info, log):
     header['SKYMAP  '] = (event_skymap, 'Skymap URL for this event')
 
     # Camera info
-    cam_info = cam_info[ut]
     cam_serial = cam_info['serial_number']
     cam_class = cam_info['hw_class']
     header['CAMERA  '] = (cam_serial, 'Camera serial number')
     header['CAMCLS  '] = (cam_class, 'Camera hardware class')
 
-    header['XBINNING'] = (current_exposure['binning'], 'CCD x binning factor')
-    header['YBINNING'] = (current_exposure['binning'], 'CCD y binning factor')
+    header['XBINNING'] = (exposure_info['binning'], 'CCD x binning factor')
+    header['YBINNING'] = (exposure_info['binning'], 'CCD y binning factor')
 
-    x_pixel_size = cam_info['x_pixel_size'] * current_exposure['binning']
-    y_pixel_size = cam_info['y_pixel_size'] * current_exposure['binning']
-    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, microns')
-    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, microns')
+    x_pixel_size = cam_info['x_pixel_size'] * exposure_info['binning']
+    y_pixel_size = cam_info['y_pixel_size'] * exposure_info['binning']
+    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, m')
+    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, m')
 
     full_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['full_area'])
     active_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['active_area'])
@@ -571,7 +568,6 @@ def update_header(header, ut, all_info, log):
             cover_move_time = info['last_move_time']
             if cover_move_time is not None:
                 cover_move_time = Time(cover_move_time, format='unix')
-                cover_move_time.precision = 0
                 cover_move_time = cover_move_time.isot
             else:
                 cover_move_time = 'NA'
@@ -611,7 +607,6 @@ def update_header(header, ut, all_info, log):
             foc_move_time = info['last_move_time']
             if foc_move_time is not None:
                 foc_move_time = Time(foc_move_time, format='unix')
-                foc_move_time.precision = 0
                 foc_move_time = foc_move_time.isot
             else:
                 foc_move_time = 'NA'
@@ -663,7 +658,6 @@ def update_header(header, ut, all_info, log):
             filt_move_time = info['last_move_time']
             if filt_move_time is not None:
                 filt_move_time = Time(filt_move_time, format='unix')
-                filt_move_time.precision = 0
                 filt_move_time = filt_move_time.isot
             else:
                 filt_move_time = 'NA'
@@ -710,7 +704,6 @@ def update_header(header, ut, all_info, log):
         dome_move_time = info['last_move_time']
         if dome_move_time is not None:
             dome_move_time = Time(dome_move_time, format='unix')
-            dome_move_time.precision = 0
             dome_move_time = dome_move_time.isot
         else:
             dome_move_time = 'NA'
@@ -735,36 +728,33 @@ def update_header(header, ut, all_info, log):
 
         targ_ra = info['target_ra']
         if targ_ra is not None:
-            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
+            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
         else:
             targ_ra_str = 'NA'
 
         targ_dec = info['target_dec']
         if targ_dec is not None:
-            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
+            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
         else:
             targ_dec_str = 'NA'
 
-        targ_dist_a = info['target_dist']
-        if targ_dist_a is not None:
-            targ_dist = numpy.around(targ_dist_a, decimals=1)
-        else:
+        targ_dist = info['target_dist']
+        if targ_dist is None:
             targ_dist = 'NA'
 
         mnt_ra = info['mount_ra']
-        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
 
         mnt_dec = info['mount_dec']
-        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
+        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
 
-        mnt_alt = numpy.around(info['mount_alt'], decimals=2)
-        mnt_az = numpy.around(info['mount_az'], decimals=2)
-        ha = astronomy.get_ha(info['mount_ra'], lst)  # LST is found under exposure data
+        mnt_alt = info['mount_alt']
+        mnt_az = info['mount_az']
+        ha = astronomy.get_ha(info['mount_ra'], lst.hour)  # LST is found under exposure data
 
         mnt_move_time = info['last_move_time']
         if mnt_move_time is not None:
             mnt_move_time = Time(mnt_move_time, format='unix')
-            mnt_move_time.precision = 0
             mnt_move_time = mnt_move_time.isot
         else:
             mnt_move_time = 'NA'
@@ -774,14 +764,12 @@ def update_header(header, ut, all_info, log):
         trackrate_ra = info['trackrate_ra']
         trackrate_dec = info['trackrate_dec']
 
-        zen_dist = numpy.around(90 - mnt_alt, decimals=1)
+        zen_dist = 90 - mnt_alt
         airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
-        airmass = numpy.around(airmass, decimals=2)
         equinox = 2000
 
         mnt_ra_deg = mnt_ra * 180 / 12.
         moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
-        moon_dist = numpy.around(moon_dist, decimals=2)
 
     except Exception:
         log.error('Failed to write mount info to header')
@@ -837,11 +825,11 @@ def update_header(header, ut, all_info, log):
 
         info = all_info['astro']
 
-        moon_alt = numpy.around(info['moon_alt'], decimals=2)
-        moon_ill = numpy.around(info['moon_ill'] * 100., decimals=1)
+        moon_alt = info['moon_alt']
+        moon_ill = info['moon_ill'] * 100
         moon_phase = info['moon_phase']
 
-        sun_alt = numpy.around(info['sun_alt'], decimals=1)
+        sun_alt = info['sun_alt']
     except Exception:
         log.error('Failed to write astronomy info to header')
         log.debug('', exc_info=True)
@@ -865,26 +853,18 @@ def update_header(header, ut, all_info, log):
         clouds = info['clouds']
         if clouds == -999:
             clouds = 'NA'
-        else:
-            clouds = numpy.around(clouds, decimals=1)
 
         seeing = info['tng']['seeing']
         if seeing == -999:
             seeing = 'NA'
-        else:
-            seeing = numpy.around(seeing, decimals=1)
 
         seeing_ing = info['robodimm']['seeing']
         if seeing_ing == -999:
             seeing_ing = 'NA'
-        else:
-            seeing_ing = numpy.around(seeing_ing, decimals=1)
 
         dust = info['tng']['dust']
         if dust == -999:
             dust = 'NA'
-        else:
-            dust = numpy.around(dust, decimals=1)
 
         ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
         ext_weather = info['weather'][ext_source]
@@ -892,26 +872,18 @@ def update_header(header, ut, all_info, log):
         ext_temp = ext_weather['temperature']
         if ext_temp == -999:
             ext_temp = 'NA'
-        else:
-            ext_temp = numpy.around(ext_temp, decimals=1)
 
         ext_hum = ext_weather['humidity']
         if ext_hum == -999:
             ext_hum = 'NA'
-        else:
-            ext_hum = numpy.around(ext_hum, decimals=1)
 
         ext_wind = ext_weather['windspeed']
         if ext_wind == -999:
             ext_wind = 'NA'
-        else:
-            ext_wind = numpy.around(ext_wind, decimals=1)
 
         ext_gust = ext_weather['windgust']
         if ext_gust == -999:
             ext_gust = 'NA'
-        else:
-            ext_gust = numpy.around(ext_gust, decimals=1)
 
         int_source = params.INTERNAL_WEATHER_SOURCES[0]
         int_weather = info['weather'][int_source]
@@ -919,14 +891,10 @@ def update_header(header, ut, all_info, log):
         int_temp = int_weather['temperature']
         if int_temp == -999:
             int_temp = 'NA'
-        else:
-            int_temp = numpy.around(int_temp, decimals=1)
 
         int_hum = int_weather['humidity']
         if int_hum == -999:
             int_hum = 'NA'
-        else:
-            int_hum = numpy.around(int_hum, decimals=1)
 
     except Exception:
         log.error('Failed to write conditions info to header')
