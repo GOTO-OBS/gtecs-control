@@ -169,6 +169,10 @@ class BaseDaemon(ABC):
         """
         return
 
+    def _get_client_ip(self):
+        """Get the current Pyro client IP."""
+        return Pyro4.current_context.client.sock.getpeername()[0]
+
     # Common daemon functions
     def prod(self):
         """Prod the daemon to make sure it closes."""

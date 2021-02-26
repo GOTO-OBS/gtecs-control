@@ -678,6 +678,29 @@ class ConditionsDaemon(BaseDaemon):
 
         return 'Disabling conditions override flag'
 
+    def dashboard_override(self, enable, dashboard_username):
+        """Activate or deactivate the manual override flag from the web dashboard.
+
+        This function is restricted to only the dashboard IP for specific outlets,
+        and also has extra logging.
+        See https://github.com/GOTO-OBS/g-tecs/issues/535 for details.
+        """
+        # Check IP
+        client_ip = self._get_client_ip()
+        if client_ip != params.DASHBOARD_IP:
+            return False
+
+        # Set flag
+        if enable:
+            self.manual_override = True
+        else:
+            self.manual_override = False
+
+        logstr = 'Web dashboard user {} turning {} manual override'.format(
+            dashboard_username, 'on' if enable else 'off')
+        self.log.info(logstr)
+        return logstr
+
 
 if __name__ == '__main__':
     daemon_id = 'conditions'
