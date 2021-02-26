@@ -1314,7 +1314,8 @@ def send_startup_report():
                 sum(survey_counter.values()), len(survey_counter),
                 's' if len(survey_counter) != 1 else '')
             for survey, count in survey_counter.most_common():
-                msg += '- `{}` (_{} pointings_)\n'.format(survey.name, count)
+                msg += '- `{}` (_{} pointing{}_)\n'.format(
+                    survey.name, count, 's' if count != 1 else '')
         else:
             print('0 pointings from sky surveys')
 
@@ -1327,15 +1328,22 @@ def send_startup_report():
                 's' if len(event_counter) != 1 else '')
             for survey, count in event_counter.most_common():
                 stop_time = survey.mpointings[0].stop_time
-                msg += '- `{}` (_{} pointings_) - expires at {}\n'.format(
-                    survey.name, count, stop_time.strftime('%Y-%m-%d %H:%M:%S'))
+                msg += '- `{}` (_{} pointing{}_) - expires at {}\n'.format(
+                    survey.name, count, 's' if count != 1 else '',
+                    stop_time.strftime('%Y-%m-%d %H:%M:%S'))
         else:
             print('0 pointings from event follow-up surveys')
 
-        none_surveys = ['None' for pointing in pointings
+        none_objects = [pointing.object_name for pointing in pointings
                         if pointing.survey is None]
-        if len(none_surveys) > 0:
-            msg += '{} non-survey pointings\n'.format(len(none_surveys))
+        if len(none_objects) > 0:
+            none_counter = Counter(none_objects)
+            msg += '{} non-survey pointings of {} object{}:\n'.format(
+                sum(none_counter.values()), len(none_counter),
+                's' if len(none_counter) != 1 else '')
+            for name, count in none_counter.most_common():
+                msg += '- `{}` (_{} pointing{}_)\n'.format(
+                    name, count, 's' if count != 1 else '')
         else:
             print('0 non-survey pointings')
 
