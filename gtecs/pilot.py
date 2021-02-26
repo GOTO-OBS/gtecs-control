@@ -5,11 +5,12 @@ import functools
 import os
 import sys
 import time
+from collections import Counter
 
 from astropy import units as u
 from astropy.time import Time
 
-from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
+import obsdb as db
 
 import pkg_resources
 
@@ -508,14 +509,14 @@ class Pilot(object):
 
             # if we were observing, mark as aborted
             if name == 'OBS' and self.current_id is not None:
-                mark_aborted(self.current_id)
+                db.mark_aborted(self.current_id)
 
         self.log.info('finished {}'.format(name))
         self.running_script = None
 
         # if it was an observation that just finished (aborted or not) force a scheduler check
         if name == 'OBS':
-            self.log.debug('forcing scheduler check'.format(name))
+            self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
 
         return retcode, result
@@ -847,10 +848,10 @@ class Pilot(object):
                         self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
                                        self.current_mintime, elapsed))
                         if elapsed > self.current_mintime:
-                            mark_completed(self.current_id)
+                            db.mark_completed(self.current_id)
                             self.log.debug('pointing completed: {}'.format(self.current_id))
                         else:
-                            mark_interrupted(self.current_id)
+                            db.mark_interrupted(self.current_id)
                             self.log.debug('pointing interrupted: {}'.format(self.current_id))
 
                 else:
@@ -866,7 +867,7 @@ class Pilot(object):
                 cmd = [script, *args]
                 asyncio.ensure_future(self.start_script('OBS', LoggedProtocol, cmd))
 
-                mark_running(self.new_id)
+                db.mark_running(self.new_id)
 
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
@@ -1067,7 +1068,7 @@ class Pilot(object):
         self.startup_complete = True
 
         # send the startup report
-        self.send_startup_report()
+        send_startup_report()
 
         self.log.debug('startup process complete')
 
@@ -1236,68 +1237,109 @@ class Pilot(object):
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
 
-    def send_startup_report(self):
-        """Format and send a Slack message with a summery of the current conditions."""
-        msg = '*Pilot reports startup complete*'
-        conditions = Conditions()
-        conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                             bad=':exclamation:')
-        if conditions.bad:
-            msg2 = ':warning: Conditions are bad! :warning:'
-            colour = 'danger'
+
+def send_startup_report():
+    """Send a Slack message with a summery of the current conditions and pending pointings."""
+    msg = '*Pilot reports startup complete*'
+    conditions = Conditions()
+    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                                         bad=':exclamation:')
+    if conditions.bad:
+        msg2 = ':warning: Conditions are bad! :warning:'
+        colour = 'danger'
+    else:
+        msg2 = 'Conditions are good'
+        colour = 'good'
+    attach_conds = {'fallback': 'Conditions summary',
+                    'title': msg2,
+                    'text': conditions_summary,
+                    'color': colour,
+                    'ts': conditions.current_time.unix,
+                    }
+
+    status = Status()
+    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
+                     'text': 'System is in *{}* mode'.format(status.mode),
+                     'color': colour,
+                     }
+
+    env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
+    mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+    ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
+    not_url = 'http://www.not.iac.es/weather/'
+    tng_url = 'https://tngweb.tng.iac.es/weather/'
+    links = ['<{}|Local enviroment page>'.format(env_url),
+             '<{}|Mountain forecast>'.format(mf_url),
+             '<{}|ING>'.format(ing_url),
+             '<{}|NOT>'.format(not_url),
+             '<{}|TNG>'.format(tng_url),
+             ]
+    attach_links = {'fallback': 'Useful links',
+                    'text': '  -  '.join(links),
+                    'color': colour,
+                    }
+
+    ts = '{:.0f}'.format(conditions.current_time.unix)
+    webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+    attach_webcm = {'fallback': 'External webcam view',
+                    'title': 'External webcam view',
+                    'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                    'text': 'Image attached:',
+                    'image_url': webcam_url,
+                    'color': colour,
+                    }
+
+    sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
+    attach_irsat = {'fallback': 'IR satellite view',
+                    'title': 'IR satellite view',
+                    'title_link': 'https://en.sat24.com/en/ce/infraPolair',
+                    'text': 'Image attached:',
+                    'image_url': sat_url,
+                    'color': colour,
+                    }
+
+    attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
+    send_slack_msg(msg, attachments=attachments)
+
+    # Report on pending pointings
+    with db.open_session() as session:
+        pointings = session.query(db.Pointing).filter(db.Pointing.status == 'pending').all()
+        msg = '*There are {} pending pointings in the database*\n'.format(len(pointings))
+
+        survey_surveys = [pointing.survey for pointing in pointings
+                          if pointing.survey is not None and pointing.survey.event_id is None]
+        if len(survey_surveys) > 0:
+            survey_counter = Counter(survey_surveys)
+            msg += '{} pointings from {} sky survey{}:\n'.format(
+                sum(survey_counter.values()), len(survey_counter),
+                's' if len(survey_counter) != 1 else '')
+            for survey, count in survey_counter.most_common():
+                msg += '- `{}` (_{} pointings_)\n'.format(survey.name, count)
         else:
-            msg2 = 'Conditions are good'
-            colour = 'good'
-        attach_conds = {'fallback': 'Conditions summary',
-                        'title': msg2,
-                        'text': conditions_summary,
-                        'color': colour,
-                        'ts': conditions.current_time.unix,
-                        }
+            print('0 pointings from sky surveys')
 
-        status = Status()
-        attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                         'text': 'System is in *{}* mode'.format(status.mode),
-                         'color': colour,
-                         }
+        event_surveys = [pointing.survey for pointing in pointings
+                         if pointing.survey is not None and pointing.survey.event_id is not None]
+        if len(event_surveys) > 0:
+            event_counter = Counter(event_surveys)
+            msg += '{} pointings from {} event follow-up survey{}:\n'.format(
+                sum(event_counter.values()), len(event_counter),
+                's' if len(event_counter) != 1 else '')
+            for survey, count in event_counter.most_common():
+                stop_time = survey.mpointings[0].stop_time
+                msg += '- `{}` (_{} pointings_) - expires at {}\n'.format(
+                    survey.name, count, stop_time.strftime('%Y-%m-%d %H:%M:%S'))
+        else:
+            print('0 pointings from event follow-up surveys')
 
-        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
-        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
-        not_url = 'http://www.not.iac.es/weather/'
-        tng_url = 'https://tngweb.tng.iac.es/weather/'
-        links = ['<{}|Local enviroment page>'.format(env_url),
-                 '<{}|Mountain forecast>'.format(mf_url),
-                 '<{}|ING>'.format(ing_url),
-                 '<{}|NOT>'.format(not_url),
-                 '<{}|TNG>'.format(tng_url),
-                 ]
-        attach_links = {'fallback': 'Useful links',
-                        'text': '  -  '.join(links),
-                        'color': colour,
-                        }
+        none_surveys = ['None' for pointing in pointings
+                        if pointing.survey is None]
+        if len(none_surveys) > 0:
+            msg += '{} non-survey pointings\n'.format(len(none_surveys))
+        else:
+            print('0 non-survey pointings')
 
-        ts = '{:.0f}'.format(conditions.current_time.unix)
-        webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-        attach_webcm = {'fallback': 'External webcam view',
-                        'title': 'External webcam view',
-                        'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                        'text': 'Image attached:',
-                        'image_url': webcam_url,
-                        'color': colour,
-                        }
-
-        sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-        attach_irsat = {'fallback': 'IR satellite view',
-                        'title': 'IR satellite view',
-                        'title_link': 'https://en.sat24.com/en/ce/infraPolair',
-                        'text': 'Image attached:',
-                        'image_url': sat_url,
-                        'color': colour,
-                        }
-
-        attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
-        send_slack_msg(msg, attachments=attachments)
+    send_slack_msg(msg)
 
 
 def run(test=False, restart=False, late=False):
