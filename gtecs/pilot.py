@@ -1306,44 +1306,74 @@ def send_startup_report():
         pointings = session.query(db.Pointing).filter(db.Pointing.status == 'pending').all()
         msg = '*There are {} pending pointings in the database*\n'.format(len(pointings))
 
-        survey_surveys = [pointing.survey for pointing in pointings
-                          if pointing.survey is not None and pointing.survey.event_id is None]
-        if len(survey_surveys) > 0:
-            survey_counter = Counter(survey_surveys)
-            msg += '{} pointings from {} sky survey{}:\n'.format(
-                sum(survey_counter.values()), len(survey_counter),
-                's' if len(survey_counter) != 1 else '')
+        # Pending pointings that are associated with a non-event survey
+        surveys = [pointing.survey for pointing in pointings
+                   if pointing.survey is not None and pointing.survey.event_id is None]
+        if len(surveys) > 0:
+            # Print number of pointings and surveys
+            survey_counter = Counter(surveys)
+            msg += '{} pointing{} from {} sky survey{}:\n'.format(
+                len(surveys), 's' if len(surveys) != 1 else '',
+                len(survey_counter), 's' if len(survey_counter) != 1 else '')
+            # Print info for all surveys
             for survey, count in survey_counter.most_common():
-                msg += '- `{}` (_{} pointing{}_)\n'.format(
-                    survey.name, count, 's' if count != 1 else '')
+                msg += '- `{}`'.format(survey.name)
+                msg += ' (_'
+                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                survey_pointings = [pointing for pointing in pointings
+                                    if pointing.survey == survey]
+                ranks = sorted(set([p.rank for p in survey_pointings]))
+                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                msg += '_)\n'
         else:
             print('0 pointings from sky surveys')
 
-        event_surveys = [pointing.survey for pointing in pointings
-                         if pointing.survey is not None and pointing.survey.event_id is not None]
-        if len(event_surveys) > 0:
-            event_counter = Counter(event_surveys)
-            msg += '{} pointings from {} event follow-up survey{}:\n'.format(
-                sum(event_counter.values()), len(event_counter),
-                's' if len(event_counter) != 1 else '')
-            for survey, count in event_counter.most_common():
+        # Pending pointings that are associated with an event survey
+        surveys = [pointing.survey for pointing in pointings
+                   if pointing.survey is not None and pointing.survey.event_id is not None]
+        if len(surveys) > 0:
+            # Print number of pointings and surveys
+            survey_counter = Counter(surveys)
+            msg += '{} pointing{} from {} event follow-up survey{}:\n'.format(
+                len(surveys), 's' if len(surveys) != 1 else '',
+                len(survey_counter), 's' if len(survey_counter) != 1 else '')
+            # Print info for all surveys
+            for survey, count in survey_counter.most_common():
+                msg += '- `{}`'.format(survey.name)
+                msg += ' (_'
+                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                survey_pointings = [pointing for pointing in pointings
+                                    if pointing.survey == survey]
+                ranks = sorted(set([p.rank for p in survey_pointings]))
+                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                msg += '_)'
                 stop_time = survey.mpointings[0].stop_time
-                msg += '- `{}` (_{} pointing{}_) - expires at {}\n'.format(
-                    survey.name, count, 's' if count != 1 else '',
-                    stop_time.strftime('%Y-%m-%d %H:%M:%S'))
+                if stop_time is not None:
+                    stop_time = Time(stop_time, format='datetime')
+                    expire_time = (stop_time - Time.now())
+                    msg += ' - expires in {:.1f} hours\n'.format(expire_time.to(u.hour).value)
         else:
             print('0 pointings from event follow-up surveys')
 
-        none_objects = [pointing.object_name for pointing in pointings
-                        if pointing.survey is None]
-        if len(none_objects) > 0:
-            none_counter = Counter(none_objects)
-            msg += '{} non-survey pointings of {} object{}:\n'.format(
-                sum(none_counter.values()), len(none_counter),
-                's' if len(none_counter) != 1 else '')
-            for name, count in none_counter.most_common():
-                msg += '- `{}` (_{} pointing{}_)\n'.format(
-                    name, count, 's' if count != 1 else '')
+        # Remaining pending pointings
+        objects = [pointing.object_name for pointing in pointings
+                   if pointing.survey is None]
+        if len(objects) > 0:
+            # Print number of pointings and objects
+            objects_counter = Counter(objects)
+            msg += '{} non-survey pointing{} of {} object{}:\n'.format(
+                len(objects), 's' if len(objects) != 1 else '',
+                len(objects_counter), 's' if len(objects_counter) != 1 else '')
+            # Print info for all objects
+            for object, count in objects_counter.most_common():
+                msg += '- `{}`'.format(object)
+                msg += ' (_'
+                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                object_pointings = [pointing for pointing in pointings
+                                    if pointing.object_name == object]
+                ranks = sorted(set([p.rank for p in object_pointings]))
+                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                msg += '_)\n'
         else:
             print('0 non-survey pointings')
 
