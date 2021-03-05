@@ -1326,7 +1326,7 @@ def send_startup_report():
                 msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
                 msg += '_)\n'
         else:
-            print('0 pointings from sky surveys')
+            msg += '0 pointings from sky surveys\n'
 
         # Pending pointings that are associated with an event survey
         surveys = [pointing.survey for pointing in pointings
@@ -1353,7 +1353,7 @@ def send_startup_report():
                     expire_time = (stop_time - Time.now())
                     msg += ' - expires in {:.1f} hours\n'.format(expire_time.to(u.hour).value)
         else:
-            print('0 pointings from event follow-up surveys')
+            msg += '0 pointings from event follow-up surveys\n'
 
         # Remaining pending pointings
         objects = [pointing.object_name for pointing in pointings
@@ -1375,7 +1375,7 @@ def send_startup_report():
                 msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
                 msg += '_)\n'
         else:
-            print('0 non-survey pointings')
+            msg += '0 non-survey pointings\n'
 
     send_slack_msg(msg)
 
