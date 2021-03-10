@@ -1347,11 +1347,11 @@ def send_startup_report():
                 ranks = sorted(set([p.rank for p in survey_pointings]))
                 msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
                 msg += '_)'
-                stop_time = survey.mpointings[0].stop_time
-                if stop_time is not None:
-                    stop_time = Time(stop_time, format='datetime')
-                    expire_time = (stop_time - Time.now())
-                    msg += ' - expires in {:.1f} hours\n'.format(expire_time.to(u.hour).value)
+                start_time = survey.mpointings[0].start_time
+                if start_time is not None:
+                    start_time = Time(start_time, format='datetime')
+                    event_age = (Time.now() - start_time)
+                    msg += ' - {:.1f} hours since event\n'.format(event_age.to(u.hour).value)
         else:
             msg += '0 pointings from event follow-up surveys\n'
 
