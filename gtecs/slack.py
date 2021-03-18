@@ -464,8 +464,9 @@ def send_observation_report(date=None, alt_limit=30, sun_limit=-12, slack_channe
             # Send message to Slack with the plot attached
             send_slack_msg(msg, filepath=filepath, channel=slack_channel)
         else:
-            send_slack_msg('No all-sky survey tiles were observed last night')
+            send_slack_msg('No all-sky survey tiles were observed last night',
+                           channel=slack_channel)
     else:
-        send_slack_msg('No tiles were observed last night')
+        send_slack_msg('No tiles were observed last night', channel=slack_channel)
 
     return n_obs, n_obs_allsky
