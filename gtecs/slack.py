@@ -2,7 +2,6 @@
 
 import datetime
 import os
-import time
 from collections import Counter
 
 import astropy.units as u
@@ -77,117 +76,108 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=params.SLACK_B
         print('Filepath:', filepath)
 
 
-def send_startup_report():
-    """Send a Slack message with a summery of the current conditions and pending pointings."""
-    msg = '*Pilot reports startup complete*'
+def send_status_report(msg, colour=None, startup=True):
+    """Send a Slack message with the current conditions, status and webcams."""
+    attachments = []
+
+    # Conditions summary
     conditions = Conditions()
     conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
                                                          bad=':exclamation:')
     if conditions.bad:
-        msg2 = ':warning: Conditions are bad! :warning:'
-        colour = 'danger'
+        conditions_status = ':warning: Conditions are bad! :warning:'
+        if colour is None:
+            colour = 'danger'
     else:
-        msg2 = 'Conditions are good'
-        colour = 'good'
-    attach_conds = {'fallback': 'Conditions summary',
-                    'title': msg2,
-                    'text': conditions_summary,
-                    'color': colour,
-                    'ts': conditions.current_time.unix,
-                    }
+        conditions_status = 'Conditions are good'
+        if colour is None:
+            colour = 'good'
+    attach = {'fallback': 'Conditions summary',
+              'title': conditions_status,
+              'text': conditions_summary,
+              'color': colour,
+              'ts': conditions.current_time.unix,
+              }
+    attachments.append(attach)
 
+    # System status
     status = Status()
-    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                     'text': 'System is in *{}* mode'.format(status.mode),
-                     'color': colour,
-                     }
+    attach = {'fallback': 'System mode: {}'.format(status.mode),
+              'text': 'System is in *{}* mode'.format(status.mode),
+              'color': colour,
+              }
+    attachments.append(attach)
 
-    env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
-    mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-    ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
-    not_url = 'http://www.not.iac.es/weather/'
-    tng_url = 'https://tngweb.tng.iac.es/weather/'
-    links = ['<{}|Local enviroment page>'.format(env_url),
-             '<{}|Mountain forecast>'.format(mf_url),
-             '<{}|ING>'.format(ing_url),
-             '<{}|NOT>'.format(not_url),
-             '<{}|TNG>'.format(tng_url),
-             ]
-    attach_links = {'fallback': 'Useful links',
-                    'text': '  -  '.join(links),
-                    'color': colour,
-                    }
+    if startup:
+        # Useful links
+        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
+        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
+        not_url = 'http://www.not.iac.es/weather/'
+        tng_url = 'https://tngweb.tng.iac.es/weather/'
+        links = ['<{}|Local enviroment page>'.format(env_url),
+                 '<{}|Mountain forecast>'.format(mf_url),
+                 '<{}|ING>'.format(ing_url),
+                 '<{}|NOT>'.format(not_url),
+                 '<{}|TNG>'.format(tng_url),
+                 ]
+        attach = {'fallback': 'Useful links',
+                  'text': '  -  '.join(links),
+                  'color': colour,
+                  }
+        attachments.append(attach)
 
-    ts = '{:.0f}'.format(conditions.current_time.unix)
-    webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-    attach_webcm = {'fallback': 'External webcam view',
-                    'title': 'External webcam view',
-                    'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                    'text': 'Image attached:',
-                    'image_url': webcam_url,
-                    'color': colour,
-                    }
+    # External webcam
+    ts = '{:.0f}'.format(Time.now().unix)
+    image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+    attach = {'fallback': 'External webcam view',
+              'title': 'External webcam view',
+              'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+              'text': 'Image attached:',
+              'image_url': image_url,
+              'color': colour,
+              }
+    attachments.append(attach)
 
-    sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-    attach_irsat = {'fallback': 'IR satellite view',
-                    'title': 'IR satellite view',
-                    'title_link': 'https://en.sat24.com/en/ce/infraPolair',
-                    'text': 'Image attached:',
-                    'image_url': sat_url,
-                    'color': colour,
-                    }
+    if startup:
+        # IR satellite
+        image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
+        attach = {'fallback': 'IR satellite view',
+                  'title': 'IR satellite view',
+                  'title_link': 'https://en.sat24.com/en/ce/infraPolair',
+                  'text': 'Image attached:',
+                  'image_url': image_url,
+                  'color': colour,
+                  }
+        attachments.append(attach)
+    else:
+        # Internal webcam
+        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
+        attach = {'fallback': 'Internal webcam view',
+                  'title': 'Internal webcam view',
+                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
+                  'text': 'Image attached:',
+                  'image_url': image_url,
+                  'color': colour,
+                  }
+        attachments.append(attach)
 
-    attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
     send_slack_msg(msg, attachments=attachments)
 
 
+def send_startup_report(msg):
+    """Send a Slack message in the evening before observing starts."""
+    send_status_report(msg=msg, startup=True)
+
+
 def send_dome_report(msg, confirmed_closed):
-    """Send Slack message with webcams attached."""
+    """Send a Slack message in the morning once observing is complete."""
+    # Set message colour depending on the dome status
     if confirmed_closed:
         colour = 'good'
     else:
         colour = 'danger'
-
-    conditions = Conditions()
-    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                         bad=':exclamation:')
-    if conditions.bad:
-        msg2 = ':warning: Conditions are bad! :warning:'
-    else:
-        msg2 = 'Conditions are good'
-    attach_conds = {'fallback': 'Conditions summary',
-                    'title': msg2,
-                    'text': conditions_summary,
-                    'color': colour,
-                    'ts': conditions.current_time.unix,
-                    }
-
-    status = Status()
-    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                     'text': 'System is in *{}* mode'.format(status.mode),
-                     'color': colour,
-                     }
-
-    ts = '{:.0f}'.format(time.time())
-    ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-    attach_ext = {'fallback': 'External webcam view',
-                  'title': 'External webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                  'text': 'Image attached:',
-                  'image_url': ext_url,
-                  'color': colour,
-                  }
-    int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
-    attach_int = {'fallback': 'Internal webcam view',
-                  'title': 'Internal webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
-                  'text': 'Image attached:',
-                  'image_url': int_url,
-                  'color': colour,
-                  }
-
-    attachments = [attach_conds, attach_status, attach_ext, attach_int]
-    send_slack_msg(msg, attachments=attachments)
+    send_status_report(msg=msg, colour=colour, startup=False)
 
 
 def send_database_report():
