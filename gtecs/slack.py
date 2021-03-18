@@ -1,6 +1,7 @@
 """Slack messaging tools."""
 
 import datetime
+import math
 import os
 from collections import Counter
 
@@ -12,7 +13,7 @@ import slack
 import obsdb as db
 
 from . import params
-from .astronomy import night_startdate, observatory_location
+from .astronomy import night_startdate, observatory_location, sunalt_time
 from .flags import Conditions, Status
 
 
@@ -183,6 +184,54 @@ def send_dome_report(msg, confirmed_closed, slack_channel=None):
     send_status_report(msg=msg, colour=colour, startup=False, slack_channel=slack_channel)
 
 
+def send_timing_report(date=None,
+                       startup_sunalt=12,
+                       open_sunalt=0,
+                       obs_start_sunalt=-12,
+                       obs_stop_sunalt=None,
+                       close_sunalt=None,
+                       slack_channel=None,
+                       ):
+    """Send a Slack message containing tonight's observing times."""
+    if date is None:
+        date = night_startdate()
+    if obs_stop_sunalt is None:
+        obs_stop_sunalt = obs_start_sunalt
+    if close_sunalt is None:
+        close_sunalt = open_sunalt
+
+    startup_time = sunalt_time(date, startup_sunalt * u.deg, eve=True)
+    open_time = sunalt_time(date, open_sunalt * u.deg, eve=True)
+    obsstart_time = sunalt_time(date, obs_start_sunalt * u.deg, eve=True)
+    obsstop_time = sunalt_time(date, obs_stop_sunalt * u.deg, eve=False)
+    close_time = sunalt_time(date, close_sunalt * u.deg, eve=False)
+    obs_time = obsstop_time - obsstart_time
+    obs_hour = math.floor(obs_time.to(u.hour).value)
+    obs_min = (obs_time.to(u.hour).value - obs_hour) * 60
+
+    msg = '*Night starting {}*\n'.format(date)
+    msg += 'Expected observing time: {:.0f}h {:.0f}m'.format(obs_hour, obs_min)
+
+    attachments = []
+    text = ''
+    text += startup_time.strftime('%Y-%m-%d %H:%M UTC')
+    text += ': Pilot startup (_sunalt={}°_)\n'.format(startup_sunalt)
+    text += open_time.strftime('%Y-%m-%d %H:%M UTC')
+    text += ': Dome open (_sunalt={}°_)\n'.format(open_sunalt)
+    text += obsstart_time.strftime('%Y-%m-%d %H:%M UTC')
+    text += ': Observing start (_sunalt={}°_)\n'.format(obs_start_sunalt)
+    text += obsstop_time.strftime('%Y-%m-%d %H:%M UTC')
+    text += ': Observing finish (_sunalt={}°_)\n'.format(obs_stop_sunalt)
+    text += close_time.strftime('%Y-%m-%d %H:%M UTC')
+    text += ': Dome closed (_sunalt={}°_)\n'.format(close_sunalt)
+    attach = {'fallback': text,
+              'text': text,
+              }
+    attachments.append(attach)
+
+    send_slack_msg(msg, attachments=attachments, channel=slack_channel)
+
+
 def send_database_report(slack_channel=None):
     """Send a Slack message containing the pending pointings in the database."""
     attachments = []
@@ -284,7 +333,7 @@ def send_database_report(slack_channel=None):
 
 
 def send_observation_report(date=None, alt_limit=30, sun_limit=-12, slack_channel=None):
-    """Send Slack message with observation plots attached."""
+    """Send a Slack message containing last night's observation plots."""
     if date is None:
         date = night_startdate()
 
