@@ -182,10 +182,10 @@ def send_dome_report(msg, confirmed_closed):
 
 def send_database_report():
     """Send a Slack message containing the pending pointings in the database."""
-    # Report on pending pointings
+    attachments = []
     with db.open_session() as session:
         pointings = session.query(db.Pointing).filter(db.Pointing.status == 'pending').all()
-        msg = '*There are {} pending pointings in the database*\n'.format(len(pointings))
+        msg = '*There are {} pending pointings in the database*'.format(len(pointings))
 
         # Pending pointings that are associated with a non-event survey
         surveys = [pointing.survey for pointing in pointings
@@ -193,21 +193,27 @@ def send_database_report():
         if len(surveys) > 0:
             # Print number of pointings and surveys
             survey_counter = Counter(surveys)
-            msg += '{} pointing{} from {} sky survey{}:\n'.format(
+            title = '{} pointing{} from {} sky survey{}:'.format(
                 len(surveys), 's' if len(surveys) != 1 else '',
                 len(survey_counter), 's' if len(survey_counter) != 1 else '')
             # Print info for all surveys
+            text = '\n'
             for survey, count in survey_counter.most_common():
-                msg += '- `{}`'.format(survey.name)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                text += '- `{}`'.format(survey.name)
+                text += ' (_'
+                text += '{} pointing{}'.format(count, 's' if count != 1 else '')
                 survey_pointings = [pointing for pointing in pointings
                                     if pointing.survey == survey]
                 ranks = sorted(set([p.rank for p in survey_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)\n'
+                text += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                text += '_)\n'
         else:
-            msg += '0 pointings from sky surveys\n'
+            title = '0 pointings from sky surveys'
+            text = ''
+        attach = {'fallback': title,
+                  'text': title + text,
+                  }
+        attachments.append(attach)
 
         # Pending pointings that are associated with an event survey
         surveys = [pointing.survey for pointing in pointings
@@ -215,26 +221,33 @@ def send_database_report():
         if len(surveys) > 0:
             # Print number of pointings and surveys
             survey_counter = Counter(surveys)
-            msg += '{} pointing{} from {} event follow-up survey{}:\n'.format(
+            title = '{} pointing{} from {} event follow-up survey{}:'.format(
                 len(surveys), 's' if len(surveys) != 1 else '',
                 len(survey_counter), 's' if len(survey_counter) != 1 else '')
             # Print info for all surveys
+            text = '\n'
             for survey, count in survey_counter.most_common():
-                msg += '- `{}`'.format(survey.name)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                text += '- `{}`'.format(survey.name)
+                text += ' (_'
+                text += '{} pointing{}'.format(count, 's' if count != 1 else '')
                 survey_pointings = [pointing for pointing in pointings
                                     if pointing.survey == survey]
                 ranks = sorted(set([p.rank for p in survey_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)'
+                text += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                text += '_)'
                 start_time = survey.mpointings[0].start_time
                 if start_time is not None:
                     start_time = Time(start_time, format='datetime')
                     event_age = (Time.now() - start_time)
-                    msg += ' - {:.1f} hours since event\n'.format(event_age.to(u.hour).value)
+                    text += ' - {:.1f} hours since detection'.format(event_age.to(u.hour).value)
+                text += '\n'
         else:
-            msg += '0 pointings from event follow-up surveys\n'
+            title = '0 pointings from event follow-up surveys'
+            text = ''
+        attach = {'fallback': title,
+                  'text': title + text,
+                  }
+        attachments.append(attach)
 
         # Remaining pending pointings
         objects = [pointing.object_name for pointing in pointings
@@ -242,23 +255,29 @@ def send_database_report():
         if len(objects) > 0:
             # Print number of pointings and objects
             objects_counter = Counter(objects)
-            msg += '{} non-survey pointing{} of {} object{}:\n'.format(
+            title = '{} non-survey pointing{} of {} object{}:'.format(
                 len(objects), 's' if len(objects) != 1 else '',
                 len(objects_counter), 's' if len(objects_counter) != 1 else '')
             # Print info for all objects
+            text = '\n'
             for object, count in objects_counter.most_common():
-                msg += '- `{}`'.format(object)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
+                text += '- `{}`'.format(object)
+                text += ' (_'
+                text += '{} pointing{}'.format(count, 's' if count != 1 else '')
                 object_pointings = [pointing for pointing in pointings
                                     if pointing.object_name == object]
                 ranks = sorted(set([p.rank for p in object_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)\n'
+                text += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
+                text += '_)\n'
         else:
-            msg += '0 non-survey pointings\n'
+            title += '0 non-survey pointings'
+            text = ''
+        attach = {'fallback': title,
+                  'text': title + text,
+                  }
+        attachments.append(attach)
 
-    send_slack_msg(msg)
+    send_slack_msg(msg, attachments=attachments)
 
 
 def send_observation_report(date, alt_limit=30, sun_limit=-12):
