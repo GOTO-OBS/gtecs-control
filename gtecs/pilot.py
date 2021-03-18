@@ -5,7 +5,6 @@ import functools
 import os
 import sys
 import time
-from collections import Counter
 
 from astropy import units as u
 from astropy.time import Time
@@ -23,7 +22,7 @@ from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import check_schedule, get_pointing_status
-from .slack import send_slack_msg
+from .slack import send_slack_msg, send_startup_report
 
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
@@ -1236,148 +1235,6 @@ class Pilot(object):
         execute_command('mnt park')
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
-
-
-def send_startup_report():
-    """Send a Slack message with a summery of the current conditions and pending pointings."""
-    msg = '*Pilot reports startup complete*'
-    conditions = Conditions()
-    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                         bad=':exclamation:')
-    if conditions.bad:
-        msg2 = ':warning: Conditions are bad! :warning:'
-        colour = 'danger'
-    else:
-        msg2 = 'Conditions are good'
-        colour = 'good'
-    attach_conds = {'fallback': 'Conditions summary',
-                    'title': msg2,
-                    'text': conditions_summary,
-                    'color': colour,
-                    'ts': conditions.current_time.unix,
-                    }
-
-    status = Status()
-    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                     'text': 'System is in *{}* mode'.format(status.mode),
-                     'color': colour,
-                     }
-
-    env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
-    mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-    ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
-    not_url = 'http://www.not.iac.es/weather/'
-    tng_url = 'https://tngweb.tng.iac.es/weather/'
-    links = ['<{}|Local enviroment page>'.format(env_url),
-             '<{}|Mountain forecast>'.format(mf_url),
-             '<{}|ING>'.format(ing_url),
-             '<{}|NOT>'.format(not_url),
-             '<{}|TNG>'.format(tng_url),
-             ]
-    attach_links = {'fallback': 'Useful links',
-                    'text': '  -  '.join(links),
-                    'color': colour,
-                    }
-
-    ts = '{:.0f}'.format(conditions.current_time.unix)
-    webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-    attach_webcm = {'fallback': 'External webcam view',
-                    'title': 'External webcam view',
-                    'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                    'text': 'Image attached:',
-                    'image_url': webcam_url,
-                    'color': colour,
-                    }
-
-    sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-    attach_irsat = {'fallback': 'IR satellite view',
-                    'title': 'IR satellite view',
-                    'title_link': 'https://en.sat24.com/en/ce/infraPolair',
-                    'text': 'Image attached:',
-                    'image_url': sat_url,
-                    'color': colour,
-                    }
-
-    attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
-    send_slack_msg(msg, attachments=attachments)
-
-    # Report on pending pointings
-    with db.open_session() as session:
-        pointings = session.query(db.Pointing).filter(db.Pointing.status == 'pending').all()
-        msg = '*There are {} pending pointings in the database*\n'.format(len(pointings))
-
-        # Pending pointings that are associated with a non-event survey
-        surveys = [pointing.survey for pointing in pointings
-                   if pointing.survey is not None and pointing.survey.event_id is None]
-        if len(surveys) > 0:
-            # Print number of pointings and surveys
-            survey_counter = Counter(surveys)
-            msg += '{} pointing{} from {} sky survey{}:\n'.format(
-                len(surveys), 's' if len(surveys) != 1 else '',
-                len(survey_counter), 's' if len(survey_counter) != 1 else '')
-            # Print info for all surveys
-            for survey, count in survey_counter.most_common():
-                msg += '- `{}`'.format(survey.name)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
-                survey_pointings = [pointing for pointing in pointings
-                                    if pointing.survey == survey]
-                ranks = sorted(set([p.rank for p in survey_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)\n'
-        else:
-            msg += '0 pointings from sky surveys\n'
-
-        # Pending pointings that are associated with an event survey
-        surveys = [pointing.survey for pointing in pointings
-                   if pointing.survey is not None and pointing.survey.event_id is not None]
-        if len(surveys) > 0:
-            # Print number of pointings and surveys
-            survey_counter = Counter(surveys)
-            msg += '{} pointing{} from {} event follow-up survey{}:\n'.format(
-                len(surveys), 's' if len(surveys) != 1 else '',
-                len(survey_counter), 's' if len(survey_counter) != 1 else '')
-            # Print info for all surveys
-            for survey, count in survey_counter.most_common():
-                msg += '- `{}`'.format(survey.name)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
-                survey_pointings = [pointing for pointing in pointings
-                                    if pointing.survey == survey]
-                ranks = sorted(set([p.rank for p in survey_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)'
-                start_time = survey.mpointings[0].start_time
-                if start_time is not None:
-                    start_time = Time(start_time, format='datetime')
-                    event_age = (Time.now() - start_time)
-                    msg += ' - {:.1f} hours since event\n'.format(event_age.to(u.hour).value)
-        else:
-            msg += '0 pointings from event follow-up surveys\n'
-
-        # Remaining pending pointings
-        objects = [pointing.object_name for pointing in pointings
-                   if pointing.survey is None]
-        if len(objects) > 0:
-            # Print number of pointings and objects
-            objects_counter = Counter(objects)
-            msg += '{} non-survey pointing{} of {} object{}:\n'.format(
-                len(objects), 's' if len(objects) != 1 else '',
-                len(objects_counter), 's' if len(objects_counter) != 1 else '')
-            # Print info for all objects
-            for object, count in objects_counter.most_common():
-                msg += '- `{}`'.format(object)
-                msg += ' (_'
-                msg += '{} pointing{}'.format(count, 's' if count != 1 else '')
-                object_pointings = [pointing for pointing in pointings
-                                    if pointing.object_name == object]
-                ranks = sorted(set([p.rank for p in object_pointings]))
-                msg += ', rank={}{}'.format(ranks[0], '+' if len(ranks) > 1 else '')
-                msg += '_)\n'
-        else:
-            msg += '0 non-survey pointings\n'
-
-    send_slack_msg(msg)
 
 
 def run(test=False, restart=False, late=False):
