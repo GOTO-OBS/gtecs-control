@@ -205,12 +205,10 @@ def send_timing_report(date=None,
     obsstart_time = sunalt_time(date, obs_start_sunalt * u.deg, eve=True)
     obsstop_time = sunalt_time(date, obs_stop_sunalt * u.deg, eve=False)
     close_time = sunalt_time(date, close_sunalt * u.deg, eve=False)
-    obs_time = obsstop_time - obsstart_time
-    obs_hour = math.floor(obs_time.to(u.hour).value)
-    obs_min = (obs_time.to(u.hour).value - obs_hour) * 60
+    obs_time = (obsstop_time - obsstart_time).to(u.hour).value
 
     msg = '*Night starting {}*\n'.format(date)
-    msg += 'Expected observing time: {:.0f}h {:.0f}m'.format(obs_hour, obs_min)
+    msg += 'Expecting {:.1f} hours of observing time'.format(obs_time)
 
     attachments = []
     text = ''
