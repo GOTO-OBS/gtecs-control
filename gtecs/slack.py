@@ -12,7 +12,7 @@ import slack
 import obsdb as db
 
 from . import params
-from .astronomy import observatory_location
+from .astronomy import night_startdate, observatory_location
 from .flags import Conditions, Status
 
 
@@ -280,8 +280,11 @@ def send_database_report():
     send_slack_msg(msg, attachments=attachments)
 
 
-def send_observation_report(date, alt_limit=30, sun_limit=-12):
+def send_observation_report(date=None, alt_limit=30, sun_limit=-12):
     """Send Slack message with observation plots attached."""
+    if date is None:
+        date = night_startdate()
+
     plot_direc = os.path.join(params.FILE_PATH, 'plots')
     if not os.path.exists(plot_direc):
         os.mkdir(plot_direc)
@@ -354,6 +357,9 @@ def send_observation_report(date, alt_limit=30, sun_limit=-12):
 
     # Make a plot of last night's observations (assuming we observed anything)
     if n_obs > 0:
+        msg = 'Last night coverage plot'
+
+        # Create plot
         title = 'GOTO observations for\nnight beginning {}'.format(date)
         filepath = os.path.join(plot_direc, '{}_observed.png'.format(date))
         grid.plot(filename=filepath,
@@ -364,10 +370,12 @@ def send_observation_report(date, alt_limit=30, sun_limit=-12):
                   title=title)
 
         # Send message to Slack with the plot attached
-        send_slack_msg('Last night coverage plot', filepath=filepath)
+        send_slack_msg(msg, filepath=filepath)
 
         # Create plot of all-sky survey coverage (assuming we observed any new ones)
         if n_obs_allsky > 0:
+            msg = 'All-sky survey coverage plot'
+
             with db.open_session() as session:
                 # Get the current survey from the database
                 db_grid = db.get_current_grid(session)
@@ -402,6 +410,10 @@ def send_observation_report(date, alt_limit=30, sun_limit=-12):
                       title=title)
 
             # Send message to Slack with the plot attached
-            send_slack_msg('All-sky survey coverage plot', filepath=filepath)
+            send_slack_msg(msg, filepath=filepath)
+        else:
+            send_slack_msg('No all-sky survey tiles were observed last night')
+    else:
+        send_slack_msg('No tiles were observed last night')
 
     return n_obs, n_obs_allsky
