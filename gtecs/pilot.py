@@ -22,7 +22,7 @@ from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import check_schedule, get_pointing_status
-from .slack import send_slack_msg, send_startup_report
+from .slack import send_slack_msg, send_startup_report, send_database_report
 
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
@@ -1067,7 +1067,8 @@ class Pilot(object):
         self.startup_complete = True
 
         # send the startup report
-        send_startup_report()
+        send_startup_report(msg='*Pilot reports startup complete*')
+        send_database_report()
 
         self.log.debug('startup process complete')
 

@@ -140,6 +140,58 @@ def send_startup_report():
     attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
     send_slack_msg(msg, attachments=attachments)
 
+
+def send_dome_report(msg, confirmed_closed):
+    """Send Slack message with webcams attached."""
+    if confirmed_closed:
+        colour = 'good'
+    else:
+        colour = 'danger'
+
+    conditions = Conditions()
+    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                                         bad=':exclamation:')
+    if conditions.bad:
+        msg2 = ':warning: Conditions are bad! :warning:'
+    else:
+        msg2 = 'Conditions are good'
+    attach_conds = {'fallback': 'Conditions summary',
+                    'title': msg2,
+                    'text': conditions_summary,
+                    'color': colour,
+                    'ts': conditions.current_time.unix,
+                    }
+
+    status = Status()
+    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
+                     'text': 'System is in *{}* mode'.format(status.mode),
+                     'color': colour,
+                     }
+
+    ts = '{:.0f}'.format(time.time())
+    ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+    attach_ext = {'fallback': 'External webcam view',
+                  'title': 'External webcam view',
+                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                  'text': 'Image attached:',
+                  'image_url': ext_url,
+                  'color': colour,
+                  }
+    int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
+    attach_int = {'fallback': 'Internal webcam view',
+                  'title': 'Internal webcam view',
+                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
+                  'text': 'Image attached:',
+                  'image_url': int_url,
+                  'color': colour,
+                  }
+
+    attachments = [attach_conds, attach_status, attach_ext, attach_int]
+    send_slack_msg(msg, attachments=attachments)
+
+
+def send_database_report():
+    """Send a Slack message containing the pending pointings in the database."""
     # Report on pending pointings
     with db.open_session() as session:
         pointings = session.query(db.Pointing).filter(db.Pointing.status == 'pending').all()
@@ -217,55 +269,6 @@ def send_startup_report():
             msg += '0 non-survey pointings\n'
 
     send_slack_msg(msg)
-
-
-def send_dome_report(msg, confirmed_closed):
-    """Send Slack message with webcams attached."""
-    if confirmed_closed:
-        colour = 'good'
-    else:
-        colour = 'danger'
-
-    conditions = Conditions()
-    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                         bad=':exclamation:')
-    if conditions.bad:
-        msg2 = ':warning: Conditions are bad! :warning:'
-    else:
-        msg2 = 'Conditions are good'
-    attach_conds = {'fallback': 'Conditions summary',
-                    'title': msg2,
-                    'text': conditions_summary,
-                    'color': colour,
-                    'ts': conditions.current_time.unix,
-                    }
-
-    status = Status()
-    attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                     'text': 'System is in *{}* mode'.format(status.mode),
-                     'color': colour,
-                     }
-
-    ts = '{:.0f}'.format(time.time())
-    ext_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-    attach_ext = {'fallback': 'External webcam view',
-                  'title': 'External webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                  'text': 'Image attached:',
-                  'image_url': ext_url,
-                  'color': colour,
-                  }
-    int_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
-    attach_int = {'fallback': 'Internal webcam view',
-                  'title': 'Internal webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
-                  'text': 'Image attached:',
-                  'image_url': int_url,
-                  'color': colour,
-                  }
-
-    attachments = [attach_conds, attach_status, attach_ext, attach_int]
-    send_slack_msg(msg, attachments=attachments)
 
 
 def send_observation_report(date, alt_limit=30, sun_limit=-12):
