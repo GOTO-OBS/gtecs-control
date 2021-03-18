@@ -208,7 +208,7 @@ def send_timing_report(date=None,
     obs_time = (obsstop_time - obsstart_time).to(u.hour).value
 
     msg = '*Night starting {}*\n'.format(date)
-    msg += 'Expecting {:.1f} hours of observing time'.format(obs_time)
+    msg += 'Expected observing duration: {:.1f} hours'.format(obs_time)
 
     attachments = []
     text = ''
