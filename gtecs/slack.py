@@ -16,7 +16,7 @@ from .astronomy import night_startdate, observatory_location
 from .flags import Conditions, Status
 
 
-def send_slack_msg(text, attachments=None, filepath=None, channel=params.SLACK_BOT_CHANNEL):
+def send_slack_msg(text, attachments=None, filepath=None, channel=None):
     """Send a message to Slack, using the settings defined in `gtecs.params`.
 
     Parameters
@@ -34,9 +34,12 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=params.SLACK_B
 
     channel : string, optional
         The channel to post the message to.
-        Defaults to `gtecs.params.SLACK_BOT_CHANNEL`.
+        If None, defaults to `gtecs.params.SLACK_BOT_CHANNEL`.
 
     """
+    if channel is None:
+        channel = params.SLACK_BOT_CHANNEL
+
     text = str(text)
     if attachments is not None and filepath is not None:
         raise ValueError("A Slack message can't have both attachments and a file.")
@@ -76,7 +79,7 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=params.SLACK_B
         print('Filepath:', filepath)
 
 
-def send_status_report(msg, colour=None, startup=True):
+def send_status_report(msg, colour=None, startup=True, slack_channel=None):
     """Send a Slack message with the current conditions, status and webcams."""
     attachments = []
 
@@ -162,25 +165,25 @@ def send_status_report(msg, colour=None, startup=True):
                   }
         attachments.append(attach)
 
-    send_slack_msg(msg, attachments=attachments)
+    send_slack_msg(msg, attachments=attachments, channel=slack_channel)
 
 
-def send_startup_report(msg):
+def send_startup_report(msg, slack_channel=None):
     """Send a Slack message in the evening before observing starts."""
-    send_status_report(msg=msg, startup=True)
+    send_status_report(msg=msg, startup=True, slack_channel=slack_channel)
 
 
-def send_dome_report(msg, confirmed_closed):
+def send_dome_report(msg, confirmed_closed, slack_channel=None):
     """Send a Slack message in the morning once observing is complete."""
     # Set message colour depending on the dome status
     if confirmed_closed:
         colour = 'good'
     else:
         colour = 'danger'
-    send_status_report(msg=msg, colour=colour, startup=False)
+    send_status_report(msg=msg, colour=colour, startup=False, slack_channel=slack_channel)
 
 
-def send_database_report():
+def send_database_report(slack_channel=None):
     """Send a Slack message containing the pending pointings in the database."""
     attachments = []
     with db.open_session() as session:
@@ -277,10 +280,10 @@ def send_database_report():
                   }
         attachments.append(attach)
 
-    send_slack_msg(msg, attachments=attachments)
+    send_slack_msg(msg, attachments=attachments, channel=slack_channel)
 
 
-def send_observation_report(date=None, alt_limit=30, sun_limit=-12):
+def send_observation_report(date=None, alt_limit=30, sun_limit=-12, slack_channel=None):
     """Send Slack message with observation plots attached."""
     if date is None:
         date = night_startdate()
@@ -370,7 +373,7 @@ def send_observation_report(date=None, alt_limit=30, sun_limit=-12):
                   title=title)
 
         # Send message to Slack with the plot attached
-        send_slack_msg(msg, filepath=filepath)
+        send_slack_msg(msg, filepath=filepath, channel=slack_channel)
 
         # Create plot of all-sky survey coverage (assuming we observed any new ones)
         if n_obs_allsky > 0:
@@ -410,7 +413,7 @@ def send_observation_report(date=None, alt_limit=30, sun_limit=-12):
                       title=title)
 
             # Send message to Slack with the plot attached
-            send_slack_msg(msg, filepath=filepath)
+            send_slack_msg(msg, filepath=filepath, channel=slack_channel)
         else:
             send_slack_msg('No all-sky survey tiles were observed last night')
     else:
