@@ -45,6 +45,12 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=None):
     if attachments is not None and filepath is not None:
         raise ValueError("A Slack message can't have both attachments and a file.")
 
+    # Slack doesn't format attachments with markdown automatically
+    if attachments:
+        for attachment in attachments:
+            if 'mrkdwn_in' not in attachment:
+                attachment['mrkdwn_in'] = ['text']
+
     if params.ENABLE_SLACK:
         client = slack.WebClient(params.SLACK_BOT_TOKEN)
         try:
