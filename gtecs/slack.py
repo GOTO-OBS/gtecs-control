@@ -18,7 +18,7 @@ from .astronomy import night_startdate, observatory_location, sunalt_time
 from .flags import Conditions, Status
 
 
-def send_slack_msg(text, attachments=None, filepath=None, channel=None):
+def send_slack_msg(text, attachments=None, blocks=None, filepath=None, channel=None):
     """Send a message to Slack, using the settings defined in `gtecs.params`.
 
     Parameters
@@ -26,13 +26,17 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=None):
     text : string
         The message text.
 
+    blocks : dict, optional
+        Formatting blocks for the the message.
+        NB a message can have blocks/attachments OR a file, not both.
+
     attachments : dict, optional
-        Attachments to the message.
-        NB a message can have attachments OR a file, not both.
+        Attachments to the message (technically deprecated).
+        NB a message can have attachments/blocks OR a file, not both.
 
     filepath : string, optional
         A local path to a file to be added to the message.
-        NB a message can have a file OR attachments, not both.
+        NB a message can have a file OR attachments/blocks, not both.
 
     channel : string, optional
         The channel to post the message to.
@@ -42,8 +46,8 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=None):
     if channel is None:
         channel = params.SLACK_DEFAULT_CHANNEL
 
-    if attachments is not None and filepath is not None:
-        raise ValueError("A Slack message can't have both attachments and a file.")
+    if (attachments is not None or blocks is not None) and filepath is not None:
+        raise ValueError("A Slack message can't have both blocks and a file.")
 
     # Slack doesn't format attachments with markdown automatically
     if attachments:
@@ -60,6 +64,7 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=None):
                            'as_user': True,
                            'text': str(text),
                            'attachments': json.dumps(attachments) if attachments else None,
+                           'blocks': json.dumps(blocks) if blocks else None,
                            }
                 responce = requests.post(url, payload).json()
             else:
@@ -84,11 +89,138 @@ def send_slack_msg(text, attachments=None, filepath=None, channel=None):
             print('Connection to Slack failed! - {}'.format(err))
             print('Message:', text)
             print('Attachments:', attachments)
+            print('Blocks:', blocks)
             print('Filepath:', filepath)
     else:
         print('Slack Message:', text)
         print('Attachments:', attachments)
+        print('Blocks:', blocks)
         print('Filepath:', filepath)
+
+
+def send_conditions_report(slack_channel=None):
+    """Send a Slack message with the current conditions, status and webcams."""
+    blocks = []
+    attachments = []
+
+    # Conditions summary
+    conditions = Conditions()
+    if conditions.bad:
+        conditions_status = ':warning: Conditions are bad! :warning:'
+    else:
+        conditions_status = 'Conditions are good'
+    text = '*La Palma conditions report*\n' + conditions_status
+    block = {'type': 'section',
+             'text': {'text': text, 'type': 'mrkdwn'},
+             }
+    blocks.append(block)
+
+    # Conditions flags
+    text = conditions.get_formatted_string(good=':heavy_check_mark:',
+                                           bad=':exclamation:')
+    block = {'type': 'section',
+             'text': {'text': text, 'type': 'mrkdwn'},
+             }
+    blocks.append(block)
+
+    # Conditions timestamp
+    ts = conditions.current_time.unix
+    text = '<!date^{0}^Last updated {{date_num}} {{time_secs}}|{0}>'.format(int(ts))
+    block = {'type': 'context',
+             'elements': [{'text': text, 'type': 'mrkdwn'}],
+             }
+    blocks.append(block)
+    # blocks.append({'type': 'divider'})
+
+    # System status
+    status = Status()
+    if status.mode == 'robotic':
+        text = ':robot_face: System is in robotic mode'
+    elif status.mode == 'manual':
+        text = ':technologist: System is in *manual* mode'
+    elif status.mode == 'engineering':
+        text = ':mechanic: System is in *engineering* mode'
+    block = {'type': 'section',
+             'text': {'text': text, 'type': 'mrkdwn'},
+             }
+    blocks.append(block)
+    # blocks.append({'type': 'divider'})
+
+    # Useful links
+    env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
+    mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
+    ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
+    not_url = 'http://www.not.iac.es/weather/'
+    tng_url = 'https://tngweb.tng.iac.es/weather/'
+    links = ['<{}|Local enviroment page>'.format(env_url),
+             '<{}|Mountain forecast>'.format(mf_url),
+             '<{}|ING>'.format(ing_url),
+             '<{}|NOT>'.format(not_url),
+             '<{}|TNG>'.format(tng_url),
+             ]
+    text = ' - '.join(links)
+    block = {'type': 'section',
+             'text': {'text': text, 'type': 'mrkdwn'},
+             }
+    blocks.append(block)
+
+    ext_url = 'http://lapalma-observatory.warwick.ac.uk/eastcam/'
+    int_url = 'http://lapalma-observatory.warwick.ac.uk/goto/dome/'
+    sat_url = 'https://en.sat24.com/en/ce/infraPolair'
+    links = ['<{}|External webcam>'.format(ext_url),
+             '<{}|Internal webcam>'.format(int_url),
+             '<{}|IR satellite>'.format(sat_url),
+             ]
+    text = ' - '.join(links)
+    block = {'type': 'section',
+             'text': {'text': text, 'type': 'mrkdwn'},
+             }
+    blocks.append(block)
+
+    # External webcam
+    ts = '{:.0f}'.format(Time.now().unix)
+    image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+    text = 'External webcam view'
+    # block = {'type': 'image',
+    #          'title': {'text': text, 'type': 'plain_text'},
+    #          'image_url': image_url,
+    #          'alt_text': text,
+    #          }
+    # blocks.append(block)
+    attach = {'text': text,
+              'image_url': image_url,
+              }
+    attachments.append(attach)
+
+    # Internal webcam
+    image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
+    text = 'Internal webcam view'
+    # block = {'type': 'image',
+    #          'title': {'text': text, 'type': 'plain_text'},
+    #          'image_url': image_url,
+    #          'alt_text': text,
+    #          }
+    # blocks.append(block)
+    attach = {'text': text,
+              'image_url': image_url,
+              }
+    attachments.append(attach)
+
+    # IR satellite
+    image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
+    text = 'IR satellite view'
+    # block = {'type': 'image',
+    #          'title': {'text': text, 'type': 'plain_text'},
+    #          'image_url': image_url,
+    #          'alt_text': text,
+    #          }
+    # blocks.append(block)
+    attach = {'text': text,
+              'image_url': image_url,
+              }
+    attachments.append(attach)
+
+    send_slack_msg(conditions_status, blocks=blocks, attachments=attachments, channel=slack_channel)
 
 
 def send_status_report(msg, colour=None, startup=True, slack_channel=None):
