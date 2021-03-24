@@ -50,7 +50,7 @@ class RestoreFocus(NeatCloser):
         set_focuser_positions(self.positions)
 
 
-def calculate_positions(fraction, steps, scale_factors=None):
+def calculate_positions(range_frac, steps, scale_factors=None):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
     current = get_focuser_positions()
@@ -65,7 +65,7 @@ def calculate_positions(fraction, steps, scale_factors=None):
         print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
 
         # Calculate the deltas
-        width = int((limits[ut] * fraction * scale_factors[ut]) / 2)
+        width = int((limits[ut] * range_frac * scale_factors[ut]) / 2)
         upper_deltas = np.arange(0, width + 1, width // steps)
         lower_deltas = upper_deltas[::-1] * -1
         deltas = np.append(lower_deltas[:-1], upper_deltas)
@@ -434,7 +434,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
         plt.show()
 
 
-def run(fraction, steps, num_exp=3, exptime=30, filt='L',
+def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
         measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -442,7 +442,7 @@ def run(fraction, steps, num_exp=3, exptime=30, filt='L',
     print('Calculating positions...')
     scale_factors = {ut: params.AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE']
                      for ut in params.AUTOFOCUS_PARAMS}
-    positions = calculate_positions(fraction, steps, scale_factors)
+    positions = calculate_positions(range_frac, steps, scale_factors)
 
     # Confirm
     if not no_confirm:
@@ -603,19 +603,19 @@ if __name__ == '__main__':
         return x
 
     parser = ArgumentParser(description='Take a series of exposures at different focus positions.')
-    parser.add_argument('fraction', type=restricted_float,
-                        help=('fraction of the focuser range to run over '
-                              '(range 0-1)'),
-                        )
-    parser.add_argument('steps', type=int,
+    parser.add_argument('steps', type=int, default=5,
                         help=('how many exposures to take either side of the current position '
-                              '(e.g. steps=5 gives 11 in total: 5 + 1 in the centre + 5)'),
+                              '(eg steps=5 gives 11 in total: 5 + 1 in the centre + 5)'),
                         )
-    parser.add_argument('-n', '--numexp', type=int, default=3,
+    parser.add_argument('-r', '--range', type=restricted_float, default=0.035,
+                        help=('fraction of the focuser range to run over '
+                              '(range 0-1, default=0.035)'),
+                        )
+    parser.add_argument('-n', '--numexp', type=int, default=2,
                         help=('number of exposures to take at each position (default=3)')
                         )
-    parser.add_argument('-t', '--exptime', type=float, default=30,
-                        help=('exposure time to use (default=30s)')
+    parser.add_argument('-t', '--exptime', type=float, default=2,
+                        help=('exposure time to use (default=2s)')
                         )
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
@@ -637,8 +637,8 @@ if __name__ == '__main__':
                         )
     args = parser.parse_args()
 
-    fraction = args.fraction
     steps = args.steps
+    range_frac = args.range
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
@@ -652,7 +652,7 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
-        run(fraction, steps, num_exp, exptime, filt,
+        run(steps, range_frac, num_exp, exptime, filt,
             measure_corners, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
