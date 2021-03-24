@@ -89,6 +89,15 @@ def calculate_positions(range_frac, steps, scale_factors=None):
     return pd.DataFrame(all_positions)
 
 
+def estimate_time(steps, num_exp, exp_time, readout_time=15, focchange_time=30):
+    """Estimate how long it will take to complete the run."""
+    total_exposures = num_exp * steps
+    total_exptime = exp_time * total_exposures
+    total_readout = readout_time * total_exposures
+    total_focchange = focchange_time * steps
+    return total_exptime + total_readout + total_focchange
+
+
 def lin_func(x, m, c):
     """Fit HFDs."""
     return m * x + c
@@ -443,6 +452,9 @@ def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
     scale_factors = {ut: params.AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE']
                      for ut in params.AUTOFOCUS_PARAMS}
     positions = calculate_positions(range_frac, steps, scale_factors)
+
+    total_time = estimate_time(steps, num_exp, exptime)
+    print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
 
     # Confirm
     if not no_confirm:
