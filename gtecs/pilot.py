@@ -9,7 +9,7 @@ import time
 from astropy import units as u
 from astropy.time import Time
 
-import obsdb as db
+from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 import pkg_resources
 
@@ -520,7 +520,7 @@ class Pilot(object):
 
             # if we were observing, mark as aborted
             if name == 'OBS' and self.current_id is not None:
-                db.mark_aborted(self.current_id)
+                mark_aborted(self.current_id)
 
         self.log.info('finished {}'.format(name))
         self.running_script = None
@@ -861,10 +861,10 @@ class Pilot(object):
                         self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
                                        self.current_mintime, elapsed))
                         if elapsed > self.current_mintime:
-                            db.mark_completed(self.current_id)
+                            mark_completed(self.current_id)
                             self.log.debug('pointing completed: {}'.format(self.current_id))
                         else:
-                            db.mark_interrupted(self.current_id)
+                            mark_interrupted(self.current_id)
                             self.log.debug('pointing interrupted: {}'.format(self.current_id))
 
                 else:
@@ -880,7 +880,7 @@ class Pilot(object):
                 cmd = [script, *args]
                 asyncio.ensure_future(self.start_script('OBS', LoggedProtocol, cmd))
 
-                db.mark_running(self.new_id)
+                mark_running(self.new_id)
 
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
