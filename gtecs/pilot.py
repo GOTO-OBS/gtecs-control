@@ -22,7 +22,7 @@ from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import check_schedule, get_pointing_status
-from .slack import send_slack_msg
+from .slack import send_slack_msg, send_startup_report, send_database_report, send_timing_report
 
 
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
@@ -80,6 +80,8 @@ class Pilot(object):
         self.running_tasks = []
 
         # define nightly tasks
+        self.night_startdate = night_startdate()
+        self.midnight = local_midnight(self.night_startdate)
         self.assign_tasks()
 
         # status flags, set during the night
@@ -369,6 +371,16 @@ class Pilot(object):
         """
         self.log.info('night marshal initialised')
 
+        # Send night start reports
+        if not restart:
+            send_timing_report(startup_sunalt=self.startup_sunalt,
+                               open_sunalt=self.open_sunalt,
+                               obs_start_sunalt=self.obs_start_sunalt,
+                               obs_stop_sunalt=self.obs_stop_sunalt,
+                               close_sunalt=self.close_sunalt,
+                               )
+            send_database_report()
+
         # Wait for first flag check
         while not self.initial_flags_check_complete:
             self.log.info('waiting for the first successful flags check')
@@ -515,7 +527,7 @@ class Pilot(object):
 
         # if it was an observation that just finished (aborted or not) force a scheduler check
         if name == 'OBS':
-            self.log.debug('forcing scheduler check'.format(name))
+            self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
 
         return retcode, result
@@ -619,6 +631,10 @@ class Pilot(object):
         # self.morning_tasks = [foc_run, flats_m]
         self.morning_tasks = [flats_m]
 
+        # close sunalt
+        # (NB we usually finish early, this is the limit used for the night countdown)
+        self.close_sunalt = 0
+
     async def run_through_tasks(self, task_list, rising=False,
                                 ignore_conditions=False,
                                 ignore_late=False):
@@ -708,10 +724,9 @@ class Pilot(object):
             too_late = False
 
             # check if we're on the wrong side of midnight
-            midnight = local_midnight(night_startdate())
-            if not rising and now > midnight:
+            if not rising and now > self.midnight:
                 too_late = True
-            elif rising and now < midnight:
+            elif rising and now < self.midnight:
                 too_late = True
 
             # check if we've missed the late sunalt
@@ -785,9 +800,8 @@ class Pilot(object):
 
             # should we stop for the sun?
             now = Time.now()
-            midnight = local_midnight(night_startdate())
             sunalt_now = get_sunalt(now)
-            if now > midnight:
+            if now > self.midnight:
                 if sunalt_now > last_obs_sunalt and self.observing:
                     self.log.debug('stopping scheduler checks, current observation will continue')
                     self.observing = False
@@ -1003,7 +1017,7 @@ class Pilot(object):
         self.whypause[reason] = pause
 
     # Night countdown
-    async def night_countdown(self, stop_time):
+    async def night_countdown(self, stop_time=None):
         """Shut down the system if triggered or at the stop time as a backup.
 
         The pilot loop will run until this function exits.
@@ -1016,6 +1030,10 @@ class Pilot(object):
         the stop time is reached.
         """
         self.log.info('night countdown initialised')
+
+        if stop_time is None:
+            stop_time = sunalt_time(self.night_startdate, self.close_sunalt * u.deg, eve=False)
+        self.log.info('setting end of night for {}'.format(stop_time.iso))
 
         last_log = Time.now()
         sleep_time = 10
@@ -1067,7 +1085,7 @@ class Pilot(object):
         self.startup_complete = True
 
         # send the startup report
-        self.send_startup_report()
+        send_startup_report(msg='*Pilot reports startup complete*')
 
         self.log.debug('startup process complete')
 
@@ -1236,69 +1254,6 @@ class Pilot(object):
         self.mount_is_tracking = False
         self.hardware['mnt'].mode = 'parked'
 
-    def send_startup_report(self):
-        """Format and send a Slack message with a summery of the current conditions."""
-        msg = '*Pilot reports startup complete*'
-        conditions = Conditions()
-        conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                             bad=':exclamation:')
-        if conditions.bad:
-            msg2 = ':warning: Conditions are bad! :warning:'
-            colour = 'danger'
-        else:
-            msg2 = 'Conditions are good'
-            colour = 'good'
-        attach_conds = {'fallback': 'Conditions summary',
-                        'title': msg2,
-                        'text': conditions_summary,
-                        'color': colour,
-                        'ts': conditions.current_time.unix,
-                        }
-
-        status = Status()
-        attach_status = {'fallback': 'System mode: {}'.format(status.mode),
-                         'text': 'System is in *{}* mode'.format(status.mode),
-                         'color': colour,
-                         }
-
-        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
-        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
-        not_url = 'http://www.not.iac.es/weather/'
-        tng_url = 'https://tngweb.tng.iac.es/weather/'
-        links = ['<{}|Local enviroment page>'.format(env_url),
-                 '<{}|Mountain forecast>'.format(mf_url),
-                 '<{}|ING>'.format(ing_url),
-                 '<{}|NOT>'.format(not_url),
-                 '<{}|TNG>'.format(tng_url),
-                 ]
-        attach_links = {'fallback': 'Useful links',
-                        'text': '  -  '.join(links),
-                        'color': colour,
-                        }
-
-        ts = '{:.0f}'.format(conditions.current_time.unix)
-        webcam_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-        attach_webcm = {'fallback': 'External webcam view',
-                        'title': 'External webcam view',
-                        'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                        'text': 'Image attached:',
-                        'image_url': webcam_url,
-                        'color': colour,
-                        }
-
-        sat_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-        attach_irsat = {'fallback': 'IR satellite view',
-                        'title': 'IR satellite view',
-                        'title_link': 'https://en.sat24.com/en/ce/infraPolair',
-                        'text': 'Image attached:',
-                        'image_url': sat_url,
-                        'color': colour,
-                        }
-
-        attachments = [attach_conds, attach_status, attach_links, attach_webcm, attach_irsat]
-        send_slack_msg(msg, attachments=attachments)
-
 
 def run(test=False, restart=False, late=False):
     """Start the pilot and run until the ned of the night.
@@ -1323,7 +1278,7 @@ def run(test=False, restart=False, late=False):
     loop.set_debug(False)
     pilot = Pilot(testing=test)
 
-    # start the recurrent tasks
+    # Start the recurrent tasks
     pilot.running_tasks.extend([
         asyncio.ensure_future(pilot.check_hardware()),  # periodically check hardware
         asyncio.ensure_future(pilot.check_time_paused()),  # keep track of time paused
@@ -1333,16 +1288,15 @@ def run(test=False, restart=False, late=False):
         asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled tasks
     ])
 
-    # Calculate the stop time (sunrise, unless testing)
+    # Loop until the night countdown finishes (or the pilot exits early)
     if pilot.testing:
+        # Force the countdown to finish in 15 minutes
         stop_time = Time.now() + 15 * u.minute
+        stop_signal = pilot.night_countdown(stop_time)
     else:
-        date = night_startdate()
-        stop_time = sunalt_time(date, 0 * u.deg, eve=False)
-    stop_signal = pilot.night_countdown(stop_time)
-
+        stop_signal = pilot.night_countdown()
     try:
-        # actually start the event loop - nothing happens until this line is reached!
+        # Actually start the event loop - nothing happens until this line is reached!
         loop.run_until_complete(stop_signal)
     except asyncio.CancelledError:
         print('Tasks cancelled')

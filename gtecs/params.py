@@ -373,6 +373,5 @@ BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 ############################################################
 # Slack bot parameters
 ENABLE_SLACK = config['ENABLE_SLACK']
-SLACK_BOT_NAME = config['SLACK_BOT_NAME']
 SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
-SLACK_BOT_CHANNEL = config['SLACK_BOT_CHANNEL']
+SLACK_DEFAULT_CHANNEL = config['SLACK_DEFAULT_CHANNEL']

@@ -7,7 +7,6 @@ import time
 from astropy.time import Time
 
 from . import params
-from .slack import send_slack_msg
 
 
 def load_json(fname):
@@ -188,7 +187,6 @@ class Status(object):
             reasons = ['no reason given']
         for reason in reasons:
             if reason not in self.emergency_shutdown_reasons:
-                send_slack_msg('Emergency shutdown: {}'.format(reason))
                 with open(self.emergency_file, 'a') as f:
                     f.write(reason + '\n')
             self._load()
