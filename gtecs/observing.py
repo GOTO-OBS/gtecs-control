@@ -13,7 +13,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate
+from .astronomy import check_alt_limit, night_startdate, radec_from_altaz
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -396,11 +396,10 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
         target J2000 ra in decimal degrees
     target_dec : float
         target J2000 dec in decimal degrees
-    timeout : float
+    timeout : float or None, default=None
         time in seconds after which to timeout, None to wait forever
-    targ_dist : float
+    targ_dist : float, default=30
         distance in arcseconds from the target to consider returning after
-        default is 30 arcsec
 
     """
     start_time = time.time()
@@ -412,10 +411,11 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
+            tolerance = targ_dist / (60 * 60)
             done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
-                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist / (60 * 60))
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=tolerance) and
+                    np.isclose(mnt_info['target_dec'], target_dec, atol=tolerance) and
+                    mnt_info['target_dist'] < tolerance)
             if done:
                 reached_position = True
         except Exception:
@@ -456,48 +456,8 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
     execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
 
     if wait or timeout is not None:
-        wait_for_mount_altaz(alt, az, timeout)
-
-
-def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
-    """Wait for mount to be in target position.
-
-    Parameters
-    ----------
-    target_alt : float
-        target alt in decimal degrees
-    target_az : float
-        target az in decimal degrees
-    timeout : float
-        time in seconds after which to timeout, None to wait forever
-    targ_dist : float
-        distance in arcseconds from the target to consider returning after
-        default is 30 arcsec
-
-    """
-    start_time = time.time()
-    reached_position = False
-    timed_out = False
-    while not reached_position and not timed_out:
-        time.sleep(0.5)
-
-        try:
-            mnt_info = daemon_info('mnt', force_update=True)
-
-            done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_alt'], target_alt, atol=0.0001) and
-                    np.isclose(mnt_info['target_az'], target_az, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist / (60 * 60))
-            if done:
-                reached_position = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Mount timed out')
+        ra, dec = radec_from_altaz(alt, az, Time.now())
+        wait_for_mount(ra, dec, timeout)
 
 
 def wait_for_mount_parking(timeout=None):
