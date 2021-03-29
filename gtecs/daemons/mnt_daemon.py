@@ -5,13 +5,14 @@ import threading
 import time
 
 import astropy.units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import AltAz, SkyCoord
 from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.astronomy import altaz_from_radec, check_alt_limit, get_ha, radec_from_altaz
+from gtecs.astronomy import (altaz_from_radec, check_alt_limit, get_ha, observatory_location,
+                             radec_from_altaz)
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
 
@@ -323,16 +324,19 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
-        # Need to catch error if target not yet set
-        if self.target_ra is None or self.target_dec is None:
+        if self.target_ra is not None and self.target_dec is not None:
+            current_coord = SkyCoord(self.sitech.ra, self.sitech.dec, unit=(u.hour, u.deg))
+            target_coord = SkyCoord(self.target_ra, self.target_dec, unit=(u.hour, u.deg))
+            return current_coord.separation(target_coord).deg
+        elif self.target_alt is not None and self.target_az is not None:
+            now = Time.now()
+            current_coord = AltAz(alt=self.sitech.alt * u.deg, az=self.sitech.az * u.deg,
+                                  obstime=now, location=observatory_location())
+            target_coord = AltAz(alt=self.target_alt * u.deg, az=self.target_az * u.deg,
+                                 obstime=now, location=observatory_location())
+            return current_coord.separation(target_coord).deg
+        else:
             return None
-        m_ra = self.sitech.ra
-        m_dec = self.sitech.dec
-        t_ra = self.target_ra
-        t_dec = self.target_dec
-        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
-        return t_c.separation(m_c).deg
 
     def _pos_str(self):
         """Return a simple string reporting the current position."""
@@ -404,9 +408,8 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_alt = alt
         self.target_az = az
-        ra, dec = radec_from_altaz(alt, az, Time.now())  # needed for _get_target_distance()
-        self.target_ra = ra * 24 / 360.
-        self.target_dec = dec
+        self.target_ra = None
+        self.target_dec = None
 
         # Set flag
         self.force_check_flag = True
@@ -542,6 +545,8 @@ class MntDaemon(BaseDaemon):
 
         # Set values
         self.target_ra = ra
+        self.target_alt = None
+        self.target_az = None
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         return 'Setting target RA'
@@ -559,6 +564,8 @@ class MntDaemon(BaseDaemon):
 
         # Set values
         self.target_dec = dec
+        self.target_alt = None
+        self.target_az = None
 
         self.log.info('Set target Dec to {:.4f}'.format(dec))
         return 'Setting target Dec'
@@ -579,6 +586,8 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = ra
         self.target_dec = dec
+        self.target_alt = None
+        self.target_az = None
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         self.log.info('Set target Dec to {:.4f}'.format(dec))
@@ -588,8 +597,6 @@ class MntDaemon(BaseDaemon):
         """Clear the stored target."""
         # Check current status
         self.wait_for_info()
-        if self.target_ra is None and self.target_dec is None:
-            return 'No current target'
 
         # Set values
         self.target_ra = None
