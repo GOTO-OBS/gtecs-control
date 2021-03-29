@@ -13,7 +13,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate
+from .astronomy import check_alt_limit, night_startdate, radec_from_altaz
 from .daemons import daemon_function, daemon_info
 from .misc import execute_command
 
@@ -446,18 +446,9 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if alt < params.MIN_ELEVATION:
-        raise ValueError('target too low, cannot set target')
-
-    mnt_info = daemon_info('mnt')
-    if mnt_info['status'] == 'Slewing':
-        execute_command('mnt stop')
-        time.sleep(2)
-
-    execute_command('mnt slew_altaz ' + str(alt) + ' ' + str(az))
-
-    if wait or timeout is not None:
-        wait_for_mount_altaz(alt, az, timeout)
+    ra, dec = radec_from_altaz(alt, az, Time.now())
+    print('Converting alt={}, az={} to ra/dec'.format(alt, az))
+    slew_to_radec(ra, dec, wait=wait, timeout=timeout)
 
 
 def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
