@@ -411,10 +411,11 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
+            tolerance = targ_dist / (60 * 60)
             done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.001) and
-                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.001) and
-                    mnt_info['target_dist'] < targ_dist / (60 * 60))
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=tolerance) and
+                    np.isclose(mnt_info['target_dec'], target_dec, atol=tolerance) and
+                    mnt_info['target_dist'] < tolerance)
             if done:
                 reached_position = True
         except Exception:
@@ -456,7 +457,7 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
 
     if wait or timeout is not None:
         ra, dec = radec_from_altaz(alt, az, Time.now())
-        wait_for_mount(ra, dec, timeout, targ_dist=60)
+        wait_for_mount(ra, dec, timeout)
 
 
 def wait_for_mount_parking(timeout=None):
