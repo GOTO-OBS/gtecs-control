@@ -45,6 +45,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = None
         self.target_alt = None
         self.target_az = None
+        self.targeting = None
         self.last_move_time = None
         self.set_blinky = False
         self.offset_direction = None
@@ -199,6 +200,7 @@ class MntDaemon(BaseDaemon):
                 self.target_dec = None
                 self.target_alt = None
                 self.target_az = None
+                self.targeting = None
                 self.park_flag = 0
                 self.force_check_flag = True
 
@@ -300,9 +302,10 @@ class MntDaemon(BaseDaemon):
         # Get other internal info
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
-        temp_info['target_dist'] = self._get_target_distance()
         temp_info['target_alt'] = self.target_alt
         temp_info['target_az'] = self.target_az
+        temp_info['target_dist'] = self._get_target_distance()
+        temp_info['targeting'] = self.targeting
         temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
@@ -324,11 +327,11 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
-        if self.target_ra is not None and self.target_dec is not None:
+        if self.targeting == 'radec':
             current_coord = SkyCoord(self.sitech.ra, self.sitech.dec, unit=(u.hour, u.deg))
             target_coord = SkyCoord(self.target_ra, self.target_dec, unit=(u.hour, u.deg))
             return current_coord.separation(target_coord).deg
-        elif self.target_alt is not None and self.target_az is not None:
+        elif self.targeting == 'altaz':
             now = Time.now()
             current_coord = AltAz(alt=self.sitech.alt * u.deg, az=self.sitech.az * u.deg,
                                   obstime=now, location=observatory_location())
@@ -379,6 +382,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
         self.target_alt = None
         self.target_az = None
+        self.targeting = 'radec'
 
         # Set flag
         self.force_check_flag = True
@@ -410,6 +414,7 @@ class MntDaemon(BaseDaemon):
         self.target_az = az
         self.target_ra = None
         self.target_dec = None
+        self.targeting = 'altaz'
 
         # Set flag
         self.force_check_flag = True
@@ -547,6 +552,7 @@ class MntDaemon(BaseDaemon):
         self.target_ra = ra
         self.target_alt = None
         self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         return 'Setting target RA'
@@ -566,6 +572,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
         self.target_alt = None
         self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target Dec to {:.4f}'.format(dec))
         return 'Setting target Dec'
@@ -588,6 +595,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
         self.target_alt = None
         self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         self.log.info('Set target Dec to {:.4f}'.format(dec))
@@ -603,6 +611,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = None
         self.target_alt = None
         self.target_az = None
+        self.targeting = None
 
         self.log.info('Cleared target')
         return 'Cleared target'

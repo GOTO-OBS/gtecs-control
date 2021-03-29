@@ -309,7 +309,7 @@ def print_info(info):
     print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 180 / 12))
     print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
 
-    if info['target_alt'] is None and info['target_az'] is None:
+    if not info['targeting'] == 'altaz':
         # Assume RA/Dec target, unless Alt/Az is set
         if info['target_ra'] is not None:
             ra = info['target_ra']
@@ -327,7 +327,7 @@ def print_info(info):
     print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
     print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
 
-    if info['target_alt'] is not None or info['target_az'] is not None:
+    if info['targeting'] == 'altaz':
         print('Target Alt:       {:7.3f} deg'.format(info['target_alt']))
         print('Target Az:        {:7.3f} deg'.format(info['target_az']))
 
