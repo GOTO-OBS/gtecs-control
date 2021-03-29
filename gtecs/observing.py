@@ -412,10 +412,11 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
+            tolerance = targ_dist / (60 * 60)
             done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
-                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist / (60 * 60))
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, tolerance) and
+                    np.isclose(mnt_info['target_dec'], target_dec, tolerance) and
+                    mnt_info['target_dist'] < tolerance)
             if done:
                 reached_position = True
         except Exception:
@@ -484,10 +485,11 @@ def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
+            tolerance = targ_dist / (60 * 60)
             done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_alt'], target_alt, atol=0.0001) and
-                    np.isclose(mnt_info['target_az'], target_az, atol=0.0001) and
-                    mnt_info['target_dist'] < targ_dist / (60 * 60))
+                    np.isclose(mnt_info['target_alt'], target_alt, atol=tolerance) and
+                    np.isclose(mnt_info['target_az'], target_az, atol=tolerance) and
+                    mnt_info['target_dist'] < tolerance)
             if done:
                 reached_position = True
         except Exception:
