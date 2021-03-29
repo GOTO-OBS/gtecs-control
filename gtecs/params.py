@@ -251,6 +251,7 @@ SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 MIN_ELEVATION = config['MIN_ELEVATION']
 SITECH_HOST = config['SITECH_HOST']
 SITECH_PORT = config['SITECH_PORT']
+SITECH_DEBUG = config['SITECH_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
 ############################################################

@@ -275,7 +275,10 @@ class MntDaemon(BaseDaemon):
         # Connect to sitech
         if self.sitech is None:
             try:
-                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT, self.log)
+                self.sitech = SiTech(params.SITECH_HOST,
+                                     params.SITECH_PORT,
+                                     self.log if params.SITECH_DEBUG else None,
+                                     )
                 self.log.info('Connected to SiTechEXE')
                 if 'sitech' in self.bad_hardware:
                     self.bad_hardware.remove('sitech')
