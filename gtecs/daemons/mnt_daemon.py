@@ -172,8 +172,6 @@ class MntDaemon(BaseDaemon):
                 # clear the stored coordinates
                 self.target_ra = None
                 self.target_dec = None
-                self.target_alt = None
-                self.target_az = None
                 self.park_flag = 0
                 self.force_check_flag = True
 
