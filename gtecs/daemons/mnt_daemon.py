@@ -26,8 +26,7 @@ class MntDaemon(BaseDaemon):
         self.sitech = None
 
         # command flags
-        self.slew_target_flag = 0
-        self.slew_altaz_flag = 0
+        self.slew_flag = 0
         self.start_tracking_flag = 0
         self.full_stop_flag = 0
         self.set_trackrate_flag = 0
@@ -42,8 +41,6 @@ class MntDaemon(BaseDaemon):
         # mount variables
         self.target_ra = None
         self.target_dec = None
-        self.target_alt = None
-        self.target_az = None
         self.last_move_time = None
         self.set_blinky = False
         self.offset_direction = None
@@ -87,7 +84,7 @@ class MntDaemon(BaseDaemon):
 
             # control functions
             # slew to target
-            if self.slew_target_flag:
+            if self.slew_flag:
                 try:
                     now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
                     now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
@@ -105,29 +102,7 @@ class MntDaemon(BaseDaemon):
                 except Exception:
                     self.log.error('slew_target command failed')
                     self.log.debug('', exc_info=True)
-                self.slew_target_flag = 0
-                self.force_check_flag = True
-
-            # slew to given alt/az
-            if self.slew_altaz_flag:
-                try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    new_alt, new_az = self.target_alt, self.target_az
-                    new_ra, new_dec = radec_from_altaz(self.target_alt, self.target_az)
-                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
-                                                                     new_alt, new_az)
-                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
-                    c = self.sitech.slew_to_altaz(self.target_alt, self.target_az)
-                    if c:
-                        self.log.info(c)
-                    self.last_move_time = self.loop_time
-                except Exception:
-                    self.log.error('slew_altaz command failed')
-                    self.log.debug('', exc_info=True)
-                self.slew_altaz_flag = 0
+                self.slew_flag = 0
                 self.force_check_flag = True
 
             # start tracking
@@ -331,8 +306,6 @@ class MntDaemon(BaseDaemon):
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
         temp_info['target_dist'] = self._get_target_distance()
-        temp_info['target_alt'] = self.target_alt
-        temp_info['target_az'] = self.target_az
         temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
@@ -397,12 +370,10 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = ra
         self.target_dec = dec
-        self.target_alt = None
-        self.target_az = None
 
         # Set flag
         self.force_check_flag = True
-        self.slew_target_flag = 1
+        self.slew_flag = 1
 
         return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
 
@@ -426,17 +397,17 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
 
         # Set values
-        self.target_alt = alt
-        self.target_az = az
-        ra, dec = radec_from_altaz(alt, az, Time.now())  # needed for _get_target_distance()
+        # Note that SiTech has a slew_to_altaz function, but it's better to just go to coords
+        # Between converting from ra/dec to alt/az and cooking/uncooking there can be large errors
+        ra, dec = radec_from_altaz(alt, az, Time.now())
         self.target_ra = ra * 24 / 360.
         self.target_dec = dec
 
         # Set flag
         self.force_check_flag = True
-        self.slew_altaz_flag = 1
+        self.slew_flag = 1
 
-        return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
+        return 'Slewing to coordinates ({:.2f} deg)'.format(self._get_target_distance())
 
     def start_tracking(self):
         """Start the mount tracking."""
@@ -618,8 +589,6 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = None
         self.target_dec = None
-        self.target_alt = None
-        self.target_az = None
 
         self.log.info('Cleared target')
         return 'Cleared target'
