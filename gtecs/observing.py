@@ -451,48 +451,6 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
     slew_to_radec(ra, dec, wait=wait, timeout=timeout)
 
 
-def wait_for_mount_altaz(target_alt, target_az, timeout=None, targ_dist=30):
-    """Wait for mount to be in target position.
-
-    Parameters
-    ----------
-    target_alt : float
-        target alt in decimal degrees
-    target_az : float
-        target az in decimal degrees
-    timeout : float
-        time in seconds after which to timeout, None to wait forever
-    targ_dist : float
-        distance in arcseconds from the target to consider returning after
-        default is 30 arcsec
-
-    """
-    start_time = time.time()
-    reached_position = False
-    timed_out = False
-    while not reached_position and not timed_out:
-        time.sleep(0.5)
-
-        try:
-            mnt_info = daemon_info('mnt', force_update=True)
-
-            tolerance = targ_dist / (60 * 60)
-            done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_alt'], target_alt, atol=tolerance) and
-                    np.isclose(mnt_info['target_az'], target_az, atol=tolerance) and
-                    mnt_info['target_dist'] < tolerance)
-            if done:
-                reached_position = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Mount timed out')
-
-
 def wait_for_mount_parking(timeout=None):
     """Wait for mount to be parked.
 
