@@ -74,32 +74,38 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     # Get the current focuser positions and the temperature the last time they moved
     current_focus = get_focuser_positions()
     _, last_temps = get_focuser_temperatures()
+    all_uts = sorted(current_focus.keys())
 
-    all_data = [{ut: [] for ut in uts} for _ in range(len(regions))]
+    all_data = [{ut: [] for ut in all_uts} for _ in range(len(regions))]
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
         image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False, uts=uts)
 
         # Measure the median HFDs in each image
-        for ut in image_data:
+        for ut in all_uts:
             for j, region in enumerate(regions):
-                # Measure focus within each given region
-                try:
-                    # Extract median HFD and std values from the image data
-                    # Note filter_width is 15, this deals much better with out-of-focus images
-                    hfd, hfd_std = measure_image_hfd(image_data[ut],
-                                                     filter_width=15,
-                                                     region=region,
-                                                     verbose=False)
+                if ut in image_data:
+                    # Measure focus within each given region
+                    try:
+                        # Extract median HFD and std values from the image data
+                        # Note filter_width is 15, this deals much better with out-of-focus images
+                        hfd, hfd_std = measure_image_hfd(image_data[ut],
+                                                         filter_width=15,
+                                                         region=region,
+                                                         verbose=False)
 
-                    # Check for invalid values
-                    if hfd_std <= 0.0 <= 0.0:
-                        raise ValueError
+                        # Check for invalid values
+                        if hfd_std <= 0.0 <= 0.0:
+                            raise ValueError
 
-                except Exception as err:
-                    print('HFD measurement for UT{}{} errored: {}'.format(ut,
-                          ' region {}'.format(j) if len(regions) > 1 else '', str(err)))
+                    except Exception as err:
+                        print('HFD measurement for UT{}{} errored: {}'.format(ut,
+                              ' region {}'.format(j) if len(regions) > 1 else '', str(err)))
+                        hfd = np.nan
+                        hfd_std = np.nan
+                else:
+                    # We're ignoring this UT, but still add NaNs
                     hfd = np.nan
                     hfd_std = np.nan
 
@@ -118,12 +124,12 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         del image_data
 
         if len(regions) == 1:
-            print('HFDs:', {ut: np.round(all_data[0][ut][i]['hfd'], 1) for ut in all_data[0]})
+            print('HFDs:', {ut: np.round(all_data[0][ut][i]['hfd'], 1) for ut in uts})
         else:
             s = 'HFDs:\n'
             for j, data in enumerate(all_data):
                 s += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
-                                                  for ut in data})
+                                                  for ut in uts})
             print(s[:-1])
 
     all_dfs = []
