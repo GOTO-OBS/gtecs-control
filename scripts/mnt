@@ -323,10 +323,10 @@ def print_info(info):
         print('Target Dec:       TARGET NOT SET')
 
     if info['target_dist'] is not None:
-        print('Target distance:  {:7.3f} deg'.format(info['target_dist']))
+        print('Target distance:  {:.3f}'.format(info['target_dist']))
 
-    print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
-    print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
+    print('Mount Alt:        {:.2f}'.format(info['mount_alt']))
+    print('Mount Az:         {:.2f}'.format(info['mount_az']))
     print('~~~~~~~')
     if info['trackrate_ra'] == 0:
         print('RA track rate:    SIDEREAL')
@@ -363,8 +363,8 @@ def print_info_s(info):
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-    print('  RA:  {:>11}       Alt: {:7.3f}'.format(ra_str, alt))
-    print('  Dec: {:>11}       Az:  {:7.3f}'.format(dec_str, az))
+    print('  RA:  {:>11}       Alt: {:6.2f}'.format(ra_str, alt))
+    print('  Dec: {:>11}       Az:  {:6.2f}'.format(dec_str, az))
 
 
 def print_instructions():
