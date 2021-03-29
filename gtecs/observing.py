@@ -396,11 +396,10 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
         target J2000 ra in decimal degrees
     target_dec : float
         target J2000 dec in decimal degrees
-    timeout : float
+    timeout : float or None, default=None
         time in seconds after which to timeout, None to wait forever
-    targ_dist : float
+    targ_dist : float, default=30
         distance in arcseconds from the target to consider returning after
-        default is 30 arcsec
 
     """
     start_time = time.time()
@@ -413,8 +412,8 @@ def wait_for_mount(target_ra, target_dec, timeout=None, targ_dist=30):
             mnt_info = daemon_info('mnt', force_update=True)
 
             done = (mnt_info['status'] == 'Tracking' and
-                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.0001) and
-                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.0001) and
+                    np.isclose(mnt_info['target_ra'] * 360 / 24, target_ra, atol=0.001) and
+                    np.isclose(mnt_info['target_dec'], target_dec, atol=0.001) and
                     mnt_info['target_dist'] < targ_dist / (60 * 60))
             if done:
                 reached_position = True
