@@ -540,21 +540,21 @@ class AstroHavenDome(object):
                 # send a 0 to make sure the system is disabled
                 # if it's in the closed state it's already disabled, so leave it
                 if self.heartbeat_status not in ['disabled', 'closed']:
+                    print('disabling heartbeat (status = {})'.format(self.heartbeat_status))
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
+                    print('resetting heartbeat (status = {})'.format(self.heartbeat_status))
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
                 else:
                     # send the heartbeat time to the serial port
                     # NB the timeout param is in s, but the board takes .5 second intervals
                     v = chr(self.heartbeat_timeout * 2).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
+            # print('sent "{}" to heartbeat'.format(v))
 
             time.sleep(0.5)
 
