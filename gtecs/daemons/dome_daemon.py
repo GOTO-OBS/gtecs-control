@@ -919,8 +919,10 @@ class DomeDaemon(BaseDaemon):
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
             raise errors.HardwareStatusError('Cannot enable heartbeat in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'manual':
+            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
+            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
 
         # Set flag
         if command == 'on':
