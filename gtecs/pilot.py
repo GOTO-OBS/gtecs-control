@@ -978,8 +978,11 @@ class Pilot(object):
                 self.log.warning('Pausing (system in manual mode)')
                 send_slack_msg('Pilot is pausing (system in manual mode)')
 
-                # don't actually kill anything, coroutines will pause themselves
-                self.log.info('The current task will continue')
+                # kill the current script, we usually do it manually anyway
+                self.stop_mount()
+                execute_command('exq clear')
+                execute_command('cam abort')
+                await self.cancel_running_script('system to manual mode')
 
         if not pause:
             if self.time_paused[reason] > 0:
