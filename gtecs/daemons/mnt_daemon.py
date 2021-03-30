@@ -75,7 +75,7 @@ class MntDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -249,7 +249,8 @@ class MntDaemon(BaseDaemon):
             try:
                 self.sitech = SiTech(params.SITECH_HOST,
                                      params.SITECH_PORT,
-                                     self.log if params.SITECH_DEBUG else None,
+                                     self.log,
+                                     params.SITECH_DEBUG,
                                      )
                 self.log.info('Connected to SiTechEXE')
                 if 'sitech' in self.bad_hardware:
