@@ -319,6 +319,8 @@ class AstroHavenDome(object):
             if self.dome_serial.in_waiting:
                 out = self.dome_serial.read(self.dome_serial.in_waiting)
                 x = out.decode('ascii')[-1]
+                if self.log and self.log_debug:
+                    self.log.debug('PLC R: "{}"'.format(x))
                 self._parse_plc_status(x)
         except Exception:
             if self.log:
@@ -372,6 +374,8 @@ class AstroHavenDome(object):
         try:
             arduino = subprocess.getoutput('curl -s {}'.format(loc))
             data = json.loads(arduino)
+            if self.log and self.log_debug:
+                self.log.debug('arduino R: "{}"'.format(data))
             self._parse_arduino_status(data)
         except Exception:
             if self.log:
@@ -468,9 +472,11 @@ class AstroHavenDome(object):
         self._read_arduino()
 
         if self.log and self.log_debug:
-            self.log_debug(self.plc_status['north'], '\t', self.arduino_status['north'])
-            self.log_debug(self.plc_status['south'], '\t', self.arduino_status['south'])
-            self.log_debug(self.arduino_status['hatch'])
+            self.log.debug('north: {}\t{}'.format(
+                self.plc_status['north'], self.arduino_status['north']))
+            self.log.debug('south: {}\t{}'.format(
+                self.plc_status['south'], self.arduino_status['south']))
+            self.log.debug('hatch: {}'.format(self.arduino_status['hatch']))
 
         status = {}
 
@@ -547,7 +553,7 @@ class AstroHavenDome(object):
                 out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
                 x = out[-1]
                 if self.log and self.log_debug:
-                    self.log.debug('heartbeat says "{}"'.format(x))
+                    self.log.debug('heartbeat R: "{}"'.format(x))
                 self._parse_heartbeat_status(x)
         except Exception:
             if self.log:
@@ -572,7 +578,7 @@ class AstroHavenDome(object):
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
                     if self.log and self.log_debug:
-                        self.log.debug('sent "{}" to heartbeat'.format(v))
+                        self.log.debug('heartbeat W: "{}"'.format(v))
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
@@ -582,14 +588,14 @@ class AstroHavenDome(object):
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
                     if self.log and self.log_debug:
-                        self.log.debug('sent "{}" to heartbeat'.format(v))
+                        self.log.debug('heartbeat W: "{}"'.format(v))
                 else:
                     # send the heartbeat time to the serial port
                     # NB the timeout param is in s, but the board takes .5 second intervals
                     v = chr(self.heartbeat_timeout * 2).encode('ascii')
                     self.heartbeat_serial.write(v)
                     if self.log and self.log_debug:
-                        self.log.debug('sent "{}" to heartbeat'.format(v))
+                        self.log.debug('heartbeat W: "{}"'.format(v))
 
             time.sleep(0.5)
 
@@ -649,7 +655,8 @@ class AstroHavenDome(object):
             # if we're still going, send the command to the serial port
             self.dome_serial.write(self.move_code[side][command])
             if self.log and self.log_debug:
-                self.log.debug(side, frac, 'o:', self.move_code[side][command])
+                self.log.debug('PLC W: "{}" ({} {} {})'.format(
+                    self.move_code[side][command], side, frac, command))
 
             if (side == 'south' and command == 'open' and running_time < 12.5):
                 time.sleep(1.5)
