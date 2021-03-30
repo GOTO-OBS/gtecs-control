@@ -328,13 +328,15 @@ class DomeDaemon(BaseDaemon):
         # Connect to the dome
         if self.dome is None:
             if params.FAKE_DOME:
-                self.dome = FakeDome()
+                self.dome = FakeDome('/dev/fake', '/dev/fake2', self.log, params.DOME_DEBUG)
                 self.log.info('Connected to dome')
             else:
                 try:
-                    dome_port = params.DOME_LOCATION
-                    heartbeat_port = params.DOME_HEARTBEAT_LOCATION
-                    self.dome = AstroHavenDome(dome_port, heartbeat_port)
+                    self.dome = AstroHavenDome(params.DOME_LOCATION,
+                                               params.DOME_HEARTBEAT_LOCATION,
+                                               self.log,
+                                               params.DOME_DEBUG,
+                                               )
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
                         self.bad_hardware.remove('dome')
