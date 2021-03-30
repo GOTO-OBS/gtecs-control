@@ -1129,6 +1129,7 @@ class Pilot(object):
 
         self.log.info('closing dome immediately')
         self.close_dome()
+        self.park_mount()
 
         # trigger night countdown to shutdown
         self.shutdown_now = True
@@ -1136,15 +1137,17 @@ class Pilot(object):
     # Hardware commands
     async def open_dome(self):
         """Open the dome and await until it is finished."""
-        # make sure we are parked before opening
+        # make sure we are parked before moving the dome
         if self.mount_is_tracking:
             self.park_mount()
+
         self.log.info('opening dome')
         send_slack_msg('Pilot is opening the dome')
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
         self.hardware['dome'].mode = 'open'
+
         # wait for dome to open
         sleep_time = 5
         while True:
@@ -1179,6 +1182,10 @@ class Pilot(object):
             self.log.info('closing mirror covers')
             execute_command('ota close')
             self.hardware['ota'].mode = 'closed'
+
+        # make sure we are parked before moving the dome
+        if self.mount_is_tracking:
+            self.park_mount()
 
         self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
