@@ -557,7 +557,7 @@ class DomeMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['dome restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
@@ -775,7 +775,7 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['mnt restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
@@ -950,7 +950,7 @@ class PowerMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['power restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1044,7 +1044,7 @@ class CamMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['cam restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
@@ -1159,7 +1159,7 @@ class OTAMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['ota restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_OTA_NOTCLOSED in self.errors:
             # PROBLEM: The mirror covers aren't closed.
@@ -1274,7 +1274,7 @@ class FiltMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['filt restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
@@ -1377,7 +1377,7 @@ class FocMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['foc restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_FOC_UNSET in self.errors:
             # PROBLEM: The focusers haven't been moved (need to activate auto-correction in ASAs).
@@ -1500,7 +1500,7 @@ class ExqMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['exq restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1579,7 +1579,7 @@ class ConditionsMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['conditions restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_CONDITIONS_INTERNAL in self.errors:
             # PROBLEM: The internal flag has been set to ERROR.
@@ -1661,7 +1661,7 @@ class SchedulerMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['scheduler restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1729,7 +1729,7 @@ class SentinelMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['sentinel restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
