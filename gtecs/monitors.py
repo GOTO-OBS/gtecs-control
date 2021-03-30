@@ -1043,6 +1043,8 @@ class CamMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['cam restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
@@ -1158,6 +1160,8 @@ class OTAMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['ota restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
@@ -1273,6 +1277,8 @@ class FiltMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['filt restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
@@ -1376,6 +1382,8 @@ class FocMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['foc restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
@@ -1499,6 +1507,10 @@ class ExqMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['exq restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
+            recovery_procedure[3] = ['cam restart', 30]
+            recovery_procedure[4] = ['foc restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
