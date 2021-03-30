@@ -22,8 +22,14 @@ class FakeDome(object):
         self.frac = 1
         self.command = ''
         self.timeout = 0
+
+        self.plc_error = False
+        self.arduino_error = False
+
         self.heartbeat_status = 'enabled'
         self.heartbeat_enabled = True
+        self.heartbeat_error = False
+
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
@@ -237,13 +243,13 @@ class AstroHavenDome(object):
         self.honeywell_was_triggered = {'north': 0, 'south': 0}
         self.status = None
 
-        self.plc_error = 0
-        self.arduino_error = 0
+        self.plc_error = False
+        self.arduino_error = False
 
         self.heartbeat_enabled = True
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
         self.heartbeat_status = 'ERROR'
-        self.heartbeat_error = 0
+        self.heartbeat_error = False
 
         self.side = ''
         self.frac = 1
@@ -276,7 +282,7 @@ class AstroHavenDome(object):
             except Exception:
                 print('Error connecting to dome monitor')
                 self.heartbeat_status = 'ERROR'
-                self.heartbeat_error = 1
+                self.heartbeat_error = True
         else:
             self.heartbeat_status = 'disabled'
 
@@ -294,7 +300,7 @@ class AstroHavenDome(object):
                 self._parse_plc_status(x)
             return 0
         except Exception:
-            self.plc_error = 1
+            self.plc_error = True
             self.plc_status['north'] = 'ERROR'
             self.plc_status['south'] = 'ERROR'
             return 1
@@ -335,7 +341,7 @@ class AstroHavenDome(object):
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
         else:
-            self.plc_error = 1
+            self.plc_error = True
             self.plc_status['north'] = 'ERROR'
             self.plc_status['south'] = 'ERROR'
         return
@@ -348,7 +354,7 @@ class AstroHavenDome(object):
             self._parse_arduino_status(data)
             return 0
         except Exception:
-            self.arduino_error = 1
+            self.arduino_error = True
             self.arduino_status['north'] = 'ERROR'
             self.arduino_status['south'] = 'ERROR'
             self.arduino_status['hatch'] = 'ERROR'
@@ -427,7 +433,7 @@ class AstroHavenDome(object):
                             self.honeywell_was_triggered[side] = 0
 
         except Exception:
-            self.arduino_error = 1
+            self.arduino_error = True
             self.arduino_status['north'] = 'ERROR'
             self.arduino_status['south'] = 'ERROR'
             self.arduino_status['hatch'] = 'ERROR'
@@ -518,7 +524,7 @@ class AstroHavenDome(object):
                 self._parse_heartbeat_status(x)
             return 0
         except Exception:
-            self.heartbeat_error = 1
+            self.heartbeat_error = True
             self.heartbeat_status = 'ERROR'
             return 1
 

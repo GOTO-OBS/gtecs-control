@@ -77,7 +77,7 @@ class DomeDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -338,13 +338,28 @@ class DomeDaemon(BaseDaemon):
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
                         self.bad_hardware.remove('dome')
-                    # sleep brefly, to make sure the connection has started
+                    # sleep briefly, to make sure the connection has started
                     time.sleep(3)
                 except Exception:
                     self.dome = None
                     if 'dome' not in self.bad_hardware:
                         self.log.error('Failed to connect to dome')
                         self.bad_hardware.add('dome')
+
+        # Check the connections within the dome
+        if self.dome is not None:
+            if self.dome.plc_error:
+                self.log.error('Failed to connect to dome PLC')
+                self.dome = None
+                self.bad_hardware.add('dome')
+            elif self.dome.arduino_error:
+                self.log.error('Failed to connect to dome arduino')
+                self.dome = None
+                self.bad_hardware.add('dome')
+            elif self.dome.heartbeat_error:
+                self.log.error('Failed to connect to dome heartbeat monitor')
+                self.dome = None
+                self.bad_hardware.add('dome')
 
         # Connect to the dehumidifer
         if self.dehumidifier is None:
