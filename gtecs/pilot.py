@@ -211,7 +211,7 @@ class Pilot(object):
 
                 await self.handle_pause('hardware', True)
 
-                # check more frequently untill fixed, and save time for delay afterwards
+                # check more frequently until fixed, and save time for delay afterwards
                 sleep_time = bad_sleep_time
                 bad_timestamp = time.time()
             else:
@@ -969,7 +969,8 @@ class Pilot(object):
                     pass
 
                 # stop current actions
-                self.stop_mount()
+                if self.mount_is_tracking:
+                    self.stop_mount()
                 execute_command('exq clear')
                 execute_command('cam abort')
                 await self.cancel_running_script('hardware fault')
@@ -979,7 +980,8 @@ class Pilot(object):
                 send_slack_msg('Pilot is pausing (system in manual mode)')
 
                 # kill the current script, we usually do it manually anyway
-                self.stop_mount()
+                if self.mount_is_tracking:
+                    self.stop_mount()
                 execute_command('exq clear')
                 execute_command('cam abort')
                 await self.cancel_running_script('system to manual mode')
@@ -1012,7 +1014,7 @@ class Pilot(object):
                     execute_command('exq resume')
 
         # finally, change global pause status by updating flag
-        # by putting this last, we dont unpause until the dome
+        # by putting this last, we don't unpause until the dome
         # is actually open or hardware is fixed etc.
         self.whypause[reason] = pause
 
@@ -1026,7 +1028,7 @@ class Pilot(object):
         an emergency shutdown) then this function will pick it up, run the shutdown command and
         exit, stopping the pilot.
 
-        If something fails then this function will indepndently ensure the system shuts down once
+        If something fails then this function will independently ensure the system shuts down once
         the stop time is reached.
         """
         self.log.info('night countdown initialised')
