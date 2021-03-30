@@ -5,6 +5,7 @@ import os
 import subprocess
 import threading
 import time
+import traceback
 
 import serial
 
@@ -278,11 +279,11 @@ class AstroHavenDome(object):
                 ht = threading.Thread(target=self._heartbeat_thread)
                 ht.daemon = True
                 ht.start()
-
             except Exception:
-                print('Error connecting to dome monitor')
-                self.heartbeat_status = 'ERROR'
+                print('Error connecting to heartbeat monitor')
+                traceback.print_exc()
                 self.heartbeat_error = True
+                self.heartbeat_status = 'ERROR'
         else:
             self.heartbeat_status = 'disabled'
 
@@ -298,12 +299,13 @@ class AstroHavenDome(object):
                 out = self.dome_serial.read(self.dome_serial.in_waiting)
                 x = out.decode('ascii')[-1]
                 self._parse_plc_status(x)
-            return 0
         except Exception:
+            print('Error connecting to PLC')
+            traceback.print_exc()
+            print('Previous status:', self.old_plc_status)
             self.plc_error = True
             self.plc_status['north'] = 'ERROR'
             self.plc_status['south'] = 'ERROR'
-            return 1
 
     def _parse_plc_status(self, status_character):
         # save previous status
@@ -341,10 +343,7 @@ class AstroHavenDome(object):
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
         else:
-            self.plc_error = True
-            self.plc_status['north'] = 'ERROR'
-            self.plc_status['south'] = 'ERROR'
-        return
+            raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
     def _read_arduino(self):
         loc = params.ARDUINO_LOCATION
@@ -352,13 +351,14 @@ class AstroHavenDome(object):
             arduino = subprocess.getoutput('curl -s {}'.format(loc))
             data = json.loads(arduino)
             self._parse_arduino_status(data)
-            return 0
         except Exception:
+            print('Error connecting to arduino')
+            traceback.print_exc()
+            print('Previous status:', self.old_arduino_status)
             self.arduino_error = True
             self.arduino_status['north'] = 'ERROR'
             self.arduino_status['south'] = 'ERROR'
             self.arduino_status['hatch'] = 'ERROR'
-            return 1
 
     def _parse_arduino_status(self, status_dict):
         # save previous status
@@ -433,11 +433,8 @@ class AstroHavenDome(object):
                             self.honeywell_was_triggered[side] = 0
 
         except Exception:
-            self.arduino_error = True
-            self.arduino_status['north'] = 'ERROR'
-            self.arduino_status['south'] = 'ERROR'
-            self.arduino_status['hatch'] = 'ERROR'
-        return
+            traceback.print_exc()
+            raise ValueError('Unable to parse reply from the arduino: {}'.format(status_dict))
 
     def _read_status(self):
         """Check the dome status reported by both the dome plc and the arduino."""
@@ -504,6 +501,8 @@ class AstroHavenDome(object):
             time.sleep(0.5)
 
     def _parse_heartbeat_status(self, status_character):
+        # save previous status
+        self.old_heartbeat_status = self.heartbeat_status
         # parse value from heartbeat box
         if status_character == 254:
             self.heartbeat_status = 'closing'
@@ -511,8 +510,11 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'closed'
         elif status_character == 0:
             self.heartbeat_status = 'disabled'
-        else:
+        elif 0 < status_character < 254:
             self.heartbeat_status = 'enabled'
+        else:
+            raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
+                status_character))
         return
 
     def _read_heartbeat(self):
@@ -522,11 +524,12 @@ class AstroHavenDome(object):
                 x = out[-1]
                 # print('heartbeat says "{}""'.format(x))
                 self._parse_heartbeat_status(x)
-            return 0
         except Exception:
+            print('Error connecting to heartbeat monitor')
+            traceback.print_exc()
+            print('Previous status:', self.old_heartbeat_status)
             self.heartbeat_error = True
             self.heartbeat_status = 'ERROR'
-            return 1
 
     def _heartbeat_thread(self):
         while self.heartbeat_thread_running:
