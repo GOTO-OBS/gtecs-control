@@ -46,6 +46,7 @@ MODE_ACTIVE = 'active'
 MODE_DOME_CLOSED = 'closed'
 MODE_DOME_OPEN = 'open'
 MODE_MNT_PARKED = 'parked'
+MODE_MNT_STOPPED = 'stopped'
 MODE_MNT_TRACKING = 'tracking'
 MODE_CAM_COOL = 'cool'
 MODE_CAM_WARM = 'warm'
@@ -67,6 +68,7 @@ ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
 ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
+ERROR_MNT_NOTSTOPPED = 'MNT:NOT_STOPPED'
 ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
 ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
@@ -701,11 +703,19 @@ class MntMonitor(BaseMonitor):
 
         # ERROR_MNT_STOPPED
         # Set the error if the mount is not moving and it should be tracking
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+        if self.mode != MODE_MNT_STOPPED and self.hardware_status == STATUS_MNT_STOPPED:
             self.add_error(ERROR_MNT_STOPPED, delay=30)
         # Clear the error if the mount is tracking or it shouldn't be any more
-        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+        if self.mode == MODE_MNT_STOPPED or self.hardware_status != STATUS_MNT_STOPPED:
             self.clear_error(ERROR_MNT_STOPPED)
+
+        # ERROR_MNT_NOTSTOPPED
+        # Set the error if the mount isn't stopped and it should be
+        if self.mode == MODE_MNT_STOPPED and self.hardware_status != STATUS_MNT_STOPPED:
+            self.add_error(ERROR_MNT_NOTSTOPPED, delay=30)
+        # Clear the error if the mount is stopped or it shouldn't be any more
+        if self.mode != MODE_MNT_STOPPED or self.hardware_status == STATUS_MNT_STOPPED:
+            self.clear_error(ERROR_MNT_NOTSTOPPED)
 
         # ERROR_MNT_NONSIDEREAL
         # Set the error if the mount is should be tracking but has a non-sidereal tracking rate set
@@ -717,10 +727,10 @@ class MntMonitor(BaseMonitor):
 
         # ERROR_MNT_PARKED
         # Set the error if the mount is parked and it should be tracking
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
+        if self.mode != MODE_MNT_PARKED and self.hardware_status == STATUS_MNT_PARKED:
             self.add_error(ERROR_MNT_PARKED, delay=30)
         # Clear the error if the mount is no longer parked or it should be
-        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
+        if self.mode == MODE_MNT_PARKED or self.hardware_status != STATUS_MNT_PARKED:
             self.clear_error(ERROR_MNT_PARKED)
 
         # ERROR_MNT_NOTPARKED
@@ -811,8 +821,8 @@ class MntMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
-            # SOLUTION 2: Still moving? Okay, kill the mnt daemon.
-            recovery_procedure[2] = ['mnt kill', 30]
+            # SOLUTION 2: Still moving? Okay, kill the power.
+            recovery_procedure[2] = ['power off sitech', 10]
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
 
@@ -843,6 +853,20 @@ class MntMonitor(BaseMonitor):
             #             Try slewing to the neutral position.
             recovery_procedure[4] = ['mnt altaz 50 0', 60]
             # OUT OF SOLUTIONS: There must be a problem that's not letting it track.
+            return ERROR_MNT_STOPPED, recovery_procedure
+
+        elif ERROR_MNT_NOTSTOPPED in self.errors:
+            # PROBLEM: The mount is in stopped mode but it's not stopped.
+            recovery_procedure = {}
+            # SOLUTION 1: Try stopping.
+            recovery_procedure[1] = ['mnt stop', 30]
+            # SOLUTION 2: Try again.
+            recovery_procedure[2] = ['mnt stop', 30]
+            # SOLUTION 3: If it's really not stopping then best to kill the power.
+            recovery_procedure[3] = ['power off sitech', 10]
+            # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
+            #                   it's been put into stopped mode. It could be parked, but that's
+            #                   a different error.
             return ERROR_MNT_STOPPED, recovery_procedure
 
         elif ERROR_MNT_NONSIDEREAL in self.errors:
