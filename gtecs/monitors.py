@@ -512,22 +512,24 @@ class DomeMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to the dome or the dehumidifier.
-            #          The dome is obviously the higher priority to try and fix.
-            recovery_procedure = {}
+            # The dome daemon connects to the dome and the dehumidifier.
+            # The dome is obviously the higher priority to try and fix.
             if 'dome' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the dome.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the dome power.
                 recovery_procedure[1] = ['power reboot dome', 60]
                 # OUT OF SOLUTIONS: We can't contact the dome, panic! Send out the alert.
                 return ERROR_HARDWARE + 'dome', recovery_procedure
             elif 'dehumidifer' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the dehumidifer.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the dehumidifier power.
                 recovery_procedure[1] = ['power reboot dehumid', 60]
                 # OUT OF SOLUTIONS: Not much else we can do, must be a hardware problem.
                 return ERROR_HARDWARE + 'dehumidifer', recovery_procedure
-            else:
-                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
-                return ERROR_HARDWARE, {}
+            # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+            return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
@@ -738,9 +740,10 @@ class MntMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to SiTechEXE.
-            recovery_procedure = {}
+            # The mount daemon connects to SiTechEXE.
             if 'sitech' in self.bad_hardware:
+                # PROBLEM: We've lost connection to SiTechEXE.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
                 #             NB: This was considered a bad idea, so has been removed.
@@ -748,9 +751,8 @@ class MntMonitor(BaseMonitor):
                 # recovery_procedure[2] = ['power on mount_nuc', 180]
                 # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
                 return ERROR_HARDWARE + 'sitech', recovery_procedure
-            else:
-                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
-                return ERROR_HARDWARE, {}
+            # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+            return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
@@ -916,14 +918,15 @@ class PowerMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to a power unit.
-            #          Need to go through one-by-one.
-            recovery_procedure = {}
+            # The power daemon connects to multiple power units.
+            # We need to go through one-by-one.
             for unit_name in params.POWER_UNITS:
                 if unit_name in self.bad_hardware:
+                    # PROBLEM: We've lost connection to a power unit.
+                    recovery_procedure = {}
                     # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
                     #                   TODO: Add that.
-                    return ERROR_HARDWARE + unit_name, {}
+                    return ERROR_HARDWARE + unit_name, recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 
