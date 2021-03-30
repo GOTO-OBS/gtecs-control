@@ -38,7 +38,7 @@ DEFAULT_NFV = 4
 
 
 class RestoreFocus(NeatCloser):
-    """Restore the origional focus positions if anything goes wrong."""
+    """Restore the original focus positions if anything goes wrong."""
 
     def __init__(self, positions):
         super(RestoreFocus, self).__init__('Script')
@@ -89,13 +89,19 @@ def calculate_positions(range_frac, steps, scale_factors=None):
     return pd.DataFrame(all_positions)
 
 
-def estimate_time(steps, num_exp, exp_time, readout_time=15, focchange_time=30):
+def estimate_time(steps, num_exp, exp_time, corners=False):
     """Estimate how long it will take to complete the run."""
-    total_exposures = num_exp * steps
-    total_exptime = exp_time * total_exposures
-    total_readout = readout_time * total_exposures
-    total_focchange = focchange_time * steps
-    return total_exptime + total_readout + total_focchange
+    READOUT_TIME_PER_EXPOSURE = 30
+    ANALYSIS_TIME_PER_EXPOSURE = 15 if not corners else 30  # it takes longer with more regions
+    MOVING_TIME_PER_STEP = 20
+    FAR_MOVING_TIME = 40  # Time to move out and back from the extreme ends of the run
+
+    time_per_exposure = exp_time + READOUT_TIME_PER_EXPOSURE + ANALYSIS_TIME_PER_EXPOSURE
+    time_per_step = MOVING_TIME_PER_STEP + (time_per_exposure * num_exp)
+    total_steps = steps * 2 + 1
+    total_time = FAR_MOVING_TIME + time_per_step * total_steps + FAR_MOVING_TIME
+
+    return total_time
 
 
 def lin_func(x, m, c):
@@ -269,9 +275,9 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     # Save the plot
     if save_plot:
         path = os.path.join(params.FILE_PATH, 'focus_data')
-        ofname = 'focusplot_{}.png'.format(finish_time)
-        plt.savefig(os.path.join(path, ofname))
-        print('Saved to {}'.format(os.path.join(path, ofname)))
+        filename = 'focusplot_{}.png'.format(finish_time)
+        plt.savefig(os.path.join(path, filename))
+        print('Saved to {}'.format(os.path.join(path, filename)))
 
     plt.show()
 
@@ -436,14 +442,14 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
         # Save the plot
         if save_plot:
             path = os.path.join(params.FILE_PATH, 'focus_data')
-            ofname = 'focusplot_{}_UT{}.png'.format(finish_time, ut)
-            plt.savefig(os.path.join(path, ofname))
-            print('Saved to {}'.format(os.path.join(path, ofname)))
+            filename = 'focusplot_{}_UT{}.png'.format(finish_time, ut)
+            plt.savefig(os.path.join(path, filename))
+            print('Saved to {}'.format(os.path.join(path, filename)))
 
         plt.show()
 
 
-def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
+def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L',
         measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -453,7 +459,7 @@ def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
                      for ut in params.AUTOFOCUS_PARAMS}
     positions = calculate_positions(range_frac, steps, scale_factors)
 
-    total_time = estimate_time(steps, num_exp, exptime)
+    total_time = estimate_time(steps, num_exp, exptime, measure_corners)
     print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
 
     # Confirm
@@ -518,7 +524,7 @@ def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
     print('Exposures finished')
     finish_time = Time.now().isot
 
-    # Restore the origional focus
+    # Restore the original focus
     print('~~~~~~')
     print('Restoring original focuser positions...')
     set_focuser_positions(initial_positions, timeout=120)
@@ -528,9 +534,9 @@ def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
     print('~~~~~~')
     print('Writing out data to file...')
     path = os.path.join(params.FILE_PATH, 'focus_data')
-    ofname = 'focusdata_{}.csv'.format(finish_time)
-    df.to_csv(os.path.join(path, ofname))
-    print('Saved to {}'.format(os.path.join(path, ofname)))
+    filename = 'focusdata_{}.csv'.format(finish_time)
+    df.to_csv(os.path.join(path, filename))
+    print('Saved to {}'.format(os.path.join(path, filename)))
 
     # Fit to data
     print('~~~~~~')
@@ -554,9 +560,9 @@ def run(steps, range_frac=0.05, num_exp=2, exptime=2, filt='L',
             fit_df.append(region_fit_df)
         fit_df = pd.concat(fit_df)
 
-    ofname = 'focusfit_{}.csv'.format(finish_time)
-    fit_df.to_csv(os.path.join(path, ofname))
-    print('Saved to {}'.format(os.path.join(path, ofname)))
+    filename = 'focusfit_{}.csv'.format(finish_time)
+    fit_df.to_csv(os.path.join(path, filename))
+    print('Saved to {}'.format(os.path.join(path, filename)))
 
     # Make plots
     if not no_plot:
@@ -660,7 +666,7 @@ if __name__ == '__main__':
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
-    # If something goes wrong we need to restore the origional focus
+    # If something goes wrong we need to restore the original focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocus(initial_positions)
