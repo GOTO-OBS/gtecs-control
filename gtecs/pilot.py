@@ -28,6 +28,28 @@ from .slack import send_slack_msg, send_startup_report, send_database_report, se
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
 
+def task_handler(func):
+    """Wrapper to handle exceptions within the main pilot coroutines."""
+    async def wrapper(pilot, *args, **kwargs):
+        try:
+            pilot.log.debug('starting {} routine'.format(func.__name__))
+            await func(pilot, *args, **kwargs)
+        except Exception:
+            pilot.log.error('caught exception in {} routine'.format(func.__name__))
+            pilot.log.debug('', exc_info=True)
+            send_slack_msg('Pilot detected exception in {} routine'.format(func.__name__))
+            reason = 'Exception in {} routine'.format(func.__name__)
+            asyncio.ensure_future(pilot.emergency_shutdown(reason))
+        finally:
+            try:
+                pilot.log.debug('finished {} routine'.format(func.__name__))
+            except NameError:
+                # An interupt has already killed the logger
+                # See https://stackoverflow.com/questions/64679139/
+                print('finished {} routine'.format(func.__name__))
+    return wrapper
+
+
 class Pilot(object):
     """Run the scheduler and telescope.
 
@@ -131,6 +153,7 @@ class Pilot(object):
         self.scheduler_check_time = 0
 
     # Check routines
+    @task_handler
     async def check_scheduler(self):
         """Check scheduler and update current pointing every 10 seconds."""
         self.log.info('scheduler check routine initialised')
@@ -161,6 +184,7 @@ class Pilot(object):
                 self.force_scheduler_check = False
             await asyncio.sleep(1)
 
+    @task_handler
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
         self.log.info('hardware check routine initialised')
@@ -233,6 +257,7 @@ class Pilot(object):
 
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_flags(self):
         """Check the conditions and status flags."""
         self.log.info('flags check routine initialised')
@@ -284,6 +309,7 @@ class Pilot(object):
 
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_dome(self):
         """Double check that dome is closed if it should be."""
         self.log.info('dome check routine initialised')
@@ -306,6 +332,7 @@ class Pilot(object):
                     self.close_dome()
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_time_paused(self):
         """Keep track of the time the pilot has been paused."""
         self.log.info('pause check routine initialised')
@@ -356,6 +383,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
     # Night marshal
+    @task_handler
     async def nightmarshal(self, restart=False, late=False):
         """Start tasks at the right time (based on the sun's altitude).
 
