@@ -608,11 +608,7 @@ class Pilot(object):
 
         # observing
         self.obs_start_sunalt = -12
-        if self.testing:
-            self.obs_stop_sunalt = 90
-        else:
-            # self.obs_stop_sunalt = -14  # WITH FOCRUN
-            self.obs_stop_sunalt = -12  # WITHOUT FOCRUN
+        self.obs_stop_sunalt = -12  # -14 WITH FOCRUN
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
