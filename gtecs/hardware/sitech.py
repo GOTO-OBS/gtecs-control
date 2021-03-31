@@ -118,12 +118,12 @@ class SiTech(object):
         """Send a command string to the device, then fetch the reply and return it as a string."""
         try:
             if self.log and self.log_debug:
-                self.log.debug('SEND:{}'.format(command_str[:-1]))
+                self.log.debug('SEND:"{}"'.format(command_str[:-1]))
             with self.thread_lock:
                 self.socket.send(command_str.encode())
                 reply = self.socket.recv(self.buffer_size)
             if self.log and self.log_debug:
-                self.log.debug('RECV:{}'.format(reply.decode()[:-1]))
+                self.log.debug('RECV:"{}"'.format(reply.decode()[:-1]))
             return reply.decode()
         except Exception as error:
             return 'SiTech socket error: {}'.format(error)
