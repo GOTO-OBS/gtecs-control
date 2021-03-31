@@ -367,10 +367,11 @@ class Pilot(object):
 
                             # here we can run an obs script during poor weather
                             self.log.info('running bad conditions tasks')
-                            # note we want to be able to move the mount, so we have to set the
+                            # Note we want to be able to move the mount, so we have to set the
                             # monitor status to 'tracking' here.
-                            # this means we can't park during the darks, which is annoying
+                            # This means we can't park during the darks, which is annoying
                             # (because that would count as a hardware error).
+                            # So we have to park again in start_script() once the script finishes.
                             if not self.mount_is_tracking:
                                 await self.unpark_mount()
 
@@ -557,6 +558,11 @@ class Pilot(object):
         if name == 'OBS':
             self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
+
+        # if BADCOND has just finished (or been canceled) then park the mount again
+        if name == 'BADCOND':
+            if self.mount_is_tracking:
+                self.park_mount()
 
         return retcode, result
 
