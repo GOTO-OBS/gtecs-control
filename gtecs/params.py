@@ -319,6 +319,7 @@ POWER_CHECK_SCRIPT = '_power_status'
 POWER_UNITS = config['POWER_UNITS']
 POWER_GROUPS = config['POWER_GROUPS']
 DASHBOARD_ALLOWED_OUTLETS = config['DASHBOARD_ALLOWED_OUTLETS']
+OBSERVING_OFF_OUTLETS = config['OBSERVING_OFF_OUTLETS']
 
 ############################################################
 # Dome parameters
