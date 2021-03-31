@@ -472,11 +472,7 @@ class AstroHavenDome(object):
         self._read_arduino()
 
         if self.log and self.log_debug:
-            self.log.debug('north: {}\t{}'.format(
-                self.plc_status['north'], self.arduino_status['north']))
-            self.log.debug('south: {}\t{}'.format(
-                self.plc_status['south'], self.arduino_status['south']))
-            self.log.debug('hatch: {}'.format(self.arduino_status['hatch']))
+            self.log.debug('plc:{} arduino:{}'.format(self.plc_status, self.arduino_status))
 
         status = {}
 
@@ -528,7 +524,10 @@ class AstroHavenDome(object):
     def _status_thread(self):
         while self.status_thread_running:
             self.status = self._read_status()
-            time.sleep(0.5)
+            if self.output_thread_running:
+                time.sleep(0.5)
+            else:
+                time.sleep(2)
 
     def _parse_heartbeat_status(self, status_character):
         # save previous status
@@ -597,7 +596,8 @@ class AstroHavenDome(object):
                     if self.log and self.log_debug:
                         self.log.debug('heartbeat SEND:"{}"'.format(v))
 
-            time.sleep(0.5)
+            # Sleep for halt the timeout period
+            time.sleep(self.heartbeat_timeout / 2)
 
     def set_heartbeat(self, command):
         """Enable or disable the heartbeat."""
