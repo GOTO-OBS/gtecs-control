@@ -484,7 +484,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_NOTFULLOPEN
         # Set the error if the dome should be open and it's not
         # Note the dome's allowed to be moving, that has its own error above
-        # Also note that part_open is delt with above
+        # Also note that part_open is dealt with above
         if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
                                                                         STATUS_DOME_PARTOPEN,
                                                                         STATUS_DOME_MOVING]:
@@ -497,7 +497,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_NOTCLOSED
         # Set the error if the dome should be closed and it's not
         # Notethe dome's allowed to be moving, that has its own error above
-        # Also note that part_open is delt with above
+        # Also note that part_open is dealt with above
         if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
                                                                           STATUS_DOME_PARTOPEN,
                                                                           STATUS_DOME_MOVING]:
@@ -629,7 +629,7 @@ class MntMonitor(BaseMonitor):
         super().__init__('mnt', log)
 
         # Define modes and starting mode
-        self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
+        self.available_modes = [MODE_MNT_PARKED, MODE_MNT_STOPPED, MODE_MNT_TRACKING]
         self.mode = starting_mode
 
     def get_hardware_status(self):
@@ -872,7 +872,7 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_NONSIDEREAL in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking at the correct rate.
             recovery_procedure = {}
-            # SOLUTION 1: Try resettign the track rate.
+            # SOLUTION 1: Try resetting the track rate.
             recovery_procedure[1] = ['mnt trackrate reset', 30]
             recovery_procedure[2] = ['mnt track', 30]
             # SOLUTION 2: Try again.
