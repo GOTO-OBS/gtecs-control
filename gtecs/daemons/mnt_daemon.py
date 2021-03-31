@@ -5,13 +5,14 @@ import threading
 import time
 
 import astropy.units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import AltAz, SkyCoord
 from astropy.time import Time
 
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.astronomy import altaz_from_radec, check_alt_limit, get_ha, radec_from_altaz
+from gtecs.astronomy import (altaz_from_radec, check_alt_limit, get_ha, observatory_location,
+                             radec_from_altaz)
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
 
@@ -44,6 +45,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = None
         self.target_alt = None
         self.target_az = None
+        self.targeting = None
         self.last_move_time = None
         self.set_blinky = False
         self.offset_direction = None
@@ -73,7 +75,7 @@ class MntDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -89,15 +91,11 @@ class MntDaemon(BaseDaemon):
             # slew to target
             if self.slew_target_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    new_ra, new_dec = self.target_ra, self.target_dec
-                    new_alt, new_az = altaz_from_radec(new_ra * 360 / 24, new_dec)
-                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
-                                                                     new_alt, new_az)
-                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
+                    target_alt, target_az = altaz_from_radec(
+                        self.target_ra * 360 / 24, self.target_dec)
+                    targ_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
+                        self.target_ra * 360 / 24, self.target_dec, target_alt, target_az)
+                    self.log.info('Slewing from {} to {}'.format(self._pos_str(), targ_str))
                     c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
                     if c:
                         self.log.info(c)
@@ -111,15 +109,10 @@ class MntDaemon(BaseDaemon):
             # slew to given alt/az
             if self.slew_altaz_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    new_alt, new_az = self.target_alt, self.target_az
-                    new_ra, new_dec = radec_from_altaz(self.target_alt, self.target_az)
-                    new_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(new_ra * 360 / 24, new_dec,
-                                                                     new_alt, new_az)
-                    self.log.info('Slewing from {} to {}'.format(now_str, new_str))
+                    target_ra, target_dec = radec_from_altaz(self.target_alt, self.target_az)
+                    targ_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
+                        target_ra * 360 / 24, target_dec, self.target_alt, self.target_az)
+                    self.log.info('Slewing from {} to {}'.format(self._pos_str(), targ_str))
                     c = self.sitech.slew_to_altaz(self.target_alt, self.target_az)
                     if c:
                         self.log.info(c)
@@ -133,11 +126,8 @@ class MntDaemon(BaseDaemon):
             # start tracking
             if self.start_tracking_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Starting tracking [pos {}]'.format(now_str))
+                    self.log.info('Starting tracking')
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.track()
                     if c:
                         self.log.info(c)
@@ -151,11 +141,8 @@ class MntDaemon(BaseDaemon):
             # stop all motion (tracking or slewing)
             if self.full_stop_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Halting mount [pos {}]'.format(now_str))
+                    self.log.info('Halting mount')
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.halt()
                     if c:
                         self.log.info(c)
@@ -168,12 +155,9 @@ class MntDaemon(BaseDaemon):
             # set trackrate
             if self.set_trackrate_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Setting track rate to ({},{}) [pos {}]'.format(
-                        self.trackrate_ra, self.trackrate_dec, now_str))
+                    self.log.info('Setting track rate to ({},{})'.format(
+                        self.trackrate_ra, self.trackrate_dec))
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.set_trackrate(self.trackrate_ra, self.trackrate_dec)
                     if c:
                         self.log.info(c)
@@ -187,12 +171,8 @@ class MntDaemon(BaseDaemon):
             # turn blinky mode on or off
             if self.set_blinky_mode_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
                     mode = 'on' if self.set_blinky else 'off'
-                    self.log.info('Turing blinky mode {} [pos {}]'.format(mode, now_str))
+                    self.log.info('Turing blinky mode {}'.format(mode))
                     c = self.sitech.set_blinky_mode(self.set_blinky)
                     if c:
                         self.log.info(c)
@@ -206,11 +186,8 @@ class MntDaemon(BaseDaemon):
             # park the mount
             if self.park_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Parking mount [pos {}]'.format(now_str))
+                    self.log.info('Parking mount')
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.park()
                     if c:
                         self.log.info(c)
@@ -223,17 +200,15 @@ class MntDaemon(BaseDaemon):
                 self.target_dec = None
                 self.target_alt = None
                 self.target_az = None
+                self.targeting = None
                 self.park_flag = 0
                 self.force_check_flag = True
 
             # unpark the mount
             if self.unpark_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Unparking mount [pos {}]'.format(now_str))
+                    self.log.info('Unparking mount')
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.unpark()
                     if c:
                         self.log.info(c)
@@ -246,12 +221,9 @@ class MntDaemon(BaseDaemon):
             # offset
             if self.offset_flag:
                 try:
-                    now_ra, now_dec = self.info['mount_ra'], self.info['mount_dec']
-                    now_alt, now_az = self.info['mount_alt'], self.info['mount_az']
-                    now_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(now_ra * 360 / 24, now_dec,
-                                                                     now_alt, now_az)
-                    self.log.info('Offsetting {} {} arcsec [pos {}]'.format(
-                        self.offset_direction, self.offset_distance, now_str))
+                    self.log.info('Offsetting {} {} arcsec'.format(
+                        self.offset_direction, self.offset_distance))
+                    self.log.debug('pos = {}'.format(self._pos_str()))
                     c = self.sitech.offset(self.offset_direction, self.offset_distance)
                     if c:
                         self.log.info(c)
@@ -275,7 +247,11 @@ class MntDaemon(BaseDaemon):
         # Connect to sitech
         if self.sitech is None:
             try:
-                self.sitech = SiTech(params.SITECH_HOST, params.SITECH_PORT, self.log)
+                self.sitech = SiTech(params.SITECH_HOST,
+                                     params.SITECH_PORT,
+                                     self.log,
+                                     params.SITECH_DEBUG,
+                                     )
                 self.log.info('Connected to SiTechEXE')
                 if 'sitech' in self.bad_hardware:
                     self.bad_hardware.remove('sitech')
@@ -327,9 +303,10 @@ class MntDaemon(BaseDaemon):
         # Get other internal info
         temp_info['target_ra'] = self.target_ra
         temp_info['target_dec'] = self.target_dec
-        temp_info['target_dist'] = self._get_target_distance()
         temp_info['target_alt'] = self.target_alt
         temp_info['target_az'] = self.target_az
+        temp_info['target_dist'] = self._get_target_distance()
+        temp_info['targeting'] = self.targeting
         temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
@@ -351,16 +328,26 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
-        # Need to catch error if target not yet set
-        if self.target_ra is None or self.target_dec is None:
+        if self.targeting == 'radec':
+            current_coord = SkyCoord(self.sitech.ra, self.sitech.dec, unit=(u.hour, u.deg))
+            target_coord = SkyCoord(self.target_ra, self.target_dec, unit=(u.hour, u.deg))
+            return current_coord.separation(target_coord).deg
+        elif self.targeting == 'altaz':
+            now = Time.now()
+            current_coord = AltAz(alt=self.sitech.alt * u.deg, az=self.sitech.az * u.deg,
+                                  obstime=now, location=observatory_location())
+            target_coord = AltAz(alt=self.target_alt * u.deg, az=self.target_az * u.deg,
+                                 obstime=now, location=observatory_location())
+            return current_coord.separation(target_coord).deg
+        else:
             return None
-        m_ra = self.sitech.ra
-        m_dec = self.sitech.dec
-        t_ra = self.target_ra
-        t_dec = self.target_dec
-        m_c = SkyCoord(m_ra, m_dec, unit=(u.hour, u.deg))
-        t_c = SkyCoord(t_ra, t_dec, unit=(u.hour, u.deg))
-        return t_c.separation(m_c).deg
+
+    def _pos_str(self):
+        """Return a simple string reporting the current position."""
+        pos_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
+            self.info['mount_ra'] * 360 / 24, self.info['mount_dec'],
+            self.info['mount_alt'], self.info['mount_az'])
+        return pos_str
 
     # Control functions
     def slew_to_radec(self, ra=None, dec=None):
@@ -396,6 +383,7 @@ class MntDaemon(BaseDaemon):
         self.target_dec = dec
         self.target_alt = None
         self.target_az = None
+        self.targeting = 'radec'
 
         # Set flag
         self.force_check_flag = True
@@ -425,9 +413,9 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_alt = alt
         self.target_az = az
-        ra, dec = radec_from_altaz(alt, az, Time.now())  # needed for _get_target_distance()
-        self.target_ra = ra * 24 / 360.
-        self.target_dec = dec
+        self.target_ra = None
+        self.target_dec = None
+        self.targeting = 'altaz'
 
         # Set flag
         self.force_check_flag = True
@@ -563,6 +551,9 @@ class MntDaemon(BaseDaemon):
 
         # Set values
         self.target_ra = ra
+        self.target_alt = None
+        self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         return 'Setting target RA'
@@ -580,6 +571,9 @@ class MntDaemon(BaseDaemon):
 
         # Set values
         self.target_dec = dec
+        self.target_alt = None
+        self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target Dec to {:.4f}'.format(dec))
         return 'Setting target Dec'
@@ -600,6 +594,9 @@ class MntDaemon(BaseDaemon):
         # Set values
         self.target_ra = ra
         self.target_dec = dec
+        self.target_alt = None
+        self.target_az = None
+        self.targeting = 'radec'
 
         self.log.info('Set target RA to {:.4f}'.format(ra))
         self.log.info('Set target Dec to {:.4f}'.format(dec))
@@ -609,14 +606,13 @@ class MntDaemon(BaseDaemon):
         """Clear the stored target."""
         # Check current status
         self.wait_for_info()
-        if self.target_ra is None and self.target_dec is None:
-            return 'No current target'
 
         # Set values
         self.target_ra = None
         self.target_dec = None
         self.target_alt = None
         self.target_az = None
+        self.targeting = None
 
         self.log.info('Cleared target')
         return 'Cleared target'
