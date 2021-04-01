@@ -113,27 +113,6 @@ class FakeDome(object):
 
         return status
 
-    def halt(self):
-        """Stop the dome moving."""
-        self.output_thread_running = False
-
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
-            else:
-                self.heartbeat_enabled = True
-                self.heartbeat_status = 'enabled'
-                return 'Heartbeat enabled'
-        else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                self.heartbeat_status = 'disabled'
-                return 'Heartbeat disabled'
-
     def _output_thread(self):
         if self.side == 'north':
             side = 0
@@ -236,12 +215,33 @@ class FakeDome(object):
         self._move_dome(side, 'close', frac)
         return
 
+    def halt(self):
+        """Stop the dome moving."""
+        self.output_thread_running = False
+
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
         """Sound the dome alarm."""
         # Note this is always blocking
         bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
         subprocess.getoutput(bell)
         return
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                self.heartbeat_status = 'enabled'
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                self.heartbeat_status = 'disabled'
+                return 'Heartbeat disabled'
 
 
 class AstroHavenDome(object):
@@ -297,8 +297,12 @@ class AstroHavenDome(object):
         self.dome_serial = serial.Serial(self.dome_serial_port,
                                          baudrate=self.dome_serial_baudrate,
                                          timeout=self.dome_serial_timeout)
-        # start thread
-        self._check_status()
+
+        # start status check thread
+        self.status_thread_running = True
+        st = threading.Thread(target=self._status_thread)
+        st.daemon = True
+        st.start()
 
         # serial connection to the dome monitor box
         if self.heartbeat_serial_port:
@@ -306,17 +310,18 @@ class AstroHavenDome(object):
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
                                                       baudrate=self.heartbeat_serial_baudrate,
                                                       timeout=self.heartbeat_serial_timeout)
-                # start thread
-                self.heartbeat_thread_running = True
-                ht = threading.Thread(target=self._heartbeat_thread)
-                ht.daemon = True
-                ht.start()
             except Exception:
                 if self.log:
                     self.log.error('Error connecting to heartbeat monitor')
                     self.log.debug('', exc_info=True)
                 self.heartbeat_error = True
                 self.heartbeat_status = 'ERROR'
+
+            # start heartbeat check thread
+            self.heartbeat_thread_running = True
+            ht = threading.Thread(target=self._heartbeat_thread)
+            ht.daemon = True
+            ht.start()
         else:
             self.heartbeat_status = 'disabled'
 
@@ -337,22 +342,32 @@ class AstroHavenDome(object):
         except AttributeError:
             pass
 
-    def _read_plc(self):
-        try:
-            if self.dome_serial.in_waiting:
-                out = self.dome_serial.read(self.dome_serial.in_waiting)
-                x = out.decode('ascii')[-1]
-                if self.log and self.log_debug:
-                    self.log.debug('plc RECV:"{}"'.format(x))
-                self._parse_plc_status(x)
-        except Exception:
-            if self.log:
-                self.log.error('Error communicating with the PLC')
-                self.log.debug('', exc_info=True)
-                self.log.debug('Previous status: {}'.format(self.old_plc_status))
-            self.plc_error = True
-            self.plc_status['north'] = 'ERROR'
-            self.plc_status['south'] = 'ERROR'
+    def _read_plc(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                if self.dome_serial.in_waiting:
+                    out = self.dome_serial.read(self.dome_serial.in_waiting)
+                    x = out.decode('ascii')[-1]
+                    if self.log and self.log_debug:
+                        self.log.debug('plc RECV:"{}"'.format(x))
+                    self._parse_plc_status(x)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the PLC')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_plc_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.1)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the PLC')
+                    self.plc_error = True
+                    self.plc_status['north'] = 'ERROR'
+                    self.plc_status['south'] = 'ERROR'
 
     def _parse_plc_status(self, status_character):
         # save previous status
@@ -392,23 +407,32 @@ class AstroHavenDome(object):
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
-    def _read_arduino(self):
-        loc = params.ARDUINO_LOCATION
-        try:
-            arduino = subprocess.getoutput('curl -s {}'.format(loc))
-            data = json.loads(arduino)
-            if self.log and self.log_debug:
-                self.log.debug('arduino RECV:"{}"'.format(data))
-            self._parse_arduino_status(data)
-        except Exception:
-            if self.log:
-                self.log.error('Error communicating with the arduino')
-                self.log.debug('', exc_info=True)
-                self.log.debug('Previous status: {}'.format(self.old_arduino_status))
-            self.arduino_error = True
-            self.arduino_status['north'] = 'ERROR'
-            self.arduino_status['south'] = 'ERROR'
-            self.arduino_status['hatch'] = 'ERROR'
+    def _read_arduino(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                arduino = subprocess.getoutput('curl -s {}'.format(params.ARDUINO_LOCATION))
+                data = json.loads(arduino)
+                if self.log and self.log_debug:
+                    self.log.debug('arduino RECV:"{}"'.format(data))
+                self._parse_arduino_status(data)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the arduino')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_arduino_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.1)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the arduino')
+                    self.arduino_error = True
+                    self.arduino_status['north'] = 'ERROR'
+                    self.arduino_status['south'] = 'ERROR'
+                    self.arduino_status['hatch'] = 'ERROR'
 
     def _parse_arduino_status(self, status_dict):
         # save previous status
@@ -537,13 +561,6 @@ class AstroHavenDome(object):
                 status[side] = 'ERROR'
         return status
 
-    def _check_status(self):
-        # start status check thread
-        self.status_thread_running = True
-        st = threading.Thread(target=self._status_thread)
-        st.daemon = True
-        st.start()
-
     def _status_thread(self):
         if self.log:
             self.log.debug('status thread started')
@@ -555,6 +572,32 @@ class AstroHavenDome(object):
                 time.sleep(2)
         if self.log:
             self.log.debug('status thread finished')
+
+    def _read_heartbeat(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                if self.heartbeat_serial.in_waiting:
+                    out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
+                    x = out[-1]
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat RECV:"{}"'.format(x))
+                    self._parse_heartbeat_status(x)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the heartbeat monitor')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_heartbeat_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.1)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the heartbeat monitor')
+                    self.heartbeat_error = True
+                    self.heartbeat_status = 'ERROR'
 
     def _parse_heartbeat_status(self, status_character):
         # save previous status
@@ -572,22 +615,6 @@ class AstroHavenDome(object):
             raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
                 status_character))
         return
-
-    def _read_heartbeat(self):
-        try:
-            if self.heartbeat_serial.in_waiting:
-                out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
-                x = out[-1]
-                if self.log and self.log_debug:
-                    self.log.debug('heartbeat RECV:"{}"'.format(x))
-                self._parse_heartbeat_status(x)
-        except Exception:
-            if self.log:
-                self.log.error('Error communicating with the heartbeat monitor')
-                self.log.debug('', exc_info=True)
-                self.log.debug('Previous status: {}'.format(self.old_heartbeat_status))
-            self.heartbeat_error = True
-            self.heartbeat_status = 'ERROR'
 
     def _heartbeat_thread(self):
         if self.log:
@@ -631,21 +658,6 @@ class AstroHavenDome(object):
 
         if self.log:
             self.log.debug('heartbeat thread finished')
-
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
-            else:
-                self.heartbeat_enabled = True
-                return 'Heartbeat enabled'
-        else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                return 'Heartbeat disabled'
 
     def _output_thread(self):
         side = self.side
@@ -706,10 +718,6 @@ class AstroHavenDome(object):
         if self.log:
             self.log.debug('output thread finished')
 
-    def halt(self):
-        """To stop the output thread."""
-        self.output_thread_running = False
-
     def _move_dome(self, side, command, frac, timeout=40.):
         """Move the dome until it reaches its limit."""
         self.side = side
@@ -745,6 +753,10 @@ class AstroHavenDome(object):
         self._move_dome(side, 'close', frac)
         return
 
+    def halt(self):
+        """To stop the output thread."""
+        self.output_thread_running = False
+
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         """Sound the dome alarm using the Arduino.
 
@@ -762,6 +774,21 @@ class AstroHavenDome(object):
         if sleep:
             time.sleep(duration)
         return
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                return 'Heartbeat disabled'
 
 
 class FakeDehumidifier(object):
