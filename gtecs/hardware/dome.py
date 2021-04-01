@@ -215,7 +215,7 @@ class FakeDome(object):
         # start output thread
         if not self.output_thread_running:
             if self.log:
-                self.log.info('starting to move:', side, command, frac)
+                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
             self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
@@ -724,7 +724,7 @@ class AstroHavenDome(object):
         # start output thread
         if not self.output_thread_running:
             if self.log:
-                self.log.info('starting to move:', side, command, frac)
+                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
             self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
