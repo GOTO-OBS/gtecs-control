@@ -1158,15 +1158,18 @@ class Pilot(object):
 
     async def emergency_shutdown(self, why):
         """Send a warning and then shut down."""
-        self.log.info('performing emergency shutdown: {}'.format(why))
-        send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
+        if not self.shutdown_now:  # Don't trigger multiple times
+            self.log.info('performing emergency shutdown: {}'.format(why))
+            send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
 
-        self.log.info('closing dome immediately')
-        self.stop_mount()
-        self.close_dome()
+            self.log.info('closing dome immediately')
+            self.stop_mount()
+            self.close_dome()
 
-        # trigger night countdown to shutdown
-        self.shutdown_now = True
+            # trigger night countdown to shutdown
+            self.shutdown_now = True
+        else:
+            self.log.info('multiple emergency shutdowns triggered: {}'.format(why))
 
     # Hardware commands
     async def open_dome(self):
