@@ -320,13 +320,17 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'disabled'
 
     def __del__(self):
-        try:
-            # Stop threads
-            self.output_thread_running = 0
-            self.status_thread_running = 0
-            self.heartbeat_thread_running = 0
+        self.close()
 
-            # Close serial
+    def close(self):
+        """Shutdown the dome monitoring threads."""
+        # Stop threads
+        self.output_thread_running = 0
+        self.status_thread_running = 0
+        self.heartbeat_thread_running = 0
+
+        # Close serial
+        try:
             self.dome_serial.close()
             self.heartbeat_serial.close()
         except AttributeError:
