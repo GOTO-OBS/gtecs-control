@@ -343,7 +343,7 @@ class DomeDaemon(BaseDaemon):
                     # sleep briefly, to make sure the connection has started
                     time.sleep(3)
                 except Exception:
-                    self.dome.close()
+                    self.dome.disconnect()
                     self.dome = None
                     if 'dome' not in self.bad_hardware:
                         self.log.error('Failed to connect to dome')
@@ -353,17 +353,17 @@ class DomeDaemon(BaseDaemon):
         if self.dome is not None:
             if self.dome.plc_error:
                 self.log.error('Failed to connect to dome PLC')
-                self.dome.close()
+                self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
             elif self.dome.arduino_error:
                 self.log.error('Failed to connect to dome arduino')
-                self.dome.close()
+                self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
             elif self.dome.heartbeat_error:
                 self.log.error('Failed to connect to dome heartbeat monitor')
-                self.dome.close()
+                self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
 
@@ -425,7 +425,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['dome'] = None
             temp_info['heartbeat_status'] = None
             # Report the connection as failed
-            self.dome.close()
+            self.dome.disconnect()
             self.dome = None
             if 'dome' not in self.bad_hardware:
                 self.bad_hardware.add('dome')

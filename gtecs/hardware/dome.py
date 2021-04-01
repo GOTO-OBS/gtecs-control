@@ -326,9 +326,9 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'disabled'
 
     def __del__(self):
-        self.close()
+        self.disconnect()
 
-    def close(self):
+    def disconnect(self):
         """Shutdown the dome monitoring threads."""
         # Stop threads
         self.output_thread_running = False
