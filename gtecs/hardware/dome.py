@@ -19,7 +19,6 @@ class FakeDome(object):
         self.fake = True
         self.dome_serial_port = dome_port
         self.heartbeat_serial_port = heartbeat_port
-        self.output_thread_running = False
         self.side = ''
         self.frac = 1
         self.command = ''
@@ -35,6 +34,8 @@ class FakeDome(object):
         self.heartbeat_enabled = True
         self.heartbeat_error = False
 
+        self.output_thread_running = False
+
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
@@ -45,7 +46,7 @@ class FakeDome(object):
     def __del__(self):
         try:
             # Stop threads
-            self.output_thread_running = 0
+            self.output_thread_running = False
         except AttributeError:
             pass
 
@@ -158,28 +159,28 @@ class FakeDome(object):
             if command == 'open' and self._status_arr[side] == 9:
                 if self.log:
                     self.log.info('Dome at limit')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif command == 'close' and self._status_arr[side] == 0:
                 if self.log:
                     self.log.info('Dome at limit')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif (frac != 1 and
                   abs(start_position - self._status_arr[side]) > frac * 9):
                 if self.log:
                     self.log.info('Dome moved requested fraction')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif running_time > timeout:
                 if self.log:
                     self.log.info('Dome moving timed out')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif self.status[self.side] == 'ERROR':
                 if self.log:
                     self.log.warning('All sensors failed, stopping movement')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
 
             # if we're still going, send the command to "the serial port"
@@ -215,7 +216,7 @@ class FakeDome(object):
         if not self.output_thread_running:
             if self.log:
                 self.log.info('starting to move:', side, command, frac)
-            self.output_thread_running = 1
+            self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
             ot.start()
@@ -275,7 +276,7 @@ class AstroHavenDome(object):
         self.old_arduino_status = None
         self.arduino_error = False
 
-        self.honeywell_was_triggered = {'north': 0, 'south': 0}
+        self.honeywell_was_triggered = {'north': False, 'south': False}
 
         self.heartbeat_enabled = True
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
@@ -288,9 +289,9 @@ class AstroHavenDome(object):
         self.command = ''
         self.timeout = 40.
 
-        self.output_thread_running = 0
-        self.status_thread_running = 0
-        self.heartbeat_thread_running = 0
+        self.output_thread_running = False
+        self.status_thread_running = False
+        self.heartbeat_thread_running = False
 
         # serial connection to the dome
         self.dome_serial = serial.Serial(self.dome_serial_port,
@@ -306,7 +307,7 @@ class AstroHavenDome(object):
                                                       baudrate=self.heartbeat_serial_baudrate,
                                                       timeout=self.heartbeat_serial_timeout)
                 # start thread
-                self.heartbeat_thread_running = 1
+                self.heartbeat_thread_running = True
                 ht = threading.Thread(target=self._heartbeat_thread)
                 ht.daemon = True
                 ht.start()
@@ -325,9 +326,9 @@ class AstroHavenDome(object):
     def close(self):
         """Shutdown the dome monitoring threads."""
         # Stop threads
-        self.output_thread_running = 0
-        self.status_thread_running = 0
-        self.heartbeat_thread_running = 0
+        self.output_thread_running = False
+        self.status_thread_running = False
+        self.heartbeat_thread_running = False
 
         # Close serial
         try:
@@ -465,7 +466,7 @@ class AstroHavenDome(object):
 
                 # if the honeywell is triggered now, store it
                 if honeywell_triggered:
-                    self.honeywell_was_triggered[side] = 1
+                    self.honeywell_was_triggered[side] = True
 
                 # but if it's not currently triggered,
                 # it might have gone past
@@ -477,10 +478,10 @@ class AstroHavenDome(object):
                             if self.log:
                                 self.log.warning('Honeywell limit error, stopping!')
                             self.arduino_status[side] == 'full_open'
-                            self.output_thread_running = 0  # to be sure
+                            self.output_thread_running = False  # to be sure
                         else:
                             # It's moving back, clear the memory
-                            self.honeywell_was_triggered[side] = 0
+                            self.honeywell_was_triggered[side] = False
 
         except Exception:
             raise ValueError('Unable to parse reply from the arduino: {}'.format(status_dict))
@@ -538,7 +539,7 @@ class AstroHavenDome(object):
 
     def _check_status(self):
         # start status check thread
-        self.status_thread_running = 1
+        self.status_thread_running = True
         st = threading.Thread(target=self._status_thread)
         st.daemon = True
         st.start()
@@ -663,27 +664,27 @@ class AstroHavenDome(object):
             if command == 'open' and self.status[side] == 'full_open':
                 if self.log:
                     self.log.info('Dome at limit')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif command == 'close' and self.status[side] == 'closed':
                 if self.log:
                     self.log.info('Dome at limit')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif (frac != 1 and running_time > self.move_time[side][command] * frac):
                 if self.log:
                     self.log.info('Dome moved requested fraction')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif running_time > timeout:
                 if self.log:
                     self.log.info('Dome moving timed out')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
             elif self.status[side] == 'ERROR':
                 if self.log:
                     self.log.warning('All sensors failed, stopping movement')
-                self.output_thread_running = 0
+                self.output_thread_running = False
                 break
 
             # if we're still going, send the command to the serial port
@@ -707,7 +708,7 @@ class AstroHavenDome(object):
 
     def halt(self):
         """To stop the output thread."""
-        self.output_thread_running = 0
+        self.output_thread_running = False
 
     def _move_dome(self, side, command, frac, timeout=40.):
         """Move the dome until it reaches its limit."""
@@ -724,7 +725,7 @@ class AstroHavenDome(object):
         if not self.output_thread_running:
             if self.log:
                 self.log.info('starting to move:', side, command, frac)
-            self.output_thread_running = 1
+            self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
             ot.start()
