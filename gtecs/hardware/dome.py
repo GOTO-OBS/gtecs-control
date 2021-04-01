@@ -42,6 +42,13 @@ class FakeDome(object):
 
         self._read_temp()
 
+    def __del__(self):
+        try:
+            # Stop threads
+            self.output_thread_running = 0
+        except AttributeError:
+            pass
+
     def _read_temp(self):
         while self._writing:
             time.sleep(0.1)
@@ -137,6 +144,8 @@ class FakeDome(object):
         command = self.command
         timeout = self.timeout
         start_time = time.time()
+        if self.log:
+            self.log.debug('output thread started')
 
         self._read_temp()
         start_position = self._status_arr[side]
@@ -189,6 +198,8 @@ class FakeDome(object):
         self.side = ''
         self.command = ''
         self.timeout = 40.
+        if self.log:
+            self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac, timeout=40.):
         self.side = side
@@ -310,7 +321,14 @@ class AstroHavenDome(object):
 
     def __del__(self):
         try:
+            # Stop threads
+            self.output_thread_running = 0
+            self.status_thread_running = 0
+            self.heartbeat_thread_running = 0
+
+            # Close serial
             self.dome_serial.close()
+            self.heartbeat_serial.close()
         except AttributeError:
             pass
 
@@ -522,12 +540,16 @@ class AstroHavenDome(object):
         st.start()
 
     def _status_thread(self):
+        if self.log:
+            self.log.debug('status thread started')
         while self.status_thread_running:
             self.status = self._read_status()
             if self.output_thread_running:
                 time.sleep(0.5)
             else:
                 time.sleep(2)
+        if self.log:
+            self.log.debug('status thread finished')
 
     def _parse_heartbeat_status(self, status_character):
         # save previous status
@@ -563,6 +585,9 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'ERROR'
 
     def _heartbeat_thread(self):
+        if self.log:
+            self.log.debug('heartbeat thread started')
+
         while self.heartbeat_thread_running:
             # check heartbeat status
             self._read_heartbeat()
@@ -599,6 +624,9 @@ class AstroHavenDome(object):
             # Sleep for halt the timeout period
             time.sleep(self.heartbeat_timeout / 2)
 
+        if self.log:
+            self.log.debug('heartbeat thread finished')
+
     def set_heartbeat(self, command):
         """Enable or disable the heartbeat."""
         if command:
@@ -620,6 +648,8 @@ class AstroHavenDome(object):
         command = self.command
         timeout = self.timeout
         start_time = time.time()
+        if self.log:
+            self.log.debug('output thread started')
 
         while self.output_thread_running:
             # store running time for timeout
@@ -667,6 +697,9 @@ class AstroHavenDome(object):
         self.side = ''
         self.command = ''
         self.timeout = 40.
+
+        if self.log:
+            self.log.debug('output thread finished')
 
     def halt(self):
         """To stop the output thread."""
