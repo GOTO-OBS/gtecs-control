@@ -34,6 +34,8 @@ def task_handler(func):
         try:
             pilot.log.debug('starting {} routine'.format(func.__name__))
             await func(pilot, *args, **kwargs)
+        except asyncio.CancelledError:
+            pilot.log.warning('{} routine has been cancelled'.format(func.__name__))
         except Exception:
             pilot.log.error('caught exception in {} routine'.format(func.__name__))
             pilot.log.debug('', exc_info=True)
