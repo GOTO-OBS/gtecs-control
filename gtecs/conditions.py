@@ -347,8 +347,13 @@ def get_robodimm():
     outfile = os.path.join(params.FILE_PATH, 'dimm.php')
     indata = download_data_from_url(url, outfile)
 
-    indata = indata.replace('>', '>\n').split('\n')
-    data = indata[-3].split()
+    try:
+        indata = indata.replace('>', '>\n').split('\n')
+        data = indata[-3].split()
+    except Exception:
+        print('Error reading data from RoboDIMM')
+        print(indata)
+        raise
 
     weather_dict = {}
 
