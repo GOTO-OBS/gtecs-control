@@ -46,12 +46,14 @@ class DomeDaemon(BaseDaemon):
         self.move_start_time = 0
         self.last_move_time = None
 
+        self.shielding = False
         self.lockdown = False
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
         self.alarm_enabled = True
         self.heartbeat_enabled = True
+        self.windshield_enabled = False
 
         self.autodehum_enabled = True
         self.autoclose_enabled = True
@@ -102,6 +104,9 @@ class DomeDaemon(BaseDaemon):
                 # Check if we need to turn on/off the dehumidifier
                 self._autodehum_check()
 
+                # Check if we need to raise the shields
+                self._windshield_check()
+
             # control functions
             # open dome
             if self.open_flag:
@@ -114,7 +119,7 @@ class DomeDaemon(BaseDaemon):
                     elif self.move_side == 'both':
                         side = 'south'
                     elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is open')
+                        self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
@@ -187,7 +192,7 @@ class DomeDaemon(BaseDaemon):
                     elif self.move_side == 'both':
                         side = 'north'
                     elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is closed')
+                        self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
@@ -500,11 +505,13 @@ class DomeDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['last_move_time'] = self.last_move_time
+        temp_info['shielding'] = self.shielding
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
         temp_info['alarm_enabled'] = self.alarm_enabled
         temp_info['heartbeat_enabled'] = self.heartbeat_enabled
+        temp_info['windshield_enabled'] = self.windshield_enabled
         temp_info['autodehum_enabled'] = self.autodehum_enabled
         temp_info['autoclose_enabled'] = self.autoclose_enabled
 
@@ -627,7 +634,7 @@ class DomeDaemon(BaseDaemon):
             if self.open_flag:
                 self.halt_flag = 1
                 time.sleep(2)
-            # Make sure the alarm sounds
+            # Make sure the alarm sounds, since we're moving automatically
             self.alarm_enabled = True
             # Close the dome
             self.close_flag = 1
@@ -674,6 +681,44 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
                                                                   self.info['temperature_upper']))
                 self.dehumidifier_off_flag = 1
+
+    def _windshield_check(self):
+        """Check if the dome is open and needs to raise shields."""
+        if not self.dome:
+            self.log.warning('Shielding disabled while no connection to dome')
+            return
+
+        # Check if we are currently shielding
+        if (self.shielding and
+                self.info['north'] in ['full_open', 'closed'] and
+                self.info['south'] in ['full_open', 'closed']):
+            # The dome must have moved some other way, either manually or via autoclose
+            self.shielding = False
+
+        # Decide if we need to raise or lower shields
+        if (self.windshield_enabled and
+                (self.info['north'] == 'full_open' or self.info['south'] == 'full_open') and
+                not self.open_flag and not self.close_flag):
+            self.log.warning('Moving dome shutters to windshield position')
+            self.shielding = True
+            # Make sure the alarm sounds, since we're moving automatically
+            self.alarm_enabled = True
+            # Partially close the dome
+            self.close_flag = 1
+            self.move_side = 'both'
+            self.move_frac = 0.3
+
+        elif (self.shielding and not self.windshield_enabled and
+              (self.info['north'] == 'part_open' or self.info['south'] == 'part_open') and
+              not self.open_flag and not self.close_flag):
+            self.log.warning('Moving dome shutters to full open')
+            self.shielding = False
+            # Make sure the alarm sounds, since we're moving automatically
+            self.alarm_enabled = True
+            # Fully open the dome
+            self.open_flag = 1
+            self.move_side = 'both'
+            self.move_frac = 1
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
@@ -942,6 +987,35 @@ class DomeDaemon(BaseDaemon):
             return 'Enabling dome heartbeat'
         elif command == 'off':
             return 'Disabling dome heartbeat'
+
+    def override_windshield(self, command):
+        """Turn windshielding on or off manually."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        windshield_enabled = self.info['windshield_enabled']
+        if command == 'on' and windshield_enabled:
+            return 'Windshielding is already enabled'
+        elif command == 'off' and not windshield_enabled:
+            return 'Windshielding is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling windshield mode (manual command)')
+            self.windshield_enabled = True
+        elif command == 'off':
+            self.log.info('Disabling windshield mode (manual command)')
+            self.windshield_enabled = False
+
+        if command == 'on':
+            s = 'Enabling windshield mode'
+            return s
+        elif command == 'off':
+            s = 'Disabling windshield mode'
+            return s
 
 
 if __name__ == '__main__':
