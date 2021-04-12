@@ -43,7 +43,7 @@ def run():
 
     # Make sure the interfaces are started before the other daemons
     execute_command('intf start')
-    time.sleep(1)
+    time.sleep(4)
 
     # Make all the other daemons are running
     for daemon_id in list(params.DAEMONS):
