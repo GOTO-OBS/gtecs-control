@@ -291,7 +291,7 @@ def wait_for_focusers(target_positions, timeout=None):
     Parameters
     ----------
     target_positions : float, dict
-        targrt position, or a dictionary of unit telescope IDs and positions
+        target position, or a dictionary of unit telescope IDs and positions
 
     timeout : float, default=None
         time in seconds after which to timeout, None to wait forever
@@ -743,6 +743,12 @@ def get_pointing_status(db_id):
         pointing = get_pointing_by_id(session, db_id)
         status = pointing.status
     return status
+
+
+def get_conditions(timeout=30):
+    """Get the current conditions values."""
+    conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
+    return conditions_info['weather']
 
 
 def get_internal_conditions(timeout=30):

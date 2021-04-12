@@ -13,8 +13,10 @@ from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
-from gtecs.observing import get_internal_conditions
+from gtecs.observing import get_conditions
 from gtecs.slack import send_slack_msg
+
+import numpy as np
 
 import serial
 
@@ -57,6 +59,7 @@ class DomeDaemon(BaseDaemon):
 
         self.autodehum_enabled = True
         self.autoclose_enabled = True
+        self.autoshield_enabled = True
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -103,6 +106,9 @@ class DomeDaemon(BaseDaemon):
 
                 # Check if we need to turn on/off the dehumidifier
                 self._autodehum_check()
+
+                # Check if we should enable shielding due to high wind
+                self._autoshield_check()
 
                 # Check if we need to raise the shields
                 self._windshield_check()
@@ -440,33 +446,44 @@ class DomeDaemon(BaseDaemon):
         try:
             dehumidifier_status = self.dehumidifier.status
             temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
-            temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
-            temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
-            temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
-            temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
         except Exception:
             self.log.error('Failed to get dehumidifier info')
             self.log.debug('', exc_info=True)
             temp_info['dehumidifier_on'] = None
-            temp_info['humidity_upper'] = None
-            temp_info['humidity_lower'] = None
-            temp_info['temperature_lower'] = None
-            temp_info['temperature_upper'] = None
             # Report the connection as failed
             self.dehumidifier = None
             if 'dehumidifier' not in self.bad_hardware:
                 self.bad_hardware.add('dehumidifier')
 
-        # Get the dome internal conditions
+        # Get the conditions values and limits
         try:
-            int_conditions = get_internal_conditions(timeout=10)
-            temp_info['temperature'] = int_conditions['temperature']
-            temp_info['humidity'] = int_conditions['humidity']
+            conditions = get_conditions(timeout=10)
+            # Windspeed - take the maximum gust from all stations
+            windspeed = np.max([conditions[source]['windgust']
+                                for source in conditions
+                                if conditions[source]['type'] == 'external'])
+            # Internal - take mean of internal sensors
+            int_temperature = np.mean([conditions[source]['temperature']
+                                       for source in conditions
+                                       if conditions[source]['type'] == 'internal'])
+            int_humidity = np.mean([conditions[source]['temperature']
+                                    for source in conditions
+                                    if conditions[source]['type'] == 'internal'])
+            temp_info['windspeed'] = windspeed
+            temp_info['temperature'] = int_temperature
+            temp_info['humidity'] = int_humidity
         except Exception:
-            self.log.error('Failed to get dome internal conditions')
+            self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
+            temp_info['windspeed'] = None
             temp_info['temperature'] = None
             temp_info['humidity'] = None
+        temp_info['windspeed_upper'] = params.SHIELD_WINDGUST
+        temp_info['windspeed_lower'] = params.SHIELD_WINDGUST - 5
+        temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
+        temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
+        temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
+        temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
 
         # Get button info
         try:
@@ -514,6 +531,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['windshield_enabled'] = self.windshield_enabled
         temp_info['autodehum_enabled'] = self.autodehum_enabled
         temp_info['autoclose_enabled'] = self.autoclose_enabled
+        temp_info['autoshield_enabled'] = self.autoshield_enabled
 
         # Write debug log line
         try:
@@ -547,6 +565,9 @@ class DomeDaemon(BaseDaemon):
             if not self.autoclose_enabled:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
+            if not self.autoshield_enabled:
+                self.log.info('System is in robotic mode, enabling autoshield')
+                self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
             # In manual mode the heartbeat should be enabled, everything else can be set
@@ -570,6 +591,9 @@ class DomeDaemon(BaseDaemon):
             if self.autoclose_enabled:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose_enabled = False
+            if self.autoshield_enabled:
+                self.log.info('System is in engineering mode, disabling autoshield')
+                self.autoshield_enabled = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
@@ -681,6 +705,34 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
                                                                   self.info['temperature_upper']))
                 self.dehumidifier_off_flag = 1
+
+    def _autoshield_check(self):
+        """Check if the wind is high and the dome should be in windshield mode."""
+        if not self.dome:
+            self.log.warning('Autoshield disabled while no connection to dome')
+            return
+
+        if (isinstance(self.info, dict) and
+                (self.info.get('windspeed') is None or self.info['windspeed'] == -999)):
+            # Note dict.get() returns None if it is not in the dictionary
+            self.log.warning('No windspeed reading: auto windshield control unavailable')
+            return
+
+        # Return if autoshield disabled
+        if not self.autoshield_enabled:
+            return
+
+        # Check the windspeed and decide if we need to enable or disable windshield mode
+        if not self.windshield_enabled and self.info['windspeed'] > self.info['windspeed_upper']:
+            self.log.info('Windspeed {} km/h > {} km/h'.format(self.info['windspeed'],
+                                                               self.info['windspeed_upper']))
+            self.log.info('Turning windshielding on')
+            self.windshield_enabled = True
+        elif self.windshield_enabled and self.info['windspeed'] < self.info['windspeed_lower']:
+            self.log.info('Windspeed {} km/h < {} km/h'.format(self.info['windspeed'],
+                                                               self.info['windspeed_lower']))
+            self.log.info('Turning windshielding off')
+            self.windshield_enabled = False
 
     def _windshield_check(self):
         """Check if the dome is open and needs to raise shields."""
@@ -1012,10 +1064,46 @@ class DomeDaemon(BaseDaemon):
 
         if command == 'on':
             s = 'Enabling windshield mode'
+            if self.autoshield_enabled:
+                s += ' (autoshield is enabled, so the daemon may turn it off again)'
             return s
         elif command == 'off':
             s = 'Disabling windshield mode'
+            if self.autoshield_enabled:
+                s += ' (autoshield is enabled, so the daemon may turn it on again)'
             return s
+
+    def set_autoshield(self, command):
+        """Enable or disable the dome automatically raising shields in high wind."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
+            elif self.autoshield_enabled:
+                return 'Autoshield is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autoshield in robotic mode')
+            elif not self.autoshield_enabled:
+                return 'Autoshield is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling autoshield')
+            self.autoshield_enabled = True
+        elif command == 'off':
+            self.log.info('Disabling autoshield')
+            self.autoshield_enabled = False
+
+        if command == 'on':
+            return 'Enabling autoshield, the dome will raise and lower shields automatically'
+        elif command == 'off':
+            return 'Disabling autoshield, the dome will NOT raise and lower shields automatically'
 
 
 if __name__ == '__main__':

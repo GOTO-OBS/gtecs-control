@@ -197,6 +197,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'override_windshield', [command])
         print(reply)
 
+    elif command == 'autoshield':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_autoshield', [command])
+        print(reply)
+
     elif command == 'alarm':
         # parse arguments
         if len(args) == 1:
@@ -240,6 +252,9 @@ def print_info(info):
     print('Autoclose:    {}'.format(style.rtxt('Disabled')
                                     if not info['autoclose_enabled']
                                     else 'Enabled'))
+    print('Autoshield:   {}'.format(style.rtxt('Disabled')
+                                    if not info['autoshield_enabled']
+                                    else 'Enabled'))
     print('Alarm:        {}'.format(style.rtxt('Disabled')
                                     if not info['alarm_enabled']
                                     else 'Enabled'))
@@ -274,6 +289,8 @@ def print_info_s(info):
     print('   Autodehum:       [{}]'.format(style.rtxt('Disabled')
                                             if not info['autodehum_enabled']
                                             else 'Enabled'))
+    print('   Autoshield:      [{}]'.format(style.rtxt('Disabled')
+                                            if not info['autoshield_enabled']
                                             else 'Enabled'))
     print('   Alarm:           [{}]'.format(style.rtxt('Disabled')
                                             if not info['alarm_enabled']
@@ -303,6 +320,7 @@ def print_instructions():
           '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
           '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
           '  windshield [on|off]            manually turn wind shielding on/off',
+          '  autoshield [on|off]            automatically shield in high wind?',
           '  alarm [on|off]                 automatically sound the alarm when moving?',
           '  heartbeat [on|off]             automatically close if the daemon fails?',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
