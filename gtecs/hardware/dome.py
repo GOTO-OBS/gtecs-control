@@ -672,6 +672,9 @@ class AstroHavenDome(object):
             # store running time for timeout
             running_time = time.time() - start_time
 
+            # get the starting position
+            start_position = self.status[side]
+
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
                 if self.log:
@@ -705,7 +708,11 @@ class AstroHavenDome(object):
                 self.log.debug('plc SEND:"{}" ({} {} {})'.format(
                     self.move_code[side][command], side, frac, command))
 
-            if (side == 'south' and command == 'open' and running_time < 12.5):
+            if (side == 'south' and start_position == 'closed' and command == 'open' and
+                    running_time < 12.5):
+                # Used to "stutter step" the south side when opening,
+                # so that the top shutter doesn't jerk on the belts when it tips over.
+                # NEW: add start_position, so it doesn't stutter when already partially open
                 time.sleep(1.5)
             else:
                 time.sleep(0.5)
