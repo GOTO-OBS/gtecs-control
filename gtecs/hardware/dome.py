@@ -361,7 +361,7 @@ class AstroHavenDome(object):
                     self.log.debug('Previous status: {}'.format(self.old_plc_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
-                    time.sleep(0.1)
+                    time.sleep(0.5)
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the PLC')
@@ -425,7 +425,7 @@ class AstroHavenDome(object):
                     self.log.debug('Previous status: {}'.format(self.old_arduino_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
-                    time.sleep(0.1)
+                    time.sleep(0.5)
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the arduino')
@@ -592,7 +592,7 @@ class AstroHavenDome(object):
                     self.log.debug('Previous status: {}'.format(self.old_heartbeat_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
-                    time.sleep(0.1)
+                    time.sleep(0.5)
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the heartbeat monitor')
