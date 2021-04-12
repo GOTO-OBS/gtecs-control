@@ -14,6 +14,7 @@ import time
 
 from gtecs.misc import execute_command
 from gtecs.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
+from gtecs.slack import send_slack_msg
 
 
 def run():
@@ -31,18 +32,30 @@ def run():
     # Close the mirror covers
     # (we need to do this before powering off the cameras, when we lose the interfaces)
     execute_command('ota close')
-    wait_for_mirror_covers(opening=False, timeout=60)
+    try:
+        wait_for_mirror_covers(opening=False, timeout=60)
+    except TimeoutError:
+        print('Mirror covers timed out, continuing with shutdown')
+        send_slack_msg('Shutdown script could not close the mirror covers!')
 
     # Power off the cameras and fans
     execute_command('power off cams,fans')
 
     # Park the mount
     execute_command('mnt park')
-    wait_for_mount_parking(timeout=60)
+    try:
+        wait_for_mount_parking(timeout=60)
+    except TimeoutError:
+        print('Mount timed out, continuing with shutdown')
+        send_slack_msg('Shutdown script could not park the mount!')
 
     # Close the dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
-    wait_for_dome(target_position='closed', timeout=120)
+    try:
+        wait_for_dome(target_position='closed', timeout=120)
+    except TimeoutError:
+        print('Dome timed out')
+        send_slack_msg('Shutdown script could not close the dome!')
 
 
 if __name__ == '__main__':

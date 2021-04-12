@@ -83,10 +83,9 @@ def prepare_for_images(open_covers=True):
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
     # Turn off any sources of light in the dome
-    outlets = ['leds1', 'leds2', 'monitor']
-    if not outlets_are_off(outlets):
+    if not outlets_are_off(params.OBSERVING_OFF_OUTLETS):
         print('Turning off dome lights')
-        for outlet in outlets:
+        for outlet in params.OBSERVING_OFF_OUTLETS:
             execute_command('power off {}'.format(outlet))
             time.sleep(0.5)
 
@@ -682,7 +681,7 @@ def outlets_are_off(outlets):
     all_status = {outlet: power_info[unit][outlet]
                   for unit in power_info if 'status' in unit
                   for outlet in power_info[unit]}
-    return all([all_status[outlet] == 'off' for outlet in outlets])
+    return all([all_status[outlet] == 'off' for outlet in outlets if outlet in all_status])
 
 
 def exposure_queue_is_empty():

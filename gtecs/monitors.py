@@ -46,6 +46,7 @@ MODE_ACTIVE = 'active'
 MODE_DOME_CLOSED = 'closed'
 MODE_DOME_OPEN = 'open'
 MODE_MNT_PARKED = 'parked'
+MODE_MNT_STOPPED = 'stopped'
 MODE_MNT_TRACKING = 'tracking'
 MODE_CAM_COOL = 'cool'
 MODE_CAM_WARM = 'warm'
@@ -67,6 +68,7 @@ ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
 ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
+ERROR_MNT_NOTSTOPPED = 'MNT:NOT_STOPPED'
 ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
 ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
@@ -482,7 +484,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_NOTFULLOPEN
         # Set the error if the dome should be open and it's not
         # Note the dome's allowed to be moving, that has its own error above
-        # Also note that part_open is delt with above
+        # Also note that part_open is dealt with above
         if self.mode == MODE_DOME_OPEN and self.hardware_status not in [STATUS_DOME_FULLOPEN,
                                                                         STATUS_DOME_PARTOPEN,
                                                                         STATUS_DOME_MOVING]:
@@ -495,7 +497,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_NOTCLOSED
         # Set the error if the dome should be closed and it's not
         # Notethe dome's allowed to be moving, that has its own error above
-        # Also note that part_open is delt with above
+        # Also note that part_open is dealt with above
         if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
                                                                           STATUS_DOME_PARTOPEN,
                                                                           STATUS_DOME_MOVING]:
@@ -512,22 +514,24 @@ class DomeMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to the dome or the dehumidifier.
-            #          The dome is obviously the higher priority to try and fix.
-            recovery_procedure = {}
+            # The dome daemon connects to the dome and the dehumidifier.
+            # The dome is obviously the higher priority to try and fix.
             if 'dome' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the dome.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the dome power.
                 recovery_procedure[1] = ['power reboot dome', 60]
                 # OUT OF SOLUTIONS: We can't contact the dome, panic! Send out the alert.
                 return ERROR_HARDWARE + 'dome', recovery_procedure
             elif 'dehumidifer' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the dehumidifer.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the dehumidifier power.
                 recovery_procedure[1] = ['power reboot dehumid', 60]
                 # OUT OF SOLUTIONS: Not much else we can do, must be a hardware problem.
                 return ERROR_HARDWARE + 'dehumidifer', recovery_procedure
-            else:
-                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
-                return ERROR_HARDWARE, {}
+            # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+            return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
             # The dome daemon doesn't have dependencies, so this really shouldn't happen...
@@ -557,7 +561,7 @@ class DomeMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['dome restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_DOME_MOVETIMEOUT in self.errors:
             # PROBLEM: The dome has been moving for too long.
@@ -625,7 +629,7 @@ class MntMonitor(BaseMonitor):
         super().__init__('mnt', log)
 
         # Define modes and starting mode
-        self.available_modes = [MODE_MNT_PARKED, MODE_MNT_TRACKING]
+        self.available_modes = [MODE_MNT_PARKED, MODE_MNT_STOPPED, MODE_MNT_TRACKING]
         self.mode = starting_mode
 
     def get_hardware_status(self):
@@ -699,11 +703,19 @@ class MntMonitor(BaseMonitor):
 
         # ERROR_MNT_STOPPED
         # Set the error if the mount is not moving and it should be tracking
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+        if self.mode != MODE_MNT_STOPPED and self.hardware_status == STATUS_MNT_STOPPED:
             self.add_error(ERROR_MNT_STOPPED, delay=30)
         # Clear the error if the mount is tracking or it shouldn't be any more
-        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+        if self.mode == MODE_MNT_STOPPED or self.hardware_status != STATUS_MNT_STOPPED:
             self.clear_error(ERROR_MNT_STOPPED)
+
+        # ERROR_MNT_NOTSTOPPED
+        # Set the error if the mount isn't stopped and it should be
+        if self.mode == MODE_MNT_STOPPED and self.hardware_status != STATUS_MNT_STOPPED:
+            self.add_error(ERROR_MNT_NOTSTOPPED, delay=30)
+        # Clear the error if the mount is stopped or it shouldn't be any more
+        if self.mode != MODE_MNT_STOPPED or self.hardware_status == STATUS_MNT_STOPPED:
+            self.clear_error(ERROR_MNT_NOTSTOPPED)
 
         # ERROR_MNT_NONSIDEREAL
         # Set the error if the mount is should be tracking but has a non-sidereal tracking rate set
@@ -715,10 +727,10 @@ class MntMonitor(BaseMonitor):
 
         # ERROR_MNT_PARKED
         # Set the error if the mount is parked and it should be tracking
-        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_PARKED:
+        if self.mode != MODE_MNT_PARKED and self.hardware_status == STATUS_MNT_PARKED:
             self.add_error(ERROR_MNT_PARKED, delay=30)
         # Clear the error if the mount is no longer parked or it should be
-        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_PARKED:
+        if self.mode == MODE_MNT_PARKED or self.hardware_status != STATUS_MNT_PARKED:
             self.clear_error(ERROR_MNT_PARKED)
 
         # ERROR_MNT_NOTPARKED
@@ -738,9 +750,10 @@ class MntMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to SiTechEXE.
-            recovery_procedure = {}
+            # The mount daemon connects to SiTechEXE.
             if 'sitech' in self.bad_hardware:
+                # PROBLEM: We've lost connection to SiTechEXE.
+                recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the mount NUC.
                 #             Note we need to wait for ages for Windows to restart.
                 #             NB: This was considered a bad idea, so has been removed.
@@ -748,9 +761,8 @@ class MntMonitor(BaseMonitor):
                 # recovery_procedure[2] = ['power on mount_nuc', 180]
                 # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
                 return ERROR_HARDWARE + 'sitech', recovery_procedure
-            else:
-                # OUT OF SOLUTIONS: We don't know where the hardware error is from?
-                return ERROR_HARDWARE, {}
+            # OUT OF SOLUTIONS: We don't know where the hardware error is from?
+            return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
             # The mount daemon doesn't have dependencies, so this really shouldn't happen...
@@ -775,7 +787,7 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['mnt restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The SiTechEXE has lost connection to the mount controller.
@@ -809,8 +821,8 @@ class MntMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
-            # SOLUTION 2: Still moving? Okay, kill the mnt daemon.
-            recovery_procedure[2] = ['mnt kill', 30]
+            # SOLUTION 2: Still moving? Okay, kill the power.
+            recovery_procedure[2] = ['power off sitech', 10]
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
 
@@ -843,10 +855,24 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: There must be a problem that's not letting it track.
             return ERROR_MNT_STOPPED, recovery_procedure
 
+        elif ERROR_MNT_NOTSTOPPED in self.errors:
+            # PROBLEM: The mount is in stopped mode but it's not stopped.
+            recovery_procedure = {}
+            # SOLUTION 1: Try stopping.
+            recovery_procedure[1] = ['mnt stop', 30]
+            # SOLUTION 2: Try again.
+            recovery_procedure[2] = ['mnt stop', 30]
+            # SOLUTION 3: If it's really not stopping then best to kill the power.
+            recovery_procedure[3] = ['power off sitech', 10]
+            # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
+            #                   it's been put into stopped mode. It could be parked, but that's
+            #                   a different error.
+            return ERROR_MNT_STOPPED, recovery_procedure
+
         elif ERROR_MNT_NONSIDEREAL in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking at the correct rate.
             recovery_procedure = {}
-            # SOLUTION 1: Try resettign the track rate.
+            # SOLUTION 1: Try resetting the track rate.
             recovery_procedure[1] = ['mnt trackrate reset', 30]
             recovery_procedure[2] = ['mnt track', 30]
             # SOLUTION 2: Try again.
@@ -916,14 +942,15 @@ class PowerMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # PROBLEM: We've lost connection to a power unit.
-            #          Need to go through one-by-one.
-            recovery_procedure = {}
+            # The power daemon connects to multiple power units.
+            # We need to go through one-by-one.
             for unit_name in params.POWER_UNITS:
                 if unit_name in self.bad_hardware:
+                    # PROBLEM: We've lost connection to a power unit.
+                    recovery_procedure = {}
                     # OUT OF SOLUTIONS: We don't currently can't reboot power units remotely.
                     #                   TODO: Add that.
-                    return ERROR_HARDWARE + unit_name, {}
+                    return ERROR_HARDWARE + unit_name, recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 
@@ -950,7 +977,7 @@ class PowerMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['power restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1043,8 +1070,10 @@ class CamMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['cam restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_CAM_WARM in self.errors:
             # PROBLEM: The cameras aren't cool.
@@ -1158,8 +1187,10 @@ class OTAMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['ota restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_OTA_NOTCLOSED in self.errors:
             # PROBLEM: The mirror covers aren't closed.
@@ -1273,8 +1304,10 @@ class FiltMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['filt restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_FILT_UNHOMED in self.errors:
             # PROBLEM: The filter wheels aren't homed.
@@ -1376,8 +1409,10 @@ class FocMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['foc restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_FOC_UNSET in self.errors:
             # PROBLEM: The focusers haven't been moved (need to activate auto-correction in ASAs).
@@ -1499,8 +1534,12 @@ class ExqMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['exq restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
+            recovery_procedure[3] = ['cam restart', 30]
+            recovery_procedure[4] = ['foc restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1579,7 +1618,7 @@ class ConditionsMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['conditions restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         elif ERROR_CONDITIONS_INTERNAL in self.errors:
             # PROBLEM: The internal flag has been set to ERROR.
@@ -1661,7 +1700,7 @@ class SchedulerMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['scheduler restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1729,7 +1768,7 @@ class SentinelMonitor(BaseMonitor):
             # SOLUTION 1: Try restarting the daemon.
             recovery_procedure[1] = ['sentinel restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, {}
+            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.

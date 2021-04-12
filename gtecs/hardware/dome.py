@@ -15,21 +15,40 @@ from .. import params
 class FakeDome(object):
     """Fake AstroHaven dome class."""
 
-    def __init__(self):
+    def __init__(self, dome_port, heartbeat_port=None, log=None, log_debug=False):
         self.fake = True
-        self.output_thread_running = False
+        self.dome_serial_port = dome_port
+        self.heartbeat_serial_port = heartbeat_port
         self.side = ''
         self.frac = 1
         self.command = ''
         self.timeout = 0
+
+        self.log = log
+        self.log_debug = log_debug
+
+        self.plc_error = False
+        self.arduino_error = False
+
         self.heartbeat_status = 'enabled'
         self.heartbeat_enabled = True
+        self.heartbeat_error = False
+
+        self.output_thread_running = False
+
         # fake stuff
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
         self._writing = False  # had problems with reading and writing overlapping
 
         self._read_temp()
+
+    def __del__(self):
+        try:
+            # Stop threads
+            self.output_thread_running = False
+        except AttributeError:
+            pass
 
     def _read_temp(self):
         while self._writing:
@@ -40,7 +59,8 @@ class FakeDome(object):
         else:
             with open(self._temp_file, 'r') as f:
                 string = f.read().strip()
-                # print('R: ', string)
+                if self.log and self.log_debug:
+                    self.log.debug('RECV:"{}"'.format(string))
                 if not string == '':  # I don't know why or how that happens
                     self._status_arr = list(map(int, list(string)))
 
@@ -48,7 +68,8 @@ class FakeDome(object):
         self._writing = True
         with open(self._temp_file, 'w') as f:
             string = ''.join(str(i) for i in self._status_arr)
-            # print('W: ', string)
+            if self.log and self.log_debug:
+                self.log.debug('SEND:"{}"'.format(string))
             f.write(string)
         self._writing = False
 
@@ -92,27 +113,6 @@ class FakeDome(object):
 
         return status
 
-    def halt(self):
-        """Stop the dome moving."""
-        self.output_thread_running = False
-
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
-            else:
-                self.heartbeat_enabled = True
-                self.heartbeat_status = 'enabled'
-                return 'Heartbeat enabled'
-        else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                self.heartbeat_status = 'disabled'
-                return 'Heartbeat disabled'
-
     def _output_thread(self):
         if self.side == 'north':
             side = 0
@@ -124,6 +124,8 @@ class FakeDome(object):
         command = self.command
         timeout = self.timeout
         start_time = time.time()
+        if self.log:
+            self.log.debug('output thread started')
 
         self._read_temp()
         start_position = self._status_arr[side]
@@ -134,25 +136,30 @@ class FakeDome(object):
 
             # check reasons to break out and stop the thread
             if command == 'open' and self._status_arr[side] == 9:
-                print('Dome at limit')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome at limit')
+                self.output_thread_running = False
                 break
             elif command == 'close' and self._status_arr[side] == 0:
-                print('Dome at limit')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome at limit')
+                self.output_thread_running = False
                 break
             elif (frac != 1 and
                   abs(start_position - self._status_arr[side]) > frac * 9):
-                print('Dome moved requested fraction')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome moved requested fraction')
+                self.output_thread_running = False
                 break
             elif running_time > timeout:
-                print('Dome moving timed out')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome moving timed out')
+                self.output_thread_running = False
                 break
             elif self.status[self.side] == 'ERROR':
-                print('All sensors failed, stopping movement')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.warning('All sensors failed, stopping movement')
+                self.output_thread_running = False
                 break
 
             # if we're still going, send the command to "the serial port"
@@ -171,6 +178,8 @@ class FakeDome(object):
         self.side = ''
         self.command = ''
         self.timeout = 40.
+        if self.log:
+            self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac, timeout=40.):
         self.side = side
@@ -184,8 +193,9 @@ class FakeDome(object):
 
         # start output thread
         if not self.output_thread_running:
-            print('starting to move:', side, command, frac)
-            self.output_thread_running = 1
+            if self.log:
+                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
+            self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
             ot.start()
@@ -205,6 +215,10 @@ class FakeDome(object):
         self._move_dome(side, 'close', frac)
         return
 
+    def halt(self):
+        """Stop the dome moving."""
+        self.output_thread_running = False
+
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
         """Sound the dome alarm."""
         # Note this is always blocking
@@ -212,11 +226,28 @@ class FakeDome(object):
         subprocess.getoutput(bell)
         return
 
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                self.heartbeat_status = 'enabled'
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                self.heartbeat_status = 'disabled'
+                return 'Heartbeat disabled'
+
 
 class AstroHavenDome(object):
     """New AstroHaven dome class (based on Warwick 1m control)."""
 
-    def __init__(self, dome_port, heartbeat_port=None):
+    def __init__(self, dome_port, heartbeat_port=None, log=None, log_debug=False):
         self.dome_serial_port = dome_port
         self.dome_serial_baudrate = 9600
         self.dome_serial_timeout = 1
@@ -232,34 +263,46 @@ class AstroHavenDome(object):
 
         self.fake = False
 
-        self.plc_status = {'north': 'ERROR', 'south': 'ERROR'}
-        self.arduino_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
-        self.honeywell_was_triggered = {'north': 0, 'south': 0}
+        self.log = log
+        self.log_debug = log_debug
+
         self.status = None
 
-        self.plc_error = 0
-        self.arduino_error = 0
+        self.plc_status = {'north': 'ERROR', 'south': 'ERROR'}
+        self.old_plc_status = None
+        self.plc_error = False
+
+        self.arduino_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
+        self.old_arduino_status = None
+        self.arduino_error = False
+
+        self.honeywell_was_triggered = {'north': False, 'south': False}
 
         self.heartbeat_enabled = True
         self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
         self.heartbeat_status = 'ERROR'
-        self.heartbeat_error = 0
+        self.old_heartbeat_status = None
+        self.heartbeat_error = False
 
         self.side = ''
         self.frac = 1
         self.command = ''
         self.timeout = 40.
 
-        self.output_thread_running = 0
-        self.status_thread_running = 0
-        self.heartbeat_thread_running = 0
+        self.output_thread_running = False
+        self.status_thread_running = False
+        self.heartbeat_thread_running = False
 
         # serial connection to the dome
         self.dome_serial = serial.Serial(self.dome_serial_port,
                                          baudrate=self.dome_serial_baudrate,
                                          timeout=self.dome_serial_timeout)
-        # start thread
-        self._check_status()
+
+        # start status check thread
+        self.status_thread_running = True
+        st = threading.Thread(target=self._status_thread)
+        st.daemon = True
+        st.start()
 
         # serial connection to the dome monitor box
         if self.heartbeat_serial_port:
@@ -267,37 +310,64 @@ class AstroHavenDome(object):
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
                                                       baudrate=self.heartbeat_serial_baudrate,
                                                       timeout=self.heartbeat_serial_timeout)
-                # start thread
-                self.heartbeat_thread_running = 1
-                ht = threading.Thread(target=self._heartbeat_thread)
-                ht.daemon = True
-                ht.start()
-
             except Exception:
-                print('Error connecting to dome monitor')
+                if self.log:
+                    self.log.error('Error connecting to heartbeat monitor')
+                    self.log.debug('', exc_info=True)
+                self.heartbeat_error = True
                 self.heartbeat_status = 'ERROR'
-                self.heartbeat_error = 1
+
+            # start heartbeat check thread
+            self.heartbeat_thread_running = True
+            ht = threading.Thread(target=self._heartbeat_thread)
+            ht.daemon = True
+            ht.start()
         else:
             self.heartbeat_status = 'disabled'
 
     def __del__(self):
+        self.disconnect()
+
+    def disconnect(self):
+        """Shutdown the dome monitoring threads."""
+        # Stop threads
+        self.output_thread_running = False
+        self.status_thread_running = False
+        self.heartbeat_thread_running = False
+
+        # Close serial
         try:
             self.dome_serial.close()
+            self.heartbeat_serial.close()
         except AttributeError:
             pass
 
-    def _read_plc(self):
-        try:
-            if self.dome_serial.in_waiting:
-                out = self.dome_serial.read(self.dome_serial.in_waiting)
-                x = out.decode('ascii')[-1]
-                self._parse_plc_status(x)
-            return 0
-        except Exception:
-            self.plc_error = 1
-            self.plc_status['north'] = 'ERROR'
-            self.plc_status['south'] = 'ERROR'
-            return 1
+    def _read_plc(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                if self.dome_serial.in_waiting:
+                    out = self.dome_serial.read(self.dome_serial.in_waiting)
+                    x = out.decode('ascii')[-1]
+                    if self.log and self.log_debug:
+                        self.log.debug('plc RECV:"{}"'.format(x))
+                    self._parse_plc_status(x)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the PLC')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_plc_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.5)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the PLC')
+                    self.plc_error = True
+                    self.plc_status['north'] = 'ERROR'
+                    self.plc_status['south'] = 'ERROR'
 
     def _parse_plc_status(self, status_character):
         # save previous status
@@ -335,24 +405,34 @@ class AstroHavenDome(object):
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
         else:
-            self.plc_error = 1
-            self.plc_status['north'] = 'ERROR'
-            self.plc_status['south'] = 'ERROR'
-        return
+            raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
-    def _read_arduino(self):
-        loc = params.ARDUINO_LOCATION
-        try:
-            arduino = subprocess.getoutput('curl -s {}'.format(loc))
-            data = json.loads(arduino)
-            self._parse_arduino_status(data)
-            return 0
-        except Exception:
-            self.arduino_error = 1
-            self.arduino_status['north'] = 'ERROR'
-            self.arduino_status['south'] = 'ERROR'
-            self.arduino_status['hatch'] = 'ERROR'
-            return 1
+    def _read_arduino(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                arduino = subprocess.getoutput('curl -s {}'.format(params.ARDUINO_LOCATION))
+                data = json.loads(arduino)
+                if self.log and self.log_debug:
+                    self.log.debug('arduino RECV:"{}"'.format(data))
+                self._parse_arduino_status(data)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the arduino')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_arduino_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.5)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the arduino')
+                    self.arduino_error = True
+                    self.arduino_status['north'] = 'ERROR'
+                    self.arduino_status['south'] = 'ERROR'
+                    self.arduino_status['hatch'] = 'ERROR'
 
     def _parse_arduino_status(self, status_dict):
         # save previous status
@@ -410,7 +490,7 @@ class AstroHavenDome(object):
 
                 # if the honeywell is triggered now, store it
                 if honeywell_triggered:
-                    self.honeywell_was_triggered[side] = 1
+                    self.honeywell_was_triggered[side] = True
 
                 # but if it's not currently triggered,
                 # it might have gone past
@@ -419,19 +499,16 @@ class AstroHavenDome(object):
                         if self.plc_status[side] == 'opening':
                             # Oh dear, it's flicked past the Honeywells
                             # and it's still going!!
-                            print('Honeywell limit error, stopping!')
+                            if self.log:
+                                self.log.warning('Honeywell limit error, stopping!')
                             self.arduino_status[side] == 'full_open'
-                            self.output_thread_running = 0  # to be sure
+                            self.output_thread_running = False  # to be sure
                         else:
                             # It's moving back, clear the memory
-                            self.honeywell_was_triggered[side] = 0
+                            self.honeywell_was_triggered[side] = False
 
         except Exception:
-            self.arduino_error = 1
-            self.arduino_status['north'] = 'ERROR'
-            self.arduino_status['south'] = 'ERROR'
-            self.arduino_status['hatch'] = 'ERROR'
-        return
+            raise ValueError('Unable to parse reply from the arduino: {}'.format(status_dict))
 
     def _read_status(self):
         """Check the dome status reported by both the dome plc and the arduino."""
@@ -441,9 +518,8 @@ class AstroHavenDome(object):
         # check arduino
         self._read_arduino()
 
-        # print(self.plc_status['north'], '\t', self.arduino_status['north'])
-        # print(self.plc_status['south'], '\t', self.arduino_status['south'])
-        # print(self.arduino_status['hatch'])
+        if self.log and self.log_debug:
+            self.log.debug('plc:{} arduino:{}'.format(self.plc_status, self.arduino_status))
 
         status = {}
 
@@ -485,19 +561,47 @@ class AstroHavenDome(object):
                 status[side] = 'ERROR'
         return status
 
-    def _check_status(self):
-        # start status check thread
-        self.status_thread_running = 1
-        st = threading.Thread(target=self._status_thread)
-        st.daemon = True
-        st.start()
-
     def _status_thread(self):
+        if self.log:
+            self.log.debug('status thread started')
         while self.status_thread_running:
             self.status = self._read_status()
-            time.sleep(0.5)
+            if self.output_thread_running:
+                time.sleep(0.5)
+            else:
+                time.sleep(2)
+        if self.log:
+            self.log.debug('status thread finished')
+
+    def _read_heartbeat(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                if self.heartbeat_serial.in_waiting:
+                    out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
+                    x = out[-1]
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat RECV:"{}"'.format(x))
+                    self._parse_heartbeat_status(x)
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the heartbeat monitor')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_heartbeat_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.5)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the heartbeat monitor')
+                    self.heartbeat_error = True
+                    self.heartbeat_status = 'ERROR'
 
     def _parse_heartbeat_status(self, status_character):
+        # save previous status
+        self.old_heartbeat_status = self.heartbeat_status
         # parse value from heartbeat box
         if status_character == 254:
             self.heartbeat_status = 'closing'
@@ -505,24 +609,17 @@ class AstroHavenDome(object):
             self.heartbeat_status = 'closed'
         elif status_character == 0:
             self.heartbeat_status = 'disabled'
-        else:
+        elif 0 < status_character < 254:
             self.heartbeat_status = 'enabled'
+        else:
+            raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
+                status_character))
         return
 
-    def _read_heartbeat(self):
-        try:
-            if self.heartbeat_serial.in_waiting:
-                out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
-                x = out[-1]
-                # print('heartbeat says "{}""'.format(x))
-                self._parse_heartbeat_status(x)
-            return 0
-        except Exception:
-            self.heartbeat_error = 1
-            self.heartbeat_status = 'ERROR'
-            return 1
-
     def _heartbeat_thread(self):
+        if self.log:
+            self.log.debug('heartbeat thread started')
+
         while self.heartbeat_thread_running:
             # check heartbeat status
             self._read_heartbeat()
@@ -531,38 +628,36 @@ class AstroHavenDome(object):
                 # send a 0 to make sure the system is disabled
                 # if it's in the closed state it's already disabled, so leave it
                 if self.heartbeat_status not in ['disabled', 'closed']:
+                    if self.log:
+                        self.log.debug('disabling heartbeat (status = {})'.format(
+                            self.heartbeat_status))
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat SEND:"{}"'.format(v))
             else:
                 if self.heartbeat_status == 'closed':
                     # send a 0 to reset it
+                    if self.log:
+                        self.log.debug('resetting heartbeat (status = {})'.format(
+                            self.heartbeat_status))
                     v = chr(0).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat SEND:"{}"'.format(v))
                 else:
                     # send the heartbeat time to the serial port
                     # NB the timeout param is in s, but the board takes .5 second intervals
                     v = chr(self.heartbeat_timeout * 2).encode('ascii')
                     self.heartbeat_serial.write(v)
-                    # print('sent "{}" to heartbeat'.format(v))
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat SEND:"{}"'.format(v))
 
-            time.sleep(0.5)
+            # Sleep for halt the timeout period
+            time.sleep(self.heartbeat_timeout / 2)
 
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
-            else:
-                self.heartbeat_enabled = True
-                return 'Heartbeat enabled'
-        else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                return 'Heartbeat disabled'
+        if self.log:
+            self.log.debug('heartbeat thread finished')
 
     def _output_thread(self):
         side = self.side
@@ -570,6 +665,8 @@ class AstroHavenDome(object):
         command = self.command
         timeout = self.timeout
         start_time = time.time()
+        if self.log:
+            self.log.debug('output thread started')
 
         while self.output_thread_running:
             # store running time for timeout
@@ -577,29 +674,36 @@ class AstroHavenDome(object):
 
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
-                print('Dome at limit')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome at limit')
+                self.output_thread_running = False
                 break
             elif command == 'close' and self.status[side] == 'closed':
-                print('Dome at limit')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome at limit')
+                self.output_thread_running = False
                 break
             elif (frac != 1 and running_time > self.move_time[side][command] * frac):
-                print('Dome moved requested fraction')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome moved requested fraction')
+                self.output_thread_running = False
                 break
             elif running_time > timeout:
-                print('Dome moving timed out')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.info('Dome moving timed out')
+                self.output_thread_running = False
                 break
             elif self.status[side] == 'ERROR':
-                print('All sensors failed, stopping movement')
-                self.output_thread_running = 0
+                if self.log:
+                    self.log.warning('All sensors failed, stopping movement')
+                self.output_thread_running = False
                 break
 
             # if we're still going, send the command to the serial port
             self.dome_serial.write(self.move_code[side][command])
-            # print(side, frac, 'o:', self.move_code[side][command])
+            if self.log and self.log_debug:
+                self.log.debug('plc SEND:"{}" ({} {} {})'.format(
+                    self.move_code[side][command], side, frac, command))
 
             if (side == 'south' and command == 'open' and running_time < 12.5):
                 time.sleep(1.5)
@@ -611,9 +715,8 @@ class AstroHavenDome(object):
         self.command = ''
         self.timeout = 40.
 
-    def halt(self):
-        """To stop the output thread."""
-        self.output_thread_running = 0
+        if self.log:
+            self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac, timeout=40.):
         """Move the dome until it reaches its limit."""
@@ -628,8 +731,9 @@ class AstroHavenDome(object):
 
         # start output thread
         if not self.output_thread_running:
-            print('starting to move:', side, command, frac)
-            self.output_thread_running = 1
+            if self.log:
+                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
+            self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread)
             ot.daemon = True
             ot.start()
@@ -649,6 +753,10 @@ class AstroHavenDome(object):
         self._move_dome(side, 'close', frac)
         return
 
+    def halt(self):
+        """To stop the output thread."""
+        self.output_thread_running = False
+
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
         """Sound the dome alarm using the Arduino.
 
@@ -666,6 +774,21 @@ class AstroHavenDome(object):
         if sleep:
             time.sleep(duration)
         return
+
+    def set_heartbeat(self, command):
+        """Enable or disable the heartbeat."""
+        if command:
+            if self.heartbeat_enabled:
+                return 'Heartbeat already enabled'
+            else:
+                self.heartbeat_enabled = True
+                return 'Heartbeat enabled'
+        else:
+            if not self.heartbeat_enabled:
+                return 'Heartbeat already disabled'
+            else:
+                self.heartbeat_enabled = False
+                return 'Heartbeat disabled'
 
 
 class FakeDehumidifier(object):

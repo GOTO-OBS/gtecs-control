@@ -77,7 +77,7 @@ class DomeDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -328,23 +328,44 @@ class DomeDaemon(BaseDaemon):
         # Connect to the dome
         if self.dome is None:
             if params.FAKE_DOME:
-                self.dome = FakeDome()
+                self.dome = FakeDome('/dev/fake', '/dev/fake2', self.log, params.DOME_DEBUG)
                 self.log.info('Connected to dome')
             else:
                 try:
-                    dome_port = params.DOME_LOCATION
-                    heartbeat_port = params.DOME_HEARTBEAT_LOCATION
-                    self.dome = AstroHavenDome(dome_port, heartbeat_port)
+                    self.dome = AstroHavenDome(params.DOME_LOCATION,
+                                               params.DOME_HEARTBEAT_LOCATION,
+                                               self.log,
+                                               params.DOME_DEBUG,
+                                               )
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
                         self.bad_hardware.remove('dome')
-                    # sleep brefly, to make sure the connection has started
+                    # sleep briefly, to make sure the connection has started
                     time.sleep(3)
                 except Exception:
+                    self.dome.disconnect()
                     self.dome = None
                     if 'dome' not in self.bad_hardware:
                         self.log.error('Failed to connect to dome')
                         self.bad_hardware.add('dome')
+
+        # Check the connections within the dome
+        if self.dome is not None:
+            if self.dome.plc_error:
+                self.log.error('Failed to connect to dome PLC')
+                self.dome.disconnect()
+                self.dome = None
+                self.bad_hardware.add('dome')
+            elif self.dome.arduino_error:
+                self.log.error('Failed to connect to dome arduino')
+                self.dome.disconnect()
+                self.dome = None
+                self.bad_hardware.add('dome')
+            elif self.dome.heartbeat_error:
+                self.log.error('Failed to connect to dome heartbeat monitor')
+                self.dome.disconnect()
+                self.dome = None
+                self.bad_hardware.add('dome')
 
         # Connect to the dehumidifer
         if self.dehumidifier is None:
@@ -404,6 +425,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['dome'] = None
             temp_info['heartbeat_status'] = None
             # Report the connection as failed
+            self.dome.disconnect()
             self.dome = None
             if 'dome' not in self.bad_hardware:
                 self.bad_hardware.add('dome')
@@ -902,8 +924,10 @@ class DomeDaemon(BaseDaemon):
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
             raise errors.HardwareStatusError('Cannot enable heartbeat in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'manual':
+            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
+            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
 
         # Set flag
         if command == 'on':

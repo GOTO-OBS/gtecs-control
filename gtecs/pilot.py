@@ -28,6 +28,30 @@ from .slack import send_slack_msg, send_startup_report, send_database_report, se
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
 
+def task_handler(func):
+    """Wrapper to handle exceptions within the main pilot coroutines."""
+    async def wrapper(pilot, *args, **kwargs):
+        try:
+            pilot.log.debug('starting {} routine'.format(func.__name__))
+            await func(pilot, *args, **kwargs)
+        except asyncio.CancelledError:
+            pilot.log.warning('{} routine has been cancelled'.format(func.__name__))
+        except Exception:
+            pilot.log.error('caught exception in {} routine'.format(func.__name__))
+            pilot.log.debug('', exc_info=True)
+            send_slack_msg('Pilot detected exception in {} routine'.format(func.__name__))
+            reason = 'Exception in {} routine'.format(func.__name__)
+            asyncio.ensure_future(pilot.emergency_shutdown(reason))
+        finally:
+            try:
+                pilot.log.debug('finished {} routine'.format(func.__name__))
+            except NameError:
+                # An interupt has already killed the logger
+                # See https://stackoverflow.com/questions/64679139/
+                print('finished {} routine'.format(func.__name__))
+    return wrapper
+
+
 class Pilot(object):
     """Run the scheduler and telescope.
 
@@ -131,6 +155,7 @@ class Pilot(object):
         self.scheduler_check_time = 0
 
     # Check routines
+    @task_handler
     async def check_scheduler(self):
         """Check scheduler and update current pointing every 10 seconds."""
         self.log.info('scheduler check routine initialised')
@@ -161,6 +186,7 @@ class Pilot(object):
                 self.force_scheduler_check = False
             await asyncio.sleep(1)
 
+    @task_handler
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
         self.log.info('hardware check routine initialised')
@@ -211,7 +237,7 @@ class Pilot(object):
 
                 await self.handle_pause('hardware', True)
 
-                # check more frequently untill fixed, and save time for delay afterwards
+                # check more frequently until fixed, and save time for delay afterwards
                 sleep_time = bad_sleep_time
                 bad_timestamp = time.time()
             else:
@@ -233,6 +259,7 @@ class Pilot(object):
 
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_flags(self):
         """Check the conditions and status flags."""
         self.log.info('flags check routine initialised')
@@ -284,6 +311,7 @@ class Pilot(object):
 
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_dome(self):
         """Double check that dome is closed if it should be."""
         self.log.info('dome check routine initialised')
@@ -306,6 +334,7 @@ class Pilot(object):
                     self.close_dome()
             await asyncio.sleep(sleep_time)
 
+    @task_handler
     async def check_time_paused(self):
         """Keep track of the time the pilot has been paused."""
         self.log.info('pause check routine initialised')
@@ -340,10 +369,11 @@ class Pilot(object):
 
                             # here we can run an obs script during poor weather
                             self.log.info('running bad conditions tasks')
-                            # note we want to be able to move the mount, so we have to set the
+                            # Note we want to be able to move the mount, so we have to set the
                             # monitor status to 'tracking' here.
-                            # this means we can't park during the darks, which is annoying
+                            # This means we can't park during the darks, which is annoying
                             # (because that would count as a hardware error).
+                            # So we have to park again in start_script() once the script finishes.
                             if not self.mount_is_tracking:
                                 await self.unpark_mount()
 
@@ -356,6 +386,7 @@ class Pilot(object):
             await asyncio.sleep(sleep_time)
 
     # Night marshal
+    @task_handler
     async def nightmarshal(self, restart=False, late=False):
         """Start tasks at the right time (based on the sun's altitude).
 
@@ -530,6 +561,11 @@ class Pilot(object):
             self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
 
+        # if BADCOND has just finished (or been canceled) then park the mount again
+        if name == 'BADCOND':
+            if self.mount_is_tracking:
+                self.park_mount()
+
         return retcode, result
 
     async def cancel_running_script(self, why):
@@ -608,11 +644,7 @@ class Pilot(object):
 
         # observing
         self.obs_start_sunalt = -12
-        if self.testing:
-            self.obs_stop_sunalt = 90
-        else:
-            # self.obs_stop_sunalt = -14  # WITH FOCRUN
-            self.obs_stop_sunalt = -12  # WITHOUT FOCRUN
+        self.obs_stop_sunalt = -12  # -14 WITH FOCRUN
 
         # morning tasks: done after observing, before closing the dome
         # foc_run = {'name': 'FOCRUN',
@@ -967,22 +999,24 @@ class Pilot(object):
                     # (this shouldn't happen anyway, since hardware checks don't start until after
                     #  the startup script has been run)
                     pass
-                elif self.running_script == 'OBS':
-                    # just pause the queue until fixed
-                    execute_command('exq pause')
-                    execute_command('cam abort')
-                elif self.running_script is not None:
-                    # other scripts cannot handle losing frames
-                    execute_command('exq clear')
-                    execute_command('cam abort')
-                    await self.cancel_running_script('hardware fault')
+
+                # stop current actions
+                if self.mount_is_tracking:
+                    self.stop_mount()
+                execute_command('exq clear')
+                execute_command('cam abort')
+                await self.cancel_running_script('hardware fault')
 
             elif reason == 'manual':
                 self.log.warning('Pausing (system in manual mode)')
                 send_slack_msg('Pilot is pausing (system in manual mode)')
 
-                # don't actually kill anything, coroutines will pause themselves
-                self.log.info('The current task will continue')
+                # kill the current script, we usually do it manually anyway
+                if self.mount_is_tracking:
+                    self.stop_mount()
+                execute_command('exq clear')
+                execute_command('cam abort')
+                await self.cancel_running_script('system to manual mode')
 
         if not pause:
             if self.time_paused[reason] > 0:
@@ -997,6 +1031,7 @@ class Pilot(object):
                 self.log.info('resuming operations')
                 send_slack_msg('Pilot is resuming operations')
                 if self.night_operations:
+                    # get the dome and mount back to the correct mode
                     if self.running_script == 'BADCOND':
                         # Cancel the BADCOND script when unpausing
                         await self.cancel_running_script('unpausing')
@@ -1005,14 +1040,13 @@ class Pilot(object):
                         # this way wait and don't resume until the dome is open
                         await self.open_dome()
                     if not self.mount_is_tracking:
-                        # unpark the mount if it's parked
-                        # this way we don't unpark if we're still observing,
-                        # which can happen if we paused manually
+                        # unpark the mount if it's parked (which it will if the dome was closed),
+                        # and start tracking again (in case it just stopped)
                         await self.unpark_mount()
                     execute_command('exq resume')
 
         # finally, change global pause status by updating flag
-        # by putting this last, we dont unpause until the dome
+        # by putting this last, we don't unpause until the dome
         # is actually open or hardware is fixed etc.
         self.whypause[reason] = pause
 
@@ -1026,7 +1060,7 @@ class Pilot(object):
         an emergency shutdown) then this function will pick it up, run the shutdown command and
         exit, stopping the pilot.
 
-        If something fails then this function will indepndently ensure the system shuts down once
+        If something fails then this function will independently ensure the system shuts down once
         the stop time is reached.
         """
         self.log.info('night countdown initialised')
@@ -1124,27 +1158,33 @@ class Pilot(object):
 
     async def emergency_shutdown(self, why):
         """Send a warning and then shut down."""
-        self.log.info('performing emergency shutdown: {}'.format(why))
-        send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
+        if not self.shutdown_now:  # Don't trigger multiple times
+            self.log.info('performing emergency shutdown: {}'.format(why))
+            send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
 
-        self.log.info('closing dome immediately')
-        self.close_dome()
+            self.log.info('closing dome immediately')
+            self.stop_mount()
+            self.close_dome()
 
-        # trigger night countdown to shutdown
-        self.shutdown_now = True
+            # trigger night countdown to shutdown
+            self.shutdown_now = True
+        else:
+            self.log.info('multiple emergency shutdowns triggered: {}'.format(why))
 
     # Hardware commands
     async def open_dome(self):
         """Open the dome and await until it is finished."""
-        # make sure we are parked before opening
+        # make sure we are parked before moving the dome
         if self.mount_is_tracking:
             self.park_mount()
+
         self.log.info('opening dome')
         send_slack_msg('Pilot is opening the dome')
         execute_command('dome open')
         self.dome_is_open = True
         self.dome_confirmed_closed = False
         self.hardware['dome'].mode = 'open'
+
         # wait for dome to open
         sleep_time = 5
         while True:
@@ -1179,6 +1219,10 @@ class Pilot(object):
             self.log.info('closing mirror covers')
             execute_command('ota close')
             self.hardware['ota'].mode = 'closed'
+
+        # make sure we are parked before moving the dome
+        if self.mount_is_tracking:
+            self.park_mount()
 
         self.log.info('closing dome')
         dome_status = self.hardware['dome'].get_hardware_status()
@@ -1227,11 +1271,12 @@ class Pilot(object):
         self.log.info('dome confirmed closed')
 
     async def unpark_mount(self):
-        """Unpark the mount and await until it is finished."""
-        self.log.info('unparking mount')
-        execute_command('mnt unpark')
+        """Unpark the mount (if it's parked), start tracking and await until it is ready."""
+        if self.hardware['mnt'].mode == 'parked':
+            self.log.info('unparking mount')
+            execute_command('mnt unpark')
         self.mount_is_tracking = True
-        self.hardware['mnt'].mode = 'tracking'
+        self.hardware['mnt'].mode = 'tracking'  # skip stopped and go straight to tracking
         await asyncio.sleep(5)
         mount_status = self.hardware['mnt'].get_hardware_status()
         if not mount_status == 'tracking':
@@ -1246,6 +1291,14 @@ class Pilot(object):
                     break
                 await asyncio.sleep(sleep_time)
         self.log.info('mount confirmed tracking')
+
+    def stop_mount(self):
+        """Tell the mount to stop moving immediately."""
+        self.log.info('stopping mount')
+        execute_command('mnt stop')
+        execute_command('mnt clear')  # clear any target, so it can't resume tracking
+        self.mount_is_tracking = False
+        self.hardware['mnt'].mode = 'stopped'
 
     def park_mount(self):
         """Send the mount park command and return immediately."""
