@@ -50,10 +50,11 @@ class DomeDaemon(BaseDaemon):
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
-        self.autodehum = True
-        self.autoclose = True
-        self.alarm = True
-        self.heartbeat = True
+        self.alarm_enabled = True
+        self.heartbeat_enabled = True
+
+        self.autodehum_enabled = True
+        self.autoclose_enabled = True
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -134,7 +135,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac, self.alarm)
+                                c = self.dome.open_side(side, self.move_frac, self.alarm_enabled)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -207,7 +208,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac, self.alarm)
+                                c = self.dome.close_side(side, self.move_frac, self.alarm_enabled)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -277,7 +278,7 @@ class DomeDaemon(BaseDaemon):
             # set heartbeat
             if self.heartbeat_set_flag:
                 try:
-                    if self.heartbeat:
+                    if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
                         c = self.dome.set_heartbeat(True)
                     else:
@@ -502,10 +503,10 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
-        temp_info['autodehum_enabled'] = self.autodehum
-        temp_info['autoclose_enabled'] = self.autoclose
-        temp_info['alarm_enabled'] = self.alarm
-        temp_info['heartbeat_enabled'] = self.heartbeat
+        temp_info['alarm_enabled'] = self.alarm_enabled
+        temp_info['heartbeat_enabled'] = self.heartbeat_enabled
+        temp_info['autodehum_enabled'] = self.autodehum_enabled
+        temp_info['autoclose_enabled'] = self.autoclose_enabled
 
         # Write debug log line
         try:
@@ -526,42 +527,42 @@ class DomeDaemon(BaseDaemon):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
             # In robotic everything should always be enabled
-            if not self.autodehum:
-                self.log.info('System is in robotic mode, enabling autodehum')
-                self.autodehum = True
-            if not self.autoclose:
-                self.log.info('System is in robotic mode, enabling autoclose')
-                self.autoclose = True
-            if not self.alarm:
+            if not self.alarm_enabled:
                 self.log.info('System is in robotic mode, enabling alarm')
-                self.alarm = True
-            if not self.heartbeat:
+                self.alarm_enabled = True
+            if not self.heartbeat_enabled:
                 self.log.info('System is in robotic mode, enabling heartbeat')
-                self.heartbeat = True
+                self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
+            if not self.autodehum_enabled:
+                self.log.info('System is in robotic mode, enabling autodehum')
+                self.autodehum_enabled = True
+            if not self.autoclose_enabled:
+                self.log.info('System is in robotic mode, enabling autoclose')
+                self.autoclose_enabled = True
 
         elif self.info['mode'] == 'manual':
             # In manual mode the heartbeat should be enabled, everything else can be set
-            if not self.heartbeat:
+            if not self.heartbeat_enabled:
                 self.log.info('System is in manual mode, enabling heartbeat')
-                self.heartbeat = True
+                self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
-            if self.autodehum:
-                self.log.info('System is in engineering mode, disabling autodehum')
-                self.autodehum = False
-            if self.autoclose:
-                self.log.info('System is in engineering mode, disabling autoclose')
-                self.autoclose = False
-            if self.alarm:
+            if self.alarm_enabled:
                 self.log.info('System is in engineering mode, disabling alarm')
-                self.alarm = False
-            if self.heartbeat:
+                self.alarm_enabled = False
+            if self.heartbeat_enabled:
                 self.log.info('System is in engineering mode, disabling heartbeat')
-                self.heartbeat = False
+                self.heartbeat_enabled = False
                 self.heartbeat_set_flag = 1
+            if self.autodehum_enabled:
+                self.log.info('System is in engineering mode, disabling autodehum')
+                self.autodehum_enabled = False
+            if self.autoclose_enabled:
+                self.log.info('System is in engineering mode, disabling autoclose')
+                self.autoclose_enabled = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
@@ -586,7 +587,7 @@ class DomeDaemon(BaseDaemon):
 
         # Set the flag
         if lockdown:
-            if self.autoclose:
+            if self.autoclose_enabled:
                 # Activate lockdown
                 self.lockdown = True
                 if reasons != self.lockdown_reasons or self.ignoring_lockdown:
@@ -615,7 +616,7 @@ class DomeDaemon(BaseDaemon):
             return
 
         # Return if autoclose disabled
-        if not self.autoclose:
+        if not self.autoclose_enabled:
             return
 
         # Decide if we need to autoclose
@@ -627,7 +628,7 @@ class DomeDaemon(BaseDaemon):
                 self.halt_flag = 1
                 time.sleep(2)
             # Make sure the alarm sounds
-            self.alarm = True
+            self.alarm_enabled = True
             # Close the dome
             self.close_flag = 1
             self.move_side = 'both'
@@ -646,7 +647,7 @@ class DomeDaemon(BaseDaemon):
             return
 
         # Return if autodehum disabled
-        if not self.autodehum:
+        if not self.autodehum_enabled:
             return
 
         # Check if the dehumidifier should be on or off
@@ -809,12 +810,12 @@ class DomeDaemon(BaseDaemon):
 
         if command == 'on':
             s = 'Turning on dehumidifier'
-            if self.autodehum:
+            if self.autodehum_enabled:
                 s += ' (autodehum is enabled, so the daemon may turn it off again)'
             return s
         elif command == 'off':
             s = 'Turning off dehumidifier'
-            if self.autodehum:
+            if self.autodehum_enabled:
                 s += ' (autodehum is enabled, so the daemon may turn it on again)'
             return s
 
@@ -829,21 +830,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
-            elif self.autodehum:
+            elif self.autodehum_enabled:
                 return 'Autodehum is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
-            elif not self.autodehum:
+            elif not self.autodehum_enabled:
                 return 'Autodehum is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autodehum')
-            self.autodehum = True
+            self.autodehum_enabled = True
         elif command == 'off':
             self.log.info('Disabling autodehum')
-            self.autodehum = False
+            self.autodehum_enabled = False
 
         if command == 'on':
             return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
@@ -861,21 +862,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
-            elif self.autoclose:
+            elif self.autoclose_enabled:
                 return 'Autoclose is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose:
+            elif not self.autoclose_enabled:
                 return 'Autoclose is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autoclose')
-            self.autoclose = True
+            self.autoclose_enabled = True
         elif command == 'off':
             self.log.info('Disabling autoclose')
-            self.autoclose = False
+            self.autoclose_enabled = False
 
         if command == 'on':
             return 'Enabling autoclose, dome will close in bad conditions'
@@ -893,21 +894,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            elif self.alarm:
+            elif self.alarm_enabled:
                 return 'Alarm is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            elif not self.alarm:
+            elif not self.alarm_enabled:
                 return 'Alarm is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling alarm')
-            self.alarm = True
+            self.alarm_enabled = True
         elif command == 'off':
             self.log.info('Disabling alarm')
-            self.alarm = False
+            self.alarm_enabled = False
 
         if command == 'on':
             return 'Enabling dome alarm'
@@ -931,10 +932,10 @@ class DomeDaemon(BaseDaemon):
 
         # Set flag
         if command == 'on':
-            self.heartbeat = True
+            self.heartbeat_enabled = True
             self.heartbeat_set_flag = 1
         elif command == 'off':
-            self.heartbeat = False
+            self.heartbeat_enabled = False
             self.heartbeat_set_flag = 1
 
         if command == 'on':
