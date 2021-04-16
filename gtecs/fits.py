@@ -18,16 +18,20 @@ from .daemons import daemon_info
 from .flags import Status
 
 
-def image_location(run_number, ut):
-    """Construct the image file location based on the run and ut number."""
+def image_location(run_number, ut_number, tel_number=None):
+    """Construct the image file location."""
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
     # Find the directory, using the date the observing night began
     night = astronomy.night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
         os.mkdir(direc)
 
-    # Find the file name, using the run number and UT number
-    filename = 'r{:07d}_UT{:d}.fits'.format(run_number, ut)
+    # Find the file name, using the telescope, run and UT numbers
+    filename = 't{:d}_r{:07d}_UT{:d}.fits'.format(tel_number, run_number, ut_number)
 
     return os.path.join(direc, filename)
 

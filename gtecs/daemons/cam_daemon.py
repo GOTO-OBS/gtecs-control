@@ -451,7 +451,7 @@ class CamDaemon(BaseDaemon):
             image = images[ut]
             if not glance:
                 run_number = current_exposure['run_number']
-                filename = image_location(run_number, ut)
+                filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
             else:
                 filename = glance_location(ut)
 
