@@ -31,7 +31,7 @@ def image_location(run_number, ut_number, tel_number=None):
         os.mkdir(direc)
 
     # Find the file name, using the telescope, run and UT numbers
-    filename = 't{:d}_r{:07d}_UT{:d}.fits'.format(tel_number, run_number, ut_number)
+    filename = 't{:d}_r{:07d}_ut{:d}.fits'.format(tel_number, run_number, ut_number)
 
     return os.path.join(direc, filename)
 
@@ -44,7 +44,7 @@ def glance_location(ut):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
-    filename = 'glance_UT{:d}.fits'.format(ut)
+    filename = 'glance_ut{:d}.fits'.format(ut)
 
     return os.path.join(direc, filename)
 

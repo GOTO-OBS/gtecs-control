@@ -439,7 +439,7 @@ class CamDaemon(BaseDaemon):
         # if taking glance images, clear all old glances
         glance = current_exposure['glance']
         if glance:
-            glance_files = [os.path.join(params.IMAGE_PATH, 'glance_UT{:d}.fits'.format(ut))
+            glance_files = [os.path.join(params.IMAGE_PATH, 'glance_ut{:d}.fits'.format(ut))
                             for ut in self.uts]
             for glance_file in glance_files:
                 if os.path.exists(glance_file):
