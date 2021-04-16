@@ -36,17 +36,42 @@ def image_location(run_number, ut_number, tel_number=None):
     return os.path.join(direc, filename)
 
 
-def glance_location(ut):
-    """Construct the glance file location based on the ut number."""
+def glance_location(ut_number, tel_number=None):
+    """Construct the glance file location."""
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
     # Find the directory
     direc = params.IMAGE_PATH
     if not os.path.exists(direc):
         os.mkdir(direc)
 
     # Find the file name, using the run number and UT number
-    filename = 'glance_ut{:d}.fits'.format(ut)
+    filename = 't{:d}_glance_ut{:d}.fits'.format(tel_number, ut_number)
 
     return os.path.join(direc, filename)
+
+
+def clear_glance_files(tel_number=None):
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
+    # Find the directory
+    direc = params.IMAGE_PATH
+    if not os.path.exists(direc):
+        os.mkdir(direc)
+
+    # Remove glances for ALL UTs
+    for ut in params.UTS_WITH_CAMERAS:
+        filename = glance_location(ut, tel_number)
+        if os.path.exists(filename):
+            os.remove(filename)
+        # Also remove the .done files
+        done_file = filename + '.done'
+        if os.path.exists(done_file):
+            os.remove(done_file)
 
 
 def write_fits(image, filename, ut, all_info, log=None):

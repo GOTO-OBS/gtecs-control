@@ -13,7 +13,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon, daemon_proxy
 from gtecs.exposures import Exposure
-from gtecs.fits import get_all_info, glance_location, image_location, write_fits
+from gtecs.fits import clear_glance_files, get_all_info, glance_location, image_location, write_fits
 
 
 class CamDaemon(BaseDaemon):
@@ -436,14 +436,10 @@ class CamDaemon(BaseDaemon):
             if all(images[ut] is not None for ut in active_uts):
                 break
 
-        # if taking glance images, clear all old glances
+        # if taking glance images, clear all old glances (all, not just those in active UTs)
         glance = current_exposure['glance']
         if glance:
-            glance_files = [os.path.join(params.IMAGE_PATH, 'glance_ut{:d}.fits'.format(ut))
-                            for ut in self.uts]
-            for glance_file in glance_files:
-                if os.path.exists(glance_file):
-                    os.remove(glance_file)
+            clear_glance_files(params.TELESCOPE_NUMBER)
 
         # save images in parallel
         for ut in active_uts:
@@ -453,7 +449,7 @@ class CamDaemon(BaseDaemon):
                 run_number = current_exposure['run_number']
                 filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
             else:
-                filename = glance_location(ut)
+                filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
             # write the FITS file
             interface_id = params.UT_DICT[ut]['INTERFACE']
