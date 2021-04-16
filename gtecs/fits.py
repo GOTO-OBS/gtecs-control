@@ -1,8 +1,11 @@
 """Functions to write FITS image files."""
 
+import glob
 import math
 import os
+import time
 import threading
+import warnings
 
 import astropy.io.fits as pyfits
 import astropy.units as u
@@ -984,3 +987,99 @@ def write_image_log(filename, header):
     with db.open_session() as session:
         session.add(log)
         session.commit()
+
+
+def get_image_data(run_number=None, direc=None, uts=None):
+    """Open the most recent images and return the data.
+
+    Parameters
+    ----------
+    run_number : int, default=None
+        the run number of the files to open
+        if None (and glance=False), open the latest images from `direc`
+    direc : string, default=None
+        the file directory to load images from within `gtecs.params.IMAGE_PATH`
+        if None, use the date from `gtecs.astronomy.night_startdate`
+    uts : list of ints, default=None
+        the UTs to read the files of
+        if None, open files from all UTs
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
+    if direc is None:
+        direc = astronomy.night_startdate()
+    path = os.path.join(params.IMAGE_PATH, direc)
+
+    if uts is None:
+        uts = params.UTS_WITH_CAMERAS
+
+    if run_number:
+        run = 'r{:07d}'.format(run_number)
+    else:
+        newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getmtime)
+        run = os.path.basename(newest).split('_')[1]
+
+    filenames = {ut: 't{:d}_{}_ut{:d}.fits'.format(params.TELESCOPE_NUMBER, run, ut)
+                 for ut in uts}
+    images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
+
+    # limit it to only existing files
+    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
+    print('Loading run {}: {} images'.format(run, len(images)))
+
+    data = {}
+    for ut in images.keys():
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                data[ut] = pyfits.getdata(images[ut]).astype('float')
+        except (TypeError, OSError):
+            # Image was still being written, wait a sec and try again
+            time.sleep(1)
+            data[ut] = pyfits.getdata(images[ut]).astype('float')
+
+    return data
+
+
+def get_glance_data(uts=None):
+    """Open the most recent glance images and return the data.
+
+    Parameters
+    ----------
+    uts : list of ints, default=None
+        the UTs to read the files of
+        if None, open files from all UTs
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
+    if uts is None:
+        uts = params.UTS_WITH_CAMERAS
+
+    filenames = {ut: 't{:d}_glance_ut{:d}.fits'.format(params.TELESCOPE_NUMBER, ut)
+                 for ut in uts}
+    images = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
+
+    # limit it to only existing files
+    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
+    print('Loading glances: {} images'.format(len(images)))
+
+    data = {}
+    for ut in images.keys():
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                data[ut] = pyfits.getdata(images[ut]).astype('float')
+        except (TypeError, OSError):
+            # Image was still being written, wait a sec and try again
+            time.sleep(1)
+            data[ut] = pyfits.getdata(images[ut]).astype('float')
+
+    return data

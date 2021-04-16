@@ -1,11 +1,7 @@
 """Observing utilities."""
 
-import glob
-import os
 import time
-import warnings
 
-from astropy.io import fits
 from astropy.time import Time
 
 import numpy as np
@@ -13,8 +9,9 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, night_startdate, radec_from_altaz
+from .astronomy import check_alt_limit, radec_from_altaz
 from .daemons import daemon_function, daemon_info
+from .fits import get_glance_data, get_image_data
 from .misc import execute_command
 
 
@@ -574,67 +571,7 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
         run_number = get_run_number()
         data = get_image_data(run_number=run_number)
     else:
-        data = get_image_data(glance=True)
-
-    return data
-
-
-def get_image_data(run_number=None, direc=None, glance=False):
-    """Open the most recent images and return the data.
-
-    Parameters
-    ----------
-    run_number : int, default=None
-        the run number of the files to open
-        if None (and glance=False), open the latest images from `direc`
-    direc : string, default=None
-        the file directory to load images from within `gtecs.params.IMAGE_PATH`
-        if None, use the date from `gtecs.astronomy.night_startdate`
-    glance : bool, default=False
-        load the glance images instead of the latest "normal" images
-
-    Returns
-    -------
-    data : dict
-        a dictionary of the image data, with the UT numbers as keys
-
-    """
-    if not glance:
-        if direc is None:
-            direc = night_startdate()
-        path = os.path.join(params.IMAGE_PATH, direc)
-        if run_number:
-            run = 'r{:07d}'.format(run_number)
-        else:
-            newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getmtime)
-            run = os.path.basename(newest).split('_UT')[0]
-        print(f'Loading run {run}:', end=' ')
-    else:
-        path = os.path.join(params.IMAGE_PATH)
-        run = 'glance'
-        print('Loading glances:', end=' ')
-
-    # get possible file names
-    filenames = {ut: '{}_UT{:d}.fits'.format(run, ut) for ut in params.UTS_WITH_CAMERAS}
-
-    # get full path
-    images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
-
-    # limit it to only existing files
-    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
-
-    print('{} images'.format(len(images)))
-
-    data = {}
-    for ut in images.keys():
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                data[ut] = fits.getdata(images[ut]).astype('float')
-        except (TypeError, OSError):
-            # Image was still being written, wait a sec and try again
-            time.sleep(1)
-            data[ut] = fits.getdata(images[ut]).astype('float')
+        data = get_glance_data()
 
     return data
 
