@@ -21,6 +21,24 @@ from .daemons import daemon_info
 from .flags import Status
 
 
+def fits_filename(tel_number, run_number, ut_number):
+    """Construct the FITS file name."""
+    if run_number is not None:
+        return f't{tel_number:d}_r{run_number:07d}_ut{ut_number:d}.fits'
+    else:
+        return f't{tel_number:d}_glance_ut{ut_number:d}.fits'
+
+
+def image_filename(tel_number, run_number, ut_number):
+    """Construct the FITS image file name."""
+    return fits_filename(tel_number, run_number, ut_number)
+
+
+def glance_filename(tel_number, ut_number):
+    """Construct the FITS glance file name."""
+    return fits_filename(tel_number, None, ut_number)
+
+
 def image_location(run_number, ut_number, tel_number=None):
     """Construct the image file location."""
     # Use the default tel number if not given
@@ -34,8 +52,7 @@ def image_location(run_number, ut_number, tel_number=None):
         os.mkdir(direc)
 
     # Find the file name, using the telescope, run and UT numbers
-    filename = 't{:d}_r{:07d}_ut{:d}.fits'.format(tel_number, run_number, ut_number)
-
+    filename = image_filename(tel_number, run_number, ut_number)
     return os.path.join(direc, filename)
 
 
@@ -50,9 +67,8 @@ def glance_location(ut_number, tel_number=None):
     if not os.path.exists(direc):
         os.mkdir(direc)
 
-    # Find the file name, using the run number and UT number
-    filename = 't{:d}_glance_ut{:d}.fits'.format(tel_number, ut_number)
-
+    # Find the file name, using the telescope and UT numbers
+    filename = glance_filename(tel_number, ut_number)
     return os.path.join(direc, filename)
 
 
@@ -1017,19 +1033,17 @@ def get_image_data(run_number=None, direc=None, uts=None):
     if uts is None:
         uts = params.UTS_WITH_CAMERAS
 
-    if run_number:
-        run = 'r{:07d}'.format(run_number)
-    else:
+    if run_number is None:
         newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getmtime)
         run = os.path.basename(newest).split('_')[1]
+        run_number = int(run[1:])
 
-    filenames = {ut: 't{:d}_{}_ut{:d}.fits'.format(params.TELESCOPE_NUMBER, run, ut)
-                 for ut in uts}
+    filenames = {ut: image_filename(params.TELESCOPE_NUMBER, run_number, ut) for ut in uts}
     images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
 
     # limit it to only existing files
     images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
-    print('Loading run {}: {} images'.format(run, len(images)))
+    print('Loading run r{:07d}: {} images'.format(run_number, len(images)))
 
     data = {}
     for ut in images.keys():
@@ -1063,8 +1077,7 @@ def get_glance_data(uts=None):
     if uts is None:
         uts = params.UTS_WITH_CAMERAS
 
-    filenames = {ut: 't{:d}_glance_ut{:d}.fits'.format(params.TELESCOPE_NUMBER, ut)
-                 for ut in uts}
+    filenames = {ut: glance_filename(params.TELESCOPE_NUMBER, ut) for ut in uts}
     images = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
 
     # limit it to only existing files
