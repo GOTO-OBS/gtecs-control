@@ -45,8 +45,8 @@ def get_exq_commands(db_id):
 
         # Loop over all exposure sets
         for exposure_set in pointing.exposure_sets:
-            # Store total time
-            total_time += (exposure_set.num_exp * exposure_set.exptime)
+            # Store total time (including 30s for filter change etc)
+            total_time += (exposure_set.exptime + 30) * exposure_set.num_exp
 
             # Format UT mask
             if exposure_set.ut_mask is not None:
