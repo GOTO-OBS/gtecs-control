@@ -37,17 +37,16 @@ def get_position(db_id):
 
 def get_exq_commands(db_id):
     """Get the exposure queue command for a given pointing."""
-    total_time = 0
     commands = []
     with open_session() as session:
         # Load pointing
         pointing = get_pointing_by_id(session, db_id)
 
+        # Find min_time
+        min_time = pointing.min_time
+
         # Loop over all exposure sets
         for exposure_set in pointing.exposure_sets:
-            # Store total time (including 30s for filter change etc)
-            total_time += (exposure_set.exptime + 30) * exposure_set.num_exp
-
             # Format UT mask
             if exposure_set.ut_mask is not None:
                 ut_string = ut_mask_to_string(exposure_set.ut_mask)
@@ -70,7 +69,7 @@ def get_exq_commands(db_id):
             # Add command to list
             commands.append(command)
 
-    return commands, total_time
+    return commands, min_time
 
 
 def run(db_id):
@@ -96,7 +95,7 @@ def run(db_id):
         slew_to_radec(ra, dec)
 
         print('Adding commands to exposure queue')
-        exq_command_list, total_time = get_exq_commands(db_id)
+        exq_command_list, min_time = get_exq_commands(db_id)
         for exq_command in exq_command_list:
             execute_command(exq_command)
 
@@ -108,7 +107,7 @@ def run(db_id):
         execute_command('exq resume')
 
         # wait for the queue to empty
-        wait_for_exposure_queue(total_time * 1.5)
+        wait_for_exposure_queue(min_time * 1.5)
 
     except Exception:
         # something went wrong
