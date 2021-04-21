@@ -93,13 +93,13 @@ def clear_glance_files(tel_number=None):
             os.remove(done_file)
 
 
-def write_fits(image, filename, ut, all_info, log=None):
+def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
-    if params.COMPRESS_IMAGES:
-        hdu = pyfits.CompImageHDU(image)
+    if compress:
+        hdu = pyfits.CompImageHDU(image_data)
     else:
-        hdu = pyfits.PrimaryHDU(image)
+        hdu = pyfits.PrimaryHDU(image_data)
 
     # update the image header
     try:

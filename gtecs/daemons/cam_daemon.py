@@ -443,8 +443,8 @@ class CamDaemon(BaseDaemon):
 
         # save images in parallel
         for ut in active_uts:
-            # get image and filename
-            image = images[ut]
+            # get image data and filename
+            image_data = images[ut]
             if not glance:
                 run_number = current_exposure['run_number']
                 filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
@@ -455,7 +455,9 @@ class CamDaemon(BaseDaemon):
             interface_id = params.UT_DICT[ut]['INTERFACE']
             self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
                           expstr, ut, interface_id, filename))
-            pool.submit(write_fits, image, filename, ut, all_info, log=self.log)
+            pool.submit(write_fits, image_data, filename, ut, all_info,
+                        compress=params.COMPRESS_IMAGES,
+                        log=self.log)
 
             self.image_saving[ut] = 0
 
