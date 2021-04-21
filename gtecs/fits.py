@@ -1057,6 +1057,20 @@ def write_image_log(filename, header):
         session.commit()
 
 
+def read_fits(filepath, dtype='int16'):
+    """Load a FITS file."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            data = pyfits.getdata(filepath).astype(dtype)
+    except (TypeError, OSError):
+        # Image was still being written, wait a sec and try again
+        time.sleep(1)
+        data = pyfits.getdata(filepath).astype(dtype)
+
+    return data
+
+
 def get_image_data(run_number=None, direc=None, uts=None):
     """Open the most recent images and return the data.
 
@@ -1091,23 +1105,14 @@ def get_image_data(run_number=None, direc=None, uts=None):
         run_number = int(run[1:])
 
     filenames = {ut: image_filename(params.TELESCOPE_NUMBER, run_number, ut) for ut in uts}
-    images = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
+    filepaths = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
 
     # limit it to only existing files
-    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
-    print('Loading run r{:07d}: {} images'.format(run_number, len(images)))
+    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    print('Loading run r{:07d}: {} images'.format(run_number, len(filepaths)))
 
-    data = {}
-    for ut in images.keys():
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                data[ut] = pyfits.getdata(images[ut]).astype('float')
-        except (TypeError, OSError):
-            # Image was still being written, wait a sec and try again
-            time.sleep(1)
-            data[ut] = pyfits.getdata(images[ut]).astype('float')
-
+    # read the files
+    data = {ut: read_fits(filepaths[ut]) for ut in filepaths}
     return data
 
 
@@ -1130,21 +1135,12 @@ def get_glance_data(uts=None):
         uts = params.UTS_WITH_CAMERAS
 
     filenames = {ut: glance_filename(params.TELESCOPE_NUMBER, ut) for ut in uts}
-    images = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
+    filepaths = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
 
     # limit it to only existing files
-    images = {ut: images[ut] for ut in images if os.path.exists(images[ut])}
-    print('Loading glances: {} images'.format(len(images)))
+    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    print('Loading glances: {} images'.format(len(filepaths)))
 
-    data = {}
-    for ut in images.keys():
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                data[ut] = pyfits.getdata(images[ut]).astype('float')
-        except (TypeError, OSError):
-            # Image was still being written, wait a sec and try again
-            time.sleep(1)
-            data[ut] = pyfits.getdata(images[ut]).astype('float')
-
+    # read the files
+    data = {ut: read_fits(filepaths[ut]) for ut in filepaths}
     return data
