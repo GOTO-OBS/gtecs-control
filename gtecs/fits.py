@@ -7,9 +7,9 @@ import time
 import threading
 import warnings
 
-import astropy.io.fits as pyfits
 import astropy.units as u
 from astropy.coordinates import Angle
+from astropy.io import fits
 from astropy.time import Time
 
 import obsdb as db
@@ -97,9 +97,9 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
     if compress:
-        hdu = pyfits.CompImageHDU(image_data)
+        hdu = fits.CompImageHDU(image_data)
     else:
-        hdu = pyfits.PrimaryHDU(image_data)
+        hdu = fits.PrimaryHDU(image_data)
 
     # update the image header
     try:
@@ -121,10 +121,10 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
             log.debug('', exc_info=True)
 
     # recreate the hdulist, and write to file
-    if not isinstance(hdu, pyfits.PrimaryHDU):
-        hdulist = pyfits.HDUList([pyfits.PrimaryHDU(), hdu])
+    if not isinstance(hdu, fits.PrimaryHDU):
+        hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
     else:
-        hdulist = pyfits.HDUList([hdu])
+        hdulist = fits.HDUList([hdu])
     if os.path.exists(filename):
         os.remove(filename)
     hdulist.writeto(filename)
@@ -1062,11 +1062,11 @@ def read_fits(filepath, dtype='int16'):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            data = pyfits.getdata(filepath).astype(dtype)
+            data = fits.getdata(filepath).astype(dtype)
     except (TypeError, OSError):
         # Image was still being written, wait a sec and try again
         time.sleep(1)
-        data = pyfits.getdata(filepath).astype(dtype)
+        data = fits.getdata(filepath).astype(dtype)
 
     return data
 
