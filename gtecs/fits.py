@@ -105,6 +105,8 @@ def write_fits(image, filename, ut, all_info, log=None):
     try:
         update_header(hdu.header, ut, all_info, log)
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to update FITS header')
         log.debug('', exc_info=True)
 
@@ -113,6 +115,8 @@ def write_fits(image, filename, ut, all_info, log=None):
         try:
             write_image_log(filename, hdu.header)
         except Exception:
+            if log is None:
+                raise
             log.error('Failed to add entry to image log')
             log.debug('', exc_info=True)
 
@@ -131,14 +135,16 @@ def write_fits(image, filename, ut, all_info, log=None):
     with open(done_file, 'a'):
         os.utime(done_file, None)
 
+    # record image being saved
+    interface_id = params.UT_DICT[ut]['INTERFACE']
+    expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
     if log:
-        interface_id = params.UT_DICT[ut]['INTERFACE']
-        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-        log.info('{}: Saved exposure from camera {} ({})'.format(
-                 expstr, ut, interface_id))
+        log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+    else:
+        print('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
 
 
-def get_all_info(cam_info, log):
+def get_all_info(cam_info, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
     all_info = {}
 
@@ -146,18 +152,22 @@ def get_all_info(cam_info, log):
     all_info['cam'] = cam_info
 
     # Get the info from the other daemons in parallel to save time
-    def daemon_info_thread(daemon_id, log):
+    def daemon_info_thread(daemon_id, log=None, log_debug=False):
         try:
-            # log.debug(f'Fetching "{daemon_id}" info')
+            if log and log_debug:
+                log.debug(f'Fetching "{daemon_id}" info')
             force_update = True if daemon_id != 'conditions' else False
             all_info[daemon_id] = daemon_info(daemon_id, force_update, timeout=60)
-            # log.debug(f'Fetched "{daemon_id}" info')
+            if log and log_debug:
+                log.debug(f'Fetched "{daemon_id}" info')
         except Exception:
+            if log is None:
+                raise
             log.error(f'Failed to fetch "{daemon_id}" info')
             log.debug('', exc_info=True)
             all_info[daemon_id] = None
 
-    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log))
+    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log, log_debug))
                for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
     for thread in threads:
         thread.start()
@@ -166,14 +176,18 @@ def get_all_info(cam_info, log):
 
     # Astronomy
     try:
-        # log.debug('Fetching astronomy info')
+        if log and log_debug:
+            log.debug('Fetching astronomy info')
         now = Time.now()
         astro = {}
         astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
         astro['sun_alt'] = astronomy.get_sunalt(Time.now())
         all_info['astro'] = astro
-        # log.debug('Fetched astronomy info')
+        if log and log_debug:
+            log.debug('Fetched astronomy info')
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to fetch astronomy info')
         log.debug('', exc_info=True)
         all_info['astro'] = None
@@ -185,7 +199,8 @@ def get_all_info(cam_info, log):
     else:
         db_info['from_db'] = True
 
-        # log.debug('Fetching database info')
+        if log and log_debug:
+            log.debug('Fetching database info')
         with db.open_session() as session:
             try:
                 expset_id = cam_info['current_exposure']['db_id']
@@ -193,9 +208,11 @@ def get_all_info(cam_info, log):
                 db_info['expset'] = {}
                 db_info['expset']['id'] = expset_id
             except Exception:
-                expset = None
+                if log is None:
+                    raise
                 log.error('Failed to fetch database expset')
                 log.debug('', exc_info=True)
+                expset = None
 
             if expset and expset.pointing:
                 try:
@@ -262,16 +279,19 @@ def get_all_info(cam_info, log):
                         db_info['event']['skymap'] = pointing.event.skymap
 
                 except Exception:
+                    if log is None:
+                        raise
                     log.error('Failed to fetch database info')
                     log.debug('', exc_info=True)
-        # log.debug('Fetched database info')
+        if log and log_debug:
+            log.debug('Fetched database info')
 
     all_info['db'] = db_info
 
     return all_info
 
 
-def update_header(header, ut, all_info, log):
+def update_header(header, ut, all_info, log=None):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
     # header.comments['SIMPLE  '] = 'Standard FITS'
@@ -379,6 +399,8 @@ def update_header(header, ut, all_info, log):
         info = all_info['db']
         from_db = info['from_db']
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write database info to header')
         log.debug('', exc_info=True)
         from_db = False
@@ -390,6 +412,8 @@ def update_header(header, ut, all_info, log):
         expset_id = info['id']
     except Exception:
         if from_db:
+            if log is None:
+                raise
             log.error('Failed to write exposure set info to header')
             log.debug('', exc_info=True)
         expset_id = 'NA'
@@ -411,6 +435,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db:
             # Every ExposureSet should have a Pointing (or how else did we observe it?)
+            if log is None:
+                raise
             log.error('Failed to write pointing info to header')
             log.debug('', exc_info=True)
         pointing_id = 'NA'
@@ -443,6 +469,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db:
             # Every Pointing should have a User
+            if log is None:
+                raise
             log.error('Failed to fetch user info')
             log.debug('', exc_info=True)
         user_id = 'NA'
@@ -464,6 +492,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'mpointing' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to an mpointing
+            if log is None:
+                raise
             log.error('Failed to fetch mpointing info')
             log.debug('', exc_info=True)
         mpointing_id = 'NA'
@@ -486,6 +516,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'mpointing' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a time block
+            if log is None:
+                raise
             log.error('Failed to fetch time block info')
             log.debug('', exc_info=True)
         time_block_id = 'NA'
@@ -504,6 +536,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'grid' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a grid
+            if log is None:
+                raise
             log.error('Failed to fetch grid tile info')
             log.debug('', exc_info=True)
         grid_id = 'NA'
@@ -527,6 +561,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'survey' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a survey
+            if log is None:
+                raise
             log.error('Failed to fetch survey tile info')
             log.debug('', exc_info=True)
         survey_id = 'NA'
@@ -553,6 +589,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db and 'event' in all_info['db']:
             # It's not necessarily an error if the info isn't there
+            if log is None:
+                raise
             log.error('Failed to fetch event info')
             log.debug('', exc_info=True)
         event_id = 'NA'
@@ -620,6 +658,8 @@ def update_header(header, ut, all_info, log):
             else:
                 cover_move_time = 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
         ota_serial = 'NA'
@@ -661,6 +701,8 @@ def update_header(header, ut, all_info, log):
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
         foc_serial = 'NA'
@@ -710,6 +752,8 @@ def update_header(header, ut, all_info, log):
             else:
                 filt_move_time = 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
         filt_serial = 'NA'
@@ -757,6 +801,8 @@ def update_header(header, ut, all_info, log):
             dome_move_time = 'NA'
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write dome info to header')
         log.debug('', exc_info=True)
         dome_status = 'NA'
@@ -820,6 +866,8 @@ def update_header(header, ut, all_info, log):
         moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write mount info to header')
         log.debug('', exc_info=True)
         targ_ra_str = 'NA'
@@ -879,6 +927,8 @@ def update_header(header, ut, all_info, log):
 
         sun_alt = info['sun_alt']
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write astronomy info to header')
         log.debug('', exc_info=True)
         moon_alt = 'NA'
@@ -945,6 +995,8 @@ def update_header(header, ut, all_info, log):
             int_hum = 'NA'
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write conditions info to header')
         log.debug('', exc_info=True)
         clouds = 'NA'
