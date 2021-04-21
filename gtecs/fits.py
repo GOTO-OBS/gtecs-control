@@ -1057,7 +1057,7 @@ def write_image_log(filename, header):
         session.commit()
 
 
-def read_fits(filepath, dtype='int16'):
+def read_fits(filepath, dtype='int32'):
     """Load a FITS file."""
     try:
         with warnings.catch_warnings():
