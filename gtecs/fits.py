@@ -1018,7 +1018,7 @@ def update_header(header, ut, all_info, log=None):
     header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
     header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
     header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
-    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s, GOTO mast)'.format(
+    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s)'.format(
                           params.WINDGUST_PERIOD))
 
     header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
