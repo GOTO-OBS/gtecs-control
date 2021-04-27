@@ -39,7 +39,7 @@ def run():
         send_slack_msg('Shutdown script could not close the mirror covers!')
 
     # Power off the cameras and fans
-    execute_command('power off cams,fans')
+    execute_command('power off cams,focs,filts,fans')
 
     # Park the mount
     execute_command('mnt park')
