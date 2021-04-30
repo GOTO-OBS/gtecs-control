@@ -73,15 +73,18 @@ def write_fits(image, filename, ut, all_info, log=None):
         hdulist = pyfits.HDUList([pyfits.PrimaryHDU(), hdu])
     else:
         hdulist = pyfits.HDUList([hdu])
-    if os.path.exists(filename):
+    try:
         os.remove(filename)
-    hdulist.writeto(filename)
+    except FileNotFoundError:
+        pass
 
-    # create an empty 'done' file
-    # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
-    done_file = filename + '.done'
-    with open(done_file, 'a'):
-        os.utime(done_file, None)
+    try:
+        hdulist.writeto(filename + '.tmp')
+    except Exception:
+        log.error('Failed to write hdulist to file')
+        log.debug('', exc_info=True)
+    else:
+        os.rename(filename + '.tmp', filename)
 
     if log:
         interface_id = params.UT_DICT[ut]['INTERFACE']
