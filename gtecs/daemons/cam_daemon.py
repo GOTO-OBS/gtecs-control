@@ -224,7 +224,10 @@ class CamDaemon(BaseDaemon):
 
                     # reset flags
                     for ut in self.abort_uts:
-                        self.active_uts.remove(ut)
+                        try:
+                            self.active_uts.remove(ut)
+                        except ValueError:
+                            pass
                     if len(self.active_uts) == 0:
                         # we've aborted everything, stop the exposure
                         self.exposing = False
