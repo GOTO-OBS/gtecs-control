@@ -543,8 +543,7 @@ class CamDaemon(BaseDaemon):
 
         # Set values
         self.current_exposure = exposure
-        for ut in ut_list:
-            self.active_uts += [ut]
+        self.active_uts = sorted([ut for ut in ut_list])
 
         # Set flag
         self.take_exposure_flag = 1
@@ -573,9 +572,7 @@ class CamDaemon(BaseDaemon):
             return 'Cameras are not currently exposing'
 
         # Set values
-        for ut in ut_list:
-            if ut in self.active_uts:
-                self.abort_uts += [ut]
+        self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
 
         # Set flag
         self.abort_exposure_flag = 1
@@ -606,9 +603,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
-            self.active_uts += [ut]
 
         # Set flag
         self.set_window_flag = 1
@@ -633,9 +630,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_window[ut] = None
-            self.active_uts += [ut]
 
         # Set flag
         self.set_window_flag = 1
@@ -661,9 +658,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_temp[ut] = target_temp
-            self.active_uts += [ut]
 
         # Set flag
         self.set_temp_flag = 1
