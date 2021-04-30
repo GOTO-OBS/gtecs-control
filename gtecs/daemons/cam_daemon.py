@@ -402,24 +402,23 @@ class CamDaemon(BaseDaemon):
         FITS files within this thread a new exposure can be started as soon as
         the previous one is finished.
         """
-        pool = ThreadPoolExecutor(max_workers=len(active_uts))
-
         current_exposure = all_info['cam']['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
 
         # start fetching images from the interfaces in parallel
         future_images = {ut: None for ut in active_uts}
-        for ut in active_uts:
-            self.image_saving[ut] = 1
-            interface_id = params.UT_DICT[ut]['INTERFACE']
-            interface = daemon_proxy(interface_id, timeout=99)
-            try:
-                self.log.info('{}: Fetching exposure from camera {} ({})'.format(
-                              expstr, ut, interface_id))
-                future_images[ut] = pool.submit(interface.fetch_exposure, ut)
-            except Exception:
-                self.log.error('No response from interface {}'.format(interface_id))
-                self.log.debug('', exc_info=True)
+        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            for ut in active_uts:
+                self.image_saving[ut] = 1
+                interface_id = params.UT_DICT[ut]['INTERFACE']
+                interface = daemon_proxy(interface_id, timeout=99)
+                try:
+                    self.log.info('{}: Fetching exposure from camera {} ({})'.format(
+                                  expstr, ut, interface_id))
+                    future_images[ut] = executor.submit(interface.fetch_exposure, ut)
+                except Exception:
+                    self.log.error('No response from interface {}'.format(interface_id))
+                    self.log.debug('', exc_info=True)
 
         # wait for images to be fetched
         images = {ut: None for ut in active_uts}
@@ -442,24 +441,25 @@ class CamDaemon(BaseDaemon):
             clear_glance_files(params.TELESCOPE_NUMBER)
 
         # save images in parallel
-        for ut in active_uts:
-            # get image data and filename
-            image_data = images[ut]
-            if not glance:
-                run_number = current_exposure['run_number']
-                filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
-            else:
-                filename = glance_location(ut, params.TELESCOPE_NUMBER)
+        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            for ut in active_uts:
+                # get image data and filename
+                image_data = images[ut]
+                if not glance:
+                    run_number = current_exposure['run_number']
+                    filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
+                else:
+                    filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
-            # write the FITS file
-            interface_id = params.UT_DICT[ut]['INTERFACE']
-            self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
-                          expstr, ut, interface_id, filename))
-            pool.submit(write_fits, image_data, filename, ut, all_info,
-                        compress=params.COMPRESS_IMAGES,
-                        log=self.log)
+                # write the FITS file
+                interface_id = params.UT_DICT[ut]['INTERFACE']
+                self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
+                              expstr, ut, interface_id, filename))
+                executor.submit(write_fits, image_data, filename, ut, all_info,
+                                compress=params.COMPRESS_IMAGES,
+                                log=self.log)
 
-            self.image_saving[ut] = 0
+                self.image_saving[ut] = 0
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
