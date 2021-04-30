@@ -402,6 +402,11 @@ class CamDaemon(BaseDaemon):
         FITS files within this thread a new exposure can be started as soon as
         the previous one is finished.
         """
+        if len(active_uts) == 0:
+            # We must have aborted before we got to this stage
+            self.log.warning('Exposure saving thread aborted')
+            return
+
         current_exposure = all_info['cam']['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
 
