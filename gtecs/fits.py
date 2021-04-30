@@ -87,10 +87,6 @@ def clear_glance_files(tel_number=None):
         filename = glance_location(ut, tel_number)
         if os.path.exists(filename):
             os.remove(filename)
-        # Also remove the .done files
-        done_file = filename + '.done'
-        if os.path.exists(done_file):
-            os.remove(done_file)
 
 
 def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
