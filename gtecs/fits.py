@@ -120,20 +120,28 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
             log.error('Failed to add entry to image log')
             log.debug('', exc_info=True)
 
-    # recreate the hdulist, and write to file
+    # create the hdulist
     if not isinstance(hdu, fits.PrimaryHDU):
         hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
     else:
         hdulist = fits.HDUList([hdu])
-    if os.path.exists(filename):
-        os.remove(filename)
-    hdulist.writeto(filename)
 
-    # create an empty 'done' file
-    # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
-    done_file = filename + '.done'
-    with open(done_file, 'a'):
-        os.utime(done_file, None)
+    # remove any existing file
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    # write to a tmp file, then move it once it's finished (removes the need for .done files)
+    try:
+        hdulist.writeto(filename + '.tmp')
+    except Exception:
+        if log is None:
+            raise
+        log.error('Failed to write hdulist to file')
+        log.debug('', exc_info=True)
+    else:
+        os.rename(filename + '.tmp', filename)
 
     # record image being saved
     interface_id = params.UT_DICT[ut]['INTERFACE']
