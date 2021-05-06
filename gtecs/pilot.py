@@ -561,9 +561,10 @@ class Pilot(object):
             self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
 
-        # if BADCOND has just finished (or been canceled) then park the mount again
+        # if BADCOND has just finished and we're still paused then park the mount again
         if name == 'BADCOND':
-            if self.mount_is_tracking:
+            if (self.paused and not self.whypause['hardware'] and not self.whypause['manual'] and
+                    self.mount_is_tracking):
                 self.park_mount()
 
         return retcode, result

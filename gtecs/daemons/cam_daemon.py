@@ -13,7 +13,7 @@ from gtecs import misc
 from gtecs import params
 from gtecs.daemons import BaseDaemon, daemon_proxy
 from gtecs.exposures import Exposure
-from gtecs.fits import get_all_info, glance_location, image_location, write_fits
+from gtecs.fits import clear_glance_files, get_all_info, glance_location, image_location, write_fits
 
 
 class CamDaemon(BaseDaemon):
@@ -224,7 +224,10 @@ class CamDaemon(BaseDaemon):
 
                     # reset flags
                     for ut in self.abort_uts:
-                        self.active_uts.remove(ut)
+                        try:
+                            self.active_uts.remove(ut)
+                        except ValueError:
+                            pass
                     if len(self.active_uts) == 0:
                         # we've aborted everything, stop the exposure
                         self.exposing = False
@@ -402,24 +405,28 @@ class CamDaemon(BaseDaemon):
         FITS files within this thread a new exposure can be started as soon as
         the previous one is finished.
         """
-        pool = ThreadPoolExecutor(max_workers=len(active_uts))
+        if len(active_uts) == 0:
+            # We must have aborted before we got to this stage
+            self.log.warning('Exposure saving thread aborted')
+            return
 
         current_exposure = all_info['cam']['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
 
         # start fetching images from the interfaces in parallel
         future_images = {ut: None for ut in active_uts}
-        for ut in active_uts:
-            self.image_saving[ut] = 1
-            interface_id = params.UT_DICT[ut]['INTERFACE']
-            interface = daemon_proxy(interface_id, timeout=99)
-            try:
-                self.log.info('{}: Fetching exposure from camera {} ({})'.format(
-                              expstr, ut, interface_id))
-                future_images[ut] = pool.submit(interface.fetch_exposure, ut)
-            except Exception:
-                self.log.error('No response from interface {}'.format(interface_id))
-                self.log.debug('', exc_info=True)
+        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            for ut in active_uts:
+                self.image_saving[ut] = 1
+                interface_id = params.UT_DICT[ut]['INTERFACE']
+                interface = daemon_proxy(interface_id, timeout=99)
+                try:
+                    self.log.info('{}: Fetching exposure from camera {} ({})'.format(
+                                  expstr, ut, interface_id))
+                    future_images[ut] = executor.submit(interface.fetch_exposure, ut)
+                except Exception:
+                    self.log.error('No response from interface {}'.format(interface_id))
+                    self.log.debug('', exc_info=True)
 
         # wait for images to be fetched
         images = {ut: None for ut in active_uts}
@@ -436,32 +443,31 @@ class CamDaemon(BaseDaemon):
             if all(images[ut] is not None for ut in active_uts):
                 break
 
-        # if taking glance images, clear all old glances
+        # if taking glance images, clear all old glances (all, not just those in active UTs)
         glance = current_exposure['glance']
         if glance:
-            glance_files = [os.path.join(params.IMAGE_PATH, 'glance_UT{:d}.fits'.format(ut))
-                            for ut in self.uts]
-            for glance_file in glance_files:
-                if os.path.exists(glance_file):
-                    os.remove(glance_file)
+            clear_glance_files(params.TELESCOPE_NUMBER)
 
         # save images in parallel
-        for ut in active_uts:
-            # get image and filename
-            image = images[ut]
-            if not glance:
-                run_number = current_exposure['run_number']
-                filename = image_location(run_number, ut)
-            else:
-                filename = glance_location(ut)
+        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            for ut in active_uts:
+                # get image data and filename
+                image_data = images[ut]
+                if not glance:
+                    run_number = current_exposure['run_number']
+                    filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
+                else:
+                    filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
-            # write the FITS file
-            interface_id = params.UT_DICT[ut]['INTERFACE']
-            self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
-                          expstr, ut, interface_id, filename))
-            pool.submit(write_fits, image, filename, ut, all_info, log=self.log)
+                # write the FITS file
+                interface_id = params.UT_DICT[ut]['INTERFACE']
+                self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
+                              expstr, ut, interface_id, filename))
+                executor.submit(write_fits, image_data, filename, ut, all_info,
+                                compress=params.COMPRESS_IMAGES,
+                                log=self.log)
 
-            self.image_saving[ut] = 0
+                self.image_saving[ut] = 0
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
@@ -537,8 +543,7 @@ class CamDaemon(BaseDaemon):
 
         # Set values
         self.current_exposure = exposure
-        for ut in ut_list:
-            self.active_uts += [ut]
+        self.active_uts = sorted([ut for ut in ut_list])
 
         # Set flag
         self.take_exposure_flag = 1
@@ -567,9 +572,7 @@ class CamDaemon(BaseDaemon):
             return 'Cameras are not currently exposing'
 
         # Set values
-        for ut in ut_list:
-            if ut in self.active_uts:
-                self.abort_uts += [ut]
+        self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
 
         # Set flag
         self.abort_exposure_flag = 1
@@ -600,9 +603,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
-            self.active_uts += [ut]
 
         # Set flag
         self.set_window_flag = 1
@@ -627,9 +630,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_window[ut] = None
-            self.active_uts += [ut]
 
         # Set flag
         self.set_window_flag = 1
@@ -655,9 +658,9 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
         # Set values
+        self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
             self.target_temp[ut] = target_temp
-            self.active_uts += [ut]
 
         # Set flag
         self.set_temp_flag = 1

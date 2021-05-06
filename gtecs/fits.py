@@ -1,12 +1,15 @@
 """Functions to write FITS image files."""
 
+import glob
 import math
 import os
+import time
 import threading
+import warnings
 
-import astropy.io.fits as pyfits
 import astropy.units as u
 from astropy.coordinates import Angle
+from astropy.io import fits
 from astropy.time import Time
 
 import obsdb as db
@@ -18,45 +21,88 @@ from .daemons import daemon_info
 from .flags import Status
 
 
-def image_location(run_number, ut):
-    """Construct the image file location based on the run and ut number."""
+def fits_filename(tel_number, run_number, ut_number):
+    """Construct the FITS file name."""
+    if run_number is not None:
+        return f't{tel_number:d}_r{run_number:07d}_ut{ut_number:d}.fits'
+    else:
+        return f't{tel_number:d}_glance_ut{ut_number:d}.fits'
+
+
+def image_filename(tel_number, run_number, ut_number):
+    """Construct the FITS image file name."""
+    return fits_filename(tel_number, run_number, ut_number)
+
+
+def glance_filename(tel_number, ut_number):
+    """Construct the FITS glance file name."""
+    return fits_filename(tel_number, None, ut_number)
+
+
+def image_location(run_number, ut_number, tel_number=None):
+    """Construct the image file location."""
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
     # Find the directory, using the date the observing night began
     night = astronomy.night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
         os.mkdir(direc)
 
-    # Find the file name, using the run number and UT number
-    filename = 'r{:07d}_UT{:d}.fits'.format(run_number, ut)
-
+    # Find the file name, using the telescope, run and UT numbers
+    filename = image_filename(tel_number, run_number, ut_number)
     return os.path.join(direc, filename)
 
 
-def glance_location(ut):
-    """Construct the glance file location based on the ut number."""
+def glance_location(ut_number, tel_number=None):
+    """Construct the glance file location."""
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
     # Find the directory
     direc = params.IMAGE_PATH
     if not os.path.exists(direc):
         os.mkdir(direc)
 
-    # Find the file name, using the run number and UT number
-    filename = 'glance_UT{:d}.fits'.format(ut)
-
+    # Find the file name, using the telescope and UT numbers
+    filename = glance_filename(tel_number, ut_number)
     return os.path.join(direc, filename)
 
 
-def write_fits(image, filename, ut, all_info, log=None):
+def clear_glance_files(tel_number=None):
+    # Use the default tel number if not given
+    if tel_number is None:
+        tel_number = params.TELESCOPE_NUMBER
+
+    # Find the directory
+    direc = params.IMAGE_PATH
+    if not os.path.exists(direc):
+        os.mkdir(direc)
+
+    # Remove glances for ALL UTs
+    for ut in params.UTS_WITH_CAMERAS:
+        filename = glance_location(ut, tel_number)
+        if os.path.exists(filename):
+            os.remove(filename)
+
+
+def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
-    if params.COMPRESS_IMAGES:
-        hdu = pyfits.CompImageHDU(image)
+    if compress:
+        hdu = fits.CompImageHDU(image_data)
     else:
-        hdu = pyfits.PrimaryHDU(image)
+        hdu = fits.PrimaryHDU(image_data)
 
     # update the image header
     try:
         update_header(hdu.header, ut, all_info, log)
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to update FITS header')
         log.debug('', exc_info=True)
 
@@ -65,32 +111,44 @@ def write_fits(image, filename, ut, all_info, log=None):
         try:
             write_image_log(filename, hdu.header)
         except Exception:
+            if log is None:
+                raise
             log.error('Failed to add entry to image log')
             log.debug('', exc_info=True)
 
-    # recreate the hdulist, and write to file
-    if not isinstance(hdu, pyfits.PrimaryHDU):
-        hdulist = pyfits.HDUList([pyfits.PrimaryHDU(), hdu])
+    # create the hdulist
+    if not isinstance(hdu, fits.PrimaryHDU):
+        hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
     else:
-        hdulist = pyfits.HDUList([hdu])
-    if os.path.exists(filename):
+        hdulist = fits.HDUList([hdu])
+
+    # remove any existing file
+    try:
         os.remove(filename)
-    hdulist.writeto(filename)
+    except FileNotFoundError:
+        pass
 
-    # create an empty 'done' file
-    # https://stackoverflow.com/questions/12654772/create-empty-file-using-python/12654798
-    done_file = filename + '.done'
-    with open(done_file, 'a'):
-        os.utime(done_file, None)
+    # write to a tmp file, then move it once it's finished (removes the need for .done files)
+    try:
+        hdulist.writeto(filename + '.tmp')
+    except Exception:
+        if log is None:
+            raise
+        log.error('Failed to write hdulist to file')
+        log.debug('', exc_info=True)
+    else:
+        os.rename(filename + '.tmp', filename)
 
+    # record image being saved
+    interface_id = params.UT_DICT[ut]['INTERFACE']
+    expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
     if log:
-        interface_id = params.UT_DICT[ut]['INTERFACE']
-        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-        log.info('{}: Saved exposure from camera {} ({})'.format(
-                 expstr, ut, interface_id))
+        log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+    else:
+        print('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
 
 
-def get_all_info(cam_info, log):
+def get_all_info(cam_info, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
     all_info = {}
 
@@ -98,18 +156,22 @@ def get_all_info(cam_info, log):
     all_info['cam'] = cam_info
 
     # Get the info from the other daemons in parallel to save time
-    def daemon_info_thread(daemon_id, log):
+    def daemon_info_thread(daemon_id, log=None, log_debug=False):
         try:
-            # log.debug(f'Fetching "{daemon_id}" info')
+            if log and log_debug:
+                log.debug(f'Fetching "{daemon_id}" info')
             force_update = True if daemon_id != 'conditions' else False
             all_info[daemon_id] = daemon_info(daemon_id, force_update, timeout=60)
-            # log.debug(f'Fetched "{daemon_id}" info')
+            if log and log_debug:
+                log.debug(f'Fetched "{daemon_id}" info')
         except Exception:
+            if log is None:
+                raise
             log.error(f'Failed to fetch "{daemon_id}" info')
             log.debug('', exc_info=True)
             all_info[daemon_id] = None
 
-    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log))
+    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log, log_debug))
                for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
     for thread in threads:
         thread.start()
@@ -118,14 +180,18 @@ def get_all_info(cam_info, log):
 
     # Astronomy
     try:
-        # log.debug('Fetching astronomy info')
+        if log and log_debug:
+            log.debug('Fetching astronomy info')
         now = Time.now()
         astro = {}
         astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
         astro['sun_alt'] = astronomy.get_sunalt(Time.now())
         all_info['astro'] = astro
-        # log.debug('Fetched astronomy info')
+        if log and log_debug:
+            log.debug('Fetched astronomy info')
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to fetch astronomy info')
         log.debug('', exc_info=True)
         all_info['astro'] = None
@@ -137,7 +203,8 @@ def get_all_info(cam_info, log):
     else:
         db_info['from_db'] = True
 
-        # log.debug('Fetching database info')
+        if log and log_debug:
+            log.debug('Fetching database info')
         with db.open_session() as session:
             try:
                 expset_id = cam_info['current_exposure']['db_id']
@@ -145,9 +212,11 @@ def get_all_info(cam_info, log):
                 db_info['expset'] = {}
                 db_info['expset']['id'] = expset_id
             except Exception:
-                expset = None
+                if log is None:
+                    raise
                 log.error('Failed to fetch database expset')
                 log.debug('', exc_info=True)
+                expset = None
 
             if expset and expset.pointing:
                 try:
@@ -214,16 +283,19 @@ def get_all_info(cam_info, log):
                         db_info['event']['skymap'] = pointing.event.skymap
 
                 except Exception:
+                    if log is None:
+                        raise
                     log.error('Failed to fetch database info')
                     log.debug('', exc_info=True)
-        # log.debug('Fetched database info')
+        if log and log_debug:
+            log.debug('Fetched database info')
 
     all_info['db'] = db_info
 
     return all_info
 
 
-def update_header(header, ut, all_info, log):
+def update_header(header, ut, all_info, log=None):
     """Add observation, exposure and hardware info to the FITS header."""
     # These cards are set automatically by AstroPy, we just give them better comments
     # header.comments['SIMPLE  '] = 'Standard FITS'
@@ -331,6 +403,8 @@ def update_header(header, ut, all_info, log):
         info = all_info['db']
         from_db = info['from_db']
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write database info to header')
         log.debug('', exc_info=True)
         from_db = False
@@ -342,6 +416,8 @@ def update_header(header, ut, all_info, log):
         expset_id = info['id']
     except Exception:
         if from_db:
+            if log is None:
+                raise
             log.error('Failed to write exposure set info to header')
             log.debug('', exc_info=True)
         expset_id = 'NA'
@@ -363,6 +439,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db:
             # Every ExposureSet should have a Pointing (or how else did we observe it?)
+            if log is None:
+                raise
             log.error('Failed to write pointing info to header')
             log.debug('', exc_info=True)
         pointing_id = 'NA'
@@ -395,6 +473,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db:
             # Every Pointing should have a User
+            if log is None:
+                raise
             log.error('Failed to fetch user info')
             log.debug('', exc_info=True)
         user_id = 'NA'
@@ -416,6 +496,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'mpointing' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to an mpointing
+            if log is None:
+                raise
             log.error('Failed to fetch mpointing info')
             log.debug('', exc_info=True)
         mpointing_id = 'NA'
@@ -438,6 +520,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'mpointing' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a time block
+            if log is None:
+                raise
             log.error('Failed to fetch time block info')
             log.debug('', exc_info=True)
         time_block_id = 'NA'
@@ -456,6 +540,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'grid' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a grid
+            if log is None:
+                raise
             log.error('Failed to fetch grid tile info')
             log.debug('', exc_info=True)
         grid_id = 'NA'
@@ -479,6 +565,8 @@ def update_header(header, ut, all_info, log):
         if from_db and 'survey' in all_info['db']:
             # It's not necessarily an error if the info isn't there,
             # it might just not be connected to a survey
+            if log is None:
+                raise
             log.error('Failed to fetch survey tile info')
             log.debug('', exc_info=True)
         survey_id = 'NA'
@@ -505,6 +593,8 @@ def update_header(header, ut, all_info, log):
     except Exception:
         if from_db and 'event' in all_info['db']:
             # It's not necessarily an error if the info isn't there
+            if log is None:
+                raise
             log.error('Failed to fetch event info')
             log.debug('', exc_info=True)
         event_id = 'NA'
@@ -572,6 +662,8 @@ def update_header(header, ut, all_info, log):
             else:
                 cover_move_time = 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write OTA info to header')
         log.debug('', exc_info=True)
         ota_serial = 'NA'
@@ -613,6 +705,8 @@ def update_header(header, ut, all_info, log):
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write focuser info to header')
         log.debug('', exc_info=True)
         foc_serial = 'NA'
@@ -662,6 +756,8 @@ def update_header(header, ut, all_info, log):
             else:
                 filt_move_time = 'NA'
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write filter wheel info to header')
         log.debug('', exc_info=True)
         filt_serial = 'NA'
@@ -709,6 +805,8 @@ def update_header(header, ut, all_info, log):
             dome_move_time = 'NA'
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write dome info to header')
         log.debug('', exc_info=True)
         dome_status = 'NA'
@@ -772,6 +870,8 @@ def update_header(header, ut, all_info, log):
         moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write mount info to header')
         log.debug('', exc_info=True)
         targ_ra_str = 'NA'
@@ -831,6 +931,8 @@ def update_header(header, ut, all_info, log):
 
         sun_alt = info['sun_alt']
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write astronomy info to header')
         log.debug('', exc_info=True)
         moon_alt = 'NA'
@@ -897,6 +999,8 @@ def update_header(header, ut, all_info, log):
             int_hum = 'NA'
 
     except Exception:
+        if log is None:
+            raise
         log.error('Failed to write conditions info to header')
         log.debug('', exc_info=True)
         clouds = 'NA'
@@ -918,7 +1022,7 @@ def update_header(header, ut, all_info, log):
     header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
     header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
     header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
-    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s, GOTO mast)'.format(
+    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s)'.format(
                           params.WINDGUST_PERIOD))
 
     header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
@@ -955,3 +1059,92 @@ def write_image_log(filename, header):
     with db.open_session() as session:
         session.add(log)
         session.commit()
+
+
+def read_fits(filepath, dtype='int32'):
+    """Load a FITS file."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            data = fits.getdata(filepath).astype(dtype)
+    except (TypeError, OSError):
+        # Image was still being written, wait a sec and try again
+        time.sleep(1)
+        data = fits.getdata(filepath).astype(dtype)
+
+    return data
+
+
+def get_image_data(run_number=None, direc=None, uts=None):
+    """Open the most recent images and return the data.
+
+    Parameters
+    ----------
+    run_number : int, default=None
+        the run number of the files to open
+        if None (and glance=False), open the latest images from `direc`
+    direc : string, default=None
+        the file directory to load images from within `gtecs.params.IMAGE_PATH`
+        if None, use the date from `gtecs.astronomy.night_startdate`
+    uts : list of ints, default=None
+        the UTs to read the files of
+        if None, open files from all UTs
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
+    if direc is None:
+        direc = astronomy.night_startdate()
+    path = os.path.join(params.IMAGE_PATH, direc)
+
+    if uts is None:
+        uts = params.UTS_WITH_CAMERAS
+
+    if run_number is None:
+        newest = max(glob.iglob(os.path.join(path, '*.fits')), key=os.path.getmtime)
+        run = os.path.basename(newest).split('_')[1]
+        run_number = int(run[1:])
+
+    filenames = {ut: image_filename(params.TELESCOPE_NUMBER, run_number, ut) for ut in uts}
+    filepaths = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
+
+    # limit it to only existing files
+    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    print('Loading run r{:07d}: {} images'.format(run_number, len(filepaths)))
+
+    # read the files
+    data = {ut: read_fits(filepaths[ut]) for ut in filepaths}
+    return data
+
+
+def get_glance_data(uts=None):
+    """Open the most recent glance images and return the data.
+
+    Parameters
+    ----------
+    uts : list of ints, default=None
+        the UTs to read the files of
+        if None, open files from all UTs
+
+    Returns
+    -------
+    data : dict
+        a dictionary of the image data, with the UT numbers as keys
+
+    """
+    if uts is None:
+        uts = params.UTS_WITH_CAMERAS
+
+    filenames = {ut: glance_filename(params.TELESCOPE_NUMBER, ut) for ut in uts}
+    filepaths = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
+
+    # limit it to only existing files
+    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    print('Loading glances: {} images'.format(len(filepaths)))
+
+    # read the files
+    data = {ut: read_fits(filepaths[ut]) for ut in filepaths}
+    return data
