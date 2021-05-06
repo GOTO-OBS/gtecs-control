@@ -34,7 +34,8 @@ def get_best_focus_position(xval, yval, m_l, m_r, delta_x):
     return meeting_point
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None):
+def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None,
+                  regions=None):
     """Take a set of images and measure the median half-flux diameters.
 
     Parameters
@@ -50,88 +51,122 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         Name of the target being observed.
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
         UTs to measure focus for.
+    regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
+        image region(s) to measure the focus within
+        if None then use the default central region from `gtecs.analysis.extract_image_sources()`
 
     Returns
     -------
-    foc_data : `pandas.DataFrame`
+    foc_data : `pandas.DataFrame` or list of `pandas.DataFrame`s
         A Pandas dataframe with an index of unit telescope ID.
+        If more than one region is given then the list will be len(regions)
 
     """
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
     else:
         uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
+    if regions is None:
+        regions = [None]
+    elif len(regions) == 2 and isinstance(regions[0], slice):
+        regions = [regions]
 
-    hfd_arrs = {}
-    hfd_std_arrs = {}
+    # Get the current focuser positions and the temperature the last time they moved
+    current_focus = get_focuser_positions()
+    _, last_temps = get_focuser_temperatures()
+    all_uts = sorted(current_focus.keys())
+
+    all_data = [{ut: [] for ut in all_uts} for _ in range(len(regions))]
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
         image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False, uts=uts)
 
         # Measure the median HFDs in each image
-        for ut in image_data:
-            try:
-                # Extract median HFD and std values from the image data
-                # Note filter_width is 15, this deals much better with out-of-focus images
-                hfd, hfd_std = measure_image_hfd(image_data[ut], filter_width=15)
+        for ut in all_uts:
+            for j, region in enumerate(regions):
+                if ut in image_data:
+                    # Measure focus within each given region
+                    try:
+                        # Extract median HFD and std values from the image data
+                        # Note filter_width is 15, this deals much better with out-of-focus images
+                        hfd, hfd_std = measure_image_hfd(image_data[ut],
+                                                         filter_width=15,
+                                                         region=region,
+                                                         verbose=False)
 
-                # Check for invalid values
-                if hfd_std <= 0.0 <= 0.0:
-                    raise ValueError
+                        # Check for invalid values
+                        if hfd_std <= 0.0 <= 0.0:
+                            raise ValueError
 
-            except Exception as err:
-                print('HFD measurement for UT{} errored: {}'.format(ut, str(err)))
-                hfd = np.nan
-                hfd_std = np.nan
+                    except Exception as err:
+                        print('HFD measurement for UT{}{} errored: {}'.format(ut,
+                              ' region {}'.format(j) if len(regions) > 1 else '', str(err)))
+                        hfd = np.nan
+                        hfd_std = np.nan
+                else:
+                    # We're ignoring this UT, but still add NaNs
+                    hfd = np.nan
+                    hfd_std = np.nan
 
-            # Add to main arrays
-            if ut in hfd_arrs:
-                hfd_arrs[ut].append(hfd)
-                hfd_std_arrs[ut].append(hfd_std)
-            else:
-                hfd_arrs[ut] = [hfd]
-                hfd_std_arrs[ut] = [hfd_std]
+                # Add to main arrays
+                data_dict = {'UT': ut,
+                             # 'exposure': i,
+                             'pos': current_focus[ut],
+                             'region': j,
+                             'hfd': hfd,
+                             'hfd_std': hfd_std,
+                             'temp': last_temps[ut],
+                             }
+                all_data[j][ut].append(data_dict)
 
         # Delete the image data for good measure, to save memory
         del image_data
 
-        print('HFDs:', {ut: np.round(hfd_arrs[ut][i], 1) for ut in hfd_arrs})
+        if len(regions) == 1:
+            print('HFDs:', {ut: np.round(all_data[0][ut][i]['hfd'], 1) for ut in uts})
+        else:
+            s = 'HFDs:\n'
+            for j, data in enumerate(all_data):
+                s += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
+                                                  for ut in uts})
+            print(s[:-1])
 
-    # Take the smallest of the HFD values measured as the best estimate for this position.
-    # The reasoning is that we already average the HFD over many stars in each frame,
-    # so across multiple frames we only sample external fluctuations, usually windshake,
-    # which will always make the HFD worse, never better.
-    # We also want to make sure we get the std associated with that image.
-    best_hfd = {}
-    best_hfd_std = {}
-    for ut in hfd_arrs:
-        hfds = np.array(hfd_arrs[ut])
-        stds = np.array(hfd_std_arrs[ut])
+    all_dfs = []
+    s = 'Best HFDs:{}'.format('\n' if len(all_data) > 1 else ' ')
+    for j, region_data in enumerate(all_data):
+        # Make into dataframes
+        region_dfs = {ut: pd.DataFrame(region_data[ut]) for ut in region_data}
 
-        try:
-            min_i = np.where(hfds == np.nanmin(hfds))[0][0]
-            best_hfd[ut] = hfds[min_i]
-            best_hfd_std[ut] = stds[min_i]
-        except IndexError:
-            # This UT had no non-NaN measurements
-            best_hfd[ut] = np.nan
-            best_hfd_std[ut] = np.nan
+        # Take the smallest of the HFD values measured as the best estimate for this position.
+        # The reasoning is that we already average the HFD over many stars in each frame,
+        # so across multiple frames we only sample external fluctuations, usually windshake,
+        # which will always make the HFD worse, never better.
+        # We also want to make sure we get the std associated with that image.
+        best_dfs = [region_dfs[ut][region_dfs[ut]['hfd'] == region_dfs[ut]['hfd'].min()]
+                    if not np.isnan(region_dfs[ut]['hfd'].min())  # will return NaN if are all NaNs
+                    else region_dfs[ut].iloc[[0]]                 # just take the first row
+                    for ut in region_dfs]
 
-    data = {'pos': pd.Series(get_focuser_positions()),
-            'hfd': pd.Series(best_hfd),
-            'hfd_std': pd.Series(best_hfd_std),
-            }
+        # Make into a single dataframe
+        df = pd.concat(best_dfs)
+        df.set_index('UT', inplace=True)
+        all_dfs.append(df)
 
-    # Also store the temperatures of the last focuser move
-    _, temp = get_focuser_temperatures()
-    data['temp'] = pd.Series(temp)
+        # Print best HFDs if more than one exp was taken
+        if len(all_data) > 1:
+            s += 'region {}: '.format(j)
+        s += '{}\n'.format(df['hfd'].round(1).to_dict())
 
-    # Make into a dataframe
-    df = pd.DataFrame(data)
-    df.index.name = 'UT'
+    if num_exp > 1:
+        print(s[:-1])
 
-    return df
+    if len(all_dfs) == 1:
+        # backwards compatability if there's only one region
+        df = all_dfs[0]
+        df.drop('region', axis=1, inplace=True)
+        return df
+    return all_dfs
 
 
 def refocus(take_images=False, verbose=False):
