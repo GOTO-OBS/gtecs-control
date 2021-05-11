@@ -15,7 +15,7 @@ from astropy.time import Time
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 
-from . import astropy_speedups  # noqa: F401 to ignore unused module
+# from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import params
 
 

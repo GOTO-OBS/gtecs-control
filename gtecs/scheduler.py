@@ -21,7 +21,7 @@ import obsdb as db
 from scipy import interpolate
 
 from . import astronomy
-from . import astropy_speedups  # noqa: F401 to ignore unused module
+# from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import html
 from . import params
 
