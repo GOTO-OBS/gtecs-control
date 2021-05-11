@@ -9,7 +9,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, radec_from_altaz
+from .astronomy import above_elevation_limit, radec_from_altaz
 from .daemons import daemon_function, daemon_info
 from .fits import get_glance_data, get_image_data
 from .misc import execute_command
@@ -369,8 +369,8 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if check_alt_limit(ra, dec, Time.now()):
-        raise ValueError('Target is too low, cannot slew')
+    if not above_elevation_limit(ra, dec, Time.now()):
+        raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
 
     mnt_info = daemon_info('mnt')
     if mnt_info['status'] == 'Slewing':

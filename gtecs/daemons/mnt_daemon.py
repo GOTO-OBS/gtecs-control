@@ -11,7 +11,7 @@ from astropy.time import Time
 from gtecs import errors
 from gtecs import misc
 from gtecs import params
-from gtecs.astronomy import (altaz_from_radec, check_alt_limit, get_ha, observatory_location,
+from gtecs.astronomy import (altaz_from_radec, above_elevation_limit, get_ha, observatory_location,
                              radec_from_altaz)
 from gtecs.daemons import BaseDaemon
 from gtecs.hardware.sitech import SiTech
@@ -366,8 +366,8 @@ class MntDaemon(BaseDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
-        if check_alt_limit(ra * 360. / 24., dec, Time.now()):
-            raise errors.HorizonError('Target too low, cannot slew')
+        if not above_elevation_limit(ra * 360. / 24., dec, Time.now()):
+            raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
 
         # Check current status
         self.wait_for_info()
@@ -398,8 +398,8 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Alt in degrees must be between 0 and 90')
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
-        if alt < params.MIN_ELEVATION:
-            raise errors.HorizonError('Target too low, cannot slew')
+        if not alt > params.MIN_ELEVATION:
+            raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
 
         # Check current status
         self.wait_for_info()
@@ -435,8 +435,11 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
-        if check_alt_limit(self.info['mount_ra'] * 360. / 24., self.info['mount_dec'], Time.now()):
-            raise errors.HardwareStatusError('Mount is currently below horizon, cannot track')
+        if not above_elevation_limit(self.info['mount_ra'] * 360. / 24.,
+                                     self.info['mount_dec'],
+                                     Time.now()):
+            raise errors.HardwareStatusError('Mount is is below {} alt, cannot slew'.format(
+                                             params.MIN_ELEVATION))
 
         # Set flag
         self.force_check_flag = True

@@ -306,7 +306,7 @@ def twilight_length(date):
         length of astronomical twilight
 
     """
-    noon = Time(date + " 12:00:00")
+    noon = Time(date + ' 12:00:00')
     observer = Observer(location=observatory_location())
     sun_set_time = observer.sun_set_time(noon, which='next')
     twilight_end = observer.sun_set_time(noon, which='next', horizon=-18 * u.deg)
@@ -327,7 +327,7 @@ def local_midnight(date):
         time of local midnight in UT
 
     """
-    noon = Time(date + " 12:00:00")
+    noon = Time(date + ' 12:00:00')
     observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
 
@@ -337,7 +337,7 @@ def night_startdate():
     now = datetime.datetime.utcnow()
     if now.hour < 12:
         now = now - datetime.timedelta(days=1)
-    return now.strftime("%Y-%m-%d")
+    return now.strftime('%Y-%m-%d')
 
 
 @u.quantity_input(sunalt=u.deg)
@@ -361,10 +361,10 @@ def sunalt_time(date, sunalt, eve=True):
     """
     observer = Observer(location=observatory_location())
     if eve:
-        start = Time(date + " 12:00:00")
+        start = Time(date + ' 12:00:00')
         return observer.sun_set_time(start, which='next', horizon=sunalt)
     else:
-        start = Time(date + " 12:00:00") + 1 * u.day
+        start = Time(date + ' 12:00:00') + 1 * u.day
         return observer.sun_rise_time(start, which='previous', horizon=sunalt)
 
 
@@ -423,8 +423,10 @@ def get_lst(now):
     return now.sidereal_time(kind='apparent')
 
 
-def check_alt_limit(targ_ra, targ_dec, now):
-    """Check if target is above site altitude limit at given time.
+def above_elevation_limit(targ_ra, targ_dec, now):
+    """Check if target is above the mount elevation limit at the given time.
+
+    This is not to be confused with the artificial horizon used when scheduling targets.
 
     Parameters
     ----------
@@ -437,15 +439,12 @@ def check_alt_limit(targ_ra, targ_dec, now):
 
     Returns
     -------
-    flag : int
-        1 if below altitude limit, 0 if above
+    above_horizon : bool
+        True if the target is above params.MIN_ELEVATION, False if below
 
     """
-    targ_alt, targ_az = altaz_from_radec(targ_ra, targ_dec, now)
-    if targ_alt < params.MIN_ELEVATION:
-        return 1
-    else:
-        return 0
+    targ_alt, _ = altaz_from_radec(targ_ra, targ_dec, now)
+    return targ_alt > params.MIN_ELEVATION
 
 
 def ang_sep(ra_1, dec_1, ra_2, dec_2):
