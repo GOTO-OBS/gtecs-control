@@ -556,8 +556,9 @@ def check_queue(time=None, location=None, horizon=None,
         The location of the observer on Earth.
         Default is `gtecs.astronomy.observatory_location()`.
 
-    horizon : tuple of (azs, alts), optional
-        The horizon limits at the given site.
+    horizon : float, or tuple of (azs, alts), optional
+        The horizon limits at the given site, either a flat value or varying with azimuth.
+        Default is a flat horizon of 30 deg.
 
     write_file : bool, optional
         Should the scheduler write out the queue to a file?
@@ -586,7 +587,9 @@ def check_queue(time=None, location=None, horizon=None,
         location = astronomy.observatory_location()
     observer = Observer(location)
     if horizon is None:
-        horizon = astronomy.get_horizon()
+        horizon = 30
+    if isinstance(horizon, (int, float)):
+        horizon = ([0, 90, 180, 270, 360], [horizon, horizon, horizon, horizon, horizon])
 
     # Import the queue from the database
     queue = PointingQueue.from_database(time, observer)
