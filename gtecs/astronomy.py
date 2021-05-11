@@ -163,8 +163,35 @@ def observatory_location():
     obs_loc : `~astropy.coordinates.EarthLocation`
 
     """
-    return EarthLocation(lon=params.SITE_LONGITUDE, lat=params.SITE_LATITUDE,
+    return EarthLocation(lon=params.SITE_LONGITUDE,
+                         lat=params.SITE_LATITUDE,
                          height=params.SITE_ALTITUDE)
+
+
+def get_horizon(filepath=None):
+    """Get the artificial horizon of the observatory.
+
+    The horizon should be defined in file in the G-TeCS config directory, with columns matching
+    the azimuth and altitude limit at that azimuth.
+
+    Note you will need to interpolate between alts (e.g. with `scipy.interpolate.interp1d`) to
+    find the horizon at any intermediate points.
+
+    Parameters
+    ----------
+    filepath : str, default=params.HORIZON_FILE
+        horizon file to use
+
+    Returns:
+    --------
+    az, alt : tuple of list
+        altitude limit at defined azimuths
+
+    """
+    if filepath is None:
+        filepath = params.HORIZON_FILE
+    az, alt = np.loadtxt(filepath, usecols=(0, 1)).T
+    return (az, alt)
 
 
 def altaz_from_radec(ra_deg, dec_deg, now=None):

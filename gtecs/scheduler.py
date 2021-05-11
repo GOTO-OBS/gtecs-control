@@ -53,8 +53,8 @@ def apply_constraints(constraints, observer, targets, times):
     -------
     constraint_array : 3D array
         first dimension is given by the number of times
-        second dimention is given by the number of targets
-        third dimention is given by the number of constraints
+        second dimension is given by the number of targets
+        third dimension is given by the number of constraints
 
     """
     if not hasattr(constraints, '__len__'):
@@ -68,17 +68,16 @@ def apply_constraints(constraints, observer, targets, times):
 class ArtificialHorizonConstraint(Constraint):
     """Ensure altitude is above artificial horizon."""
 
-    def __init__(self):
-        horizon_file = os.path.join(params.FILE_PATH, 'horizon')
-        az, alt = np.loadtxt(horizon_file, usecols=(0, 1)).T
-        self.alt = interpolate.interp1d(az, alt, bounds_error=False,
-                                        fill_value='extrapolate')
+    def __init__(self, az, alt):
+        self.get_alt_limit = interpolate.interp1d(az, alt,
+                                                  bounds_error=False,
+                                                  fill_value='extrapolate')
 
     def compute_constraint(self, times, observer, targets):
         """Compute the constraint."""
         altaz = _get_altaz(times, observer, targets)['altaz']
-        artificial_horizon_alt = self.alt(altaz.az) * u.deg
-        return altaz.alt > artificial_horizon_alt
+        alt_limit = self.get_alt_limit(altaz.az) * u.deg
+        return altaz.alt > alt_limit
 
 
 def time_to_set(observer, targets, now):
@@ -222,7 +221,7 @@ class PointingQueue(object):
                                                      altitude_limit=params.HARD_ALT_LIM,
                                                      hourangle_limit=params.HARD_HA_LIM)
 
-            pointings = [Pointing.from_database(dbpointing) for dbpointing in pending]
+            pointings = [Pointing.from_database(db_pointing) for db_pointing in pending]
             if current:
                 pointings.append(Pointing.from_database(current))
             queue = cls(np.array(pointings))
@@ -235,7 +234,7 @@ class PointingQueue(object):
                 return p
         return None
 
-    def apply_constraints(self, now, observer):
+    def apply_constraints(self, now, observer, horizon):
         """Check if the pointings are valid, both now and after mintimes."""
         # Create Constraints
         self.constraints = {}
@@ -249,7 +248,7 @@ class PointingQueue(object):
         self.constraints['MinAlt'] = AltitudeConstraint(minalts, None)
 
         # ArtHoriz
-        self.constraints['ArtHoriz'] = ArtificialHorizonConstraint()
+        self.constraints['ArtHoriz'] = ArtificialHorizonConstraint(*horizon)
 
         # Moon
         moonphases = [float(params.MOON_PHASES[p.maxmoon]) for p in self.pointings]
@@ -350,14 +349,14 @@ class PointingQueue(object):
             pointing.tts = tts_arr[i]
             pointing.tiebreaker = tiebreak_arr[i]
 
-    def get_highest_priority_pointing(self, time, observer):
+    def get_highest_priority_pointing(self, time, observer, horizon):
         """Return the pointing with the highest priority."""
         # If there are no pointings, return None
         if len(self.pointings) == 0:
             return None
 
         # Apply constraints and calculate tiebreakers for all pointings
-        self.apply_constraints(time, observer)
+        self.apply_constraints(time, observer, horizon)
         self.calculate_tiebreakers(time, observer)
 
         # Sort the pointings
@@ -371,14 +370,14 @@ class PointingQueue(object):
 
         return pointings[0]
 
-    def get_highest_priority_pointings(self, time, observer, number=1):
+    def get_highest_priority_pointings(self, time, observer, horizon, number=1):
         """Return the top X highest priority pointings."""
         # If there are no pointings, return None
         if len(self.pointings) == 0:
             return [None] * number
 
         # Apply constraints and calculate tiebreakers for all pointings
-        self.apply_constraints(time, observer)
+        self.apply_constraints(time, observer, horizon)
         self.calculate_tiebreakers(time, observer)
 
         # Sort the pointings
@@ -539,7 +538,8 @@ def what_to_do_next(current_pointing, highest_pointing, log=None):
     return new_pointing
 
 
-def check_queue(time=None, write_file=True, write_html=False, log=None):
+def check_queue(time=None, location=None, horizon=None,
+                write_file=True, write_html=False, log=None):
     """Check the queue and decide what to do.
 
     Check the current pointings in the queue, find the highest priority at
@@ -548,16 +548,25 @@ def check_queue(time=None, write_file=True, write_html=False, log=None):
 
     Parameters
     ----------
-    time : `~astropy.time.Time`
+    time : `~astropy.time.Time`, optional
         The time to calculate the priorities at.
         Default is `astropy.time.Time.now()`.
+
+    location : `~astropy.coordinates.EarthLocation`, optional
+        The location of the observer on Earth.
+        Default is `gtecs.astronomy.observatory_location()`.
+
+    horizon : tuple of (azs, alts), optional
+        The horizon limits at the given site.
 
     write_file : bool, optional
         Should the scheduler write out the queue to a file?
         Default is True.
+
     write_html : bool, optional
         Should the scheduler write the HTML queue webpage?
         Default is False.
+
     log: `logging.Logger`, optional
         log object to direct output to
 
@@ -572,8 +581,12 @@ def check_queue(time=None, write_file=True, write_html=False, log=None):
     if time is None:
         time = Time.now()
 
-    # Create an observer
-    observer = Observer(astronomy.observatory_location())
+    # Create an observer and load horizon file if not given
+    if location is None:
+        location = astronomy.observatory_location()
+    observer = Observer(location)
+    if horizon is None:
+        horizon = astronomy.get_horizon()
 
     # Import the queue from the database
     queue = PointingQueue.from_database(time, observer)
@@ -582,7 +595,7 @@ def check_queue(time=None, write_file=True, write_html=False, log=None):
 
     # Get the current pointing and the highest priority pointing
     current_pointing = queue.get_current_pointing()
-    highest_pointing = queue.get_highest_priority_pointing(time, observer)
+    highest_pointing = queue.get_highest_priority_pointing(time, observer, horizon)
 
     # Write out the queue file and web pages
     if write_file:
