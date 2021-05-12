@@ -18,7 +18,7 @@ from .misc import execute_command
 def check_schedule():
     """Check the schedule."""
     # Get the dome status for the correct horizon
-    dome_info = daemon_info('dome')
+    dome_info = daemon_info('dome', force_update=False)
     horizon = 'high' if dome_info['shielding'] else 'low'
 
     # Get the pointing data from the scheduler
