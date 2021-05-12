@@ -28,7 +28,7 @@ from .slack import send_slack_msg, send_startup_report, send_database_report, se
 SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
 
-class PilotTaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
+class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
     """A protocol class to handle communication between the external process and the pilot itself.
 
     We communicate with external processes by defining
@@ -70,28 +70,19 @@ class PilotTaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         super().__init__()
 
     def connection_made(self, transport):
-        """Run when a new process is started.
-
-        The transport argument is used to control
-        the process.
-        """
-        logstr = 'process {} started'.format(transport.get_pid())
-        self.log.debug('{}: {}'.format(self.name, logstr))
+        """Run when a new process is started."""
+        pid = self.transport.get_pid()
+        self.log.debug('{}: process {} started'.format(self.name, pid))
         self.transport = transport
 
     def pipe_data_received(self, fd, data, log_bytes=False):
-        """Run when data written to stdout or stderr.
-
-        Here we just print this to the screen, but eventually
-        it should get logged the same way pilot output does.
-        """
-        logstr = 'read {} bytes from {}'.format(len(data), self.FD_NAMES[fd])
+        """Log any readout is written to stdout or stderr."""
         if log_bytes:
-            self.log.debug('{}: {}'.format(self.name, logstr))
+            self.log.debug('{}: read {} bytes from {}'.format(
+                self.name, len(data), self.FD_NAMES[fd]))
 
         if fd == 1:
             # data written to stdout
-            # we should really write to the appropriate log here
             lines_of_output = data.decode().strip().split('\n')
             for line in lines_of_output:
                 self.log.info('{}: {}'.format(self.name, line.strip()))
@@ -126,7 +117,7 @@ class PilotTaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         return
 
 
-class SimpleProtocol(PilotTaskProtocol):
+class SimpleProtocol(TaskProtocol):
     """A simple protocol which does no parsing of the output.
 
     This protocol can be used to run any process where we just
@@ -138,7 +129,7 @@ class SimpleProtocol(PilotTaskProtocol):
         return
 
 
-class LoggedProtocol(PilotTaskProtocol):
+class LoggedProtocol(TaskProtocol):
     """A fairly simple protocol which returns the last line of the output.
 
     This can be useful to report any errors that occur.
@@ -504,7 +495,7 @@ class Pilot(object):
                                 await self.unpark_mount()
 
                             cmd = [os.path.join(SCRIPT_PATH, 'badConditionsTasks.py'), '3']
-                            asyncio.ensure_future(self.start_script('BADCOND', LoggedProtocol, cmd))
+                            asyncio.ensure_future(self.start_script('BADCOND', cmd))
 
                             # save the counter
                             self.bad_conditions_tasks_timer = self.time_paused['conditions']
@@ -623,19 +614,21 @@ class Pilot(object):
         self.shutdown_now = True
 
     # External scripts
-    async def start_script(self, name, protocol, cmd):
+    async def start_script(self, name, cmd, protocol=None):
         """Launch an external Python script.
 
         Parameters
         ----------
         name : str
             A name for this process. Prepended to output from process.
-        protocol : `pilot_protocols.PilotTaskProtocol`
-            Protocol used to process output from Process
         cmd : list
             A list of the command to be executed with Python.
             The first element of the list is the Python script to execute,
             any additional elements are the arguments to the script.
+
+        protocol : `gtecs.pilot.TaskProtocol`, optional
+            Protocol used to process output from Process
+            Default is `LoggedProtocol`
 
         """
         # first cancel any currently running script
@@ -646,6 +639,8 @@ class Pilot(object):
 
         # fill the name, future and log_name arguments of protocol(...)
         # using functools.partial
+        if protocol is None:
+            protocol = LoggedProtocol
         factory = functools.partial(protocol, name, self.running_script_result,
                                     'pilot')
         loop = asyncio.get_event_loop()
@@ -739,13 +734,13 @@ class Pilot(object):
                  'late_sunalt': 0,
                  'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
                  'args': [str(params.NUM_DARKS)],
-                 'protocol': LoggedProtocol}
+                 }
         # xdarks = {'name': 'XDARKS',
         #           'sunalt': 1,
         #           'late_sunalt': 0,
         #           'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
         #           'args': [],
-        #           'protocol': LoggedProtocol}
+        #           }
 
         # self.daytime_tasks = [darks, xdarks]
         self.daytime_tasks = [darks]
@@ -759,13 +754,13 @@ class Pilot(object):
                    'late_sunalt': -7,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['EVE'],
-                   'protocol': LoggedProtocol}
+                   }
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'late_sunalt': None,  # Always autofocus if opening late
                    'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
                    'args': ['-n', '1', '-t', '5'],
-                   'protocol': LoggedProtocol}
+                   }
 
         self.evening_tasks = [flats_e, autofoc]
 
@@ -779,13 +774,13 @@ class Pilot(object):
         #           'late_sunalt': -13,
         #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
         #           'args': ['1000', '100', 'n'],
-        #           'protocol': LoggedProtocol}
+        #           }
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'late_sunalt': -7.55,
                    'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
                    'args': ['MORN'],
-                   'protocol': LoggedProtocol}
+                   }
 
         # self.morning_tasks = [foc_run, flats_m]
         self.morning_tasks = [flats_m]
@@ -805,7 +800,6 @@ class Pilot(object):
             sunalt = task['sunalt']
             late_sunalt = task['late_sunalt']
             cmd = [task['script'], *task['args']]
-            protocol = task['protocol']
 
             self.log.info('next task: {}'.format(name))
 
@@ -830,12 +824,12 @@ class Pilot(object):
 
             elif self.testing or ignore_late:
                 # wait for each script to finish
-                await self.start_script(name, protocol, cmd)
+                await self.start_script(name, cmd)
 
             else:
                 # don't wait for script finish, but start each one when the
                 # sun alt says so, cancelling running script if not done
-                asyncio.ensure_future(self.start_script(name, protocol, cmd))
+                asyncio.ensure_future(self.start_script(name, cmd))
 
             await asyncio.sleep(1)
 
@@ -1036,10 +1030,8 @@ class Pilot(object):
                 # start the new pointing
                 self.log.debug('starting pointing {}'.format(self.new_id))
 
-                script = os.path.join(SCRIPT_PATH, 'observe.py')
-                args = [str(self.new_id)]
-                cmd = [script, *args]
-                asyncio.ensure_future(self.start_script('OBS', LoggedProtocol, cmd))
+                cmd = [os.path.join(SCRIPT_PATH, 'observe.py'), str(self.new_id)]
+                asyncio.ensure_future(self.start_script('OBS', cmd))
 
                 mark_running(self.new_id)
 
@@ -1242,7 +1234,7 @@ class Pilot(object):
         # run startup script
         self.log.debug('running startup script')
         cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
-        await self.start_script('STARTUP', LoggedProtocol, cmd)
+        await self.start_script('STARTUP', cmd)
 
         # flag that startup has finished
         self.startup_complete = True
@@ -1272,7 +1264,7 @@ class Pilot(object):
         # run shutdown script
         self.log.info('running shutdown script')
         cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
-        await self.start_script('SHUTDOWN', LoggedProtocol, cmd)
+        await self.start_script('SHUTDOWN', cmd)
 
         # flag that the shutdown script has been run, by un-flagging startup
         self.startup_complete = False
