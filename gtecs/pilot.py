@@ -641,12 +641,15 @@ class Pilot(object):
         # using functools.partial
         if protocol is None:
             protocol = LoggedProtocol
-        factory = functools.partial(protocol, name, self.running_script_result,
-                                    'pilot')
-        loop = asyncio.get_event_loop()
+        script_name = name
+        if name == 'OBS':
+            # Add the pointing ID to the name used when logging
+            script_name += '-' + cmd[1]
+        factory = functools.partial(protocol, script_name, self.running_script_result, 'pilot')
 
         # create the process coroutine which will return
         # a 'transport' and 'protocol' when scheduled
+        loop = asyncio.get_event_loop()
         proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
                                     stdin=None)
 
