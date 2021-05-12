@@ -17,8 +17,13 @@ from .misc import execute_command
 
 def check_schedule():
     """Check the schedule."""
+    # Get the dome status for the correct horizon
+    dome_info = daemon_info('dome')
+    horizon = 'high' if dome_info['shielding'] else 'low'
+
+    # Get the pointing data from the scheduler
     try:
-        new_pointing = daemon_function('scheduler', 'check_queue')
+        new_pointing = daemon_function('scheduler', 'check_queue', horizon)
         if new_pointing is not None:
             return new_pointing.db_id, new_pointing.mintime
         else:

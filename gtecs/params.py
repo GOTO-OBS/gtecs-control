@@ -343,7 +343,9 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
 ########################################################################
 # Scheduler parameters
+SCHEDULER_CHECK_PERIOD = config['SCHEDULER_CHECK_PERIOD']
 HORIZON_FILE = os.path.join(FILE_PATH, 'horizon')
+HORIZON_SHIELDING_FILE = os.path.join(FILE_PATH, 'horizon_shielding')
 WEIGHTING_WEIGHT = config['WEIGHTING_WEIGHT']
 AIRMASS_WEIGHT = config['AIRMASS_WEIGHT']
 TTS_WEIGHT = config['TTS_WEIGHT']

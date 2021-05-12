@@ -106,20 +106,20 @@ def print_info(info):
     """Print the full info dict."""
     print('####### SCHEDULER INFO ########')
     print('NEXT POINTING:')
-    if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].db_id
-        new_ra = info['next_pointing'].ra
-        new_dec = info['next_pointing'].dec
-        new_weight = info['next_pointing'].weight
-        new_too = info['next_pointing'].too
-        new_maxsunalt = info['next_pointing'].maxsunalt
-        new_minalt = info['next_pointing'].minalt
-        new_mintime = info['next_pointing'].mintime
-        new_maxmoon = info['next_pointing'].maxmoon
-        new_minmoonsep = info['next_pointing'].minmoonsep
-        new_start = info['next_pointing'].start
-        new_stop = info['next_pointing'].stop
-        new_current = info['next_pointing'].current
+    if info['pointing'] is not None:
+        new_id = info['pointing'].db_id
+        new_ra = info['pointing'].ra
+        new_dec = info['pointing'].dec
+        new_weight = info['pointing'].weight
+        new_too = info['pointing'].too
+        new_maxsunalt = info['pointing'].maxsunalt
+        new_minalt = info['pointing'].minalt
+        new_mintime = info['pointing'].mintime
+        new_maxmoon = info['pointing'].maxmoon
+        new_minmoonsep = info['pointing'].minmoonsep
+        new_start = info['pointing'].start
+        new_stop = info['pointing'].stop
+        new_current = info['pointing'].current
 
         print('ID:         {}'.format(new_id))
         print('RA:         {}'.format(new_ra))
@@ -145,8 +145,8 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     print('SCHEDULER:')
-    if info['next_pointing'] is not None:
-        new_id = info['next_pointing'].db_id
+    if info['pointing'] is not None:
+        new_id = info['pointing'].db_id
         print('  ID: {}'.format(new_id))
     else:
         print('  ID: None')

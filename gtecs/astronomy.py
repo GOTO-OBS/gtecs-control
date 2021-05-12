@@ -15,6 +15,8 @@ from astropy.time import Time
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 
+from scipy import interpolate
+
 # from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import params
 
@@ -194,6 +196,33 @@ def get_horizon(filepath=None):
     return (az, alt)
 
 
+def above_horizon(ra_deg, dec_deg, now=None, horizon=30):
+    """Check if the given coordinates are above the artificial horizon.
+
+    Parameters
+    ----------
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+    now : `~astropy.time.Time`, optional
+        time(s) to calculate at
+        default is `Time.now()`
+    horizon : float or tuple of (azs, alts), optional
+        artificial horizon, either a flat value or varying with azimuth.
+        default is a flat horizon of 30 deg
+    """
+    alt, az = altaz_from_radec(ra_deg, dec_deg, now)
+
+    if isinstance(horizon, (int, float)):
+        horizon = ([0, 90, 180, 270, 360], [horizon, horizon, horizon, horizon, horizon])
+    get_alt_limit = interpolate.interp1d(*horizon,
+                                         bounds_error=False,
+                                         fill_value='extrapolate')
+    alt_limit = get_alt_limit(az)
+    return alt > alt_limit
+
+
 def altaz_from_radec(ra_deg, dec_deg, now=None):
     """Calculate Altitude and Azimuth of coordinates.
 
@@ -244,7 +273,7 @@ def radec_from_altaz(alt_deg, az_deg, now=None):
     Returns
     --------
     ra_deg : float
-        ight ascension in degrees
+        right ascension in degrees
     dec_deg : float
         declination in degrees
 
