@@ -797,6 +797,7 @@ class Pilot(object):
         self.log.info('reached sun alt target, ready for {}'.format(why))
         return True
 
+    # Observing
     async def observe(self, until_sunalt=-12, last_obs_sunalt=None):
         """Observe until further notice.
 
@@ -876,27 +877,28 @@ class Pilot(object):
                     current_status = get_pointing_status(self.current_id)
                     self.log.debug('current pointing status = {}'.format(current_status))
 
-                    # Check if we're interupting a still ongoing pointing and need
-                    # to mark it as interupted. The alternative is that the
-                    # OBS script has finished which means it will have already
-                    # been marked as completed.
-                    if (self.running_script == 'OBS' and
-                            self.running_script_transport.get_returncode() is None and
-                            current_status != 'completed'):
-
-                        # cancel the script first (will mark as aborted)
+                    # Check if there is currently an observation running
+                    if self.running_script == 'OBS':
+                        # Cancel the script (which will mark the pointing as aborted)
                         await self.cancel_running_script(why='new pointing')
 
-                        # now correctly mark it as completed or interupted,
-                        # accounting for time lost due to being paused
+                        # Find the elapsed time, accounting for time lost due to being paused
                         elapsed = time.time() - self.current_start_time - self.time_lost
-
                         self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
                                        self.current_mintime, elapsed))
+
                         if elapsed > self.current_mintime:
+                            # We observed enough, mark the pointing as completed
+                            mark_completed(self.current_id)
+                            self.log.debug('pointing completed: {}'.format(self.current_id))
+                        elif current_status == 'completed':
+                            # We killed the script just as it was finishing,
+                            # (after it marked the pointing as completed, but before it returned),
+                            # so we need to re-mark the pointing as completed here.
                             mark_completed(self.current_id)
                             self.log.debug('pointing completed: {}'.format(self.current_id))
                         else:
+                            # Mark the pointing as interrupted
                             mark_interrupted(self.current_id)
                             self.log.debug('pointing interrupted: {}'.format(self.current_id))
 
