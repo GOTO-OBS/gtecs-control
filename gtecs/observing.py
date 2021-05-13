@@ -23,7 +23,7 @@ def check_schedule():
 
     # Get the pointing data from the scheduler
     try:
-        new_pointing = daemon_function('scheduler', 'check_queue', horizon)
+        new_pointing = daemon_function('scheduler', 'check_queue', args=[horizon])
         if new_pointing is not None:
             return new_pointing.db_id, new_pointing.mintime
         else:
