@@ -71,9 +71,9 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
 
     def connection_made(self, transport):
         """Run when a new process is started."""
+        self.transport = transport
         pid = self.transport.get_pid()
         self.log.debug('{}: process {} started'.format(self.name, pid))
-        self.transport = transport
 
     def pipe_data_received(self, fd, data, log_bytes=False):
         """Log any readout is written to stdout or stderr."""
