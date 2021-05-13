@@ -21,7 +21,7 @@ if __name__ == '__main__':
     while True:
         now = now + 5 * 60 * u.second
         print(now)
-        new_pointing = scheduler.check_queue(now, write_html)
+        new_pointing = scheduler.check_queue(now, write_html=write_html)
         if new_pointing is not None:
             new_id = new_pointing.db_id
             print('   pointing is', new_id)
