@@ -469,7 +469,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_MOVETIMEOUT
         # Set the error if the dome has been moving for too long
         if self.hardware_status == STATUS_DOME_MOVING:
-            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=60)
+            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=90)
         # Clear the error if the dome is not moving
         if self.hardware_status != STATUS_DOME_MOVING:
             self.clear_error(ERROR_DOME_MOVETIMEOUT)
