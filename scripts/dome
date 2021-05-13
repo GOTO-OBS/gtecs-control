@@ -244,8 +244,8 @@ def print_info(info):
     print('North:        {}'.format(info['north'].capitalize()))
     print('South:        {}'.format(info['south'].capitalize()))
     print('Hatch:        {}'.format(info['hatch'].capitalize()))
-    print('Dehumidifier: {}'.format('On' if info['dehumidifier_on'] else 'Off'))
-    print('Windshield:   {}'.format('On' if info['windshield_enabled'] else 'Off'))
+    print('Dehumidifier: {}'.format(style.gtxt('On') if info['dehumidifier_on'] else 'Off'))
+    print('Windshield:   {}'.format(style.gtxt('On') if info['windshield_enabled'] else 'Off'))
     print('Autodehum:    {}'.format(style.rtxt('Disabled')
                                     if not info['autodehum_enabled']
                                     else 'Enabled'))
@@ -281,8 +281,12 @@ def print_info_s(info):
     elif info['shielding']:
         print(style.ytxt('                    WINDSHIELD ACTIVE'))
     print('   Hatch:           [{}]'.format(info['hatch'].capitalize()))
-    print('   Dehumidifier:    [{}]'.format('On' if info['dehumidifier_on'] else 'Off'))
-    print('   Windshield:      [{}]'.format('On' if info['windshield_enabled'] else 'Off'))
+    print('   Dehumidifier:    [{}]'.format(style.gtxt('On')
+                                            if info['dehumidifier_on']
+                                            else 'Off'))
+    print('   Windshield:      [{}]'.format(style.gtxt('On')
+                                            if info['windshield_enabled']
+                                            else 'Off'))
     print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
                                             if not info['autoclose_enabled']
                                             else 'Enabled'))
