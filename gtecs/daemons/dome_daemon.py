@@ -743,8 +743,11 @@ class DomeDaemon(BaseDaemon):
         # Check if we are currently shielding
         if (self.shielding and
                 self.info['north'] in ['full_open', 'closed'] and
-                self.info['south'] in ['full_open', 'closed']):
+                self.info['south'] in ['full_open', 'closed'] and
+                not self.open_flag and not self.close_flag):
             # The dome must have moved some other way, either manually or via autoclose
+            # Or the flag has just been set and it hasn't started moving yet (the alarm is going)
+            self.log.warning('Disabling shielding flag')
             self.shielding = False
 
         # Decide if we need to raise or lower shields
