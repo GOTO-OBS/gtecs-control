@@ -673,9 +673,11 @@ class Pilot(object):
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
-            # if we were observing, mark as aborted
+            # if we were observing, make sure the pointing is marked as aborted
+            # (the observe.py closer should do this anyway, but best to be sure)
             if name == 'OBS' and self.current_id is not None:
                 mark_aborted(self.current_id)
+                self.log.debug('pointing {} was aborted'.format(self.current_id))
 
         self.log.info('finished {}'.format(name))
         self.running_script = None
@@ -998,11 +1000,13 @@ class Pilot(object):
 
                     # Get current pointing status
                     current_status = get_pointing_status(self.current_id)
-                    self.log.debug('current pointing status = {}'.format(current_status))
+                    self.log.debug('current pointing {} status = {}'.format(
+                                   self.current_id, current_status))
 
                     # Check if there is currently an observation running
                     if self.running_script == 'OBS':
-                        # Cancel the script (which will mark the pointing as aborted)
+                        # Cancel the script
+                        # NOTE this will mark the pointing as aborted
                         await self.cancel_running_script(why='new pointing')
 
                         # Find the elapsed time, accounting for time lost due to being paused
@@ -1013,30 +1017,30 @@ class Pilot(object):
                         if elapsed > self.current_mintime:
                             # We observed enough, mark the pointing as completed
                             mark_completed(self.current_id)
-                            self.log.debug('pointing completed: {}'.format(self.current_id))
+                            self.log.debug('pointing {} was completed'.format(self.current_id))
                         elif current_status == 'completed':
                             # We killed the script just as it was finishing,
                             # (after it marked the pointing as completed, but before it returned),
                             # so we need to re-mark the pointing as completed here.
                             mark_completed(self.current_id)
-                            self.log.debug('pointing completed: {}'.format(self.current_id))
+                            self.log.debug('pointing {} was completed'.format(self.current_id))
                         else:
                             # Mark the pointing as interrupted
                             mark_interrupted(self.current_id)
-                            self.log.debug('pointing interrupted: {}'.format(self.current_id))
+                            self.log.debug('pointing {} was interrupted'.format(self.current_id))
 
                 else:
                     self.log.info('got pointing from scheduler {}'.format(self.new_id))
                     # we weren't doing anything, which implies we were parked
                     await self.unpark_mount()
 
-                # start the new pointing
+                # start the new pointing (the script will mark it as running too, but best to do it
+                # ASAP so the scheduler recognises it)
                 self.log.debug('starting pointing {}'.format(self.new_id))
+                mark_running(self.new_id)
 
                 cmd = [os.path.join(SCRIPT_PATH, 'observe.py'), str(self.new_id)]
                 asyncio.ensure_future(self.start_script('OBS', cmd))
-
-                mark_running(self.new_id)
 
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
