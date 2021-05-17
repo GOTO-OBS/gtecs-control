@@ -17,6 +17,7 @@ def run(time, limit):
     """Print the current queue."""
     time.precision = 0
     observer = Observer(astronomy.observatory_location())
+    horizon = astronomy.get_horizon()
 
     # Create Queue from DB
     queue = PointingQueue.from_database(time, observer)
@@ -25,7 +26,7 @@ def run(time, limit):
         return
 
     #  Apply constraints and calculate tiebreakers for all pointings
-    queue.apply_constraints(time, observer)
+    queue.apply_constraints(time, observer, horizon)
     queue.calculate_tiebreakers(time, observer)
 
     # Get the pointings, now with extra infomation

@@ -81,6 +81,8 @@ def run(eve, alt, late=False):
     skyflat = antisun_flat(now)
     print('Found target', skyflat)
 
+    ### WHAT ABOUT THE MOON? We do it for the autofocus in `catalogs.gliese.focus_star`
+
     # Slew to target
     print('Slewing to target')
     field_name = skyflat.name

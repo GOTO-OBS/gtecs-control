@@ -1,3 +1,6 @@
+# This file defines the artificial horizon used by the scheduler.
+# It is independent from the hard mount elevation limit,
+# which is set by the MIN_ELEVATION config parameter.
 0	30	Dome
 30	30	Dome
 60	40	Dome

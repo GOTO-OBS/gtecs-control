@@ -15,7 +15,9 @@ from astropy.time import Time
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 
-from . import astropy_speedups  # noqa: F401 to ignore unused module
+from scipy import interpolate
+
+# from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import params
 
 
@@ -163,8 +165,62 @@ def observatory_location():
     obs_loc : `~astropy.coordinates.EarthLocation`
 
     """
-    return EarthLocation(lon=params.SITE_LONGITUDE, lat=params.SITE_LATITUDE,
+    return EarthLocation(lon=params.SITE_LONGITUDE,
+                         lat=params.SITE_LATITUDE,
                          height=params.SITE_ALTITUDE)
+
+
+def get_horizon(filepath=None):
+    """Get the artificial horizon of the observatory.
+
+    The horizon should be defined in file in the G-TeCS config directory, with columns matching
+    the azimuth and altitude limit at that azimuth.
+
+    Note you will need to interpolate between alts (e.g. with `scipy.interpolate.interp1d`) to
+    find the horizon at any intermediate points.
+
+    Parameters
+    ----------
+    filepath : str, default=params.HORIZON_FILE
+        horizon file to use
+
+    Returns:
+    --------
+    az, alt : tuple of list
+        altitude limit at defined azimuths
+
+    """
+    if filepath is None:
+        filepath = params.HORIZON_FILE
+    az, alt = np.loadtxt(filepath, usecols=(0, 1)).T
+    return (az, alt)
+
+
+def above_horizon(ra_deg, dec_deg, now=None, horizon=30):
+    """Check if the given coordinates are above the artificial horizon.
+
+    Parameters
+    ----------
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+    now : `~astropy.time.Time`, optional
+        time(s) to calculate at
+        default is `Time.now()`
+    horizon : float or tuple of (azs, alts), optional
+        artificial horizon, either a flat value or varying with azimuth.
+        default is a flat horizon of 30 deg
+    """
+    alt, az = altaz_from_radec(ra_deg, dec_deg, now)
+
+    if isinstance(horizon, (int, float)):
+        horizon = ([0, 90, 180, 270, 360], [horizon, horizon, horizon, horizon, horizon])
+    get_alt_limit = interpolate.interp1d(*horizon,
+                                         bounds_error=False,
+                                         fill_value='extrapolate')
+    alt_limit = get_alt_limit(az)
+    return alt > alt_limit
 
 
 def altaz_from_radec(ra_deg, dec_deg, now=None):
@@ -217,7 +273,7 @@ def radec_from_altaz(alt_deg, az_deg, now=None):
     Returns
     --------
     ra_deg : float
-        ight ascension in degrees
+        right ascension in degrees
     dec_deg : float
         declination in degrees
 
@@ -306,7 +362,7 @@ def twilight_length(date):
         length of astronomical twilight
 
     """
-    noon = Time(date + " 12:00:00")
+    noon = Time(date + ' 12:00:00')
     observer = Observer(location=observatory_location())
     sun_set_time = observer.sun_set_time(noon, which='next')
     twilight_end = observer.sun_set_time(noon, which='next', horizon=-18 * u.deg)
@@ -327,7 +383,7 @@ def local_midnight(date):
         time of local midnight in UT
 
     """
-    noon = Time(date + " 12:00:00")
+    noon = Time(date + ' 12:00:00')
     observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
 
@@ -337,7 +393,7 @@ def night_startdate():
     now = datetime.datetime.utcnow()
     if now.hour < 12:
         now = now - datetime.timedelta(days=1)
-    return now.strftime("%Y-%m-%d")
+    return now.strftime('%Y-%m-%d')
 
 
 @u.quantity_input(sunalt=u.deg)
@@ -361,10 +417,10 @@ def sunalt_time(date, sunalt, eve=True):
     """
     observer = Observer(location=observatory_location())
     if eve:
-        start = Time(date + " 12:00:00")
+        start = Time(date + ' 12:00:00')
         return observer.sun_set_time(start, which='next', horizon=sunalt)
     else:
-        start = Time(date + " 12:00:00") + 1 * u.day
+        start = Time(date + ' 12:00:00') + 1 * u.day
         return observer.sun_rise_time(start, which='previous', horizon=sunalt)
 
 
@@ -423,8 +479,10 @@ def get_lst(now):
     return now.sidereal_time(kind='apparent')
 
 
-def check_alt_limit(targ_ra, targ_dec, now):
-    """Check if target is above site altitude limit at given time.
+def above_elevation_limit(targ_ra, targ_dec, now):
+    """Check if target is above the mount elevation limit at the given time.
+
+    This is not to be confused with the artificial horizon used when scheduling targets.
 
     Parameters
     ----------
@@ -437,15 +495,12 @@ def check_alt_limit(targ_ra, targ_dec, now):
 
     Returns
     -------
-    flag : int
-        1 if below altitude limit, 0 if above
+    above_horizon : bool
+        True if the target is above params.MIN_ELEVATION, False if below
 
     """
-    targ_alt, targ_az = altaz_from_radec(targ_ra, targ_dec, now)
-    if targ_alt < params.MIN_ELEVATION:
-        return 1
-    else:
-        return 0
+    targ_alt, _ = altaz_from_radec(targ_ra, targ_dec, now)
+    return targ_alt > params.MIN_ELEVATION
 
 
 def ang_sep(ra_1, dec_1, ra_2, dec_2):

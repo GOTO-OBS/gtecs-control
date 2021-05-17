@@ -305,6 +305,15 @@ class AstroHavenDome(object):
         st.start()
 
         # serial connection to the dome monitor box
+        # #########################
+        # TODO Why do we have these threads? It would be better to have the heartbeat in the
+        # dome daemon (like the sentinel) and remove the status check thread, replace it with
+        # something similar to the SiTech class where it updates every time you request.
+        # The output thread I suppose should stay rather than be part of the daemon, since it has
+        # to be regular. But why don't we do that with the camera daemon?
+        # Also the quick-close button could arguably be it's own thread in the dome daemon, and move
+        # the function into this class?
+        # #########################
         if self.heartbeat_serial_port:
             try:
                 self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
@@ -672,6 +681,9 @@ class AstroHavenDome(object):
             # store running time for timeout
             running_time = time.time() - start_time
 
+            # get the starting position
+            start_position = self.status[side]
+
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
                 if self.log:
@@ -705,7 +717,11 @@ class AstroHavenDome(object):
                 self.log.debug('plc SEND:"{}" ({} {} {})'.format(
                     self.move_code[side][command], side, frac, command))
 
-            if (side == 'south' and command == 'open' and running_time < 12.5):
+            if (side == 'south' and start_position == 'closed' and command == 'open' and
+                    running_time < 12.5):
+                # Used to "stutter step" the south side when opening,
+                # so that the top shutter doesn't jerk on the belts when it tips over.
+                # NEW: add start_position, so it doesn't stutter when already partially open
                 time.sleep(1.5)
             else:
                 time.sleep(0.5)

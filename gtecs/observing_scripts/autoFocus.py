@@ -30,11 +30,11 @@ import numpy as np
 import pandas as pd
 
 
-class RestoreFocus(NeatCloser):
-    """Restore the origional focus positions if anything goes wrong."""
+class RestoreFocusCloser(NeatCloser):
+    """Restore the original focus positions if anything goes wrong."""
 
     def __init__(self, positions):
-        super(RestoreFocus, self).__init__('Script')
+        super().__init__(taskname='Script')
         self.positions = positions
 
     def tidy_up(self):
@@ -206,7 +206,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
 
         if attempts <= 0:
-            print('Number of attempts exceded')
+            print('Number of attempts exceeded')
             # Remove bad UTs from the main list
             active_uts = sorted(ut for ut in active_uts if ut not in moving_uts)
             break
@@ -377,10 +377,10 @@ if __name__ == '__main__':
                   }
     foc_params = pd.DataFrame(foc_params)
 
-    # If something goes wrong we need to restore the origional focus
+    # If something goes wrong we need to restore the original focus
     initial_positions = get_focuser_positions()
     try:
-        RestoreFocus(initial_positions)
+        RestoreFocusCloser(initial_positions)
         run(foc_params, num_exp, exptime, filt, no_slew)
     except Exception:
         print('Error caught: Restoring original focus positions...')

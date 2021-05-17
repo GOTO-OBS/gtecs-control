@@ -8,6 +8,7 @@ from astropy.time import Time
 
 from gtecs import misc
 from gtecs import params
+from gtecs.astronomy import above_horizon, get_horizon, observatory_location
 from gtecs.daemons import BaseDaemon
 from gtecs.scheduler import check_queue
 
@@ -19,8 +20,21 @@ class SchedulerDaemon(BaseDaemon):
         super().__init__('scheduler')
 
         # scheduler variables
-        self.check_period = 5  # TODO: put into params, match with pilot
+        self.check_period = params.SCHEDULER_CHECK_PERIOD
 
+        self.location = observatory_location()
+        try:
+            self.horizon = get_horizon(params.HORIZON_FILE)
+        except OSError:
+            self.horizon = 30
+            self.log.warning('Could not load horizon file ({}), using default ({} deg)'.format(
+                             params.HORIZON_FILE, self.horizon))
+        try:
+            self.horizon_high = get_horizon(params.HORIZON_SHIELDING_FILE)
+        except OSError:
+            self.horizon_high = 40
+            self.log.warning('Could not load high horizon file ({}), using default ({} deg)'.format(
+                             params.HORIZON_SHIELDING_FILE, self.horizon_high))
         self.write_html = False
 
         # start control thread
@@ -62,29 +76,48 @@ class SchedulerDaemon(BaseDaemon):
 
         # Get info from the database
         try:
-            temp_info['next_pointing'] = check_queue(Time(self.loop_time, format='unix'),
-                                                     write_html=self.write_html,
-                                                     log=self.log)
+            time = Time(self.loop_time, format='unix')
+            pointing = check_queue(time, self.location, self.horizon,
+                                   write_html=self.write_html,
+                                   log=self.log)
+            temp_info['pointing'] = pointing
+
+            if pointing is not None and not above_horizon(pointing.ra, pointing.dec, time,
+                                                          self.horizon_high):
+                # The pointing is above the default horizon but not the higher windshield horizon.
+                # This should be fairly rare, and while there might be a more efficient way here
+                # we just recalculate using the higher horizon.
+                # A better solution would be for the check_queue function to take multiple horizons,
+                # then evaluate each pointing based on both (it should be fairly quick, since altaz
+                # is cached).
+                pointing_high = check_queue(time, self.location, self.horizon_high,
+                                            write_html=self.write_html,
+                                            log=self.log)
+            else:
+                pointing_high = pointing
+            temp_info['pointing_high'] = pointing_high
         except Exception:
             self.log.error('Failed to get next pointing from database')
             self.log.debug('', exc_info=True)
-            temp_info['next_pointing'] = None
+            temp_info['pointing'] = None
+            temp_info['pointing_high'] = None
 
         # Write debug log line
         try:
-            now_pointing = temp_info['next_pointing']
-            if not self.info:
-                if now_pointing is not None:
+            now_pointing = temp_info['pointing']
+            now_pointing_high = temp_info['pointing_high']
+
+            if (self.info is None or
+                    now_pointing != self.info['pointing'] or
+                    now_pointing_high != self.info['pointing_high']):
+                if now_pointing is not None and now_pointing_high == now_pointing:
                     self.log.debug('Scheduler returns pointing {}'.format(now_pointing.db_id))
+                elif now_pointing_high != now_pointing:
+                    self.log.debug('Scheduler returns pointing {}|high={}'.format(
+                        now_pointing.db_id, now_pointing_high.db_id))
                 else:
                     self.log.debug('Scheduler returns None')
-            else:
-                old_pointing = self.info['next_pointing']
-                if now_pointing != old_pointing:
-                    if now_pointing is not None:
-                        self.log.debug('Scheduler returns pointing {}'.format(now_pointing.db_id))
-                    else:
-                        self.log.debug('Scheduler returns None')
+
         except Exception:
             self.log.error('Could not write current status')
 
@@ -95,12 +128,30 @@ class SchedulerDaemon(BaseDaemon):
         self._check_errors()
 
     # Control functions
-    def check_queue(self):
-        """Check the current queue for the best pointing to do."""
-        # Force an info update
-        self.wait_for_info()
-        next_pointing = self.info['next_pointing']
-        return next_pointing
+    def check_queue(self, horizon='low', force_update=False):
+        """Returns the current highest priority pointing.
+
+        Note this returns immediately with what's been previously calculated by the scheduler,
+        unless the `force_update` flag is set to True.
+
+        Parameters
+        ----------
+        horizon : 'low' or 'high', default='low'
+            Flag to chose the active horizon file.
+                - 'low' reads `gtecs.params.HORIZON_FILE`, and is the default
+                - 'high' reads `gtecs.params.HORIZON_SHIELDING_FILE`, and is used if the dome
+                        windshielding is active (reducing the available sky)
+
+        force_update : bool, default=False
+            If True force the scheduler to recalculate at the current time.
+            Otherwise the pointing from the most recent check will be returned (~5s cadence).
+        """
+        if force_update:
+            self.wait_for_info()
+        if horizon == 'high':
+            return self.info['pointing_high']
+        else:
+            return self.info['pointing']
 
 
 if __name__ == '__main__':

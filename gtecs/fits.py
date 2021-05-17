@@ -797,6 +797,7 @@ def update_header(header, ut, all_info, log=None):
             dome_status = 'ERROR'
 
         dome_open = info['dome'] == 'open'
+        dome_shielding = info['shielding']
         dome_move_time = info['last_move_time']
         if dome_move_time is not None:
             dome_move_time = Time(dome_move_time, format='unix')
@@ -811,10 +812,12 @@ def update_header(header, ut, all_info, log=None):
         log.debug('', exc_info=True)
         dome_status = 'NA'
         dome_open = 'NA'
+        dome_shielding = 'NA'
         dome_move_time = 'NA'
 
     header['DOMESTAT'] = (dome_status, 'Dome status')
     header['DOMEOPEN'] = (dome_open, 'Dome is open')
+    header['DOMESHLD'] = (dome_shielding, 'Dome wind shield is active')
     header['DOMEMVT '] = (dome_move_time, 'Dome latest move time')
 
     # Mount info

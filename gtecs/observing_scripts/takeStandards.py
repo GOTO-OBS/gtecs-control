@@ -7,7 +7,6 @@ with a range of colours and airmasses.
 from astropy.time import Time
 
 from gtecs import params
-from gtecs.astronomy import check_alt_limit
 from gtecs.catalogs import standard_star
 from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set
 
@@ -25,10 +24,6 @@ def run():
     print('Starting standard star routine')
     for star in stars:
         coordinate = star.coord_now()
-
-        if check_alt_limit(coordinate.ra.deg, coordinate.dec.deg, Time.now()):
-            print('Star ', star, ' is below limit')
-            continue
 
         print('Slewing to star', star)
         name = star.name

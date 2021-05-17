@@ -446,11 +446,14 @@ class DomeMonitor(BaseMonitor):
 
         north = info['north']
         south = info['south']
+        shielding = info['shielding']
 
         if north == 'closed' and south == 'closed':
             hardware_status = STATUS_DOME_CLOSED
         elif north == 'full_open' and south == 'full_open':
             hardware_status = STATUS_DOME_FULLOPEN
+        elif north == 'part_open' and south == 'part_open' and shielding:
+            hardware_status = STATUS_DOME_FULLOPEN  # no need for STATUS_DOME_SHIELDING
         elif north in ['opening', 'closing'] or south in ['opening', 'closing']:
             hardware_status = STATUS_DOME_MOVING
         elif north in ['part_open', 'full_open'] or south in ['part_open', 'full_open']:
@@ -466,7 +469,7 @@ class DomeMonitor(BaseMonitor):
         # ERROR_DOME_MOVETIMEOUT
         # Set the error if the dome has been moving for too long
         if self.hardware_status == STATUS_DOME_MOVING:
-            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=60)
+            self.add_error(ERROR_DOME_MOVETIMEOUT, delay=90)
         # Clear the error if the dome is not moving
         if self.hardware_status != STATUS_DOME_MOVING:
             self.clear_error(ERROR_DOME_MOVETIMEOUT)
@@ -491,15 +494,13 @@ class DomeMonitor(BaseMonitor):
             self.add_error(ERROR_DOME_NOTFULLOPEN, delay=30)
         # Clear the error if the dome's fully open, or it shouldn't be any more
         # Note this keeps the error set while the dome's moving
-        if self.mode != MODE_DOME_OPEN or self.hardware_status in STATUS_DOME_FULLOPEN:
+        if self.mode != MODE_DOME_OPEN or self.hardware_status == STATUS_DOME_FULLOPEN:
             self.clear_error(ERROR_DOME_NOTFULLOPEN)
 
         # ERROR_DOME_NOTCLOSED
         # Set the error if the dome should be closed and it's not
-        # Notethe dome's allowed to be moving, that has its own error above
-        # Also note that part_open is dealt with above
+        # Note the dome's allowed to be moving, that has its own error above
         if self.mode == MODE_DOME_CLOSED and self.hardware_status not in [STATUS_DOME_CLOSED,
-                                                                          STATUS_DOME_PARTOPEN,
                                                                           STATUS_DOME_MOVING]:
             self.add_error(ERROR_DOME_NOTCLOSED, delay=30)
         # Clear the error if the dome's fully closed, or it shouldn't be any more

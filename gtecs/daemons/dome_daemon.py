@@ -13,8 +13,10 @@ from gtecs.daemons import BaseDaemon
 from gtecs.flags import Conditions, Status
 from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
 from gtecs.hardware.dome import FakeDehumidifier, FakeDome
-from gtecs.observing import get_internal_conditions
+from gtecs.observing import get_conditions
 from gtecs.slack import send_slack_msg
+
+import numpy as np
 
 import serial
 
@@ -46,14 +48,18 @@ class DomeDaemon(BaseDaemon):
         self.move_start_time = 0
         self.last_move_time = None
 
+        self.shielding = False
         self.lockdown = False
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
-        self.autodehum = True
-        self.autoclose = True
-        self.alarm = True
-        self.heartbeat = True
+        self.alarm_enabled = True
+        self.heartbeat_enabled = True
+        self.windshield_enabled = False
+
+        self.autodehum_enabled = True
+        self.autoclose_enabled = True
+        self.autoshield_enabled = True
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -101,6 +107,12 @@ class DomeDaemon(BaseDaemon):
                 # Check if we need to turn on/off the dehumidifier
                 self._autodehum_check()
 
+                # Check if we should enable shielding due to high wind
+                self._autoshield_check()
+
+                # Check if we need to raise the shields
+                self._windshield_check()
+
             # control functions
             # open dome
             if self.open_flag:
@@ -113,7 +125,7 @@ class DomeDaemon(BaseDaemon):
                     elif self.move_side == 'both':
                         side = 'south'
                     elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is open')
+                        self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
@@ -134,7 +146,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac, self.alarm)
+                                c = self.dome.open_side(side, self.move_frac, self.alarm_enabled)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -186,7 +198,7 @@ class DomeDaemon(BaseDaemon):
                     elif self.move_side == 'both':
                         side = 'north'
                     elif self.move_side == 'none':
-                        self.log.info('Finished: Dome is closed')
+                        self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
                         side = None
                         self.move_frac = 1
@@ -207,7 +219,7 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac, self.alarm)
+                                c = self.dome.close_side(side, self.move_frac, self.alarm_enabled)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -277,7 +289,7 @@ class DomeDaemon(BaseDaemon):
             # set heartbeat
             if self.heartbeat_set_flag:
                 try:
-                    if self.heartbeat:
+                    if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
                         c = self.dome.set_heartbeat(True)
                     else:
@@ -434,33 +446,44 @@ class DomeDaemon(BaseDaemon):
         try:
             dehumidifier_status = self.dehumidifier.status
             temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
-            temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
-            temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
-            temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
-            temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
         except Exception:
             self.log.error('Failed to get dehumidifier info')
             self.log.debug('', exc_info=True)
             temp_info['dehumidifier_on'] = None
-            temp_info['humidity_upper'] = None
-            temp_info['humidity_lower'] = None
-            temp_info['temperature_lower'] = None
-            temp_info['temperature_upper'] = None
             # Report the connection as failed
             self.dehumidifier = None
             if 'dehumidifier' not in self.bad_hardware:
                 self.bad_hardware.add('dehumidifier')
 
-        # Get the dome internal conditions
+        # Get the conditions values and limits
         try:
-            int_conditions = get_internal_conditions(timeout=10)
-            temp_info['temperature'] = int_conditions['temperature']
-            temp_info['humidity'] = int_conditions['humidity']
+            conditions = get_conditions(timeout=10)
+            # Windspeed - take the maximum gust from all stations
+            windspeed = np.max([conditions[source]['windgust']
+                                for source in conditions
+                                if conditions[source]['type'] == 'external'])
+            # Internal - take mean of internal sensors
+            int_temperature = np.mean([conditions[source]['temperature']
+                                       for source in conditions
+                                       if conditions[source]['type'] == 'internal'])
+            int_humidity = np.mean([conditions[source]['temperature']
+                                    for source in conditions
+                                    if conditions[source]['type'] == 'internal'])
+            temp_info['windspeed'] = windspeed
+            temp_info['temperature'] = int_temperature
+            temp_info['humidity'] = int_humidity
         except Exception:
-            self.log.error('Failed to get dome internal conditions')
+            self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
+            temp_info['windspeed'] = None
             temp_info['temperature'] = None
             temp_info['humidity'] = None
+        temp_info['windspeed_upper'] = params.SHIELD_WINDGUST
+        temp_info['windspeed_lower'] = params.SHIELD_WINDGUST - 5
+        temp_info['temperature_lower'] = params.MIN_INTERNAL_TEMPERATURE
+        temp_info['temperature_upper'] = params.MIN_INTERNAL_TEMPERATURE + 1
+        temp_info['humidity_upper'] = params.MAX_INTERNAL_HUMIDITY
+        temp_info['humidity_lower'] = params.MAX_INTERNAL_HUMIDITY - 10
 
         # Get button info
         try:
@@ -499,13 +522,16 @@ class DomeDaemon(BaseDaemon):
 
         # Get other internal info
         temp_info['last_move_time'] = self.last_move_time
+        temp_info['shielding'] = self.shielding
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
-        temp_info['autodehum_enabled'] = self.autodehum
-        temp_info['autoclose_enabled'] = self.autoclose
-        temp_info['alarm_enabled'] = self.alarm
-        temp_info['heartbeat_enabled'] = self.heartbeat
+        temp_info['alarm_enabled'] = self.alarm_enabled
+        temp_info['heartbeat_enabled'] = self.heartbeat_enabled
+        temp_info['windshield_enabled'] = self.windshield_enabled
+        temp_info['autodehum_enabled'] = self.autodehum_enabled
+        temp_info['autoclose_enabled'] = self.autoclose_enabled
+        temp_info['autoshield_enabled'] = self.autoshield_enabled
 
         # Write debug log line
         try:
@@ -526,42 +552,48 @@ class DomeDaemon(BaseDaemon):
         """Check the current system mode and make sure the alarm is on/off."""
         if self.info['mode'] == 'robotic':
             # In robotic everything should always be enabled
-            if not self.autodehum:
-                self.log.info('System is in robotic mode, enabling autodehum')
-                self.autodehum = True
-            if not self.autoclose:
-                self.log.info('System is in robotic mode, enabling autoclose')
-                self.autoclose = True
-            if not self.alarm:
+            if not self.alarm_enabled:
                 self.log.info('System is in robotic mode, enabling alarm')
-                self.alarm = True
-            if not self.heartbeat:
+                self.alarm_enabled = True
+            if not self.heartbeat_enabled:
                 self.log.info('System is in robotic mode, enabling heartbeat')
-                self.heartbeat = True
+                self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
+            if not self.autodehum_enabled:
+                self.log.info('System is in robotic mode, enabling autodehum')
+                self.autodehum_enabled = True
+            if not self.autoclose_enabled:
+                self.log.info('System is in robotic mode, enabling autoclose')
+                self.autoclose_enabled = True
+            if not self.autoshield_enabled:
+                self.log.info('System is in robotic mode, enabling autoshield')
+                self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
             # In manual mode the heartbeat should be enabled, everything else can be set
-            if not self.heartbeat:
+            if not self.heartbeat_enabled:
                 self.log.info('System is in manual mode, enabling heartbeat')
-                self.heartbeat = True
+                self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
-            if self.autodehum:
-                self.log.info('System is in engineering mode, disabling autodehum')
-                self.autodehum = False
-            if self.autoclose:
-                self.log.info('System is in engineering mode, disabling autoclose')
-                self.autoclose = False
-            if self.alarm:
+            if self.alarm_enabled:
                 self.log.info('System is in engineering mode, disabling alarm')
-                self.alarm = False
-            if self.heartbeat:
+                self.alarm_enabled = False
+            if self.heartbeat_enabled:
                 self.log.info('System is in engineering mode, disabling heartbeat')
-                self.heartbeat = False
+                self.heartbeat_enabled = False
                 self.heartbeat_set_flag = 1
+            if self.autodehum_enabled:
+                self.log.info('System is in engineering mode, disabling autodehum')
+                self.autodehum_enabled = False
+            if self.autoclose_enabled:
+                self.log.info('System is in engineering mode, disabling autoclose')
+                self.autoclose_enabled = False
+            if self.autoshield_enabled:
+                self.log.info('System is in engineering mode, disabling autoshield')
+                self.autoshield_enabled = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
@@ -586,7 +618,7 @@ class DomeDaemon(BaseDaemon):
 
         # Set the flag
         if lockdown:
-            if self.autoclose:
+            if self.autoclose_enabled:
                 # Activate lockdown
                 self.lockdown = True
                 if reasons != self.lockdown_reasons or self.ignoring_lockdown:
@@ -615,7 +647,7 @@ class DomeDaemon(BaseDaemon):
             return
 
         # Return if autoclose disabled
-        if not self.autoclose:
+        if not self.autoclose_enabled:
             return
 
         # Decide if we need to autoclose
@@ -626,8 +658,8 @@ class DomeDaemon(BaseDaemon):
             if self.open_flag:
                 self.halt_flag = 1
                 time.sleep(2)
-            # Make sure the alarm sounds
-            self.alarm = True
+            # Make sure the alarm sounds, since we're moving automatically
+            self.alarm_enabled = True
             # Close the dome
             self.close_flag = 1
             self.move_side = 'both'
@@ -646,7 +678,7 @@ class DomeDaemon(BaseDaemon):
             return
 
         # Return if autodehum disabled
-        if not self.autodehum:
+        if not self.autodehum_enabled:
             return
 
         # Check if the dehumidifier should be on or off
@@ -673,6 +705,75 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
                                                                   self.info['temperature_upper']))
                 self.dehumidifier_off_flag = 1
+
+    def _autoshield_check(self):
+        """Check if the wind is high and the dome should be in windshield mode."""
+        if not self.dome:
+            self.log.warning('Autoshield disabled while no connection to dome')
+            return
+
+        if (isinstance(self.info, dict) and
+                (self.info.get('windspeed') is None or self.info['windspeed'] == -999)):
+            # Note dict.get() returns None if it is not in the dictionary
+            self.log.warning('No windspeed reading: auto windshield control unavailable')
+            return
+
+        # Return if autoshield disabled
+        if not self.autoshield_enabled:
+            return
+
+        # Check the windspeed and decide if we need to enable or disable windshield mode
+        if not self.windshield_enabled and self.info['windspeed'] > self.info['windspeed_upper']:
+            self.log.info('Windspeed {} km/h > {} km/h'.format(self.info['windspeed'],
+                                                               self.info['windspeed_upper']))
+            self.log.info('Turning windshielding on')
+            self.windshield_enabled = True
+        elif self.windshield_enabled and self.info['windspeed'] < self.info['windspeed_lower']:
+            self.log.info('Windspeed {} km/h < {} km/h'.format(self.info['windspeed'],
+                                                               self.info['windspeed_lower']))
+            self.log.info('Turning windshielding off')
+            self.windshield_enabled = False
+
+    def _windshield_check(self):
+        """Check if the dome is open and needs to raise shields."""
+        if not self.dome:
+            self.log.warning('Shielding disabled while no connection to dome')
+            return
+
+        # Check if we are currently shielding
+        if (self.shielding and
+                self.info['north'] in ['full_open', 'closed'] and
+                self.info['south'] in ['full_open', 'closed'] and
+                not self.open_flag and not self.close_flag):
+            # The dome must have moved some other way, either manually or via autoclose
+            # Or the flag has just been set and it hasn't started moving yet (the alarm is going)
+            self.log.warning('Disabling shielding flag')
+            self.shielding = False
+
+        # Decide if we need to raise or lower shields
+        if (self.windshield_enabled and
+                (self.info['north'] == 'full_open' or self.info['south'] == 'full_open') and
+                not self.open_flag and not self.close_flag):
+            self.log.warning('Moving dome shutters to windshield position')
+            self.shielding = True
+            # Make sure the alarm sounds, since we're moving automatically
+            self.alarm_enabled = True
+            # Partially close the dome
+            self.close_flag = 1
+            self.move_side = 'both'
+            self.move_frac = 0.3
+
+        elif (self.shielding and not self.windshield_enabled and
+              (self.info['north'] == 'part_open' or self.info['south'] == 'part_open') and
+              not self.open_flag and not self.close_flag):
+            self.log.warning('Moving dome shutters to full open')
+            self.shielding = False
+            # Make sure the alarm sounds, since we're moving automatically
+            self.alarm_enabled = True
+            # Fully open the dome
+            self.open_flag = 1
+            self.move_side = 'both'
+            self.move_frac = 1
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
@@ -809,12 +910,12 @@ class DomeDaemon(BaseDaemon):
 
         if command == 'on':
             s = 'Turning on dehumidifier'
-            if self.autodehum:
+            if self.autodehum_enabled:
                 s += ' (autodehum is enabled, so the daemon may turn it off again)'
             return s
         elif command == 'off':
             s = 'Turning off dehumidifier'
-            if self.autodehum:
+            if self.autodehum_enabled:
                 s += ' (autodehum is enabled, so the daemon may turn it on again)'
             return s
 
@@ -829,21 +930,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
-            elif self.autodehum:
+            elif self.autodehum_enabled:
                 return 'Autodehum is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
-            elif not self.autodehum:
+            elif not self.autodehum_enabled:
                 return 'Autodehum is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autodehum')
-            self.autodehum = True
+            self.autodehum_enabled = True
         elif command == 'off':
             self.log.info('Disabling autodehum')
-            self.autodehum = False
+            self.autodehum_enabled = False
 
         if command == 'on':
             return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
@@ -861,21 +962,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
-            elif self.autoclose:
+            elif self.autoclose_enabled:
                 return 'Autoclose is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose:
+            elif not self.autoclose_enabled:
                 return 'Autoclose is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autoclose')
-            self.autoclose = True
+            self.autoclose_enabled = True
         elif command == 'off':
             self.log.info('Disabling autoclose')
-            self.autoclose = False
+            self.autoclose_enabled = False
 
         if command == 'on':
             return 'Enabling autoclose, dome will close in bad conditions'
@@ -893,21 +994,21 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            elif self.alarm:
+            elif self.alarm_enabled:
                 return 'Alarm is already enabled'
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            elif not self.alarm:
+            elif not self.alarm_enabled:
                 return 'Alarm is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling alarm')
-            self.alarm = True
+            self.alarm_enabled = True
         elif command == 'off':
             self.log.info('Disabling alarm')
-            self.alarm = False
+            self.alarm_enabled = False
 
         if command == 'on':
             return 'Enabling dome alarm'
@@ -931,16 +1032,81 @@ class DomeDaemon(BaseDaemon):
 
         # Set flag
         if command == 'on':
-            self.heartbeat = True
+            self.heartbeat_enabled = True
             self.heartbeat_set_flag = 1
         elif command == 'off':
-            self.heartbeat = False
+            self.heartbeat_enabled = False
             self.heartbeat_set_flag = 1
 
         if command == 'on':
             return 'Enabling dome heartbeat'
         elif command == 'off':
             return 'Disabling dome heartbeat'
+
+    def override_windshield(self, command):
+        """Turn windshielding on or off manually."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        windshield_enabled = self.info['windshield_enabled']
+        if command == 'on' and windshield_enabled:
+            return 'Windshielding is already enabled'
+        elif command == 'off' and not windshield_enabled:
+            return 'Windshielding is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling windshield mode (manual command)')
+            self.windshield_enabled = True
+        elif command == 'off':
+            self.log.info('Disabling windshield mode (manual command)')
+            self.windshield_enabled = False
+
+        if command == 'on':
+            s = 'Enabling windshield mode'
+            if self.autoshield_enabled:
+                s += ' (autoshield is enabled, so the daemon may turn it off again)'
+            return s
+        elif command == 'off':
+            s = 'Disabling windshield mode'
+            if self.autoshield_enabled:
+                s += ' (autoshield is enabled, so the daemon may turn it on again)'
+            return s
+
+    def set_autoshield(self, command):
+        """Enable or disable the dome automatically raising shields in high wind."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on':
+            if self.info['mode'] == 'engineering':
+                raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
+            elif self.autoshield_enabled:
+                return 'Autoshield is already enabled'
+        else:
+            if self.info['mode'] == 'robotic':
+                raise errors.HardwareStatusError('Cannot disable autoshield in robotic mode')
+            elif not self.autoshield_enabled:
+                return 'Autoshield is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling autoshield')
+            self.autoshield_enabled = True
+        elif command == 'off':
+            self.log.info('Disabling autoshield')
+            self.autoshield_enabled = False
+
+        if command == 'on':
+            return 'Enabling autoshield, the dome will raise and lower shields automatically'
+        elif command == 'off':
+            return 'Disabling autoshield, the dome will NOT raise and lower shields automatically'
 
 
 if __name__ == '__main__':

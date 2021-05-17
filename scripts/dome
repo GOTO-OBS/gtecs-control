@@ -184,6 +184,31 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'set_autoclose', [command])
         print(reply)
 
+    elif command in ['windshield', 'shield']:
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'override_windshield', [command])
+        print(reply)
+
+    elif command == 'autoshield':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function(daemon_id, 'set_autoshield', [command])
+        print(reply)
+
     elif command == 'alarm':
         # parse arguments
         if len(args) == 1:
@@ -219,12 +244,16 @@ def print_info(info):
     print('North:        {}'.format(info['north'].capitalize()))
     print('South:        {}'.format(info['south'].capitalize()))
     print('Hatch:        {}'.format(info['hatch'].capitalize()))
-    print('Dehumidifier: {}'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('Dehumidifier: {}'.format(style.gtxt('On') if info['dehumidifier_on'] else 'Off'))
+    print('Windshield:   {}'.format(style.gtxt('On') if info['windshield_enabled'] else 'Off'))
     print('Autodehum:    {}'.format(style.rtxt('Disabled')
                                     if not info['autodehum_enabled']
                                     else 'Enabled'))
     print('Autoclose:    {}'.format(style.rtxt('Disabled')
                                     if not info['autoclose_enabled']
+                                    else 'Enabled'))
+    print('Autoshield:   {}'.format(style.rtxt('Disabled')
+                                    if not info['autoshield_enabled']
                                     else 'Enabled'))
     print('Alarm:        {}'.format(style.rtxt('Disabled')
                                     if not info['alarm_enabled']
@@ -233,6 +262,7 @@ def print_info(info):
                                     if info['heartbeat_status'] == 'disabled'
                                     else info['heartbeat_status'].capitalize()))
     print('Lockdown:     {}'.format(style.rtxt('ACTIVE') if info['lockdown'] else 'Clear'))
+    print('Shielding:    {}'.format(style.ytxt('ACTIVE') if info['shielding'] else 'Clear'))
     if info['emergency']:
         print(style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}'.format(info['emergency_time'])))
         print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))
@@ -248,13 +278,23 @@ def print_info_s(info):
                                                info['south'].capitalize()))
     if info['lockdown']:
         print(style.rtxt('                    LOCKDOWN ACTIVE'))
+    elif info['shielding']:
+        print(style.ytxt('                    WINDSHIELD ACTIVE'))
     print('   Hatch:           [{}]'.format(info['hatch'].capitalize()))
-    print('   Dehumidifier:    [{}]'.format('On' if info['dehumidifier_on'] else 'Off'))
+    print('   Dehumidifier:    [{}]'.format(style.gtxt('On')
+                                            if info['dehumidifier_on']
+                                            else 'Off'))
+    print('   Windshield:      [{}]'.format(style.gtxt('On')
+                                            if info['windshield_enabled']
+                                            else 'Off'))
+    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
+                                            if not info['autoclose_enabled']
+                                            else 'Enabled'))
     print('   Autodehum:       [{}]'.format(style.rtxt('Disabled')
                                             if not info['autodehum_enabled']
                                             else 'Enabled'))
-    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
-                                            if not info['autoclose_enabled']
+    print('   Autoshield:      [{}]'.format(style.rtxt('Disabled')
+                                            if not info['autoshield_enabled']
                                             else 'Enabled'))
     print('   Alarm:           [{}]'.format(style.rtxt('Disabled')
                                             if not info['alarm_enabled']
@@ -280,9 +320,11 @@ def print_instructions():
           '  open north|south [frac]        open the dome (optional frac 0-1)',
           '  close north|south [frac]       close the dome (optional frac 0-1)',
           '  stop/halt/abort                stop the dome moving',
+          '  autoclose [on|off]             automatically close in bad weather?',
           '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
           '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
-          '  autoclose [on|off]             automatically close in bad weather?',
+          '  windshield [on|off]            manually turn wind shielding on/off',
+          '  autoshield [on|off]            automatically shield in high wind?',
           '  alarm [on|off]                 automatically sound the alarm when moving?',
           '  heartbeat [on|off]             automatically close if the daemon fails?',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',

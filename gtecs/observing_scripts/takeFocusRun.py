@@ -37,11 +37,11 @@ from scipy.optimize import curve_fit
 DEFAULT_NFV = 4
 
 
-class RestoreFocus(NeatCloser):
+class RestoreFocusCloser(NeatCloser):
     """Restore the original focus positions if anything goes wrong."""
 
     def __init__(self, positions):
-        super(RestoreFocus, self).__init__('Script')
+        super().__init__(taskname='Script')
         self.positions = positions
 
     def tidy_up(self):
@@ -669,7 +669,7 @@ if __name__ == '__main__':
     # If something goes wrong we need to restore the original focus
     initial_positions = get_focuser_positions()
     try:
-        RestoreFocus(initial_positions)
+        RestoreFocusCloser(initial_positions)
         run(steps, range_frac, num_exp, exptime, filt,
             measure_corners, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:

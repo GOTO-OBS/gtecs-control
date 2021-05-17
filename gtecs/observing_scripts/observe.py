@@ -13,17 +13,18 @@ from gtecs.observing import (prepare_for_images, slew_to_radec, wait_for_exposur
 from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running, open_session
 
 
-class Closer(NeatCloser):
+class AbortPointingCloser(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
-    def __init__(self, taskname, db_id):
-        super().__init__(taskname)
+    def __init__(self, db_id):
+        super().__init__(taskname='Script')
         self.db_id = db_id
 
     def tidy_up(self):
-        """Cancel the pointing."""
-        print('Received cancellation order for pointing {}'.format(self.db_id))
+        """Mark the pointing as aborted."""
+        print('Interrupt caught')
         mark_aborted(self.db_id)
+        print('Pointing {} marked as aborted'.format(self.db_id))
 
 
 def get_position(db_id):
@@ -74,15 +75,17 @@ def get_exq_commands(db_id):
 
 def run(db_id):
     """Run the observe routine."""
-    Closer(db_id, db_id)
-
     try:
+        # Catch any interupts
+        AbortPointingCloser(args.db_id)
+
         # make sure hardware is ready
         prepare_for_images()
         refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
 
         print('Observing pointing ID: ', db_id)
         mark_running(db_id)
+        print('Pointing {} marked as running'.format(db_id))
 
         # clear & pause queue to make sure
         execute_command('exq clear')
@@ -109,15 +112,17 @@ def run(db_id):
         # wait for the queue to empty
         wait_for_exposure_queue(min_time * 1.5)
 
+        # mark as completed
+        mark_completed(db_id)
+        print('Pointing {} marked as completed'.format(db_id))
+        sys.exit(0)
+
     except Exception:
         # something went wrong
+        print('Error caught')
         mark_aborted(db_id)
+        print('Pointing {} marked as aborted'.format(db_id))
         raise
-
-    # hey, if we got here no-one else will mark as completed
-    mark_completed(db_id)
-    print('Pointing {} completed'.format(db_id))
-    sys.exit(0)
 
 
 if __name__ == '__main__':

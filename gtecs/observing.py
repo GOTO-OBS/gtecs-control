@@ -9,7 +9,7 @@ import numpy as np
 from obsdb import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import check_alt_limit, radec_from_altaz
+from .astronomy import above_elevation_limit, radec_from_altaz
 from .daemons import daemon_function, daemon_info
 from .fits import get_glance_data, get_image_data
 from .misc import execute_command
@@ -17,8 +17,13 @@ from .misc import execute_command
 
 def check_schedule():
     """Check the schedule."""
+    # Get the dome status for the correct horizon
+    dome_info = daemon_info('dome', force_update=False)
+    horizon = 'high' if dome_info['shielding'] else 'low'
+
+    # Get the pointing data from the scheduler
     try:
-        new_pointing = daemon_function('scheduler', 'check_queue')
+        new_pointing = daemon_function('scheduler', 'check_queue', args=[horizon])
         if new_pointing is not None:
             return new_pointing.db_id, new_pointing.mintime
         else:
@@ -291,7 +296,7 @@ def wait_for_focusers(target_positions, timeout=None):
     Parameters
     ----------
     target_positions : float, dict
-        targrt position, or a dictionary of unit telescope IDs and positions
+        target position, or a dictionary of unit telescope IDs and positions
 
     timeout : float, default=None
         time in seconds after which to timeout, None to wait forever
@@ -369,8 +374,8 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if check_alt_limit(ra, dec, Time.now()):
-        raise ValueError('Target is too low, cannot slew')
+    if not above_elevation_limit(ra, dec, Time.now()):
+        raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
 
     mnt_info = daemon_info('mnt')
     if mnt_info['status'] == 'Slewing':
@@ -743,6 +748,12 @@ def get_pointing_status(db_id):
         pointing = get_pointing_by_id(session, db_id)
         status = pointing.status
     return status
+
+
+def get_conditions(timeout=30):
+    """Get the current conditions values."""
+    conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
+    return conditions_info['weather']
 
 
 def get_internal_conditions(timeout=30):
