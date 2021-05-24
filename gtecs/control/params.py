@@ -5,20 +5,15 @@ import sys
 
 import configobj
 
-import pkg_resources
+from importlib.metadata import version
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Python < 3.7
+    import importlib_resources as pkg_resources
 
 import validate
 
-from .version import __version__
-
-
-# Load configspec file for default configuration
-if os.path.exists('gtecs/data/configspec.ini'):
-    # We are running in install dir, during installation
-    CONFIGSPEC_FILE = 'gtecs/data/configspec.ini'
-else:
-    # We are being imported, find pkg_resources
-    CONFIGSPEC_FILE = pkg_resources.resource_filename('gtecs', 'data/configspec.ini')
 
 # Try to find .gtecs.conf file, look in the home directory and
 # anywhere specified by GTECS_CONF environment variable
@@ -29,13 +24,16 @@ if 'GTECS_CONF' in os.environ:
 else:
     GTECS_CONF_PATH = None
 
+# Load configspec file for default configuration
+CONFIGSPEC = pkg_resources.read_text('gtecs.control.data', 'configspec.ini').split('\n')
+
 # Load the .gtecs.conf file as a ConfigObj
-config = configobj.ConfigObj({}, configspec=CONFIGSPEC_FILE)
+config = configobj.ConfigObj({}, configspec=CONFIGSPEC)
 CONFIG_FILE_PATH = None
 for loc in paths:
     try:
         with open(os.path.join(loc, '.gtecs.conf')) as source:
-            config = configobj.ConfigObj(source, configspec=CONFIGSPEC_FILE)
+            config = configobj.ConfigObj(source, configspec=CONFIGSPEC)
             CONFIG_FILE_PATH = loc
     except IOError:
         pass
@@ -50,7 +48,7 @@ if result is not True:
 
 ############################################################
 # Module parameters
-VERSION = __version__
+VERSION = version('gtecs-control')
 
 # File locations
 FILE_PATH = config['FILE_PATH']
