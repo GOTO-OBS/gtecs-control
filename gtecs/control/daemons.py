@@ -13,7 +13,7 @@ from . import params
 
 
 # Pyro configuration
-Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can seralize numpy arrays for images
+Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can serialize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False
 
@@ -21,7 +21,7 @@ Pyro4.config.REQUIRE_EXPOSE = False
 class BaseDaemon(ABC):
     """Base class for hardware daemons.
 
-    Daemons can be put into two catogaries:
+    Daemons can be put into two catagories:
         - those dependent on hardware (e.g. dome, ut)
         - those dependent on other daemons (e.g. cam, exq)
 
@@ -316,13 +316,13 @@ def start_daemon(daemon_id, args=None):
             print('Daemon already running but reports error:')
             raise
 
-    process_path = os.path.join(params.DAEMON_PATH, params.DAEMONS[daemon_id]['PROCESS'])
+    process_path = params.DAEMONS[daemon_id]['PROCESS_PATH']
     process_options = {'in_background': True,
                        'host': host}
     if params.REDIRECT_STDOUT:
         logfile = daemon_id + '-stdout.log'
-        fpipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
-        process_options.update({'stdout': fpipe, 'stderr': fpipe})
+        pipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
+        process_options.update({'stdout': pipe, 'stderr': pipe})
 
     if args is not None:
         args = ' '.join([str(arg) for arg in args])

@@ -1,7 +1,9 @@
 """Landolt 2009 catalog of standard stars."""
-
-import os
-import warnings
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Python < 3.7
+    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -10,17 +12,9 @@ from astropy.time import Time
 
 import numpy as np
 
-import pkg_resources
-
 import scipy.spatial as sp
 
 from .. import astronomy as ast
-
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
-    gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
-    landolt_table_path = os.path.join(gtecs_data_dir, 'Landolt09.fit')
-    landolt_table = Table.read(landolt_table_path)
 
 
 class LandoltStar(object):
@@ -84,6 +78,9 @@ def standard_star(time, airmass, colour):
         the standard star to observe
 
     """
+    with pkg_resources.path('gtecs.control.data', 'Landolt09.fit') as path:
+        landolt_table = Table.read(path)
+
     coords = SkyCoord(landolt_table['RAJ2000'], landolt_table['DEJ2000'], unit=(u.hour, u.deg))
     observer = ast.observatory_location()
     altaz_frame = ast.AltAz(location=observer, obstime=time)

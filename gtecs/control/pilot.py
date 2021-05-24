@@ -3,16 +3,18 @@
 import abc
 import asyncio
 import functools
-import os
 import sys
 import time
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Python < 3.7
+    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.time import Time
 
 from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
-
-import pkg_resources
 
 from . import logger
 from . import monitors
@@ -23,9 +25,6 @@ from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import check_schedule, get_pointing_status
 from .slack import send_slack_msg, send_startup_report, send_database_report, send_timing_report
-
-
-SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
 
 
 class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
@@ -493,9 +492,9 @@ class Pilot(object):
                             # So we have to park again in start_script() once the script finishes.
                             if not self.mount_is_tracking:
                                 await self.unpark_mount()
-
-                            cmd = [os.path.join(SCRIPT_PATH, 'badConditionsTasks.py'), '3']
-                            asyncio.ensure_future(self.start_script('BADCOND', cmd))
+                            asyncio.ensure_future(self.start_script('BADCOND',
+                                                                    'badConditionsTasks.py',
+                                                                    args=[3]))
 
                             # save the counter
                             self.bad_conditions_tasks_timer = self.time_paused['conditions']
@@ -614,18 +613,17 @@ class Pilot(object):
         self.shutdown_now = True
 
     # External scripts
-    async def start_script(self, name, cmd, protocol=None):
+    async def start_script(self, name, script, args=None, protocol=None):
         """Launch an external Python script.
 
         Parameters
         ----------
         name : str
             A name for this process. Prepended to output from process.
-        cmd : list
-            A list of the command to be executed with Python.
-            The first element of the list is the Python script to execute,
-            any additional elements are the arguments to the script.
-
+        script : str
+            The Python script to execute.
+        args : list, optional
+            Arguments to the script.
         protocol : `gtecs.pilot.TaskProtocol`, optional
             Protocol used to process output from Process
             Default is `LoggedProtocol`
@@ -642,16 +640,18 @@ class Pilot(object):
         if protocol is None:
             protocol = LoggedProtocol
         script_name = name
-        if name == 'OBS':
+        if name == 'OBS' and args is not None:
             # Add the pointing ID to the name used when logging
-            script_name += '-' + cmd[1]
+            script_name += '-' + args[0]
         factory = functools.partial(protocol, script_name, self.running_script_result, 'pilot')
 
         # create the process coroutine which will return
         # a 'transport' and 'protocol' when scheduled
         loop = asyncio.get_event_loop()
-        proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
-                                    stdin=None)
+        with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
+            cmd = [str(path), *args] if args is not None else [str(path)]
+            proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
+                                        stdin=None)
 
         # start the process and get transport and protocol for control of it
         self.log.info('starting {}'.format(name))
@@ -737,13 +737,13 @@ class Pilot(object):
         darks = {'name': 'DARKS',
                  'sunalt': 6,
                  'late_sunalt': 0,
-                 'script': os.path.join(SCRIPT_PATH, 'takeBiasesAndDarks.py'),
+                 'script': 'takeBiasesAndDarks.py',
                  'args': [str(params.NUM_DARKS)],
                  }
         # xdarks = {'name': 'XDARKS',
         #           'sunalt': 1,
         #           'late_sunalt': 0,
-        #           'script': os.path.join(SCRIPT_PATH, 'takeExtraDarks.py'),
+        #           'script': 'takeExtraDarks.py',
         #           'args': [],
         #           }
 
@@ -757,13 +757,13 @@ class Pilot(object):
         flats_e = {'name': 'FLATS',
                    'sunalt': -4.5,
                    'late_sunalt': -7,
-                   'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
+                   'script': 'takeFlats.py',
                    'args': ['EVE'],
                    }
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'late_sunalt': None,  # Always autofocus if opening late
-                   'script': os.path.join(SCRIPT_PATH, 'autoFocus.py'),
+                   'script': 'autoFocus.py',
                    'args': ['-n', '1', '-t', '5'],
                    }
 
@@ -777,13 +777,13 @@ class Pilot(object):
         # foc_run = {'name': 'FOCRUN',
         #           'sunalt': -14.5,
         #           'late_sunalt': -13,
-        #           'script': os.path.join(SCRIPT_PATH, 'takeFocusRun.py'),
+        #           'script': 'takeFocusRun.py',
         #           'args': ['1000', '100', 'n'],
         #           }
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'late_sunalt': -7.55,
-                   'script': os.path.join(SCRIPT_PATH, 'takeFlats.py'),
+                   'script': 'takeFlats.py',
                    'args': ['MORN'],
                    }
 
@@ -804,7 +804,6 @@ class Pilot(object):
             name = task['name']
             sunalt = task['sunalt']
             late_sunalt = task['late_sunalt']
-            cmd = [task['script'], *task['args']]
 
             self.log.info('next task: {}'.format(name))
 
@@ -829,12 +828,11 @@ class Pilot(object):
 
             elif self.testing or ignore_late:
                 # wait for each script to finish
-                await self.start_script(name, cmd)
-
+                await self.start_script(name, task['script'], args=task['args'])
             else:
                 # don't wait for script finish, but start each one when the
                 # sun alt says so, cancelling running script if not done
-                asyncio.ensure_future(self.start_script(name, cmd))
+                asyncio.ensure_future(self.start_script(name, task['script'], args=task['args']))
 
             await asyncio.sleep(1)
 
@@ -1039,8 +1037,9 @@ class Pilot(object):
                 self.log.debug('starting pointing {}'.format(self.new_id))
                 mark_running(self.new_id)
 
-                cmd = [os.path.join(SCRIPT_PATH, 'observe.py'), str(self.new_id)]
-                asyncio.ensure_future(self.start_script('OBS', cmd))
+                asyncio.ensure_future(self.start_script('OBS',
+                                                        'observe.py',
+                                                        args=[str(self.new_id)]))
 
                 self.current_start_time = time.time()
                 self.current_id = self.new_id
@@ -1240,8 +1239,7 @@ class Pilot(object):
         """
         # run startup script
         self.log.debug('running startup script')
-        cmd = [os.path.join(SCRIPT_PATH, 'startup.py')]
-        await self.start_script('STARTUP', cmd)
+        await self.start_script('STARTUP', 'startup.py')
 
         # flag that startup has finished
         self.startup_complete = True
@@ -1270,8 +1268,7 @@ class Pilot(object):
 
         # run shutdown script
         self.log.info('running shutdown script')
-        cmd = [os.path.join(SCRIPT_PATH, 'shutdown.py')]
-        await self.start_script('SHUTDOWN', cmd)
+        await self.start_script('SHUTDOWN', 'shutdown.py')
 
         # flag that the shutdown script has been run, by un-flagging startup
         self.startup_complete = False

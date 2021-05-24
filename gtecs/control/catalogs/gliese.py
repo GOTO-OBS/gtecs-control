@@ -1,7 +1,11 @@
 """Gliese 1991 catalog of nearby stars."""
 
-import os
 import warnings
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Python < 3.7
+    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -10,14 +14,7 @@ from astropy.time import Time
 
 import numpy as np
 
-import pkg_resources
-
 from .. import astronomy as ast
-
-
-gtecs_data_dir = pkg_resources.resource_filename('gtecs', 'data')
-gliese_table_path = os.path.join(gtecs_data_dir, 'Gliese91.fit')
-gliese_table = Table.read(gliese_table_path)
 
 
 class GlieseStar(object):
@@ -63,6 +60,9 @@ def focus_star(time):
         the best Gliese Star for focusing
 
     """
+    with pkg_resources.path('gtecs.control.data', 'Gliese91.fit') as path:
+        gliese_table = Table.read(path)
+
     coords = SkyCoord(gliese_table['RAJ2000'], gliese_table['DEJ2000'], unit=(u.hour, u.deg))
     alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     jmag = gliese_table['Jmag']

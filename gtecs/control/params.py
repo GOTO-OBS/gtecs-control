@@ -10,7 +10,7 @@ try:
     import importlib.resources as pkg_resources
 except ImportError:
     # Python < 3.7
-    import importlib_resources as pkg_resources
+    import importlib_resources as pkg_resources  # type: ignore
 
 import validate
 
@@ -66,7 +66,6 @@ else:
 LOG_PATH = os.path.join(FILE_PATH, 'logs')
 QUEUE_PATH = os.path.join(FILE_PATH, 'queue')
 PID_PATH = os.path.join(FILE_PATH, '.pid')
-DAEMON_PATH = pkg_resources.resource_filename('gtecs', 'daemons')
 
 # General parameters
 LOCAL_HOST = config['LOCAL_HOST']
@@ -105,6 +104,8 @@ DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
+    with pkg_resources.path('gtecs.control._daemon_scripts', DAEMONS[daemon_id]['PROCESS']) as path:
+        DAEMONS[daemon_id]['PROCESS_PATH'] = str(path)
 
 UT_DICT = config['UTS']
 # UT IDs should be integers

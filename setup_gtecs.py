@@ -7,14 +7,21 @@ import shutil
 import sys
 import traceback
 
-from gtecs import params
+try:
+    from gtecs.control import params
+    gtecs_installed = True
+except ModuleNotFoundError:
+    gtecs_installed = False
 
-import pkg_resources
 
+print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+print('Setting up package data files')
+print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
-print('~~~~~~~~~~~~~~~~~~~~~~')
-print('Setting up G-TeCS')
-print('~~~~~~~~~~~~~~~~~~~~~~')
+# Check the package has been installed
+if not gtecs_installed:
+    print('ERROR: Package not installed, run `pip3 install . --user first')
+    sys.exit(1)
 
 # Check for configuration file
 if params.CONFIG_FILE_PATH is None:
@@ -41,7 +48,8 @@ try:
     for direc in direcs:
         if not os.path.exists(direc):
             os.mkdir(direc)
-        print('Created ', direc)
+            print('Created', direc)
+        print('Checked', direc)
 except Exception:
     print('ERROR: Failed to create directories')
     print('       Try creating {} yourself then re-running this script'.format(params.FILE_PATH))
@@ -49,19 +57,32 @@ except Exception:
     sys.exit(1)
 print('')
 
-# Find package data files
-data_dir = pkg_resources.resource_filename('gtecs', 'data')
-files = glob.glob(os.path.join(data_dir, '*[!.fit][!html]'))
-
-# Copy files to the new directory
+# Copy sample data files to the new directory
 try:
-    for data_file in files:
-        shutil.copy(data_file, os.path.join(params.FILE_PATH, data_file.split('/')[-1]))
-        print('Created ', data_file)
+    files = glob.glob('data/*')
+    for file in sorted(files):
+        new_path = os.path.join(params.FILE_PATH, os.path.basename(file))
+        if not os.path.exists(new_path):
+            shutil.copy(file, new_path)
+            print('Copied', file, 'to', params.FILE_PATH)
+        else:
+            print('Ignored existing', new_path)
+
+    subdirs = glob.glob('data/*/')
+    for subdir in subdirs:
+        files = glob.glob(subdir + '/*')
+        for file in sorted(files):
+            new_path = os.path.join(params.FILE_PATH, subdir.split('/')[1], os.path.basename(file))
+            if not os.path.exists(new_path):
+                shutil.copy(file, new_path)
+                print('Copied', file, 'to', params.FILE_PATH)
+            else:
+                print('Ignored existing', new_path)
 except Exception:
     print('ERROR: Failed to copy data files')
     traceback.print_exc()
     sys.exit(1)
+
 print('')
 
 print('Setup complete!')
