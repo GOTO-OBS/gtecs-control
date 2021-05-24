@@ -5,7 +5,7 @@ import traceback
 
 from astropy.utils.data import clear_download_cache, download_file
 
-from gtecs import params
+from gtecs.control import params
 
 
 def run():

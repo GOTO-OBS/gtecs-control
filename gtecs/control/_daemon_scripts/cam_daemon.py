@@ -8,12 +8,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 from astropy.time import Time
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon, daemon_proxy
-from gtecs.exposures import Exposure
-from gtecs.fits import clear_glance_files, get_all_info, glance_location, image_location, write_fits
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.exposures import Exposure
+from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
+                                image_location, write_fits)
 
 
 class CamDaemon(BaseDaemon):

@@ -70,7 +70,7 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, region=None, verbose=
     verbose : bool, default=True
         if False, supress printout
 
-    For other parameters see `gtecs.analysis.extract_image_sources()`
+    For other parameters see `gtecs.control.analysis.extract_image_sources()`
 
     Returns
     -------
@@ -109,7 +109,7 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
     verbose : bool, default=True
         if False, supress printout
 
-    For other parameters see `gtecs.analysis.extract_image_sources()`
+    For other parameters see `gtecs.control.analysis.extract_image_sources()`
 
     Returns
     -------

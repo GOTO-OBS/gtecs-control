@@ -9,13 +9,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 from astropy.time import Time
 
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon
-from gtecs.hardware.asa import FakeH400, H400
-from gtecs.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
-from gtecs.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
-from gtecs.hardware.rasa import FocusLynxHub
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.hardware.asa import FakeH400, H400
+from gtecs.control.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
+from gtecs.control.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
+from gtecs.control.hardware.rasa import FocusLynxHub
 
 
 class UTInterfaceDaemon(BaseDaemon):

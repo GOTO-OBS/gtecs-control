@@ -1087,8 +1087,8 @@ def get_image_data(run_number=None, direc=None, uts=None):
         the run number of the files to open
         if None (and glance=False), open the latest images from `direc`
     direc : string, default=None
-        the file directory to load images from within `gtecs.params.IMAGE_PATH`
-        if None, use the date from `gtecs.astronomy.night_startdate`
+        the file directory to load images from within `gtecs.control.params.IMAGE_PATH`
+        if None, use the date from `gtecs.control.astronomy.night_startdate`
     uts : list of ints, default=None
         the UTs to read the files of
         if None, open files from all UTs

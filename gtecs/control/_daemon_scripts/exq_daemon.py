@@ -7,11 +7,11 @@ import time
 
 from astropy.time import Time
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon, daemon_proxy
-from gtecs.exposures import Exposure, ExposureQueue
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.exposures import Exposure, ExposureQueue
 
 
 class ExqDaemon(BaseDaemon):

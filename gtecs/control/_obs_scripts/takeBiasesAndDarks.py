@@ -3,8 +3,8 @@
 
 from argparse import ArgumentParser
 
-from gtecs.misc import execute_command
-from gtecs.observing import prepare_for_images, wait_for_exposure_queue
+from gtecs.control.misc import execute_command
+from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
 
 
 def run(nexp=5):

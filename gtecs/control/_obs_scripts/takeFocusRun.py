@@ -13,12 +13,12 @@ from argparse import ArgumentParser, ArgumentTypeError
 
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.catalogs import focus_star
-from gtecs.focusing import get_best_focus_position, measure_focus
-from gtecs.misc import NeatCloser
-from gtecs.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
-                             set_focuser_positions, slew_to_radec)
+from gtecs.control import params
+from gtecs.control.catalogs import focus_star
+from gtecs.control.focusing import get_best_focus_position, measure_focus
+from gtecs.control.misc import NeatCloser
+from gtecs.control.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
+                                     set_focuser_positions, slew_to_radec)
 
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection

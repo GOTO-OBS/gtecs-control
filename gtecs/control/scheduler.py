@@ -554,7 +554,7 @@ def check_queue(time=None, location=None, horizon=None,
 
     location : `~astropy.coordinates.EarthLocation`, optional
         The location of the observer on Earth.
-        Default is `gtecs.astronomy.observatory_location()`.
+        Default is `gtecs.control.astronomy.observatory_location()`.
 
     horizon : float, or tuple of (azs, alts), optional
         The horizon limits at the given site, either a flat value or varying with azimuth.

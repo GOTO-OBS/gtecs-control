@@ -8,13 +8,13 @@ import astropy.units as u
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.time import Time
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.astronomy import (altaz_from_radec, above_elevation_limit, get_ha, observatory_location,
-                             radec_from_altaz)
-from gtecs.daemons import BaseDaemon
-from gtecs.hardware.sitech import SiTech
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, get_ha,
+                                     observatory_location, radec_from_altaz)
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.hardware.sitech import SiTech
 
 
 class MntDaemon(BaseDaemon):

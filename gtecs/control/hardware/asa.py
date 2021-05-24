@@ -10,7 +10,7 @@ class H400(object):
     """ASA H400 gateway controller class, for focusers and mirror covers.
 
     Some of the methods and properties are named oddly, but that's because they're based on
-    the USBFocuser class from FLI-API (see also `gtecs.hardware.rasa.FocusLynx`).
+    the USBFocuser class from FLI-API (see also `gtecs.control.hardware.rasa.FocusLynx()`).
     """
 
     # Serial command codes and addresses

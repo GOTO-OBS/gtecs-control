@@ -6,11 +6,11 @@ import time
 
 from astropy.time import Time
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon, daemon_proxy
-from gtecs.observing import get_internal_conditions
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.observing import get_internal_conditions
 
 
 class FocDaemon(BaseDaemon):

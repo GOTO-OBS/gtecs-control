@@ -19,7 +19,7 @@ from .flags import Conditions, Status
 
 
 def send_slack_msg(text, attachments=None, blocks=None, filepath=None, channel=None):
-    """Send a message to Slack, using the settings defined in `gtecs.params`.
+    """Send a message to Slack, using the settings defined in `gtecs.control.params`.
 
     Parameters
     ----------
@@ -40,7 +40,7 @@ def send_slack_msg(text, attachments=None, blocks=None, filepath=None, channel=N
 
     channel : string, optional
         The channel to post the message to.
-        If None, defaults to `gtecs.params.SLACK_DEFAULT_CHANNEL`.
+        If None, defaults to `gtecs.control.params.SLACK_DEFAULT_CHANNEL`.
 
     """
     if channel is None:

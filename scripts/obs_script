@@ -8,7 +8,7 @@ except ImportError:
     # Python < 3.7
     import importlib_resources as pkg_resources  # type: ignore
 
-from gtecs import misc
+from gtecs.control import misc
 
 
 SCRIPT_NAMES = sorted([f for f in pkg_resources.contents('gtecs.control._obs_scripts')

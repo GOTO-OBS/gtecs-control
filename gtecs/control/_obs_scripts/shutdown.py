@@ -12,9 +12,9 @@ This script should perform the following simple tasks:
 
 import time
 
-from gtecs.misc import execute_command
-from gtecs.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
-from gtecs.slack import send_slack_msg
+from gtecs.control.misc import execute_command
+from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
+from gtecs.control.slack import send_slack_msg
 
 
 def run():

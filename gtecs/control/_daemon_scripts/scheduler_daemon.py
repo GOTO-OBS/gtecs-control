@@ -6,11 +6,11 @@ import time
 
 from astropy.time import Time
 
-from gtecs import misc
-from gtecs import params
-from gtecs.astronomy import above_horizon, get_horizon, observatory_location
-from gtecs.daemons import BaseDaemon
-from gtecs.scheduler import check_queue
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.astronomy import above_horizon, get_horizon, observatory_location
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.scheduler import check_queue
 
 
 class SchedulerDaemon(BaseDaemon):
@@ -138,9 +138,9 @@ class SchedulerDaemon(BaseDaemon):
         ----------
         horizon : 'low' or 'high', default='low'
             Flag to chose the active horizon file.
-                - 'low' reads `gtecs.params.HORIZON_FILE`, and is the default
-                - 'high' reads `gtecs.params.HORIZON_SHIELDING_FILE`, and is used if the dome
-                        windshielding is active (reducing the available sky)
+                - 'low' reads `gtecs.control.params.HORIZON_FILE`, and is the default
+                - 'high' reads `gtecs.control.params.HORIZON_SHIELDING_FILE`, and is used if
+                        the dome windshielding is active (reducing the available sky)
 
         force_update : bool, default=False
             If True force the scheduler to recalculate at the current time.

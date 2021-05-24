@@ -3,7 +3,7 @@
 
 import time
 
-from gtecs import monitors
+from gtecs.control import monitors
 
 
 def check_hardware(hardware):

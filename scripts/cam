@@ -4,10 +4,10 @@
 import os
 import sys
 
-from gtecs import daemons
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
+from gtecs.control import daemons
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
 
 
 DAEMON_ID = os.path.basename(__file__)

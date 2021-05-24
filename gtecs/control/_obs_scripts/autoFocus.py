@@ -18,12 +18,12 @@ from argparse import ArgumentParser
 
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.catalogs import focus_star
-from gtecs.focusing import get_best_focus_position, get_hfd_position, measure_focus
-from gtecs.misc import NeatCloser
-from gtecs.observing import (get_focuser_positions, prepare_for_images, set_focuser_positions,
-                             slew_to_radec)
+from gtecs.control import params
+from gtecs.control.catalogs import focus_star
+from gtecs.control.focusing import get_best_focus_position, get_hfd_position, measure_focus
+from gtecs.control.misc import NeatCloser
+from gtecs.control.observing import (get_focuser_positions, prepare_for_images,
+                                     set_focuser_positions, slew_to_radec)
 
 import numpy as np
 
@@ -326,7 +326,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', no_slew=False):
         # Send Slack report
         print('~~~~~~')
         print('Sending best focus measurements to Slack...')
-        from gtecs.slack import send_slack_msg
+        from gtecs.control.slack import send_slack_msg
         s = '*Autofocus results*\n'
         s += 'Focus data at final position:\n'
         s += '```' + repr(foc_data.round(1)) + '```\n'

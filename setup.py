@@ -1,4 +1,4 @@
-"""Setup script for the gtecs package."""
+"""Setup script for the gtecs-control package."""
 import glob
 
 from setuptools import setup, find_namespace_packages

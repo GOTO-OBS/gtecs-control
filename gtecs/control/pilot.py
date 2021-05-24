@@ -624,7 +624,7 @@ class Pilot(object):
             The Python script to execute.
         args : list, optional
             Arguments to the script.
-        protocol : `gtecs.pilot.TaskProtocol`, optional
+        protocol : `gtecs.control.pilot.TaskProtocol`, optional
             Protocol used to process output from Process
             Default is `LoggedProtocol`
 

@@ -9,7 +9,7 @@ import sys
 import astropy.units as u
 from astropy.time import Time
 
-from gtecs import scheduler
+from gtecs.control import scheduler
 
 
 if __name__ == '__main__':

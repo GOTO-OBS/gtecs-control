@@ -6,11 +6,11 @@ import time
 
 from astropy.time import Time
 
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon
-from gtecs.hardware.power import APCPDU, APCUPS, ETH8020
-from gtecs.hardware.power import FakePDU, FakeUPS
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.hardware.power import APCPDU, APCUPS, ETH8020
+from gtecs.control.hardware.power import FakePDU, FakeUPS
 
 
 class PowerDaemon(BaseDaemon):

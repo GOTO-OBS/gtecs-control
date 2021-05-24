@@ -8,12 +8,12 @@ import time
 
 from astropy.time import Time
 
-from gtecs import conditions
-from gtecs import misc
-from gtecs import params
-from gtecs.astronomy import get_sunalt
-from gtecs.daemons import BaseDaemon
-from gtecs.slack import send_slack_msg
+from gtecs.control import conditions
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.astronomy import get_sunalt
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.slack import send_slack_msg
 
 import numpy as np
 

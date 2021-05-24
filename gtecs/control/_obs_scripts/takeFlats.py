@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """Script to take flat frames in the morning or evening."""
 
-import sys
 import time
 from argparse import ArgumentParser
 
 from astropy import units as u
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.astronomy import night_startdate, sunalt_time
-from gtecs.catalogs import antisun_flat, exposure_sequence, extrapolate_from_filters
-from gtecs.observing import (get_analysis_image, get_mount_position,
-                             prepare_for_images, slew_to_radec)
+from gtecs.control import params
+from gtecs.control.astronomy import night_startdate, sunalt_time
+from gtecs.control.catalogs import antisun_flat, exposure_sequence, extrapolate_from_filters
+from gtecs.control.observing import (get_analysis_image, get_mount_position,
+                                     prepare_for_images, slew_to_radec)
 
 import numpy as np
 

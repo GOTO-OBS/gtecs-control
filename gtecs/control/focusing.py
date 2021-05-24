@@ -53,7 +53,8 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         UTs to measure focus for.
     regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
         image region(s) to measure the focus within
-        if None then use the default central region from `gtecs.analysis.extract_image_sources()`
+        if None then use the default central region from
+        `gtecs.control.analysis.extract_image_sources()`
 
     Returns
     -------

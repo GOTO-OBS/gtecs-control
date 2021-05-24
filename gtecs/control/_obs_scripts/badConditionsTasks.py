@@ -4,8 +4,8 @@
 import time
 from argparse import ArgumentParser
 
-from gtecs.misc import execute_command
-from gtecs.observing import prepare_for_images, slew_to_altaz, wait_for_exposure_queue
+from gtecs.control.misc import execute_command
+from gtecs.control.observing import prepare_for_images, slew_to_altaz, wait_for_exposure_queue
 
 
 def run(nexp=3):

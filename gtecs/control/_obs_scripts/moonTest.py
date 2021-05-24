@@ -5,8 +5,8 @@ import sys
 
 from astropy.time import Time
 
-from gtecs.astronomy import get_moon_distance, radec_from_altaz
-from gtecs.observing import (prepare_for_images, slew_to_radec, take_image_set)
+from gtecs.control.astronomy import get_moon_distance, radec_from_altaz
+from gtecs.control.observing import (prepare_for_images, slew_to_radec, take_image_set)
 
 
 def run():

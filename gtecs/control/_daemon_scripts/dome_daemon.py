@@ -6,15 +6,15 @@ import time
 
 from astropy.time import Time
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.daemons import BaseDaemon
-from gtecs.flags import Conditions, Status
-from gtecs.hardware.dome import AstroHavenDome, Dehumidifier
-from gtecs.hardware.dome import FakeDehumidifier, FakeDome
-from gtecs.observing import get_conditions
-from gtecs.slack import send_slack_msg
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.daemons import BaseDaemon
+from gtecs.control.flags import Conditions, Status
+from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier
+from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome
+from gtecs.control.observing import get_conditions
+from gtecs.control.slack import send_slack_msg
 
 import numpy as np
 

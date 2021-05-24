@@ -12,9 +12,9 @@ These are hardware tasks to do BEFORE the dome opens:
 
 import time
 
-from gtecs import params
-from gtecs.misc import execute_command
-from gtecs.observing import cameras_are_cool, filters_are_homed, focusers_are_set
+from gtecs.control import params
+from gtecs.control.misc import execute_command
+from gtecs.control.observing import cameras_are_cool, filters_are_homed, focusers_are_set
 
 
 def run():

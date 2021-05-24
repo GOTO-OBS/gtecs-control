@@ -6,9 +6,9 @@ from argparse import ArgumentParser
 
 from astropy.time import Time
 
-from gtecs import params
-from gtecs.astronomy import get_moon_distance, radec_from_altaz
-from gtecs.observing import prepare_for_images, slew_to_radec, take_image_set
+from gtecs.control import params
+from gtecs.control.astronomy import get_moon_distance, radec_from_altaz
+from gtecs.control.observing import prepare_for_images, slew_to_radec, take_image_set
 
 
 def run(n_alt, n_az, num_exp, exp_list, filt, min_moonsep):
