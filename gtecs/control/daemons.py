@@ -4,10 +4,11 @@ import os
 import time
 from abc import ABC, abstractmethod
 
+from gtecs.common.logging import get_logger
+
 import Pyro4
 
 from . import errors
-from . import logger
 from . import misc
 from . import params
 
@@ -67,9 +68,9 @@ class BaseDaemon(ABC):
         self.bad_hardware = set()
 
         # set up logfile
-        self.log = logger.get_logger(self.daemon_id,
-                                     log_to_file=params.FILE_LOGGING,
-                                     log_to_stdout=params.STDOUT_LOGGING)
+        self.log = get_logger(self.daemon_id, params.LOG_PATH,
+                              log_to_file=params.FILE_LOGGING,
+                              log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Daemon created')
 
     # Primary control thread

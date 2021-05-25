@@ -14,9 +14,9 @@ except ImportError:
 from astropy import units as u
 from astropy.time import Time
 
+from gtecs.common.logging import get_logger
 from gtecs.obs.database import mark_aborted, mark_completed, mark_interrupted, mark_running
 
-from . import logger
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
@@ -65,7 +65,7 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         self.done = done
         self.debug = debug
         self.buffer = bytearray()
-        self.log = logger.get_logger(log_name)
+        self.log = get_logger(log_name, params.LOG_PATH)
         super().__init__()
 
     def connection_made(self, transport):
@@ -191,10 +191,10 @@ class Pilot(object):
 
     def __init__(self, testing=False):
         # get a logger for the pilot
-        self.log = logger.get_logger('pilot',
-                                     log_stdout=True,
-                                     log_to_file=params.FILE_LOGGING,
-                                     log_to_stdout=params.STDOUT_LOGGING)
+        self.log = get_logger('pilot', params.LOG_PATH,
+                              log_stdout=True,
+                              log_to_file=params.FILE_LOGGING,
+                              log_to_stdout=params.STDOUT_LOGGING)
         self.log.info('Pilot started')
 
         # flag for daytime testing
