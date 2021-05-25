@@ -52,7 +52,7 @@ try:
         print('Checked', direc)
 except Exception:
     print('ERROR: Failed to create directories')
-    print('       Try creating {} yourself then re-running this script'.format(params.FILE_PATH))
+    print('       Try creating {} yourself then re-running this script'.format(direc))
     traceback.print_exc()
     sys.exit(1)
 print('')
@@ -60,7 +60,7 @@ print('')
 # Copy sample data files to the new directory
 try:
     files = glob.glob('data/*')
-    for file in sorted(files):
+    for file in sorted([f for f in files if os.path.isfile(f)]):
         new_path = os.path.join(params.FILE_PATH, os.path.basename(file))
         if not os.path.exists(new_path):
             shutil.copy(file, new_path)
@@ -71,7 +71,7 @@ try:
     subdirs = glob.glob('data/*/')
     for subdir in subdirs:
         files = glob.glob(subdir + '/*')
-        for file in sorted(files):
+        for file in sorted([f for f in files if os.path.isfile(f)]):
             new_path = os.path.join(params.FILE_PATH, subdir.split('/')[1], os.path.basename(file))
             if not os.path.exists(new_path):
                 shutil.copy(file, new_path)
@@ -82,7 +82,6 @@ except Exception:
     print('ERROR: Failed to copy data files')
     traceback.print_exc()
     sys.exit(1)
-
 print('')
 
 print('Setup complete!')
