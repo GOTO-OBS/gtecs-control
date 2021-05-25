@@ -12,7 +12,7 @@ from astropy.coordinates import Angle
 from astropy.io import fits
 from astropy.time import Time
 
-import obsdb as db
+from gtecs.obs import database as db
 
 from . import astronomy
 from . import misc

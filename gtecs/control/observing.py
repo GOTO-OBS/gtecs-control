@@ -6,7 +6,7 @@ from astropy.time import Time
 
 import numpy as np
 
-from obsdb import get_pointing_by_id, open_session
+from gtecs.obs.database import get_pointing_by_id, open_session
 
 from . import params
 from .astronomy import above_elevation_limit, radec_from_altaz

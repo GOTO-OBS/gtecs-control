@@ -9,7 +9,7 @@ from astropy.time import Time
 
 import json
 
-import obsdb as db
+from gtecs.obs import database as db
 
 import requests
 

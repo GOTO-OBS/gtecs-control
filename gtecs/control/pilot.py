@@ -14,7 +14,7 @@ except ImportError:
 from astropy import units as u
 from astropy.time import Time
 
-from obsdb import mark_aborted, mark_completed, mark_interrupted, mark_running
+from gtecs.obs.database import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from . import logger
 from . import monitors

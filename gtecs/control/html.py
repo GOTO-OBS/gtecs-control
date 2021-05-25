@@ -8,7 +8,7 @@ from astroplan.moon import moon_illumination
 from astropy import coordinates as coord, units as u
 from astropy.time import Time
 
-import obsdb as db
+from gtecs.obs import database as db
 
 from . import astronomy
 from . import params

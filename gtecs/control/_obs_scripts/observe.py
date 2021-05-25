@@ -10,7 +10,8 @@ from gtecs.control.misc import NeatCloser, execute_command, ut_mask_to_string, u
 from gtecs.control.observing import (prepare_for_images, slew_to_radec, wait_for_exposure_queue,
                                      wait_for_mount)
 
-from obsdb import get_pointing_by_id, mark_aborted, mark_completed, mark_running, open_session
+from gtecs.obs.database import (get_pointing_by_id, mark_aborted, mark_completed, mark_running,
+                                open_session)
 
 
 class AbortPointingCloser(NeatCloser):
