@@ -362,6 +362,7 @@ LOCAL_IVO = config['LOCAL_IVO']
 VOSERVER_HOST = config['VOSERVER_HOST']
 VOSERVER_PORT = config['VOSERVER_PORT']
 SENTINEL_SEND_MESSAGES = config['SENTINEL_SEND_MESSAGES']
+SENTINEL_SLACK_CHANNEL = config['SENTINEL_SLACK_CHANNEL']
 
 ############################################################
 # Obs script parameters
