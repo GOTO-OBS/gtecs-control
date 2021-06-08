@@ -25,15 +25,15 @@ if not gtecs_installed:
 
 # Check for configuration file
 if params.CONFIG_FILE_PATH is None:
-    print('ERROR: No .gtecs.conf file found')
+    print('ERROR: No {} file found'.format(params.CONFIG_FILE))
     sys.exit(1)
-print('Using config file {}/.gtecs.conf'.format(params.CONFIG_FILE_PATH))
+print('Found {} file at {}'.format(params.CONFIG_FILE, params.CONFIG_FILE_PATH))
 print('')
 
 # Check file path is set
 if params.FILE_PATH in ['/path/goes/here/', 'path_not_set', None]:
     print('ERROR: FILE_PATH not set')
-    print('       You need to edit .gtecs.conf')
+    print('       You need to edit the sample config file')
     sys.exit(1)
 print('FILE_PATH is set to: "{}"'.format(params.FILE_PATH))
 print('')
