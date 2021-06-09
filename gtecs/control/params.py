@@ -1,62 +1,30 @@
 """Package parameters."""
 
 import os
-import sys
 
-import configobj
+from gtecs.common.package import load_config, get_package_version
 
-from importlib.metadata import version
 try:
     import importlib.resources as pkg_resources
 except ImportError:
     # Python < 3.7
     import importlib_resources as pkg_resources  # type: ignore
 
-import validate
 
-
-# Load configspec file for default configuration
-CONFIGSPEC = pkg_resources.read_text('gtecs.control.data', 'configspec.ini').split('\n')
-config = configobj.ConfigObj({}, configspec=CONFIGSPEC)
-
-# Try to find the config file, look in the home directory and
-# anywhere specified by GTECS_CONF environment variable
-CONFIG_FILE = '.gtecs.conf'
-home = os.path.expanduser('~')
-paths = [home, os.path.join(home, 'gtecs'), os.path.join(home, '.gtecs')]
-if 'GTECS_CONF' in os.environ:
-    paths.append(os.environ['GTECS_CONF'])
-
-# Load the config file as a ConfigObj
-CONFIG_FILE_PATH = None
-for loc in paths:
-    try:
-        with open(os.path.join(loc, CONFIG_FILE)) as source:
-            config = configobj.ConfigObj(source, configspec=CONFIGSPEC)
-            CONFIG_FILE_PATH = loc
-    except IOError:
-        pass
-
-# Validate ConfigObj, filling defaults from configspec if missing from config file
-validator = validate.Validator()
-result = config.validate(validator)
-if result is not True:
-    print('Config file validation failed')
-    print([k for k in result if not result[k]])
-    sys.exit(1)
+############################################################
+# Load and validate config file
+config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.control.conf'])
 
 ############################################################
 # Module parameters
-VERSION = version('gtecs-control')
+VERSION = get_package_version('control')
 
 # File locations
 FILE_PATH = config['FILE_PATH']
 if FILE_PATH in ['path_not_set', '/path/goes/here/']:
-    raise ValueError('FILE_PATH not set, check your {} file'.format(CONFIG_FILE))
-
-if config['IMAGE_PATH'] != 'path_not_set':
-    IMAGE_PATH = config['IMAGE_PATH']
-else:
+    raise ValueError('FILE_PATH not set, check config file ({})'.format(CONFIG_FILE))
+IMAGE_PATH = config['IMAGE_PATH']
+if config['IMAGE_PATH'] in ['path_not_set', '/path/goes/here/']:
     IMAGE_PATH = os.path.join(FILE_PATH, 'images')
 LOG_PATH = os.path.join(FILE_PATH, 'logs')
 QUEUE_PATH = os.path.join(FILE_PATH, 'queue')
