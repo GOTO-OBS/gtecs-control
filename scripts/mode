@@ -3,9 +3,9 @@
 
 import sys
 
-from gtecs import flags
-from gtecs import style
-from gtecs.slack import send_slack_msg
+from gtecs.control import flags
+from gtecs.control import style
+from gtecs.control.slack import send_slack_msg
 
 status = flags.Status()
 

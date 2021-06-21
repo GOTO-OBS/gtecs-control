@@ -8,14 +8,14 @@ import time
 import astropy.units as u
 from astropy.time import Time
 
-from gtecs import logger
-from gtecs import params
-from gtecs.astronomy import night_startdate, sunalt_time
-from gtecs.daemons import daemon_info
-from gtecs.flags import Status
-from gtecs.misc import execute_command, get_pid, make_pid_file
-from gtecs.observing import wait_for_dome
-from gtecs.slack import send_slack_msg, send_dome_report, send_observation_report
+from gtecs.common.logging import get_logger
+from gtecs.control import params
+from gtecs.control.astronomy import night_startdate, sunalt_time
+from gtecs.control.daemons import daemon_info
+from gtecs.control.flags import Status
+from gtecs.control.misc import execute_command, get_pid, make_pid_file
+from gtecs.control.observing import wait_for_dome
+from gtecs.control.slack import send_slack_msg, send_dome_report, send_observation_report
 
 import numpy as np
 
@@ -23,7 +23,11 @@ import numpy as np
 def run(test=False):
     """Run morning safety checks."""
     # Log output
-    log = logger.get_logger('daymarshal', log_to_file=False, log_to_stdout=True, log_stdout=True)
+    log = get_logger('daymarshal', params.LOG_PATH,
+                     log_to_file=False,
+                     log_to_stdout=True,
+                     log_stdout=True,
+                     )
 
     # Get the current night starting date and time of sunrise
     date = night_startdate()
@@ -98,7 +102,7 @@ def run(test=False):
     for host in hosts:
         log.info('Updating IERS tables on {}'.format(host))
         # Run the command through Python, so we can do it on the remote machines
-        command = '{} -m gtecs.observing_scripts.update_IERS'.format(sys.executable)
+        command = '{} -m gtecs.control._obs_scripts.update_IERS'.format(sys.executable)
         if host == params.LOCAL_HOST:
             execute_command(command, timeout=120)
         else:

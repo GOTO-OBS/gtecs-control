@@ -5,12 +5,12 @@ import argparse
 import os
 import sys
 
-from gtecs import errors
-from gtecs import misc
-from gtecs import params
-from gtecs.flags import Status
-from gtecs.pilot import run
-from gtecs.slack import send_slack_msg
+from gtecs.control import errors
+from gtecs.control import misc
+from gtecs.control import params
+from gtecs.control.flags import Status
+from gtecs.control.pilot import run
+from gtecs.control.slack import send_slack_msg
 
 
 def query(command, args):

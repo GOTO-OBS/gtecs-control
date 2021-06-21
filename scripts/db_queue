@@ -8,9 +8,9 @@ from astroplan import Observer
 from astropy import units as u
 from astropy.time import Time
 
-from gtecs import astronomy
-from gtecs.scheduler import PointingQueue
-from gtecs.style import boldtxt, gtxt, rtxt, ytxt
+from gtecs.control import astronomy
+from gtecs.control.scheduler import PointingQueue
+from gtecs.control.style import boldtxt, gtxt, rtxt, ytxt
 
 
 def run(time, limit):

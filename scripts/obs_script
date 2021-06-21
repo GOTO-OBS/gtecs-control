@@ -1,53 +1,51 @@
 #!/usr/bin/env python3
 """A script to make it easier for users to run observation scripts."""
 
-import os
 import sys
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Python < 3.7
+    import importlib_resources as pkg_resources  # type: ignore
 
-from gtecs import misc
-
-import pkg_resources
+from gtecs.control import misc
 
 
-SCRIPT_PATH = pkg_resources.resource_filename('gtecs', 'observing_scripts')
-
-SCRIPT_NAMES = [os.path.splitext(f)[0]
-                for f in os.listdir(SCRIPT_PATH)
-                if not f.startswith('__')]
+SCRIPT_NAMES = sorted([f for f in pkg_resources.contents('gtecs.control._obs_scripts')
+                       if not f.startswith('__')])
 
 
 def query(script, args):
     """Process a query."""
+    if not script.endswith('.py'):
+        script += '.py'
     if script not in sorted(SCRIPT_NAMES):
         print('ERROR: "{}" script not found'.format(script))
         print_instructions()
     else:
-        for name in sorted(SCRIPT_NAMES):
-            pid = misc.get_pid(name)
+        for s in sorted(SCRIPT_NAMES):
+            pid = misc.get_pid(s.split('.')[0])
             if pid:
-                print('An observing script ({}) is already running (PID {})'.format(name, pid))
+                print('An observing script ({}) is already running (PID {})'.format(s, pid))
                 return
-
-        with misc.make_pid_file(script):
-            script_file = '{}/{}.py'.format(SCRIPT_PATH, script)
-            command = ' '.join((sys.executable, script_file, *args))
-            misc.execute_long_command(command)
+        with misc.make_pid_file(script.split('.')[0]):
+            with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
+                command = ' '.join((sys.executable, str(path), *args))
+                misc.execute_long_command(command)
 
 
 def print_instructions():
     """Print instructions for using the script."""
     script_docs = {}
     for script in SCRIPT_NAMES:
-        script_file = script + '.py'
-        script_path = os.path.join(SCRIPT_PATH, script_file)
-        with open(script_path) as f:
+        with pkg_resources.open_text('gtecs.control._obs_scripts', script) as f:
             lines = f.readlines()
             script_docs[script] = lines[1].strip().replace('"', '')
 
     print('Usage: obs_script <script name> [args]')
     print('Valid observing scripts:')
     for script in sorted(SCRIPT_NAMES):
-        print('  {}'.format(script))
+        print('  {}'.format(script.split('.')[0]))
         print('      - {}'.format(script_docs[script]))
 
 
