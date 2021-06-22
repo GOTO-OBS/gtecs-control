@@ -11,6 +11,15 @@ class H400(object):
 
     Some of the methods and properties are named oddly, but that's because they're based on
     the USBFocuser class from FLI-API (see also `gtecs.control.hardware.rasa.FocusLynx()`).
+
+    Parameters
+    ----------
+    port : str
+        Device location (e.g. '/dev/ttyUSB0')
+
+    serial_number : str, optional
+        serial string to associate with this telescope
+        default is 'unknown'
     """
 
     # Serial command codes and addresses
@@ -57,7 +66,7 @@ class H400(object):
                           3: 'ERROR',
                           }
 
-    def __init__(self, port, serial_number):
+    def __init__(self, port, serial_number='unknown'):
         self._stored_info = None
         self._info_delay = 1
 
@@ -89,7 +98,7 @@ class H400(object):
             pass
 
     @classmethod
-    def locate_device(cls, port, serial_number):
+    def locate_device(cls, port, serial_number='unknown'):
         """Locate the focuser by port."""
         try:
             return cls(port, serial_number)
@@ -284,9 +293,19 @@ class H400(object):
 
 
 class FakeH400(object):
-    """Fake ASA H400 gateway controller class, for testing."""
+    """Fake ASA H400 gateway controller class, for testing.
 
-    def __init__(self, port, serial_number):
+    Parameters
+    ----------
+    port : str
+        Device location (e.g. '/dev/ttyUSB0')
+
+    serial_number : str, optional
+        serial string to associate with this telescope
+        default is 'unknown'
+    """
+
+    def __init__(self, port, serial_number='unknown'):
         self.fake = True
 
         self.port = port
